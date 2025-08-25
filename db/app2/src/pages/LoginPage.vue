@@ -15,7 +15,7 @@
             <!-- Database Selection -->
             <div>
               <label class="text-weight-medium text-grey-8 q-mb-xs block"> Database </label>
-              <q-select v-model="formData.database" :options="databaseOptions" option-value="value" option-label="label" outlined dense :rules="[(val) => !!val || 'Please select a database']">
+              <q-select v-model="formData.database" :options="databaseOptions" option-value="value" option-label="label" outlined dense :rules="[(val) => !!val || 'Please select a database']" data-cy="login-database">
                 <template v-slot:prepend>
                   <q-icon name="storage" />
                 </template>
@@ -42,7 +42,7 @@
             <!-- Username -->
             <div>
               <label class="text-weight-medium text-grey-8 q-mb-xs block"> Username </label>
-              <q-input v-model="formData.username" outlined dense placeholder="Enter your username" :rules="[(val) => !!val || 'Username is required']" lazy-rules>
+              <q-input v-model="formData.username" outlined dense placeholder="Enter your username" :rules="[(val) => !!val || 'Username is required']" lazy-rules data-cy="login-username">
                 <template v-slot:prepend>
                   <q-icon name="person" />
                 </template>
@@ -60,6 +60,7 @@
                 placeholder="Enter your password"
                 :rules="[(val) => !!val || 'Password is required']"
                 lazy-rules
+                data-cy="login-password"
               >
                 <template v-slot:prepend>
                   <q-icon name="lock" />
@@ -93,7 +94,7 @@
             </q-banner>
 
             <!-- Submit Button -->
-            <q-btn type="submit" color="primary" class="full-width q-mt-lg" size="lg" unelevated :loading="loading" label="Login" />
+            <q-btn type="submit" color="primary" class="full-width q-mt-lg" size="lg" unelevated :loading="loading" label="Login" data-cy="login-submit" />
           </q-form>
         </q-card-section>
       </q-card>

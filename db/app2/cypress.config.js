@@ -2,8 +2,7 @@ import { defineConfig } from 'cypress'
 
 export default defineConfig({
   e2e: {
-    // For Electron testing, use a local HTTP server
-    baseUrl: 'http://localhost:8080',
+    // For TRUE Electron testing, no baseUrl needed - Cypress launches the Electron app directly
     
     // Specs pattern
     specPattern: 'tests/cypress/e2e/**/*.cy.{js,jsx,ts,tsx}',
@@ -70,30 +69,33 @@ export default defineConfig({
         }
       })
       
-      // Browser launch options for Electron
+      // Browser launch options for TRUE Electron mode
       on('before:browser:launch', (browser, launchOptions) => {
         if (browser.name === 'electron') {
-          // Configure Cypress to launch our Quasar Electron app
+          console.log('🚀 Configuring Cypress for TRUE Electron mode...')
+          
+          // Point to our built Electron executable - THIS IS THE KEY
+          const electronAppPath = './dist/electron/Packaged/Best - Scientific DB Manager-linux-arm64/Best - Scientific DB Manager'
+          console.log('📱 Electron app path:', electronAppPath)
+          
+          // CRITICAL: Set the binary to launch our Electron app
+          launchOptions.args = [electronAppPath]
+          
+          // Configure Electron args
           launchOptions.args.push('--disable-dev-shm-usage')
-          launchOptions.args.push('--no-sandbox')
+          launchOptions.args.push('--no-sandbox') 
           launchOptions.args.push('--disable-gpu')
-          launchOptions.args.push('--disable-software-rasterizer')
           launchOptions.args.push('--disable-web-security')
           
-          // Point to our built Electron app
-          launchOptions.env = {
-            ...launchOptions.env,
-            ELECTRON_APP_PATH: './dist/electron/Packaged/Best - Scientific DB Manager-linux-arm64/Best - Scientific DB Manager'
-          }
-          
-          // Enable Node.js integration for database/filesystem access
+          // Enable full Node.js integration for real database access
           launchOptions.preferences = {
             nodeIntegration: true,
             contextIsolation: false,
             webSecurity: false,
-            // Allow access to Node.js APIs in renderer
             enableRemoteModule: true
           }
+          
+          console.log('✅ TRUE Electron configuration complete - launching:', electronAppPath)
         }
         
         return launchOptions

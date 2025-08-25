@@ -9,24 +9,25 @@ Cypress.Commands.add('login', (username = 'admin', password = 'admin') => {
   // Wait for page to load
   cy.wait(1000)
   
-  // Select database (should be auto-selected, but click to make sure)
-  cy.get('.q-select').click()
+  // Select database using data-cy
+  cy.get('[data-cy="login-database"]').click()
   cy.get('.q-item').first().click()
   
-  // Enter credentials using the actual form structure
-  cy.get('input[placeholder="Enter your username"]').clear().type(username)
-  cy.get('input[placeholder="Enter your password"]').clear().type(password)
+  // Enter credentials using data-cy attributes
+  cy.get('[data-cy="login-username"]').clear().type(username)
+  cy.get('[data-cy="login-password"]').clear().type(password)
   
-  // Submit the form
-  cy.get('button[type="submit"]').click()
+  // Submit the form using data-cy
+  cy.get('[data-cy="login-submit"]').click()
   
-  // Wait for login to process
-  cy.wait(3000)
+  // Wait longer for login to process and database initialization
+  cy.wait(8000)
   
-  // Verify successful login
-  cy.url().should('not.include', '/login')
+  // Verify successful login - should reach dashboard  
+  cy.url().should('not.include', '/login', { timeout: 15000 })
+  cy.url().should('include', '/dashboard', { timeout: 10000 })
   
-  cy.log(`✅ Successfully logged in as ${username}`)
+  cy.log(`✅ Successfully logged in as ${username} and reached dashboard`)
 })
 
 // Example: Navigate to a specific page
@@ -49,19 +50,31 @@ Cypress.Commands.add('navigateTo', (page) => {
 
 // Example: Wait for application to be ready
 Cypress.Commands.add('waitForApp', () => {
-  // Set up Electron APIs first
-  cy.setupElectronAPIs()
+  // In TRUE Electron mode, wait for the actual Electron app to load
   
-  // Wait for basic DOM to be ready
-  cy.get('body').should('be.visible')
+  // Debug current URL and content
+  cy.url().then(url => {
+    cy.log(`Current URL: ${url}`)
+  })
   
-  // Wait for Vue app to be ready
-  cy.get('#q-app').should('be.visible').and('not.be.empty')
+  // Wait for body to be ready
+  cy.get('body', { timeout: 20000 }).should('be.visible')
   
-  // Give the app a moment to initialize
-  cy.wait(1000)
+  // Debug what's actually on the page
+  cy.get('body').then(($body) => {
+    const bodyContent = $body.html()
+    cy.log(`Body content length: ${bodyContent.length}`)
+    cy.log(`Body preview: ${bodyContent.substring(0, 500)}...`)
+  })
   
-  cy.log('✅ App is ready with Electron APIs')
+  // In TRUE Electron mode, we should eventually see the Vue app
+  // Wait longer for the Electron app to fully initialize
+  cy.wait(5000)
+  
+  // Now look for the Vue app
+  cy.get('#q-app', { timeout: 30000 }).should('exist').and('be.visible')
+  
+  cy.log('✅ TRUE Electron app is ready with Vue loaded')
 })
 
 // Example: Create a test patient

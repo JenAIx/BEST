@@ -26,55 +26,47 @@ ELECTRON_DISABLE_SECURITY_WARNINGS=true xvfb-run -s "-screen 0 1600x900x24 -ac -
     echo "✅ VNC server ready on localhost:5901"
     echo "🔍 Connect with VNC client to: localhost:5901"
     
-    # Start HTTP server for the built app
-    echo "📦 Starting HTTP server for built app..."
-    cd dist/electron/UnPackaged
-    python3 -m http.server 8080 > ../../../http-server.log 2>&1 &
-    HTTP_PID=$!
-    cd ../../..
-    
-    # Wait for HTTP server
-    echo "⏳ Waiting for HTTP server..."
-    sleep 5
-    
-    if curl -s http://localhost:8080 >/dev/null 2>&1; then
-        echo "✅ HTTP server ready at http://localhost:8080"
-        
-        echo ""
-        echo "🎯 ======================================================"
-        echo "🎯 CYPRESS VNC MODE READY!"
-        echo "🎯 ======================================================"
-        echo "🎯 VNC Access: localhost:5901 (no password)"
-        echo "🎯 App Server: http://localhost:8080"
-        echo "🎯 Display: :98"
-        echo "🎯 ======================================================"
-        echo ""
-        echo "📖 Instructions:"
-        echo "1. Connect to localhost:5901 with a VNC client"
-        echo "2. You will see the Cypress Test Runner interface"
-        echo "3. Your app will be served at http://localhost:8080"
-        echo "4. Click on test files to run them interactively"
-        echo "5. Use Ctrl+C to stop when done"
-        echo ""
-        
-        # Start Cypress in interactive mode (not headless)
-        echo "🧪 Starting Cypress Test Runner..."
-        
-        # Give user time to connect via VNC before starting
-        echo "⏳ Waiting 10 seconds for VNC connection..."
-        sleep 10
-        
-        # Run Cypress in interactive mode
-        npx cypress open --browser electron
-        
-        echo "✅ Cypress session ended"
-    else
-        echo "❌ HTTP server failed to start"
-    fi
-    
-    # Cleanup
-    echo "🧹 Cleaning up..."
-    kill $HTTP_PID $VNC_PID 2>/dev/null || true
+                # Check for Electron app
+            ELECTRON_APP="./dist/electron/Packaged/Best - Scientific DB Manager-linux-arm64/Best - Scientific DB Manager"
+            if [ -f "$ELECTRON_APP" ]; then
+                echo "✅ Electron app found: $ELECTRON_APP"
+
+                echo ""
+                echo "🎯 ======================================================"
+                echo "🎯 CYPRESS VNC MODE READY! (TRUE ELECTRON MODE)"
+                echo "🎯 ======================================================"
+                echo "🎯 VNC Access: localhost:5901 (no password)"
+                echo "🎯 Electron App: $ELECTRON_APP"
+                echo "🎯 Display: :98"
+                echo "🎯 ======================================================"
+                echo ""
+                echo "📖 Instructions:"
+                echo "1. Connect to localhost:5901 with a VNC client"
+                echo "2. You will see the Cypress Test Runner interface"
+                echo "3. Cypress will launch the actual Electron app"
+                echo "4. Click on test files to run them interactively"
+                echo "5. Use Ctrl+C to stop when done"
+                echo ""
+
+                # Start Cypress in interactive mode (not headless)
+                echo "🧪 Starting Cypress Test Runner in true Electron mode..."
+
+                # Give user time to connect via VNC before starting
+                echo "⏳ Waiting 10 seconds for VNC connection..."
+                sleep 10
+
+                # Run Cypress in interactive mode with Electron browser
+                npx cypress open --browser electron
+
+                echo "✅ Cypress session ended"
+            else
+                echo "❌ Electron app not found: $ELECTRON_APP"
+                echo "Please run npm run build:electron first"
+            fi
+
+            # Cleanup
+            echo "🧹 Cleaning up..."
+            kill $VNC_PID 2>/dev/null || true
     
     echo "🏁 VNC session completed"
 '

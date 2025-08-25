@@ -3,9 +3,8 @@
 
 describe('BEST Medical System - Login', () => {
   beforeEach(() => {
-    // Visit the app and set up Electron APIs  
-    cy.visit('/')
-    cy.setupElectronAPIs()
+    // In TRUE Electron mode, the Electron app should launch automatically
+    // No need to visit a URL - we're testing the actual Electron executable
     cy.waitForElectron()
     cy.waitForApp()
   })
@@ -18,13 +17,13 @@ describe('BEST Medical System - Login', () => {
     cy.get('h1').should('contain', 'BEST Medical System')
     cy.get('p').should('contain', 'Base for Experiment Storage & Tracking')
     
-    // Verify all form fields are present
-    cy.get('input[placeholder="Enter your username"]').should('exist')
-    cy.get('input[placeholder="Enter your password"]').should('exist')
-    cy.get('button[type="submit"]').should('contain', 'Login')
+    // Verify all form fields are present using data-cy attributes
+    cy.get('[data-cy="login-username"]').should('exist')
+    cy.get('[data-cy="login-password"]').should('exist')
+    cy.get('[data-cy="login-submit"]').should('contain', 'Login')
     
     // Verify database selection dropdown exists
-    cy.get('.q-select').should('exist')
+    cy.get('[data-cy="login-database"]').should('exist')
     
     cy.log('✅ Login page loaded with all required elements')
   })
@@ -37,37 +36,42 @@ describe('BEST Medical System - Login', () => {
     cy.wait(1000)
     
     // Check if database is auto-selected, if not select the first option
-    cy.get('.q-select').click()
+    cy.get('[data-cy="login-database"]').click()
     cy.get('.q-item').first().click()
     cy.log('✅ Database selected')
     
-    // Fill in username
-    cy.get('input[placeholder="Enter your username"]').clear().type('admin')
+    // Fill in username using data-cy
+    cy.get('[data-cy="login-username"]').clear().type('admin')
     cy.log('✅ Username entered: admin')
     
-    // Fill in password  
-    cy.get('input[placeholder="Enter your password"]').clear().type('admin')
+    // Fill in password using data-cy
+    cy.get('[data-cy="login-password"]').clear().type('admin')
     cy.log('✅ Password entered')
     
-    // Submit the form
-    cy.get('button[type="submit"]').click()
+    // Submit the form using data-cy
+    cy.get('[data-cy="login-submit"]').click()
     cy.log('✅ Login form submitted')
     
-    // Wait for login to process
-    cy.wait(5000)
+    // Wait longer for login processing and database initialization
+    cy.wait(8000)
     
-    // Verify login success - should redirect away from login page
-    cy.url().should('not.include', '/login')
-    cy.log('✅ Login successful - redirected from login page')
-    
-    // Log final URL
+    // Check current URL status
     cy.url().then(url => {
-      cy.log(`Final URL after login: ${url}`)
+      cy.log(`Current URL after login: ${url}`)
     })
     
-    // Check for success notification or main app content
+    // Verify login success - should redirect away from login page
+    cy.url().should('not.include', '/login', { timeout: 15000 })
+    cy.log('✅ Login successful - redirected from login page')
+    
+    // Verify we reached the dashboard page specifically
+    cy.url().should('include', '/dashboard', { timeout: 10000 })
+    cy.log('✅ Successfully redirected to dashboard page')
+    
+    // Verify dashboard content loads
+    cy.get('#q-app', { timeout: 10000 }).should('be.visible')
     cy.get('body').should('not.contain', 'Login failed')
-    cy.log('✅ No login error messages detected')
+    cy.log('✅ Dashboard page loaded successfully')
   })
 
   it('should show error for invalid credentials', () => {
@@ -78,15 +82,15 @@ describe('BEST Medical System - Login', () => {
     cy.wait(1000)
     
     // Select database
-    cy.get('.q-select').click()
+    cy.get('[data-cy="login-database"]').click()
     cy.get('.q-item').first().click()
     
-    // Try invalid credentials
-    cy.get('input[placeholder="Enter your username"]').clear().type('wronguser')
-    cy.get('input[placeholder="Enter your password"]').clear().type('wrongpassword')
+    // Try invalid credentials using data-cy
+    cy.get('[data-cy="login-username"]').clear().type('wronguser')
+    cy.get('[data-cy="login-password"]').clear().type('wrongpassword')
     
-    // Submit the form
-    cy.get('button[type="submit"]').click()
+    // Submit the form using data-cy
+    cy.get('[data-cy="login-submit"]').click()
     
     // Wait for response
     cy.wait(3000)
@@ -98,11 +102,11 @@ describe('BEST Medical System - Login', () => {
 
   it('should require database selection', () => {
     // Try to login without selecting database (if possible)
-    cy.get('input[placeholder="Enter your username"]').type('admin')
-    cy.get('input[placeholder="Enter your password"]').type('admin')
+    cy.get('[data-cy="login-username"]').type('admin')
+    cy.get('[data-cy="login-password"]').type('admin')
     
     // Try to submit - should show validation error or prevent submission
-    cy.get('button[type="submit"]').click()
+    cy.get('[data-cy="login-submit"]').click()
     
     // Should stay on login page
     cy.url().should('include', '/login')
