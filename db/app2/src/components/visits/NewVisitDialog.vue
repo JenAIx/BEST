@@ -100,9 +100,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
     modelValue: {
@@ -119,9 +121,13 @@ const emit = defineEmits(['update:modelValue', 'created'])
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('NewVisitDialog')
 
 // State
 const creating = ref(false)
+const loadingOptions = ref(false)
 const visitData = ref({
     date: new Date().toISOString().split('T')[0],
     time: '',
@@ -130,50 +136,13 @@ const visitData = ref({
     notes: ''
 })
 
-const locationOptions = ref([
-    { label: 'Main Clinic', value: 'CLINIC' },
-    { label: 'Emergency Room', value: 'ER' },
-    { label: 'Outpatient', value: 'OUTPATIENT' },
-    { label: 'Home Visit', value: 'HOME' },
-    { label: 'Telemedicine', value: 'TELEHEALTH' }
-])
+// Dynamic options from global settings
+const visitTypes = ref([])
+const locationOptions = ref([])
+const filteredLocationOptions = ref([])
 
-const filteredLocationOptions = ref([...locationOptions.value])
-
-const visitTypes = [
-    {
-        label: 'Routine Check-up',
-        value: 'routine',
-        icon: 'health_and_safety',
-        description: 'Regular scheduled appointment'
-    },
-    {
-        label: 'Follow-up',
-        value: 'followup',
-        icon: 'follow_the_signs',
-        description: 'Follow-up from previous visit'
-    },
-    {
-        label: 'Emergency',
-        value: 'emergency',
-        icon: 'emergency',
-        description: 'Urgent medical attention'
-    },
-    {
-        label: 'Consultation',
-        value: 'consultation',
-        icon: 'psychology',
-        description: 'Specialist consultation'
-    },
-    {
-        label: 'Procedure',
-        value: 'procedure',
-        icon: 'medical_services',
-        description: 'Medical procedure or treatment'
-    }
-]
-
-const quickTemplates = [
+// Quick templates - these could also be moved to global settings in the future
+const quickTemplates = ref([
     {
         id: 'annual-checkup',
         name: 'Annual Checkup',
@@ -192,7 +161,7 @@ const quickTemplates = [
         type: 'consultation',
         notes: 'Review current medications and adjust dosages as needed'
     }
-]
+])
 
 // Computed
 const patientInitials = computed(() => {
@@ -209,6 +178,91 @@ const isFormValid = computed(() => {
 })
 
 // Methods
+const loadOptions = async () => {
+    try {
+        loadingOptions.value = true
+        
+        // Load visit types from global settings
+        const visitTypeOptions = await globalSettingsStore.getVisitTypeOptions()
+        visitTypes.value = visitTypeOptions.map(vt => ({
+            label: vt.label,
+            value: vt.value,
+            icon: vt.icon || 'local_hospital',
+            description: vt.description || ''
+        }))
+        
+        // Load location options from global settings
+        // For now, we'll check if location options exist in CODE_LOOKUP
+        try {
+            const locationData = await globalSettingsStore.loadLookupValues('LOCATION_CD')
+            if (locationData && locationData.length > 0) {
+                locationOptions.value = locationData.map(loc => ({
+                    label: loc.NAME_CHAR || loc.CODE_CD,
+                    value: loc.CODE_CD
+                }))
+            } else {
+                // Fallback to hardcoded options if not in database
+                locationOptions.value = [
+                    { label: 'Main Clinic', value: 'CLINIC' },
+                    { label: 'Emergency Room', value: 'ER' },
+                    { label: 'Outpatient', value: 'OUTPATIENT' },
+                    { label: 'Home Visit', value: 'HOME' },
+                    { label: 'Telemedicine', value: 'TELEHEALTH' }
+                ]
+            }
+        } catch {
+            // Use fallback if location lookup fails
+            locationOptions.value = [
+                { label: 'Main Clinic', value: 'CLINIC' },
+                { label: 'Emergency Room', value: 'ER' },
+                { label: 'Outpatient', value: 'OUTPATIENT' },
+                { label: 'Home Visit', value: 'HOME' },
+                { label: 'Telemedicine', value: 'TELEHEALTH' }
+            ]
+        }
+        
+        filteredLocationOptions.value = [...locationOptions.value]
+        
+        // Set default values if current values don't exist in loaded options
+        if (visitTypes.value.length > 0 && !visitTypes.value.find(vt => vt.value === visitData.value.type)) {
+            visitData.value.type = visitTypes.value[0].value
+        }
+        
+        if (locationOptions.value.length > 0 && !locationOptions.value.find(loc => loc.value === visitData.value.location)) {
+            visitData.value.location = locationOptions.value[0].value
+        }
+        
+    } catch (error) {
+        logger.error('Failed to load options from global settings', error)
+        $q.notify({
+            type: 'warning',
+            message: 'Using default options. Some settings may not be available.',
+            position: 'top'
+        })
+        
+        // Fallback to default options
+        visitTypes.value = [
+            { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', description: 'Regular scheduled appointment' },
+            { label: 'Follow-up', value: 'followup', icon: 'follow_the_signs', description: 'Follow-up from previous visit' },
+            { label: 'Emergency', value: 'emergency', icon: 'emergency', description: 'Urgent medical attention' },
+            { label: 'Consultation', value: 'consultation', icon: 'psychology', description: 'Specialist consultation' },
+            { label: 'Procedure', value: 'procedure', icon: 'medical_services', description: 'Medical procedure or treatment' }
+        ]
+        
+        locationOptions.value = [
+            { label: 'Main Clinic', value: 'CLINIC' },
+            { label: 'Emergency Room', value: 'ER' },
+            { label: 'Outpatient', value: 'OUTPATIENT' },
+            { label: 'Home Visit', value: 'HOME' },
+            { label: 'Telemedicine', value: 'TELEHEALTH' }
+        ]
+        
+        filteredLocationOptions.value = [...locationOptions.value]
+    } finally {
+        loadingOptions.value = false
+    }
+}
+
 const updateModelValue = (value) => {
     emit('update:modelValue', value)
 }
@@ -222,14 +276,14 @@ const resetForm = () => {
     visitData.value = {
         date: new Date().toISOString().split('T')[0],
         time: '',
-        type: 'routine',
-        location: 'CLINIC',
+        type: visitTypes.value.length > 0 ? visitTypes.value[0].value : 'routine',
+        location: locationOptions.value.length > 0 ? locationOptions.value[0].value : 'CLINIC',
         notes: ''
     }
 }
 
 const getTypeIcon = (type) => {
-    const typeObj = visitTypes.find(t => t.value === type)
+    const typeObj = visitTypes.value.find(t => t.value === type)
     return typeObj?.icon || 'local_hospital'
 }
 
@@ -315,7 +369,7 @@ const saveVisit = async () => {
         closeDialog()
 
     } catch (error) {
-        console.error('Failed to create visit:', error)
+        logger.error('Failed to create visit', error)
         $q.notify({
             type: 'negative',
             message: 'Failed to create visit',
@@ -325,6 +379,11 @@ const saveVisit = async () => {
         creating.value = false
     }
 }
+
+// Lifecycle
+onMounted(async () => {
+    await loadOptions()
+})
 
 // Watchers
 watch(() => props.modelValue, (newValue) => {

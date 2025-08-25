@@ -240,10 +240,13 @@ import PathPickerDialog from 'components/shared/PathPickerDialog.vue'
 import EditConceptAnswersDialog from 'components/shared/EditConceptAnswersDialog.vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('ConceptCreateDialog')
 
 const props = defineProps({
   modelValue: {
@@ -363,7 +366,7 @@ const loadAnswersCount = async () => {
       }
     }
   } catch (error) {
-    console.error('Failed to load answers count:', error)
+    logger.error('Failed to load answers count', error)
     answersCount.value = 0
   }
 }
@@ -392,7 +395,7 @@ const loadCategories = async () => {
   try {
     categoryOptions.value = await globalSettingsStore.getCategoryOptions()
   } catch (error) {
-    console.error('Failed to load categories:', error)
+    logger.error('Failed to load categories', error)
     categoryOptions.value = []
   }
 }
@@ -401,7 +404,7 @@ const loadValueTypes = async () => {
   try {
     valueTypeOptions.value = await globalSettingsStore.getValueTypeOptions()
   } catch (error) {
-    console.error('Failed to load value types:', error)
+    logger.error('Failed to load value types', error)
     valueTypeOptions.value = []
   }
 }
@@ -415,7 +418,7 @@ const loadSourceSystems = async () => {
     }
     sourceSystemOptions.value = options
   } catch (error) {
-    console.error('Failed to load source systems:', error)
+    logger.error('Failed to load source systems', error)
     sourceSystemOptions.value = []
   }
 }
@@ -515,7 +518,7 @@ const querySNOMED_API = async (snomedVal) => {
       $q.notify({ type: 'warning', message: 'No SNOMED concept found with this ID' })
     }
   } catch (error) {
-    console.error('SNOMED API query failed:', error)
+    logger.error('SNOMED API query failed', error)
     $q.notify({ type: 'negative', message: 'SNOMED API query failed' })
   }
 }
@@ -534,7 +537,7 @@ const querySNOMEDConceptFull = async (SNOMED_ID) => {
     }
     return undefined
   } catch (error) {
-    console.error('Failed to query SNOMED concept (full):', error)
+    logger.error('Failed to query SNOMED concept (full)', error)
     return undefined
   }
 }
@@ -563,7 +566,7 @@ const resolveSNOMEDConcept = async (SNOMED_ID) => {
 
     return `\\SNOMED-CT\\${url}`
   } catch (error) {
-    console.error('Failed to resolve SNOMED concept:', error)
+    logger.error('Failed to resolve SNOMED concept', error)
     return undefined
   }
 }
@@ -665,7 +668,7 @@ const searchSNOMEDConcepts = async () => {
       snomedSearchResults.value = []
     }
   } catch (error) {
-    console.error('Failed to search SNOMED concepts:', error)
+    logger.error('Failed to search SNOMED concepts', error)
     $q.notify({ type: 'negative', message: 'Failed to search SNOMED concepts' })
     snomedSearchResults.value = []
   } finally {
@@ -759,7 +762,7 @@ const queryConceptsToLink = async (searchTerm) => {
       }
     }
   } catch (error) {
-    console.error('Failed to query concepts:', error)
+    logger.error('Failed to query concepts', error)
     $q.notify({ type: 'negative', message: 'Failed to search concepts' })
   }
 }

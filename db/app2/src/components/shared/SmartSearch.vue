@@ -118,11 +118,14 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import PatientAvatar from './PatientAvatar.vue'
 
 const router = useRouter()
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('SmartSearch')
 
 // Refs
 const searchInputRef = ref(null)
@@ -207,7 +210,7 @@ const performSearch = async () => {
             sexCode: patient.SEX_CD
         }))
     } catch (error) {
-        console.error('Search error:', error)
+        logger.error('Search error', error)
         $q.notify({
             type: 'negative',
             message: 'Search failed. Please try again.',

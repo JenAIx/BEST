@@ -52,12 +52,21 @@
         </template>
       </q-input>
 
+      <div class="row">
       <!-- Category Field -->
-      <q-select v-model="formData.category" label="Category" outlined dense :options="categoryOptions" @update:model-value="onFieldChange" hint="Concept category for organization" />
-
+       <div class="col-4">
+      <q-select v-model="formData.category" label="Category" outlined dense :options="categoryOptions" @update:model-value="onFieldChange" hint="Concept category" />
+    </div>
       <!-- Value Type Field -->
-      <q-select v-model="formData.valueType" label="Value Type" outlined dense :options="valueTypeOptions" @update:model-value="onValueTypeChange" hint="Type of value this concept represents" />
+       <div class="col-4">
+      <q-select v-model="formData.valueType" label="Value Type" outlined dense :options="valueTypeOptions" @update:model-value="onValueTypeChange" hint="Type of value " />
+    </div>
+    <div class="col-4">
+            <!-- Unit Code Field -->
+            <q-input v-model="formData.unitCode" label="Unit Code" outlined dense @update:model-value="onFieldChange" hint="Unit of measurement (optional, e.g., mg/dL, mmHg)" />
 
+    </div>
+      </div>
       <!-- Selection Answers (only for S type) -->
       <div v-if="formData.valueType === 'S'" class="q-pa-md bg-grey-1 rounded-borders">
         <div class="text-subtitle2 q-mb-sm">Answers</div>
@@ -74,9 +83,6 @@
           </span>
         </div>
       </div>
-
-      <!-- Unit Code Field -->
-      <q-input v-model="formData.unitCode" label="Unit Code" outlined dense @update:model-value="onFieldChange" hint="Unit of measurement (optional, e.g., mg/dL, mmHg)" />
 
       <!-- Source System Field -->
       <q-select
@@ -112,10 +118,13 @@ import PathPickerDialog from 'components/shared/PathPickerDialog.vue'
 import EditConceptAnswersDialog from 'components/shared/EditConceptAnswersDialog.vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('ConceptEditDialog')
 
 const props = defineProps({
   modelValue: {
@@ -213,7 +222,7 @@ const loadCategories = async () => {
   try {
     categoryOptions.value = await globalSettingsStore.getCategoryOptions()
   } catch (error) {
-    console.error('Failed to load categories:', error)
+    logger.error('Failed to load categories', error)
     categoryOptions.value = []
   }
 }
@@ -222,7 +231,7 @@ const loadValueTypes = async () => {
   try {
     valueTypeOptions.value = await globalSettingsStore.getValueTypeOptions()
   } catch (error) {
-    console.error('Failed to load value types:', error)
+    logger.error('Failed to load value types', error)
     valueTypeOptions.value = []
   }
 }
@@ -236,7 +245,7 @@ const loadSourceSystems = async () => {
     }
     sourceSystemOptions.value = options
   } catch (error) {
-    console.error('Failed to load source systems:', error)
+    logger.error('Failed to load source systems', error)
     sourceSystemOptions.value = []
   }
 }
@@ -260,7 +269,7 @@ const loadAnswersCount = async () => {
       }
     }
   } catch (error) {
-    console.error('Failed to load answers count:', error)
+    logger.error('Failed to load answers count', error)
     answersCount.value = 0
   }
 }
@@ -324,7 +333,7 @@ const queryConceptsToLink = async (searchTerm) => {
       }
     }
   } catch (error) {
-    console.error('Failed to query concepts:', error)
+    logger.error('Failed to query concepts', error)
     $q.notify({ type: 'negative', message: 'Failed to search concepts' })
   }
 }

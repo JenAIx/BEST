@@ -31,6 +31,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
     user: {
@@ -40,6 +41,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['save', 'reset-password'])
+
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('SettingsForm')
 
 // Form state
 const formData = ref({
@@ -96,9 +100,10 @@ const onResetPassword = async () => {
 // Watch for user prop changes and initialize form
 watch(() => props.user, (newUser) => {
     if (newUser) {
-        console.log('SettingsForm: User prop changed:', newUser)
-        console.log('SettingsForm: NAME_CHAR value:', newUser.NAME_CHAR)
-        console.log('SettingsForm: USER_CD value:', newUser.USER_CD)
+        logger.debug('User prop changed', { 
+            userName: newUser.NAME_CHAR,
+            userCode: newUser.USER_CD
+        })
         formData.value.name = newUser.NAME_CHAR || newUser.name || ''
         formData.value.originalName = newUser.NAME_CHAR || newUser.name || ''
     }
@@ -107,8 +112,10 @@ watch(() => props.user, (newUser) => {
 // Initialize form when component mounts
 onMounted(() => {
     if (props.user) {
-        console.log('SettingsForm mounted with user:', props.user)
-        console.log('SettingsForm: NAME_CHAR value:', props.user.NAME_CHAR)
+        logger.debug('SettingsForm mounted', {
+            userName: props.user.NAME_CHAR,
+            userCode: props.user.USER_CD
+        })
         formData.value.name = props.user.NAME_CHAR || props.user.name || ''
         formData.value.originalName = props.user.NAME_CHAR || props.user.name || ''
     }

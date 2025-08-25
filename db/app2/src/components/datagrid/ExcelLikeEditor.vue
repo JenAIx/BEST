@@ -165,6 +165,7 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
 
@@ -181,6 +182,8 @@ const $q = useQuasar()
 const router = useRouter()
 const dbStore = useDatabaseStore()
 const localSettings = useLocalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('ExcelLikeEditor')
 
 // Data state
 const loading = ref(true)
@@ -249,7 +252,7 @@ const loadPatientData = async () => {
       return String(id)
     })
 
-    console.log('Loading patient data for IDs:', cleanPatientIds)
+    logger.info('Loading patient data', { patientIds: cleanPatientIds, count: cleanPatientIds.length })
 
     // Load patient basic info and visits
     const patientRepo = dbStore.getRepository('patient')
@@ -260,7 +263,7 @@ const loadPatientData = async () => {
       cleanPatientIds.map(async (patientId) => {
         const patient = await patientRepo.findByPatientCode(patientId)
         if (!patient) {
-          console.warn(`Patient not found: ${patientId}`)
+          logger.warn('Patient not found', { patientId })
           return { patient: null, visits: [] }
         }
         const visits = await visitRepo.getPatientVisitTimeline(patient.PATIENT_NUM)
@@ -278,7 +281,7 @@ const loadPatientData = async () => {
     // Load all observations for these patients
     await loadObservationData()
   } catch (error) {
-    console.error('Failed to load patient data:', error)
+    logger.error('Failed to load patient data', error)
     $q.notify({
       type: 'negative',
       message: `Failed to load patient data: ${error.message}`,
@@ -328,7 +331,7 @@ const loadObservationData = async () => {
     // Process observations and build table structure
     processObservationData(result.data)
   } catch (error) {
-    console.error('Failed to load observation data:', error)
+    logger.error('Failed to load observation data', error)
     throw error
   }
 }
@@ -500,12 +503,12 @@ const onCellSave = async (data) => {
       timeout: 2000,
     })
   } catch (error) {
-    console.error('Cell save error:', error)
+    logger.error('Cell save error', error)
   }
 }
 
 const onCellError = (error) => {
-  console.error('Cell error:', error)
+  logger.error('Cell error', error)
   $q.notify({
     type: 'negative',
     message: `Cell error: ${error.message}`,
@@ -530,7 +533,7 @@ const saveAllChanges = async () => {
         pendingChanges.value.delete(key)
         savedCount++
       } catch (error) {
-        console.error('Failed to save change:', error)
+        logger.error('Failed to save change', error)
       }
     }
 
@@ -542,7 +545,7 @@ const saveAllChanges = async () => {
       position: 'top',
     })
   } catch (error) {
-    console.error('Failed to save all changes:', error)
+    logger.error('Failed to save all changes', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to save some changes',

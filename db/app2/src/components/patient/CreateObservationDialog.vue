@@ -276,6 +276,7 @@ import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import FileUploadInput from 'components/shared/FileUploadInput.vue'
 
 const props = defineProps({
@@ -298,11 +299,13 @@ const emit = defineEmits(['update:modelValue', 'observationCreated'])
 const $q = useQuasar()
 const databaseStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
+const globalSettingsStore = useGlobalSettingsStore()
 const logger = useLoggingStore().createLogger('CreateObservationDialog')
 
 // Reactive state
 const loading = ref(false)
 const searchLoading = ref(false)
+const loadingOptions = ref(false)
 const showDialog = computed({
     get: () => props.modelValue,
     set: (value) => emit('update:modelValue', value)
@@ -338,16 +341,8 @@ const formData = ref({
     OBSERVATION_BLOB: ''
 })
 
-// Value flag options
-const valueFlagOptions = [
-    { label: 'Normal', value: 'N' },
-    { label: 'High', value: 'H' },
-    { label: 'Low', value: 'L' },
-    { label: 'Abnormal', value: 'A' },
-    { label: 'Critical', value: 'C' },
-    { label: 'Very High', value: 'HH' },
-    { label: 'Very Low', value: 'LL' }
-]
+// Dynamic value flag options from global settings
+const valueFlagOptions = ref([])
 
 // Computed properties
 const displayedResults = computed(() => {
@@ -391,6 +386,55 @@ const isFormValid = computed(() => {
 })
 
 // Methods
+const loadOptions = async () => {
+    try {
+        loadingOptions.value = true
+        
+        // Load value flag options from global settings
+        try {
+            const valueFlagData = await globalSettingsStore.loadLookupValues('VALUEFLAG_CD')
+            if (valueFlagData && valueFlagData.length > 0) {
+                valueFlagOptions.value = valueFlagData.map(flag => ({
+                    label: flag.NAME_CHAR || flag.CODE_CD,
+                    value: flag.CODE_CD
+                }))
+            } else {
+                // Fallback to hardcoded options
+                valueFlagOptions.value = [
+                    { label: 'Normal', value: 'N' },
+                    { label: 'High', value: 'H' },
+                    { label: 'Low', value: 'L' },
+                    { label: 'Abnormal', value: 'A' },
+                    { label: 'Critical', value: 'C' },
+                    { label: 'Very High', value: 'HH' },
+                    { label: 'Very Low', value: 'LL' }
+                ]
+            }
+        } catch {
+            // Use fallback options
+            valueFlagOptions.value = [
+                { label: 'Normal', value: 'N' },
+                { label: 'High', value: 'H' },
+                { label: 'Low', value: 'L' },
+                { label: 'Abnormal', value: 'A' },
+                { label: 'Critical', value: 'C' },
+                { label: 'Very High', value: 'HH' },
+                { label: 'Very Low', value: 'LL' }
+            ]
+        }
+        
+    } catch (error) {
+        logger.error('Failed to load options from global settings', error)
+        $q.notify({
+            type: 'warning',
+            message: 'Using default options. Some settings may not be available.',
+            position: 'top'
+        })
+    } finally {
+        loadingOptions.value = false
+    }
+}
+
 const resetForm = () => {
     formData.value = {
         START_DATE: new Date().toISOString().split('T')[0],
@@ -420,7 +464,7 @@ const loadRecentConcepts = () => {
             recentConcepts.value = JSON.parse(stored).slice(0, 10) // Limit to 10 recent concepts
         }
     } catch (error) {
-        console.warn('Failed to load recent concepts:', error)
+        logger.warn('Failed to load recent concepts', error)
         recentConcepts.value = []
     }
 }
@@ -441,7 +485,7 @@ const saveRecentConcept = (concept) => {
         recentConcepts.value = recent
         localStorage.setItem('recentObservationConcepts', JSON.stringify(recent))
     } catch (error) {
-        console.warn('Failed to save recent concept:', error)
+        logger.warn('Failed to save recent concept', error)
     }
 }
 
@@ -748,7 +792,7 @@ const handleSubmit = async () => {
         emit('observationCreated', createdObservation)
 
     } catch (error) {
-        console.error('Error creating observation:', error)
+        logger.error('Error creating observation', error)
         $q.notify({
             type: 'negative',
             message: `Failed to create observation: ${error.message}`,
@@ -801,12 +845,15 @@ onMounted(async () => {
     logger.info('Component mounted, initializing')
     loadRecentConcepts()
 
-    // Initialize concept store
+    // Initialize concept store and load options
     try {
-        await conceptStore.initialize()
-        logger.debug('Concept store initialized on mount')
+        await Promise.all([
+            conceptStore.initialize(),
+            loadOptions()
+        ])
+        logger.debug('Concept store and options initialized on mount')
     } catch (error) {
-        logger.error('Failed to initialize concept store on mount', error)
+        logger.error('Failed to initialize on mount', error)
     }
 })
 </script>

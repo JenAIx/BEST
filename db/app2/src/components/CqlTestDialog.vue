@@ -86,6 +86,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useLoggingStore } from 'src/stores/logging-store'
 import cql from 'cql-execution'
 import { unstringify_json } from 'src/shared/utils/sql-tools.js'
 
@@ -101,6 +102,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'cancel'])
+
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('CqlTestDialog')
 
 // State
 const localShow = ref(false)
@@ -191,7 +195,7 @@ const runTest = async () => {
       errorMessage.value = result.error || 'Unknown error occurred'
     }
   } catch (error) {
-    console.error('CQL test error:', error)
+    logger.error('CQL test error', error)
     errorMessage.value = error.message || 'Failed to execute CQL rule'
   } finally {
     testing.value = false

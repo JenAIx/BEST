@@ -136,6 +136,7 @@ import { ref } from 'vue'
 import { useQuasar } from 'quasar'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationCard from './ObservationCard.vue'
 import EditVisitDialog from './EditVisitDialog.vue'
 import CreateObservationDialog from './CreateObservationDialog.vue'
@@ -166,6 +167,8 @@ const emit = defineEmits([
 const $q = useQuasar()
 const conceptStore = useConceptResolutionStore()
 const databaseStore = useDatabaseStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('VisitItem')
 
 // Local state
 const hoveredVisit = ref(false)
@@ -310,7 +313,7 @@ const performDeleteVisit = async () => {
 
     } catch (error) {
         loadingDialog.hide()
-        console.error('Error deleting visit:', error)
+        logger.error('Error deleting visit', error)
 
         // Clean up state on error
         showDeleteConfirmDialog.value = false

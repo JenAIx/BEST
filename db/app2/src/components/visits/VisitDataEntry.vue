@@ -139,6 +139,8 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import { AVAILABLE_FIELD_SETS, getFieldSetById } from 'src/shared/utils/medical-utils'
 import ObservationFieldSet from './ObservationFieldSet.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
@@ -159,14 +161,18 @@ const emit = defineEmits(['visit-created'])
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
 const localSettings = useLocalSettingsStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('VisitDataEntry')
 
 // State
 const showFieldSetConfig = ref(false)
 const showNewVisitDialog = ref(false)
 const fieldSetConfig = ref({})
+const loadingFieldSets = ref(false)
 
-// Field Sets Configuration
-const availableFieldSets = ref(AVAILABLE_FIELD_SETS)
+// Field Sets Configuration - will be loaded from global settings
+const availableFieldSets = ref([])
 
 const activeFieldSets = ref(['vitals', 'symptoms'])
 
@@ -187,13 +193,54 @@ const visitOptions = computed(() => visitStore.visitOptions)
 const previousVisits = computed(() => visitStore.previousVisits)
 
 // Methods
+const loadFieldSets = async () => {
+  try {
+    loadingFieldSets.value = true
+    
+    // Load field sets from global settings
+    const fieldSets = await globalSettingsStore.getFieldSetOptions()
+    
+    if (fieldSets && fieldSets.length > 0) {
+      availableFieldSets.value = fieldSets
+    } else {
+      // Fallback to hardcoded field sets from medical-utils
+      availableFieldSets.value = AVAILABLE_FIELD_SETS
+    }
+    
+    // Initialize field set config based on available field sets
+    fieldSetConfig.value = {}
+    availableFieldSets.value.forEach(fs => {
+      fieldSetConfig.value[fs.id] = activeFieldSets.value.includes(fs.id)
+    })
+    
+  } catch (error) {
+            logger.error('Failed to load field sets from global settings', error)
+    $q.notify({
+      type: 'warning',
+      message: 'Using default field sets. Some configurations may not be available.',
+      position: 'top'
+    })
+    
+    // Fallback to hardcoded field sets
+    availableFieldSets.value = AVAILABLE_FIELD_SETS
+    
+    // Initialize field set config
+    fieldSetConfig.value = {}
+    availableFieldSets.value.forEach(fs => {
+      fieldSetConfig.value[fs.id] = activeFieldSets.value.includes(fs.id)
+    })
+  } finally {
+    loadingFieldSets.value = false
+  }
+}
+
 const onVisitSelected = async (visit) => {
   if (!visit) return
 
   try {
     await visitStore.setSelectedVisit(visit)
   } catch (error) {
-    console.error('Failed to select visit:', error)
+    logger.error('Failed to select visit', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to load visit data',
@@ -203,22 +250,27 @@ const onVisitSelected = async (visit) => {
 }
 
 const getFieldSet = (fieldSetId) => {
+  // First try to find in loaded field sets
+  const fieldSet = availableFieldSets.value.find(fs => fs.id === fieldSetId)
+  if (fieldSet) return fieldSet
+  
+  // Fallback to utility function
   return getFieldSetById(fieldSetId)
 }
 
 const getFieldSetObservations = (fieldSetId) => {
   if (!fieldSetId) {
-    console.warn('getFieldSetObservations called with undefined fieldSetId')
+    logger.warn('getFieldSetObservations called with undefined fieldSetId')
     return []
   }
   const observations = visitStore.getFieldSetObservations(fieldSetId, availableFieldSets.value)
-  console.log(`getFieldSetObservations for ${fieldSetId}:`, observations)
+  logger.debug(`getFieldSetObservations for ${fieldSetId}`, { fieldSetId, observationCount: observations.length })
   return observations
 }
 
 const getFieldSetObservationCount = (fieldSetId) => {
   if (!fieldSetId) {
-    console.warn('getFieldSetObservationCount called with undefined fieldSetId')
+    logger.warn('getFieldSetObservationCount called with undefined fieldSetId')
     return 0
   }
   return getFieldSetObservations(fieldSetId).length
@@ -267,7 +319,7 @@ const onVisitCreated = (newVisit) => {
 }
 
 const onObservationUpdated = async (data) => {
-  console.log('Observation updated:', data)
+  logger.info('Observation updated', { conceptCode: data.conceptCode, value: data.value })
   // Store handles reloading observations
   if (visitStore.selectedVisit) {
     await visitStore.loadObservationsForVisit(visitStore.selectedVisit)
@@ -275,20 +327,24 @@ const onObservationUpdated = async (data) => {
 }
 
 const onCloneFromPrevious = async (data) => {
-  console.log('Clone from previous:', data)
+  logger.info('Clone from previous visit', { conceptCode: data.conceptCode })
 
   try {
     const { conceptCode } = data
+
+    // Get default values from global settings
+    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('GENERAL')
+    const defaultCategory = await globalSettingsStore.getDefaultCategory('CLONED')
 
     // Create observation data for the current visit
     const observationData = {
       ENCOUNTER_NUM: visitStore.selectedVisit.id,
       CONCEPT_CD: conceptCode,
       START_DATE: new Date().toISOString().split('T')[0],
-      CATEGORY_CHAR: 'CLONED',
+      CATEGORY_CHAR: defaultCategory,
       PROVIDER_ID: 'SYSTEM',
       LOCATION_CD: 'CLONED',
-      SOURCESYSTEM_CD: 'VISIT_CLONE',
+      SOURCESYSTEM_CD: defaultSourceSystem,
       INSTANCE_NUM: 1,
       UPLOAD_ID: 1,
     }
@@ -301,7 +357,7 @@ const onCloneFromPrevious = async (data) => {
       position: 'top',
     })
   } catch (error) {
-    console.error('Failed to clone from previous visit:', error)
+    logger.error('Failed to clone from previous visit', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to clone value',
@@ -338,20 +394,22 @@ watch(
 
 // Lifecycle
 onMounted(async () => {
-  console.log('VisitDataEntry mounted. Active field sets:', activeFieldSets.value)
+  logger.debug('VisitDataEntry mounted', { activeFieldSets: activeFieldSets.value })
+
+  // Load field sets from global settings
+  await loadFieldSets()
 
   // Load saved settings
   const savedActiveFieldSets = localSettings.getSetting('visits.activeFieldSets')
   if (savedActiveFieldSets) {
-    console.log('Loading saved active field sets:', savedActiveFieldSets)
+    logger.debug('Loading saved active field sets', { savedActiveFieldSets })
     activeFieldSets.value = savedActiveFieldSets
   }
 
-  console.log('Final active field sets:', activeFieldSets.value)
-  console.log(
-    'Available field sets:',
-    availableFieldSets.value.map((fs) => fs.id),
-  )
+  logger.debug('Field sets configuration loaded', {
+    finalActiveFieldSets: activeFieldSets.value,
+    availableFieldSets: availableFieldSets.value.map((fs) => fs.id)
+  })
 
   // Initialize field set config
   availableFieldSets.value.forEach((fs) => {
@@ -360,7 +418,7 @@ onMounted(async () => {
 
   // If no visit is selected but visits are available, select the most recent one
   if (!selectedVisit.value && visitOptions.value.length > 0) {
-    console.log('No visit selected, selecting the most recent visit')
+    logger.info('No visit selected, selecting the most recent visit')
     const mostRecentVisit = visitOptions.value[0].value
     await visitStore.setSelectedVisit(mostRecentVisit)
   }

@@ -131,9 +131,12 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('EditConceptAnswersDialog')
 
 const props = defineProps({
     modelValue: {
@@ -224,7 +227,7 @@ const loadAnswers = async () => {
             answers.value = []
         }
     } catch (error) {
-        console.error('Failed to load answers:', error)
+        logger.error('Failed to load answers', error)
         $q.notify({
             type: 'negative',
             message: 'Failed to load answers'
@@ -266,7 +269,7 @@ const addAnswer = async () => {
         showAddForm.value = false
         await loadAnswers()
     } catch (error) {
-        console.error('Failed to add answer:', error)
+        logger.error('Failed to add answer', error)
         $q.notify({
             type: 'negative',
             message: 'Failed to add answer'
@@ -300,7 +303,7 @@ const saveEditAnswer = async () => {
         showEditDialog.value = false
         await loadAnswers()
     } catch (error) {
-        console.error('Failed to update answer:', error)
+        logger.error('Failed to update answer', error)
         $q.notify({
             type: 'negative',
             message: 'Failed to update answer'
@@ -329,7 +332,7 @@ const deleteAnswer = (answer) => {
 
             await loadAnswers()
         } catch (error) {
-            console.error('Failed to delete answer:', error)
+            logger.error('Failed to delete answer', error)
             $q.notify({
                 type: 'negative',
                 message: 'Failed to delete answer'

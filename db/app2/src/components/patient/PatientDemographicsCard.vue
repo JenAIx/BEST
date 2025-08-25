@@ -61,6 +61,7 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
     patient: {
@@ -74,6 +75,8 @@ const emit = defineEmits(['updated'])
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('PatientDemographicsCard')
 
 // State
 const editing = ref(false)
@@ -157,7 +160,7 @@ const loadOptions = async () => {
             await conceptStore.resolveBatch(conceptsToPreload, { context: 'patient_demographics' })
         }
     } catch (error) {
-        console.error('Failed to load options:', error)
+        logger.error('Failed to load options', error)
         // Use fallback options from concept store
         genderOptions.value = conceptStore.getFallbackOptions('gender')
         statusOptions.value = conceptStore.getFallbackOptions('vital_status')
@@ -217,7 +220,7 @@ const save = async () => {
 
         editing.value = false
     } catch (error) {
-        console.error('Failed to save demographics:', error)
+        logger.error('Failed to save demographics', error)
         $q.notify({
             type: 'negative',
             message: 'Failed to update demographics',

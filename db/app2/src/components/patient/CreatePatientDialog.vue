@@ -183,6 +183,8 @@ import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
     modelValue: {
@@ -197,6 +199,9 @@ const $q = useQuasar()
 const router = useRouter()
 const databaseStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('CreatePatientDialog')
 
 // Reactive state
 const loading = ref(false)
@@ -250,20 +255,23 @@ const showDeathDate = computed(() => {
 })
 
 // Methods
-const resetForm = () => {
+const resetForm = async () => {
+    // Get default values from global settings
+    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('PATIENT')
+    
     formData.value = {
         PATIENT_CD: '',
-        VITAL_STATUS_CD: 'SCTID: 438949009', // Alive
+        VITAL_STATUS_CD: 'SCTID: 438949009', // Alive - could be made configurable
         BIRTH_DATE: null,
         DEATH_DATE: null,
         AGE_IN_YEARS: null,
         SEX_CD: null,
-        LANGUAGE_CD: 'LID: LA43-XX', // German by default
+        LANGUAGE_CD: 'LID: LA43-XX', // German by default - could be made configurable
         RACE_CD: null,
         MARITAL_STATUS_CD: null,
         RELIGION_CD: null,
         STATECITYZIP_PATH: '',
-        SOURCESYSTEM_CD: 'SYSTEM',
+        SOURCESYSTEM_CD: defaultSourceSystem,
         UPLOAD_ID: 1
     }
     patientName.value = ''
@@ -312,7 +320,7 @@ const generatePatientId = async () => {
             timeout: 2000
         })
     } catch (error) {
-        console.error('Failed to generate patient ID:', error)
+        logger.error('Failed to generate patient ID', error)
         // Fallback to simple generation
         const seqStr = Math.floor(Math.random() * 999).toString().padStart(3, '0')
         patientId = `PAT-${dateStr}-${seqStr}`
@@ -364,7 +372,7 @@ const validatePatientId = async (val) => {
         }
         return true
     } catch (error) {
-        console.warn('Failed to validate patient ID:', error)
+        logger.warn('Failed to validate patient ID', error)
         return true // Allow creation if validation fails
     }
 }
@@ -391,7 +399,7 @@ const loadConceptOptions = async () => {
         religionOptions.value = religionOpts
 
     } catch (error) {
-        console.error('Failed to load concept options:', error)
+        logger.error('Failed to load concept options', error)
         // Use fallback options
         genderOptions.value = conceptStore.getFallbackOptions('gender')
         vitalStatusOptions.value = conceptStore.getFallbackOptions('vital_status')
@@ -407,26 +415,30 @@ const createNameObservation = async (patientNum, patientName) => {
         const observationRepo = databaseStore.getRepository('observation')
         if (!observationRepo || !patientName.trim()) return
 
+        // Get default values from global settings
+        const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('PATIENT')
+        const defaultCategory = await globalSettingsStore.getDefaultCategory('DEMOGRAPHICS')
+
         // Create a name observation with SCTID: 371484003
         const nameObservation = {
             ENCOUNTER_NUM: null, // No specific visit/encounter
             PATIENT_NUM: patientNum,
             CONCEPT_CD: 'SCTID: 371484003', // Patient name concept
-            CATEGORY_CHAR: 'Demographics',
+            CATEGORY_CHAR: defaultCategory,
             PROVIDER_ID: 'SYSTEM',
             START_DATE: new Date().toISOString().split('T')[0],
             INSTANCE_NUM: 1,
             VALTYPE_CD: 'T', // Text value
             TVAL_CHAR: patientName.trim(),
             LOCATION_CD: 'SYSTEM',
-            SOURCESYSTEM_CD: formData.value.SOURCESYSTEM_CD || 'SYSTEM',
+            SOURCESYSTEM_CD: formData.value.SOURCESYSTEM_CD || defaultSourceSystem,
             UPLOAD_ID: formData.value.UPLOAD_ID || 1
         }
 
         await observationRepo.create(nameObservation)
-        console.log('Created name observation for patient:', patientName)
+        logger.info('Created name observation for patient', { patientName })
     } catch (error) {
-        console.error('Failed to create name observation:', error)
+        logger.error('Failed to create name observation', error)
         // Don't fail patient creation if name observation fails
     }
 }
@@ -508,7 +520,7 @@ const handleSubmit = async () => {
         router.push(`/patient/${createdPatient.PATIENT_CD}`)
 
     } catch (error) {
-        console.error('Error creating patient:', error)
+        logger.error('Error creating patient', error)
         $q.notify({
             type: 'negative',
             message: `Failed to create patient: ${error.message}`,
@@ -521,9 +533,9 @@ const handleSubmit = async () => {
 }
 
 // Watch for dialog open/close
-watch(showDialog, (newValue) => {
+watch(showDialog, async (newValue) => {
     if (newValue) {
-        resetForm()
+        await resetForm()
         loadConceptOptions()
     }
 })

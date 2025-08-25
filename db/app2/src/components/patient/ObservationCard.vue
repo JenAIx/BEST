@@ -439,7 +439,7 @@ const saveChanges = async () => {
             throw new Error(result.error || 'Failed to update observation')
         }
     } catch (error) {
-        console.error('Error updating observation:', error)
+        logger.error('Error updating observation', error)
         $q.notify({
             type: 'negative',
             message: `Failed to update observation: ${error.message}`,
@@ -478,7 +478,7 @@ const deleteObservation = async () => {
             throw new Error(result.error || 'Failed to delete observation')
         }
     } catch (error) {
-        console.error('Error deleting observation:', error)
+        logger.error('Error deleting observation', error)
         $q.notify({
             type: 'negative',
             message: `Failed to delete observation: ${error.message}`,

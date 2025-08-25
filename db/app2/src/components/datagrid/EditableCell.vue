@@ -71,6 +71,8 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 
 const props = defineProps({
@@ -105,6 +107,9 @@ const emit = defineEmits(['update', 'save', 'error'])
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('EditableCell')
 
 // Local state
 const isEditing = ref(false)
@@ -183,7 +188,7 @@ const loadSelectionOptions = async () => {
         const options = await conceptStore.getSelectionOptions(props.conceptCode)
         selectionOptions.value = options
     } catch (error) {
-        console.error('Failed to load selection options:', error)
+        logger.error('Failed to load selection options', error)
         // Fallback options
         selectionOptions.value = [
             { label: 'Yes', value: 'Yes' },
@@ -232,7 +237,7 @@ const saveEdit = async () => {
         })
 
     } catch (error) {
-        console.error('Failed to save cell:', error)
+        logger.error('Failed to save cell', error)
         emit('error', error)
 
         $q.notify({
@@ -256,7 +261,7 @@ const saveToDatabase = async () => {
             await createObservation()
         }
     } catch (error) {
-        console.error('Database save error:', error)
+        logger.error('Database save error', error)
         throw error
     }
 }
@@ -303,6 +308,10 @@ const createObservation = async () => {
         ? visitResult.data[0].START_DATE
         : new Date().toISOString().split('T')[0] // fallback to today
 
+    // Get default values from global settings
+    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('DATAGRID_EDITOR')
+    const defaultCategory = await globalSettingsStore.getDefaultCategory('CLINICAL')
+
     // Prepare observation data using repository pattern
     const observationData = {
         PATIENT_NUM: patientNum,
@@ -310,10 +319,10 @@ const createObservation = async () => {
         CONCEPT_CD: props.conceptCode,
         VALTYPE_CD: props.valueType,
         START_DATE: visitStartDate, // Use visit date, not current timestamp
-        CATEGORY_CHAR: 'CLINICAL',
+        CATEGORY_CHAR: defaultCategory,
         PROVIDER_ID: 'SYSTEM',
         LOCATION_CD: 'DATAGRID',
-        SOURCESYSTEM_CD: 'DATAGRID_EDITOR',
+        SOURCESYSTEM_CD: defaultSourceSystem,
         INSTANCE_NUM: 1,
         UPLOAD_ID: 1
     }

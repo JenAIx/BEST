@@ -104,6 +104,8 @@
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationField from './ObservationField.vue'
 
 const props = defineProps({
@@ -133,6 +135,9 @@ const emit = defineEmits(['observation-updated', 'clone-from-previous'])
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('ObservationFieldSet')
 
 // State
 const collapsed = ref(false)
@@ -227,8 +232,7 @@ const getConceptUnit = (conceptCode) => {
 }
 
 const getExistingObservation = (conceptCode) => {
-  console.log('getExistingObservation called with:', conceptCode)
-  console.log('Available observations:', props.existingObservations)
+  logger.debug('getExistingObservation called', { conceptCode, observationCount: props.existingObservations?.length || 0 })
 
   return props.existingObservations.find((obs) => {
     // Try multiple matching strategies:
@@ -239,7 +243,7 @@ const getExistingObservation = (conceptCode) => {
     const conceptMatch = conceptCode.match(/[:\s]([0-9-]+)$/)
     const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
     if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) {
-      console.log('Matched by numeric code:', conceptCode, 'with', obs.conceptCode)
+      logger.debug('Matched by numeric code', { conceptCode, matchedCode: obs.conceptCode })
       return true
     }
 
@@ -271,7 +275,7 @@ const getPreviousValue = (conceptCode) => {
   // For now, we acknowledge the conceptCode parameter to satisfy ESLint
   // and return null since the actual previous value lookup is handled
   // by the clone functionality in the parent components
-  console.debug(`Looking for previous value for concept: ${conceptCode}`)
+  logger.debug('Looking for previous value for concept', { conceptCode })
 
   return null
 }
@@ -309,7 +313,7 @@ const loadPreviousVisitObservations = async () => {
       }))
     }
   } catch (error) {
-    console.error('Failed to load previous visit observations:', error)
+    logger.error('Failed to load previous visit observations', error)
   }
 }
 
@@ -342,16 +346,20 @@ const saveCustomObservation = async () => {
     // Generate a custom concept code
     const customConceptCode = `CUSTOM:${Date.now()}`
 
+    // Get default values from global settings
+    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
+    const defaultCategory = await globalSettingsStore.getDefaultCategory('GENERAL')
+
     const observationData = {
       PATIENT_NUM: patient.PATIENT_NUM,
       ENCOUNTER_NUM: props.visit.id,
       CONCEPT_CD: customConceptCode,
       VALTYPE_CD: customObservation.value.valueType,
       START_DATE: new Date().toISOString().split('T')[0],
-      CATEGORY_CHAR: props.fieldSet.name.toUpperCase(),
+      CATEGORY_CHAR: props.fieldSet.name.toUpperCase() || defaultCategory,
       PROVIDER_ID: 'SYSTEM',
       LOCATION_CD: 'CUSTOM',
-      SOURCESYSTEM_CD: 'VISITS_PAGE',
+      SOURCESYSTEM_CD: defaultSourceSystem,
       INSTANCE_NUM: 1,
       UPLOAD_ID: 1,
     }
@@ -382,7 +390,7 @@ const saveCustomObservation = async () => {
       position: 'top',
     })
   } catch (error) {
-    console.error('Failed to save custom observation:', error)
+    logger.error('Failed to save custom observation', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to save custom observation',

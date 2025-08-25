@@ -97,6 +97,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
   concept: {
@@ -125,6 +127,9 @@ const emit = defineEmits(['observation-updated', 'clone-requested'])
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('ObservationField')
 
 // State
 const currentValue = ref('')
@@ -170,7 +175,7 @@ const onValueChange = async (newValue) => {
       observationId: props.existingObservation?.observationId,
     })
   } catch (error) {
-    console.error('Failed to save observation:', error)
+    logger.error('Failed to save observation', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to save observation',
@@ -190,16 +195,20 @@ const createObservation = async (value) => {
 
   const observationRepo = dbStore.getRepository('observation')
 
+  // Get default values from global settings
+  const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
+  const defaultCategory = await globalSettingsStore.getDefaultCategory('CLINICAL')
+
   const observationData = {
     PATIENT_NUM: patient.PATIENT_NUM,
     ENCOUNTER_NUM: props.visit.id,
     CONCEPT_CD: props.concept.code,
     VALTYPE_CD: props.concept.valueType,
     START_DATE: new Date().toISOString().split('T')[0],
-    CATEGORY_CHAR: 'CLINICAL',
+    CATEGORY_CHAR: defaultCategory,
     PROVIDER_ID: 'SYSTEM',
     LOCATION_CD: 'VISITS_PAGE',
-    SOURCESYSTEM_CD: 'VISITS_PAGE',
+    SOURCESYSTEM_CD: defaultSourceSystem,
     INSTANCE_NUM: 1,
     UPLOAD_ID: 1,
   }
@@ -341,9 +350,9 @@ const formatRelativeTime = (date) => {
 
 // Initialize value from existing observation
 onMounted(() => {
-  console.log('ObservationField mounted with:', {
-    concept: props.concept,
-    existingObservation: props.existingObservation,
+  logger.debug('ObservationField mounted', {
+    conceptCode: props.concept.CONCEPT_CD,
+    hasExistingObservation: !!props.existingObservation
   })
 
   if (props.existingObservation) {
@@ -357,7 +366,7 @@ onMounted(() => {
 watch(
   () => props.existingObservation,
   (newObs) => {
-    console.log('ObservationField watch triggered:', newObs)
+    logger.debug('ObservationField watch triggered', { hasObservation: !!newObs })
 
     if (newObs) {
       // Use originalValue from the store structure

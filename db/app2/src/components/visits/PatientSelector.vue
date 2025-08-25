@@ -90,12 +90,15 @@
 import { ref, onMounted } from 'vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import PatientCard from './PatientCard.vue'
 
 const emit = defineEmits(['patient-selected'])
 
 const dbStore = useDatabaseStore()
 const localSettings = useLocalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('PatientSelector')
 
 // State
 const searchQuery = ref('')
@@ -126,7 +129,7 @@ const loadRecentPatients = async () => {
                             }
                         }
                     } catch (error) {
-                        console.warn(`Failed to load recent patient ${patientId}:`, error)
+                        logger.warn('Failed to load recent patient', { patientId, error })
                     }
                     return null
                 })
@@ -134,7 +137,7 @@ const loadRecentPatients = async () => {
             recentPatients.value = patientDetails.filter(p => p !== null)
         }
     } catch (error) {
-        console.error('Failed to load recent patients:', error)
+        logger.error('Failed to load recent patients', error)
     }
 }
 
@@ -171,7 +174,7 @@ const onSearchInput = async () => {
         
         searchResults.value = enhancedResults
     } catch (error) {
-        console.error('Search failed:', error)
+        logger.error('Search failed', error)
         searchResults.value = []
     } finally {
         searchLoading.value = false
@@ -218,7 +221,7 @@ const getLastVisitDate = async (patientNum) => {
             return formatVisitDate(lastVisit.START_DATE)
         }
     } catch (error) {
-        console.warn('Failed to get last visit date:', error)
+        logger.warn('Failed to get last visit date', error)
     }
     return null
 }
@@ -229,7 +232,7 @@ const getVisitCount = async (patientNum) => {
         const visits = await visitRepo.findByPatientNum(patientNum)
         return visits.length
     } catch (error) {
-        console.warn('Failed to get visit count:', error)
+        logger.warn('Failed to get visit count', error)
         return 0
     }
 }

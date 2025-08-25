@@ -100,8 +100,11 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const dbStore = useDatabaseStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('PathPickerDialog')
 
 const props = defineProps({
     modelValue: {
@@ -190,7 +193,7 @@ const loadPathOptions = async () => {
             pathOptions.value = []
         }
     } catch (error) {
-        console.error('Failed to load path options:', error)
+        logger.error('Failed to load path options', error)
         pathOptions.value = []
     } finally {
         loading.value = false

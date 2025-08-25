@@ -79,8 +79,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
     modelValue: {
@@ -104,12 +106,16 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'fileSelected', 'fileCleared'])
 
 const $q = useQuasar()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('FileUploadInput')
 
 // Reactive state
 const fileInput = ref(null)
 const selectedFile = ref(null)
 const previewUrl = ref(null)
 const isDragOver = ref(false)
+const fileTypeOptions = ref([])
 const validationError = ref('')
 
 // Computed properties
@@ -214,7 +220,7 @@ const processFile = async (file) => {
             timeout: 2000
         })
     } catch (error) {
-        console.error('Error processing file:', error)
+        logger.error('Error processing file', error)
         validationError.value = 'Error processing file. Please try again.'
         
         $q.notify({
@@ -261,7 +267,35 @@ const getFileExtension = (filename) => {
     return filename.split('.').pop() || ''
 }
 
+const loadFileTypes = async () => {
+    try {
+        fileTypeOptions.value = await globalSettingsStore.getFileTypeOptions()
+    } catch (error) {
+        logger.warn('Failed to load file types from global settings, using fallback', error)
+        // Fallback to hardcoded types
+        fileTypeOptions.value = [
+            { type: 'pdf', icon: 'picture_as_pdf', color: 'red', mimeTypes: ['application/pdf'] },
+            { type: 'image', icon: 'image', color: 'green', mimeTypes: ['image/*'] },
+            { type: 'text', icon: 'description', color: 'blue', mimeTypes: ['text/*'] },
+        ]
+    }
+}
+
 const getFileIcon = (mimeType) => {
+    // Find matching file type configuration by MIME type
+    for (const fileType of fileTypeOptions.value) {
+        if (fileType.mimeTypes) {
+            for (const mime of fileType.mimeTypes) {
+                if (mime.endsWith('*') && mimeType.startsWith(mime.slice(0, -1))) {
+                    return fileType.icon || 'insert_drive_file'
+                } else if (mime === mimeType) {
+                    return fileType.icon || 'insert_drive_file'
+                }
+            }
+        }
+    }
+    
+    // Fallback logic
     if (mimeType.startsWith('image/')) return 'image'
     if (mimeType === 'application/pdf') return 'picture_as_pdf'
     if (mimeType.startsWith('text/')) return 'description'
@@ -269,6 +303,20 @@ const getFileIcon = (mimeType) => {
 }
 
 const getFileColor = (mimeType) => {
+    // Find matching file type configuration by MIME type
+    for (const fileType of fileTypeOptions.value) {
+        if (fileType.mimeTypes) {
+            for (const mime of fileType.mimeTypes) {
+                if (mime.endsWith('*') && mimeType.startsWith(mime.slice(0, -1))) {
+                    return fileType.color || 'grey'
+                } else if (mime === mimeType) {
+                    return fileType.color || 'grey'
+                }
+            }
+        }
+    }
+    
+    // Fallback logic
     if (mimeType.startsWith('image/')) return 'green'
     if (mimeType === 'application/pdf') return 'red'
     if (mimeType.startsWith('text/')) return 'blue'
@@ -288,6 +336,11 @@ const formatFileSize = (bytes) => {
     
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
+
+// Lifecycle
+onMounted(async () => {
+    await loadFileTypes()
+})
 
 // Watch for external changes to modelValue
 watch(() => props.modelValue, (newValue) => {

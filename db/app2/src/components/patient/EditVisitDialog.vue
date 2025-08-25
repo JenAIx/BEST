@@ -47,8 +47,24 @@
                             </q-select>
                         </div>
                         <div class="col">
-                            <q-input v-model="formData.LOCATION_CD" label="Location *" outlined dense
-                                placeholder="e.g., UKJ/NEURO, ICU, ER" :rules="[val => !!val || 'Location is required']"
+                            <q-select v-if="locationOptions.length > 0" 
+                                v-model="formData.LOCATION_CD" 
+                                :options="locationOptions" 
+                                label="Location *"
+                                outlined dense emit-value map-options clearable
+                                :rules="[val => !!val || 'Location is required']"
+                                use-input
+                                @filter="(val, update) => update()">
+                                <template v-slot:prepend>
+                                    <q-icon name="location_on" />
+                                </template>
+                            </q-select>
+                            <q-input v-else
+                                v-model="formData.LOCATION_CD" 
+                                label="Location *" 
+                                outlined dense
+                                placeholder="e.g., UKJ/NEURO, ICU, ER" 
+                                :rules="[val => !!val || 'Location is required']"
                                 clearable>
                                 <template v-slot:prepend>
                                     <q-icon name="location_on" />
@@ -68,8 +84,23 @@
                             </q-select>
                         </div>
                         <div class="col">
-                            <q-input v-model="formData.SOURCESYSTEM_CD" label="Source System" outlined dense
-                                placeholder="e.g., SYSTEM, EMR, MANUAL" clearable>
+                            <q-select v-if="sourceSystemOptions.length > 0"
+                                v-model="formData.SOURCESYSTEM_CD" 
+                                :options="sourceSystemOptions" 
+                                label="Source System" 
+                                outlined dense emit-value map-options clearable
+                                use-input
+                                @filter="(val, update) => update()">
+                                <template v-slot:prepend>
+                                    <q-icon name="source" />
+                                </template>
+                            </q-select>
+                            <q-input v-else
+                                v-model="formData.SOURCESYSTEM_CD" 
+                                label="Source System" 
+                                outlined dense
+                                placeholder="e.g., SYSTEM, EMR, MANUAL" 
+                                clearable>
                                 <template v-slot:prepend>
                                     <q-icon name="source" />
                                 </template>
@@ -97,9 +128,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
     modelValue: {
@@ -120,9 +153,13 @@ const emit = defineEmits(['update:modelValue', 'visitUpdated'])
 
 const $q = useQuasar()
 const databaseStore = useDatabaseStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('EditVisitDialog')
 
 // Reactive state
 const loading = ref(false)
+const loadingOptions = ref(false)
 const showDialog = computed({
     get: () => props.modelValue,
     set: (value) => emit('update:modelValue', value)
@@ -142,21 +179,11 @@ const formData = ref({
 // Original data for change detection
 const originalData = ref({})
 
-// Form options
-const statusOptions = [
-    { label: 'Active', value: 'A' },
-    { label: 'Inactive', value: 'I' },
-    { label: 'Completed', value: 'C' },
-    { label: 'Cancelled', value: 'X' },
-    { label: 'Pending', value: 'P' }
-]
-
-const inOutOptions = [
-    { label: 'Outpatient', value: 'O' },
-    { label: 'Inpatient', value: 'I' },
-    { label: 'Emergency', value: 'E' },
-    { label: 'Day Care', value: 'D' }
-]
+// Dynamic form options from global settings
+const statusOptions = ref([])
+const inOutOptions = ref([])
+const sourceSystemOptions = ref([])
+const locationOptions = ref([])
 
 // Form validation
 const isFormValid = computed(() => {
@@ -179,6 +206,96 @@ const formatDateForInput = (dateStr) => {
     return date.toISOString().split('T')[0]
 }
 
+// Methods
+const loadOptions = async () => {
+    try {
+        loadingOptions.value = true
+        
+        // Load status options from global settings
+        try {
+            const statusData = await globalSettingsStore.loadLookupValues('ACTIVE_STATUS_CD')
+            if (statusData && statusData.length > 0) {
+                statusOptions.value = statusData.map(status => ({
+                    label: status.NAME_CHAR || status.CODE_CD,
+                    value: status.CODE_CD
+                }))
+            } else {
+                // Fallback to hardcoded options
+                statusOptions.value = [
+                    { label: 'Active', value: 'A' },
+                    { label: 'Inactive', value: 'I' },
+                    { label: 'Completed', value: 'C' },
+                    { label: 'Cancelled', value: 'X' },
+                    { label: 'Pending', value: 'P' }
+                ]
+            }
+        } catch {
+            // Use fallback options
+            statusOptions.value = [
+                { label: 'Active', value: 'A' },
+                { label: 'Inactive', value: 'I' },
+                { label: 'Completed', value: 'C' },
+                { label: 'Cancelled', value: 'X' },
+                { label: 'Pending', value: 'P' }
+            ]
+        }
+        
+        // Load in/out options from global settings
+        try {
+            const inOutData = await globalSettingsStore.loadLookupValues('INOUT_CD')
+            if (inOutData && inOutData.length > 0) {
+                inOutOptions.value = inOutData.map(inout => ({
+                    label: inout.NAME_CHAR || inout.CODE_CD,
+                    value: inout.CODE_CD
+                }))
+            } else {
+                // Fallback to hardcoded options
+                inOutOptions.value = [
+                    { label: 'Outpatient', value: 'O' },
+                    { label: 'Inpatient', value: 'I' },
+                    { label: 'Emergency', value: 'E' },
+                    { label: 'Day Care', value: 'D' }
+                ]
+            }
+        } catch {
+            // Use fallback options
+            inOutOptions.value = [
+                { label: 'Outpatient', value: 'O' },
+                { label: 'Inpatient', value: 'I' },
+                { label: 'Emergency', value: 'E' },
+                { label: 'Day Care', value: 'D' }
+            ]
+        }
+        
+        // Load source system options
+        sourceSystemOptions.value = await globalSettingsStore.getSourceSystemOptions()
+        
+        // Load location options
+        try {
+            const locationData = await globalSettingsStore.loadLookupValues('LOCATION_CD')
+            if (locationData && locationData.length > 0) {
+                locationOptions.value = locationData.map(loc => ({
+                    label: loc.NAME_CHAR || loc.CODE_CD,
+                    value: loc.CODE_CD
+                }))
+            }
+        } catch {
+            // Location will remain as free text input if no options available
+            logger.debug('No location options in database, using free text input')
+        }
+        
+    } catch (error) {
+        logger.error('Failed to load options from global settings', error)
+        $q.notify({
+            type: 'warning',
+            message: 'Using default options. Some settings may not be available.',
+            position: 'top'
+        })
+    } finally {
+        loadingOptions.value = false
+    }
+}
+
 // Initialize form when dialog opens or visit changes
 watch([showDialog, () => props.visit], ([dialogOpen, visit]) => {
     if (dialogOpen && visit) {
@@ -198,6 +315,11 @@ watch([showDialog, () => props.visit], ([dialogOpen, visit]) => {
         originalData.value = { ...formData.value }
     }
 }, { immediate: true })
+
+// Lifecycle
+onMounted(async () => {
+    await loadOptions()
+})
 
 // Handle form submission
 const handleSubmit = async () => {
@@ -264,7 +386,7 @@ const handleSubmit = async () => {
         showDialog.value = false
 
     } catch (error) {
-        console.error('Error updating visit:', error)
+        logger.error('Error updating visit', error)
         $q.notify({
             type: 'negative',
             message: `Failed to update visit: ${error.message}`,

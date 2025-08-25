@@ -714,6 +714,74 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   /**
+   * Get default source system based on context
+   * @param {string} context - The context where the source system is used
+   * @returns {Promise<string>} Default source system code
+   */
+  const getDefaultSourceSystem = async (context = 'GENERAL') => {
+    try {
+      // Try to load from database first
+      const sourceSystems = await getSourceSystemOptions()
+      
+      // Look for context-specific defaults
+      const contextMap = {
+        'VISITS_PAGE': 'VISITS_PAGE',
+        'DATAGRID_EDITOR': 'DATAGRID_EDITOR',
+        'PATIENT': 'SYSTEM',
+        'GENERAL': 'SYSTEM'
+      }
+      
+      const preferredCode = contextMap[context] || 'SYSTEM'
+      
+      // Check if preferred code exists in loaded options
+      const exists = sourceSystems.find(ss => ss.value === preferredCode)
+      if (exists) return preferredCode
+      
+      // Return first available option or fallback
+      return sourceSystems.length > 0 ? sourceSystems[0].value : 'SYSTEM'
+    } catch (error) {
+      logger.warn('Failed to get default source system, using fallback', error)
+      return 'SYSTEM'
+    }
+  }
+
+  /**
+   * Get default category based on context
+   * @param {string} context - The context where the category is used
+   * @returns {Promise<string>} Default category
+   */
+  const getDefaultCategory = async (context = 'GENERAL') => {
+    try {
+      // Try to load from database first
+      const categories = await getCategoryOptions()
+      
+      // Look for context-specific defaults
+      const contextMap = {
+        'CLINICAL': 'Clinical',
+        'DEMOGRAPHICS': 'Demographics',
+        'CLONED': 'Cloned',
+        'OBSERVATION': 'Observation',
+        'GENERAL': 'General'
+      }
+      
+      const preferredCategory = contextMap[context] || 'General'
+      
+      // Check if preferred category exists in loaded options
+      const exists = categories.find(cat => 
+        cat.value === preferredCategory || 
+        cat.label === preferredCategory
+      )
+      if (exists) return exists.value
+      
+      // Return first available option or fallback
+      return categories.length > 0 ? categories[0].value : 'General'
+    } catch (error) {
+      logger.warn('Failed to get default category, using fallback', error)
+      return 'General'
+    }
+  }
+
+  /**
    * Initialize the store
    */
   const initialize = async () => {
@@ -765,5 +833,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     getVisitTypeOptions,
     getFileTypeOptions,
     getFieldSetOptions,
+    
+    // Default value methods
+    getDefaultSourceSystem,
+    getDefaultCategory,
   }
 })

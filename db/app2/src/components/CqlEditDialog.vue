@@ -104,6 +104,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useLoggingStore } from 'src/stores/logging-store'
 import cql from 'cql-execution'
 import { unstringify_json, stringify_json, unstringify_char, stringify_char } from 'src/shared/utils/sql-tools.js'
 
@@ -121,6 +122,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'save', 'cancel'])
 
 const $q = useQuasar()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('CqlEditDialog')
 
 // State
 const localShow = ref(false)
@@ -255,7 +258,7 @@ const compileRule = async () => {
       })
     }
   } catch (error) {
-    console.error('Compilation error:', error)
+    logger.error('Compilation error', error)
     $q.notify({
       type: 'negative',
       message: error.message || 'Failed to compile CQL',

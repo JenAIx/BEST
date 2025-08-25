@@ -176,7 +176,7 @@ const columns = [
     align: 'left',
     field: 'NAME_CHAR',
     sortable: true,
-    style: 'min-width: 300px',
+    style: 'max-width: 200px',
   },
   {
     name: 'CATEGORY_CHAR',
@@ -184,7 +184,7 @@ const columns = [
     align: 'left',
     field: 'CATEGORY_CHAR',
     sortable: true,
-    style: 'width: 150px',
+    style: 'max-width: 150px',
   },
   {
     name: 'CONCEPT_PATH',

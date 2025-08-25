@@ -127,10 +127,11 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 
 const props = defineProps({
     modelValue: {
@@ -159,6 +160,7 @@ const emit = defineEmits(['update:modelValue'])
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const globalSettingsStore = useGlobalSettingsStore()
 const logger = useLoggingStore().createLogger('FilePreviewDialog')
 
 // Reactive state
@@ -168,6 +170,7 @@ const previewError = ref('')
 const imagePreviewUrl = ref(null)
 const textContent = ref('')
 const pdfPreviewUrl = ref(null)
+const fileTypeOptions = ref([])
 
 // Computed properties
 const showDialog = computed({
@@ -191,52 +194,75 @@ const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleDateString()
 }
 
+const loadFileTypes = async () => {
+    try {
+        fileTypeOptions.value = await globalSettingsStore.getFileTypeOptions()
+    } catch (error) {
+        logger.warn('Failed to load file types from global settings, using fallback', error)
+        // Fallback to hardcoded types
+        fileTypeOptions.value = [
+            { type: 'pdf', icon: 'picture_as_pdf', color: 'red', extensions: ['pdf'] },
+            { type: 'image', icon: 'image', color: 'green', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] },
+            { type: 'text', icon: 'description', color: 'blue', extensions: ['txt', 'rtf'] },
+        ]
+    }
+}
+
 const getFileIcon = (filename) => {
     if (!filename) return 'insert_drive_file'
 
     const ext = filename.split('.').pop()?.toLowerCase()
-    switch (ext) {
-        case 'pdf': return 'picture_as_pdf'
-        case 'png':
-        case 'jpg':
-        case 'jpeg':
-        case 'gif': return 'image'
-        case 'txt': return 'description'
-        default: return 'insert_drive_file'
+    
+    // Find matching file type configuration
+    for (const fileType of fileTypeOptions.value) {
+        if (fileType.extensions && fileType.extensions.includes(ext)) {
+            return fileType.icon || 'insert_drive_file'
+        }
     }
+    
+    return 'insert_drive_file'
 }
 
 const getFileColor = (filename) => {
     if (!filename) return 'grey'
 
     const ext = filename.split('.').pop()?.toLowerCase()
-    switch (ext) {
-        case 'pdf': return 'red'
-        case 'png':
-        case 'jpg':
-        case 'jpeg':
-        case 'gif': return 'green'
-        case 'txt': return 'blue'
-        default: return 'grey'
+    
+    // Find matching file type configuration
+    for (const fileType of fileTypeOptions.value) {
+        if (fileType.extensions && fileType.extensions.includes(ext)) {
+            return fileType.color || 'grey'
+        }
     }
+    
+    return 'grey'
 }
 
 const isImageFile = (filename) => {
     if (!filename) return false
     const ext = filename.split('.').pop()?.toLowerCase()
-    return ['png', 'jpg', 'jpeg', 'gif'].includes(ext)
+    
+    // Find image file type configuration
+    const imageType = fileTypeOptions.value.find(ft => ft.type === 'image')
+    return imageType?.extensions?.includes(ext) || false
 }
 
 const isTextFile = (filename) => {
     if (!filename) return false
     const ext = filename.split('.').pop()?.toLowerCase()
-    return ['txt'].includes(ext)
+    
+    // Find text file type configuration
+    const textType = fileTypeOptions.value.find(ft => ft.type === 'text')
+    return textType?.extensions?.includes(ext) || false
 }
 
 const isPdfFile = (filename) => {
     if (!filename) return false
     const ext = filename.split('.').pop()?.toLowerCase()
-    return ['pdf'].includes(ext)
+    
+    // Find PDF file type configuration
+    const pdfType = fileTypeOptions.value.find(ft => ft.type === 'pdf')
+    return pdfType?.extensions?.includes(ext) || ext === 'pdf'
 }
 
 // Preview loading methods
@@ -375,6 +401,11 @@ const cleanupUrls = () => {
         pdfPreviewUrl.value = null
     }
 }
+
+// Lifecycle
+onMounted(async () => {
+    await loadFileTypes()
+})
 
 // Watch for dialog open/close
 watch(showDialog, (newValue) => {
