@@ -215,6 +215,45 @@ class BaseRepository {
   }
 
   /**
+   * Update entities by criteria
+   * @param {Object} criteria - Update criteria
+   * @param {Object} updateData - Data to update
+   * @returns {Promise<number>} - Number of updated entities
+   */
+  async updateByCriteria(criteria, updateData) {
+    // Filter out undefined values
+    const updateFields = Object.keys(updateData).filter(
+      (key) => updateData[key] !== undefined
+    )
+
+    if (updateFields.length === 0) {
+      throw new Error('No fields to update')
+    }
+
+    let sql = `UPDATE ${this.tableName} SET `
+    const params = []
+
+    // Build SET clause
+    const setClause = updateFields.map((field) => {
+      params.push(updateData[field])
+      return `${field} = ?`
+    }).join(', ')
+    
+    sql += setClause + ` WHERE 1=1`
+
+    // Build WHERE clause
+    for (const [key, value] of Object.entries(criteria)) {
+      if (value !== undefined && value !== null && value !== '') {
+        sql += ` AND ${key} = ?`
+        params.push(value)
+      }
+    }
+
+    const result = await this.connection.executeCommand(sql, params)
+    return result.success ? result.changes : 0
+  }
+
+  /**
    * Delete entities by criteria
    * @param {Object} criteria - Delete criteria
    * @returns {Promise<number>} - Number of deleted entities

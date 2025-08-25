@@ -293,7 +293,7 @@ class ConceptRepository extends BaseRepository {
       UPDATE_DATE: new Date().toISOString(),
     }
 
-    return await this.updateByCriteria({ CONCEPT_CD: conceptCode }, updateWithAudit)
+    return await this.update(conceptCode, updateWithAudit)
   }
 
   /**

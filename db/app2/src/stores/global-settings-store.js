@@ -782,6 +782,64 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   /**
+   * Get user role options for dropdowns
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of {label, value} options
+   */
+  const getUserRoleOptions = async (forceRefresh = false) => {
+    const cacheKey = 'user_roles'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP 
+         WHERE TABLE_CD = 'USER_DIMENSION' 
+         AND COLUMN_CD = 'ROLE_CD' 
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((role) => ({
+          label: role.NAME_CHAR || role.CODE_CD,
+          value: role.CODE_CD,
+        }))
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} user roles from database`)
+        return options
+      }
+
+      // Fallback to standard user roles if no database data
+      const fallbackRoles = [
+        { label: 'Administrator', value: 'admin' },
+        { label: 'Physician', value: 'physician' },
+        { label: 'Nurse', value: 'nurse' },
+        { label: 'Research', value: 'research' }
+      ]
+
+      // Cache the fallback result
+      lookupData.value[cacheKey] = fallbackRoles
+      logger.info('Using fallback user roles')
+      return fallbackRoles
+    } catch (error) {
+      logger.error('Failed to get user role options', error)
+      // Return fallback options
+      const fallbackRoles = [
+        { label: 'Administrator', value: 'admin' },
+        { label: 'Physician', value: 'physician' },
+        { label: 'Nurse', value: 'nurse' },
+        { label: 'Research', value: 'research' }
+      ]
+      return fallbackRoles
+    }
+  }
+
+  /**
    * Initialize the store
    */
   const initialize = async () => {
@@ -837,5 +895,8 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     // Default value methods
     getDefaultSourceSystem,
     getDefaultCategory,
+    
+    // User role methods
+    getUserRoleOptions,
   }
 })

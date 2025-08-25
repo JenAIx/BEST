@@ -47,8 +47,9 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import AppInputDialog from 'components/shared/AppInputDialog.vue'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 
 const props = defineProps({
     modelValue: {
@@ -58,6 +59,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'save', 'cancel'])
+
+const globalSettingsStore = useGlobalSettingsStore()
 
 // Form state
 const formData = ref({
@@ -70,13 +73,7 @@ const formData = ref({
 })
 
 const isSaving = ref(false)
-
-const roleOptions = [
-    { label: 'Administrator', value: 'admin' },
-    { label: 'Physician', value: 'physician' },
-    { label: 'Nurse', value: 'nurse' },
-    { label: 'Research', value: 'research' }
-]
+const roleOptions = ref([])
 
 const dialogVisible = computed({
     get: () => props.modelValue,
@@ -116,6 +113,22 @@ const resetForm = () => {
     }
 }
 
+// Load role options
+const loadRoleOptions = async () => {
+    try {
+        roleOptions.value = await globalSettingsStore.getUserRoleOptions()
+    } catch (error) {
+        console.error('Failed to load role options:', error)
+        // Fallback to default roles
+        roleOptions.value = [
+            { label: 'Administrator', value: 'admin' },
+            { label: 'Physician', value: 'physician' },
+            { label: 'Nurse', value: 'nurse' },
+            { label: 'Research', value: 'research' }
+        ]
+    }
+}
+
 const onCancel = () => {
     dialogVisible.value = false
     emit('cancel')
@@ -144,4 +157,9 @@ const onSubmit = async () => {
         isSaving.value = false
     }
 }
+
+// Load role options when component mounts
+onMounted(() => {
+    loadRoleOptions()
+})
 </script>

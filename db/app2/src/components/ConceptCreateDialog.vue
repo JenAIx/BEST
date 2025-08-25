@@ -86,7 +86,9 @@
         </template>
       </q-input>
 
+      <div class="row">
       <!-- Category Field -->
+       <div class="col-4">
       <q-select
         v-model="formData.category"
         label="Category"
@@ -99,8 +101,9 @@
         @update:model-value="onFieldChange"
         hint="Concept category for organization"
       />
-
+    </div>
       <!-- Value Type Field -->
+       <div class="col-4">
       <q-select
         v-model="formData.valueType"
         label="Value Type"
@@ -111,8 +114,15 @@
         emit-value
         map-options
         @update:model-value="onValueTypeChange"
-        hint="Type of value this concept represents"
+        hint="Type of value"
       />
+    </div>
+    <div class="col-4">
+            <!-- Unit Code Field -->
+            <q-input v-model="formData.unitCode" label="Unit Code" outlined dense @update:model-value="onFieldChange" hint="Unit of measurement" />
+
+    </div>
+      </div>
 
       <!-- Selection Answers (only for S type) -->
       <div v-if="formData.valueType === 'S'" class="q-pa-md bg-grey-1 rounded-borders">
@@ -131,8 +141,7 @@
         </div>
       </div>
 
-      <!-- Unit Code Field -->
-      <q-input v-model="formData.unitCode" label="Unit Code" outlined dense @update:model-value="onFieldChange" hint="Unit of measurement (optional, e.g., mg/dL, mmHg)" />
+
 
       <!-- Related Concept Field -->
       <q-input v-model="formData.relatedConcept" label="Related Concept" outlined dense @update:model-value="onFieldChange" hint="Related concept code (optional)" />
