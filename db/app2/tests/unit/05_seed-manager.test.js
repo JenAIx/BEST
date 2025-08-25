@@ -88,10 +88,7 @@ describe('SeedManager', () => {
     })
 
     it('should handle individual concept insertion errors', async () => {
-      mockConnection.executeCommand
-        .mockResolvedValueOnce({ success: true })
-        .mockRejectedValueOnce(new Error('Insert failed'))
-        .mockResolvedValue({ success: true })
+      mockConnection.executeCommand.mockResolvedValueOnce({ success: true }).mockRejectedValueOnce(new Error('Insert failed')).mockResolvedValue({ success: true })
 
       const count = await seedManager.seedConcepts()
 
@@ -114,9 +111,7 @@ describe('SeedManager', () => {
 
       await seedManager.seedCqlRules()
 
-      const numericRuleCall = mockConnection.executeCommand.mock.calls.find((call) =>
-        call[1].includes('numeric'),
-      )
+      const numericRuleCall = mockConnection.executeCommand.mock.calls.find((call) => call[1].includes('numeric'))
       expect(numericRuleCall).toBeDefined()
       expect(numericRuleCall[0]).toContain('INSERT OR IGNORE INTO CQL_FACT')
       expect(numericRuleCall[1]).toContain('Zahl')
@@ -139,9 +134,7 @@ describe('SeedManager', () => {
       await seedManager.seedConceptCqlLookups()
 
       // Check that SCTID: 1255866005 is linked to CQL_ID 8
-      const lookupCall = mockConnection.executeCommand.mock.calls.find((call) =>
-        call[1].includes('SCTID: 1255866005'),
-      )
+      const lookupCall = mockConnection.executeCommand.mock.calls.find((call) => call[1].includes('SCTID: 1255866005'))
       expect(lookupCall).toBeDefined()
       expect(lookupCall[1]).toContain('8') // CQL_ID 8 as string
     })
@@ -183,10 +176,7 @@ describe('SeedManager', () => {
 
       await seedManager.insertConcept(concept)
 
-      expect(mockConnection.executeCommand).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT OR IGNORE INTO CONCEPT_DIMENSION'),
-        expect.arrayContaining(['TEST001', 'Test Concept', 'S', 'CUSTOM']),
-      )
+      expect(mockConnection.executeCommand).toHaveBeenCalledWith(expect.stringContaining('INSERT OR IGNORE INTO CONCEPT_DIMENSION'), expect.arrayContaining(['TEST001', 'Test Concept', 'S', 'CUSTOM']))
     })
 
     it('should insert CQL rule with correct SQL', async () => {
@@ -201,10 +191,7 @@ describe('SeedManager', () => {
 
       await seedManager.insertCqlRule(cqlRule)
 
-      expect(mockConnection.executeCommand).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT OR IGNORE INTO CQL_FACT'),
-        expect.arrayContaining([1, 'numeric', 'Zahl', 'library NUMBER...']),
-      )
+      expect(mockConnection.executeCommand).toHaveBeenCalledWith(expect.stringContaining('INSERT OR IGNORE INTO CQL_FACT'), expect.arrayContaining([1, 'numeric', 'Zahl', 'library NUMBER...']))
     })
 
     it('should insert user with correct SQL', async () => {
@@ -238,6 +225,7 @@ describe('SeedManager', () => {
         .mockResolvedValueOnce({ success: true, data: [{ count: 8 }] }) // cql rules
         .mockResolvedValueOnce({ success: true, data: [{ count: 8 }] }) // lookups
         .mockResolvedValueOnce({ success: true, data: [{ count: 4 }] }) // users
+        .mockResolvedValueOnce({ success: true, data: [{ count: 18 }] }) // code lookups
 
       const stats = await seedManager.getSeedDataStatistics()
 
@@ -246,6 +234,7 @@ describe('SeedManager', () => {
         cqlRules: 8,
         conceptCqlLookups: 8,
         users: 4,
+        codeLookups: 18,
       })
     })
 
@@ -259,6 +248,7 @@ describe('SeedManager', () => {
         cqlRules: 0,
         conceptCqlLookups: 0,
         users: 0,
+        codeLookups: 0,
         errors: ['Query failed'],
       })
     })

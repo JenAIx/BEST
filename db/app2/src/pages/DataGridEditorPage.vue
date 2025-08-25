@@ -21,6 +21,11 @@ import { useRouter } from 'vue-router'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
 
+// Note: This component does not use visit-observation-store because:
+// 1. It handles multiple patients simultaneously (visit-observation-store is single-patient focused)
+// 2. It requires a different data structure optimized for grid/spreadsheet editing
+// 3. The ExcelLikeEditor component has its own specialized data loading and caching logic
+
 const router = useRouter()
 const localSettings = useLocalSettingsStore()
 

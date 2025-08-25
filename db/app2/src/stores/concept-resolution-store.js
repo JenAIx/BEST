@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { useDatabaseStore } from './database-store'
+import { useGlobalSettingsStore } from './global-settings-store'
 import { createLogger } from 'src/core/services/logging-service'
 
 export const useConceptResolutionStore = defineStore('conceptResolution', {
@@ -485,6 +486,55 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
         conceptCount: conceptCodes.length,
         duration: timer.end(),
       })
+    },
+
+    /**
+     * Get concept categories for dropdowns with caching
+     * @param {boolean} forceRefresh - Force refresh from database
+     * @returns {Promise<Array>} Array of {label, value} options
+     */
+    async getCategoryOptions(forceRefresh = false) {
+      const cacheKey = 'concept_categories'
+      const cached = this.cache[cacheKey]
+
+      if (cached && !this.isExpired(cached) && !forceRefresh) {
+        this.logger.debug('Category options resolved from cache', { source: 'cache' })
+        return cached.data
+      }
+
+      const timer = this.logger.startTimer('get_category_options')
+
+      try {
+        this.logger.debug('Loading category options from global settings')
+
+        const globalSettingsStore = useGlobalSettingsStore()
+        const categoryOptions = await globalSettingsStore.getCategoryOptions(forceRefresh)
+
+        // Cache the result
+        await this.cacheResult(cacheKey, categoryOptions)
+
+        const duration = timer.end()
+        this.logger.success('Category options loaded and cached', {
+          optionsCount: categoryOptions.length,
+          duration,
+        })
+
+        return categoryOptions
+      } catch (error) {
+        timer.end()
+        this.logger.error('Failed to get category options', error)
+
+        // Return fallback categories
+        const fallbackCategories = [
+          { label: 'General', value: 'CAT_GENERAL' },
+          { label: 'Demographics', value: 'CAT_DEMOGRAPHICS' },
+          { label: 'Laboratory', value: 'CAT_LABORATORY' },
+          { label: 'Vital Signs', value: 'CAT_VITAL_SIGNS' },
+        ]
+
+        await this.cacheResult(cacheKey, fallbackCategories)
+        return fallbackCategories
+      }
     },
 
     /**

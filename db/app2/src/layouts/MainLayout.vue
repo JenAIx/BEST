@@ -163,6 +163,13 @@
             <q-item-section> User Management </q-item-section>
           </q-item>
 
+          <q-item v-if="isAdmin" clickable v-ripple to="/global-settings" active-class="bg-primary text-white">
+            <q-item-section avatar>
+              <q-icon name="settings_applications" />
+            </q-item-section>
+            <q-item-section> Global Settings </q-item-section>
+          </q-item>
+
           <q-separator spaced />
 
           <!-- Data Operations -->

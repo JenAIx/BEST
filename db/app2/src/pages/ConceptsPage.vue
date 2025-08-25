@@ -3,18 +3,15 @@
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h4">Concepts Administration</div>
       <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">
-          Showing {{ concepts.length }} of {{ totalConcepts }} concepts
-        </div>
+        <div class="text-caption text-grey-6">Showing {{ concepts.length }} of {{ totalConcepts }} concepts</div>
         <q-btn color="primary" icon="add" label="Create Concept" @click="onCreateConcept" />
       </div>
     </div>
 
     <!-- Search and Filters -->
     <div class="row q-gutter-md q-mb-md">
-      <div class="col-12 col-md-4">
-        <q-input v-model="searchQuery" outlined dense placeholder="Search concepts (code, name, path)..."
-          @update:model-value="onSearchChange" debounce="300">
+      <div class="col-12 col-md-3">
+        <q-input v-model="searchQuery" outlined dense placeholder="Search concepts (code, name, path)..." @update:model-value="onSearchChange" debounce="300">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -23,12 +20,22 @@
           </template>
         </q-input>
       </div>
-      <div class="col-12 col-md-5">
-        <q-select v-model="selectedValueTypes" outlined dense :options="valueTypeOptions" label="Filter by Value Type"
-          multiple clearable emit-value map-options use-chips @update:model-value="onFilterChange">
+      <div class="col-12 col-md-4">
+        <q-select
+          v-model="selectedValueTypes"
+          outlined
+          dense
+          :options="valueTypeOptions"
+          label="Filter by Value Type"
+          multiple
+          clearable
+          emit-value
+          map-options
+          use-chips
+          @update:model-value="onFilterChange"
+        >
           <template v-slot:selected-item="scope">
-            <q-chip removable dense @remove="scope.removeAtIndex(scope.index)" :tabindex="scope.tabindex"
-              color="primary" text-color="white">
+            <q-chip removable dense @remove="scope.removeAtIndex(scope.index)" :tabindex="scope.tabindex" color="primary" text-color="white">
               {{ scope.opt.value }}
             </q-chip>
           </template>
@@ -38,22 +45,40 @@
                 <q-item-label>{{ scope.opt.label }}</q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-icon v-if="selectedValueTypes && selectedValueTypes.includes(scope.opt.value)" name="check"
-                  color="primary" />
+                <q-icon v-if="selectedValueTypes && selectedValueTypes.includes(scope.opt.value)" name="check" color="primary" />
               </q-item-section>
             </q-item>
           </template>
         </q-select>
       </div>
       <div class="col-12 col-md-2">
-        <q-select v-model="selectedSourceSystem" outlined dense :options="sourceSystemOptions" label="Source System"
-          clearable emit-value map-options @update:model-value="onFilterChange" />
+        <q-select
+          v-model="selectedCategories"
+          outlined
+          dense
+          :options="categoryOptions"
+          label="Filter by Category"
+          multiple
+          clearable
+          emit-value
+          map-options
+          use-chips
+          @update:model-value="onFilterChange"
+        >
+          <template v-slot:selected-item="scope">
+            <q-chip removable dense @remove="scope.removeAtIndex(scope.index)" :tabindex="scope.tabindex" color="secondary" text-color="white">
+              {{ scope.opt.label }}
+            </q-chip>
+          </template>
+        </q-select>
+      </div>
+      <div class="col-12 col-md-2">
+        <q-select v-model="selectedSourceSystem" outlined dense :options="sourceSystemOptions" label="Source System" clearable emit-value map-options @update:model-value="onFilterChange" />
       </div>
     </div>
 
     <!-- Concepts Table -->
-    <q-table :rows="concepts" :columns="columns" row-key="CONCEPT_CD" :loading="loading" :pagination="pagination"
-      @request="onRequest" binary-state-sort :rows-per-page-options="[10, 25, 50]">
+    <q-table :rows="concepts" :columns="columns" row-key="CONCEPT_CD" :loading="loading" :pagination="pagination" @request="onRequest" binary-state-sort :rows-per-page-options="[10, 25, 50]">
       <!-- Name and Concept Code Column -->
       <template v-slot:body-cell-NAME_CHAR="props">
         <q-td :props="props">
@@ -64,6 +89,14 @@
               {{ truncateText(props.row.CONCEPT_BLOB, 50) }}
             </div>
           </div>
+        </q-td>
+      </template>
+
+      <!-- Category Column -->
+      <template v-slot:body-cell-CATEGORY_CHAR="props">
+        <q-td :props="props">
+          <q-chip v-if="props.value" :label="formatCategoryName(props.value)" size="sm" color="grey-3" text-color="grey-8" dense />
+          <span v-else class="text-grey-5">-</span>
         </q-td>
       </template>
 
@@ -100,8 +133,7 @@
     </q-table>
 
     <!-- Edit Concept Dialog -->
-    <ConceptEditDialog v-model="showEditDialog" :concept="selectedConcept" @save="onSaveConcept"
-      @cancel="onCancelEdit" />
+    <ConceptEditDialog v-model="showEditDialog" :concept="selectedConcept" @save="onSaveConcept" @cancel="onCancelEdit" />
 
     <!-- Create Concept Dialog -->
     <ConceptCreateDialog v-model="showCreateDialog" @save="onSaveNewConcept" @cancel="onCancelCreate" />
@@ -112,12 +144,14 @@
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import ConceptEditDialog from 'components/ConceptEditDialog.vue'
 import ConceptCreateDialog from 'components/ConceptCreateDialog.vue'
 import ValueTypeIcon from 'components/shared/ValueTypeIcon.vue'
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const globalSettingsStore = useGlobalSettingsStore()
 
 // State
 const concepts = ref([])
@@ -129,6 +163,10 @@ const selectedConcept = ref(null)
 const searchQuery = ref('')
 const selectedValueTypes = ref(['D', 'F', 'N', 'R', 'S', 'T']) // All except 'A' which is disabled by default
 const selectedSourceSystem = ref(null)
+const selectedCategories = ref([])
+const categoryOptions = ref([])
+const valueTypeOptions = ref([])
+const sourceSystemOptions = ref([])
 
 // Table configuration
 const columns = [
@@ -138,7 +176,15 @@ const columns = [
     align: 'left',
     field: 'NAME_CHAR',
     sortable: true,
-    style: 'min-width: 300px'
+    style: 'min-width: 300px',
+  },
+  {
+    name: 'CATEGORY_CHAR',
+    label: 'Category',
+    align: 'left',
+    field: 'CATEGORY_CHAR',
+    sortable: true,
+    style: 'width: 150px',
   },
   {
     name: 'CONCEPT_PATH',
@@ -146,7 +192,7 @@ const columns = [
     align: 'left',
     field: 'CONCEPT_PATH',
     sortable: true,
-    style: 'min-width: 200px; max-width: 400px'
+    style: 'min-width: 200px; max-width: 400px',
   },
   {
     name: 'VALTYPE_CD',
@@ -154,7 +200,7 @@ const columns = [
     align: 'center',
     field: 'VALTYPE_CD',
     sortable: true,
-    style: 'width: 80px'
+    style: 'width: 80px',
   },
   {
     name: 'actions',
@@ -162,8 +208,8 @@ const columns = [
     align: 'center',
     field: 'actions',
     sortable: false,
-    style: 'width: 100px'
-  }
+    style: 'width: 100px',
+  },
 ]
 
 const pagination = ref({
@@ -171,24 +217,10 @@ const pagination = ref({
   descending: false,
   page: 1,
   rowsPerPage: 10,
-  rowsNumber: 0
+  rowsNumber: 0,
 })
 
-const valueTypeOptions = [
-  { label: 'Answers (A)', value: 'A' },
-  { label: 'Date (D)', value: 'D' },
-  { label: 'Findings (F)', value: 'F' },
-  { label: 'Numeric (N)', value: 'N' },
-  { label: 'Raw Text (R)', value: 'R' },
-  { label: 'Selection (S)', value: 'S' },
-  { label: 'Text (T)', value: 'T' }
-]
-
-const sourceSystemOptions = ref([
-  { label: 'LOINC', value: 'LOINC' },
-  { label: 'ICD10-2019', value: 'ICD10-2019' },
-  { label: 'SNOMED-CT', value: 'SNOMED-CT' }
-])
+// Options will be loaded from global settings store
 
 // Methods
 const loadConcepts = async () => {
@@ -205,55 +237,70 @@ const loadConcepts = async () => {
       criteria.search = String(searchQuery.value)
     }
     if (selectedValueTypes.value && selectedValueTypes.value.length > 0) {
-      criteria.valueTypes = selectedValueTypes.value.map(type => String(type))
+      criteria.valueTypes = selectedValueTypes.value.map((type) => String(type))
     }
     if (selectedSourceSystem.value) {
       criteria.sourceSystem = String(selectedSourceSystem.value)
     }
+    if (selectedCategories.value && selectedCategories.value.length > 0) {
+      criteria.categories = selectedCategories.value.map((cat) => String(cat))
+    }
 
     // Get paginated results
-    const result = await conceptRepo.getConceptsPaginated(
-      pagination.value.page,
-      pagination.value.rowsPerPage,
-      criteria
-    )
+    const result = await conceptRepo.getConceptsPaginated(pagination.value.page, pagination.value.rowsPerPage, criteria)
 
     concepts.value = result.concepts || []
     totalConcepts.value = result.pagination?.totalCount || 0
     pagination.value.rowsNumber = totalConcepts.value
 
-    // Load source systems for filter if not loaded
-    if (sourceSystemOptions.value.length <= 3) {
+    // Load options for filters if not loaded
+    if (valueTypeOptions.value.length === 0) {
+      await loadValueTypes()
+    }
+    if (sourceSystemOptions.value.length === 0) {
       await loadSourceSystems()
     }
-
+    if (categoryOptions.value.length === 0) {
+      await loadCategories()
+    }
   } catch (error) {
     console.error('Failed to load concepts:', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to load concepts',
-      position: 'top'
+      position: 'top',
     })
   } finally {
     loading.value = false
   }
 }
 
+const loadValueTypes = async () => {
+  try {
+    valueTypeOptions.value = await globalSettingsStore.getValueTypeOptions()
+  } catch (error) {
+    console.error('Failed to load value types:', error)
+  }
+}
+
 const loadSourceSystems = async () => {
   try {
-    const conceptRepo = dbStore.getRepository('concept')
-    const result = await conceptRepo.connection.executeQuery(
-      'SELECT DISTINCT SOURCESYSTEM_CD FROM CONCEPT_DIMENSION WHERE SOURCESYSTEM_CD IS NOT NULL ORDER BY SOURCESYSTEM_CD'
-    )
-
-    if (result.success && result.data) {
-      sourceSystemOptions.value = result.data.map(row => ({
-        label: row.SOURCESYSTEM_CD,
-        value: row.SOURCESYSTEM_CD
-      }))
+    // Try to load from CODE_LOOKUP first, fall back to CONCEPT_DIMENSION
+    let options = await globalSettingsStore.getSourceSystemOptions()
+    if (options.length === 0) {
+      options = await globalSettingsStore.getSourceSystemOptionsFromConcepts()
     }
+    sourceSystemOptions.value = options
   } catch (error) {
     console.error('Failed to load source systems:', error)
+  }
+}
+
+const loadCategories = async () => {
+  try {
+    categoryOptions.value = await globalSettingsStore.getCategoryOptions()
+  } catch (error) {
+    console.error('Failed to load categories:', error)
   }
 }
 
@@ -288,11 +335,18 @@ const clearSearch = () => {
   loadConcepts()
 }
 
-
-
 const truncateText = (text, maxLength) => {
   if (!text) return ''
   return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+}
+
+const formatCategoryName = (category) => {
+  // If it's already a formatted name from the database, return as is
+  if (!category || !category.startsWith('CAT_')) {
+    return category || ''
+  }
+  // If it's a code, format it
+  return globalSettingsStore.formatCategoryLabel(category)
 }
 
 // Concept actions
@@ -305,15 +359,13 @@ const onEditConcept = (concept) => {
   showEditDialog.value = true
 }
 
-
-
 const onDeleteConcept = (concept) => {
   $q.dialog({
     title: 'Confirm Delete',
     message: `Are you sure you want to delete concept "${concept.NAME_CHAR}" (${concept.CONCEPT_CD})? This action cannot be undone.`,
     cancel: true,
     persistent: true,
-    color: 'negative'
+    color: 'negative',
   }).onOk(async () => {
     try {
       const conceptRepo = dbStore.getRepository('concept')
@@ -322,7 +374,7 @@ const onDeleteConcept = (concept) => {
       $q.notify({
         type: 'positive',
         message: 'Concept deleted successfully',
-        position: 'top'
+        position: 'top',
       })
 
       await loadConcepts()
@@ -331,7 +383,7 @@ const onDeleteConcept = (concept) => {
       $q.notify({
         type: 'negative',
         message: 'Failed to delete concept',
-        position: 'top'
+        position: 'top',
       })
     }
   })
@@ -346,7 +398,7 @@ const onSaveConcept = async (conceptData) => {
     $q.notify({
       type: 'positive',
       message: 'Concept updated successfully',
-      position: 'top'
+      position: 'top',
     })
 
     showEditDialog.value = false
@@ -356,7 +408,7 @@ const onSaveConcept = async (conceptData) => {
     $q.notify({
       type: 'negative',
       message: 'Failed to update concept',
-      position: 'top'
+      position: 'top',
     })
   }
 }
@@ -369,7 +421,7 @@ const onSaveNewConcept = async (conceptData) => {
     $q.notify({
       type: 'positive',
       message: 'Concept created successfully',
-      position: 'top'
+      position: 'top',
     })
 
     showCreateDialog.value = false
@@ -379,7 +431,7 @@ const onSaveNewConcept = async (conceptData) => {
     $q.notify({
       type: 'negative',
       message: 'Failed to create concept',
-      position: 'top'
+      position: 'top',
     })
   }
 }

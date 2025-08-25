@@ -5,12 +5,7 @@
  * Works in both browser (via Vite) and Node.js (tests) environments.
  */
 
-import {
-  conceptsData,
-  cqlRulesData,
-  conceptCqlLookupsData,
-  standardUsersData,
-} from './csv-loader.js'
+import { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData } from './csv-loader.js'
 
 class SeedManager {
   constructor(connection) {
@@ -21,12 +16,14 @@ class SeedManager {
     this.concepts = this.parseCSV(conceptsData)
     this.cqlRules = this.parseCSV(cqlRulesData)
     this.conceptCqlLookups = this.parseCSV(conceptCqlLookupsData)
+    this.codeLookups = this.parseCSV(codeLookupData)
 
     console.log(`📊 Loaded seed data:
       - ${this.standardUsers.length} users
       - ${this.concepts.length} concepts
       - ${this.cqlRules.length} CQL rules
-      - ${this.conceptCqlLookups.length} concept-CQL lookups`)
+      - ${this.conceptCqlLookups.length} concept-CQL lookups
+      - ${this.codeLookups.length} code lookups`)
   }
 
   /**
@@ -111,6 +108,7 @@ class SeedManager {
         cqlRules: 0,
         conceptCqlLookups: 0,
         users: 0,
+        codeLookups: 0,
         errors: [],
       }
 
@@ -143,7 +141,16 @@ class SeedManager {
         console.error('❌ Error seeding concept-CQL lookups:', error)
       }
 
-      // 4. Seed users (independent)
+      // 4. Seed code lookups (independent)
+      try {
+        results.codeLookups = await this.seedCodeLookups()
+        console.log(`✅ Seeded ${results.codeLookups} code lookups`)
+      } catch (error) {
+        results.errors.push(`Code Lookups: ${error.message}`)
+        console.error('❌ Error seeding code lookups:', error)
+      }
+
+      // 5. Seed users (independent)
       try {
         results.users = await this.seedStandardUsers()
         console.log(`✅ Seeded ${results.users} standard users`)
@@ -289,6 +296,32 @@ class SeedManager {
   }
 
   /**
+   * Seed code lookups from parsed CSV data
+   * @returns {Promise<number>} - Number of code lookups seeded
+   */
+  async seedCodeLookups() {
+    if (!this.codeLookups || this.codeLookups.length === 0) {
+      console.log('⚠️  No code lookups to seed')
+      return 0
+    }
+
+    console.log(`🌱 Seeding ${this.codeLookups.length} code lookups...`)
+
+    let seededCount = 0
+
+    for (const lookup of this.codeLookups) {
+      try {
+        await this.insertCodeLookup(lookup)
+        seededCount++
+      } catch (error) {
+        console.error(`❌ Error seeding code lookup ${lookup.CODE_CD}:`, error.message)
+      }
+    }
+
+    return seededCount
+  }
+
+  /**
    * Insert a single concept with retry mechanism
    * @param {Object} concept - Concept data
    * @returns {Promise<void>}
@@ -304,13 +337,8 @@ class SeedManager {
         }
 
         // Check if it's a connection error
-        if (
-          error.message.includes('Database not connected') ||
-          error.message.includes('SQLITE_MISUSE')
-        ) {
-          console.warn(
-            `⚠️  Connection issue on attempt ${attempt} for concept ${concept.CONCEPT_CD}, retrying...`,
-          )
+        if (error.message.includes('Database not connected') || error.message.includes('SQLITE_MISUSE')) {
+          console.warn(`⚠️  Connection issue on attempt ${attempt} for concept ${concept.CONCEPT_CD}, retrying...`)
           // Wait a bit before retrying
           await new Promise((resolve) => setTimeout(resolve, 100 * attempt))
         } else {
@@ -326,9 +354,7 @@ class SeedManager {
    * @returns {Promise<void>}
    */
   async insertConcept(concept) {
-    const fields = Object.keys(concept).filter(
-      (key) => concept[key] !== null && concept[key] !== undefined,
-    )
+    const fields = Object.keys(concept).filter((key) => concept[key] !== null && concept[key] !== undefined)
     const placeholders = fields.map(() => '?').join(', ')
     const values = fields.map((field) => concept[field])
 
@@ -342,9 +368,7 @@ class SeedManager {
    * @returns {Promise<void>}
    */
   async insertCqlRule(cqlRule) {
-    const fields = Object.keys(cqlRule).filter(
-      (key) => cqlRule[key] !== null && cqlRule[key] !== undefined,
-    )
+    const fields = Object.keys(cqlRule).filter((key) => cqlRule[key] !== null && cqlRule[key] !== undefined)
     const placeholders = fields.map(() => '?').join(', ')
     const values = fields.map((field) => cqlRule[field])
 
@@ -358,9 +382,7 @@ class SeedManager {
    * @returns {Promise<void>}
    */
   async insertConceptCqlLookup(lookup) {
-    const fields = Object.keys(lookup).filter(
-      (key) => lookup[key] !== null && lookup[key] !== undefined,
-    )
+    const fields = Object.keys(lookup).filter((key) => lookup[key] !== null && lookup[key] !== undefined)
     const placeholders = fields.map(() => '?').join(', ')
     const values = fields.map((field) => lookup[field])
 
@@ -385,16 +407,31 @@ class SeedManager {
   }
 
   /**
+   * Insert a code lookup into the CODE_LOOKUP table
+   * @param {Object} lookup - Code lookup object to insert
+   * @returns {Promise<void>}
+   */
+  async insertCodeLookup(lookup) {
+    const fields = Object.keys(lookup).filter((key) => lookup[key] !== null && lookup[key] !== undefined)
+    const placeholders = fields.map(() => '?').join(', ')
+    const values = fields.map((field) => lookup[field])
+
+    const sql = `INSERT OR IGNORE INTO CODE_LOOKUP (${fields.join(', ')}) VALUES (${placeholders})`
+    await this.connection.executeCommand(sql, values)
+  }
+
+  /**
    * Get seed data statistics
    * @returns {Promise<Object>} - Seed data statistics
    */
   async getSeedDataStatistics() {
     try {
-      const [conceptCount, cqlCount, lookupCount, userCount] = await Promise.all([
+      const [conceptCount, cqlCount, lookupCount, userCount, codeLookupCount] = await Promise.all([
         this.connection.executeQuery('SELECT COUNT(*) as count FROM CONCEPT_DIMENSION'),
         this.connection.executeQuery('SELECT COUNT(*) as count FROM CQL_FACT'),
         this.connection.executeQuery('SELECT COUNT(*) as count FROM CONCEPT_CQL_LOOKUP'),
         this.connection.executeQuery('SELECT COUNT(*) as count FROM USER_MANAGEMENT'),
+        this.connection.executeQuery('SELECT COUNT(*) as count FROM CODE_LOOKUP'),
       ])
 
       return {
@@ -402,6 +439,7 @@ class SeedManager {
         cqlRules: cqlCount.success ? cqlCount.data[0].count : 0,
         conceptCqlLookups: lookupCount.success ? lookupCount.data[0].count : 0,
         users: userCount.success ? userCount.data[0].count : 0,
+        codeLookups: codeLookupCount.success ? codeLookupCount.data[0].count : 0,
       }
     } catch (error) {
       console.error('Error getting seed data statistics:', error)
@@ -410,6 +448,7 @@ class SeedManager {
         cqlRules: 0,
         conceptCqlLookups: 0,
         users: 0,
+        codeLookups: 0,
         errors: [error.message],
       }
     }

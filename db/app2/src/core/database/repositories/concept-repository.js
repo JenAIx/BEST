@@ -1,6 +1,6 @@
 /**
  * Concept Repository
- * 
+ *
  * This repository handles all operations related to medical concepts
  * (SNOMED/LOINC) stored in the CONCEPT_DIMENSION table.
  */
@@ -86,39 +86,39 @@ class ConceptRepository extends BaseRepository {
   async findConceptsByCriteria(criteria) {
     let sql = `SELECT * FROM ${this.tableName} WHERE 1=1`
     const params = []
-    
+
     if (criteria.conceptPath) {
       sql += ` AND CONCEPT_PATH LIKE ?`
       params.push(`%${criteria.conceptPath}%`)
     }
-    
+
     if (criteria.name) {
       sql += ` AND NAME_CHAR LIKE ?`
       params.push(`%${criteria.name}%`)
     }
-    
+
     if (criteria.valueType) {
       sql += ` AND VALTYPE_CD = ?`
       params.push(criteria.valueType)
     }
-    
+
     if (criteria.unit) {
       sql += ` AND UNIT_CD = ?`
       params.push(criteria.unit)
     }
-    
+
     if (criteria.sourceSystem) {
       sql += ` AND SOURCESYSTEM_CD = ?`
       params.push(criteria.sourceSystem)
     }
-    
+
     if (criteria.uploadId) {
       sql += ` AND UPLOAD_ID = ?`
       params.push(criteria.uploadId)
     }
-    
+
     sql += ` ORDER BY CONCEPT_PATH, NAME_CHAR`
-    
+
     const result = await this.connection.executeQuery(sql, params)
     return result.success ? result.data : []
   }
@@ -133,14 +133,14 @@ class ConceptRepository extends BaseRepository {
         this.connection.executeQuery(`SELECT COUNT(*) as count FROM ${this.tableName}`),
         this.connection.executeQuery(`SELECT VALTYPE_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY VALTYPE_CD`),
         this.connection.executeQuery(`SELECT SOURCESYSTEM_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY SOURCESYSTEM_CD`),
-        this.connection.executeQuery(`SELECT UNIT_CD, COUNT(*) as count FROM ${this.tableName} WHERE UNIT_CD IS NOT NULL GROUP BY UNIT_CD`)
+        this.connection.executeQuery(`SELECT UNIT_CD, COUNT(*) as count FROM ${this.tableName} WHERE UNIT_CD IS NOT NULL GROUP BY UNIT_CD`),
       ])
 
       return {
         totalConcepts: totalConcepts.success ? totalConcepts.data[0].count : 0,
         byValueType: byValueType.success ? byValueType.data : [],
         bySourceSystem: bySourceSystem.success ? bySourceSystem.data : [],
-        byUnit: byUnit.success ? byUnit.data : []
+        byUnit: byUnit.success ? byUnit.data : [],
       }
     } catch (error) {
       console.error('Error getting concept statistics:', error)
@@ -148,7 +148,7 @@ class ConceptRepository extends BaseRepository {
         totalConcepts: 0,
         byValueType: [],
         bySourceSystem: [],
-        byUnit: []
+        byUnit: [],
       }
     }
   }
@@ -163,55 +163,66 @@ class ConceptRepository extends BaseRepository {
   async getConceptsPaginated(page = 1, pageSize = 20, criteria = {}) {
     try {
       const offset = (page - 1) * pageSize
-      
+
       // Build WHERE clause for criteria
       let whereClause = 'WHERE 1=1'
       const params = []
-      
+
       // General search across multiple fields
       if (criteria.search) {
         whereClause += ` AND (CONCEPT_CD LIKE ? OR NAME_CHAR LIKE ? OR CONCEPT_PATH LIKE ?)`
         const searchTerm = `%${criteria.search}%`
         params.push(searchTerm, searchTerm, searchTerm)
       }
-      
+
       // Specific field filters
       if (criteria.conceptPath) {
         whereClause += ` AND CONCEPT_PATH LIKE ?`
         params.push(`%${criteria.conceptPath}%`)
       }
-      
+
       if (criteria.name) {
         whereClause += ` AND NAME_CHAR LIKE ?`
         params.push(`%${criteria.name}%`)
       }
-      
+
       if (criteria.valueType) {
         whereClause += ` AND VALTYPE_CD = ?`
         params.push(criteria.valueType)
       }
-      
+
       if (criteria.valueTypes && criteria.valueTypes.length > 0) {
         const placeholders = criteria.valueTypes.map(() => '?').join(',')
         whereClause += ` AND VALTYPE_CD IN (${placeholders})`
         params.push(...criteria.valueTypes)
       }
-      
+
       if (criteria.sourceSystem) {
         whereClause += ` AND SOURCESYSTEM_CD = ?`
         params.push(criteria.sourceSystem)
       }
-      
+
+      if (criteria.category) {
+        whereClause += ` AND CATEGORY_CHAR = ?`
+        params.push(criteria.category)
+      }
+
+      if (criteria.categories && criteria.categories.length > 0) {
+        const placeholders = criteria.categories.map(() => '?').join(',')
+        whereClause += ` AND CATEGORY_CHAR IN (${placeholders})`
+        params.push(...criteria.categories)
+      }
+
       // Get total count
       const countSql = `SELECT COUNT(*) as count FROM ${this.tableName} ${whereClause}`
       const countResult = await this.connection.executeQuery(countSql, params)
       const totalCount = countResult.success ? countResult.data[0].count : 0
-      
+
       // Get paginated data
       const dataSql = `SELECT * FROM ${this.tableName} ${whereClause} ORDER BY NAME_CHAR, CONCEPT_PATH LIMIT ? OFFSET ?`
       const dataResult = await this.connection.executeQuery(dataSql, [...params, pageSize, offset])
       const concepts = dataResult.success ? dataResult.data : []
-      
+
       return {
         concepts,
         pagination: {
@@ -220,8 +231,8 @@ class ConceptRepository extends BaseRepository {
           totalCount,
           totalPages: Math.ceil(totalCount / pageSize),
           hasNext: page < Math.ceil(totalCount / pageSize),
-          hasPrev: page > 1
-        }
+          hasPrev: page > 1,
+        },
       }
     } catch (error) {
       console.error('Error getting concepts paginated:', error)
@@ -233,8 +244,8 @@ class ConceptRepository extends BaseRepository {
           totalCount: 0,
           totalPages: 0,
           hasNext: false,
-          hasPrev: false
-        }
+          hasPrev: false,
+        },
       }
     }
   }
@@ -248,20 +259,20 @@ class ConceptRepository extends BaseRepository {
     if (!conceptData.CONCEPT_CD) {
       throw new Error('CONCEPT_CD is required for concept creation')
     }
-    
+
     if (!conceptData.NAME_CHAR) {
       throw new Error('NAME_CHAR is required for concept creation')
     }
-    
+
     // Add audit fields
     const now = new Date().toISOString()
     const conceptWithAudit = {
       ...conceptData,
       UPDATE_DATE: conceptData.UPDATE_DATE || now,
       IMPORT_DATE: conceptData.IMPORT_DATE || now,
-      UPLOAD_ID: conceptData.UPLOAD_ID || 1
+      UPLOAD_ID: conceptData.UPLOAD_ID || 1,
     }
-    
+
     return await this.create(conceptWithAudit)
   }
 
@@ -275,13 +286,13 @@ class ConceptRepository extends BaseRepository {
     if (!conceptCode) {
       throw new Error('Concept code is required for update')
     }
-    
+
     // Add audit fields
     const updateWithAudit = {
       ...updateData,
-      UPDATE_DATE: new Date().toISOString()
+      UPDATE_DATE: new Date().toISOString(),
     }
-    
+
     return await this.updateByCriteria({ CONCEPT_CD: conceptCode }, updateWithAudit)
   }
 
@@ -294,7 +305,7 @@ class ConceptRepository extends BaseRepository {
     if (!conceptCode) {
       throw new Error('Concept code is required for deletion')
     }
-    
+
     return await this.deleteByCriteria({ CONCEPT_CD: conceptCode })
   }
 }

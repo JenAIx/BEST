@@ -5,10 +5,16 @@
       <div class="text-h6 q-mt-md">Loading visit summary...</div>
     </div>
 
-    <div v-else-if="error" class="error-container">
+    <div v-else-if="visitStore.error" class="error-container">
       <q-icon name="error" size="48px" color="negative" />
       <div class="text-h6 text-negative q-mt-sm">Failed to load visit data</div>
-      <div class="text-body2 text-grey-6">{{ error }}</div>
+      <div class="text-body2 text-grey-6">{{ visitStore.error }}</div>
+    </div>
+
+    <div v-else-if="!visit" class="no-visit-selected">
+      <q-icon name="event_busy" size="48px" color="grey-4" />
+      <div class="text-h6 text-grey-6 q-mt-sm">No visit selected</div>
+      <div class="text-body2 text-grey-5">Please select a visit to view its summary.</div>
     </div>
 
     <div v-else class="visit-summary-content">
@@ -62,7 +68,7 @@
                     <div class="observation-header">
                       <div class="concept-name">{{ obs.conceptName }}</div>
                       <div class="value-type">
-                        <q-chip dense size="xs" :color="getValueTypeColor(obs.valueType)" :label="obs.valueType" />
+                        <q-chip dense size="md" :color="getValueTypeColor(obs.valueType)" :label="obs.valueType" />
                       </div>
                     </div>
 
@@ -125,29 +131,27 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
+import { getVisitTypeLabel, getVisitTypeIcon, getValueTypeColor, getCategoryIcon, getFileIcon, getFileColor, formatFileSize, formatDateVerbose } from 'src/shared/utils/medical-utils.js'
 
 const props = defineProps({
-   modelValue: {
-     type: Boolean,
-     default: false,
-   },
-   visit: {
-     type: Object,
-     default: null,
-   },
+  modelValue: {
+    type: Boolean,
+    default: false,
+  },
+  visit: {
+    type: Object,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update:modelValue'])
 
-const dbStore = useDatabaseStore()
+const visitStore = useVisitObservationStore()
 
 // State
-const loading = ref(false)
-const error = ref('')
-const observations = ref([])
 const selectedFileObservation = ref(null)
 const showFilePreview = ref(false)
 
@@ -158,241 +162,48 @@ const dialogModel = computed({
 })
 
 const dialogTitle = computed(() => {
+  if (!props.visit) return 'Visit Summary'
   return `Visit Summary - ${formattedDate.value}`
 })
 
 const dialogSubtitle = computed(() => {
+  if (!props.visit) return 'No visit selected'
   return `${visitTypeLabel.value} • ${totalObservations.value} observations`
 })
 
 const formattedDate = computed(() => {
-  if (!props.visit?.date) return 'Unknown Date'
-  const date = new Date(props.visit.date)
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  })
+  return formatDateVerbose(props.visit?.date)
 })
 
 const visitTypeLabel = computed(() => {
-  switch (props.visit?.type) {
-    case 'routine':
-      return 'Routine Check-up'
-    case 'followup':
-      return 'Follow-up'
-    case 'emergency':
-      return 'Emergency'
-    case 'consultation':
-      return 'Consultation'
-    case 'procedure':
-      return 'Procedure'
-    default:
-      return 'General Visit'
-  }
+  return getVisitTypeLabel(props.visit?.type)
 })
 
 const visitTypeIcon = computed(() => {
-  switch (props.visit?.type) {
-    case 'routine':
-      return 'health_and_safety'
-    case 'followup':
-      return 'follow_the_signs'
-    case 'emergency':
-      return 'emergency'
-    case 'consultation':
-      return 'psychology'
-    case 'procedure':
-      return 'medical_services'
-    default:
-      return 'local_hospital'
-  }
+  return getVisitTypeIcon(props.visit?.type)
 })
 
 const totalObservations = computed(() => {
   return observations.value.length
 })
 
-const categorizedObservations = computed(() => {
-  // Group observations by category
-  const categories = new Map()
-
-  observations.value.forEach((obs) => {
-    const categoryName = obs.category || 'Uncategorized'
-    if (!categories.has(categoryName)) {
-      categories.set(categoryName, {
-        name: categoryName,
-        observations: [],
-      })
-    }
-    categories.get(categoryName).observations.push(obs)
-  })
-
-  // Sort categories and observations
-  return Array.from(categories.values())
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map((category) => ({
-      ...category,
-      observations: category.observations.sort((a, b) => a.conceptName.localeCompare(b.conceptName)),
-    }))
+// Use store data when visit matches selected visit, otherwise load separately
+const observations = computed(() => {
+  if (props.visit && visitStore.selectedVisit && props.visit.id === visitStore.selectedVisit.id) {
+    return visitStore.observations
+  }
+  return [] // Could implement separate loading for non-selected visits if needed
 })
 
+const loading = computed(() => {
+  return visitStore.loading.observations
+})
+
+const categorizedObservations = computed(() => visitStore.categorizedObservations)
+
 // Methods
-const loadVisitObservations = async () => {
-  if (!props.visit?.id) return
-
-  try {
-    loading.value = true
-    error.value = ''
-
-    const query = `
-            SELECT 
-                OBSERVATION_ID,
-                CONCEPT_CD,
-                VALTYPE_CD,
-                TVAL_CHAR,
-                NVAL_NUM,
-                UNIT_CD,
-                START_DATE,
-                CATEGORY_CHAR,
-                CONCEPT_NAME_CHAR as CONCEPT_NAME,
-                TVAL_RESOLVED
-            FROM patient_observations
-            WHERE ENCOUNTER_NUM = ?
-            ORDER BY CATEGORY_CHAR, CONCEPT_NAME_CHAR
-        `
-
-    const result = await dbStore.executeQuery(query, [props.visit.id])
-
-    if (result.success) {
-      observations.value = result.data.map((obs) => {
-        const processedObs = {
-          observationId: obs.OBSERVATION_ID,
-          conceptCode: obs.CONCEPT_CD,
-          conceptName: obs.CONCEPT_NAME || obs.CONCEPT_CD,
-          valueType: obs.VALTYPE_CD,
-          originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
-          resolvedValue: obs.TVAL_RESOLVED,
-          unit: obs.UNIT_CD,
-          category: obs.CATEGORY_CHAR || 'General',
-          date: obs.START_DATE,
-          displayValue: null,
-          fileInfo: null,
-        }
-
-        // Process different value types
-        switch (obs.VALTYPE_CD) {
-          case 'S': // Selection
-          case 'F': // Finding
-          case 'A': // Array/Multiple choice
-            processedObs.displayValue = obs.TVAL_RESOLVED || obs.TVAL_CHAR || 'No value'
-            break
-          case 'R': // Raw data/File
-            try {
-              if (obs.TVAL_CHAR) {
-                processedObs.fileInfo = JSON.parse(obs.TVAL_CHAR)
-                processedObs.displayValue = processedObs.fileInfo.filename || 'File attached'
-              }
-            } catch {
-              // JSON parse error - intentionally ignored
-              processedObs.displayValue = 'Invalid file data'
-            }
-            break
-          case 'N': // Numeric
-            processedObs.displayValue = obs.NVAL_NUM?.toString() || 'No value'
-            break
-          default: // Text and others
-            processedObs.displayValue = obs.TVAL_CHAR || 'No value'
-        }
-
-        return processedObs
-      })
-    } else {
-      throw new Error('Failed to load observations')
-    }
-  } catch (err) {
-    console.error('Failed to load visit observations:', err)
-    error.value = err.message
-  } finally {
-    loading.value = false
-  }
-}
-
-const getCategoryIcon = (categoryName) => {
-  const category = categoryName?.toLowerCase() || ''
-  if (category.includes('vital')) return 'favorite'
-  if (category.includes('lab')) return 'science'
-  if (category.includes('medication') || category.includes('drug')) return 'medication'
-  if (category.includes('symptom')) return 'sick'
-  if (category.includes('diagnosis')) return 'medical_information'
-  if (category.includes('procedure')) return 'medical_services'
-  if (category.includes('note')) return 'note'
-  return 'assignment'
-}
-
-const getValueTypeColor = (valueType) => {
-  switch (valueType) {
-    case 'S':
-      return 'blue'
-    case 'F':
-      return 'green'
-    case 'A':
-      return 'purple'
-    case 'R':
-      return 'orange'
-    case 'N':
-      return 'teal'
-    case 'D':
-      return 'pink'
-    default:
-      return 'grey'
-  }
-}
-
-const getFileIcon = (filename) => {
-  if (!filename) return 'insert_drive_file'
-  const ext = filename.split('.').pop()?.toLowerCase()
-  switch (ext) {
-    case 'pdf':
-      return 'picture_as_pdf'
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-      return 'image'
-    case 'txt':
-      return 'description'
-    default:
-      return 'insert_drive_file'
-  }
-}
-
-const getFileColor = (filename) => {
-  if (!filename) return 'grey'
-  const ext = filename.split('.').pop()?.toLowerCase()
-  switch (ext) {
-    case 'pdf':
-      return 'red'
-    case 'png':
-    case 'jpg':
-    case 'jpeg':
-    case 'gif':
-      return 'green'
-    case 'txt':
-      return 'blue'
-    default:
-      return 'grey'
-  }
-}
-
-const formatFileSize = (bytes) => {
-  if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
+// Observations are now loaded via the store
+// Utility functions imported from medical-utils.js
 
 const previewFile = (observation) => {
   selectedFileObservation.value = observation
@@ -400,12 +211,13 @@ const previewFile = (observation) => {
 }
 
 // Watch for dialog open/close
-watch(dialogModel, (newValue) => {
+watch(dialogModel, async (newValue) => {
   if (newValue && props.visit) {
-    loadVisitObservations()
+    // Ensure observations are loaded for the visit
+    if (visitStore.selectedVisit?.id !== props.visit.id) {
+      await visitStore.setSelectedVisit(props.visit)
+    }
   } else {
-    observations.value = []
-    error.value = ''
     selectedFileObservation.value = null
     showFilePreview.value = false
   }
@@ -414,7 +226,8 @@ watch(dialogModel, (newValue) => {
 
 <style lang="scss" scoped>
 .loading-container,
-.error-container {
+.error-container,
+.no-visit-selected {
   display: flex;
   flex-direction: column;
   align-items: center;

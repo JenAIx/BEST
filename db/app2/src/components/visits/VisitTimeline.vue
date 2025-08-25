@@ -43,14 +43,14 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import VisitTimelineItem from './VisitTimelineItem.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
 import VisitSummaryDialog from './VisitSummaryDialog.vue'
 
-const props = defineProps({
+defineProps({
   patient: {
     type: Object,
     required: true,
@@ -61,92 +61,22 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['visit-selected', 'visit-edited', 'visits-updated'])
+const emit = defineEmits(['visit-selected', 'visit-edited'])
 
 const $q = useQuasar()
-const dbStore = useDatabaseStore()
+const visitStore = useVisitObservationStore()
 
 // State
-const loading = ref(false)
-const visits = ref([])
 const showNewVisitDialog = ref(false)
 const showVisitSummary = ref(false)
 const selectedVisitForView = ref(null)
 
-// Computed
-const sortedVisits = computed(() => {
-  return [...visits.value].sort((a, b) => new Date(b.date) - new Date(a.date))
-})
+// Computed from store
+const visits = computed(() => visitStore.visits)
+const loading = computed(() => visitStore.loading.visits)
+const sortedVisits = computed(() => visitStore.sortedVisits)
 
 // Methods
-const loadVisits = async () => {
-  if (!props.patient?.id) return
-
-  try {
-    loading.value = true
-
-    const patientRepo = dbStore.getRepository('patient')
-    const visitRepo = dbStore.getRepository('visit')
-
-    const patient = await patientRepo.findByPatientCode(props.patient.id)
-    if (!patient) return
-
-    const patientVisits = await visitRepo.getPatientVisitTimeline(patient.PATIENT_NUM)
-
-    // Load observation counts for each visit
-    const visitsWithCounts = await Promise.all(
-      patientVisits.map(async (visit) => {
-        const observationCount = await getObservationCount(visit.ENCOUNTER_NUM)
-        return {
-          id: visit.ENCOUNTER_NUM,
-          date: visit.START_DATE,
-          type: visit.INOUT_CD === 'E' ? 'emergency' : 'routine',
-          notes: visit.VISIT_BLOB ? parseVisitNotes(visit.VISIT_BLOB) : '',
-          status: visit.ACTIVE_STATUS_CD || 'completed',
-          observationCount,
-          location: visit.LOCATION_CD,
-          endDate: visit.END_DATE,
-        }
-      }),
-    )
-
-    visits.value = visitsWithCounts
-    emit('visits-updated', visits.value)
-  } catch (error) {
-    console.error('Failed to load visits:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load patient visits',
-      position: 'top',
-    })
-  } finally {
-    loading.value = false
-  }
-}
-
-const getObservationCount = async (encounterNum) => {
-  try {
-    const query = `
-            SELECT COUNT(*) as count
-            FROM OBSERVATION_FACT
-            WHERE ENCOUNTER_NUM = ?
-        `
-    const result = await dbStore.executeQuery(query, [encounterNum])
-    return result.success && result.data.length > 0 ? result.data[0].count : 0
-  } catch (error) {
-    console.warn('Failed to get observation count:', error)
-    return 0
-  }
-}
-
-const parseVisitNotes = (visitBlob) => {
-  try {
-    const parsed = JSON.parse(visitBlob)
-    return parsed.notes || parsed.description || ''
-  } catch {
-    return visitBlob || ''
-  }
-}
 
 const selectVisit = (visit) => {
   emit('visit-selected', visit)
@@ -166,114 +96,29 @@ const createNewVisit = () => {
 }
 
 const onVisitCreated = (newVisit) => {
-  visits.value.unshift(newVisit)
-  emit('visits-updated', visits.value)
-
-  $q.notify({
-    type: 'positive',
-    message: 'Visit created successfully',
-    position: 'top',
-  })
-
-  // Auto-select the new visit for editing
+  // Store handles adding the visit, just emit for parent component
   emit('visit-edited', newVisit)
 }
 
 const duplicateVisit = async (visit) => {
-  try {
-    // Get all observations from the original visit
-    const query = `
-            SELECT *
-            FROM OBSERVATION_FACT
-            WHERE ENCOUNTER_NUM = ?
-        `
-    const result = await dbStore.executeQuery(query, [visit.id])
-
-    if (!result.success) {
-      throw new Error('Failed to load visit observations')
+  $q.dialog({
+    title: 'Clone Visit',
+    message: `This will create a new visit with all observations from ${visitStore.formatVisitDate(visit.date)}. Continue?`,
+    cancel: true,
+    persistent: true,
+  }).onOk(async () => {
+    try {
+      await visitStore.duplicateVisit(visit)
+    } catch {
+      // Error handling is done in the store
     }
-
-    const observations = result.data
-
-    $q.dialog({
-      title: 'Clone Visit',
-      message: `This will create a new visit with ${observations.length} observations from ${formatVisitDate(visit.date)}. Continue?`,
-      cancel: true,
-      persistent: true,
-    }).onOk(async () => {
-      // Create new visit first
-      const visitRepo = dbStore.getRepository('visit')
-      const patientRepo = dbStore.getRepository('patient')
-
-      const patient = await patientRepo.findByPatientCode(props.patient.id)
-
-      const newVisitData = {
-        PATIENT_NUM: patient.PATIENT_NUM,
-        START_DATE: new Date().toISOString().split('T')[0],
-        INOUT_CD: visit.type === 'emergency' ? 'E' : 'O',
-        ACTIVE_STATUS_CD: 'A',
-        LOCATION_CD: visit.location || 'CLINIC',
-        VISIT_BLOB: JSON.stringify({
-          notes: `Cloned from visit on ${formatVisitDate(visit.date)}`,
-          originalVisit: visit.id,
-        }),
-      }
-
-      const createdVisit = await visitRepo.createVisit(newVisitData)
-
-      // Clone observations
-      const observationRepo = dbStore.getRepository('observation')
-      let clonedCount = 0
-
-      for (const obs of observations) {
-        try {
-          const newObsData = {
-            PATIENT_NUM: obs.PATIENT_NUM,
-            ENCOUNTER_NUM: createdVisit.ENCOUNTER_NUM,
-            CONCEPT_CD: obs.CONCEPT_CD,
-            VALTYPE_CD: obs.VALTYPE_CD,
-            TVAL_CHAR: obs.TVAL_CHAR,
-            NVAL_NUM: obs.NVAL_NUM,
-            UNIT_CD: obs.UNIT_CD,
-            START_DATE: new Date().toISOString().split('T')[0],
-            CATEGORY_CHAR: obs.CATEGORY_CHAR,
-            PROVIDER_ID: 'SYSTEM',
-            LOCATION_CD: 'CLONED',
-            SOURCESYSTEM_CD: 'VISIT_CLONE',
-            INSTANCE_NUM: 1,
-            UPLOAD_ID: 1,
-          }
-
-          await observationRepo.createObservation(newObsData)
-          clonedCount++
-        } catch (error) {
-          console.warn('Failed to clone observation:', error)
-        }
-      }
-
-      // Reload visits
-      await loadVisits()
-
-      $q.notify({
-        type: 'positive',
-        message: `Visit cloned successfully with ${clonedCount} observations`,
-        position: 'top',
-      })
-    })
-  } catch (error) {
-    console.error('Failed to duplicate visit:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to clone visit',
-      position: 'top',
-    })
-  }
+  })
 }
 
 const deleteVisit = async (visit) => {
   $q.dialog({
     title: 'Delete Visit',
-    message: `Are you sure you want to delete the visit from ${formatVisitDate(visit.date)}? This will also delete all ${visit.observationCount} observations. This action cannot be undone.`,
+    message: `Are you sure you want to delete the visit from ${visitStore.formatVisitDate(visit.date)}? This will also delete all ${visit.observationCount} observations. This action cannot be undone.`,
     cancel: true,
     persistent: true,
     ok: {
@@ -282,55 +127,14 @@ const deleteVisit = async (visit) => {
     },
   }).onOk(async () => {
     try {
-      const visitRepo = dbStore.getRepository('visit')
-      await visitRepo.delete(visit.id)
-
-      visits.value = visits.value.filter((v) => v.id !== visit.id)
-      emit('visits-updated', visits.value)
-
-      $q.notify({
-        type: 'positive',
-        message: 'Visit deleted successfully',
-        position: 'top',
-      })
-    } catch (error) {
-      console.error('Failed to delete visit:', error)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to delete visit',
-        position: 'top',
-      })
+      await visitStore.deleteVisit(visit)
+    } catch {
+      // Error handling is done in the store
     }
   })
 }
 
-const formatVisitDate = (dateStr) => {
-  if (!dateStr) return 'Unknown'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-// Watchers
-watch(
-  () => props.patient,
-  async (newPatient) => {
-    if (newPatient) {
-      await loadVisits()
-    }
-  },
-  { immediate: true },
-)
-
-// Lifecycle
-onMounted(async () => {
-  if (props.patient) {
-    await loadVisits()
-  }
-})
+// All logic now handled by the store
 </script>
 
 <style lang="scss" scoped>

@@ -83,6 +83,14 @@ const routes = [
         },
       },
       {
+        path: 'global-settings',
+        component: () => import('pages/GlobalSettingsPage.vue'),
+        meta: {
+          requiresAuth: true,
+          requiresAdmin: true,
+        },
+      },
+      {
         path: 'import',
         component: () => import('pages/ImportPage.vue'),
         meta: { requiresAuth: true },

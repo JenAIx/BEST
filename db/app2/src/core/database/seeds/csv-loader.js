@@ -8,7 +8,7 @@
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined'
 
-let conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData
+let conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData
 
 if (isBrowser) {
   // Browser/Vite environment - use dynamic imports with ?raw
@@ -17,6 +17,7 @@ if (isBrowser) {
     cqlRulesData = await import('./cql_fact_data.csv?raw').then((m) => m.default)
     conceptCqlLookupsData = await import('./concept_cql_lookup_data.csv?raw').then((m) => m.default)
     standardUsersData = await import('./standard-users.csv?raw').then((m) => m.default)
+    codeLookupData = await import('./code_lookup_data.csv?raw').then((m) => m.default)
   } catch (error) {
     console.warn('Failed to load CSV files via Vite, falling back to embedded data:', error)
   }
@@ -35,6 +36,7 @@ if (isBrowser) {
     cqlRulesData = readFileSync(join(__dirname, 'cql_fact_data.csv'), 'utf-8')
     conceptCqlLookupsData = readFileSync(join(__dirname, 'concept_cql_lookup_data.csv'), 'utf-8')
     standardUsersData = readFileSync(join(__dirname, 'standard-users.csv'), 'utf-8')
+    codeLookupData = readFileSync(join(__dirname, 'code_lookup_data.csv'), 'utf-8')
     console.log('✅ Successfully loaded CSV files from filesystem')
   } catch (error) {
     console.warn('Failed to load CSV files from filesystem, falling back to embedded data:', error)
@@ -100,4 +102,37 @@ db,Database User,db@example.com,db,N,2023-01-01,2023-01-01
 ste,Stefan User,ste@example.com,ste,Y,2023-01-01,2023-01-01`
 }
 
-export { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData }
+if (!codeLookupData) {
+  codeLookupData = `TABLE_CD,COLUMN_CD,CODE_CD,NAME_CHAR,LOOKUP_BLOB,UPDATE_DATE,DOWNLOAD_DATE,IMPORT_DATE,SOURCESYSTEM_CD,UPLOAD_ID
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_ASSESSMENT,Assessment,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_CSF_ANALYSIS,CSF Analysis,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_CLINICAL_SCALES,Clinical Scales,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_DEMOGRAPHICS,Demographics,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_DIAGNOSIS,Diagnosis,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_EDUCATION,Education,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_GENERAL,General,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_IMAGING,Imaging,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_LABORATORY,Laboratory,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_MEDICATIONS,Medications,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_NEUROLOGICAL_ASSESSMENT,Neurological Assessment,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_PARKINSON_DISEASE,Parkinson Disease,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_PSYCHOLOGICAL_ASSESSMENT,Psychological Assessment,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_RAW_DATA,Raw Data,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_SLEEP_ASSESSMENT,Sleep Assessment,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_SOCIAL_HISTORY,Social History,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_STROKE,Stroke,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_VITAL_SIGNS,Vital Signs,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,R,Rohdaten,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,D,Datum,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,T,TEXT,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,F,"Finding (yes, no, unknown)",,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,S,Selection,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,N,Zahl,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,SOURCESYSTEM_CD,LOINC,LOINC,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,SOURCESYSTEM_CD,SNOMED-CT,SNOMED-CT,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,SOURCESYSTEM_CD,ICD10-2019,ICD10-2019,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,SOURCESYSTEM_CD,ICD10-*,ICD10-*,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,SOURCESYSTEM_CD,other,other,,2024-01-01,,2024-01-01,SYSTEM,1`
+}
+
+export { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData }
