@@ -232,6 +232,21 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   /**
+   * Parse JSON metadata from LOOKUP_BLOB field
+   * @param {string|null} lookupBlob - JSON string from LOOKUP_BLOB
+   * @returns {Object} Parsed metadata object or empty object
+   */
+  const parseMetadata = (lookupBlob) => {
+    if (!lookupBlob) return {}
+    try {
+      return JSON.parse(lookupBlob)
+    } catch (error) {
+      logger.warn('Failed to parse lookup metadata JSON', { lookupBlob, error })
+      return {}
+    }
+  }
+
+  /**
    * Clear cache
    */
   const clearCache = () => {
@@ -343,10 +358,14 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
       // If we have data from the database, use it
       if (valueTypes.length > 0) {
-        return valueTypes.map((vt) => ({
-          label: formatValueTypeLabel(vt.CODE_CD, vt.NAME_CHAR),
-          value: vt.CODE_CD,
-        }))
+        return valueTypes.map((vt) => {
+          const metadata = parseMetadata(vt.LOOKUP_BLOB)
+          return {
+            label: formatValueTypeLabel(vt.CODE_CD, vt.NAME_CHAR),
+            value: vt.CODE_CD,
+            ...metadata, // Include color, icon, etc.
+          }
+        })
       }
 
       // Fallback to standard value types if no database data
@@ -480,6 +499,221 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   /**
+   * Get category metadata for enhanced UI features
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of category metadata objects
+   */
+  const getCategoryMetadata = async (forceRefresh = false) => {
+    try {
+      const metadata = await loadLookupValues('CATEGORY_METADATA', forceRefresh)
+      return metadata.map((item) => ({
+        code: item.CODE_CD,
+        name: item.NAME_CHAR,
+        ...parseMetadata(item.LOOKUP_BLOB),
+      }))
+    } catch (error) {
+      logger.error('Failed to get category metadata', error)
+      return []
+    }
+  }
+
+  /**
+   * Get visit type options for dropdowns
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of {label, value, icon, color} options
+   */
+  const getVisitTypeOptions = async (forceRefresh = false) => {
+    const cacheKey = 'visit_types'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP 
+         WHERE TABLE_CD = 'VISIT_DIMENSION' 
+         AND COLUMN_CD = 'VISIT_TYPE_CD' 
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((vt) => {
+          const metadata = parseMetadata(vt.LOOKUP_BLOB)
+          return {
+            label: metadata.label || vt.NAME_CHAR,
+            value: vt.CODE_CD,
+            icon: metadata.icon || 'local_hospital',
+            color: metadata.color || 'primary',
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} visit types`)
+        return options
+      }
+
+      // Fallback to standard visit types
+      return [
+        { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', color: 'primary' },
+        { label: 'Follow-up', value: 'followup', icon: 'follow_the_signs', color: 'secondary' },
+        { label: 'Emergency', value: 'emergency', icon: 'emergency', color: 'negative' },
+        { label: 'Consultation', value: 'consultation', icon: 'psychology', color: 'info' },
+        { label: 'Procedure', value: 'procedure', icon: 'medical_services', color: 'warning' },
+      ]
+    } catch (error) {
+      logger.error('Failed to get visit type options', error)
+      return [
+        { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', color: 'primary' },
+        { label: 'Follow-up', value: 'followup', icon: 'follow_the_signs', color: 'secondary' },
+        { label: 'Emergency', value: 'emergency', icon: 'emergency', color: 'negative' },
+        { label: 'Consultation', value: 'consultation', icon: 'psychology', color: 'info' },
+        { label: 'Procedure', value: 'procedure', icon: 'medical_services', color: 'warning' },
+      ]
+    }
+  }
+
+  /**
+   * Get file type configurations for file handling
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of file type configurations
+   */
+  const getFileTypeOptions = async (forceRefresh = false) => {
+    const cacheKey = 'file_types'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP 
+         WHERE TABLE_CD = 'FILE_DIMENSION' 
+         AND COLUMN_CD = 'FILE_TYPE_CD' 
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((ft) => {
+          const metadata = parseMetadata(ft.LOOKUP_BLOB)
+          return {
+            type: ft.CODE_CD,
+            label: ft.NAME_CHAR,
+            icon: metadata.icon || 'insert_drive_file',
+            color: metadata.color || 'grey',
+            extensions: metadata.extensions || [],
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} file types`)
+        return options
+      }
+
+      // Fallback to standard file types
+      return [
+        { type: 'pdf', label: 'PDF Document', icon: 'picture_as_pdf', color: 'red', extensions: ['pdf'] },
+        { type: 'image', label: 'Image File', icon: 'image', color: 'green', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] },
+        { type: 'document', label: 'Document', icon: 'description', color: 'blue', extensions: ['doc', 'docx'] },
+        { type: 'spreadsheet', label: 'Spreadsheet', icon: 'table_chart', color: 'green', extensions: ['xls', 'xlsx', 'csv'] },
+        { type: 'text', label: 'Text File', icon: 'description', color: 'blue', extensions: ['txt', 'rtf'] },
+        { type: 'archive', label: 'Archive', icon: 'archive', color: 'orange', extensions: ['zip', 'rar', '7z', 'tar', 'gz'] },
+      ]
+    } catch (error) {
+      logger.error('Failed to get file type options', error)
+      return [
+        { type: 'pdf', label: 'PDF Document', icon: 'picture_as_pdf', color: 'red', extensions: ['pdf'] },
+        { type: 'image', label: 'Image File', icon: 'image', color: 'green', extensions: ['png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp'] },
+        { type: 'document', label: 'Document', icon: 'description', color: 'blue', extensions: ['doc', 'docx'] },
+        { type: 'spreadsheet', label: 'Spreadsheet', icon: 'table_chart', color: 'green', extensions: ['xls', 'xlsx', 'csv'] },
+        { type: 'text', label: 'Text File', icon: 'description', color: 'blue', extensions: ['txt', 'rtf'] },
+        { type: 'archive', label: 'Archive', icon: 'archive', color: 'orange', extensions: ['zip', 'rar', '7z', 'tar', 'gz'] },
+      ]
+    }
+  }
+
+  /**
+   * Get field set configurations for visit data entry
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of field set configurations
+   */
+  const getFieldSetOptions = async (forceRefresh = false) => {
+    const cacheKey = 'field_sets'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP 
+         WHERE TABLE_CD = 'VISIT_DIMENSION' 
+         AND COLUMN_CD = 'FIELD_SET_CD' 
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((fs) => {
+          const metadata = parseMetadata(fs.LOOKUP_BLOB)
+          return {
+            id: fs.CODE_CD,
+            name: fs.NAME_CHAR,
+            description: metadata.description || '',
+            icon: metadata.icon || 'assignment',
+            concepts: metadata.concepts || [],
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} field sets`)
+        return options
+      }
+
+      // Fallback to standard field sets
+      return [
+        {
+          id: 'vitals',
+          name: 'Vital Signs',
+          icon: 'favorite',
+          description: 'Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation',
+          concepts: ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4', 'LOINC:8310-5', 'LOINC:9279-1', 'LOINC:2708-6'],
+        },
+        {
+          id: 'symptoms',
+          name: 'Symptoms',
+          icon: 'sick',
+          description: 'Patient reported symptoms and complaints',
+          concepts: ['SNOMED:25064002', 'SNOMED:49727002', 'SNOMED:267036007'],
+        },
+        {
+          id: 'physical',
+          name: 'Physical Exam',
+          icon: 'medical_services',
+          description: 'Physical examination findings',
+          concepts: ['SNOMED:5880005', 'SNOMED:32750006', 'SNOMED:113011001'],
+        },
+      ]
+    } catch (error) {
+      logger.error('Failed to get field set options', error)
+      return [
+        {
+          id: 'vitals',
+          name: 'Vital Signs',
+          icon: 'favorite',
+          description: 'Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation',
+          concepts: ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4'],
+        },
+      ]
+    }
+  }
+
+  /**
    * Initialize the store
    */
   const initialize = async () => {
@@ -498,6 +732,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     loading,
     lastRefresh,
     isCacheValid,
+
+    // Database access
+    dbStore,
 
     // Methods
     initialize,
@@ -521,5 +758,12 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     getSourceSystems,
     getSourceSystemOptions,
     getSourceSystemOptionsFromConcepts,
+
+    // Enhanced metadata methods
+    parseMetadata,
+    getCategoryMetadata,
+    getVisitTypeOptions,
+    getFileTypeOptions,
+    getFieldSetOptions,
   }
 })

@@ -2,9 +2,20 @@
  * Medical & Visit Utilities
  *
  * Shared constants, mappings, and utility functions for medical data display
+ *
+ * NOTE: This module now uses the global-settings-store for centralized data management.
+ * Fallback constants are provided for backward compatibility.
  */
 
-// Visit Type Configurations
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+
+// Cached data to avoid multiple database calls
+let _visitTypesCache = null
+let _valueTypesCache = null
+let _fileTypesCache = null
+let _fieldSetsCache = null
+
+// Visit Type Configurations (Fallback)
 export const VISIT_TYPES = {
   routine: {
     label: 'Routine Check-up',
@@ -33,7 +44,7 @@ export const VISIT_TYPES = {
   },
 }
 
-// Observation Value Type Configurations
+// Observation Value Type Configurations (Fallback)
 export const VALUE_TYPES = {
   S: {
     label: 'Selection',
@@ -116,7 +127,7 @@ export const MEDICAL_CATEGORIES = {
   },
 }
 
-// File Type Configurations
+// File Type Configurations (Fallback)
 export const FILE_TYPES = {
   pdf: {
     icon: 'picture_as_pdf',
@@ -151,8 +162,10 @@ export const FILE_TYPES = {
 
 // Utility Functions
 export const getVisitTypeConfig = (type) => {
+  // Use cached dynamic data if available
+  const dynamicTypes = _visitTypesCache || VISIT_TYPES
   return (
-    VISIT_TYPES[type] || {
+    dynamicTypes[type] || {
       label: 'General Visit',
       icon: 'local_hospital',
       color: 'grey',
@@ -173,8 +186,10 @@ export const getVisitTypeColor = (type) => {
 }
 
 export const getValueTypeConfig = (valueType) => {
+  // Use cached dynamic data if available
+  const dynamicTypes = _valueTypesCache || VALUE_TYPES
   return (
-    VALUE_TYPES[valueType] || {
+    dynamicTypes[valueType] || {
       label: 'Unknown',
       color: 'grey',
       icon: 'help',
@@ -226,12 +241,14 @@ export const getFileIcon = (filename) => {
   if (!filename) return 'insert_drive_file'
 
   const ext = filename.split('.').pop()?.toLowerCase()
+  // Use cached dynamic data if available
+  const dynamicTypes = _fileTypesCache || FILE_TYPES
 
   // Check specific file types first
-  if (ext === 'pdf') return FILE_TYPES.pdf.icon
+  if (ext === 'pdf') return dynamicTypes.pdf?.icon || 'picture_as_pdf'
 
   // Check grouped extensions
-  for (const config of Object.values(FILE_TYPES)) {
+  for (const config of Object.values(dynamicTypes)) {
     if (config.extensions?.includes(ext)) {
       return config.icon
     }
@@ -244,12 +261,14 @@ export const getFileColor = (filename) => {
   if (!filename) return 'grey'
 
   const ext = filename.split('.').pop()?.toLowerCase()
+  // Use cached dynamic data if available
+  const dynamicTypes = _fileTypesCache || FILE_TYPES
 
   // Check specific file types first
-  if (ext === 'pdf') return FILE_TYPES.pdf.color
+  if (ext === 'pdf') return dynamicTypes.pdf?.color || 'red'
 
   // Check grouped extensions
-  for (const config of Object.values(FILE_TYPES)) {
+  for (const config of Object.values(dynamicTypes)) {
     if (config.extensions?.includes(ext)) {
       return config.color
     }
@@ -419,11 +438,190 @@ export const AVAILABLE_FIELD_SETS = [
   },
 ]
 
+// ===========================
+// DYNAMIC DATA FUNCTIONS
+// ===========================
+// These functions use the global-settings-store for real-time data
+
+/**
+ * Load visit types from the global settings store with caching
+ * @param {boolean} forceRefresh - Force refresh from database
+ * @returns {Promise<Array>} Visit type configurations
+ */
+export const loadVisitTypes = async (forceRefresh = false) => {
+  if (!forceRefresh && _visitTypesCache) {
+    return _visitTypesCache
+  }
+
+  try {
+    const globalSettingsStore = useGlobalSettingsStore()
+    const visitTypes = await globalSettingsStore.getVisitTypeOptions(forceRefresh)
+
+    // Convert to the expected format
+    _visitTypesCache = visitTypes.reduce((acc, vt) => {
+      acc[vt.value] = {
+        label: vt.label,
+        icon: vt.icon,
+        color: vt.color,
+      }
+      return acc
+    }, {})
+
+    return _visitTypesCache
+  } catch (error) {
+    console.warn('Failed to load visit types from database, using fallback', error)
+    return VISIT_TYPES
+  }
+}
+
+/**
+ * Load value types from the global settings store with caching
+ * @param {boolean} forceRefresh - Force refresh from database
+ * @returns {Promise<Object>} Value type configurations
+ */
+export const loadValueTypes = async (forceRefresh = false) => {
+  if (!forceRefresh && _valueTypesCache) {
+    return _valueTypesCache
+  }
+
+  try {
+    const globalSettingsStore = useGlobalSettingsStore()
+    const valueTypes = await globalSettingsStore.getValueTypeOptions(forceRefresh)
+
+    // Convert to the expected format
+    _valueTypesCache = valueTypes.reduce((acc, vt) => {
+      acc[vt.value] = {
+        label: vt.label || vt.value,
+        color: vt.color || 'grey',
+        icon: vt.icon || 'help',
+      }
+      return acc
+    }, {})
+
+    return _valueTypesCache
+  } catch (error) {
+    console.warn('Failed to load value types from database, using fallback', error)
+    return VALUE_TYPES
+  }
+}
+
+/**
+ * Load file types from the global settings store with caching
+ * @param {boolean} forceRefresh - Force refresh from database
+ * @returns {Promise<Object>} File type configurations
+ */
+export const loadFileTypes = async (forceRefresh = false) => {
+  if (!forceRefresh && _fileTypesCache) {
+    return _fileTypesCache
+  }
+
+  try {
+    const globalSettingsStore = useGlobalSettingsStore()
+    const fileTypes = await globalSettingsStore.getFileTypeOptions(forceRefresh)
+
+    // Convert to the expected format
+    _fileTypesCache = fileTypes.reduce((acc, ft) => {
+      acc[ft.type] = {
+        icon: ft.icon,
+        color: ft.color,
+        extensions: ft.extensions,
+      }
+      return acc
+    }, {})
+
+    return _fileTypesCache
+  } catch (error) {
+    console.warn('Failed to load file types from database, using fallback', error)
+    return FILE_TYPES
+  }
+}
+
+/**
+ * Load field sets from the global settings store with caching
+ * @param {boolean} forceRefresh - Force refresh from database
+ * @returns {Promise<Array>} Field set configurations
+ */
+export const loadFieldSets = async (forceRefresh = false) => {
+  if (!forceRefresh && _fieldSetsCache) {
+    return _fieldSetsCache
+  }
+
+  try {
+    const globalSettingsStore = useGlobalSettingsStore()
+    _fieldSetsCache = await globalSettingsStore.getFieldSetOptions(forceRefresh)
+    return _fieldSetsCache
+  } catch (error) {
+    console.warn('Failed to load field sets from database, using fallback', error)
+    return AVAILABLE_FIELD_SETS
+  }
+}
+
+/**
+ * Get category metadata with enhanced UI features
+ * @param {boolean} forceRefresh - Force refresh from database
+ * @returns {Promise<Array>} Category metadata
+ */
+export const loadCategoryMetadata = async (forceRefresh = false) => {
+  try {
+    const globalSettingsStore = useGlobalSettingsStore()
+    return await globalSettingsStore.getCategoryMetadata(forceRefresh)
+  } catch (error) {
+    console.warn('Failed to load category metadata from database', error)
+    return []
+  }
+}
+
+/**
+ * Clear all cached medical data (useful for testing or manual refresh)
+ */
+export const clearMedicalDataCache = () => {
+  _visitTypesCache = null
+  _valueTypesCache = null
+  _fileTypesCache = null
+  _fieldSetsCache = null
+}
+
 // Field set utilities
 export const getFieldSetById = (fieldSetId) => {
-  return AVAILABLE_FIELD_SETS.find((fs) => fs.id === fieldSetId)
+  // Use cached dynamic data if available
+  const dynamicSets = _fieldSetsCache || AVAILABLE_FIELD_SETS
+  return dynamicSets.find((fs) => fs.id === fieldSetId)
 }
 
 export const getFieldSetsByIds = (fieldSetIds) => {
   return fieldSetIds.map((id) => getFieldSetById(id)).filter(Boolean)
+}
+
+/**
+ * Enhanced category matching using dynamic metadata
+ * @param {string} categoryName - Category name to match
+ * @param {Array} categoryMetadata - Optional preloaded metadata
+ * @returns {Object} Matched category metadata or default
+ */
+export const getCategoryMetadata = (categoryName, categoryMetadata = []) => {
+  if (!categoryName) return { icon: 'assignment', color: 'grey' }
+
+  const category = categoryName.toLowerCase()
+
+  // First try dynamic metadata
+  const dynamicMatch = categoryMetadata.find((meta) => {
+    return meta.keywords?.some((keyword) => category.includes(keyword))
+  })
+
+  if (dynamicMatch) {
+    return {
+      icon: dynamicMatch.icon,
+      color: dynamicMatch.color,
+      keywords: dynamicMatch.keywords,
+    }
+  }
+
+  // Fallback to static MEDICAL_CATEGORIES
+  for (const config of Object.values(MEDICAL_CATEGORIES)) {
+    if (config.keywords.some((keyword) => category.includes(keyword))) {
+      return config
+    }
+  }
+
+  return { icon: 'assignment', color: 'grey' }
 }

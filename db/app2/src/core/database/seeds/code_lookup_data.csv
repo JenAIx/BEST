@@ -17,15 +17,41 @@ CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_SLEEP_ASSESSMENT,Sleep Assessment,,2024-01-0
 CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_SOCIAL_HISTORY,Social History,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_STROKE,Stroke,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,CATEGORY_CHAR,CAT_VITAL_SIGNS,Vital Signs,,2024-01-01,,2024-01-01,SYSTEM,1
-CONCEPT_DIMENSION,VALTYPE_CD,R,Rohdaten,,2024-01-01,,2024-01-01,SYSTEM,1
-CONCEPT_DIMENSION,VALTYPE_CD,D,Datum,,2024-01-01,,2024-01-01,SYSTEM,1
-CONCEPT_DIMENSION,VALTYPE_CD,T,TEXT,,2024-01-01,,2024-01-01,SYSTEM,1
-CONCEPT_DIMENSION,VALTYPE_CD,F,"Finding (yes, no, unknown)",,2024-01-01,,2024-01-01,SYSTEM,1
-CONCEPT_DIMENSION,VALTYPE_CD,S,Selection,,2024-01-01,,2024-01-01,SYSTEM,1
-CONCEPT_DIMENSION,VALTYPE_CD,N,Zahl,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,R,Rohdaten,"{""label"":""Raw Data/File"",""color"":""orange"",""icon"":""attach_file""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,D,Datum,"{""label"":""Date/Time"",""color"":""pink"",""icon"":""schedule""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,T,TEXT,"{""label"":""Text"",""color"":""indigo"",""icon"":""text_fields""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,F,"Finding (yes, no, unknown)","{""label"":""Finding"",""color"":""green"",""icon"":""search""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,S,Selection,"{""label"":""Selection"",""color"":""blue"",""icon"":""radio_button_checked""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,N,Zahl,"{""label"":""Numeric"",""color"":""teal"",""icon"":""numbers""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,A,Answer,"{""label"":""Answer"",""color"":""purple"",""icon"":""checklist""}",2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,LOINC,LOINC,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,SNOMED-CT,SNOMED-CT,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,ICD10-2019,ICD10-2019,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,ICD10-*,ICD10-*,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,other,other,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,CUSTOM,CUSTOM,,2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_VITAL_SIGNS,Vital Signs,"{""keywords"":[""vital"",""vitals"",""signs""],""icon"":""favorite"",""color"":""red""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_LABORATORY,Laboratory,"{""keywords"":[""lab"",""laboratory"",""test"",""blood"",""urine""],""icon"":""science"",""color"":""blue""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_MEDICATIONS,Medications,"{""keywords"":[""medication"",""drug"",""medicine"",""prescription"",""dose""],""icon"":""medication"",""color"":""green""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_DIAGNOSIS,Diagnosis,"{""keywords"":[""diagnosis"",""condition"",""disease"",""disorder""],""icon"":""medical_information"",""color"":""purple""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_IMAGING,Imaging,"{""keywords"":[""imaging"",""xray"",""x-ray"",""ct"",""mri"",""ultrasound"",""scan""],""icon"":""medical_services"",""color"":""indigo""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_GENERAL,General,"{""keywords"":[""symptom"",""complaint"",""pain"",""discomfort""],""icon"":""sick"",""color"":""orange""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_ASSESSMENT,Assessment,"{""keywords"":[""procedure"",""surgery"",""operation"",""intervention""],""icon"":""medical_services"",""color"":""teal""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,CATEGORY_METADATA,CAT_RAW_DATA,Raw Data,"{""keywords"":[""note"",""comment"",""observation"",""remark""],""icon"":""note"",""color"":""grey""}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,VISIT_TYPE_CD,routine,Routine Check-up,"{""label"":""Routine Check-up"",""icon"":""health_and_safety"",""color"":""primary""}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,VISIT_TYPE_CD,followup,Follow-up,"{""label"":""Follow-up"",""icon"":""follow_the_signs"",""color"":""secondary""}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,VISIT_TYPE_CD,emergency,Emergency,"{""label"":""Emergency"",""icon"":""emergency"",""color"":""negative""}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,VISIT_TYPE_CD,consultation,Consultation,"{""label"":""Consultation"",""icon"":""psychology"",""color"":""info""}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,VISIT_TYPE_CD,procedure,Procedure,"{""label"":""Procedure"",""icon"":""medical_services"",""color"":""warning""}",2024-01-01,,2024-01-01,SYSTEM,1
+FILE_DIMENSION,FILE_TYPE_CD,pdf,PDF Document,"{""icon"":""picture_as_pdf"",""color"":""red""}",2024-01-01,,2024-01-01,SYSTEM,1
+FILE_DIMENSION,FILE_TYPE_CD,image,Image File,"{""extensions"":[""png"",""jpg"",""jpeg"",""gif"",""bmp"",""webp""],""icon"":""image"",""color"":""green""}",2024-01-01,,2024-01-01,SYSTEM,1
+FILE_DIMENSION,FILE_TYPE_CD,document,Document,"{""extensions"":[""doc"",""docx""],""icon"":""description"",""color"":""blue""}",2024-01-01,,2024-01-01,SYSTEM,1
+FILE_DIMENSION,FILE_TYPE_CD,spreadsheet,Spreadsheet,"{""extensions"":[""xls"",""xlsx"",""csv""],""icon"":""table_chart"",""color"":""green""}",2024-01-01,,2024-01-01,SYSTEM,1
+FILE_DIMENSION,FILE_TYPE_CD,text,Text File,"{""extensions"":[""txt"",""rtf""],""icon"":""description"",""color"":""blue""}",2024-01-01,,2024-01-01,SYSTEM,1
+FILE_DIMENSION,FILE_TYPE_CD,archive,Archive,"{""extensions"":[""zip"",""rar"",""7z"",""tar"",""gz""],""icon"":""archive"",""color"":""orange""}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,FIELD_SET_CD,vitals,Vital Signs,"{""description"":""Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation"",""icon"":""favorite"",""concepts"":[""LOINC:8480-6"",""LOINC:8462-4"",""LOINC:8867-4"",""LOINC:8310-5"",""LOINC:9279-1"",""LOINC:2708-6"",""LID: 8480-6"",""LID: 8462-4"",""LID: 8867-4""]}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,FIELD_SET_CD,symptoms,Symptoms,"{""description"":""Patient reported symptoms and complaints"",""icon"":""sick"",""concepts"":[""SNOMED:25064002"",""SNOMED:49727002"",""SNOMED:267036007"",""SNOMED:21522001"",""SNOMED:386661006"",""SNOMED:84229001""]}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,FIELD_SET_CD,physical,Physical Exam,"{""description"":""Physical examination findings"",""icon"":""medical_services"",""concepts"":[""SNOMED:5880005"",""SNOMED:32750006"",""SNOMED:113011001"",""SNOMED:37931006"",""SNOMED:113006009""]}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,FIELD_SET_CD,medications,Medications,"{""description"":""Current medications and dosages"",""icon"":""medication"",""concepts"":[""SNOMED:182836005"",""SNOMED:432102000"",""SNOMED:182840001""]}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,FIELD_SET_CD,lab,Lab Results,"{""description"":""Laboratory test results"",""icon"":""science"",""concepts"":[""LOINC:33747-0"",""LOINC:24323-8"",""LOINC:57698-3"",""LOINC:58410-2""]}",2024-01-01,,2024-01-01,SYSTEM,1
+VISIT_DIMENSION,FIELD_SET_CD,assessment,Assessment,"{""description"":""Clinical assessment and diagnosis"",""icon"":""assignment"",""concepts"":[""SNOMED:439401001"",""SNOMED:386053000"",""SNOMED:182836005""]}",2024-01-01,,2024-01-01,SYSTEM,1
