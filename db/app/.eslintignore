@@ -1,0 +1,13 @@
+/dist
+/src-capacitor
+/src-cordova
+/src-electron
+/.quasar
+/node_modules
+.eslintrc.cjs
+/quasar.config.*.temporary.compiled*
+/EXTERN
+/src
+quasar*
+/test
+vitest.config.mjs

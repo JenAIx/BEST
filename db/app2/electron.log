@@ -1,0 +1,47 @@
+
+> best@0.0.1 dev:electron:vnc
+> DISPLAY=:99 ELECTRON_DISABLE_SECURITY_WARNINGS=true xvfb-run -a --server-args="-screen 0 1024x768x24 -ac -nolisten tcp -dpi 96 +extension GLX" sh -c 'x11vnc -display :99 -bg -forever -nopw -quiet -listen localhost -xkb & quasar dev -m electron'
+
+Xlib:  extension "DPMS" missing on display ":99".
+
+ .d88888b.
+d88P" "Y88b
+888     888
+888     888 888  888  8888b.  .d8888b   8888b.  888d888
+888     888 888  888     "88b 88K          "88b 888P"
+888 Y8b 888 888  888 .d888888 "Y8888b. .d888888 888
+Y88b.Y8b88P Y88b 888 888  888      X88 888  888 888
+ "Y888888"   "Y88888 "Y888888  88888P' "Y888888 888
+       Y8b
+
+
+The VNC desktop is:      localhost:0
+PORT=5900
+ App • Using quasar.config.js in "esm" format
+ App •  WAIT  • Compiling of Electron Preload (electron-preload) with Esbuild in progress...
+▲ [WARNING] "import.meta" is not available with the "cjs" output format and will be empty [empty-import-meta]
+
+    src-electron/electron-preload.js:9:33:
+      9 │ const __filename = fileURLToPath(import.meta.url)
+        ╵                                  ~~~~~~~~~~~
+
+  You need to set the output format to "esm" for "import.meta" to work correctly.
+
+ App •  WAIT  • Compiling of Electron Main with Esbuild in progress...
+ App •  DONE  • Electron Preload (electron-preload) compiled with success by Esbuild • 11ms
+
+ App •  DONE  • Electron Main compiled with success by Esbuild • 71ms
+
+ App • Running "/home/ste/BEST/db/app2/node_modules/electron/cli.js --inspect=5858 /home/ste/BEST/db/app2/.quasar/dev-electron/electron-main.js" in /home/ste/BEST/db/app2
+
+Debugger listening on ws://127.0.0.1:5858/32a74d69-4556-44c7-b035-beacce217f46
+For help, see: https://nodejs.org/en/docs/inspector
+Loading URL: http://localhost:9300
+[158150:0823/143702.151087:ERROR:components/viz/service/main/viz_main_impl.cc:184] Exiting GPU process due to errors during initialization
+[158187:0823/143702.216081:ERROR:gpu/ipc/client/command_buffer_proxy_impl.cc:127] ContextResult::kTransientFailure: Failed to send GpuControl.CreateCommandBuffer.
+Electron window ready - showing window for VNC access
+[158119:0823/143702.483524:ERROR:ui/gfx/x/atom_cache.cc:232] Add _NET_RESTACK_WINDOW to kAtomsToCache
+Window bounds: { x: 10, y: 10, width: 1000, height: 700 }
+Window visible: true
+[158119:0823/143702.627129:ERROR:CONSOLE:1] "Request Autofill.enable failed. {"code":-32601,"message":"'Autofill.enable' wasn't found"}", source: devtools://devtools/bundled/core/protocol_client/protocol_client.js (1)
+[158119:0823/143702.628281:ERROR:CONSOLE:1] "Request Autofill.setAddresses failed. {"code":-32601,"message":"'Autofill.setAddresses' wasn't found"}", source: devtools://devtools/bundled/core/protocol_client/protocol_client.js (1)
