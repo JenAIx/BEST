@@ -6,9 +6,6 @@
         {{ fieldSet.name }}
       </div>
       <div class="field-set-actions">
-        <q-btn flat icon="content_copy" label="Clone from Previous" size="sm" @click="showCloneDialog = true" :disable="previousVisits.length === 0">
-          <q-tooltip>Copy values from a previous visit</q-tooltip>
-        </q-btn>
         <q-btn flat icon="expand_more" size="sm" @click="collapsed = !collapsed" :class="{ 'rotate-180': !collapsed }">
           <q-tooltip>{{ collapsed ? 'Expand' : 'Collapse' }}</q-tooltip>
         </q-btn>
@@ -37,38 +34,6 @@
         </div>
       </div>
     </q-slide-transition>
-
-    <!-- Clone from Previous Dialog -->
-    <q-dialog v-model="showCloneDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Clone from Previous Visit</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-select v-model="selectedPreviousVisit" :options="previousVisitOptions" option-label="label" option-value="value" label="Select Previous Visit" outlined />
-
-          <div v-if="selectedPreviousVisit" class="q-mt-md">
-            <div class="text-subtitle2 q-mb-sm">Available observations:</div>
-            <q-list bordered>
-              <q-item v-for="obs in previousVisitObservations" :key="obs.conceptCode" clickable @click="cloneObservation(obs)">
-                <q-item-section>
-                  <q-item-label>{{ obs.conceptName }}</q-item-label>
-                  <q-item-label caption>{{ obs.value }} {{ obs.unit }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="content_copy" />
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Close" @click="showCloneDialog = false" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
 
     <!-- Add Custom Observation Dialog -->
     <q-dialog v-model="showAddCustomDialog">
@@ -101,7 +66,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -141,10 +106,7 @@ const logger = loggingStore.createLogger('ObservationFieldSet')
 
 // State
 const collapsed = ref(false)
-const showCloneDialog = ref(false)
 const showAddCustomDialog = ref(false)
-const selectedPreviousVisit = ref(null)
-const previousVisitObservations = ref([])
 
 const customObservation = ref({
   name: '',
@@ -191,14 +153,6 @@ const fieldSetConcepts = computed(() => {
       }
     }) || []
   )
-})
-
-const previousVisitOptions = computed(() => {
-  return props.previousVisits.map((visit) => ({
-    label: formatVisitDate(visit.date),
-    value: visit,
-    summary: `${visit.type} • ${visit.observationCount} observations`,
-  }))
 })
 
 // Methods
@@ -296,54 +250,6 @@ const getPreviousValue = (conceptCode) => {
   return null
 }
 
-const loadPreviousVisitObservations = async () => {
-  if (!selectedPreviousVisit.value?.id) {
-    previousVisitObservations.value = []
-    return
-  }
-
-  try {
-    const query = `
-            SELECT 
-                CONCEPT_CD,
-                CONCEPT_NAME_CHAR as CONCEPT_NAME,
-                VALTYPE_CD,
-                TVAL_CHAR,
-                NVAL_NUM,
-                UNIT_CD,
-                TVAL_RESOLVED
-            FROM patient_observations
-            WHERE ENCOUNTER_NUM = ?
-            ORDER BY CONCEPT_NAME_CHAR
-        `
-
-    const result = await dbStore.executeQuery(query, [selectedPreviousVisit.value.id])
-
-    if (result.success) {
-      previousVisitObservations.value = result.data.map((obs) => ({
-        conceptCode: obs.CONCEPT_CD,
-        conceptName: obs.CONCEPT_NAME,
-        valueType: obs.VALTYPE_CD,
-        value: obs.TVAL_RESOLVED || obs.TVAL_CHAR || obs.NVAL_NUM,
-        unit: obs.UNIT_CD,
-      }))
-    }
-  } catch (error) {
-    logger.error('Failed to load previous visit observations', error)
-  }
-}
-
-const cloneObservation = (observation) => {
-  emit('clone-from-previous', {
-    conceptCode: observation.conceptCode,
-    previousVisitId: selectedPreviousVisit.value.id,
-    value: observation.value,
-    unit: observation.unit,
-  })
-
-  showCloneDialog.value = false
-}
-
 const onObservationUpdated = (data) => {
   emit('observation-updated', data)
 }
@@ -424,23 +330,6 @@ const cancelCustomObservation = () => {
   }
   showAddCustomDialog.value = false
 }
-
-const formatVisitDate = (dateStr) => {
-  if (!dateStr) return 'Unknown'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-// Watchers
-watch(selectedPreviousVisit, async (newVisit) => {
-  if (newVisit) {
-    await loadPreviousVisitObservations()
-  }
-})
 </script>
 
 <style lang="scss" scoped>
