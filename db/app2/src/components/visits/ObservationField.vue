@@ -14,12 +14,20 @@
         </q-icon>
       </div>
       <div class="field-actions">
-        <q-btn v-if="previousValue" flat round icon="content_copy" size="sm" color="grey-6" @click="cloneFromPrevious">
-          <q-tooltip>Clone from previous: {{ previousValue.value }} {{ previousValue.unit }}</q-tooltip>
-        </q-btn>
-        <q-btn v-if="hasValue" flat round icon="clear" size="sm" color="grey-6" @click="clearValue">
+        <!-- Normal Clear Button -->
+        <q-btn v-if="hasValue && !showClearConfirmation" flat round icon="clear" size="sm" color="grey-6" @click="showClearConfirmation = true">
           <q-tooltip>Clear value</q-tooltip>
         </q-btn>
+
+        <!-- Clear Confirmation Buttons -->
+        <div v-if="showClearConfirmation" class="clear-confirmation">
+          <q-btn flat round icon="check" size="sm" color="negative" @click="confirmClear" class="confirm-clear-btn">
+            <q-tooltip>Confirm clear value</q-tooltip>
+          </q-btn>
+          <q-btn flat round icon="close" size="sm" color="grey-6" @click="cancelClear" class="cancel-clear-btn">
+            <q-tooltip>Cancel</q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </div>
 
@@ -40,7 +48,6 @@
             <q-icon name="tag" />
           </template>
         </q-input>
-        <div v-if="concept.unit" class="unit-display">{{ concept.unit }}</div>
       </div>
 
       <!-- Text Input -->
@@ -121,6 +128,33 @@
         <q-icon :name="getChangeIcon()" :color="getChangeColor()" size="14px" class="q-ml-xs" />
       </span>
     </div>
+
+    <!-- Enhanced Clone Button - Bottom Right -->
+    <div v-if="previousValue" class="clone-button-container">
+      <q-btn flat round icon="content_copy" size="sm" color="primary" class="clone-btn" @click="cloneFromPrevious" @mouseenter="showClonePreview = true" @mouseleave="showClonePreview = false">
+        <q-tooltip v-model="showClonePreview" class="clone-preview-tooltip" anchor="top middle" self="bottom middle" :offset="[0, 10]">
+          <div class="clone-preview">
+            <div class="preview-header">
+              <q-icon name="history" size="16px" class="q-mr-xs" />
+              Previous Value
+            </div>
+            <div class="preview-date">
+              <q-icon name="event" size="14px" class="q-mr-xs" />
+              {{ formatVisitDate(previousValue.date) }}
+            </div>
+            <div class="preview-content">
+              <q-icon name="content_copy" size="14px" class="q-mr-xs" />
+              <strong>{{ previousValue.value }}</strong>
+              <span v-if="previousValue.unit" class="preview-unit">{{ previousValue.unit }}</span>
+            </div>
+            <div class="preview-action">
+              <q-icon name="mouse" size="12px" class="q-mr-xs" />
+              Click to copy this value
+            </div>
+          </div>
+        </q-tooltip>
+      </q-btn>
+    </div>
   </div>
 </template>
 
@@ -170,6 +204,8 @@ const saving = ref(false)
 const lastUpdated = ref(null)
 const resolvedConceptName = ref(null)
 const selectionOptions = ref([])
+const showClonePreview = ref(false)
+const showClearConfirmation = ref(false)
 
 // Computed
 const hasValue = computed(() => {
@@ -319,6 +355,30 @@ const cloneFromPrevious = () => {
   }
 }
 
+const confirmClear = async () => {
+  await clearValue()
+  showClearConfirmation.value = false
+}
+
+const cancelClear = () => {
+  showClearConfirmation.value = false
+}
+
+// Auto-hide clear confirmation after 5 seconds for safety
+watch(
+  () => showClearConfirmation.value,
+  (newValue) => {
+    if (newValue) {
+      setTimeout(() => {
+        if (showClearConfirmation.value) {
+          showClearConfirmation.value = false
+          logger.debug('Auto-cancelled clear confirmation after timeout')
+        }
+      }, 5000) // 5 seconds timeout
+    }
+  },
+)
+
 // Selection options are now loaded dynamically from concept resolution store
 // See loadSelectionOptions() function and selectionOptions reactive ref
 
@@ -357,6 +417,39 @@ const formatRelativeTime = (date) => {
 
   const days = Math.floor(hours / 24)
   return `${days}d ago`
+}
+
+const formatVisitDate = (date) => {
+  if (!date) return 'Unknown date'
+
+  try {
+    const visitDate = new Date(date)
+    const now = new Date()
+    const diffTime = now - visitDate
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+
+    const options = {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }
+
+    const formattedDate = visitDate.toLocaleDateString('en-US', options)
+
+    if (diffDays === 0) {
+      return `Today, ${visitDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+    } else if (diffDays === 1) {
+      return `Yesterday, ${visitDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+    } else if (diffDays < 7) {
+      return `${diffDays} days ago, ${visitDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`
+    } else {
+      return formattedDate
+    }
+  } catch {
+    return date.toString()
+  }
 }
 
 // Initialize value from existing observation and resolve concept
@@ -443,6 +536,16 @@ watch(
     }
   },
 )
+
+// Hide clear confirmation when value changes (typing while confirmation is shown)
+watch(
+  () => currentValue.value,
+  () => {
+    if (showClearConfirmation.value) {
+      showClearConfirmation.value = false
+    }
+  },
+)
 </script>
 
 <style lang="scss" scoped>
@@ -452,10 +555,16 @@ watch(
   padding: 1rem;
   background: white;
   transition: all 0.3s ease;
+  position: relative;
 
   &:hover {
     border-color: $primary;
     box-shadow: 0 2px 8px rgba($primary, 0.1);
+
+    .clone-button-container {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
 
@@ -475,7 +584,38 @@ watch(
 
   .field-actions {
     display: flex;
+    align-items: center;
     gap: 0.25rem;
+
+    .clear-confirmation {
+      display: flex;
+      gap: 0.25rem;
+      padding: 2px;
+      background: rgba($negative, 0.1);
+      border-radius: 20px;
+      border: 1px solid rgba($negative, 0.2);
+      animation: slideIn 0.3s ease;
+
+      .confirm-clear-btn {
+        background: rgba($negative, 0.1);
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: $negative;
+          color: white;
+          transform: scale(1.1);
+        }
+      }
+
+      .cancel-clear-btn {
+        transition: all 0.2s ease;
+
+        &:hover {
+          background: rgba($grey-6, 0.1);
+          transform: scale(1.1);
+        }
+      }
+    }
   }
 }
 
@@ -484,16 +624,6 @@ watch(
 
   .numeric-input {
     position: relative;
-
-    .unit-display {
-      position: absolute;
-      right: 12px;
-      top: 50%;
-      transform: translateY(-50%);
-      color: $grey-6;
-      font-size: 0.8rem;
-      pointer-events: none;
-    }
   }
 }
 
@@ -546,5 +676,103 @@ watch(
 
 :deep(.q-field__control) {
   border-radius: 6px;
+}
+
+// Enhanced Clone Button Styling
+.clone-button-container {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: all 0.3s ease;
+  z-index: 10;
+
+  .clone-btn {
+    background: rgba(white, 0.95);
+    border: 1px solid $primary;
+    box-shadow: 0 2px 8px rgba($primary, 0.2);
+    transition: all 0.3s ease;
+
+    &:hover {
+      background: $primary;
+      color: white;
+      transform: scale(1.1);
+      box-shadow: 0 4px 12px rgba($primary, 0.4);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+}
+
+.clone-preview-tooltip {
+  .clone-preview {
+    padding: 12px;
+    min-width: 200px;
+    background: $grey-9;
+    border-radius: 8px;
+    color: white;
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: $blue-3;
+    }
+
+    .preview-date {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: $grey-4;
+    }
+
+    .preview-content {
+      display: flex;
+      align-items: center;
+      font-size: 14px;
+      margin-bottom: 8px;
+      padding: 8px;
+      background: rgba($primary, 0.1);
+      border-radius: 4px;
+      border-left: 3px solid $primary;
+
+      strong {
+        color: $primary;
+        font-weight: 600;
+      }
+
+      .preview-unit {
+        color: $grey-5;
+        margin-left: 4px;
+        font-size: 12px;
+      }
+    }
+
+    .preview-action {
+      display: flex;
+      align-items: center;
+      font-size: 11px;
+      color: $grey-5;
+      font-style: italic;
+    }
+  }
+}
+
+// Animations
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
 }
 </style>
