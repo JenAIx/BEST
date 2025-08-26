@@ -247,7 +247,7 @@ const selectPatient = async (patient) => {
     })
 
     // Navigate to visits page
-    router.push('/visits')
+    router.push(`/visits/${visitPatient.id}`)
     clearSearch()
 
     $q.notify({

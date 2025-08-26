@@ -405,7 +405,7 @@ const goToVisitsPage = async () => {
     await visitObservationStore.setSelectedPatient(visitPatient)
 
     // Navigate to visits page
-    router.push('/visits')
+    router.push(`/visits/${visitPatient.id}`)
 
     $q.notify({
       type: 'positive',

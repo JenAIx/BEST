@@ -92,6 +92,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import PatientCard from './PatientCard.vue'
+import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['patient-selected'])
 
@@ -99,6 +100,7 @@ const dbStore = useDatabaseStore()
 const localSettings = useLocalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('PatientSelector')
+const router = useRouter()
 
 // State
 const searchQuery = ref('')
@@ -192,7 +194,11 @@ const selectPatient = (patient) => {
     const updatedRecent = [patient.id, ...recent.filter(id => id !== patient.id)].slice(0, 10)
     localSettings.setSetting('visits.recentPatients', updatedRecent)
     
+    // Emit event for parent component
     emit('patient-selected', patient)
+    
+    // Navigate directly to patient visits
+    router.push(`/visits/${patient.id}`)
 }
 
 // Helper Methods
