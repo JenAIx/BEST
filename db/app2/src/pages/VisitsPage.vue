@@ -51,6 +51,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
 import VisitTimeline from 'src/components/visits/VisitTimeline.vue'
 import VisitDataEntry from 'src/components/visits/VisitDataEntry.vue'
@@ -91,15 +92,7 @@ const onVisitCreated = async (newVisit) => {
   viewMode.value = 'entry'
 }
 
-// Helper Methods
-const getPatientInitials = (name) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
+// Helper methods - getPatientInitials is now imported from medical-utils
 
 // Initialize store
 onMounted(() => {

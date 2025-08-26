@@ -2,12 +2,15 @@
   <div class="observation-field">
     <div class="field-header">
       <div class="field-label">
-        {{ concept.name }}
+        {{ resolvedConceptName || concept.name }}
         <q-icon v-if="concept.system === 'LOINC'" name="science" size="14px" color="blue" class="q-ml-xs">
-          <q-tooltip>LOINC Code</q-tooltip>
+          <q-tooltip>LOINC Code: {{ concept.code }}</q-tooltip>
         </q-icon>
         <q-icon v-else-if="concept.system === 'SNOMED'" name="medical_services" size="14px" color="green" class="q-ml-xs">
-          <q-tooltip>SNOMED Code</q-tooltip>
+          <q-tooltip>SNOMED Code: {{ concept.code }}</q-tooltip>
+        </q-icon>
+        <q-icon v-else name="code" size="14px" color="grey-6" class="q-ml-xs">
+          <q-tooltip>Code: {{ concept.code }}</q-tooltip>
         </q-icon>
       </div>
       <div class="field-actions">
@@ -23,7 +26,16 @@
     <div class="field-input">
       <!-- Numeric Input -->
       <div v-if="concept.valueType === 'N'" class="numeric-input">
-        <q-input v-model.number="currentValue" type="number" :label="`Enter ${concept.name.toLowerCase()}`" outlined dense :suffix="concept.unit" @update:model-value="onValueChange" :loading="saving">
+        <q-input
+          v-model.number="currentValue"
+          type="number"
+          :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`"
+          outlined
+          dense
+          :suffix="concept.unit"
+          @update:model-value="onValueChange"
+          :loading="saving"
+        >
           <template v-slot:prepend>
             <q-icon name="tag" />
           </template>
@@ -33,7 +45,7 @@
 
       <!-- Text Input -->
       <div v-else-if="concept.valueType === 'T'" class="text-input">
-        <q-input v-model="currentValue" :label="`Enter ${concept.name.toLowerCase()}`" outlined dense @update:model-value="onValueChange" :loading="saving">
+        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense @update:model-value="onValueChange" :loading="saving">
           <template v-slot:prepend>
             <q-icon name="text_fields" />
           </template>
@@ -42,7 +54,7 @@
 
       <!-- Date Input -->
       <div v-else-if="concept.valueType === 'D'" class="date-input">
-        <q-input v-model="currentValue" type="date" :label="`Enter ${concept.name.toLowerCase()}`" outlined dense @update:model-value="onValueChange" :loading="saving">
+        <q-input v-model="currentValue" type="date" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense @update:model-value="onValueChange" :loading="saving">
           <template v-slot:prepend>
             <q-icon name="event" />
           </template>
@@ -53,8 +65,8 @@
       <div v-else-if="concept.valueType === 'S'" class="selection-input">
         <q-select
           v-model="currentValue"
-          :options="getSelectionOptions()"
-          :label="`Select ${concept.name.toLowerCase()}`"
+          :options="selectionOptions"
+          :label="`Select ${(resolvedConceptName || concept.name).toLowerCase()}`"
           outlined
           dense
           emit-value
@@ -64,6 +76,25 @@
         >
           <template v-slot:prepend>
             <q-icon name="list" />
+          </template>
+        </q-select>
+      </div>
+
+      <!-- Finding Input (for clinical findings) -->
+      <div v-else-if="concept.valueType === 'F'" class="finding-input">
+        <q-select
+          v-model="currentValue"
+          :options="selectionOptions"
+          :label="`Assess ${(resolvedConceptName || concept.name).toLowerCase()}`"
+          outlined
+          dense
+          emit-value
+          map-options
+          @update:model-value="onValueChange"
+          :loading="saving"
+        >
+          <template v-slot:prepend>
+            <q-icon name="medical_information" />
           </template>
         </q-select>
       </div>
@@ -98,6 +129,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
@@ -128,6 +160,7 @@ const emit = defineEmits(['observation-updated', 'clone-requested'])
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ObservationField')
 
@@ -135,6 +168,8 @@ const logger = loggingStore.createLogger('ObservationField')
 const currentValue = ref('')
 const saving = ref(false)
 const lastUpdated = ref(null)
+const resolvedConceptName = ref(null)
+const selectionOptions = ref([])
 
 // Computed
 const hasValue = computed(() => {
@@ -284,32 +319,8 @@ const cloneFromPrevious = () => {
   }
 }
 
-const getSelectionOptions = () => {
-  // Return options based on concept code
-  const commonOptions = {
-    'SNOMED:25064002': [
-      // Headache
-      { label: 'None', value: 'none' },
-      { label: 'Mild', value: 'mild' },
-      { label: 'Moderate', value: 'moderate' },
-      { label: 'Severe', value: 'severe' },
-    ],
-    'SNOMED:49727002': [
-      // Cough
-      { label: 'None', value: 'none' },
-      { label: 'Dry cough', value: 'dry' },
-      { label: 'Productive cough', value: 'productive' },
-      { label: 'Persistent cough', value: 'persistent' },
-    ],
-  }
-
-  return (
-    commonOptions[props.concept.code] || [
-      { label: 'Normal', value: 'normal' },
-      { label: 'Abnormal', value: 'abnormal' },
-    ]
-  )
-}
+// Selection options are now loaded dynamically from concept resolution store
+// See loadSelectionOptions() function and selectionOptions reactive ref
 
 const getChangeIcon = () => {
   if (!props.previousValue || props.concept.valueType !== 'N') return 'compare_arrows'
@@ -348,19 +359,73 @@ const formatRelativeTime = (date) => {
   return `${days}d ago`
 }
 
-// Initialize value from existing observation
-onMounted(() => {
+// Initialize value from existing observation and resolve concept
+onMounted(async () => {
   logger.debug('ObservationField mounted', {
-    conceptCode: props.concept.CONCEPT_CD,
-    hasExistingObservation: !!props.existingObservation
+    conceptCode: props.concept.code,
+    hasExistingObservation: !!props.existingObservation,
   })
 
+  // Resolve concept name
+  await resolveConceptName()
+
+  // Load selection options for selection/finding type fields
+  if (props.concept.valueType === 'S' || props.concept.valueType === 'F') {
+    await loadSelectionOptions()
+  }
+
+  // Initialize value from existing observation
   if (props.existingObservation) {
     // Use originalValue from the store structure
     currentValue.value = props.existingObservation.originalValue || props.existingObservation.value || ''
     lastUpdated.value = new Date(props.existingObservation.date)
   }
 })
+
+// Resolve concept name using concept resolution store
+const resolveConceptName = async () => {
+  try {
+    const resolved = await conceptStore.resolveConcept(props.concept.code, {
+      context: 'observation',
+      table: 'CONCEPT_DIMENSION',
+      column: 'CONCEPT_CD',
+    })
+
+    resolvedConceptName.value = resolved.label || props.concept.name
+    logger.debug('Concept name resolved', {
+      conceptCode: props.concept.code,
+      resolvedName: resolvedConceptName.value,
+    })
+  } catch (error) {
+    logger.error('Failed to resolve concept name', error, { conceptCode: props.concept.code })
+    resolvedConceptName.value = props.concept.name || 'Unknown Concept'
+  }
+}
+
+// Load selection options for selection and finding type fields
+const loadSelectionOptions = async () => {
+  try {
+    if (props.concept.valueType === 'S') {
+      // For selection type, get standard selection options
+      selectionOptions.value = await conceptStore.getSelectionOptions(props.concept.code)
+    } else if (props.concept.valueType === 'F') {
+      // For finding type, get finding-specific options
+      selectionOptions.value = await conceptStore.getFindingOptions(props.concept.code)
+    }
+
+    logger.debug('Selection options loaded', {
+      conceptCode: props.concept.code,
+      optionsCount: selectionOptions.value.length,
+    })
+  } catch (error) {
+    logger.error('Failed to load selection options', error, { conceptCode: props.concept.code })
+    // Fallback to basic options
+    selectionOptions.value = [
+      { label: 'Normal', value: 'normal' },
+      { label: 'Abnormal', value: 'abnormal' },
+    ]
+  }
+}
 
 // Watch for changes in existing observation
 watch(

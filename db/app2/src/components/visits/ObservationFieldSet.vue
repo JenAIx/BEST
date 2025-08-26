@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -153,11 +153,27 @@ const customObservation = ref({
   unit: '',
 })
 
-const valueTypeOptions = [
-  { label: 'Text', value: 'T' },
-  { label: 'Numeric', value: 'N' },
-  { label: 'Date', value: 'D' },
-]
+const valueTypeOptions = ref([])
+
+// Load value type options on mount
+onMounted(async () => {
+  try {
+    valueTypeOptions.value = await globalSettingsStore.getValueTypeOptions()
+    logger.info('Value type options loaded successfully', {
+      optionsCount: valueTypeOptions.value.length,
+    })
+  } catch (error) {
+    logger.error('Failed to load value type options, using fallback', error)
+    // Fallback to basic options if store fails
+    valueTypeOptions.value = [
+      { label: 'Text (T)', value: 'T' },
+      { label: 'Numeric (N)', value: 'N' },
+      { label: 'Date (D)', value: 'D' },
+      { label: 'Selection (S)', value: 'S' },
+      { label: 'Finding (F)', value: 'F' },
+    ]
+  }
+})
 
 // Computed
 const fieldSetConcepts = computed(() => {

@@ -722,21 +722,21 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Try to load from database first
       const sourceSystems = await getSourceSystemOptions()
-      
+
       // Look for context-specific defaults
       const contextMap = {
-        'VISITS_PAGE': 'VISITS_PAGE',
-        'DATAGRID_EDITOR': 'DATAGRID_EDITOR',
-        'PATIENT': 'SYSTEM',
-        'GENERAL': 'SYSTEM'
+        VISITS_PAGE: 'VISITS_PAGE',
+        DATAGRID_EDITOR: 'DATAGRID_EDITOR',
+        PATIENT: 'SYSTEM',
+        GENERAL: 'SYSTEM',
       }
-      
+
       const preferredCode = contextMap[context] || 'SYSTEM'
-      
+
       // Check if preferred code exists in loaded options
-      const exists = sourceSystems.find(ss => ss.value === preferredCode)
+      const exists = sourceSystems.find((ss) => ss.value === preferredCode)
       if (exists) return preferredCode
-      
+
       // Return first available option or fallback
       return sourceSystems.length > 0 ? sourceSystems[0].value : 'SYSTEM'
     } catch (error) {
@@ -754,25 +754,22 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Try to load from database first
       const categories = await getCategoryOptions()
-      
+
       // Look for context-specific defaults
       const contextMap = {
-        'CLINICAL': 'Clinical',
-        'DEMOGRAPHICS': 'Demographics',
-        'CLONED': 'Cloned',
-        'OBSERVATION': 'Observation',
-        'GENERAL': 'General'
+        CLINICAL: 'Clinical',
+        DEMOGRAPHICS: 'Demographics',
+        CLONED: 'Cloned',
+        OBSERVATION: 'Observation',
+        GENERAL: 'General',
       }
-      
+
       const preferredCategory = contextMap[context] || 'General'
-      
+
       // Check if preferred category exists in loaded options
-      const exists = categories.find(cat => 
-        cat.value === preferredCategory || 
-        cat.label === preferredCategory
-      )
+      const exists = categories.find((cat) => cat.value === preferredCategory || cat.label === preferredCategory)
       if (exists) return exists.value
-      
+
       // Return first available option or fallback
       return categories.length > 0 ? categories[0].value : 'General'
     } catch (error) {
@@ -819,7 +816,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Administrator', value: 'admin' },
         { label: 'Physician', value: 'physician' },
         { label: 'Nurse', value: 'nurse' },
-        { label: 'Research', value: 'research' }
+        { label: 'Research', value: 'research' },
       ]
 
       // Cache the fallback result
@@ -833,10 +830,118 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Administrator', value: 'admin' },
         { label: 'Physician', value: 'physician' },
         { label: 'Nurse', value: 'nurse' },
-        { label: 'Research', value: 'research' }
+        { label: 'Research', value: 'research' },
       ]
       return fallbackRoles
     }
+  }
+
+  /**
+   * Get visit template options for quick visit creation
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of visit template configurations
+   */
+  const getVisitTemplateOptions = async (forceRefresh = false) => {
+    const cacheKey = 'visit_templates'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP 
+         WHERE TABLE_CD = 'VISIT_DIMENSION' 
+         AND COLUMN_CD = 'TEMPLATE_CD' 
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const templates = result.data.map((template) => {
+          const metadata = parseMetadata(template.LOOKUP_BLOB)
+          return {
+            id: template.CODE_CD,
+            name: template.NAME_CHAR,
+            type: metadata.visitType || 'routine',
+            location: metadata.location || '',
+            notes: metadata.notes || '',
+            icon: metadata.icon || 'assignment',
+            color: metadata.color || 'primary',
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = templates
+        logger.success(`Loaded ${templates.length} visit templates`)
+        return templates
+      }
+
+      // Fallback to standard visit templates
+      return getDefaultVisitTemplates()
+    } catch (error) {
+      logger.error('Failed to get visit template options', error)
+      return getDefaultVisitTemplates()
+    }
+  }
+
+  /**
+   * Get default visit templates when database lookup fails
+   * @returns {Array} Default visit templates
+   */
+  const getDefaultVisitTemplates = () => {
+    const defaultTemplates = [
+      {
+        id: 'annual-checkup',
+        name: 'Annual Checkup',
+        type: 'routine',
+        location: '',
+        notes: 'Annual physical examination and health assessment',
+        icon: 'health_and_safety',
+        color: 'primary',
+      },
+      {
+        id: 'follow-up-labs',
+        name: 'Lab Follow-up',
+        type: 'followup',
+        location: '',
+        notes: 'Follow-up visit to review laboratory results',
+        icon: 'science',
+        color: 'secondary',
+      },
+      {
+        id: 'medication-review',
+        name: 'Medication Review',
+        type: 'consultation',
+        location: '',
+        notes: 'Review current medications and adjust dosages as needed',
+        icon: 'medication',
+        color: 'info',
+      },
+      {
+        id: 'emergency-visit',
+        name: 'Emergency Visit',
+        type: 'emergency',
+        location: 'Emergency Department',
+        notes: 'Urgent medical attention required',
+        icon: 'emergency',
+        color: 'negative',
+      },
+      {
+        id: 'procedure-visit',
+        name: 'Procedure Visit',
+        type: 'procedure',
+        location: 'Procedure Suite',
+        notes: 'Medical procedure or intervention',
+        icon: 'medical_services',
+        color: 'warning',
+      },
+    ]
+
+    // Cache the fallback result
+    lookupData.value['visit_templates'] = defaultTemplates
+    logger.info('Using default visit templates')
+    return defaultTemplates
   }
 
   /**
@@ -891,12 +996,16 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     getVisitTypeOptions,
     getFileTypeOptions,
     getFieldSetOptions,
-    
+
     // Default value methods
     getDefaultSourceSystem,
     getDefaultCategory,
-    
+
     // User role methods
     getUserRoleOptions,
+
+    // Visit template methods
+    getVisitTemplateOptions,
+    getDefaultVisitTemplates,
   }
 })

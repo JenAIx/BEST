@@ -625,3 +625,85 @@ export const getCategoryMetadata = (categoryName, categoryMetadata = []) => {
 
   return { icon: 'assignment', color: 'grey' }
 }
+
+/**
+ * Patient Utility Functions
+ */
+
+/**
+ * Generate patient initials from full name
+ * @param {string} name - Patient's full name
+ * @returns {string} Patient initials (up to 2 characters)
+ */
+export const getPatientInitials = (name) => {
+  if (!name || typeof name !== 'string') {
+    return '??'
+  }
+
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+/**
+ * Format patient name for display
+ * @param {string} name - Patient's full name
+ * @param {boolean} lastFirst - Format as "Last, First" instead of "First Last"
+ * @returns {string} Formatted name
+ */
+export const formatPatientName = (name, lastFirst = false) => {
+  if (!name || typeof name !== 'string') {
+    return 'Unknown Patient'
+  }
+
+  const nameParts = name
+    .trim()
+    .split(' ')
+    .filter((part) => part.length > 0)
+  if (nameParts.length === 0) {
+    return 'Unknown Patient'
+  }
+
+  if (nameParts.length === 1) {
+    return nameParts[0]
+  }
+
+  if (lastFirst) {
+    const last = nameParts[nameParts.length - 1]
+    const first = nameParts.slice(0, -1).join(' ')
+    return `${last}, ${first}`
+  }
+
+  return nameParts.join(' ')
+}
+
+/**
+ * Get patient display color based on status or other criteria
+ * @param {Object} patient - Patient object
+ * @returns {string} Quasar color name
+ */
+export const getPatientDisplayColor = (patient) => {
+  if (!patient) return 'grey'
+
+  // Color based on vital status if available
+  if (patient.vital_status || patient.vitalStatus) {
+    const status = (patient.vital_status || patient.vitalStatus).toLowerCase()
+    switch (status) {
+      case 'alive':
+      case 'active':
+        return 'positive'
+      case 'deceased':
+      case 'dead':
+        return 'negative'
+      case 'inactive':
+        return 'warning'
+      default:
+        return 'primary'
+    }
+  }
+
+  return 'primary'
+}
