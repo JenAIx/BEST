@@ -144,7 +144,27 @@
         Enter Value
       </div>
       
+      <!-- Finding Type Options (Yes/No/K.A.) -->
+      <div v-if="selectedConcept.VALTYPE_CD === 'F'" class="finding-options q-mb-md">
+        <div class="text-caption text-grey-6 q-mb-sm">Select an answer:</div>
+        <div class="finding-options-grid">
+          <q-btn
+            v-for="option in findingOptions"
+            :key="option.value"
+            :label="option.label"
+            :color="option.color || 'primary'"
+            outline
+            size="sm"
+            class="finding-option-btn"
+            @click="selectFindingOption(option)"
+            :class="{ 'selected': customObservation.value === option.value }"
+          />
+        </div>
+      </div>
+      
+      <!-- Standard Input for non-Finding types -->
       <q-input
+        v-if="selectedConcept.VALTYPE_CD !== 'F'"
         v-model="customObservation.value"
         :label="`Value for ${selectedConcept.NAME_CHAR}`"
         :type="getValueInputType()"
@@ -154,7 +174,20 @@
         class="q-mb-md"
       />
       
+      <!-- Hidden input for Finding types to store the selected option -->
+      <q-input
+        v-if="selectedConcept.VALTYPE_CD === 'F'"
+        v-model="customObservation.value"
+        :label="`Selected Answer for ${selectedConcept.NAME_CHAR}`"
+        outlined
+        dense
+        readonly
+        :rules="[(val) => !!val || 'Please select an answer']"
+        class="q-mb-md"
+      />
+      
       <q-input 
+        v-if="selectedConcept.VALTYPE_CD !== 'F'"
         v-model="customObservation.unit" 
         label="Unit (optional)" 
         outlined 
@@ -229,6 +262,7 @@ const searchAttempted = ref(false)
 const showSearchResults = ref(false)
 const selectedConcept = ref(null)
 const saving = ref(false)
+const findingOptions = ref([])
 
 // Computed
 const showDialog = computed({
@@ -270,7 +304,8 @@ const searchConcepts = async () => {
     })
 
     const results = await conceptStore.searchConcepts(searchTerm.value, searchOptions)
-    searchResults.value = results
+    // Filter out concepts with VALTYPE_CD = 'A'
+    searchResults.value = results.filter(concept => concept.VALTYPE_CD !== 'A')
     showSearchResults.value = true
 
     logger.info('Concept search completed', {
@@ -312,9 +347,30 @@ const clearSearch = () => {
   searchAttempted.value = false
 }
 
-const selectConcept = (concept) => {
+const selectConcept = async (concept) => {
   selectedConcept.value = concept
   customObservation.value.unit = concept.UNIT_CD || ''
+  
+  // Load finding options if this is a Finding type concept
+  if (concept.VALTYPE_CD === 'F') {
+    try {
+      findingOptions.value = await conceptStore.getFindingOptions(concept.CONCEPT_CD)
+      logger.info('Finding options loaded', {
+        conceptCode: concept.CONCEPT_CD,
+        optionsCount: findingOptions.value.length,
+      })
+    } catch (error) {
+      logger.error('Failed to load finding options', error)
+      // Set fallback options
+      findingOptions.value = [
+        { label: 'Yes', value: 'Yes', color: 'positive' },
+        { label: 'No', value: 'No', color: 'negative' },
+        { label: 'K.A.', value: 'K.A.', color: 'grey' },
+      ]
+    }
+  } else {
+    findingOptions.value = []
+  }
   
   // Hide search results
   showSearchResults.value = false
@@ -329,6 +385,15 @@ const selectConcept = (concept) => {
 const clearSelectedConcept = () => {
   selectedConcept.value = null
   customObservation.value.unit = ''
+  findingOptions.value = []
+}
+
+const selectFindingOption = (option) => {
+  customObservation.value.value = option.value
+  logger.info('Finding option selected', {
+    option: option.label,
+    value: option.value,
+  })
 }
 
 const getValueInputType = () => {
@@ -446,6 +511,7 @@ const resetState = () => {
   showSearchResults.value = false
   selectedConcept.value = null
   saving.value = false
+  findingOptions.value = []
 }
 </script>
 
@@ -576,6 +642,29 @@ const resetState = () => {
 .value-input-section {
   .q-input {
     margin-bottom: 0.5rem;
+  }
+  
+  .finding-options {
+    .finding-options-grid {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      
+      .finding-option-btn {
+        min-width: 80px;
+        transition: all 0.2s ease;
+        
+        &.selected {
+          background: $primary;
+          color: white;
+        }
+        
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+      }
+    }
   }
 }
 </style>
