@@ -104,6 +104,7 @@ import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { getTemplateDescription, isValidTemplate } from 'src/shared/utils/template-utils'
 
 const props = defineProps({
   modelValue: {
@@ -205,9 +206,12 @@ const loadOptions = async () => {
 
     // Load quick templates from global settings
     try {
-      quickTemplates.value = await globalSettingsStore.getVisitTemplateOptions()
+      const templates = await globalSettingsStore.getVisitTemplateOptions()
+      // Validate and enhance templates
+      quickTemplates.value = templates.filter(template => isValidTemplate(template))
       logger.info('Quick templates loaded successfully', {
         templateCount: quickTemplates.value.length,
+        validTemplates: quickTemplates.value.map(t => t.id)
       })
     } catch (error) {
       logger.error('Failed to load visit templates', error)
@@ -297,8 +301,17 @@ const filterLocations = (val, update) => {
 }
 
 const applyTemplate = (template) => {
-  visitData.value.type = template.type
-  visitData.value.notes = template.notes
+  if (!isValidTemplate(template)) {
+    logger.warn('Invalid template provided', { template })
+    return
+  }
+
+  // Apply template properties to visit data
+  visitData.value.type = template.type || 'routine'
+  
+  // Use template description or notes as visit notes
+  const templateNotes = getTemplateDescription(template)
+  visitData.value.notes = templateNotes !== 'Standard visit template' ? templateNotes : template.notes || ''
 
   // Apply location if provided in template
   if (template.location) {
@@ -314,10 +327,10 @@ const applyTemplate = (template) => {
   })
 
   $q.notify({
-    type: 'info',
-    message: `Applied ${template.name} template`,
+    type: 'positive',
+    message: `Applied "${template.name}" template`,
     position: 'top',
-    color: template.color || 'info',
+    color: template.color || 'primary',
     icon: template.icon || 'assignment',
   })
 }
