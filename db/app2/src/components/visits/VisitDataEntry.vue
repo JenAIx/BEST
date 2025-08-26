@@ -1,29 +1,7 @@
 <template>
   <div class="data-entry-view">
     <div class="entry-container">
-      <!-- Template Status (when template is selected) -->
-      <div v-if="selectedTemplate" class="template-status q-mb-md">
-        <q-card flat bordered class="selected-template-card">
-          <q-card-section class="row items-center no-wrap">
-            <q-icon :name="selectedTemplate.icon || 'assignment'" :color="selectedTemplate.color || 'primary'" size="24px" class="q-mr-sm" />
-            <div class="template-info">
-              <div class="text-body1"><strong>{{ selectedTemplate.name }}</strong> template applied</div>
-              <div class="text-caption text-grey-6">{{ getTemplateFieldSets(selectedTemplate).length }} categories activated</div>
-            </div>
-            <q-space />
-            <q-btn 
-              flat 
-              round 
-              icon="refresh" 
-              color="primary" 
-              @click="resetTemplate" 
-              size="sm"
-            >
-              <q-tooltip>Change template</q-tooltip>
-            </q-btn>
-          </q-card-section>
-        </q-card>
-      </div>
+
 
       <!-- Visit Selector -->
       <div class="visit-selector">
@@ -58,7 +36,6 @@
           </template>
         </q-select>
         <q-btn color="primary" icon="add" label="New Visit" @click="createNewVisit" class="q-ml-sm" />
-        <q-btn color="secondary" icon="assignment_turned_in" label="Template" @click="openTemplateSelector" class="q-ml-sm" />
       </div>
 
       <!-- Field Set Selector -->
@@ -136,8 +113,7 @@
     <!-- New Visit Dialog -->
     <NewVisitDialog v-model="showNewVisitDialog" :patient="patient" @created="onVisitCreated" />
 
-    <!-- Visit Template Selector Dialog -->
-    <VisitTemplateSelector ref="templateSelectorRef" @template-selected="onTemplateSelected" />
+
   </div>
 </template>
 
@@ -151,12 +127,10 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useUncategorizedObservations } from 'src/composables/useUncategorizedObservations'
 import { useFieldSetStatistics } from 'src/composables/useFieldSetStatistics'
 import { AVAILABLE_FIELD_SETS } from 'src/shared/utils/medical-utils'
-import { getTemplateFieldSets } from 'src/shared/utils/template-utils'
 import ObservationFieldSet from './ObservationFieldSet.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
 import FieldSetSelector from './FieldSetSelector.vue'
 import FieldSetConfigDialog from './FieldSetConfigDialog.vue'
-import VisitTemplateSelector from './VisitTemplateSelector.vue'
 
 const props = defineProps({
   patient: {
@@ -183,9 +157,7 @@ const showFieldSetConfig = ref(false)
 const showNewVisitDialog = ref(false)
 const loadingFieldSets = ref(false)
 
-// Templates Configuration
-const selectedTemplate = ref(null)
-const templateSelectorRef = ref(null)
+
 
 // Field Sets Configuration - will be loaded from global settings
 const availableFieldSets = ref([])
@@ -284,58 +256,7 @@ const loadFieldSets = async () => {
   }
 }
 
-const openTemplateSelector = () => {
-  if (templateSelectorRef.value) {
-    templateSelectorRef.value.openDialog()
-  }
-}
 
-const onTemplateSelected = (template) => {
-  try {
-    logger.info('Template selected from dialog', { templateId: template.id, templateName: template.name })
-    
-    selectedTemplate.value = template
-    
-    // Apply template field sets based on template type
-    const templateFieldSets = getTemplateFieldSets(template)
-    activeFieldSets.value = [...templateFieldSets]
-    
-    // Save template selection to local settings
-    localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
-    
-    logger.success('Template applied successfully', { 
-      templateId: template.id,
-      fieldSets: templateFieldSets 
-    })
-    
-  } catch (error) {
-    logger.error('Failed to apply template', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to apply template',
-      position: 'top',
-    })
-  }
-}
-
-// getTemplateFieldSets is now imported from shared utils
-
-const resetTemplate = () => {
-  selectedTemplate.value = null
-  
-  // Reset to default field sets
-  activeFieldSets.value = ['vitals', 'symptoms']
-  localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
-  localSettings.setSetting('visits.lastUsedTemplate', null)
-  
-  logger.info('Template selection reset')
-  
-  $q.notify({
-    type: 'info',
-    message: 'Template cleared, using default categories',
-    position: 'top',
-  })
-}
 
 const onVisitSelected = async (visit) => {
   if (!visit) return
@@ -463,30 +384,11 @@ onMounted(async () => {
   // Load field sets from global settings
   await loadFieldSets()
 
-  // Check for saved template preference and restore template state
-  const lastUsedTemplate = localSettings.getSetting('visits.lastUsedTemplate')
-  if (lastUsedTemplate) {
-    try {
-      const templates = await globalSettingsStore.getVisitTemplateOptions()
-      const template = templates.find(t => t.id === lastUsedTemplate)
-      if (template) {
-        logger.debug('Restoring last used template', { templateId: lastUsedTemplate })
-        selectedTemplate.value = template
-        const templateFieldSets = getTemplateFieldSets(template)
-        activeFieldSets.value = [...templateFieldSets]
-      }
-    } catch (error) {
-      logger.warn('Failed to restore template, using saved field sets', error)
-    }
-  }
-  
-  // Load saved field set settings if no template was restored
-  if (!selectedTemplate.value) {
-    const savedActiveFieldSets = localSettings.getSetting('visits.activeFieldSets')
-    if (savedActiveFieldSets) {
-      logger.debug('Loading saved active field sets', { savedActiveFieldSets })
-      activeFieldSets.value = savedActiveFieldSets
-    }
+  // Load saved field set settings
+  const savedActiveFieldSets = localSettings.getSetting('visits.activeFieldSets')
+  if (savedActiveFieldSets) {
+    logger.debug('Loading saved active field sets', { savedActiveFieldSets })
+    activeFieldSets.value = savedActiveFieldSets
   }
 
   logger.info('Field sets configuration loaded', {
@@ -585,26 +487,5 @@ onMounted(async () => {
   }
 }
 
-// Template Status Styles
-.template-status {
-  animation: slideInDown 0.3s ease-out;
-}
 
-.selected-template-card {
-  background: linear-gradient(135deg, rgba($primary, 0.05) 0%, rgba($primary, 0.02) 100%);
-  border: 1px solid rgba($primary, 0.2);
-  border-radius: 12px;
-}
-
-// Animation for template appearance
-@keyframes slideInDown {
-  from {
-    opacity: 0;
-    transform: translateY(-20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
 </style>

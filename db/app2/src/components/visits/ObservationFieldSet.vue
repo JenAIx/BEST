@@ -57,33 +57,15 @@
       </div>
     </q-slide-transition>
 
-    <!-- Add Custom Observation Dialog -->
-    <q-dialog v-model="showAddCustomDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Add Custom Observation</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-form class="q-gutter-md">
-            <q-input v-model="customObservation.name" label="Observation Name" outlined :rules="[(val) => !!val || 'Name is required']" />
-            <q-select v-model="customObservation.valueType" :options="valueTypeOptions" label="Value Type" outlined emit-value map-options />
-            <q-input
-              v-model="customObservation.value"
-              :label="customObservation.valueType === 'N' ? 'Numeric Value' : 'Text Value'"
-              :type="customObservation.valueType === 'N' ? 'number' : 'text'"
-              outlined
-            />
-            <q-input v-model="customObservation.unit" label="Unit (optional)" outlined />
-          </q-form>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="cancelCustomObservation" />
-          <q-btn color="primary" label="Add" @click="saveCustomObservation" :disable="!customObservation.name || !customObservation.value" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <!-- Custom Observation Dialog Component -->
+    <CustomObservationDialog
+      v-model="showAddCustomDialog"
+      :visit="visit"
+      :patient="patient"
+      :field-set-name="fieldSet.name"
+      :field-set-id="fieldSet.id"
+      @observation-added="onCustomObservationAdded"
+    />
   </div>
 </template>
 
@@ -95,6 +77,7 @@ import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationField from './ObservationField.vue'
 import MedicationField from './MedicationField.vue'
+import CustomObservationDialog from './CustomObservationDialog.vue'
 
 const props = defineProps({
   fieldSet: {
@@ -130,18 +113,9 @@ const logger = loggingStore.createLogger('ObservationFieldSet')
 // State
 const collapsed = ref(false)
 const showAddCustomDialog = ref(false)
-
-const customObservation = ref({
-  name: '',
-  valueType: 'T',
-  value: '',
-  unit: '',
-})
-
-const valueTypeOptions = ref([])
 const removedConcepts = ref(new Set()) // Track concepts removed by user
 
-// Load value type options on mount
+// Component mounted
 onMounted(async () => {
   logger.info('ObservationFieldSet mounted', {
     fieldSetId: props.fieldSet?.id,
@@ -152,23 +126,6 @@ onMounted(async () => {
     fieldSetConceptsCount: props.fieldSet?.concepts?.length || 0,
     fieldSetConcepts: props.fieldSet?.concepts,
   })
-
-  try {
-    valueTypeOptions.value = await globalSettingsStore.getValueTypeOptions()
-    logger.info('Value type options loaded successfully', {
-      optionsCount: valueTypeOptions.value.length,
-    })
-  } catch (error) {
-    logger.error('Failed to load value type options, using fallback', error)
-    // Fallback to basic options if store fails
-    valueTypeOptions.value = [
-      { label: 'Text (T)', value: 'T' },
-      { label: 'Numeric (N)', value: 'N' },
-      { label: 'Date (D)', value: 'D' },
-      { label: 'Selection (S)', value: 'S' },
-      { label: 'Finding (F)', value: 'F' },
-    ]
-  }
 })
 
 // Computed
@@ -423,72 +380,16 @@ const addEmptyMedication = async () => {
   }
 }
 
-const saveCustomObservation = async () => {
-  try {
-    // Generate a custom concept code
-    const customConceptCode = `CUSTOM:${Date.now()}`
+const onCustomObservationAdded = (data) => {
+  logger.info('Custom observation added', {
+    conceptCode: data.conceptCode,
+    value: data.value,
+    unit: data.unit,
+    fieldSetId: props.fieldSet.id,
+  })
 
-    // Get default values from global settings
-    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
-    const defaultCategory = await globalSettingsStore.getDefaultCategory('GENERAL')
-
-    const observationData = {
-      ENCOUNTER_NUM: props.visit.id,
-      CONCEPT_CD: customConceptCode,
-      VALTYPE_CD: customObservation.value.valueType,
-      START_DATE: new Date().toISOString().split('T')[0],
-      CATEGORY_CHAR: props.fieldSet.name.toUpperCase() || defaultCategory,
-      PROVIDER_ID: 'SYSTEM',
-      LOCATION_CD: 'CUSTOM',
-      SOURCESYSTEM_CD: defaultSourceSystem,
-      INSTANCE_NUM: 1,
-      UPLOAD_ID: 1,
-    }
-
-    if (customObservation.value.valueType === 'N') {
-      observationData.NVAL_NUM = parseFloat(customObservation.value.value)
-    } else {
-      observationData.TVAL_CHAR = customObservation.value.value
-    }
-
-    if (customObservation.value.unit) {
-      observationData.UNIT_CD = customObservation.value.unit
-    }
-
-    // Use visit store to create observation - it handles patient lookup and state updates
-    await visitStore.createObservation(observationData)
-
-    emit('observation-updated', {
-      conceptCode: customConceptCode,
-      value: customObservation.value.value,
-      unit: customObservation.value.unit,
-    })
-
-    cancelCustomObservation()
-
-    $q.notify({
-      type: 'positive',
-      message: 'Custom observation added',
-      position: 'top',
-    })
-  } catch (error) {
-    logger.error('Failed to save custom observation', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save custom observation',
-      position: 'top',
-    })
-  }
-}
-
-const cancelCustomObservation = () => {
-  customObservation.value = {
-    name: '',
-    valueType: 'T',
-    value: '',
-    unit: '',
-  }
-  showAddCustomDialog.value = false
+  // Emit the observation update to parent
+  emit('observation-updated', data)
 }
 </script>
 
@@ -548,8 +449,8 @@ const cancelCustomObservation = () => {
 .observation-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 
   // For medication fields with col-12 class, make them span full width
   :deep(.medication-field.col-12) {

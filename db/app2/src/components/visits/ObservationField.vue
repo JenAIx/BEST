@@ -1,49 +1,74 @@
 <template>
   <div class="observation-field">
-    <div class="field-header">
+    <!-- Compact Label with Actions and Status -->
+    <div class="field-label-row">
       <div class="field-label">
         {{ resolvedConceptName || concept.name }}
-        <q-icon v-if="concept.system === 'LOINC'" name="science" size="14px" color="blue" class="q-ml-xs">
-          <q-tooltip>LOINC Code: {{ concept.code }}</q-tooltip>
+        <q-icon v-if="concept.system === 'LOINC'" name="science" size="12px" color="blue" class="q-ml-xs">
+          <q-tooltip>LOINC: {{ concept.code }}</q-tooltip>
         </q-icon>
-        <q-icon v-else-if="concept.system === 'SNOMED'" name="medical_services" size="14px" color="green" class="q-ml-xs">
-          <q-tooltip>SNOMED Code: {{ concept.code }}</q-tooltip>
+        <q-icon v-else-if="concept.system === 'SNOMED'" name="medical_services" size="12px" color="green" class="q-ml-xs">
+          <q-tooltip>SNOMED: {{ concept.code }}</q-tooltip>
         </q-icon>
-        <q-icon v-else name="code" size="14px" color="grey-6" class="q-ml-xs">
-          <q-tooltip>Code: {{ concept.code }}</q-tooltip>
+        <q-icon v-else name="code" size="12px" color="grey-6" class="q-ml-xs">
+          <q-tooltip>{{ concept.code }}</q-tooltip>
         </q-icon>
+        
+        <!-- Status indicator next to label -->
+        <span v-if="hasValue && !hasPendingChanges" class="status-indicator">
+          <q-icon name="check_circle" color="positive" size="12px" class="q-ml-xs" />
+          <span v-if="lastUpdated" class="update-time">{{ formatRelativeTime(lastUpdated) }}</span>
+        </span>
+        <span v-else-if="hasPendingChanges" class="status-indicator">
+          <q-icon name="schedule" color="warning" size="12px" class="q-ml-xs" />
+          <span class="pending-indicator">Unsaved</span>
+        </span>
       </div>
+      
+      <!-- Action Buttons -->
       <div class="field-actions">
-        <!-- Save/Cancel Buttons (shown when there are pending changes) -->
         <div v-if="hasPendingChanges" class="save-cancel-buttons">
-          <q-btn flat round icon="close" size="sm" color="grey-6" @click="cancelChanges" class="cancel-btn">
-            <q-tooltip>Cancel changes</q-tooltip>
+          <q-btn flat round icon="close" size="xs" color="grey-6" @click="cancelChanges" class="cancel-btn">
+            <q-tooltip>Cancel</q-tooltip>
           </q-btn>
-          <q-btn flat round icon="save" size="sm" color="primary" @click="saveChanges" :loading="saving" class="save-btn">
-            <q-tooltip>Save changes</q-tooltip>
+          <q-btn flat round icon="save" size="xs" color="primary" @click="saveChanges" :loading="saving" class="save-btn">
+            <q-tooltip>Save</q-tooltip>
           </q-btn>
         </div>
-
-        <!-- Clear Button (shown when there's a value but no pending changes) -->
-        <q-btn v-else-if="hasValue" flat round icon="clear" size="sm" color="grey-6" @click="clearValue">
-          <q-tooltip>Clear value</q-tooltip>
+        <q-btn v-else-if="hasValue && !showRemoveConfirmation" flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = true">
+          <q-tooltip>Remove</q-tooltip>
         </q-btn>
+        
+        <!-- Remove Confirmation Buttons -->
+        <div v-else-if="hasValue && showRemoveConfirmation" class="remove-confirmation-buttons">
+          <q-btn flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = false" class="cancel-remove-btn">
+            <q-tooltip>Cancel</q-tooltip>
+          </q-btn>
+          <q-btn flat round icon="check" size="xs" color="negative" @click="confirmRemove" class="confirm-remove-btn">
+            <q-tooltip>Confirm Remove</q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </div>
 
     <div class="field-input">
       <!-- Numeric Input -->
       <div v-if="actualValueType === 'N'" class="numeric-input">
-        <q-input v-model.number="currentValue" type="number" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :suffix="concept.unit" :loading="saving">
+        <q-input v-model.number="currentValue" type="number" placeholder="Enter numeric value" outlined dense :loading="saving">
           <template v-slot:prepend>
             <q-icon name="tag" />
+          </template>
+          <template v-slot:append v-if="getDisplayUnit()">
+            <q-chip size="sm" color="grey-3" text-color="grey-7" dense class="unit-chip">
+              {{ getDisplayUnit() }}
+            </q-chip>
           </template>
         </q-input>
       </div>
 
       <!-- Text Input -->
       <div v-else-if="actualValueType === 'T'" class="text-input">
-        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :loading="saving">
+        <q-input v-model="currentValue" placeholder="Enter text" outlined dense :loading="saving">
           <template v-slot:prepend>
             <q-icon name="text_fields" />
           </template>
@@ -52,7 +77,7 @@
 
       <!-- Date Input -->
       <div v-else-if="actualValueType === 'D'" class="date-input">
-        <q-input v-model="currentValue" type="date" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :loading="saving">
+        <q-input v-model="currentValue" type="date" placeholder="Select date" outlined dense :loading="saving">
           <template v-slot:prepend>
             <q-icon name="event" />
           </template>
@@ -61,7 +86,7 @@
 
       <!-- Selection Input (for coded values) -->
       <div v-else-if="actualValueType === 'S'" class="selection-input">
-        <q-select v-model="currentValue" :options="selectionOptions" :label="`Select ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense emit-value map-options :loading="saving">
+        <q-select v-model="currentValue" :options="selectionOptions" placeholder="Select option" outlined dense emit-value map-options :loading="saving">
           <template v-slot:prepend>
             <q-icon name="list" />
           </template>
@@ -70,7 +95,7 @@
 
       <!-- Finding Input (for clinical findings) -->
       <div v-else-if="actualValueType === 'F'" class="finding-input">
-        <q-select v-model="currentValue" :options="selectionOptions" :label="`Assess ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense emit-value map-options :loading="saving">
+        <q-select v-model="currentValue" :options="selectionOptions" placeholder="Select finding" outlined dense emit-value map-options :loading="saving">
           <template v-slot:prepend>
             <q-icon name="medical_information" />
           </template>
@@ -79,7 +104,7 @@
 
       <!-- Answer Input (for questionnaire answers) -->
       <div v-else-if="actualValueType === 'A'" class="answer-input">
-        <q-select v-model="currentValue" :options="selectionOptions" :label="`Answer ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense emit-value map-options :loading="saving">
+        <q-select v-model="currentValue" :options="selectionOptions" placeholder="Select answer" outlined dense emit-value map-options :loading="saving">
           <template v-slot:prepend>
             <q-icon name="quiz" />
           </template>
@@ -88,7 +113,7 @@
 
       <!-- Raw Input (for raw data/files) -->
       <div v-else-if="actualValueType === 'R'" class="raw-input">
-        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense type="textarea" rows="3" :loading="saving">
+        <q-input v-model="currentValue" placeholder="Enter details" outlined dense type="textarea" rows="2" :loading="saving">
           <template v-slot:prepend>
             <q-icon name="description" />
           </template>
@@ -97,39 +122,24 @@
 
       <!-- Default/Unknown Input -->
       <div v-else class="default-input">
-        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :loading="saving">
+        <q-input v-model="currentValue" placeholder="Enter value" outlined dense :loading="saving">
           <template v-slot:prepend>
             <q-icon name="help" />
           </template>
         </q-input>
         <div class="unknown-type-warning">
-          <q-icon name="warning" color="orange" size="16px" class="q-mr-xs" />
+          <q-icon name="warning" color="orange" size="14px" class="q-mr-xs" />
           <span class="text-caption text-orange">Unknown value type: {{ actualValueType }}</span>
         </div>
       </div>
     </div>
 
-    <!-- Value Status -->
-    <div class="field-status">
-      <div v-if="hasValue" class="current-value">
-        <q-icon :name="hasPendingChanges ? 'schedule' : 'check_circle'" :color="hasPendingChanges ? 'warning' : 'positive'" size="16px" class="q-mr-xs" />
-        <span class="value-text">{{ displayValue }}</span>
-        <span v-if="hasPendingChanges" class="pending-changes"> (unsaved changes) </span>
-        <span v-else-if="lastUpdated" class="last-updated"> Updated {{ formatRelativeTime(lastUpdated) }} </span>
-      </div>
-      <div v-else class="no-value">
-        <q-icon name="radio_button_unchecked" color="grey-4" size="16px" class="q-mr-xs" />
-        <span class="no-value-text">No value entered</span>
-      </div>
-    </div>
+    <!-- Status section removed - now shown inline with label -->
 
-    <!-- Previous Value Comparison -->
+    <!-- Previous Value Comparison (Compact) -->
     <div v-if="previousValue && hasValue && previousValue.value !== currentValue" class="value-comparison">
-      <q-icon name="trending_up" color="info" size="16px" class="q-mr-xs" />
-      <span class="comparison-text">
-        Previous: {{ previousValue.value }} {{ previousValue.unit }}
-        <q-icon :name="getChangeIcon()" :color="getChangeColor()" size="14px" class="q-ml-xs" />
-      </span>
+      <q-icon :name="getChangeIcon()" :color="getChangeColor()" size="12px" class="q-mr-xs" />
+      <span class="comparison-text">vs {{ previousValue.value }}{{ previousValue.unit ? ' ' + previousValue.unit : '' }}</span>
     </div>
 
     <!-- Enhanced Clone Button - Bottom Right -->
@@ -208,6 +218,8 @@ const lastUpdated = ref(null)
 const resolvedConceptName = ref(null)
 const selectionOptions = ref([])
 const showClonePreview = ref(false)
+const showRemoveConfirmation = ref(false)
+const removeConfirmationTimeout = ref(null)
 
 const hasPendingChanges = ref(false)
 const saveTimeout = ref(null)
@@ -222,15 +234,7 @@ const actualValueType = computed(() => {
   return props.existingObservation?.valueType || props.existingObservation?.valTypeCode || props.concept.valueType
 })
 
-const displayValue = computed(() => {
-  if (!hasValue.value) return ''
-
-  if (actualValueType.value === 'N' && props.concept.unit) {
-    return `${currentValue.value} ${props.concept.unit}`
-  }
-
-  return String(currentValue.value)
-})
+// displayValue removed - no longer needed since value is shown in input field
 
 // Methods
 const saveObservation = async (value) => {
@@ -450,27 +454,39 @@ const updateObservation = async (value) => {
   return result
 }
 
-const clearValue = async () => {
-  if (props.existingObservation) {
-    // Use visit store to delete observation - it handles state updates
-    await visitStore.deleteObservation(props.existingObservation.observationId)
+const confirmRemove = async () => {
+  try {
+    if (props.existingObservation) {
+      // Use visit store to delete observation - it handles state updates
+      await visitStore.deleteObservation(props.existingObservation.observationId)
+    }
+
+    currentValue.value = ''
+    lastUpdated.value = new Date()
+    showRemoveConfirmation.value = false
+
+    emit('observation-updated', {
+      conceptCode: props.concept.code,
+      value: null,
+      deleted: true,
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Value removed successfully',
+      position: 'top',
+    })
+  } catch (error) {
+    logger.error('Failed to remove observation', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to remove value',
+      position: 'top',
+    })
   }
-
-  currentValue.value = ''
-  lastUpdated.value = new Date()
-
-  emit('observation-updated', {
-    conceptCode: props.concept.code,
-    value: null,
-    deleted: true,
-  })
-
-  $q.notify({
-    type: 'info',
-    message: 'Value cleared',
-    position: 'top',
-  })
 }
+
+// clearValue method removed - functionality now handled by confirmRemove with inline confirmation
 
 const cloneFromPrevious = async () => {
   if (props.previousValue) {
@@ -530,6 +546,11 @@ const getChangeIcon = () => {
   if (current > previous) return 'trending_up'
   if (current < previous) return 'trending_down'
   return 'trending_flat'
+}
+
+const getDisplayUnit = () => {
+  // Priority: existing observation unit > concept unit
+  return props.existingObservation?.unit || props.concept.unit || null
 }
 
 const getChangeColor = () => {
@@ -726,10 +747,13 @@ watch(
   },
 )
 
-// Cleanup timeout on unmount
+// Cleanup timeouts on unmount
 onUnmounted(() => {
   if (saveTimeout.value) {
     clearTimeout(saveTimeout.value)
+  }
+  if (removeConfirmationTimeout.value) {
+    clearTimeout(removeConfirmationTimeout.value)
   }
 })
 </script>
@@ -737,15 +761,19 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .observation-field {
   border: 1px solid $grey-3;
-  border-radius: 8px;
-  padding: 1rem;
+  border-radius: 6px;
+  padding: 0.75rem;
   background: white;
   transition: all 0.3s ease;
   position: relative;
 
   &:hover {
     border-color: $primary;
-    box-shadow: 0 2px 8px rgba($primary, 0.1);
+    box-shadow: 0 1px 4px rgba($primary, 0.1);
+
+    .field-actions {
+      opacity: 1;
+    }
 
     .clone-button-container {
       opacity: 1;
@@ -754,51 +782,97 @@ onUnmounted(() => {
   }
 }
 
-.field-header {
+.field-label-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 
   .field-label {
-    font-weight: 600;
+    font-weight: 500;
     color: $grey-8;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
+    
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      margin-left: 0.5rem;
+      font-size: 0.75rem;
+      
+      .update-time {
+        color: $grey-6;
+        margin-left: 0.25rem;
+      }
+      
+      .pending-indicator {
+        color: $warning;
+        margin-left: 0.25rem;
+        animation: pulse 1.5s infinite;
+      }
+    }
   }
 
   .field-actions {
     display: flex;
     align-items: center;
     gap: 0.25rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
 
     .save-cancel-buttons {
       display: flex;
-      gap: 0.25rem;
-      padding: 2px;
-      background: rgba($primary, 0.1);
-      border-radius: 20px;
-      border: 1px solid rgba($primary, 0.2);
-      animation: slideIn 0.3s ease;
+      gap: 0.125rem;
+      padding: 1px;
+      background: rgba($primary, 0.08);
+      border-radius: 12px;
+      border: 1px solid rgba($primary, 0.15);
+      animation: slideIn 0.2s ease;
 
-      .save-btn {
-        background: rgba($primary, 0.1);
-        transition: all 0.2s ease;
+      .save-btn, .cancel-btn {
+        transition: all 0.15s ease;
 
         &:hover {
-          background: $primary;
-          color: white;
-          transform: scale(1.1);
+          transform: scale(1.05);
         }
       }
 
-      .cancel-btn {
-        transition: all 0.2s ease;
+      .save-btn:hover {
+        background: $primary;
+        color: white;
+      }
 
+      .cancel-btn:hover {
+        background: rgba($grey-6, 0.1);
+      }
+    }
+    
+    .remove-confirmation-buttons {
+      display: flex;
+      gap: 0.125rem;
+      padding: 1px;
+      background: rgba($negative, 0.08);
+      border-radius: 12px;
+      border: 1px solid rgba($negative, 0.15);
+      animation: slideIn 0.2s ease;
+      
+      .confirm-remove-btn {
+        transition: all 0.15s ease;
+        
+        &:hover {
+          background: $negative;
+          color: white;
+          transform: scale(1.05);
+        }
+      }
+      
+      .cancel-remove-btn {
+        transition: all 0.15s ease;
+        
         &:hover {
           background: rgba($grey-6, 0.1);
-          transform: scale(1.1);
+          transform: scale(1.05);
         }
       }
     }
@@ -806,172 +880,153 @@ onUnmounted(() => {
 }
 
 .field-input {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.25rem;
 
   .numeric-input {
     position: relative;
+    
+    .unit-chip {
+      font-size: 0.75rem;
+      font-weight: 500;
+      border-radius: 4px;
+      margin-right: 4px;
+      
+      &:deep(.q-chip__content) {
+        padding: 0 6px;
+      }
+    }
   }
 
   .unknown-type-warning {
     display: flex;
     align-items: center;
-    margin-top: 0.5rem;
-    padding: 0.5rem;
-    background: rgba($orange, 0.1);
-    border-radius: 4px;
-    border-left: 3px solid $orange;
+    margin-top: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    background: rgba($orange, 0.08);
+    border-radius: 3px;
+    border-left: 2px solid $orange;
+    font-size: 0.75rem;
   }
 }
 
-.field-status {
-  margin-bottom: 0.5rem;
-
-  .current-value {
-    display: flex;
-    align-items: center;
-    color: $positive;
-    font-size: 0.85rem;
-
-    .value-text {
-      font-weight: 500;
-      margin-right: 0.5rem;
-    }
-
-    .last-updated {
-      color: $grey-6;
-      font-size: 0.75rem;
-    }
-
-    .pending-changes {
-      color: $warning;
-      font-size: 0.75rem;
-      font-style: italic;
-      animation: pulse 2s infinite;
-    }
-  }
-
-  .no-value {
-    display: flex;
-    align-items: center;
-    color: $grey-5;
-    font-size: 0.85rem;
-  }
-}
+// Field status now integrated into label row
 
 .value-comparison {
   display: flex;
   align-items: center;
   color: $info;
-  font-size: 0.8rem;
-  padding: 0.5rem;
-  background: rgba($info, 0.1);
-  border-radius: 4px;
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  background: rgba($info, 0.06);
+  border-radius: 3px;
+  margin-bottom: 0.25rem;
 
   .comparison-text {
-    display: flex;
-    align-items: center;
+    font-weight: 500;
   }
 }
 
 :deep(.q-field--dense .q-field__control) {
-  min-height: 40px;
+  min-height: 36px;
 }
 
 :deep(.q-field__control) {
-  border-radius: 6px;
+  border-radius: 4px;
 }
 
-// Enhanced Clone Button Styling
+// Compact Clone Button Styling
 .clone-button-container {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
+  bottom: 6px;
+  right: 6px;
   opacity: 0;
-  transform: translateY(4px);
-  transition: all 0.3s ease;
+  transform: translateY(2px);
+  transition: all 0.25s ease;
   z-index: 10;
 
   .clone-btn {
     background: rgba(white, 0.95);
     border: 1px solid $primary;
-    box-shadow: 0 2px 8px rgba($primary, 0.2);
-    transition: all 0.3s ease;
+    box-shadow: 0 1px 4px rgba($primary, 0.15);
+    transition: all 0.2s ease;
+    width: 28px;
+    height: 28px;
 
     &:hover {
       background: $primary;
       color: white;
-      transform: scale(1.1);
-      box-shadow: 0 4px 12px rgba($primary, 0.4);
+      transform: scale(1.05);
+      box-shadow: 0 2px 8px rgba($primary, 0.3);
     }
 
     &:active {
-      transform: scale(0.95);
+      transform: scale(0.98);
     }
   }
 }
 
 .clone-preview-tooltip {
   .clone-preview {
-    padding: 12px;
-    min-width: 200px;
+    padding: 8px 10px;
+    min-width: 180px;
     background: $grey-9;
-    border-radius: 8px;
+    border-radius: 6px;
     color: white;
 
     .preview-header {
       display: flex;
       align-items: center;
-      font-weight: 600;
-      font-size: 14px;
-      margin-bottom: 8px;
+      font-weight: 500;
+      font-size: 12px;
+      margin-bottom: 6px;
       color: $blue-3;
     }
 
     .preview-date {
       display: flex;
       align-items: center;
-      font-size: 12px;
-      margin-bottom: 8px;
+      font-size: 11px;
+      margin-bottom: 6px;
       color: $grey-4;
     }
 
     .preview-content {
       display: flex;
       align-items: center;
-      font-size: 14px;
-      margin-bottom: 8px;
-      padding: 8px;
+      font-size: 12px;
+      margin-bottom: 6px;
+      padding: 6px;
       background: rgba($primary, 0.1);
-      border-radius: 4px;
-      border-left: 3px solid $primary;
+      border-radius: 3px;
+      border-left: 2px solid $primary;
 
       strong {
         color: $primary;
-        font-weight: 600;
+        font-weight: 500;
       }
 
       .preview-unit {
         color: $grey-5;
-        margin-left: 4px;
-        font-size: 12px;
+        margin-left: 3px;
+        font-size: 11px;
       }
     }
 
     .preview-action {
       display: flex;
       align-items: center;
-      font-size: 11px;
+      font-size: 10px;
       color: $grey-5;
       font-style: italic;
     }
   }
 }
 
-// Animations
+// Compact Animations
 @keyframes slideIn {
   from {
     opacity: 0;
-    transform: translateX(10px) scale(0.9);
+    transform: translateX(6px) scale(0.95);
   }
   to {
     opacity: 1;
@@ -984,7 +1039,7 @@ onUnmounted(() => {
     opacity: 1;
   }
   50% {
-    opacity: 0.6;
+    opacity: 0.7;
   }
   100% {
     opacity: 1;
