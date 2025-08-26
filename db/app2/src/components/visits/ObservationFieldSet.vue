@@ -15,8 +15,22 @@
     <q-slide-transition>
       <div v-show="!collapsed" class="field-set-content">
         <div class="observation-grid">
+          <!-- Medication Fields -->
+          <MedicationField
+            v-for="concept in fieldSetConcepts.filter((c) => c.valueType === 'M')"
+            :key="concept.code"
+            :concept="concept"
+            :visit="visit"
+            :patient="patient"
+            :existing-observation="getExistingObservation(concept.code)"
+            :previous-value="getPreviousValue(concept.code)"
+            @observation-updated="onObservationUpdated"
+            @clone-requested="onCloneRequested"
+          />
+
+          <!-- Regular Observation Fields -->
           <ObservationField
-            v-for="concept in fieldSetConcepts"
+            v-for="concept in fieldSetConcepts.filter((c) => c.valueType !== 'M')"
             :key="concept.code"
             :concept="concept"
             :visit="visit"
@@ -30,7 +44,14 @@
 
         <!-- Add custom observation -->
         <div class="add-custom-observation">
-          <q-btn flat icon="add" label="Add Custom Observation" @click="showAddCustomDialog = true" class="full-width" style="border: 2px dashed #ccc" />
+          <q-btn
+            flat
+            icon="add"
+            :label="props.fieldSet.id === 'medications' ? 'Add Medication' : 'Add Custom Observation'"
+            @click="props.fieldSet.id === 'medications' ? addEmptyMedication() : (showAddCustomDialog = true)"
+            class="full-width"
+            style="border: 2px dashed #ccc"
+          />
         </div>
       </div>
     </q-slide-transition>
@@ -72,6 +93,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationField from './ObservationField.vue'
+import MedicationField from './MedicationField.vue'
 
 const props = defineProps({
   fieldSet: {
@@ -116,6 +138,7 @@ const customObservation = ref({
 })
 
 const valueTypeOptions = ref([])
+const removedConcepts = ref(new Set()) // Track concepts removed by user
 
 // Load value type options on mount
 onMounted(async () => {
@@ -139,19 +162,21 @@ onMounted(async () => {
 
 // Computed
 const fieldSetConcepts = computed(() => {
-  // Convert field set concepts to detailed concept objects
+  // Convert field set concepts to detailed concept objects, filtering out removed ones
   return (
-    props.fieldSet.concepts?.map((conceptCode) => {
-      const [system, code] = conceptCode.split(':')
-      return {
-        code: conceptCode,
-        system,
-        localCode: code,
-        name: getConceptName(conceptCode),
-        valueType: getConceptValueType(conceptCode),
-        unit: getConceptUnit(conceptCode),
-      }
-    }) || []
+    props.fieldSet.concepts
+      ?.filter((conceptCode) => !removedConcepts.value.has(conceptCode)) // Filter out removed concepts
+      ?.map((conceptCode) => {
+        const [system, code] = conceptCode.split(':')
+        return {
+          code: conceptCode,
+          system,
+          localCode: code,
+          name: getConceptName(conceptCode),
+          valueType: getConceptValueType(conceptCode),
+          unit: getConceptUnit(conceptCode),
+        }
+      }) || []
   )
 })
 
@@ -176,6 +201,16 @@ const getConceptName = (conceptCode) => {
     'SNOMED:113011001': 'Palpation',
     'SNOMED:37931006': 'Auscultation',
     'SNOMED:113006009': 'Percussion',
+    // Medication concepts
+    'LID: 52418-1': 'Current Medication',
+    'SNOMED:182836005': 'Medication Review',
+    'SNOMED:432102000': 'Drug Administration',
+    'SNOMED:182840001': 'Medication Discontinued',
+    'MED:PRESCRIPTION': 'New Prescription',
+    'MED:CURRENT': 'Current Medication',
+    'MED:ANALGESIC': 'Pain Medication',
+    'MED:ANTIBIOTIC': 'Antibiotic',
+    'MED:CARDIOVASCULAR': 'Heart Medication',
   }
 
   return conceptNames[conceptCode] || conceptCode.split(':')[1]
@@ -185,7 +220,23 @@ const getConceptValueType = (conceptCode) => {
   // Determine value type based on concept
   const numericConcepts = ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4', 'LOINC:8310-5', 'LOINC:9279-1', 'LOINC:2708-6']
 
-  return numericConcepts.includes(conceptCode) ? 'N' : 'T'
+  // Medication concepts use the new 'M' type
+  const medicationConcepts = [
+    'LID: 52418-1', // Current medication, Name
+    'SNOMED:182836005', // Review of medication
+    'SNOMED:432102000', // Administration of substance
+    'SNOMED:182840001', // Drug treatment stopped
+    'MED:PRESCRIPTION', // New prescription entry
+    'MED:CURRENT', // Current medication review
+    'MED:ANALGESIC', // Pain medication
+    'MED:ANTIBIOTIC', // Antibiotic prescription
+    'MED:CARDIOVASCULAR', // Heart medication
+  ]
+
+  if (numericConcepts.includes(conceptCode)) return 'N'
+  if (medicationConcepts.includes(conceptCode)) return 'M'
+
+  return 'T'
 }
 
 const getConceptUnit = (conceptCode) => {
@@ -251,11 +302,90 @@ const getPreviousValue = (conceptCode) => {
 }
 
 const onObservationUpdated = (data) => {
+  // Handle removal of empty medication fields
+  if (data.remove && data.conceptCode) {
+    removedConcepts.value.add(data.conceptCode)
+    logger.info('Concept removed from UI', {
+      conceptCode: data.conceptCode,
+      fieldSetId: props.fieldSet.id,
+    })
+  }
+
   emit('observation-updated', data)
 }
 
 const onCloneRequested = (data) => {
   emit('clone-from-previous', data)
+}
+
+// Method to restore a removed concept (if needed for "undo" functionality)
+// Currently unused - for future implementation
+// const restoreRemovedConcept = (conceptCode) => {
+//   removedConcepts.value.delete(conceptCode)
+//   logger.info('Concept restored to UI', {
+//     conceptCode,
+//     fieldSetId: props.fieldSet.id,
+//   })
+// }
+
+const addEmptyMedication = async () => {
+  try {
+    const patientRepo = dbStore.getRepository('patient')
+    const patient = await patientRepo.findByPatientCode(props.patient.id)
+
+    const observationRepo = dbStore.getRepository('observation')
+
+    // Get default values from global settings
+    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
+    const defaultCategory = await globalSettingsStore.getDefaultCategory('MEDICATION')
+
+    // Create empty medication observation with LID: 52418-1
+    const observationData = {
+      PATIENT_NUM: patient.PATIENT_NUM,
+      ENCOUNTER_NUM: props.visit.id,
+      CONCEPT_CD: 'LID: 52418-1', // Use the specific medication concept
+      VALTYPE_CD: 'M', // Medication type
+      TVAL_CHAR: '', // Empty drug name initially
+      NVAL_NUM: null, // No dosage initially
+      UNIT_CD: null, // No unit initially
+      OBSERVATION_BLOB: null, // No complex data initially
+      START_DATE: new Date().toISOString().split('T')[0],
+      CATEGORY_CHAR: defaultCategory,
+      PROVIDER_ID: 'SYSTEM',
+      LOCATION_CD: 'VISITS_PAGE',
+      SOURCESYSTEM_CD: defaultSourceSystem,
+      INSTANCE_NUM: 1,
+      UPLOAD_ID: 1,
+    }
+
+    await observationRepo.createObservation(observationData)
+
+    // Emit update to refresh the field set
+    emit('observation-updated', {
+      conceptCode: 'LID: 52418-1',
+      value: '',
+      added: true,
+    })
+
+    logger.info('Empty medication added successfully', {
+      conceptCode: 'LID: 52418-1',
+      patientId: props.patient.id,
+      visitId: props.visit.id,
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Empty medication slot added',
+      position: 'top',
+    })
+  } catch (error) {
+    logger.error('Failed to add empty medication', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to add medication',
+      position: 'top',
+    })
+  }
 }
 
 const saveCustomObservation = async () => {

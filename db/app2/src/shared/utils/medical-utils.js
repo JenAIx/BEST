@@ -408,9 +408,7 @@ export const AVAILABLE_FIELD_SETS = [
     icon: 'medication',
     description: 'Current medications and dosages',
     concepts: [
-      'SNOMED:182836005', // Review of medication
-      'SNOMED:432102000', // Administration of substance
-      'SNOMED:182840001', // Drug treatment stopped
+      'LID: 52418-1', // Current medication, Name
     ],
   },
   {
