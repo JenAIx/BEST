@@ -37,46 +37,39 @@
       </div>
 
       <!-- Field Set Selector -->
-      <div v-if="selectedVisit" class="field-set-selector">
-        <div class="field-set-header">
-          <h4 class="field-set-title">Observation Categories</h4>
-          <q-btn flat icon="settings" label="Configure" @click="showFieldSetConfig = true" size="sm" />
-        </div>
-        <div class="field-set-chips">
-          <q-chip
-            v-for="fieldSet in availableFieldSets"
-            :key="fieldSet.id"
-            :selected="activeFieldSets.includes(fieldSet.id)"
-            @click="toggleFieldSet(fieldSet.id)"
-            :color="activeFieldSets.includes(fieldSet.id) ? 'primary' : 'grey-4'"
-            :text-color="activeFieldSets.includes(fieldSet.id) ? 'white' : 'grey-8'"
-            clickable
-            class="field-set-chip"
-          >
-            <q-icon :name="fieldSet.icon" class="q-mr-xs" />
-            {{ fieldSet.name }}
-            <q-badge
-              v-if="getFieldSetObservationCount(fieldSet.id) > 0"
-              :color="activeFieldSets.includes(fieldSet.id) ? 'white' : 'primary'"
-              :text-color="activeFieldSets.includes(fieldSet.id) ? 'primary' : 'white'"
-              class="q-ml-xs"
-            >
-              {{ getFieldSetObservationCount(fieldSet.id) }}
-            </q-badge>
-          </q-chip>
-        </div>
-      </div>
+      <FieldSetSelector
+        v-if="selectedVisit"
+        :available-field-sets="availableFieldSets"
+        :active-field-sets="activeFieldSets"
+        :get-field-set-observation-count="getFieldSetObservationCount"
+        :overall-stats="overallStats"
+        @toggle-field-set="toggleFieldSet"
+        @show-config="showFieldSetConfig = true"
+      />
 
       <!-- Observation Forms -->
       <div v-if="selectedVisit && activeFieldSets.length > 0" class="observation-forms">
         <ObservationFieldSet
-          v-for="fieldSetId in activeFieldSets.filter((id) => id != null)"
-          :key="`${selectedVisit.id}-${fieldSetId}`"
-          :field-set="getFieldSet(fieldSetId)"
+          v-for="fieldSet in activeFieldSetsList"
+          :key="`${selectedVisit.id}-${fieldSet.id}`"
+          :field-set="fieldSet"
           :visit="selectedVisit"
           :patient="patient"
           :previous-visits="previousVisits"
-          :existing-observations="getFieldSetObservations(fieldSetId)"
+          :existing-observations="getFieldSetObservations(fieldSet.id)"
+          @observation-updated="onObservationUpdated"
+          @clone-from-previous="onCloneFromPrevious"
+        />
+
+        <!-- Uncategorized Observations Section -->
+        <ObservationFieldSet
+          v-if="uncategorizedFieldSet"
+          :key="`${selectedVisit.id}-uncategorized`"
+          :field-set="uncategorizedFieldSet"
+          :visit="selectedVisit"
+          :patient="patient"
+          :previous-visits="previousVisits"
+          :existing-observations="uncategorizedObservations"
           @observation-updated="onObservationUpdated"
           @clone-from-previous="onCloneFromPrevious"
         />
@@ -90,44 +83,30 @@
       </div>
 
       <!-- No Field Sets Selected -->
-      <div v-if="selectedVisit && activeFieldSets.length === 0" class="no-fieldsets-state">
-        <q-icon name="category" size="64px" color="grey-4" />
-        <div class="text-h6 text-grey-6 q-mt-sm">No observation categories selected</div>
-        <div class="text-body2 text-grey-5 q-mb-md">Choose categories above to start entering data</div>
-        <q-btn color="primary" @click="showFieldSetConfig = true">Configure Categories</q-btn>
+      <div v-if="selectedVisit && activeFieldSets.length === 0" class="no-fieldsets-state compact">
+        <q-icon name="category" size="32px" color="grey-4" />
+        <div class="text-subtitle1 text-grey-6 q-mt-sm">No observation categories selected</div>
+        <div class="text-body2 text-grey-5 q-mb-sm">Choose categories above to start entering data</div>
+        <q-btn color="primary" size="sm" @click="showFieldSetConfig = true">Configure Categories</q-btn>
+      </div>
+
+      <!-- Always show uncategorized observations when visit is selected -->
+      <div v-if="selectedVisit && activeFieldSets.length === 0 && uncategorizedFieldSet" class="uncategorized-only">
+        <ObservationFieldSet
+          :key="`${selectedVisit.id}-uncategorized-only`"
+          :field-set="uncategorizedFieldSet"
+          :visit="selectedVisit"
+          :patient="patient"
+          :previous-visits="previousVisits"
+          :existing-observations="uncategorizedObservations"
+          @observation-updated="onObservationUpdated"
+          @clone-from-previous="onCloneFromPrevious"
+        />
       </div>
     </div>
 
     <!-- Field Set Configuration Dialog -->
-    <q-dialog v-model="showFieldSetConfig" persistent>
-      <q-card style="min-width: 500px">
-        <q-card-section>
-          <div class="text-h6">Configure Observation Categories</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-list>
-            <q-item v-for="fieldSet in availableFieldSets" :key="fieldSet.id">
-              <q-item-section avatar>
-                <q-icon :name="fieldSet.icon" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ fieldSet.name }}</q-item-label>
-                <q-item-label caption>{{ fieldSet.description }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle v-model="fieldSetConfig[fieldSet.id]" :true-value="true" :false-value="false" />
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" @click="cancelFieldSetConfig" />
-          <q-btn color="primary" label="Save" @click="saveFieldSetConfig" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <FieldSetConfigDialog v-model="showFieldSetConfig" :available-field-sets="availableFieldSets" :active-field-sets="activeFieldSets" @save="onFieldSetConfigSave" @cancel="onFieldSetConfigCancel" />
 
     <!-- New Visit Dialog -->
     <NewVisitDialog v-model="showNewVisitDialog" :patient="patient" @created="onVisitCreated" />
@@ -141,9 +120,13 @@ import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
-import { AVAILABLE_FIELD_SETS, getFieldSetById } from 'src/shared/utils/medical-utils'
+import { useUncategorizedObservations } from 'src/composables/useUncategorizedObservations'
+import { useFieldSetStatistics } from 'src/composables/useFieldSetStatistics'
+import { AVAILABLE_FIELD_SETS } from 'src/shared/utils/medical-utils'
 import ObservationFieldSet from './ObservationFieldSet.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
+import FieldSetSelector from './FieldSetSelector.vue'
+import FieldSetConfigDialog from './FieldSetConfigDialog.vue'
 
 const props = defineProps({
   patient: {
@@ -168,12 +151,10 @@ const logger = loggingStore.createLogger('VisitDataEntry')
 // State
 const showFieldSetConfig = ref(false)
 const showNewVisitDialog = ref(false)
-const fieldSetConfig = ref({})
 const loadingFieldSets = ref(false)
 
 // Field Sets Configuration - will be loaded from global settings
 const availableFieldSets = ref([])
-
 const activeFieldSets = ref(['vitals', 'symptoms'])
 
 // Computed from store
@@ -192,43 +173,78 @@ const selectedVisit = computed({
 const visitOptions = computed(() => visitStore.visitOptions)
 const previousVisits = computed(() => visitStore.previousVisits)
 
+// Methods that need to be available for composables
+const getFieldSetObservations = (fieldSetId) => {
+  if (!fieldSetId) {
+    logger.warn('getFieldSetObservations called with undefined fieldSetId')
+    return []
+  }
+
+  const observations = visitStore.getFieldSetObservations(fieldSetId, availableFieldSets.value)
+  logger.debug(`getFieldSetObservations for ${fieldSetId}`, {
+    fieldSetId,
+    observationCount: observations.length,
+    selectedVisitId: selectedVisit.value?.id,
+    storeObservationsCount: visitStore.observations.length,
+    availableFieldSetsCount: availableFieldSets.value.length,
+  })
+  return observations
+}
+
+const getFieldSetObservationCount = (fieldSetId) => {
+  if (!fieldSetId) {
+    logger.warn('getFieldSetObservationCount called with undefined fieldSetId')
+    return 0
+  }
+  return getFieldSetObservations(fieldSetId).length
+}
+
+// Use uncategorized observations composable
+const { uncategorizedObservations, uncategorizedFieldSet } = useUncategorizedObservations(visitStore, availableFieldSets, selectedVisit)
+
+// Use field set statistics composable
+const { overallStats } = useFieldSetStatistics(availableFieldSets, activeFieldSets, getFieldSetObservationCount, uncategorizedObservations)
+
+// Field set organization for better UX
+const activeFieldSetsList = computed(() => {
+  const result = availableFieldSets.value.filter((fs) => activeFieldSets.value.includes(fs.id))
+  logger.debug('activeFieldSetsList computed', {
+    availableFieldSetsCount: availableFieldSets.value.length,
+    activeFieldSetsIds: activeFieldSets.value,
+    filteredFieldSetsCount: result.length,
+    filteredFieldSets: result.map((fs) => ({ id: fs.id, name: fs.name })),
+  })
+  return result
+})
+
 // Methods
 const loadFieldSets = async () => {
   try {
     loadingFieldSets.value = true
-    
+
     // Load field sets from global settings
     const fieldSets = await globalSettingsStore.getFieldSetOptions()
-    
+
     if (fieldSets && fieldSets.length > 0) {
       availableFieldSets.value = fieldSets
     } else {
       // Fallback to hardcoded field sets from medical-utils
       availableFieldSets.value = AVAILABLE_FIELD_SETS
     }
-    
-    // Initialize field set config based on available field sets
-    fieldSetConfig.value = {}
-    availableFieldSets.value.forEach(fs => {
-      fieldSetConfig.value[fs.id] = activeFieldSets.value.includes(fs.id)
-    })
-    
+
+    // Field sets loaded and ready for use
   } catch (error) {
-            logger.error('Failed to load field sets from global settings', error)
+    logger.error('Failed to load field sets from global settings', error)
     $q.notify({
       type: 'warning',
       message: 'Using default field sets. Some configurations may not be available.',
-      position: 'top'
+      position: 'top',
     })
-    
+
     // Fallback to hardcoded field sets
     availableFieldSets.value = AVAILABLE_FIELD_SETS
-    
-    // Initialize field set config
-    fieldSetConfig.value = {}
-    availableFieldSets.value.forEach(fs => {
-      fieldSetConfig.value[fs.id] = activeFieldSets.value.includes(fs.id)
-    })
+
+    // Fallback field sets loaded
   } finally {
     loadingFieldSets.value = false
   }
@@ -249,33 +265,6 @@ const onVisitSelected = async (visit) => {
   }
 }
 
-const getFieldSet = (fieldSetId) => {
-  // First try to find in loaded field sets
-  const fieldSet = availableFieldSets.value.find(fs => fs.id === fieldSetId)
-  if (fieldSet) return fieldSet
-  
-  // Fallback to utility function
-  return getFieldSetById(fieldSetId)
-}
-
-const getFieldSetObservations = (fieldSetId) => {
-  if (!fieldSetId) {
-    logger.warn('getFieldSetObservations called with undefined fieldSetId')
-    return []
-  }
-  const observations = visitStore.getFieldSetObservations(fieldSetId, availableFieldSets.value)
-  logger.debug(`getFieldSetObservations for ${fieldSetId}`, { fieldSetId, observationCount: observations.length })
-  return observations
-}
-
-const getFieldSetObservationCount = (fieldSetId) => {
-  if (!fieldSetId) {
-    logger.warn('getFieldSetObservationCount called with undefined fieldSetId')
-    return 0
-  }
-  return getFieldSetObservations(fieldSetId).length
-}
-
 const toggleFieldSet = (fieldSetId) => {
   const index = activeFieldSets.value.indexOf(fieldSetId)
   if (index > -1) {
@@ -288,10 +277,9 @@ const toggleFieldSet = (fieldSetId) => {
   localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
 }
 
-const saveFieldSetConfig = () => {
-  activeFieldSets.value = Object.keys(fieldSetConfig.value).filter((key) => fieldSetConfig.value[key])
+const onFieldSetConfigSave = (selectedFieldSets) => {
+  activeFieldSets.value = selectedFieldSets
   localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
-  showFieldSetConfig.value = false
 
   $q.notify({
     type: 'positive',
@@ -300,13 +288,8 @@ const saveFieldSetConfig = () => {
   })
 }
 
-const cancelFieldSetConfig = () => {
-  // Reset config to current active field sets
-  fieldSetConfig.value = {}
-  activeFieldSets.value.forEach((id) => {
-    fieldSetConfig.value[id] = true
-  })
-  showFieldSetConfig.value = false
+const onFieldSetConfigCancel = () => {
+  // Dialog handles its own closing
 }
 
 const createNewVisit = () => {
@@ -319,11 +302,14 @@ const onVisitCreated = (newVisit) => {
 }
 
 const onObservationUpdated = async (data) => {
-  logger.info('Observation updated', { conceptCode: data.conceptCode, value: data.value })
-  // Store handles reloading observations
-  if (visitStore.selectedVisit) {
-    await visitStore.loadObservationsForVisit(visitStore.selectedVisit)
-  }
+  logger.info('VisitDataEntry: Observation updated event received', {
+    conceptCode: data.conceptCode,
+    value: data.value,
+    selectedVisitId: selectedVisit.value?.id,
+    activeFieldSetsCount: activeFieldSets.value.length,
+  })
+  // Store already handles reloading observations internally during CRUD operations
+  // No need to manually reload here
 }
 
 const onCloneFromPrevious = async (data) => {
@@ -379,22 +365,13 @@ watch(
   { immediate: true },
 )
 
-watch(
-  () => showFieldSetConfig.value,
-  (show) => {
-    if (show) {
-      // Reset config when opening dialog
-      fieldSetConfig.value = {}
-      activeFieldSets.value.forEach((id) => {
-        fieldSetConfig.value[id] = true
-      })
-    }
-  },
-)
-
 // Lifecycle
 onMounted(async () => {
-  logger.debug('VisitDataEntry mounted', { activeFieldSets: activeFieldSets.value })
+  logger.info('VisitDataEntry mounted', {
+    activeFieldSets: activeFieldSets.value,
+    patientId: props.patient?.id,
+    initialVisitId: props.initialVisit?.id,
+  })
 
   // Load field sets from global settings
   await loadFieldSets()
@@ -406,15 +383,14 @@ onMounted(async () => {
     activeFieldSets.value = savedActiveFieldSets
   }
 
-  logger.debug('Field sets configuration loaded', {
+  logger.info('Field sets configuration loaded', {
     finalActiveFieldSets: activeFieldSets.value,
-    availableFieldSets: availableFieldSets.value.map((fs) => fs.id)
+    availableFieldSets: availableFieldSets.value.map((fs) => fs.id),
+    selectedVisitId: selectedVisit.value?.id,
+    visitOptionsCount: visitOptions.value.length,
   })
 
-  // Initialize field set config
-  availableFieldSets.value.forEach((fs) => {
-    fieldSetConfig.value[fs.id] = activeFieldSets.value.includes(fs.id)
-  })
+  // Field sets are now ready for use
 
   // If no visit is selected but visits are available, select the most recent one
   if (!selectedVisit.value && visitOptions.value.length > 0) {
@@ -422,6 +398,16 @@ onMounted(async () => {
     const mostRecentVisit = visitOptions.value[0].value
     await visitStore.setSelectedVisit(mostRecentVisit)
   }
+
+  // Log final state for debugging
+  logger.info('VisitDataEntry initialization complete', {
+    hasSelectedVisit: !!selectedVisit.value,
+    selectedVisitId: selectedVisit.value?.id,
+    activeFieldSetsCount: activeFieldSets.value.length,
+    activeFieldSets: activeFieldSets.value,
+    visitStoreSelectedVisit: visitStore.selectedVisit?.id,
+    visitStoreSelectedPatient: visitStore.selectedPatient?.id,
+  })
 })
 </script>
 
@@ -455,43 +441,6 @@ onMounted(async () => {
   }
 }
 
-.field-set-selector {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  margin-bottom: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.field-set-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-
-  .field-set-title {
-    font-size: 1.25rem;
-    font-weight: 500;
-    color: $grey-8;
-    margin: 0;
-  }
-}
-
-.field-set-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.field-set-chip {
-  border-radius: 20px;
-  transition: all 0.3s ease;
-
-  &:hover {
-    transform: translateY(-1px);
-  }
-}
-
 .observation-forms {
   display: flex;
   flex-direction: column;
@@ -505,6 +454,14 @@ onMounted(async () => {
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  &.compact {
+    padding: 2rem 1.5rem;
+  }
+}
+
+.uncategorized-only {
+  margin-top: 1.5rem;
 }
 
 @media (max-width: 768px) {
@@ -519,10 +476,6 @@ onMounted(async () => {
     .visit-select {
       max-width: none;
     }
-  }
-
-  .field-set-chips {
-    gap: 0.5rem;
   }
 }
 </style>

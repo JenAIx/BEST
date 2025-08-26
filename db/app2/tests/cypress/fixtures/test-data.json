@@ -1,0 +1,114 @@
+{
+  "users": {
+    "admin": {
+      "username": "admin",
+      "password": "admin123",
+      "role": "administrator",
+      "email": "admin@best.local"
+    },
+    "doctor": {
+      "username": "doctor",
+      "password": "doctor123",
+      "role": "physician",
+      "email": "doctor@best.local"
+    },
+    "nurse": {
+      "username": "nurse",
+      "password": "nurse123",
+      "role": "nurse",
+      "email": "nurse@best.local"
+    }
+  },
+  
+  "patients": {
+    "testPatient1": {
+      "firstName": "John",
+      "lastName": "Doe",
+      "dateOfBirth": "1985-06-15",
+      "gender": "M",
+      "email": "john.doe@email.com",
+      "phone": "+1-555-0123"
+    },
+    "testPatient2": {
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "dateOfBirth": "1990-03-22",
+      "gender": "F",
+      "email": "jane.smith@email.com",
+      "phone": "+1-555-0124"
+    },
+    "testPatient3": {
+      "firstName": "Bob",
+      "lastName": "Johnson",
+      "dateOfBirth": "1978-11-08",
+      "gender": "M",
+      "email": "bob.johnson@email.com",
+      "phone": "+1-555-0125"
+    }
+  },
+  
+  "visits": {
+    "routine_checkup": {
+      "type": "routine_checkup",
+      "date": "2024-01-15",
+      "reason": "Annual physical examination",
+      "status": "completed"
+    },
+    "follow_up": {
+      "type": "follow_up",
+      "date": "2024-01-20",
+      "reason": "Follow-up for blood pressure",
+      "status": "scheduled"
+    }
+  },
+  
+  "observations": {
+    "blood_pressure": {
+      "type": "vital_sign",
+      "code": "85354-9",
+      "display": "Blood pressure panel with all children optional",
+      "value": "120/80",
+      "unit": "mmHg"
+    },
+    "heart_rate": {
+      "type": "vital_sign",
+      "code": "8867-4",
+      "display": "Heart rate",
+      "value": "72",
+      "unit": "beats/min"
+    },
+    "temperature": {
+      "type": "vital_sign",
+      "code": "8310-5",
+      "display": "Body temperature",
+      "value": "98.6",
+      "unit": "°F"
+    }
+  },
+  
+  "concepts": {
+    "diabetes": {
+      "code": "73211009",
+      "display": "Diabetes mellitus",
+      "system": "SNOMED CT"
+    },
+    "hypertension": {
+      "code": "38341003",
+      "display": "Hypertensive disorder",
+      "system": "SNOMED CT"
+    }
+  },
+  
+  "settings": {
+    "database": {
+      "backup_frequency": "daily",
+      "max_backup_count": 30,
+      "auto_backup": true
+    },
+    "ui": {
+      "theme": "light",
+      "language": "en",
+      "date_format": "MM/DD/YYYY"
+    }
+  }
+}

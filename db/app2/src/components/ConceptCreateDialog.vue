@@ -816,7 +816,34 @@ const prepareFinalData = (data) => {
 }
 
 const onSubmit = async () => {
-  if (!isFormValid.value) return
+  if (!isFormValid.value) {
+    // Show detailed validation feedback
+    const missingFields = []
+    
+    if (!formData.value.conceptCode.trim()) missingFields.push('Concept Code')
+    if (formData.value.conceptCode.trim().length < 3) missingFields.push('Concept Code (must be at least 3 characters)')
+    if (!formData.value.name.trim()) missingFields.push('Concept Name')
+    if (!formData.value.conceptPath.trim()) missingFields.push('Concept Path')
+    if (!formData.value.conceptPath.startsWith('\\')) missingFields.push('Concept Path (must start with \\)')
+    if (formData.value.conceptPath.endsWith('\\')) missingFields.push('Concept Path (must not end with \\)')
+    if (!formData.value.category) missingFields.push('Category')
+    if (!formData.value.valueType) missingFields.push('Value Type')
+    if (!formData.value.sourceSystem) missingFields.push('Source System')
+    
+    const message = `Please complete the following required fields:\n• ${missingFields.join('\n• ')}`
+    
+    $q.notify({
+      type: 'warning',
+      message: 'Form Incomplete',
+      caption: message,
+      position: 'top',
+      timeout: 5000,
+      actions: [
+        { label: 'OK', color: 'white' }
+      ]
+    })
+    return
+  }
 
   isSaving.value = true
   try {

@@ -77,7 +77,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
   visit: {
@@ -96,7 +99,118 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'edit', 'view', 'duplicate', 'delete'])
 
-// Computed
+// Store instances
+const globalSettingsStore = useGlobalSettingsStore()
+const conceptStore = useConceptResolutionStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('VisitTimelineItem')
+
+// Reactive state for resolved data
+const visitTypeData = ref({ label: 'General Visit', icon: 'local_hospital', color: 'primary' })
+const statusData = ref({ label: 'Unknown', color: 'grey', class: 'status-default' })
+const visitTypeOptions = ref([])
+
+// Load visit type options on mount
+onMounted(async () => {
+  try {
+    visitTypeOptions.value = await globalSettingsStore.getVisitTypeOptions()
+    await resolveVisitType()
+    await resolveVisitStatus()
+  } catch (error) {
+    logger.error('Failed to load visit type options', error, { visitId: props.visit.id })
+  }
+})
+
+// Watch for changes in visit type or status
+watch(
+  () => [props.visit.type, props.visit.status],
+  async () => {
+    await resolveVisitType()
+    await resolveVisitStatus()
+  },
+  { immediate: false },
+)
+
+// Resolve visit type using store
+const resolveVisitType = async () => {
+  try {
+    if (!props.visit.type) {
+      visitTypeData.value = { label: 'General Visit', icon: 'local_hospital', color: 'primary' }
+      return
+    }
+
+    // First try to find in global settings visit type options
+    const typeOption = visitTypeOptions.value.find((vt) => vt.value === props.visit.type)
+    if (typeOption) {
+      visitTypeData.value = {
+        label: typeOption.label,
+        icon: typeOption.icon || 'local_hospital',
+        color: typeOption.color || 'primary',
+      }
+      return
+    }
+
+    // Fallback to concept resolution
+    const resolved = await conceptStore.resolveConcept(props.visit.type, {
+      context: 'visit_type',
+      table: 'VISIT_DIMENSION',
+      column: 'VISIT_TYPE_CD',
+    })
+
+    visitTypeData.value = {
+      label: resolved.label || 'General Visit',
+      icon: 'local_hospital', // Default icon if not in global settings
+      color: resolved.color || 'primary',
+    }
+  } catch (error) {
+    logger.error('Failed to resolve visit type', error, {
+      visitType: props.visit.type,
+      visitId: props.visit.id,
+    })
+    visitTypeData.value = { label: 'General Visit', icon: 'local_hospital', color: 'primary' }
+  }
+}
+
+// Resolve visit status using concept resolution
+const resolveVisitStatus = async () => {
+  try {
+    if (!props.visit.status) {
+      statusData.value = { label: 'Unknown', color: 'grey', class: 'status-default' }
+      return
+    }
+
+    const resolved = await conceptStore.resolveConcept(props.visit.status, {
+      context: 'visit_status',
+      table: 'VISIT_DIMENSION',
+      column: 'ACTIVE_STATUS_CD',
+    })
+
+    // Map resolved status to CSS classes and colors
+    const statusMapping = {
+      Active: { class: 'status-active', color: 'positive' },
+      Completed: { class: 'status-completed', color: 'primary' },
+      Cancelled: { class: 'status-cancelled', color: 'negative' },
+      Discharged: { class: 'status-completed', color: 'primary' },
+      Inactive: { class: 'status-cancelled', color: 'negative' },
+    }
+
+    const mapping = statusMapping[resolved.label] || statusMapping[resolved.label?.toLowerCase()] || { class: 'status-default', color: 'grey' }
+
+    statusData.value = {
+      label: resolved.label,
+      color: resolved.color || mapping.color,
+      class: mapping.class,
+    }
+  } catch (error) {
+    logger.error('Failed to resolve visit status', error, {
+      visitStatus: props.visit.status,
+      visitId: props.visit.id,
+    })
+    statusData.value = { label: 'Unknown', color: 'grey', class: 'status-default' }
+  }
+}
+
+// Computed properties using resolved data
 const formattedDate = computed(() => {
   if (!props.visit.date) return 'Unknown'
   const date = new Date(props.visit.date)
@@ -108,55 +222,9 @@ const formattedDate = computed(() => {
   })
 })
 
-const statusClass = computed(() => {
-  switch (props.visit.status) {
-    case 'active':
-    case 'A':
-      return 'status-active'
-    case 'completed':
-    case 'C':
-      return 'status-completed'
-    case 'cancelled':
-    case 'X':
-      return 'status-cancelled'
-    default:
-      return 'status-default'
-  }
-})
-
-const visitTypeLabel = computed(() => {
-  switch (props.visit.type) {
-    case 'routine':
-      return 'Routine Check-up'
-    case 'followup':
-      return 'Follow-up'
-    case 'emergency':
-      return 'Emergency'
-    case 'consultation':
-      return 'Consultation'
-    case 'procedure':
-      return 'Procedure'
-    default:
-      return 'General Visit'
-  }
-})
-
-const typeIcon = computed(() => {
-  switch (props.visit.type) {
-    case 'routine':
-      return 'health_and_safety'
-    case 'followup':
-      return 'follow_the_signs'
-    case 'emergency':
-      return 'emergency'
-    case 'consultation':
-      return 'psychology'
-    case 'procedure':
-      return 'medical_services'
-    default:
-      return 'local_hospital'
-  }
-})
+const statusClass = computed(() => statusData.value.class)
+const visitTypeLabel = computed(() => visitTypeData.value.label)
+const typeIcon = computed(() => visitTypeData.value.icon)
 
 const visitDuration = computed(() => {
   if (!props.visit.endDate || !props.visit.date) return null
@@ -176,24 +244,53 @@ const visitDuration = computed(() => {
   }
 })
 
-// Methods
+// Methods with logging
 const selectVisit = () => {
+  logger.logUserAction('visit_selected', {
+    visitId: props.visit.id,
+    visitType: props.visit.type,
+    visitDate: props.visit.date,
+  })
   emit('select', props.visit)
 }
 
 const editVisit = () => {
+  logger.logUserAction('visit_edit_initiated', {
+    visitId: props.visit.id,
+    visitType: props.visit.type,
+    visitDate: props.visit.date,
+    observationCount: props.visit.observationCount || 0,
+  })
   emit('edit', props.visit)
 }
 
 const viewVisit = () => {
+  logger.logUserAction('visit_view_requested', {
+    visitId: props.visit.id,
+    visitType: props.visit.type,
+    visitDate: props.visit.date,
+  })
   emit('view', props.visit)
 }
 
 const duplicateVisit = () => {
+  logger.logUserAction('visit_clone_initiated', {
+    originalVisitId: props.visit.id,
+    visitType: props.visit.type,
+    visitDate: props.visit.date,
+    observationCount: props.visit.observationCount || 0,
+  })
   emit('duplicate', props.visit)
 }
 
 const deleteVisit = () => {
+  logger.logUserAction('visit_delete_initiated', {
+    visitId: props.visit.id,
+    visitType: props.visit.type,
+    visitDate: props.visit.date,
+    observationCount: props.visit.observationCount || 0,
+    severity: 'high', // Deletion is a high-impact action
+  })
   emit('delete', props.visit)
 }
 </script>

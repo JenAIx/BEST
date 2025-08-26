@@ -373,6 +373,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Answer (A)', value: 'A' },
         { label: 'Date (D)', value: 'D' },
         { label: 'Finding (F)', value: 'F' },
+        { label: 'Medication (M)', value: 'M', icon: 'medication', color: 'orange' },
         { label: 'Numeric (N)', value: 'N' },
         { label: 'Raw Text (R)', value: 'R' },
         { label: 'Selection (S)', value: 'S' },
@@ -385,6 +386,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Answer (A)', value: 'A' },
         { label: 'Date (D)', value: 'D' },
         { label: 'Finding (F)', value: 'F' },
+        { label: 'Medication (M)', value: 'M', icon: 'medication', color: 'orange' },
         { label: 'Numeric (N)', value: 'N' },
         { label: 'Raw Text (R)', value: 'R' },
         { label: 'Selection (S)', value: 'S' },
@@ -409,6 +411,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       A: 'Answer (A)',
       D: 'Date (D)',
       F: 'Finding (F)',
+      M: 'Medication (M)',
       N: 'Numeric (N)',
       R: 'Raw Text (R)',
       S: 'Selection (S)',
@@ -722,21 +725,21 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Try to load from database first
       const sourceSystems = await getSourceSystemOptions()
-      
+
       // Look for context-specific defaults
       const contextMap = {
-        'VISITS_PAGE': 'VISITS_PAGE',
-        'DATAGRID_EDITOR': 'DATAGRID_EDITOR',
-        'PATIENT': 'SYSTEM',
-        'GENERAL': 'SYSTEM'
+        VISITS_PAGE: 'VISITS_PAGE',
+        DATAGRID_EDITOR: 'DATAGRID_EDITOR',
+        PATIENT: 'SYSTEM',
+        GENERAL: 'SYSTEM',
       }
-      
+
       const preferredCode = contextMap[context] || 'SYSTEM'
-      
+
       // Check if preferred code exists in loaded options
-      const exists = sourceSystems.find(ss => ss.value === preferredCode)
+      const exists = sourceSystems.find((ss) => ss.value === preferredCode)
       if (exists) return preferredCode
-      
+
       // Return first available option or fallback
       return sourceSystems.length > 0 ? sourceSystems[0].value : 'SYSTEM'
     } catch (error) {
@@ -754,25 +757,22 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Try to load from database first
       const categories = await getCategoryOptions()
-      
+
       // Look for context-specific defaults
       const contextMap = {
-        'CLINICAL': 'Clinical',
-        'DEMOGRAPHICS': 'Demographics',
-        'CLONED': 'Cloned',
-        'OBSERVATION': 'Observation',
-        'GENERAL': 'General'
+        CLINICAL: 'Clinical',
+        DEMOGRAPHICS: 'Demographics',
+        CLONED: 'Cloned',
+        OBSERVATION: 'Observation',
+        GENERAL: 'General',
       }
-      
+
       const preferredCategory = contextMap[context] || 'General'
-      
+
       // Check if preferred category exists in loaded options
-      const exists = categories.find(cat => 
-        cat.value === preferredCategory || 
-        cat.label === preferredCategory
-      )
+      const exists = categories.find((cat) => cat.value === preferredCategory || cat.label === preferredCategory)
       if (exists) return exists.value
-      
+
       // Return first available option or fallback
       return categories.length > 0 ? categories[0].value : 'General'
     } catch (error) {
@@ -819,7 +819,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Administrator', value: 'admin' },
         { label: 'Physician', value: 'physician' },
         { label: 'Nurse', value: 'nurse' },
-        { label: 'Research', value: 'research' }
+        { label: 'Research', value: 'research' },
       ]
 
       // Cache the fallback result
@@ -833,10 +833,234 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Administrator', value: 'admin' },
         { label: 'Physician', value: 'physician' },
         { label: 'Nurse', value: 'nurse' },
-        { label: 'Research', value: 'research' }
+        { label: 'Research', value: 'research' },
       ]
       return fallbackRoles
     }
+  }
+
+  /**
+   * Get visit template options for quick visit creation
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of visit template configurations
+   */
+  const getVisitTemplateOptions = async (forceRefresh = false) => {
+    const cacheKey = 'visit_templates'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP 
+         WHERE TABLE_CD = 'VISIT_DIMENSION' 
+         AND COLUMN_CD = 'TEMPLATE_CD' 
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const templates = result.data.map((template) => {
+          const metadata = parseMetadata(template.LOOKUP_BLOB)
+          return {
+            id: template.CODE_CD,
+            name: template.NAME_CHAR,
+            type: metadata.visitType || 'routine',
+            location: metadata.location || '',
+            notes: metadata.notes || '',
+            icon: metadata.icon || 'assignment',
+            color: metadata.color || 'primary',
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = templates
+        logger.success(`Loaded ${templates.length} visit templates`)
+        return templates
+      }
+
+      // Fallback to standard visit templates
+      return getDefaultVisitTemplates()
+    } catch (error) {
+      logger.error('Failed to get visit template options', error)
+      return getDefaultVisitTemplates()
+    }
+  }
+
+  /**
+   * Get drug options for medication search
+   * @param {string} searchTerm - Search term to filter drugs
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of drug options
+   */
+  const getDrugOptions = async (searchTerm = '', forceRefresh = false) => {
+    const cacheKey = 'drug_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      const cached = lookupData.value[cacheKey]
+      if (searchTerm && searchTerm.length >= 2) {
+        return cached.filter((drug) => drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()))
+      }
+      return cached
+    }
+
+    try {
+      // Try to load from database first
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP 
+         WHERE TABLE_CD = 'MEDICATION_DIMENSION' 
+         AND COLUMN_CD = 'DRUG_CD' 
+         ORDER BY NAME_CHAR`,
+      )
+
+      let drugOptions = []
+
+      if (result.success && result.data.length > 0) {
+        // Parse database drugs
+        drugOptions = result.data.map((drug) => {
+          const metadata = parseMetadata(drug.LOOKUP_BLOB)
+          return {
+            name: drug.NAME_CHAR || drug.CODE_CD,
+            generic: metadata.generic || '',
+            strength: metadata.strength || '',
+            category: metadata.category || 'general',
+          }
+        })
+        logger.success(`Loaded ${drugOptions.length} drugs from database`)
+      } else {
+        // Fallback to comprehensive drug list
+        drugOptions = getDefaultDrugOptions()
+        logger.info('Using fallback drug options')
+      }
+
+      // Cache the result
+      lookupData.value[cacheKey] = drugOptions
+
+      // Filter by search term if provided
+      if (searchTerm && searchTerm.length >= 2) {
+        return drugOptions.filter((drug) => drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()))
+      }
+
+      return drugOptions
+    } catch (error) {
+      logger.error('Failed to get drug options', error)
+      return getDefaultDrugOptions().filter(
+        (drug) => !searchTerm || searchTerm.length < 2 || drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    }
+  }
+
+  /**
+   * Get default drug options when database lookup fails
+   * @returns {Array} Comprehensive list of common medications
+   */
+  const getDefaultDrugOptions = () => {
+    return [
+      // Cardiovascular
+      { name: 'Lisinopril', generic: 'ACE Inhibitor', strength: '10mg', category: 'cardiovascular' },
+      { name: 'Atorvastatin', generic: 'Statin', strength: '20mg', category: 'cardiovascular' },
+      { name: 'Metoprolol', generic: 'Beta Blocker', strength: '50mg', category: 'cardiovascular' },
+      { name: 'Amlodipine', generic: 'Calcium Channel Blocker', strength: '5mg', category: 'cardiovascular' },
+      { name: 'Warfarin', generic: 'Anticoagulant', strength: '5mg', category: 'cardiovascular' },
+
+      // Diabetes
+      { name: 'Metformin', generic: 'Biguanide', strength: '500mg', category: 'diabetes' },
+      { name: 'Glipizide', generic: 'Sulfonylurea', strength: '5mg', category: 'diabetes' },
+      { name: 'Insulin Glargine', generic: 'Long-acting insulin', strength: '100U/mL', category: 'diabetes' },
+
+      // Pain & Inflammation
+      { name: 'Aspirin', generic: 'Acetylsalicylic acid', strength: '81mg', category: 'analgesic' },
+      { name: 'Acetaminophen', generic: 'Paracetamol', strength: '500mg', category: 'analgesic' },
+      { name: 'Ibuprofen', generic: 'NSAID', strength: '200mg', category: 'analgesic' },
+      { name: 'Naproxen', generic: 'NSAID', strength: '220mg', category: 'analgesic' },
+
+      // Gastrointestinal
+      { name: 'Omeprazole', generic: 'Proton pump inhibitor', strength: '20mg', category: 'gastrointestinal' },
+      { name: 'Ranitidine', generic: 'H2 antagonist', strength: '150mg', category: 'gastrointestinal' },
+      { name: 'Pantoprazole', generic: 'Proton pump inhibitor', strength: '40mg', category: 'gastrointestinal' },
+
+      // Antibiotics
+      { name: 'Amoxicillin', generic: 'Penicillin antibiotic', strength: '500mg', category: 'antibiotic' },
+      { name: 'Azithromycin', generic: 'Macrolide antibiotic', strength: '250mg', category: 'antibiotic' },
+      { name: 'Cephalexin', generic: 'Cephalosporin antibiotic', strength: '500mg', category: 'antibiotic' },
+      { name: 'Ciprofloxacin', generic: 'Fluoroquinolone antibiotic', strength: '500mg', category: 'antibiotic' },
+
+      // Respiratory
+      { name: 'Albuterol', generic: 'Bronchodilator', strength: '90mcg', category: 'respiratory' },
+      { name: 'Fluticasone', generic: 'Corticosteroid', strength: '50mcg', category: 'respiratory' },
+      { name: 'Montelukast', generic: 'Leukotriene antagonist', strength: '10mg', category: 'respiratory' },
+
+      // Mental Health
+      { name: 'Sertraline', generic: 'SSRI', strength: '50mg', category: 'psychiatric' },
+      { name: 'Lorazepam', generic: 'Benzodiazepine', strength: '1mg', category: 'psychiatric' },
+      { name: 'Zolpidem', generic: 'Sleep aid', strength: '10mg', category: 'psychiatric' },
+
+      // Neurological
+      { name: 'Gabapentin', generic: 'Anticonvulsant', strength: '300mg', category: 'neurological' },
+      { name: 'Phenytoin', generic: 'Anticonvulsant', strength: '100mg', category: 'neurological' },
+      { name: 'Carbidopa-Levodopa', generic: 'Parkinson medication', strength: '25-100mg', category: 'neurological' },
+    ]
+  }
+
+  /**
+   * Get default visit templates when database lookup fails
+   * @returns {Array} Default visit templates
+   */
+  const getDefaultVisitTemplates = () => {
+    const defaultTemplates = [
+      {
+        id: 'annual-checkup',
+        name: 'Annual Checkup',
+        type: 'routine',
+        location: '',
+        notes: 'Annual physical examination and health assessment',
+        icon: 'health_and_safety',
+        color: 'primary',
+      },
+      {
+        id: 'follow-up-labs',
+        name: 'Lab Follow-up',
+        type: 'followup',
+        location: '',
+        notes: 'Follow-up visit to review laboratory results',
+        icon: 'science',
+        color: 'secondary',
+      },
+      {
+        id: 'medication-review',
+        name: 'Medication Review',
+        type: 'consultation',
+        location: '',
+        notes: 'Review current medications and adjust dosages as needed',
+        icon: 'medication',
+        color: 'info',
+      },
+      {
+        id: 'emergency-visit',
+        name: 'Emergency Visit',
+        type: 'emergency',
+        location: 'Emergency Department',
+        notes: 'Urgent medical attention required',
+        icon: 'emergency',
+        color: 'negative',
+      },
+      {
+        id: 'procedure-visit',
+        name: 'Procedure Visit',
+        type: 'procedure',
+        location: 'Procedure Suite',
+        notes: 'Medical procedure or intervention',
+        icon: 'medical_services',
+        color: 'warning',
+      },
+    ]
+
+    // Cache the fallback result
+    lookupData.value['visit_templates'] = defaultTemplates
+    logger.info('Using default visit templates')
+    return defaultTemplates
   }
 
   /**
@@ -891,12 +1115,20 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     getVisitTypeOptions,
     getFileTypeOptions,
     getFieldSetOptions,
-    
+
     // Default value methods
     getDefaultSourceSystem,
     getDefaultCategory,
-    
+
     // User role methods
     getUserRoleOptions,
+
+    // Visit template methods
+    getVisitTemplateOptions,
+    getDefaultVisitTemplates,
+
+    // Drug methods
+    getDrugOptions,
+    getDefaultDrugOptions,
   }
 })

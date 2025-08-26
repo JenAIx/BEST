@@ -17,10 +17,18 @@
           </div>
         </div>
 
-        <!-- Delete Patient Button -->
-        <q-btn color="negative" icon="delete" round outline @click="showDeleteConfirmation" :loading="deleteLoading">
-          <q-tooltip>Delete this patient and all associated data</q-tooltip>
-        </q-btn>
+        <!-- Action Buttons -->
+        <div class="row q-gutter-sm">
+          <!-- View Visits Button -->
+          <q-btn color="primary" icon="event" round outline @click="goToVisitsPage" :loading="loading">
+            <q-tooltip>View patient visits and timeline</q-tooltip>
+          </q-btn>
+
+          <!-- Delete Patient Button -->
+          <q-btn color="negative" icon="delete" round outline @click="showDeleteConfirmation" :loading="deleteLoading">
+            <q-tooltip>Delete this patient and all associated data</q-tooltip>
+          </q-btn>
+        </div>
       </div>
 
       <!-- Patient Info Cards -->
@@ -113,6 +121,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import PatientAvatar from '../components/shared/PatientAvatar.vue'
 import PatientDemographicsCard from '../components/patient/PatientDemographicsCard.vue'
 import PatientAdditionalInfoCard from '../components/patient/PatientAdditionalInfoCard.vue'
@@ -124,6 +133,8 @@ const router = useRouter()
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const visitObservationStore = useVisitObservationStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('PatientPage')
 
 // State
 const loading = ref(true)
@@ -343,6 +354,16 @@ const getPatientGender = (patient) => {
   return patient.SEX_CD || 'Unknown'
 }
 
+const extractAgeNumber = (patient) => {
+  if (patient.AGE_IN_YEARS) return patient.AGE_IN_YEARS
+  if (patient.BIRTH_DATE) {
+    const birthYear = new Date(patient.BIRTH_DATE).getFullYear()
+    const currentYear = new Date().getFullYear()
+    return currentYear - birthYear
+  }
+  return null
+}
+
 const goToPatientSearch = () => {
   console.log('Current route:', route.path)
   console.log('Attempting to navigate to: /patients')
@@ -353,6 +374,59 @@ const goToPatientSearch = () => {
     // Direct window navigation as fallback
     window.location.replace('/patients')
   })
+}
+
+const goToVisitsPage = async () => {
+  if (!patient.value) {
+    logger.error('Cannot navigate to visits page - no patient loaded')
+    return
+  }
+
+  try {
+    // Transform patient data for the visit-observation-store
+    const visitPatient = {
+      id: patient.value.PATIENT_CD,
+      name: getPatientName(patient.value),
+      age: extractAgeNumber(patient.value),
+      gender: getPatientGender(patient.value),
+      PATIENT_NUM: patient.value.PATIENT_NUM,
+    }
+
+    // Log the navigation action
+    logger.logUserAction('navigate_to_visits_from_patient_page', {
+      patientId: patient.value.PATIENT_CD,
+      patientName: visitPatient.name,
+      currentPage: 'patient_details',
+      visitCount: visits.value?.length || 0,
+      observationCount: observations.value?.length || 0,
+    })
+
+    // Set the patient in the visit-observation-store
+    await visitObservationStore.setSelectedPatient(visitPatient)
+
+    // Navigate to visits page
+    router.push(`/visits/${visitPatient.id}`)
+
+    $q.notify({
+      type: 'positive',
+      message: `Viewing visits for ${visitPatient.name}`,
+      position: 'top',
+      icon: 'event',
+      timeout: 2000,
+    })
+  } catch (error) {
+    logger.error('Failed to navigate to visits page', error, {
+      patientId: patient.value?.PATIENT_CD,
+      patientName: getPatientName(patient.value),
+    })
+
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to load patient visits. Please try again.',
+      position: 'top',
+      timeout: 3000,
+    })
+  }
 }
 
 // Handle patient updates from child components

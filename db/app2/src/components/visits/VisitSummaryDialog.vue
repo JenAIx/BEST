@@ -132,6 +132,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 import { getVisitTypeLabel, getVisitTypeIcon, getValueTypeColor, getCategoryIcon, getFileIcon, getFileColor, formatFileSize, formatDateVerbose } from 'src/shared/utils/medical-utils.js'
@@ -150,6 +151,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const visitStore = useVisitObservationStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('VisitSummaryDialog')
 
 // State
 const selectedFileObservation = ref(null)
@@ -206,6 +209,15 @@ const categorizedObservations = computed(() => visitStore.categorizedObservation
 // Utility functions imported from medical-utils.js
 
 const previewFile = (observation) => {
+  logger.logUserAction('file_preview_requested', {
+    observationId: observation.observationId,
+    conceptCode: observation.conceptCode,
+    conceptName: observation.conceptName,
+    fileName: observation.fileInfo?.filename,
+    fileSize: observation.fileInfo?.size,
+    visitId: props.visit?.id,
+  })
+
   selectedFileObservation.value = observation
   showFilePreview.value = true
 }
@@ -213,11 +225,41 @@ const previewFile = (observation) => {
 // Watch for dialog open/close
 watch(dialogModel, async (newValue) => {
   if (newValue && props.visit) {
+    // Log dialog opening
+    logger.logUserAction('visit_summary_dialog_opened', {
+      visitId: props.visit.id,
+      visitType: props.visit.type,
+      visitDate: props.visit.date,
+      observationCount: props.visit.observationCount || 0,
+    })
+
     // Ensure observations are loaded for the visit
     if (visitStore.selectedVisit?.id !== props.visit.id) {
-      await visitStore.setSelectedVisit(props.visit)
+      const timer = logger.startTimer('visit_summary_data_load')
+      try {
+        await visitStore.setSelectedVisit(props.visit)
+        const duration = timer.end()
+        logger.info('Visit summary data loaded', {
+          visitId: props.visit.id,
+          observationsCount: visitStore.observations.length,
+          duration: `${duration.toFixed(2)}ms`,
+        })
+      } catch (error) {
+        timer.end()
+        logger.error('Failed to load visit summary data', error, {
+          visitId: props.visit.id,
+        })
+      }
     }
   } else {
+    // Log dialog closing
+    if (props.visit) {
+      logger.logUserAction('visit_summary_dialog_closed', {
+        visitId: props.visit.id,
+        hadFilePreview: !!selectedFileObservation.value,
+      })
+    }
+
     selectedFileObservation.value = null
     showFilePreview.value = false
   }

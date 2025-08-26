@@ -1,25 +1,37 @@
 <template>
   <div class="field-set-section">
-    <div class="field-set-header">
+    <div class="field-set-header cursor-pointer" @click="collapsed = !collapsed">
       <div class="field-set-title">
         <q-icon :name="fieldSet.icon" size="24px" class="q-mr-sm" />
         {{ fieldSet.name }}
+        <q-badge v-if="collapsed && isUncategorized && observationCount > 0" :label="observationCount" color="grey-6" class="q-ml-sm observation-count-badge">
+          <q-tooltip>{{ observationCount }} uncategorized observation{{ observationCount > 1 ? 's' : '' }}</q-tooltip>
+        </q-badge>
       </div>
-      <div class="field-set-actions">
-        <q-btn flat icon="content_copy" label="Clone from Previous" size="sm" @click="showCloneDialog = true" :disable="previousVisits.length === 0">
-          <q-tooltip>Copy values from a previous visit</q-tooltip>
-        </q-btn>
-        <q-btn flat icon="expand_more" size="sm" @click="collapsed = !collapsed" :class="{ 'rotate-180': !collapsed }">
-          <q-tooltip>{{ collapsed ? 'Expand' : 'Collapse' }}</q-tooltip>
-        </q-btn>
-      </div>
+      <q-icon name="expand_more" size="20px" class="expand-icon" :class="{ 'rotate-180': !collapsed }">
+        <q-tooltip>{{ collapsed ? 'Expand' : 'Collapse' }}</q-tooltip>
+      </q-icon>
     </div>
 
     <q-slide-transition>
       <div v-show="!collapsed" class="field-set-content">
         <div class="observation-grid">
+          <!-- Medication Fields - Render one field per observation, not per concept -->
+          <MedicationField
+            v-for="observation in medicationObservations"
+            :key="`medication-${observation.observationId || observation.tempId}`"
+            :concept="{ code: observation.conceptCode, name: 'Current Medication', valueType: 'M' }"
+            :visit="visit"
+            :patient="patient"
+            :existing-observation="observation"
+            :previous-value="getPreviousValue(observation.conceptCode)"
+            @observation-updated="onObservationUpdated"
+            @clone-requested="onCloneRequested"
+          />
+
+          <!-- Regular Observation Fields -->
           <ObservationField
-            v-for="concept in fieldSetConcepts"
+            v-for="concept in fieldSetConcepts.filter((c) => c.valueType !== 'M')"
             :key="concept.code"
             :concept="concept"
             :visit="visit"
@@ -33,42 +45,17 @@
 
         <!-- Add custom observation -->
         <div class="add-custom-observation">
-          <q-btn flat icon="add" label="Add Custom Observation" @click="showAddCustomDialog = true" class="full-width" style="border: 2px dashed #ccc" />
+          <q-btn
+            flat
+            icon="add"
+            :label="props.fieldSet.id === 'medications' ? 'Add Medication' : 'Add Custom Observation'"
+            @click="props.fieldSet.id === 'medications' ? addEmptyMedication() : (showAddCustomDialog = true)"
+            class="full-width"
+            style="border: 2px dashed #ccc"
+          />
         </div>
       </div>
     </q-slide-transition>
-
-    <!-- Clone from Previous Dialog -->
-    <q-dialog v-model="showCloneDialog">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">Clone from Previous Visit</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-select v-model="selectedPreviousVisit" :options="previousVisitOptions" option-label="label" option-value="value" label="Select Previous Visit" outlined />
-
-          <div v-if="selectedPreviousVisit" class="q-mt-md">
-            <div class="text-subtitle2 q-mb-sm">Available observations:</div>
-            <q-list bordered>
-              <q-item v-for="obs in previousVisitObservations" :key="obs.conceptCode" clickable @click="cloneObservation(obs)">
-                <q-item-section>
-                  <q-item-label>{{ obs.conceptName }}</q-item-label>
-                  <q-item-label caption>{{ obs.value }} {{ obs.unit }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-icon name="content_copy" />
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Close" @click="showCloneDialog = false" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
 
     <!-- Add Custom Observation Dialog -->
     <q-dialog v-model="showAddCustomDialog">
@@ -101,12 +88,13 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationField from './ObservationField.vue'
+import MedicationField from './MedicationField.vue'
 
 const props = defineProps({
   fieldSet: {
@@ -134,17 +122,14 @@ const props = defineProps({
 const emit = defineEmits(['observation-updated', 'clone-from-previous'])
 
 const $q = useQuasar()
-const dbStore = useDatabaseStore()
+const visitStore = useVisitObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
 
 // State
 const collapsed = ref(false)
-const showCloneDialog = ref(false)
 const showAddCustomDialog = ref(false)
-const selectedPreviousVisit = ref(null)
-const previousVisitObservations = ref([])
 
 const customObservation = ref({
   name: '',
@@ -153,36 +138,86 @@ const customObservation = ref({
   unit: '',
 })
 
-const valueTypeOptions = [
-  { label: 'Text', value: 'T' },
-  { label: 'Numeric', value: 'N' },
-  { label: 'Date', value: 'D' },
-]
+const valueTypeOptions = ref([])
+const removedConcepts = ref(new Set()) // Track concepts removed by user
+
+// Load value type options on mount
+onMounted(async () => {
+  logger.info('ObservationFieldSet mounted', {
+    fieldSetId: props.fieldSet?.id,
+    fieldSetName: props.fieldSet?.name,
+    visitId: props.visit?.id,
+    patientId: props.patient?.id,
+    existingObservationsCount: props.existingObservations?.length || 0,
+    fieldSetConceptsCount: props.fieldSet?.concepts?.length || 0,
+    fieldSetConcepts: props.fieldSet?.concepts,
+  })
+
+  try {
+    valueTypeOptions.value = await globalSettingsStore.getValueTypeOptions()
+    logger.info('Value type options loaded successfully', {
+      optionsCount: valueTypeOptions.value.length,
+    })
+  } catch (error) {
+    logger.error('Failed to load value type options, using fallback', error)
+    // Fallback to basic options if store fails
+    valueTypeOptions.value = [
+      { label: 'Text (T)', value: 'T' },
+      { label: 'Numeric (N)', value: 'N' },
+      { label: 'Date (D)', value: 'D' },
+      { label: 'Selection (S)', value: 'S' },
+      { label: 'Finding (F)', value: 'F' },
+    ]
+  }
+})
 
 // Computed
 const fieldSetConcepts = computed(() => {
-  // Convert field set concepts to detailed concept objects
+  // Convert field set concepts to detailed concept objects, filtering out removed ones
   return (
-    props.fieldSet.concepts?.map((conceptCode) => {
-      const [system, code] = conceptCode.split(':')
-      return {
-        code: conceptCode,
-        system,
-        localCode: code,
-        name: getConceptName(conceptCode),
-        valueType: getConceptValueType(conceptCode),
-        unit: getConceptUnit(conceptCode),
-      }
-    }) || []
+    props.fieldSet.concepts
+      ?.filter((conceptCode) => !removedConcepts.value.has(conceptCode)) // Filter out removed concepts
+      ?.map((conceptCode) => {
+        const [system, code] = conceptCode.split(':')
+        return {
+          code: conceptCode,
+          system,
+          localCode: code,
+          name: getConceptName(conceptCode),
+          valueType: getConceptValueType(conceptCode),
+          unit: getConceptUnit(conceptCode),
+        }
+      }) || []
   )
 })
 
-const previousVisitOptions = computed(() => {
-  return props.previousVisits.map((visit) => ({
-    label: formatVisitDate(visit.date),
-    value: visit,
-    summary: `${visit.type} • ${visit.observationCount} observations`,
-  }))
+const isUncategorized = computed(() => {
+  return props.fieldSet.id === 'uncategorized'
+})
+
+const observationCount = computed(() => {
+  return props.existingObservations?.length || 0
+})
+
+// Medication observations - for medications, we render one field per observation (not per concept)
+const medicationObservations = computed(() => {
+  if (props.fieldSet.id !== 'medications') return []
+
+  logger.debug('Computing medication observations', {
+    fieldSetId: props.fieldSet.id,
+    existingObservationsCount: props.existingObservations?.length || 0,
+    existingObservations: props.existingObservations,
+  })
+
+  // Get all medication observations (both empty and filled)
+  const medObservations = props.existingObservations?.filter((obs) => obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))) || []
+
+  logger.debug('Filtered medication observations', {
+    medicationObservationsCount: medObservations.length,
+    medicationObservations: medObservations,
+  })
+
+  return medObservations
 })
 
 // Methods
@@ -206,16 +241,42 @@ const getConceptName = (conceptCode) => {
     'SNOMED:113011001': 'Palpation',
     'SNOMED:37931006': 'Auscultation',
     'SNOMED:113006009': 'Percussion',
+    // Medication concepts
+    'LID: 52418-1': 'Current Medication',
+    'SNOMED:182836005': 'Medication Review',
+    'SNOMED:432102000': 'Drug Administration',
+    'SNOMED:182840001': 'Medication Discontinued',
+    'MED:PRESCRIPTION': 'New Prescription',
+    'MED:CURRENT': 'Current Medication',
+    'MED:ANALGESIC': 'Pain Medication',
+    'MED:ANTIBIOTIC': 'Antibiotic',
+    'MED:CARDIOVASCULAR': 'Heart Medication',
   }
 
   return conceptNames[conceptCode] || conceptCode.split(':')[1]
 }
 
 const getConceptValueType = (conceptCode) => {
-  // Determine value type based on concept
+  // Simple fallback logic for new concepts (existing observations will use their stored VALTYPE_CD)
   const numericConcepts = ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4', 'LOINC:8310-5', 'LOINC:9279-1', 'LOINC:2708-6']
 
-  return numericConcepts.includes(conceptCode) ? 'N' : 'T'
+  // Medication concepts use the new 'M' type
+  const medicationConcepts = [
+    'LID: 52418-1', // Current medication, Name
+    'SNOMED:182836005', // Review of medication
+    'SNOMED:432102000', // Administration of substance
+    'SNOMED:182840001', // Drug treatment stopped
+    'MED:PRESCRIPTION', // New prescription entry
+    'MED:CURRENT', // Current medication review
+    'MED:ANALGESIC', // Pain medication
+    'MED:ANTIBIOTIC', // Antibiotic prescription
+    'MED:CARDIOVASCULAR', // Heart medication
+  ]
+
+  if (numericConcepts.includes(conceptCode)) return 'N'
+  if (medicationConcepts.includes(conceptCode)) return 'M'
+
+  return 'T'
 }
 
 const getConceptUnit = (conceptCode) => {
@@ -280,55 +341,16 @@ const getPreviousValue = (conceptCode) => {
   return null
 }
 
-const loadPreviousVisitObservations = async () => {
-  if (!selectedPreviousVisit.value?.id) {
-    previousVisitObservations.value = []
-    return
-  }
-
-  try {
-    const query = `
-            SELECT 
-                CONCEPT_CD,
-                CONCEPT_NAME_CHAR as CONCEPT_NAME,
-                VALTYPE_CD,
-                TVAL_CHAR,
-                NVAL_NUM,
-                UNIT_CD,
-                TVAL_RESOLVED
-            FROM patient_observations
-            WHERE ENCOUNTER_NUM = ?
-            ORDER BY CONCEPT_NAME_CHAR
-        `
-
-    const result = await dbStore.executeQuery(query, [selectedPreviousVisit.value.id])
-
-    if (result.success) {
-      previousVisitObservations.value = result.data.map((obs) => ({
-        conceptCode: obs.CONCEPT_CD,
-        conceptName: obs.CONCEPT_NAME,
-        valueType: obs.VALTYPE_CD,
-        value: obs.TVAL_RESOLVED || obs.TVAL_CHAR || obs.NVAL_NUM,
-        unit: obs.UNIT_CD,
-      }))
-    }
-  } catch (error) {
-    logger.error('Failed to load previous visit observations', error)
-  }
-}
-
-const cloneObservation = (observation) => {
-  emit('clone-from-previous', {
-    conceptCode: observation.conceptCode,
-    previousVisitId: selectedPreviousVisit.value.id,
-    value: observation.value,
-    unit: observation.unit,
-  })
-
-  showCloneDialog.value = false
-}
-
 const onObservationUpdated = (data) => {
+  // Handle removal of empty medication fields
+  if (data.remove && data.conceptCode) {
+    removedConcepts.value.add(data.conceptCode)
+    logger.info('Concept removed from UI', {
+      conceptCode: data.conceptCode,
+      fieldSetId: props.fieldSet.id,
+    })
+  }
+
   emit('observation-updated', data)
 }
 
@@ -336,13 +358,73 @@ const onCloneRequested = (data) => {
   emit('clone-from-previous', data)
 }
 
+// Method to restore a removed concept (if needed for "undo" functionality)
+// Currently unused - for future implementation
+// const restoreRemovedConcept = (conceptCode) => {
+//   removedConcepts.value.delete(conceptCode)
+//   logger.info('Concept restored to UI', {
+//     conceptCode,
+//     fieldSetId: props.fieldSet.id,
+//   })
+// }
+
+const addEmptyMedication = async () => {
+  try {
+    // Get default values from global settings
+    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
+    const defaultCategory = 'Medications' // Use the field set name as category
+
+    // Create empty medication observation with LID: 52418-1
+    const observationData = {
+      ENCOUNTER_NUM: props.visit.id,
+      CONCEPT_CD: 'LID: 52418-1', // Use the specific medication concept
+      VALTYPE_CD: 'M', // Medication type
+      TVAL_CHAR: '', // Empty drug name initially
+      NVAL_NUM: null, // No dosage initially
+      UNIT_CD: null, // No unit initially
+      OBSERVATION_BLOB: null, // No complex data initially
+      START_DATE: new Date().toISOString().split('T')[0],
+      CATEGORY_CHAR: defaultCategory,
+      PROVIDER_ID: 'SYSTEM',
+      LOCATION_CD: 'VISITS_PAGE',
+      SOURCESYSTEM_CD: defaultSourceSystem,
+      INSTANCE_NUM: 1,
+      UPLOAD_ID: 1,
+    }
+
+    // Use visit store to create observation - it handles patient lookup and state updates
+    await visitStore.createObservation(observationData)
+
+    // Emit update to refresh the field set
+    emit('observation-updated', {
+      conceptCode: 'LID: 52418-1',
+      value: '',
+      added: true,
+    })
+
+    logger.info('Empty medication added successfully', {
+      conceptCode: 'LID: 52418-1',
+      patientId: props.patient.id,
+      visitId: props.visit.id,
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Empty medication slot added',
+      position: 'top',
+    })
+  } catch (error) {
+    logger.error('Failed to add empty medication', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to add medication',
+      position: 'top',
+    })
+  }
+}
+
 const saveCustomObservation = async () => {
   try {
-    const patientRepo = dbStore.getRepository('patient')
-    const patient = await patientRepo.findByPatientCode(props.patient.id)
-
-    const observationRepo = dbStore.getRepository('observation')
-
     // Generate a custom concept code
     const customConceptCode = `CUSTOM:${Date.now()}`
 
@@ -351,7 +433,6 @@ const saveCustomObservation = async () => {
     const defaultCategory = await globalSettingsStore.getDefaultCategory('GENERAL')
 
     const observationData = {
-      PATIENT_NUM: patient.PATIENT_NUM,
       ENCOUNTER_NUM: props.visit.id,
       CONCEPT_CD: customConceptCode,
       VALTYPE_CD: customObservation.value.valueType,
@@ -374,7 +455,8 @@ const saveCustomObservation = async () => {
       observationData.UNIT_CD = customObservation.value.unit
     }
 
-    await observationRepo.createObservation(observationData)
+    // Use visit store to create observation - it handles patient lookup and state updates
+    await visitStore.createObservation(observationData)
 
     emit('observation-updated', {
       conceptCode: customConceptCode,
@@ -408,23 +490,6 @@ const cancelCustomObservation = () => {
   }
   showAddCustomDialog.value = false
 }
-
-const formatVisitDate = (dateStr) => {
-  if (!dateStr) return 'Unknown'
-  const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
-// Watchers
-watch(selectedPreviousVisit, async (newVisit) => {
-  if (newVisit) {
-    await loadPreviousVisitObservations()
-  }
-})
 </script>
 
 <style lang="scss" scoped>
@@ -442,6 +507,17 @@ watch(selectedPreviousVisit, async (newVisit) => {
   padding: 1.5rem;
   background: $grey-1;
   border-bottom: 1px solid $grey-3;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $grey-2;
+
+    .expand-icon {
+      color: $primary;
+      transform: scale(1.1);
+    }
+  }
 
   .field-set-title {
     font-size: 1.1rem;
@@ -449,11 +525,19 @@ watch(selectedPreviousVisit, async (newVisit) => {
     color: $grey-8;
     display: flex;
     align-items: center;
+
+    .observation-count-badge {
+      font-size: 0.75rem;
+      font-weight: 500;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+    }
   }
 
-  .field-set-actions {
-    display: flex;
-    gap: 0.5rem;
+  .expand-icon {
+    color: $grey-6;
+    transition: all 0.3s ease;
   }
 }
 
@@ -466,6 +550,11 @@ watch(selectedPreviousVisit, async (newVisit) => {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
   margin-bottom: 1.5rem;
+
+  // For medication fields with col-12 class, make them span full width
+  :deep(.medication-field.col-12) {
+    grid-column: 1 / -1;
+  }
 }
 
 .add-custom-observation {
@@ -482,7 +571,7 @@ watch(selectedPreviousVisit, async (newVisit) => {
   }
 }
 
-.rotate-180 {
+.expand-icon.rotate-180 {
   transform: rotate(180deg);
 }
 

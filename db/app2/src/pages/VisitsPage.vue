@@ -49,12 +49,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
 import VisitTimeline from 'src/components/visits/VisitTimeline.vue'
 import VisitDataEntry from 'src/components/visits/VisitDataEntry.vue'
+import { useDatabaseStore } from 'src/stores/database-store'
 
+const route = useRoute()
+const router = useRouter()
 const visitStore = useVisitObservationStore()
 
 // Local state
@@ -67,13 +72,18 @@ const visits = computed(() => visitStore.visits)
 
 // Methods
 const onPatientSelected = async (patient) => {
-  await visitStore.setSelectedPatient(patient)
-  viewMode.value = 'timeline'
+  // PatientSelector already navigates, so we just need to ensure the patient is loaded
+  if (patient.id !== selectedPatient.value?.id) {
+    await visitStore.setSelectedPatient(patient)
+    viewMode.value = 'timeline'
+  }
 }
 
 const deselectPatient = () => {
   visitStore.clearPatient()
   viewMode.value = 'timeline'
+  // Navigate back to visits list
+  router.push('/visits')
 }
 
 const onVisitSelected = async (visit) => {
@@ -91,19 +101,66 @@ const onVisitCreated = async (newVisit) => {
   viewMode.value = 'entry'
 }
 
-// Helper Methods
-const getPatientInitials = (name) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
+// Load patient from route parameter
+const loadPatientFromRoute = async () => {
+  const patientId = route.params.patientId
+  if (patientId && !selectedPatient.value) {
+    try {
+      // Load patient data from database
+      const dbStore = useDatabaseStore()
+      if (dbStore.canPerformOperations) {
+        const patientRepo = dbStore.getRepository('patient')
+        const patient = await patientRepo.findByPatientCode(patientId)
+        
+        if (patient) {
+          const visitPatient = {
+            id: patient.PATIENT_CD,
+            name: getPatientName(patient),
+            age: patient.AGE_IN_YEARS,
+            gender: patient.SEX_RESOLVED || patient.SEX_CD,
+            PATIENT_NUM: patient.PATIENT_NUM,
+          }
+          await visitStore.setSelectedPatient(visitPatient)
+          viewMode.value = 'timeline'
+        } else {
+          // Patient not found, redirect to visits list
+          router.push('/visits')
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load patient from route:', error)
+      router.push('/visits')
+    }
+  }
 }
 
-// Initialize store
-onMounted(() => {
+// Helper method to get patient name
+const getPatientName = (patient) => {
+  if (!patient) return 'Unknown Patient'
+  
+  if (patient.PATIENT_BLOB) {
+    try {
+      const blob = JSON.parse(patient.PATIENT_BLOB)
+      if (blob.name) return blob.name
+      if (blob.firstName && blob.lastName) return `${blob.firstName} ${blob.lastName}`
+    } catch {
+      // Fallback
+    }
+  }
+  return patient.PATIENT_CD || 'Unknown Patient'
+}
+
+// Watch for route changes
+watch(() => route.params.patientId, (newPatientId) => {
+  if (newPatientId && newPatientId !== selectedPatient.value?.id) {
+    loadPatientFromRoute()
+  }
+})
+
+// Initialize store and load patient if route has patientId
+onMounted(async () => {
   visitStore.initialize()
+  await loadPatientFromRoute()
 })
 </script>
 
