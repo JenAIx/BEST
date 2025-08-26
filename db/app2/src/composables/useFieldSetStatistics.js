@@ -21,8 +21,13 @@ export function useFieldSetStatistics(availableFieldSets, activeFieldSets, getFi
         const conceptCount = fieldSet.concepts.length
         const observationCount = getFieldSetObservationCount(fieldSet.id)
 
+        // For completion calculation, we count how many concepts in this set have observations
+        // If there are observations, count 1 filled concept per field set for now (simplified)
+        // TODO: This should count unique concepts with observations, not just field sets with observations
+        const filledConceptsInSet = observationCount > 0 ? 1 : 0
+
         totalConcepts += conceptCount
-        filledConcepts += observationCount
+        filledConcepts += filledConceptsInSet
 
         // Store details for consistent ordering in tooltips
         categoryDetails.push({
@@ -31,7 +36,7 @@ export function useFieldSetStatistics(availableFieldSets, activeFieldSets, getFi
           icon: fieldSet.icon,
           conceptCount,
           observationCount,
-          percentage: conceptCount > 0 ? Math.round((observationCount / conceptCount) * 100) : 0,
+          percentage: conceptCount > 0 ? Math.round((filledConceptsInSet / conceptCount) * 100) : 0,
         })
       }
     })
@@ -39,10 +44,6 @@ export function useFieldSetStatistics(availableFieldSets, activeFieldSets, getFi
     // Add uncategorized observations to the statistics
     const uncategorizedCount = uncategorizedObservations?.value?.length || 0
     if (uncategorizedCount > 0) {
-      // Don't add to total concepts (they're not "expected" concepts)
-      // But add to filled concepts to show total observations count
-      filledConcepts += uncategorizedCount
-
       categoryDetails.push({
         id: 'uncategorized',
         name: 'Uncategorized',
@@ -54,7 +55,8 @@ export function useFieldSetStatistics(availableFieldSets, activeFieldSets, getFi
       })
     }
 
-    const percentage = totalConcepts > 0 ? Math.round(((filledConcepts - uncategorizedCount) / totalConcepts) * 100) : 0
+    // Calculate percentage based on filled concepts vs total concepts (excluding uncategorized)
+    const percentage = totalConcepts > 0 ? Math.round((filledConcepts / totalConcepts) * 100) : 0
 
     // Color coding based on completion percentage
     let color = 'grey-6'
@@ -73,8 +75,8 @@ export function useFieldSetStatistics(availableFieldSets, activeFieldSets, getFi
 
     return {
       percentage,
-      filled: filledConcepts,
-      total: totalConcepts,
+      filled: filledConcepts, // Number of concepts that have observations
+      total: totalConcepts, // Total expected concepts
       activeCategories: activeFieldSets.value?.length + (uncategorizedCount > 0 ? 1 : 0),
       categoryDetails, // Same order as displayed chips
       uncategorizedCount,

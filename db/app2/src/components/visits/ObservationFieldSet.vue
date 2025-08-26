@@ -1,15 +1,16 @@
 <template>
   <div class="field-set-section">
-    <div class="field-set-header">
+    <div class="field-set-header cursor-pointer" @click="collapsed = !collapsed">
       <div class="field-set-title">
         <q-icon :name="fieldSet.icon" size="24px" class="q-mr-sm" />
         {{ fieldSet.name }}
+        <q-badge v-if="collapsed && isUncategorized && observationCount > 0" :label="observationCount" color="grey-6" class="q-ml-sm observation-count-badge">
+          <q-tooltip>{{ observationCount }} uncategorized observation{{ observationCount > 1 ? 's' : '' }}</q-tooltip>
+        </q-badge>
       </div>
-      <div class="field-set-actions">
-        <q-btn flat icon="expand_more" size="sm" @click="collapsed = !collapsed" :class="{ 'rotate-180': !collapsed }">
-          <q-tooltip>{{ collapsed ? 'Expand' : 'Collapse' }}</q-tooltip>
-        </q-btn>
-      </div>
+      <q-icon name="expand_more" size="20px" class="expand-icon" :class="{ 'rotate-180': !collapsed }">
+        <q-tooltip>{{ collapsed ? 'Expand' : 'Collapse' }}</q-tooltip>
+      </q-icon>
     </div>
 
     <q-slide-transition>
@@ -180,6 +181,14 @@ const fieldSetConcepts = computed(() => {
   )
 })
 
+const isUncategorized = computed(() => {
+  return props.fieldSet.id === 'uncategorized'
+})
+
+const observationCount = computed(() => {
+  return props.existingObservations?.length || 0
+})
+
 // Methods
 const getConceptName = (conceptCode) => {
   // Map common concept codes to human-readable names
@@ -337,7 +346,7 @@ const addEmptyMedication = async () => {
 
     // Get default values from global settings
     const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
-    const defaultCategory = await globalSettingsStore.getDefaultCategory('MEDICATION')
+    const defaultCategory = 'Medications' // Use the field set name as category
 
     // Create empty medication observation with LID: 52418-1
     const observationData = {
@@ -477,6 +486,17 @@ const cancelCustomObservation = () => {
   padding: 1.5rem;
   background: $grey-1;
   border-bottom: 1px solid $grey-3;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $grey-2;
+
+    .expand-icon {
+      color: $primary;
+      transform: scale(1.1);
+    }
+  }
 
   .field-set-title {
     font-size: 1.1rem;
@@ -484,11 +504,19 @@ const cancelCustomObservation = () => {
     color: $grey-8;
     display: flex;
     align-items: center;
+
+    .observation-count-badge {
+      font-size: 0.75rem;
+      font-weight: 500;
+      min-width: 18px;
+      height: 18px;
+      border-radius: 9px;
+    }
   }
 
-  .field-set-actions {
-    display: flex;
-    gap: 0.5rem;
+  .expand-icon {
+    color: $grey-6;
+    transition: all 0.3s ease;
   }
 }
 
@@ -517,7 +545,7 @@ const cancelCustomObservation = () => {
   }
 }
 
-.rotate-180 {
+.expand-icon.rotate-180 {
   transform: rotate(180deg);
 }
 

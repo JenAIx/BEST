@@ -72,7 +72,7 @@
           :existing-observations="uncategorizedObservations"
           @observation-updated="onObservationUpdated"
           @clone-from-previous="onCloneFromPrevious"
-          class="uncategorized-fieldset"
+
         />
       </div>
 
@@ -400,41 +400,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 2rem;
-}
-
-.uncategorized-fieldset {
-  border: 2px solid #ff9800;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(255, 152, 0, 0.05), rgba(255, 193, 7, 0.02));
-  position: relative;
-
-  &::before {
-    content: '⚠️ Uncategorized Observations';
-    position: absolute;
-    top: -12px;
-    left: 16px;
-    background: #ff9800;
-    color: white;
-    padding: 4px 12px;
-    border-radius: 12px;
-    font-size: 12px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
-  }
-
-  :deep(.fieldset-header) {
-    border-bottom: 2px solid rgba(255, 152, 0, 0.2);
-
-    .fieldset-title {
-      color: #e65100 !important;
-    }
-
-    .field-set-icon {
-      color: #ff9800 !important;
-    }
-  }
 }
 
 .empty-state,

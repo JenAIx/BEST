@@ -5,8 +5,10 @@
         <h4 class="field-set-title">Observation Categories</h4>
         <q-chip :color="overallStats.color" :text-color="overallStats.textColor" size="md" class="q-ml-md overall-stats-chip" outline>
           <q-icon name="analytics" size="16px" class="q-mr-xs" />
-          {{ overallStats.percentage }}% Complete ({{ overallStats.filled }}/{{ overallStats.total }})
-          <span v-if="overallStats.uncategorizedCount > 0" class="uncategorized-indicator"> + {{ overallStats.uncategorizedCount }} uncategorized </span>
+          {{ overallStats.percentage }}% Complete ({{ overallStats.filled }}/{{ overallStats.total }})<span v-if="overallStats.uncategorizedCount > 0" class="uncategorized-note">
+            (uncategorized {{ overallStats.uncategorizedCount }})</span
+          >
+
           <q-tooltip class="stats-tooltip">
             <div class="stats-details">
               <div class="stats-header">📊 Overall Visit Progress</div>
@@ -239,6 +241,14 @@ const hiddenInactiveFieldSets = computed(() => {
   border: 2px solid currentColor !important;
   min-height: 36px;
 
+  .uncategorized-note {
+    color: $grey-6;
+    font-weight: 500;
+    font-size: 0.85em;
+    opacity: 0.8;
+    margin-left: 4px;
+  }
+
   &:hover {
     transform: scale(1.05);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
@@ -247,15 +257,6 @@ const hiddenInactiveFieldSets = computed(() => {
   // Ensure visibility with strong colors
   &.q-chip--outline {
     background: rgba(255, 255, 255, 0.9) !important;
-  }
-
-  .uncategorized-indicator {
-    color: #ff9800;
-    font-weight: 500;
-    font-size: 0.85em;
-    margin-left: 4px;
-    display: block;
-    opacity: 0.9;
   }
 }
 
