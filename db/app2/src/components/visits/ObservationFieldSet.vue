@@ -90,7 +90,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationField from './ObservationField.vue'
@@ -122,7 +122,7 @@ const props = defineProps({
 const emit = defineEmits(['observation-updated', 'clone-from-previous'])
 
 const $q = useQuasar()
-const dbStore = useDatabaseStore()
+const visitStore = useVisitObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
@@ -143,6 +143,16 @@ const removedConcepts = ref(new Set()) // Track concepts removed by user
 
 // Load value type options on mount
 onMounted(async () => {
+  logger.info('ObservationFieldSet mounted', {
+    fieldSetId: props.fieldSet?.id,
+    fieldSetName: props.fieldSet?.name,
+    visitId: props.visit?.id,
+    patientId: props.patient?.id,
+    existingObservationsCount: props.existingObservations?.length || 0,
+    fieldSetConceptsCount: props.fieldSet?.concepts?.length || 0,
+    fieldSetConcepts: props.fieldSet?.concepts,
+  })
+
   try {
     valueTypeOptions.value = await globalSettingsStore.getValueTypeOptions()
     logger.info('Value type options loaded successfully', {
@@ -196,7 +206,7 @@ const medicationObservations = computed(() => {
   logger.debug('Computing medication observations', {
     fieldSetId: props.fieldSet.id,
     existingObservationsCount: props.existingObservations?.length || 0,
-    existingObservations: props.existingObservations
+    existingObservations: props.existingObservations,
   })
 
   // Get all medication observations (both empty and filled)
@@ -204,7 +214,7 @@ const medicationObservations = computed(() => {
 
   logger.debug('Filtered medication observations', {
     medicationObservationsCount: medObservations.length,
-    medicationObservations: medObservations
+    medicationObservations: medObservations,
   })
 
   return medObservations
@@ -247,7 +257,7 @@ const getConceptName = (conceptCode) => {
 }
 
 const getConceptValueType = (conceptCode) => {
-  // Determine value type based on concept
+  // Simple fallback logic for new concepts (existing observations will use their stored VALTYPE_CD)
   const numericConcepts = ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4', 'LOINC:8310-5', 'LOINC:9279-1', 'LOINC:2708-6']
 
   // Medication concepts use the new 'M' type
@@ -360,18 +370,12 @@ const onCloneRequested = (data) => {
 
 const addEmptyMedication = async () => {
   try {
-    const patientRepo = dbStore.getRepository('patient')
-    const patient = await patientRepo.findByPatientCode(props.patient.id)
-
-    const observationRepo = dbStore.getRepository('observation')
-
     // Get default values from global settings
     const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
     const defaultCategory = 'Medications' // Use the field set name as category
 
     // Create empty medication observation with LID: 52418-1
     const observationData = {
-      PATIENT_NUM: patient.PATIENT_NUM,
       ENCOUNTER_NUM: props.visit.id,
       CONCEPT_CD: 'LID: 52418-1', // Use the specific medication concept
       VALTYPE_CD: 'M', // Medication type
@@ -388,7 +392,8 @@ const addEmptyMedication = async () => {
       UPLOAD_ID: 1,
     }
 
-    await observationRepo.createObservation(observationData)
+    // Use visit store to create observation - it handles patient lookup and state updates
+    await visitStore.createObservation(observationData)
 
     // Emit update to refresh the field set
     emit('observation-updated', {
@@ -420,11 +425,6 @@ const addEmptyMedication = async () => {
 
 const saveCustomObservation = async () => {
   try {
-    const patientRepo = dbStore.getRepository('patient')
-    const patient = await patientRepo.findByPatientCode(props.patient.id)
-
-    const observationRepo = dbStore.getRepository('observation')
-
     // Generate a custom concept code
     const customConceptCode = `CUSTOM:${Date.now()}`
 
@@ -433,7 +433,6 @@ const saveCustomObservation = async () => {
     const defaultCategory = await globalSettingsStore.getDefaultCategory('GENERAL')
 
     const observationData = {
-      PATIENT_NUM: patient.PATIENT_NUM,
       ENCOUNTER_NUM: props.visit.id,
       CONCEPT_CD: customConceptCode,
       VALTYPE_CD: customObservation.value.valueType,
@@ -456,7 +455,8 @@ const saveCustomObservation = async () => {
       observationData.UNIT_CD = customObservation.value.unit
     }
 
-    await observationRepo.createObservation(observationData)
+    // Use visit store to create observation - it handles patient lookup and state updates
+    await visitStore.createObservation(observationData)
 
     emit('observation-updated', {
       conceptCode: customConceptCode,

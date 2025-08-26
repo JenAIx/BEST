@@ -256,6 +256,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
                   processedObs.displayValue = processedObs.fileInfo.filename || 'File attached'
                 }
               } catch {
+                // JSON parse error - intentionally ignored
                 processedObs.displayValue = 'Invalid file data'
               }
               break
@@ -550,6 +551,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
                   processedObs.displayValue = processedObs.fileInfo.filename || 'File attached'
                 }
               } catch {
+                // JSON parse error - intentionally ignored
                 processedObs.displayValue = 'Invalid file data'
               }
               break
@@ -579,13 +581,21 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
   // Actions - Observation Management
   const updateObservation = async (observationId, updateData) => {
     try {
-      logger.info('Updating observation', { observationId })
+      logger.info('Updating observation', {
+        observationId,
+        updateData,
+        selectedVisitId: selectedVisit.value?.id,
+        selectedPatientId: selectedPatient.value?.id,
+      })
 
       const observationRepo = dbStore.getRepository('observation')
-      await observationRepo.updateObservation(observationId, updateData)
+      const result = await observationRepo.updateObservation(observationId, updateData)
+
+      logger.debug('Database update completed', { observationId, result })
 
       // Reload observations for current visit
       if (selectedVisit.value) {
+        logger.debug('Reloading observations for current visit', { visitId: selectedVisit.value.id })
         await loadObservationsForVisit(selectedVisit.value)
       }
 
@@ -594,23 +604,98 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         const patientRepo = dbStore.getRepository('patient')
         const patientData = await patientRepo.findByPatientCode(selectedPatient.value.id)
         if (patientData) {
+          logger.debug('Reloading all observations for patient', { patientNum: patientData.PATIENT_NUM })
           await loadAllObservationsForPatient(patientData.PATIENT_NUM)
         }
       }
 
       logger.success('Observation updated successfully', { observationId })
+      return result
     } catch (err) {
-      logger.error('Failed to update observation', err)
+      logger.error('Failed to update observation', err, { observationId, updateData })
       throw err
     }
   }
 
   const createObservation = async (observationData) => {
     try {
-      logger.info('Creating observation', { visitId: selectedVisit.value?.id })
+      logger.info('Creating observation', {
+        visitId: selectedVisit.value?.id,
+        conceptCode: observationData.CONCEPT_CD,
+        valueType: observationData.VALTYPE_CD,
+        selectedPatientId: selectedPatient.value?.id,
+      })
+
+      // Ensure we have patient data for the observation
+      if (!observationData.PATIENT_NUM && selectedPatient.value) {
+        logger.debug('Looking up patient data for observation')
+        const patientRepo = dbStore.getRepository('patient')
+        const patientData = await patientRepo.findByPatientCode(selectedPatient.value.id)
+        if (patientData) {
+          observationData.PATIENT_NUM = patientData.PATIENT_NUM
+          logger.debug('Patient data found', { patientNum: patientData.PATIENT_NUM })
+        } else {
+          logger.warn('Patient data not found', { patientId: selectedPatient.value.id })
+        }
+      }
+
+      logger.debug('Final observation data for creation', observationData)
 
       const observationRepo = dbStore.getRepository('observation')
       const newObservation = await observationRepo.createObservation(observationData)
+
+      logger.debug('Database create completed', {
+        newObservationId: newObservation?.OBSERVATION_ID,
+        newObservation,
+      })
+
+      // Reload observations for current visit
+      if (selectedVisit.value) {
+        logger.debug('Reloading observations for current visit', { visitId: selectedVisit.value.id })
+        await loadObservationsForVisit(selectedVisit.value)
+
+        // Update visit observation count
+        const visitIndex = visits.value.findIndex((v) => v.id === selectedVisit.value.id)
+        if (visitIndex !== -1) {
+          visits.value[visitIndex].observationCount = observations.value.length
+          logger.debug('Updated visit observation count', {
+            visitId: selectedVisit.value.id,
+            newCount: observations.value.length,
+          })
+        }
+      }
+
+      // Also reload all observations for the patient
+      if (selectedPatient.value) {
+        const patientRepo = dbStore.getRepository('patient')
+        const patientData = await patientRepo.findByPatientCode(selectedPatient.value.id)
+        if (patientData) {
+          logger.debug('Reloading all observations for patient', { patientNum: patientData.PATIENT_NUM })
+          await loadAllObservationsForPatient(patientData.PATIENT_NUM)
+        }
+      }
+
+      logger.success('Observation created successfully', {
+        observationId: newObservation?.OBSERVATION_ID,
+        conceptCode: observationData.CONCEPT_CD,
+      })
+      return newObservation
+    } catch (err) {
+      logger.error('Failed to create observation', err, {
+        observationData,
+        selectedVisitId: selectedVisit.value?.id,
+        selectedPatientId: selectedPatient.value?.id,
+      })
+      throw err
+    }
+  }
+
+  const deleteObservation = async (observationId) => {
+    try {
+      logger.info('Deleting observation', { observationId })
+
+      const observationRepo = dbStore.getRepository('observation')
+      await observationRepo.delete(observationId)
 
       // Reload observations for current visit
       if (selectedVisit.value) {
@@ -632,10 +717,9 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         }
       }
 
-      logger.success('Observation created successfully')
-      return newObservation
+      logger.success('Observation deleted successfully', { observationId })
     } catch (err) {
-      logger.error('Failed to create observation', err)
+      logger.error('Failed to delete observation', err)
       throw err
     }
   }
@@ -772,6 +856,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
     loadAllObservationsForPatient,
     updateObservation,
     createObservation,
+    deleteObservation,
 
     // Helper Functions
     formatVisitDate,

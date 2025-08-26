@@ -14,36 +14,27 @@
         </q-icon>
       </div>
       <div class="field-actions">
-        <!-- Normal Clear Button -->
-        <q-btn v-if="hasValue && !showClearConfirmation" flat round icon="clear" size="sm" color="grey-6" @click="showClearConfirmation = true">
-          <q-tooltip>Clear value</q-tooltip>
-        </q-btn>
-
-        <!-- Clear Confirmation Buttons -->
-        <div v-if="showClearConfirmation" class="clear-confirmation">
-          <q-btn flat round icon="check" size="sm" color="negative" @click="confirmClear" class="confirm-clear-btn">
-            <q-tooltip>Confirm clear value</q-tooltip>
+        <!-- Save/Cancel Buttons (shown when there are pending changes) -->
+        <div v-if="hasPendingChanges" class="save-cancel-buttons">
+          <q-btn flat round icon="close" size="sm" color="grey-6" @click="cancelChanges" class="cancel-btn">
+            <q-tooltip>Cancel changes</q-tooltip>
           </q-btn>
-          <q-btn flat round icon="close" size="sm" color="grey-6" @click="cancelClear" class="cancel-clear-btn">
-            <q-tooltip>Cancel</q-tooltip>
+          <q-btn flat round icon="save" size="sm" color="primary" @click="saveChanges" :loading="saving" class="save-btn">
+            <q-tooltip>Save changes</q-tooltip>
           </q-btn>
         </div>
+
+        <!-- Clear Button (shown when there's a value but no pending changes) -->
+        <q-btn v-else-if="hasValue" flat round icon="clear" size="sm" color="grey-6" @click="clearValue">
+          <q-tooltip>Clear value</q-tooltip>
+        </q-btn>
       </div>
     </div>
 
     <div class="field-input">
       <!-- Numeric Input -->
-      <div v-if="concept.valueType === 'N'" class="numeric-input">
-        <q-input
-          v-model.number="currentValue"
-          type="number"
-          :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`"
-          outlined
-          dense
-          :suffix="concept.unit"
-          @update:model-value="onValueChange"
-          :loading="saving"
-        >
+      <div v-if="actualValueType === 'N'" class="numeric-input">
+        <q-input v-model.number="currentValue" type="number" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :suffix="concept.unit" :loading="saving">
           <template v-slot:prepend>
             <q-icon name="tag" />
           </template>
@@ -51,8 +42,8 @@
       </div>
 
       <!-- Text Input -->
-      <div v-else-if="concept.valueType === 'T'" class="text-input">
-        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense @update:model-value="onValueChange" :loading="saving">
+      <div v-else-if="actualValueType === 'T'" class="text-input">
+        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :loading="saving">
           <template v-slot:prepend>
             <q-icon name="text_fields" />
           </template>
@@ -60,8 +51,8 @@
       </div>
 
       <!-- Date Input -->
-      <div v-else-if="concept.valueType === 'D'" class="date-input">
-        <q-input v-model="currentValue" type="date" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense @update:model-value="onValueChange" :loading="saving">
+      <div v-else-if="actualValueType === 'D'" class="date-input">
+        <q-input v-model="currentValue" type="date" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :loading="saving">
           <template v-slot:prepend>
             <q-icon name="event" />
           </template>
@@ -69,18 +60,8 @@
       </div>
 
       <!-- Selection Input (for coded values) -->
-      <div v-else-if="concept.valueType === 'S'" class="selection-input">
-        <q-select
-          v-model="currentValue"
-          :options="selectionOptions"
-          :label="`Select ${(resolvedConceptName || concept.name).toLowerCase()}`"
-          outlined
-          dense
-          emit-value
-          map-options
-          @update:model-value="onValueChange"
-          :loading="saving"
-        >
+      <div v-else-if="actualValueType === 'S'" class="selection-input">
+        <q-select v-model="currentValue" :options="selectionOptions" :label="`Select ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense emit-value map-options :loading="saving">
           <template v-slot:prepend>
             <q-icon name="list" />
           </template>
@@ -88,31 +69,53 @@
       </div>
 
       <!-- Finding Input (for clinical findings) -->
-      <div v-else-if="concept.valueType === 'F'" class="finding-input">
-        <q-select
-          v-model="currentValue"
-          :options="selectionOptions"
-          :label="`Assess ${(resolvedConceptName || concept.name).toLowerCase()}`"
-          outlined
-          dense
-          emit-value
-          map-options
-          @update:model-value="onValueChange"
-          :loading="saving"
-        >
+      <div v-else-if="actualValueType === 'F'" class="finding-input">
+        <q-select v-model="currentValue" :options="selectionOptions" :label="`Assess ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense emit-value map-options :loading="saving">
           <template v-slot:prepend>
             <q-icon name="medical_information" />
           </template>
         </q-select>
+      </div>
+
+      <!-- Answer Input (for questionnaire answers) -->
+      <div v-else-if="actualValueType === 'A'" class="answer-input">
+        <q-select v-model="currentValue" :options="selectionOptions" :label="`Answer ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense emit-value map-options :loading="saving">
+          <template v-slot:prepend>
+            <q-icon name="quiz" />
+          </template>
+        </q-select>
+      </div>
+
+      <!-- Raw Input (for raw data/files) -->
+      <div v-else-if="actualValueType === 'R'" class="raw-input">
+        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense type="textarea" rows="3" :loading="saving">
+          <template v-slot:prepend>
+            <q-icon name="description" />
+          </template>
+        </q-input>
+      </div>
+
+      <!-- Default/Unknown Input -->
+      <div v-else class="default-input">
+        <q-input v-model="currentValue" :label="`Enter ${(resolvedConceptName || concept.name).toLowerCase()}`" outlined dense :loading="saving">
+          <template v-slot:prepend>
+            <q-icon name="help" />
+          </template>
+        </q-input>
+        <div class="unknown-type-warning">
+          <q-icon name="warning" color="orange" size="16px" class="q-mr-xs" />
+          <span class="text-caption text-orange">Unknown value type: {{ actualValueType }}</span>
+        </div>
       </div>
     </div>
 
     <!-- Value Status -->
     <div class="field-status">
       <div v-if="hasValue" class="current-value">
-        <q-icon name="check_circle" color="positive" size="16px" class="q-mr-xs" />
+        <q-icon :name="hasPendingChanges ? 'schedule' : 'check_circle'" :color="hasPendingChanges ? 'warning' : 'positive'" size="16px" class="q-mr-xs" />
         <span class="value-text">{{ displayValue }}</span>
-        <span v-if="lastUpdated" class="last-updated"> Updated {{ formatRelativeTime(lastUpdated) }} </span>
+        <span v-if="hasPendingChanges" class="pending-changes"> (unsaved changes) </span>
+        <span v-else-if="lastUpdated" class="last-updated"> Updated {{ formatRelativeTime(lastUpdated) }} </span>
       </div>
       <div v-else class="no-value">
         <q-icon name="radio_button_unchecked" color="grey-4" size="16px" class="q-mr-xs" />
@@ -159,9 +162,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -192,7 +195,7 @@ const props = defineProps({
 const emit = defineEmits(['observation-updated', 'clone-requested'])
 
 const $q = useQuasar()
-const dbStore = useDatabaseStore()
+const visitStore = useVisitObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
@@ -205,17 +208,24 @@ const lastUpdated = ref(null)
 const resolvedConceptName = ref(null)
 const selectionOptions = ref([])
 const showClonePreview = ref(false)
-const showClearConfirmation = ref(false)
+
+const hasPendingChanges = ref(false)
+const saveTimeout = ref(null)
 
 // Computed
 const hasValue = computed(() => {
   return currentValue.value !== '' && currentValue.value !== null && currentValue.value !== undefined
 })
 
+// Get the actual value type - use existing observation's VALTYPE_CD if available, otherwise use concept default
+const actualValueType = computed(() => {
+  return props.existingObservation?.valueType || props.existingObservation?.valTypeCode || props.concept.valueType
+})
+
 const displayValue = computed(() => {
   if (!hasValue.value) return ''
 
-  if (props.concept.valueType === 'N' && props.concept.unit) {
+  if (actualValueType.value === 'N' && props.concept.unit) {
     return `${currentValue.value} ${props.concept.unit}`
   }
 
@@ -223,30 +233,69 @@ const displayValue = computed(() => {
 })
 
 // Methods
-const onValueChange = async (newValue) => {
-  if (newValue === currentValue.value) return
+const saveObservation = async (value) => {
+  if (saving.value) {
+    logger.warn('Save already in progress, skipping concurrent save', {
+      conceptCode: props.concept.code,
+      value,
+    })
+    return // Prevent concurrent saves
+  }
+
+  logger.info('Starting save observation', {
+    conceptCode: props.concept.code,
+    value,
+    hasExistingObservation: !!props.existingObservation,
+    existingObservationId: props.existingObservation?.observationId,
+    visitId: props.visit?.id,
+    patientId: props.patient?.id,
+  })
 
   try {
     saving.value = true
+    hasPendingChanges.value = false
 
-    if (props.existingObservation) {
-      // Update existing observation
-      await updateObservation(newValue)
+    if (props.existingObservation && props.existingObservation.observationId) {
+      // Update existing observation using OBSERVATION_ID
+      logger.debug('Updating existing observation via store', {
+        observationId: props.existingObservation.observationId,
+        conceptCode: props.concept.code,
+        newValue: value,
+      })
+      await updateObservation(value)
     } else {
-      // Create new observation
-      await createObservation(newValue)
+      // Create new observation (no OBSERVATION_ID available)
+      logger.debug('Creating new observation via store', {
+        conceptCode: props.concept.code,
+        value,
+        visitId: props.visit.id,
+        hasExistingObservation: !!props.existingObservation,
+        existingObservationId: props.existingObservation?.observationId,
+      })
+      await createObservation(value)
     }
 
     lastUpdated.value = new Date()
 
+    logger.success('Observation saved successfully', {
+      conceptCode: props.concept.code,
+      value,
+      observationId: props.existingObservation?.observationId,
+    })
+
     emit('observation-updated', {
       conceptCode: props.concept.code,
-      value: newValue,
+      value: value,
       unit: props.concept.unit,
       observationId: props.existingObservation?.observationId,
     })
   } catch (error) {
-    logger.error('Failed to save observation', error)
+    logger.error('Failed to save observation', error, {
+      conceptCode: props.concept.code,
+      value,
+      visitId: props.visit?.id,
+      patientId: props.patient?.id,
+    })
     $q.notify({
       type: 'negative',
       message: 'Failed to save observation',
@@ -255,26 +304,72 @@ const onValueChange = async (newValue) => {
 
     // Revert value on error
     currentValue.value = props.existingObservation?.originalValue || props.existingObservation?.value || ''
+    hasPendingChanges.value = false
   } finally {
     saving.value = false
+    logger.debug('Save operation completed', {
+      conceptCode: props.concept.code,
+      saving: saving.value,
+      hasPendingChanges: hasPendingChanges.value,
+    })
   }
 }
 
-const createObservation = async (value) => {
-  const patientRepo = dbStore.getRepository('patient')
-  const patient = await patientRepo.findByPatientCode(props.patient.id)
+// Handle value changes without immediate saving for text/numeric inputs
+const onValueChange = (newValue) => {
+  const originalValue = props.existingObservation?.originalValue || props.existingObservation?.value || ''
 
-  const observationRepo = dbStore.getRepository('observation')
+  console.log('🔍 ObservationField onValueChange triggered!', {
+    conceptCode: props.concept.code,
+    newValue,
+    originalValue,
+    valueType: props.concept.valueType,
+    isDifferentFromOriginal: newValue !== originalValue,
+  })
+
+  logger.debug('Value change detected', {
+    conceptCode: props.concept.code,
+    newValue,
+    originalValue,
+    valueType: props.concept.valueType,
+  })
+
+  // Check if the new value is different from the original/saved value
+  if (newValue === originalValue) {
+    console.log('🔄 Value matches original, no pending changes')
+    hasPendingChanges.value = false
+    return
+  }
+
+  hasPendingChanges.value = true
+  console.log('✅ Set hasPendingChanges to true!', {
+    conceptCode: props.concept.code,
+    hasPendingChanges: hasPendingChanges.value,
+  })
+
+  logger.debug('Marked as having pending changes', {
+    conceptCode: props.concept.code,
+    hasPendingChanges: hasPendingChanges.value,
+  })
+}
+
+const createObservation = async (value) => {
+  logger.debug('Creating observation - preparing data', {
+    conceptCode: props.concept.code,
+    value,
+    visitId: props.visit.id,
+    valueType: props.concept.valueType,
+  })
 
   // Get default values from global settings
   const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
   const defaultCategory = await globalSettingsStore.getDefaultCategory('CLINICAL')
 
+  const valueType = actualValueType.value
   const observationData = {
-    PATIENT_NUM: patient.PATIENT_NUM,
     ENCOUNTER_NUM: props.visit.id,
     CONCEPT_CD: props.concept.code,
-    VALTYPE_CD: props.concept.valueType,
+    VALTYPE_CD: valueType,
     START_DATE: new Date().toISOString().split('T')[0],
     CATEGORY_CHAR: defaultCategory,
     PROVIDER_ID: 'SYSTEM',
@@ -284,52 +379,81 @@ const createObservation = async (value) => {
     UPLOAD_ID: 1,
   }
 
-  if (props.concept.valueType === 'N') {
+  // Save numeric values to NVAL_NUM, all others to TVAL_CHAR
+  if (valueType === 'N') {
     observationData.NVAL_NUM = parseFloat(value)
+    observationData.TVAL_CHAR = null // Explicitly clear text value
   } else {
+    // T (text), D (date), R (raw), S (selection), A (answer), F (finding) all go to TVAL_CHAR
     observationData.TVAL_CHAR = String(value)
+    observationData.NVAL_NUM = null // Explicitly clear numeric value
   }
 
   if (props.concept.unit) {
     observationData.UNIT_CD = props.concept.unit
   }
 
-  await observationRepo.createObservation(observationData)
+  logger.debug('Calling visitStore.createObservation', {
+    observationData,
+    storeSelectedVisit: visitStore.selectedVisit?.id,
+    storeSelectedPatient: visitStore.selectedPatient?.id,
+  })
+
+  // Use visit store to create observation - it handles patient lookup and state updates
+  const result = await visitStore.createObservation(observationData)
+
+  logger.debug('visitStore.createObservation completed', {
+    conceptCode: props.concept.code,
+    result,
+  })
+
+  return result
 }
 
 const updateObservation = async (value) => {
+  logger.debug('Updating observation - preparing data', {
+    conceptCode: props.concept.code,
+    observationId: props.existingObservation.observationId,
+    value,
+    valueType: props.concept.valueType,
+  })
+
   const updateData = {}
 
-  if (props.concept.valueType === 'N') {
+  // Update numeric values to NVAL_NUM, all others to TVAL_CHAR
+  const valueType = actualValueType.value
+  if (valueType === 'N') {
     updateData.NVAL_NUM = parseFloat(value)
-    updateData.TVAL_CHAR = null // Clear text value
+    updateData.TVAL_CHAR = null // Explicitly clear text value
   } else {
+    // T (text), D (date), R (raw), S (selection), A (answer), F (finding) all go to TVAL_CHAR
     updateData.TVAL_CHAR = String(value)
-    updateData.NVAL_NUM = null // Clear numeric value
+    updateData.NVAL_NUM = null // Explicitly clear numeric value
   }
 
-  const updateQuery = `
-        UPDATE OBSERVATION_FACT 
-        SET TVAL_CHAR = ?, NVAL_NUM = ?, UPDATE_DATE = datetime('now')
-        WHERE OBSERVATION_ID = ?
-    `
+  logger.debug('Calling visitStore.updateObservation', {
+    observationId: props.existingObservation.observationId,
+    updateData,
+    storeSelectedVisit: visitStore.selectedVisit?.id,
+    storeSelectedPatient: visitStore.selectedPatient?.id,
+  })
 
-  const result = await dbStore.executeQuery(updateQuery, [updateData.TVAL_CHAR, updateData.NVAL_NUM, props.existingObservation.observationId])
+  // Use visit store to update observation - it handles state updates
+  const result = await visitStore.updateObservation(props.existingObservation.observationId, updateData)
 
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to update observation')
-  }
+  logger.debug('visitStore.updateObservation completed', {
+    conceptCode: props.concept.code,
+    observationId: props.existingObservation.observationId,
+    result,
+  })
+
+  return result
 }
 
 const clearValue = async () => {
   if (props.existingObservation) {
-    // Delete existing observation
-    const deleteQuery = `DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?`
-    const result = await dbStore.executeQuery(deleteQuery, [props.existingObservation.observationId])
-
-    if (!result.success) {
-      throw new Error('Failed to delete observation')
-    }
+    // Use visit store to delete observation - it handles state updates
+    await visitStore.deleteObservation(props.existingObservation.observationId)
   }
 
   currentValue.value = ''
@@ -348,36 +472,51 @@ const clearValue = async () => {
   })
 }
 
-const cloneFromPrevious = () => {
+const cloneFromPrevious = async () => {
   if (props.previousValue) {
     currentValue.value = props.previousValue.value
-    onValueChange(props.previousValue.value)
+    hasPendingChanges.value = true
   }
 }
 
-const confirmClear = async () => {
-  await clearValue()
-  showClearConfirmation.value = false
+const saveChanges = async () => {
+  logger.info('Save button clicked', {
+    conceptCode: props.concept.code,
+    value: currentValue.value,
+    hasExistingObservation: !!props.existingObservation,
+  })
+
+  if (!currentValue.value && currentValue.value !== 0) {
+    logger.warn('No value to save, cancelling', { conceptCode: props.concept.code })
+    cancelChanges()
+    return
+  }
+
+  await saveObservation(currentValue.value)
 }
 
-const cancelClear = () => {
-  showClearConfirmation.value = false
-}
+const cancelChanges = () => {
+  logger.debug('Cancel button clicked', {
+    conceptCode: props.concept.code,
+    currentValue: currentValue.value,
+    originalValue: props.existingObservation?.originalValue || props.existingObservation?.value,
+  })
 
-// Auto-hide clear confirmation after 5 seconds for safety
-watch(
-  () => showClearConfirmation.value,
-  (newValue) => {
-    if (newValue) {
-      setTimeout(() => {
-        if (showClearConfirmation.value) {
-          showClearConfirmation.value = false
-          logger.debug('Auto-cancelled clear confirmation after timeout')
-        }
-      }, 5000) // 5 seconds timeout
-    }
-  },
-)
+  // Revert to original value
+  if (props.existingObservation) {
+    currentValue.value = props.existingObservation.originalValue || props.existingObservation.value || ''
+  } else {
+    currentValue.value = ''
+  }
+
+  hasPendingChanges.value = false
+
+  // Clear any pending timeouts
+  if (saveTimeout.value) {
+    clearTimeout(saveTimeout.value)
+    saveTimeout.value = null
+  }
+}
 
 // Selection options are now loaded dynamically from concept resolution store
 // See loadSelectionOptions() function and selectionOptions reactive ref
@@ -454,24 +593,54 @@ const formatVisitDate = (date) => {
 
 // Initialize value from existing observation and resolve concept
 onMounted(async () => {
-  logger.debug('ObservationField mounted', {
+  console.log('🚀 ObservationField mounted!', {
     conceptCode: props.concept.code,
+    conceptName: props.concept.name,
+    conceptValueType: props.concept.valueType,
+    actualValueType: actualValueType.value,
+    existingObservationValueType: props.existingObservation?.valueType,
+    existingObservationValTypeCode: props.existingObservation?.valTypeCode,
+  })
+
+  logger.info('ObservationField mounted', {
+    conceptCode: props.concept.code,
+    conceptName: props.concept.name,
+    conceptValueType: props.concept.valueType,
+    actualValueType: actualValueType.value,
     hasExistingObservation: !!props.existingObservation,
+    existingObservationId: props.existingObservation?.observationId,
+    existingValue: props.existingObservation?.originalValue || props.existingObservation?.value,
+    visitId: props.visit?.id,
+    patientId: props.patient?.id,
+    storeSelectedVisit: visitStore.selectedVisit?.id,
+    storeSelectedPatient: visitStore.selectedPatient?.id,
   })
 
   // Resolve concept name
   await resolveConceptName()
 
   // Load selection options for selection/finding type fields
-  if (props.concept.valueType === 'S' || props.concept.valueType === 'F') {
+  const valueType = actualValueType.value
+  if (valueType === 'S' || valueType === 'F' || valueType === 'A') {
     await loadSelectionOptions()
   }
 
   // Initialize value from existing observation
   if (props.existingObservation) {
     // Use originalValue from the store structure
-    currentValue.value = props.existingObservation.originalValue || props.existingObservation.value || ''
+    const initialValue = props.existingObservation.originalValue || props.existingObservation.value || ''
+    currentValue.value = initialValue
     lastUpdated.value = new Date(props.existingObservation.date)
+
+    logger.debug('Initialized with existing observation value', {
+      conceptCode: props.concept.code,
+      initialValue,
+      lastUpdated: lastUpdated.value,
+    })
+  } else {
+    logger.debug('No existing observation, starting with empty value', {
+      conceptCode: props.concept.code,
+    })
   }
 })
 
@@ -504,6 +673,9 @@ const loadSelectionOptions = async () => {
     } else if (props.concept.valueType === 'F') {
       // For finding type, get finding-specific options
       selectionOptions.value = await conceptStore.getFindingOptions(props.concept.code)
+    } else if (props.concept.valueType === 'A') {
+      // For answer type, get answer-specific options
+      selectionOptions.value = await conceptStore.getAnswerOptions(props.concept.code)
     }
 
     logger.debug('Selection options loaded', {
@@ -519,6 +691,23 @@ const loadSelectionOptions = async () => {
     ]
   }
 }
+
+// Watch for changes in currentValue to detect user input
+watch(
+  () => currentValue.value,
+  (newValue, oldValue) => {
+    // Don't trigger on initial mount or when we're programmatically setting the value
+    if (oldValue !== undefined && newValue !== oldValue) {
+      console.log('🔍 currentValue watcher triggered!', {
+        conceptCode: props.concept.code,
+        oldValue,
+        newValue,
+        valueType: props.concept.valueType,
+      })
+      onValueChange(newValue)
+    }
+  },
+)
 
 // Watch for changes in existing observation
 watch(
@@ -537,15 +726,12 @@ watch(
   },
 )
 
-// Hide clear confirmation when value changes (typing while confirmation is shown)
-watch(
-  () => currentValue.value,
-  () => {
-    if (showClearConfirmation.value) {
-      showClearConfirmation.value = false
-    }
-  },
-)
+// Cleanup timeout on unmount
+onUnmounted(() => {
+  if (saveTimeout.value) {
+    clearTimeout(saveTimeout.value)
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -587,27 +773,27 @@ watch(
     align-items: center;
     gap: 0.25rem;
 
-    .clear-confirmation {
+    .save-cancel-buttons {
       display: flex;
       gap: 0.25rem;
       padding: 2px;
-      background: rgba($negative, 0.1);
+      background: rgba($primary, 0.1);
       border-radius: 20px;
-      border: 1px solid rgba($negative, 0.2);
+      border: 1px solid rgba($primary, 0.2);
       animation: slideIn 0.3s ease;
 
-      .confirm-clear-btn {
-        background: rgba($negative, 0.1);
+      .save-btn {
+        background: rgba($primary, 0.1);
         transition: all 0.2s ease;
 
         &:hover {
-          background: $negative;
+          background: $primary;
           color: white;
           transform: scale(1.1);
         }
       }
 
-      .cancel-clear-btn {
+      .cancel-btn {
         transition: all 0.2s ease;
 
         &:hover {
@@ -624,6 +810,16 @@ watch(
 
   .numeric-input {
     position: relative;
+  }
+
+  .unknown-type-warning {
+    display: flex;
+    align-items: center;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: rgba($orange, 0.1);
+    border-radius: 4px;
+    border-left: 3px solid $orange;
   }
 }
 
@@ -644,6 +840,13 @@ watch(
     .last-updated {
       color: $grey-6;
       font-size: 0.75rem;
+    }
+
+    .pending-changes {
+      color: $warning;
+      font-size: 0.75rem;
+      font-style: italic;
+      animation: pulse 2s infinite;
     }
   }
 
@@ -773,6 +976,18 @@ watch(
   to {
     opacity: 1;
     transform: translateX(0) scale(1);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+  100% {
+    opacity: 1;
   }
 }
 </style>

@@ -181,7 +181,13 @@ const getFieldSetObservations = (fieldSetId) => {
   }
 
   const observations = visitStore.getFieldSetObservations(fieldSetId, availableFieldSets.value)
-  logger.debug(`getFieldSetObservations for ${fieldSetId}`, { fieldSetId, observationCount: observations.length })
+  logger.debug(`getFieldSetObservations for ${fieldSetId}`, {
+    fieldSetId,
+    observationCount: observations.length,
+    selectedVisitId: selectedVisit.value?.id,
+    storeObservationsCount: visitStore.observations.length,
+    availableFieldSetsCount: availableFieldSets.value.length,
+  })
   return observations
 }
 
@@ -201,7 +207,14 @@ const { overallStats } = useFieldSetStatistics(availableFieldSets, activeFieldSe
 
 // Field set organization for better UX
 const activeFieldSetsList = computed(() => {
-  return availableFieldSets.value.filter((fs) => activeFieldSets.value.includes(fs.id))
+  const result = availableFieldSets.value.filter((fs) => activeFieldSets.value.includes(fs.id))
+  logger.debug('activeFieldSetsList computed', {
+    availableFieldSetsCount: availableFieldSets.value.length,
+    activeFieldSetsIds: activeFieldSets.value,
+    filteredFieldSetsCount: result.length,
+    filteredFieldSets: result.map((fs) => ({ id: fs.id, name: fs.name })),
+  })
+  return result
 })
 
 // Methods
@@ -289,11 +302,14 @@ const onVisitCreated = (newVisit) => {
 }
 
 const onObservationUpdated = async (data) => {
-  logger.info('Observation updated', { conceptCode: data.conceptCode, value: data.value })
-  // Store handles reloading observations
-  if (visitStore.selectedVisit) {
-    await visitStore.loadObservationsForVisit(visitStore.selectedVisit)
-  }
+  logger.info('VisitDataEntry: Observation updated event received', {
+    conceptCode: data.conceptCode,
+    value: data.value,
+    selectedVisitId: selectedVisit.value?.id,
+    activeFieldSetsCount: activeFieldSets.value.length,
+  })
+  // Store already handles reloading observations internally during CRUD operations
+  // No need to manually reload here
 }
 
 const onCloneFromPrevious = async (data) => {
@@ -351,7 +367,11 @@ watch(
 
 // Lifecycle
 onMounted(async () => {
-  logger.debug('VisitDataEntry mounted', { activeFieldSets: activeFieldSets.value })
+  logger.info('VisitDataEntry mounted', {
+    activeFieldSets: activeFieldSets.value,
+    patientId: props.patient?.id,
+    initialVisitId: props.initialVisit?.id,
+  })
 
   // Load field sets from global settings
   await loadFieldSets()
@@ -363,9 +383,11 @@ onMounted(async () => {
     activeFieldSets.value = savedActiveFieldSets
   }
 
-  logger.debug('Field sets configuration loaded', {
+  logger.info('Field sets configuration loaded', {
     finalActiveFieldSets: activeFieldSets.value,
     availableFieldSets: availableFieldSets.value.map((fs) => fs.id),
+    selectedVisitId: selectedVisit.value?.id,
+    visitOptionsCount: visitOptions.value.length,
   })
 
   // Field sets are now ready for use
@@ -376,6 +398,16 @@ onMounted(async () => {
     const mostRecentVisit = visitOptions.value[0].value
     await visitStore.setSelectedVisit(mostRecentVisit)
   }
+
+  // Log final state for debugging
+  logger.info('VisitDataEntry initialization complete', {
+    hasSelectedVisit: !!selectedVisit.value,
+    selectedVisitId: selectedVisit.value?.id,
+    activeFieldSetsCount: activeFieldSets.value.length,
+    activeFieldSets: activeFieldSets.value,
+    visitStoreSelectedVisit: visitStore.selectedVisit?.id,
+    visitStoreSelectedPatient: visitStore.selectedPatient?.id,
+  })
 })
 </script>
 
