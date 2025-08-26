@@ -52,7 +52,7 @@
 
       <!-- Route -->
       <div class="route-select">
-        <q-select v-model="localMedicationData.route" :options="routeOptions" label="Route" outlined dense @update:model-value="onMedicationChange">
+        <q-select v-model="localMedicationData.route" :options="routeOptions" option-label="label" option-value="value" label="Route" outlined dense @update:model-value="onMedicationChange">
           <template v-slot:prepend>
             <q-icon name="route" />
           </template>
@@ -62,7 +62,17 @@
 
     <!-- Frequency Row -->
     <div class="frequency-row">
-      <q-select v-model="localMedicationData.frequency" :options="frequencyOptions" label="Frequency" outlined dense @update:model-value="onMedicationChange" class="full-width">
+      <q-select
+        v-model="localMedicationData.frequency"
+        :options="frequencyOptions"
+        option-label="label"
+        option-value="value"
+        label="Frequency"
+        outlined
+        dense
+        @update:model-value="onMedicationChange"
+        class="full-width"
+      >
         <template v-slot:prepend>
           <q-icon name="schedule" />
         </template>
@@ -137,7 +147,8 @@ const dosageUnits = ['mg', 'g', 'mcg', 'IU', 'ml', 'L', 'units', 'drops', 'spray
 
 // Computed
 const hasValue = computed(() => {
-  return localMedicationData.value.drugName || localMedicationData.value.dosage || localMedicationData.value.frequency || localMedicationData.value.route || localMedicationData.value.instructions
+  // At minimum, we need a drug name to consider this a valid medication
+  return !!(localMedicationData.value.drugName && localMedicationData.value.drugName.trim())
 })
 
 // Methods
@@ -179,16 +190,29 @@ const onDrugChange = (selectedDrug) => {
 }
 
 const onMedicationChange = () => {
+  logger.debug('MedicationFieldEdit: onMedicationChange called', {
+    localMedicationData: localMedicationData.value,
+  })
   emit('change', localMedicationData.value)
 }
 
 const saveChanges = async () => {
+  logger.debug('MedicationFieldEdit: saveChanges called', {
+    hasValue: hasValue.value,
+    localMedicationData: localMedicationData.value,
+  })
+
   if (!hasValue.value) {
+    logger.warn('MedicationFieldEdit: No value detected, cancelling')
     emit('cancel')
     return
   }
 
   try {
+    logger.debug('MedicationFieldEdit: Emitting save event with data', {
+      localMedicationData: localMedicationData.value,
+    })
+
     emit('save', localMedicationData.value)
 
     $q.notify({

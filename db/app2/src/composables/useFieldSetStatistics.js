@@ -21,22 +21,28 @@ export function useFieldSetStatistics(availableFieldSets, activeFieldSets, getFi
         const conceptCount = fieldSet.concepts.length
         const observationCount = getFieldSetObservationCount(fieldSet.id)
 
-        // For completion calculation, we count how many concepts in this set have observations
-        // If there are observations, count 1 filled concept per field set for now (simplified)
-        // TODO: This should count unique concepts with observations, not just field sets with observations
-        const filledConceptsInSet = observationCount > 0 ? 1 : 0
-
-        totalConcepts += conceptCount
-        filledConcepts += filledConceptsInSet
+        // For medications, count all observations instead of concepts
+        if (fieldSet.id === 'medications') {
+          totalConcepts += observationCount || 0 // Total medication observations
+          filledConcepts += Math.min(observationCount || 0, 1) // Simplified: if any medications exist, count as 1 filled for now
+        } else {
+          // For regular field sets, use concept-based counting
+          const filledConceptsInSet = observationCount > 0 ? 1 : 0
+          totalConcepts += conceptCount
+          filledConcepts += filledConceptsInSet
+        }
 
         // Store details for consistent ordering in tooltips
+        const categoryTotal = fieldSet.id === 'medications' ? observationCount || 0 : conceptCount
+        const categoryFilled = fieldSet.id === 'medications' ? Math.min(observationCount || 0, 1) : observationCount > 0 ? 1 : 0
+
         categoryDetails.push({
           id: fieldSet.id,
           name: fieldSet.name,
           icon: fieldSet.icon,
-          conceptCount,
+          conceptCount: categoryTotal, // For medications, show observation count instead
           observationCount,
-          percentage: conceptCount > 0 ? Math.round((filledConceptsInSet / conceptCount) * 100) : 0,
+          percentage: categoryTotal > 0 ? Math.round((categoryFilled / categoryTotal) * 100) : 0,
         })
       }
     })

@@ -205,7 +205,8 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
           CATEGORY_CHAR,
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
           TVAL_RESOLVED,
-          ENCOUNTER_NUM
+          ENCOUNTER_NUM,
+          OBSERVATION_BLOB
         FROM patient_observations
         WHERE ENCOUNTER_NUM = ?
         ORDER BY CATEGORY_CHAR, CONCEPT_NAME_CHAR
@@ -234,6 +235,11 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             displayValue: null,
             fileInfo: null,
             encounterNum: obs.ENCOUNTER_NUM,
+            // Additional fields for medication compatibility
+            value: obs.TVAL_CHAR,
+            numericValue: obs.NVAL_NUM,
+            observationBlob: obs.OBSERVATION_BLOB,
+            valTypeCode: obs.VALTYPE_CD,
           }
 
           // Process different value types
@@ -686,6 +692,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       selectedVisitId: selectedVisit.value?.id,
       observationsCount: observations.value.length,
       fieldSetConcepts: fieldSet.concepts,
+      allObservations: observations.value.map((obs) => ({ id: obs.observationId, conceptCode: obs.conceptCode, value: obs.value })),
     })
 
     const filtered = observations.value.filter((obs) => {

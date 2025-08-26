@@ -17,12 +17,32 @@
     </div>
 
     <!-- Filled Medication State -->
-    <div v-else class="filled-medication" @click="emit('enter-edit-mode')">
-      <div class="view-display">
-        <div class="medication-text">{{ medicationViewDisplay }}</div>
-        <q-icon name="edit" size="16px" color="grey-6" class="edit-icon">
-          <q-tooltip>Click to edit medication</q-tooltip>
-        </q-icon>
+    <div v-else class="filled-medication">
+      <div class="view-display" @click="emit('enter-edit-mode')">
+        <div class="medication-display">
+          <q-icon name="medication" size="16px" color="primary" class="medication-icon" />
+          <div class="medication-text">{{ medicationViewDisplay }}</div>
+          <!-- Edit Icon - right next to text, only visible on hover -->
+          <q-icon name="edit" size="16px" color="grey-6" class="edit-icon">
+            <q-tooltip>Click to edit medication</q-tooltip>
+          </q-icon>
+        </div>
+        <div class="view-actions">
+          <!-- Clear Button - on the far right -->
+          <q-btn v-if="!showClearConfirmation" flat round icon="clear" size="sm" color="grey-6" @click.stop="showClearConfirmation = true">
+            <q-tooltip>Clear medication</q-tooltip>
+          </q-btn>
+
+          <!-- Clear Confirmation Buttons -->
+          <div v-if="showClearConfirmation" class="clear-confirmation" @click.stop>
+            <q-btn flat round icon="check" size="sm" color="negative" @click="confirmClear" class="confirm-clear-btn">
+              <q-tooltip>Confirm clear medication</q-tooltip>
+            </q-btn>
+            <q-btn flat round icon="close" size="sm" color="grey-6" @click="cancelClear" class="cancel-clear-btn">
+              <q-tooltip>Cancel</q-tooltip>
+            </q-btn>
+          </div>
+        </div>
       </div>
       <div v-if="medicationData.instructions" class="instructions-view">
         <q-icon name="info" size="14px" color="info" class="q-mr-xs" />
@@ -33,7 +53,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   medicationData: {
@@ -50,11 +70,15 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['delete', 'enter-edit-mode'])
+const emit = defineEmits(['delete', 'enter-edit-mode', 'clear-medication'])
+
+// State for clear confirmation
+const showClearConfirmation = ref(false)
 
 // Computed
 const hasValue = computed(() => {
-  return props.medicationData.drugName || props.medicationData.dosage || props.medicationData.frequency || props.medicationData.route || props.medicationData.instructions
+  // At minimum we need a drug name to display the medication
+  return !!(props.medicationData.drugName && props.medicationData.drugName.trim())
 })
 
 // Elegant view mode display: "DRUG mg 1-0-1 p.o."
@@ -121,6 +145,41 @@ const getRouteAbbreviation = (route) => {
   }
   return routeMap[route] || route?.toLowerCase() || ''
 }
+
+// Clear confirmation methods
+const confirmClear = () => {
+  emit('clear-medication')
+  showClearConfirmation.value = false
+}
+
+const cancelClear = () => {
+  showClearConfirmation.value = false
+}
+
+// Auto-hide clear confirmation after 5 seconds for safety
+watch(
+  () => showClearConfirmation.value,
+  (newValue) => {
+    if (newValue) {
+      setTimeout(() => {
+        if (showClearConfirmation.value) {
+          showClearConfirmation.value = false
+        }
+      }, 5000) // 5 seconds timeout
+    }
+  },
+)
+
+// Hide clear confirmation when medication data changes
+watch(
+  () => props.medicationData,
+  () => {
+    if (showClearConfirmation.value) {
+      showClearConfirmation.value = false
+    }
+  },
+  { deep: true },
+)
 </script>
 
 <style lang="scss" scoped>
@@ -200,8 +259,10 @@ const getRouteAbbreviation = (route) => {
       padding: 8px;
       margin: -8px;
 
-      .edit-icon {
-        opacity: 1;
+      .medication-display {
+        .edit-icon {
+          opacity: 1;
+        }
       }
     }
 
@@ -209,17 +270,69 @@ const getRouteAbbreviation = (route) => {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      cursor: pointer;
 
-      .medication-text {
-        font-size: 1.1rem;
-        font-weight: 500;
-        color: $grey-8;
-        font-family: 'Courier New', monospace; // Medical prescription font
+      .medication-display {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex: 1;
+
+        .medication-icon {
+          flex-shrink: 0;
+        }
+
+        .medication-text {
+          font-size: 1.1rem;
+          font-weight: 500;
+          color: $grey-8;
+          font-family: 'Courier New', monospace; // Medical prescription font
+          flex: 1;
+        }
+
+        .edit-icon {
+          opacity: 0;
+          transition: opacity 0.2s ease;
+          flex-shrink: 0;
+          margin-left: 0.5rem;
+        }
       }
 
-      .edit-icon {
-        opacity: 0.5;
-        transition: opacity 0.2s ease;
+      .view-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+        flex-shrink: 0;
+
+        .clear-confirmation {
+          display: flex;
+          gap: 0.25rem;
+          padding: 2px;
+          background: rgba($negative, 0.1);
+          border-radius: 20px;
+          border: 1px solid rgba($negative, 0.2);
+          animation: slideIn 0.3s ease;
+
+          .confirm-clear-btn {
+            background: rgba($negative, 0.1);
+            transition: all 0.2s ease;
+
+            &:hover {
+              background: $negative;
+              color: white;
+              transform: scale(1.1);
+            }
+          }
+
+          .cancel-clear-btn {
+            transition: all 0.2s ease;
+
+            &:hover {
+              background: rgba($grey-6, 0.1);
+              transform: scale(1.1);
+            }
+          }
+        }
       }
     }
 
@@ -233,6 +346,18 @@ const getRouteAbbreviation = (route) => {
       display: flex;
       align-items: flex-start;
     }
+  }
+}
+
+// Animations
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(10px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
   }
 }
 </style>

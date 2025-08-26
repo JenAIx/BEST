@@ -1,28 +1,13 @@
 <template>
-  <div class="medication-field">
-    <div class="field-header">
+  <div class="medication-field col-12">
+    <!-- Header - only show in edit mode -->
+    <div v-if="!viewMode" class="field-header">
       <div class="field-label">
         <q-icon name="medication" size="16px" color="primary" class="q-mr-xs" />
         {{ resolvedConceptName || concept.name }}
         <q-icon name="info" size="14px" color="grey-6" class="q-ml-xs">
           <q-tooltip>Medication: {{ concept.code }}</q-tooltip>
         </q-icon>
-      </div>
-      <div class="field-actions">
-        <!-- Clear Button - only show in edit mode -->
-        <q-btn v-if="!viewMode && hasValue && !showClearConfirmation" flat round icon="clear" size="sm" color="grey-6" @click="showClearConfirmation = true">
-          <q-tooltip>Clear medication</q-tooltip>
-        </q-btn>
-
-        <!-- Clear Confirmation Buttons -->
-        <div v-if="showClearConfirmation" class="clear-confirmation">
-          <q-btn flat round icon="check" size="sm" color="negative" @click="confirmClear" class="confirm-clear-btn">
-            <q-tooltip>Confirm clear medication</q-tooltip>
-          </q-btn>
-          <q-btn flat round icon="close" size="sm" color="grey-6" @click="cancelClear" class="cancel-clear-btn">
-            <q-tooltip>Cancel</q-tooltip>
-          </q-btn>
-        </div>
       </div>
     </div>
 
@@ -34,6 +19,7 @@
       :route-options="routeOptions"
       @delete="deleteMedication"
       @enter-edit-mode="enterEditMode"
+      @clear-medication="clearMedication"
     />
 
     <!-- EDIT MODE -->
@@ -77,10 +63,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
-import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useMedicationsStore } from 'src/stores/medications-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import MedicationFieldView from './MedicationFieldView.vue'
@@ -112,8 +97,7 @@ const props = defineProps({
 const emit = defineEmits(['observation-updated', 'clone-requested'])
 
 const $q = useQuasar()
-const dbStore = useDatabaseStore()
-const globalSettingsStore = useGlobalSettingsStore()
+const medicationsStore = useMedicationsStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('MedicationField')
@@ -132,7 +116,6 @@ const saving = ref(false)
 const lastUpdated = ref(null)
 const resolvedConceptName = ref(null)
 const showClonePreview = ref(false)
-const showClearConfirmation = ref(false)
 const viewMode = ref(true) // Always start in view mode (default)
 
 const frequencyOptions = [
@@ -164,7 +147,19 @@ const routeOptions = [
 
 // Computed
 const hasValue = computed(() => {
-  return medicationData.value.drugName || medicationData.value.dosage || medicationData.value.frequency || medicationData.value.route || medicationData.value.instructions
+  // At minimum, we need a drug name to consider this a valid medication
+  const result = !!(medicationData.value.drugName && medicationData.value.drugName.trim())
+
+  logger.debug('hasValue computed', {
+    result,
+    drugName: medicationData.value.drugName,
+    dosage: medicationData.value.dosage,
+    frequency: medicationData.value.frequency,
+    route: medicationData.value.route,
+    instructions: medicationData.value.instructions,
+  })
+
+  return result
 })
 
 const medicationSummary = computed(() => {
@@ -172,16 +167,19 @@ const medicationSummary = computed(() => {
 
   const parts = [medicationData.value.drugName]
 
+  // Only add dosage if both dosage and unit are present
   if (medicationData.value.dosage && medicationData.value.dosageUnit) {
     parts.push(`${medicationData.value.dosage}${medicationData.value.dosageUnit}`)
   }
 
-  if (medicationData.value.frequency) {
+  // Only add frequency if it's not empty
+  if (medicationData.value.frequency && medicationData.value.frequency.trim()) {
     const freq = frequencyOptions.find((f) => f.value === medicationData.value.frequency)
     parts.push(freq ? freq.label : medicationData.value.frequency)
   }
 
-  if (medicationData.value.route) {
+  // Only add route if it's not empty
+  if (medicationData.value.route && medicationData.value.route.trim()) {
     const route = routeOptions.find((r) => r.value === medicationData.value.route)
     parts.push(route ? route.label : medicationData.value.route)
   }
@@ -197,12 +195,42 @@ const enterEditMode = () => {
 const onSaveChanges = async (medicationDataFromEdit) => {
   try {
     saving.value = true
+
+    logger.debug('Saving medication changes', {
+      conceptCode: props.concept.code,
+      medicationDataFromEdit,
+      hasExistingObservation: !!props.existingObservation,
+    })
+
+    // Normalize the medication data - convert empty strings to appropriate values
+    const normalizedData = {
+      drugName: medicationDataFromEdit.drugName?.trim() || '',
+      dosage: medicationDataFromEdit.dosage || null,
+      dosageUnit: medicationDataFromEdit.dosageUnit || 'mg',
+      frequency: typeof medicationDataFromEdit.frequency === 'string' ? medicationDataFromEdit.frequency.trim() || '' : medicationDataFromEdit.frequency?.value || '',
+      route: typeof medicationDataFromEdit.route === 'string' ? medicationDataFromEdit.route.trim() || '' : medicationDataFromEdit.route?.value || '',
+      instructions: medicationDataFromEdit.instructions?.trim() || '',
+    }
+
     // Update local medication data
-    medicationData.value = { ...medicationDataFromEdit }
+    medicationData.value = { ...normalizedData }
+
+    logger.debug('Updated local medication data', {
+      medicationData: medicationData.value,
+      hasValue: hasValue.value,
+    })
+
     await onMedicationChange()
     viewMode.value = true
+
+    logger.info('Medication changes saved successfully')
   } catch (error) {
     logger.error('Failed to save medication changes', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to save medication changes',
+      position: 'top',
+    })
   } finally {
     saving.value = false
   }
@@ -231,7 +259,14 @@ const deleteMedication = async () => {
         conceptCode: props.concept.code,
         observationId: props.existingObservation.observationId,
       })
-      await clearMedication()
+
+      const success = await medicationsStore.deleteMedication({
+        observationId: props.existingObservation.observationId,
+      })
+
+      if (!success) {
+        throw new Error('Failed to delete medication from database')
+      }
     } else {
       logger.info('No existing observation to delete, removing empty field only', {
         conceptCode: props.concept.code,
@@ -272,25 +307,54 @@ const deleteMedication = async () => {
 // Methods
 
 const onMedicationChange = async () => {
-  if (!hasValue.value) return
+  logger.debug('onMedicationChange called', {
+    hasValue: hasValue.value,
+    medicationData: medicationData.value,
+    hasExistingObservation: !!props.existingObservation,
+  })
+
+  if (!hasValue.value) {
+    logger.warn('onMedicationChange: No value detected, skipping save')
+    return
+  }
 
   try {
     saving.value = true
 
+    logger.debug('Starting medication save operation')
+
+    let result
     if (props.existingObservation) {
-      await updateMedication()
+      logger.debug('Updating existing medication observation')
+      result = await medicationsStore.updateMedication({
+        observationId: props.existingObservation.observationId,
+        medicationData: medicationData.value,
+      })
     } else {
-      await createMedication()
+      logger.debug('Creating new medication observation')
+      result = await medicationsStore.createMedication({
+        patientId: props.patient.id,
+        visitId: props.visit.id,
+        medicationData: medicationData.value,
+      })
     }
 
     lastUpdated.value = new Date()
+
+    logger.debug('Emitting observation-updated event', {
+      conceptCode: props.concept.code,
+      value: medicationSummary.value,
+      medicationData: medicationData.value,
+    })
 
     emit('observation-updated', {
       conceptCode: props.concept.code,
       value: medicationSummary.value,
       medicationData: medicationData.value,
-      observationId: props.existingObservation?.observationId,
+      observationId: result.observationId,
     })
+
+    logger.info('Medication saved successfully to database')
   } catch (error) {
     logger.error('Failed to save medication', error)
     $q.notify({
@@ -303,147 +367,50 @@ const onMedicationChange = async () => {
   }
 }
 
-const createMedication = async () => {
-  const patientRepo = dbStore.getRepository('patient')
-  const patient = await patientRepo.findByPatientCode(props.patient.id)
-
-  const observationRepo = dbStore.getRepository('observation')
-
-  // Get default values from global settings
-  const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
-  const defaultCategory = await globalSettingsStore.getDefaultCategory('MEDICATION')
-
-  // Create the complex medication data structure
-  const medicationBlob = {
-    drugName: medicationData.value.drugName,
-    dosage: medicationData.value.dosage,
-    dosageUnit: medicationData.value.dosageUnit,
-    frequency: medicationData.value.frequency,
-    route: medicationData.value.route,
-    instructions: medicationData.value.instructions,
-    prescribedDate: new Date().toISOString(),
-    prescribedBy: 'CURRENT_DOCTOR', // Would be actual doctor ID
-    isActive: true,
-  }
-
-  const observationData = {
-    PATIENT_NUM: patient.PATIENT_NUM,
-    ENCOUNTER_NUM: props.visit.id,
-    CONCEPT_CD: props.concept.code,
-    VALTYPE_CD: 'M', // Medication type
-    TVAL_CHAR: medicationData.value.drugName, // Primary drug name
-    NVAL_NUM: medicationData.value.dosage, // Dosage amount
-    UNIT_CD: medicationData.value.dosageUnit, // Dosage unit
-    OBSERVATION_BLOB: JSON.stringify(medicationBlob), // Complete medication data
-    START_DATE: new Date().toISOString().split('T')[0],
-    CATEGORY_CHAR: defaultCategory,
-    PROVIDER_ID: 'SYSTEM',
-    LOCATION_CD: 'VISITS_PAGE',
-    SOURCESYSTEM_CD: defaultSourceSystem,
-    INSTANCE_NUM: 1,
-    UPLOAD_ID: 1,
-  }
-
-  await observationRepo.createObservation(observationData)
-}
-
-const updateMedication = async () => {
-  // Similar to createMedication but updates existing observation
-  const medicationBlob = {
-    drugName: medicationData.value.drugName,
-    dosage: medicationData.value.dosage,
-    dosageUnit: medicationData.value.dosageUnit,
-    frequency: medicationData.value.frequency,
-    route: medicationData.value.route,
-    instructions: medicationData.value.instructions,
-    prescribedDate: new Date().toISOString(),
-    prescribedBy: 'CURRENT_DOCTOR',
-    isActive: true,
-  }
-
-  const updateQuery = `
-    UPDATE OBSERVATION_FACT 
-    SET TVAL_CHAR = ?, 
-        NVAL_NUM = ?, 
-        UNIT_CD = ?,
-        OBSERVATION_BLOB = ?,
-        UPDATE_DATE = datetime('now')
-    WHERE OBSERVATION_ID = ?
-  `
-
-  const result = await dbStore.executeQuery(updateQuery, [
-    medicationData.value.drugName,
-    medicationData.value.dosage,
-    medicationData.value.dosageUnit,
-    JSON.stringify(medicationBlob),
-    props.existingObservation.observationId,
-  ])
-
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to update medication')
-  }
-}
-
 const clearMedication = async () => {
-  if (props.existingObservation) {
-    // Delete existing observation (same approach as ObservationField.vue)
-    const deleteQuery = `DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?`
-    const result = await dbStore.executeQuery(deleteQuery, [props.existingObservation.observationId])
-
-    if (!result.success) {
-      throw new Error('Failed to delete observation')
-    }
-  }
-
-  // Reset form
-  medicationData.value = {
-    drugName: '',
-    dosage: null,
-    dosageUnit: 'mg',
-    frequency: '',
-    route: '',
-    instructions: '',
-  }
-
-  lastUpdated.value = new Date()
-
-  emit('observation-updated', {
-    conceptCode: props.concept.code,
-    value: null,
-    deleted: true,
-  })
-
-  $q.notify({
-    type: 'info',
-    message: 'Medication cleared',
-    position: 'top',
-  })
-}
-
-const confirmClear = async () => {
   try {
-    await clearMedication()
-    showClearConfirmation.value = false
+    // If there's an existing observation, clear it in the database
+    if (props.existingObservation) {
+      const success = await medicationsStore.clearMedication({
+        observationId: props.existingObservation.observationId,
+      })
 
-    logger.info('Medication cleared successfully', {
+      if (!success) {
+        throw new Error('Failed to clear medication in database')
+      }
+    }
+
+    // Reset form data
+    medicationData.value = {
+      drugName: '',
+      dosage: null,
+      dosageUnit: 'mg',
+      frequency: '',
+      route: '',
+      instructions: '',
+    }
+
+    lastUpdated.value = new Date()
+
+    emit('observation-updated', {
       conceptCode: props.concept.code,
-      patientId: props.patient.id,
+      value: null,
+      deleted: true,
+    })
+
+    $q.notify({
+      type: 'info',
+      message: 'Medication cleared',
+      position: 'top',
     })
   } catch (error) {
     logger.error('Failed to clear medication', error)
-
     $q.notify({
       type: 'negative',
       message: 'Failed to clear medication',
       position: 'top',
     })
-
-    showClearConfirmation.value = false
   }
-}
-
-const cancelClear = () => {
-  showClearConfirmation.value = false
 }
 
 const cloneFromPrevious = () => {
@@ -486,32 +453,6 @@ const formatVisitDate = (date) => {
   }
 }
 
-// Auto-hide clear confirmation after 5 seconds for safety
-watch(
-  () => showClearConfirmation.value,
-  (newValue) => {
-    if (newValue) {
-      setTimeout(() => {
-        if (showClearConfirmation.value) {
-          showClearConfirmation.value = false
-          logger.debug('Auto-cancelled clear confirmation after timeout')
-        }
-      }, 5000) // 5 seconds timeout
-    }
-  },
-)
-
-// Hide clear confirmation when medication changes
-watch(
-  () => medicationData.value,
-  () => {
-    if (showClearConfirmation.value) {
-      showClearConfirmation.value = false
-    }
-  },
-  { deep: true },
-)
-
 // Initialize medication data from existing observation
 onMounted(async () => {
   logger.debug('MedicationField mounted', {
@@ -540,21 +481,60 @@ onMounted(async () => {
   // Initialize from existing observation
   if (props.existingObservation) {
     try {
+      logger.debug('Initializing from existing observation', {
+        existingObservation: props.existingObservation,
+        hasValue: !!props.existingObservation.value,
+        hasNumericValue: !!props.existingObservation.numericValue,
+        hasObservationBlob: !!props.existingObservation.observationBlob,
+      })
+
       if (props.existingObservation.observationBlob) {
-        const parsedData = JSON.parse(props.existingObservation.observationBlob)
-        medicationData.value = {
-          drugName: parsedData.drugName || props.existingObservation.value || '',
-          dosage: parsedData.dosage || props.existingObservation.numericValue || null,
-          dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
-          frequency: parsedData.frequency || '',
-          route: parsedData.route || '',
-          instructions: parsedData.instructions || '',
+        try {
+          const parsedData = JSON.parse(props.existingObservation.observationBlob)
+          medicationData.value = {
+            drugName: parsedData.drugName || props.existingObservation.value || '',
+            dosage: parsedData.dosage || props.existingObservation.numericValue || null,
+            dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
+            frequency: parsedData.frequency || '',
+            route: parsedData.route || '',
+            instructions: parsedData.instructions || '',
+          }
+
+          logger.debug('Initialized medication data from BLOB', {
+            parsedData,
+            medicationData: medicationData.value,
+          })
+        } catch (blobError) {
+          logger.warn('Failed to parse OBSERVATION_BLOB, falling back to basic fields', blobError)
+          // If BLOB parsing fails, use basic fields
+          medicationData.value = {
+            drugName: props.existingObservation.value || '',
+            dosage: props.existingObservation.numericValue || null,
+            dosageUnit: props.existingObservation.unit || 'mg',
+            frequency: '',
+            route: '',
+            instructions: '',
+          }
         }
       } else {
-        // Fallback for simple medication data
-        medicationData.value.drugName = props.existingObservation.value || ''
-        medicationData.value.dosage = props.existingObservation.numericValue || null
-        medicationData.value.dosageUnit = props.existingObservation.unit || 'mg'
+        // Fallback for simple medication data (only TVAL_CHAR, NVAL_NUM, UNIT_CD set)
+        medicationData.value = {
+          drugName: props.existingObservation.value || '',
+          dosage: props.existingObservation.numericValue || null,
+          dosageUnit: props.existingObservation.unit || 'mg',
+          frequency: '',
+          route: '',
+          instructions: '',
+        }
+
+        logger.debug('Initialized medication data from fallback (basic fields only)', {
+          medicationData: medicationData.value,
+          originalObservation: {
+            value: props.existingObservation.value,
+            numericValue: props.existingObservation.numericValue,
+            unit: props.existingObservation.unit,
+          },
+        })
       }
 
       lastUpdated.value = new Date(props.existingObservation.date)
@@ -566,6 +546,63 @@ onMounted(async () => {
   // Always start in view mode (default)
   viewMode.value = true
 })
+
+// Watch for changes to existingObservation prop
+watch(
+  () => props.existingObservation,
+  (newObservation, oldObservation) => {
+    logger.debug('existingObservation prop changed', {
+      newObservation,
+      oldObservation,
+      currentMedicationData: medicationData.value,
+    })
+
+    // Only reinitialize if it's actually a different observation
+    if (newObservation && (!oldObservation || newObservation.observationId !== oldObservation.observationId)) {
+      logger.debug('Reinitializing medication data due to prop change')
+
+      if (newObservation.observationBlob) {
+        try {
+          const parsedData = JSON.parse(newObservation.observationBlob)
+          medicationData.value = {
+            drugName: parsedData.drugName || newObservation.value || '',
+            dosage: parsedData.dosage || newObservation.numericValue || null,
+            dosageUnit: parsedData.dosageUnit || newObservation.unit || 'mg',
+            frequency: parsedData.frequency || '',
+            route: parsedData.route || '',
+            instructions: parsedData.instructions || '',
+          }
+        } catch (error) {
+          logger.error('Failed to parse observation blob in watch', error)
+          // Fallback to basic fields if BLOB parsing fails
+          medicationData.value = {
+            drugName: newObservation.value || '',
+            dosage: newObservation.numericValue || null,
+            dosageUnit: newObservation.unit || 'mg',
+            frequency: '',
+            route: '',
+            instructions: '',
+          }
+        }
+      } else {
+        // Handle case where only basic fields are set (no BLOB)
+        medicationData.value = {
+          drugName: newObservation.value || '',
+          dosage: newObservation.numericValue || null,
+          dosageUnit: newObservation.unit || 'mg',
+          frequency: '',
+          route: '',
+          instructions: '',
+        }
+
+        logger.debug('Reinitialized medication data from basic fields only', {
+          medicationData: medicationData.value,
+        })
+      }
+    }
+  },
+  { deep: true },
+)
 </script>
 
 <style lang="scss" scoped>
@@ -576,6 +613,8 @@ onMounted(async () => {
   background: white;
   transition: all 0.3s ease;
   position: relative;
+  width: 100%;
+  box-sizing: border-box;
 
   &:hover {
     border-color: $primary;
@@ -589,9 +628,6 @@ onMounted(async () => {
 }
 
 .field-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 0.75rem;
 
   .field-label {
@@ -600,42 +636,6 @@ onMounted(async () => {
     font-size: 0.9rem;
     display: flex;
     align-items: center;
-  }
-
-  .field-actions {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-
-    .clear-confirmation {
-      display: flex;
-      gap: 0.25rem;
-      padding: 2px;
-      background: rgba($negative, 0.1);
-      border-radius: 20px;
-      border: 1px solid rgba($negative, 0.2);
-      animation: slideIn 0.3s ease;
-
-      .confirm-clear-btn {
-        background: rgba($negative, 0.1);
-        transition: all 0.2s ease;
-
-        &:hover {
-          background: $negative;
-          color: white;
-          transform: scale(1.1);
-        }
-      }
-
-      .cancel-clear-btn {
-        transition: all 0.2s ease;
-
-        &:hover {
-          background: rgba($grey-6, 0.1);
-          transform: scale(1.1);
-        }
-      }
-    }
   }
 }
 

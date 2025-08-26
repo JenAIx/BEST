@@ -16,15 +16,15 @@
     <q-slide-transition>
       <div v-show="!collapsed" class="field-set-content">
         <div class="observation-grid">
-          <!-- Medication Fields -->
+          <!-- Medication Fields - Render one field per observation, not per concept -->
           <MedicationField
-            v-for="concept in fieldSetConcepts.filter((c) => c.valueType === 'M')"
-            :key="concept.code"
-            :concept="concept"
+            v-for="observation in medicationObservations"
+            :key="`medication-${observation.observationId || observation.tempId}`"
+            :concept="{ code: observation.conceptCode, name: 'Current Medication', valueType: 'M' }"
             :visit="visit"
             :patient="patient"
-            :existing-observation="getExistingObservation(concept.code)"
-            :previous-value="getPreviousValue(concept.code)"
+            :existing-observation="observation"
+            :previous-value="getPreviousValue(observation.conceptCode)"
             @observation-updated="onObservationUpdated"
             @clone-requested="onCloneRequested"
           />
@@ -187,6 +187,27 @@ const isUncategorized = computed(() => {
 
 const observationCount = computed(() => {
   return props.existingObservations?.length || 0
+})
+
+// Medication observations - for medications, we render one field per observation (not per concept)
+const medicationObservations = computed(() => {
+  if (props.fieldSet.id !== 'medications') return []
+
+  logger.debug('Computing medication observations', {
+    fieldSetId: props.fieldSet.id,
+    existingObservationsCount: props.existingObservations?.length || 0,
+    existingObservations: props.existingObservations
+  })
+
+  // Get all medication observations (both empty and filled)
+  const medObservations = props.existingObservations?.filter((obs) => obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))) || []
+
+  logger.debug('Filtered medication observations', {
+    medicationObservationsCount: medObservations.length,
+    medicationObservations: medObservations
+  })
+
+  return medObservations
 })
 
 // Methods
@@ -529,6 +550,11 @@ const cancelCustomObservation = () => {
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 1.5rem;
   margin-bottom: 1.5rem;
+
+  // For medication fields with col-12 class, make them span full width
+  :deep(.medication-field.col-12) {
+    grid-column: 1 / -1;
+  }
 }
 
 .add-custom-observation {
