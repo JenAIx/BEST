@@ -72,7 +72,6 @@
           :existing-observations="uncategorizedObservations"
           @observation-updated="onObservationUpdated"
           @clone-from-previous="onCloneFromPrevious"
-
         />
       </div>
 
