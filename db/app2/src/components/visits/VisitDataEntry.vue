@@ -83,11 +83,25 @@
       </div>
 
       <!-- No Field Sets Selected -->
-      <div v-if="selectedVisit && activeFieldSets.length === 0" class="no-fieldsets-state">
-        <q-icon name="category" size="64px" color="grey-4" />
-        <div class="text-h6 text-grey-6 q-mt-sm">No observation categories selected</div>
-        <div class="text-body2 text-grey-5 q-mb-md">Choose categories above to start entering data</div>
-        <q-btn color="primary" @click="showFieldSetConfig = true">Configure Categories</q-btn>
+      <div v-if="selectedVisit && activeFieldSets.length === 0" class="no-fieldsets-state compact">
+        <q-icon name="category" size="32px" color="grey-4" />
+        <div class="text-subtitle1 text-grey-6 q-mt-sm">No observation categories selected</div>
+        <div class="text-body2 text-grey-5 q-mb-sm">Choose categories above to start entering data</div>
+        <q-btn color="primary" size="sm" @click="showFieldSetConfig = true">Configure Categories</q-btn>
+      </div>
+
+      <!-- Always show uncategorized observations when visit is selected -->
+      <div v-if="selectedVisit && activeFieldSets.length === 0 && uncategorizedFieldSet" class="uncategorized-only">
+        <ObservationFieldSet
+          :key="`${selectedVisit.id}-uncategorized-only`"
+          :field-set="uncategorizedFieldSet"
+          :visit="selectedVisit"
+          :patient="patient"
+          :previous-visits="previousVisits"
+          :existing-observations="uncategorizedObservations"
+          @observation-updated="onObservationUpdated"
+          @clone-from-previous="onCloneFromPrevious"
+        />
       </div>
     </div>
 
@@ -408,6 +422,14 @@ onMounted(async () => {
   background: white;
   border-radius: 16px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+
+  &.compact {
+    padding: 2rem 1.5rem;
+  }
+}
+
+.uncategorized-only {
+  margin-top: 1.5rem;
 }
 
 @media (max-width: 768px) {
