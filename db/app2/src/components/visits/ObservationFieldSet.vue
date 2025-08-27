@@ -4,9 +4,15 @@
       <div class="field-set-title">
         <q-icon :name="fieldSet.icon" size="24px" class="q-mr-sm" />
         {{ fieldSet.name }}
-        <q-badge v-if="collapsed && isUncategorized && observationCount > 0" :label="observationCount" color="grey-6" class="q-ml-sm observation-count-badge">
-          <q-tooltip>{{ observationCount }} uncategorized observation{{ observationCount > 1 ? 's' : '' }}</q-tooltip>
-        </q-badge>
+        <!-- Show observation counts when collapsed -->
+        <div v-if="collapsed && observationCount > 0" class="observation-badges q-ml-sm">
+          <q-badge v-if="filledObservationCount > 0" :label="filledObservationCount" color="positive" class="observation-count-badge">
+            <q-tooltip>{{ filledObservationCount }} filled observation{{ filledObservationCount > 1 ? 's' : '' }}</q-tooltip>
+          </q-badge>
+          <q-badge v-if="unfilledObservationCount > 0" :label="unfilledObservationCount" color="grey-5" class="observation-count-badge unfilled-badge">
+            <q-tooltip>{{ unfilledObservationCount }} unfilled observation{{ unfilledObservationCount > 1 ? 's' : '' }}</q-tooltip>
+          </q-badge>
+        </div>
       </div>
       <q-icon name="expand_more" size="20px" class="expand-icon" :class="{ 'rotate-180': !collapsed }">
         <q-tooltip>{{ collapsed ? 'Expand' : 'Collapse' }}</q-tooltip>
@@ -29,18 +35,33 @@
             @clone-requested="onCloneRequested"
           />
 
-          <!-- Regular Observation Fields -->
-          <ObservationField
-            v-for="concept in fieldSetConcepts.filter((c) => c.valueType !== 'M')"
-            :key="concept.code"
-            :concept="concept"
-            :visit="visit"
-            :patient="patient"
-            :existing-observation="getExistingObservation(concept.code)"
-            :previous-value="getPreviousValue(concept.code)"
-            @observation-updated="onObservationUpdated"
-            @clone-requested="onCloneRequested"
-          />
+          <!-- Regular Observation Fields - Handle multiple observations per concept -->
+          <template v-for="concept in fieldSetConcepts.filter((c) => c.valueType !== 'M')" :key="concept.code">
+            <!-- If there are multiple observations for this concept, render one field per observation -->
+            <ObservationField
+              v-for="(observation, index) in getExistingObservations(concept.code)"
+              :key="`${concept.code}-${observation.observationId || index}`"
+              :concept="concept"
+              :visit="visit"
+              :patient="patient"
+              :existing-observation="observation"
+              :previous-value="getPreviousValue(concept.code)"
+              @observation-updated="onObservationUpdated"
+              @clone-requested="onCloneRequested"
+            />
+            <!-- If no existing observations, render one empty field -->
+            <ObservationField
+              v-if="getExistingObservations(concept.code).length === 0"
+              :key="`${concept.code}-empty`"
+              :concept="concept"
+              :visit="visit"
+              :patient="patient"
+              :existing-observation="null"
+              :previous-value="getPreviousValue(concept.code)"
+              @observation-updated="onObservationUpdated"
+              @clone-requested="onCloneRequested"
+            />
+          </template>
         </div>
 
         <!-- Add custom observation -->
@@ -73,7 +94,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
-import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationField from './ObservationField.vue'
 import MedicationField from './MedicationField.vue'
@@ -106,7 +126,6 @@ const emit = defineEmits(['observation-updated', 'clone-from-previous'])
 
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
-const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
 
@@ -148,12 +167,21 @@ const fieldSetConcepts = computed(() => {
   )
 })
 
-const isUncategorized = computed(() => {
-  return props.fieldSet.id === 'uncategorized'
-})
-
 const observationCount = computed(() => {
   return props.existingObservations?.length || 0
+})
+
+// Count filled vs unfilled observations
+const filledObservationCount = computed(() => {
+  if (!props.existingObservations) return 0
+  return props.existingObservations.filter((obs) => {
+    const value = obs.originalValue || obs.value || obs.tval_char || obs.nval_num
+    return value !== null && value !== undefined && value !== ''
+  }).length
+})
+
+const unfilledObservationCount = computed(() => {
+  return observationCount.value - filledObservationCount.value
 })
 
 // Medication observations - for medications, we render one field per observation (not per concept)
@@ -249,38 +277,55 @@ const getConceptUnit = (conceptCode) => {
   return conceptUnits[conceptCode] || ''
 }
 
-const getExistingObservation = (conceptCode) => {
-  logger.debug('getExistingObservation called', { conceptCode, observationCount: props.existingObservations?.length || 0 })
+// Get all observations that match a concept code (returns array)
+const getExistingObservations = (conceptCode) => {
+  logger.debug('getExistingObservations called', { conceptCode, observationCount: props.existingObservations?.length || 0 })
 
-  return props.existingObservations.find((obs) => {
-    // Try multiple matching strategies:
-    // 1. Exact match
-    if (obs.conceptCode === conceptCode) return true
+  const matchingObservations =
+    props.existingObservations?.filter((obs) => {
+      // Try multiple matching strategies:
+      // 1. Exact match
+      if (obs.conceptCode === conceptCode) return true
 
-    // 2. Extract numeric codes and compare (e.g., "LOINC:8462-4" vs "LID: 8462-4")
-    const conceptMatch = conceptCode.match(/[:\s]([0-9-]+)$/)
-    const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
-    if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) {
-      logger.debug('Matched by numeric code', { conceptCode, matchedCode: obs.conceptCode })
-      return true
-    }
+      // 2. Extract numeric codes and compare (e.g., "LOINC:8462-4" vs "LID: 8462-4")
+      const conceptMatch = conceptCode.match(/[:\s]([0-9-]+)$/)
+      const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
+      if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) {
+        logger.debug('Matched by numeric code', { conceptCode, matchedCode: obs.conceptCode })
+        return true
+      }
 
-    // 3. Full concept code includes the database concept code
-    if (conceptCode.includes(obs.conceptCode)) return true
+      // 3. Full concept code includes the database concept code
+      if (conceptCode.includes(obs.conceptCode)) return true
 
-    // 4. Database concept code includes the full concept
-    if (obs.conceptCode.includes(conceptCode)) return true
+      // 4. Database concept code includes the full concept
+      if (obs.conceptCode.includes(conceptCode)) return true
 
-    // 5. Match just the code part (after the colon)
-    const [, code] = conceptCode.split(':')
-    if (code && obs.conceptCode.includes(code)) return true
+      // 5. Match just the code part (after the colon)
+      const [, code] = conceptCode.split(':')
+      if (code && obs.conceptCode.includes(code)) return true
 
-    // 6. Case-insensitive match
-    if (obs.conceptCode.toLowerCase().includes(conceptCode.toLowerCase())) return true
+      // 6. Case-insensitive match
+      if (obs.conceptCode.toLowerCase().includes(conceptCode.toLowerCase())) return true
 
-    return false
+      return false
+    }) || []
+
+  logger.debug('Found matching observations', {
+    conceptCode,
+    matchCount: matchingObservations.length,
+    matchingObservations: matchingObservations.map((obs) => ({
+      id: obs.observationId,
+      value: obs.originalValue || obs.value,
+      category: obs.category,
+    })),
   })
+
+  return matchingObservations
 }
+
+// Note: getExistingObservation (singular) has been replaced with getExistingObservations (plural)
+// to properly handle multiple observations with the same concept code
 
 const getPreviousValue = (conceptCode) => {
   // Get the most recent value from previous visits
@@ -327,11 +372,8 @@ const onCloneRequested = (data) => {
 
 const addEmptyMedication = async () => {
   try {
-    // Get default values from global settings
-    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
-    const defaultCategory = 'Medications' // Use the field set name as category
-
     // Create empty medication observation with LID: 52418-1
+    // The visit store will automatically set PROVIDER_ID, SOURCESYSTEM_CD, and CATEGORY_CHAR from the concept
     const observationData = {
       ENCOUNTER_NUM: props.visit.id,
       CONCEPT_CD: 'LID: 52418-1', // Use the specific medication concept
@@ -341,12 +383,10 @@ const addEmptyMedication = async () => {
       UNIT_CD: null, // No unit initially
       OBSERVATION_BLOB: null, // No complex data initially
       START_DATE: new Date().toISOString().split('T')[0],
-      CATEGORY_CHAR: defaultCategory,
-      PROVIDER_ID: 'SYSTEM',
       LOCATION_CD: 'VISITS_PAGE',
-      SOURCESYSTEM_CD: defaultSourceSystem,
       INSTANCE_NUM: 1,
       UPLOAD_ID: 1,
+      // Note: PROVIDER_ID, SOURCESYSTEM_CD, and CATEGORY_CHAR will be set automatically by the store
     }
 
     // Use visit store to create observation - it handles patient lookup and state updates
@@ -427,12 +467,23 @@ const onCustomObservationAdded = (data) => {
     display: flex;
     align-items: center;
 
+    .observation-badges {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
+
     .observation-count-badge {
       font-size: 0.75rem;
       font-weight: 500;
       min-width: 18px;
       height: 18px;
       border-radius: 9px;
+
+      &.unfilled-badge {
+        opacity: 0.8;
+        border: 1px solid $grey-4;
+      }
     }
   }
 

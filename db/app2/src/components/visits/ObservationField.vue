@@ -1,5 +1,5 @@
 <template>
-  <div class="observation-field">
+  <div class="observation-field" :class="{ unfilled: !hasValue, filled: hasValue }">
     <!-- Compact Label with Actions and Status -->
     <div class="field-label-row">
       <div class="field-label">
@@ -13,7 +13,7 @@
         <q-icon v-else name="code" size="12px" color="grey-6" class="q-ml-xs">
           <q-tooltip>{{ concept.code }}</q-tooltip>
         </q-icon>
-        
+
         <!-- Status indicator next to label -->
         <span v-if="hasValue && !hasPendingChanges" class="status-indicator">
           <q-icon name="check_circle" color="positive" size="12px" class="q-ml-xs" />
@@ -24,7 +24,7 @@
           <span class="pending-indicator">Unsaved</span>
         </span>
       </div>
-      
+
       <!-- Action Buttons -->
       <div class="field-actions">
         <div v-if="hasPendingChanges" class="save-cancel-buttons">
@@ -38,7 +38,7 @@
         <q-btn v-else-if="hasValue && !showRemoveConfirmation" flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = true">
           <q-tooltip>Remove</q-tooltip>
         </q-btn>
-        
+
         <!-- Remove Confirmation Buttons -->
         <div v-else-if="hasValue && showRemoveConfirmation" class="remove-confirmation-buttons">
           <q-btn flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = false" class="cancel-remove-btn">
@@ -780,6 +780,63 @@ onUnmounted(() => {
       transform: translateY(0);
     }
   }
+
+  // Filled state - normal appearance
+  &.filled {
+    background: white;
+    opacity: 1;
+    border-color: $grey-3;
+
+    &:hover {
+      border-color: $primary;
+      box-shadow: 0 1px 4px rgba($primary, 0.1);
+    }
+
+    .field-label {
+      color: $grey-8;
+    }
+  }
+
+  // Unfilled state - grayed out appearance
+  &.unfilled {
+    background: $grey-1;
+    opacity: 0.7;
+    border-color: $grey-2;
+    border-style: dashed;
+
+    &:hover {
+      opacity: 0.9;
+      border-color: $grey-4;
+      box-shadow: 0 1px 4px rgba($grey-5, 0.1);
+    }
+
+    .field-label {
+      color: $grey-6;
+
+      .q-icon {
+        opacity: 0.6;
+      }
+    }
+
+    // Make input fields appear more muted
+    :deep(.q-field__control) {
+      background: rgba($grey-2, 0.3);
+
+      .q-field__native {
+        color: $grey-6;
+
+        &::placeholder {
+          color: $grey-5;
+          font-style: italic;
+        }
+      }
+    }
+
+    // Muted icons in unfilled state
+    :deep(.q-field__prepend .q-icon) {
+      color: $grey-5;
+    }
+  }
 }
 
 .field-label-row {
@@ -794,18 +851,18 @@ onUnmounted(() => {
     font-size: 0.85rem;
     display: flex;
     align-items: center;
-    
+
     .status-indicator {
       display: flex;
       align-items: center;
       margin-left: 0.5rem;
       font-size: 0.75rem;
-      
+
       .update-time {
         color: $grey-6;
         margin-left: 0.25rem;
       }
-      
+
       .pending-indicator {
         color: $warning;
         margin-left: 0.25rem;
@@ -830,7 +887,8 @@ onUnmounted(() => {
       border: 1px solid rgba($primary, 0.15);
       animation: slideIn 0.2s ease;
 
-      .save-btn, .cancel-btn {
+      .save-btn,
+      .cancel-btn {
         transition: all 0.15s ease;
 
         &:hover {
@@ -847,7 +905,7 @@ onUnmounted(() => {
         background: rgba($grey-6, 0.1);
       }
     }
-    
+
     .remove-confirmation-buttons {
       display: flex;
       gap: 0.125rem;
@@ -856,20 +914,20 @@ onUnmounted(() => {
       border-radius: 12px;
       border: 1px solid rgba($negative, 0.15);
       animation: slideIn 0.2s ease;
-      
+
       .confirm-remove-btn {
         transition: all 0.15s ease;
-        
+
         &:hover {
           background: $negative;
           color: white;
           transform: scale(1.05);
         }
       }
-      
+
       .cancel-remove-btn {
         transition: all 0.15s ease;
-        
+
         &:hover {
           background: rgba($grey-6, 0.1);
           transform: scale(1.05);
@@ -884,13 +942,13 @@ onUnmounted(() => {
 
   .numeric-input {
     position: relative;
-    
+
     .unit-chip {
       font-size: 0.75rem;
       font-weight: 500;
       border-radius: 4px;
       margin-right: 4px;
-      
+
       &:deep(.q-chip__content) {
         padding: 0 6px;
       }

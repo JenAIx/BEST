@@ -9,12 +9,14 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store.js'
 import { useLoggingStore } from './logging-store.js'
+import { useAuthStore } from './auth-store.js'
 import { useQuasar } from 'quasar'
 import { formatDate, getVisitTypeLabel } from 'src/shared/utils/medical-utils.js'
 
 export const useVisitObservationStore = defineStore('visitObservation', () => {
   const dbStore = useDatabaseStore()
   const logger = useLoggingStore().createLogger('VisitObservationStore')
+  const authStore = useAuthStore()
   const $q = useQuasar()
 
   // State
@@ -76,6 +78,40 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
   const hasData = computed(() => {
     return selectedPatient.value && visits.value.length > 0
   })
+
+  // Helper Functions
+  const getConceptMetadata = async (conceptCode) => {
+    try {
+      const query = `
+        SELECT SOURCESYSTEM_CD, CATEGORY_CHAR
+        FROM CONCEPT_DIMENSION
+        WHERE CONCEPT_CD = ?
+      `
+      const result = await dbStore.executeQuery(query, [conceptCode])
+
+      if (result.success && result.data.length > 0) {
+        return {
+          sourceSystemCd: result.data[0].SOURCESYSTEM_CD,
+          categoryCd: result.data[0].CATEGORY_CHAR,
+        }
+      }
+
+      logger.warn('Concept not found in CONCEPT_DIMENSION', { conceptCode })
+      return {
+        sourceSystemCd: 'UNKNOWN',
+        categoryCd: 'General',
+      }
+    } catch (error) {
+      logger.error('Failed to get concept metadata', error, { conceptCode })
+      return {
+        sourceSystemCd: 'SYSTEM',
+        categoryCd: 'General',
+      }
+    }
+  }
+
+  // Note: getConceptSourceSystem has been replaced with getConceptMetadata
+  // which returns both sourceSystemCd and categoryCd in a single database query
 
   // Actions - Patient Management
   const setSelectedPatient = async (patient) => {
@@ -417,8 +453,15 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       const observationRepo = dbStore.getRepository('observation')
       let clonedCount = 0
 
+      // Get current user for PROVIDER_ID
+      const currentUser = authStore.currentUser
+      const providerId = currentUser?.USER_CD || 'SYSTEM'
+
       for (const obs of observations) {
         try {
+          // Get original concept's metadata
+          const conceptMetadata = await getConceptMetadata(obs.CONCEPT_CD)
+
           const newObsData = {
             PATIENT_NUM: obs.PATIENT_NUM,
             ENCOUNTER_NUM: createdVisit.ENCOUNTER_NUM,
@@ -428,10 +471,10 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             NVAL_NUM: obs.NVAL_NUM,
             UNIT_CD: obs.UNIT_CD,
             START_DATE: new Date().toISOString().split('T')[0],
-            CATEGORY_CHAR: obs.CATEGORY_CHAR,
-            PROVIDER_ID: 'SYSTEM',
+            CATEGORY_CHAR: conceptMetadata.categoryCd, // Use concept's category
+            PROVIDER_ID: providerId, // Use current user
             LOCATION_CD: 'CLONED',
-            SOURCESYSTEM_CD: 'VISIT_CLONE',
+            SOURCESYSTEM_CD: conceptMetadata.sourceSystemCd, // Use concept's source system
             INSTANCE_NUM: 1,
             UPLOAD_ID: 1,
           }
@@ -618,8 +661,27 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         selectedPatientId: selectedPatient.value?.id,
       })
 
+      // If updating CONCEPT_CD, also update SOURCESYSTEM_CD and CATEGORY_CHAR
+      let enhancedUpdateData = { ...updateData }
+
+      if (updateData.CONCEPT_CD) {
+        const conceptMetadata = await getConceptMetadata(updateData.CONCEPT_CD)
+        enhancedUpdateData.SOURCESYSTEM_CD = conceptMetadata.sourceSystemCd
+        // Only update CATEGORY_CHAR if not explicitly provided in updateData
+        if (!updateData.CATEGORY_CHAR) {
+          enhancedUpdateData.CATEGORY_CHAR = conceptMetadata.categoryCd
+        }
+
+        logger.debug('Updating observation with new concept metadata', {
+          observationId,
+          conceptCode: updateData.CONCEPT_CD,
+          sourceSystemCd: conceptMetadata.sourceSystemCd,
+          categoryCd: conceptMetadata.categoryCd,
+        })
+      }
+
       const observationRepo = dbStore.getRepository('observation')
-      const result = await observationRepo.updateObservation(observationId, updateData)
+      const result = await observationRepo.updateObservation(observationId, enhancedUpdateData)
 
       logger.debug('Database update completed', { observationId, result })
 
@@ -669,10 +731,32 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         }
       }
 
-      logger.debug('Final observation data for creation', observationData)
+      // Get current user's USER_CD for PROVIDER_ID
+      const currentUser = authStore.currentUser
+      const providerId = currentUser?.USER_CD || 'SYSTEM'
+
+      // Get concept's metadata (SOURCESYSTEM_CD and CATEGORY_CHAR)
+      const conceptMetadata = await getConceptMetadata(observationData.CONCEPT_CD)
+
+      // Ensure we have enhanced observation data
+      const enhancedObservationData = {
+        ...observationData,
+        PROVIDER_ID: providerId,
+        SOURCESYSTEM_CD: conceptMetadata.sourceSystemCd,
+        // Use concept's CATEGORY_CHAR if not already provided
+        CATEGORY_CHAR: observationData.CATEGORY_CHAR || conceptMetadata.categoryCd,
+      }
+
+      logger.debug('Creating observation with enhanced data', {
+        conceptCode: observationData.CONCEPT_CD,
+        providerId,
+        sourceSystemCd: conceptMetadata.sourceSystemCd,
+        categoryCd: conceptMetadata.categoryCd,
+        finalData: enhancedObservationData,
+      })
 
       const observationRepo = dbStore.getRepository('observation')
-      const newObservation = await observationRepo.createObservation(observationData)
+      const newObservation = await observationRepo.createObservation(enhancedObservationData)
 
       logger.debug('Database create completed', {
         newObservationId: newObservation?.OBSERVATION_ID,
