@@ -602,7 +602,7 @@ const createObservationFromChip = async (concept) => {
       added: true,
     })
 
-    logger.info('Observation created from chip successfully', {
+    logger.success('Observation created from chip successfully', {
       conceptCode: concept.code,
       conceptName: concept.name,
       patientId: props.patient.id,
@@ -618,12 +618,64 @@ const createObservationFromChip = async (concept) => {
     logger.error('Failed to create observation from chip', error, {
       conceptCode: concept.code,
       conceptName: concept.name,
+      errorMessage: error.message,
+      errorStack: error.stack,
     })
+
+    // Check for specific error types and provide appropriate messages
+    let errorMessage = `Failed to add ${concept.name}`
+    let errorDetails = ''
+
+    if (error.message?.includes('FOREIGN KEY constraint failed') || error.message?.includes('Concept not found')) {
+      errorMessage = `Concept "${concept.name}" not found in database`
+      errorDetails = `The concept code "${concept.code}" needs to be added to the CONCEPT_DIMENSION table before observations can be created.`
+
+      logger.warn('Concept missing from database', {
+        conceptCode: concept.code,
+        conceptName: concept.name,
+        suggestion: 'Add concept to CONCEPT_DIMENSION table or update field set configuration',
+      })
+    } else if (error.message?.includes('SQLITE_CONSTRAINT')) {
+      errorMessage = `Database constraint error`
+      errorDetails = `There was a database constraint violation when trying to create the observation. This may be due to missing reference data.`
+    } else if (error.message?.includes('Failed to create entity')) {
+      errorMessage = `Failed to create observation`
+      errorDetails = `The observation could not be saved to the database. Please check the database configuration.`
+    }
+
+    // Show user-friendly error notification
     $q.notify({
       type: 'negative',
-      message: `Failed to add ${concept.name}`,
+      message: errorMessage,
+      caption: errorDetails,
       position: 'top',
+      timeout: 6000, // Show longer for error messages
+      actions: [
+        {
+          label: 'Dismiss',
+          color: 'white',
+          handler: () => {},
+        },
+      ],
     })
+
+    // For missing concepts, also show a dialog with more information
+    if (error.message?.includes('FOREIGN KEY constraint failed') || error.message?.includes('Concept not found')) {
+      $q.dialog({
+        title: 'Concept Not Found',
+        message: `The concept "${concept.name}" (${concept.code}) is not available in the database.`,
+        html: true,
+        ok: {
+          label: 'OK',
+          color: 'primary',
+        },
+      }).onOk(() => {
+        logger.info('User acknowledged missing concept dialog', {
+          conceptCode: concept.code,
+          conceptName: concept.name,
+        })
+      })
+    }
   }
 }
 </script>
