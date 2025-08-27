@@ -21,6 +21,7 @@
 
     <q-slide-transition>
       <div v-show="!collapsed" class="field-set-content">
+        <!-- Filled Observations Grid -->
         <div class="observation-grid">
           <!-- Medication Fields - Render one field per observation, not per concept -->
           <MedicationField
@@ -35,33 +36,43 @@
             @clone-requested="onCloneRequested"
           />
 
-          <!-- Regular Observation Fields - Handle multiple observations per concept -->
-          <template v-for="concept in fieldSetConcepts.filter((c) => c.valueType !== 'M')" :key="concept.code">
-            <!-- If there are multiple observations for this concept, render one field per observation -->
-            <ObservationField
-              v-for="(observation, index) in getExistingObservations(concept.code)"
-              :key="`${concept.code}-${observation.observationId || index}`"
-              :concept="concept"
-              :visit="visit"
-              :patient="patient"
-              :existing-observation="observation"
-              :previous-value="getPreviousValue(concept.code)"
-              @observation-updated="onObservationUpdated"
-              @clone-requested="onCloneRequested"
-            />
-            <!-- If no existing observations, render one empty field -->
-            <ObservationField
-              v-if="getExistingObservations(concept.code).length === 0"
-              :key="`${concept.code}-empty`"
-              :concept="concept"
-              :visit="visit"
-              :patient="patient"
-              :existing-observation="null"
-              :previous-value="getPreviousValue(concept.code)"
-              @observation-updated="onObservationUpdated"
-              @clone-requested="onCloneRequested"
-            />
-          </template>
+          <!-- Regular Observation Fields - Render each unique observation only once -->
+          <ObservationField
+            v-for="observationWithConcept in filledObservationsWithConcepts"
+            :key="`obs-${observationWithConcept.observation.observationId}`"
+            :concept="observationWithConcept.concept"
+            :visit="visit"
+            :patient="patient"
+            :existing-observation="observationWithConcept.observation"
+            :previous-value="getPreviousValue(observationWithConcept.concept.code)"
+            @observation-updated="onObservationUpdated"
+            @clone-requested="onCloneRequested"
+          />
+        </div>
+
+        <!-- Unfilled Observations - Compact Chips -->
+        <div v-if="unfilledConcepts.length > 0" class="unfilled-observations">
+          <div class="unfilled-section-header">
+            <q-icon name="add_circle_outline" size="16px" class="q-mr-xs" />
+            <span class="section-title">Available Observations</span>
+            <q-badge :label="unfilledConcepts.length" color="grey-5" class="q-ml-sm" />
+          </div>
+          <div class="unfilled-chips">
+            <q-chip
+              v-for="concept in unfilledConcepts"
+              :key="`unfilled-${concept.code}`"
+              clickable
+              outline
+              icon="add"
+              :label="concept.name"
+              color="grey-6"
+              text-color="grey-7"
+              class="unfilled-chip"
+              @click="createObservationFromChip(concept)"
+            >
+              <q-tooltip>Click to add {{ concept.name }}</q-tooltip>
+            </q-chip>
+          </div>
         </div>
 
         <!-- Add custom observation -->
@@ -190,22 +201,188 @@ const medicationObservations = computed(() => {
 
   logger.debug('Computing medication observations', {
     fieldSetId: props.fieldSet.id,
+    visitId: props.visit.id,
     existingObservationsCount: props.existingObservations?.length || 0,
-    existingObservations: props.existingObservations,
   })
 
-  // Get all medication observations (both empty and filled)
-  const medObservations = props.existingObservations?.filter((obs) => obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))) || []
+  // Get all medication observations for the current encounter only
+  const medObservations =
+    props.existingObservations?.filter((obs) => {
+      // Must match the current visit's encounter number
+      const encounterMatch = obs.encounterNum === props.visit.id || obs.ENCOUNTER_NUM === props.visit.id
+
+      // Must be a medication observation
+      const isMedication = obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))
+
+      return encounterMatch && isMedication
+    }) || []
+
+  // Sort medications by category and then by creation date
+  medObservations.sort((a, b) => {
+    const categoryA = a.category || a.CATEGORY_CHAR || 'ZZZZZ'
+    const categoryB = b.category || b.CATEGORY_CHAR || 'ZZZZZ'
+
+    // Primary sort by category
+    if (categoryA !== categoryB) {
+      return categoryA.localeCompare(categoryB)
+    }
+
+    // Secondary sort by date (newest first for medications)
+    const dateA = new Date(a.startDate || a.START_DATE || a.date || 0)
+    const dateB = new Date(b.startDate || b.START_DATE || b.date || 0)
+    return dateB - dateA
+  })
 
   logger.debug('Filtered medication observations', {
+    visitId: props.visit.id,
     medicationObservationsCount: medObservations.length,
-    medicationObservations: medObservations,
+    medicationObservations: medObservations.map((obs) => ({
+      id: obs.observationId,
+      encounterNum: obs.encounterNum || obs.ENCOUNTER_NUM,
+      conceptCode: obs.conceptCode,
+      category: obs.category || obs.CATEGORY_CHAR,
+      value: obs.originalValue || obs.value,
+    })),
   })
 
   return medObservations
 })
 
+// Create unique observation-concept pairs to avoid duplicates
+const filledObservationsWithConcepts = computed(() => {
+  const result = []
+  const processedObservationIds = new Set()
+
+  // Filter observations for the current encounter (visit) only
+  const currentEncounterObservations =
+    props.existingObservations?.filter((obs) => {
+      // Must match the current visit's encounter number
+      const encounterMatch = obs.encounterNum === props.visit.id || obs.ENCOUNTER_NUM === props.visit.id
+
+      // Exclude medications (handled separately)
+      const notMedication = obs.valTypeCode !== 'M' && !obs.conceptCode?.includes('52418')
+
+      return encounterMatch && notMedication
+    }) || []
+
+  logger.debug('Filtered observations for current encounter', {
+    visitId: props.visit.id,
+    totalObservations: props.existingObservations?.length || 0,
+    currentEncounterObservations: currentEncounterObservations.length,
+    encounterObservations: currentEncounterObservations.map((obs) => ({
+      id: obs.observationId,
+      encounterNum: obs.encounterNum || obs.ENCOUNTER_NUM,
+      conceptCode: obs.conceptCode,
+      category: obs.category || obs.CATEGORY_CHAR,
+    })),
+  })
+
+  // For each observation, find the best matching concept
+  for (const observation of currentEncounterObservations) {
+    // Skip if we've already processed this observation
+    if (processedObservationIds.has(observation.observationId)) {
+      continue
+    }
+
+    // Find the best matching concept for this observation
+    const matchingConcept = findBestMatchingConcept(observation)
+
+    if (matchingConcept) {
+      result.push({
+        observation,
+        concept: matchingConcept,
+      })
+      processedObservationIds.add(observation.observationId)
+
+      logger.debug('Paired observation with concept', {
+        observationId: observation.observationId,
+        observationConceptCode: observation.conceptCode,
+        matchedConceptCode: matchingConcept.code,
+        value: observation.originalValue || observation.value,
+        category: observation.category || observation.CATEGORY_CHAR,
+      })
+    }
+  }
+
+  // Sort by category for better organization
+  result.sort((a, b) => {
+    const categoryA = a.observation.category || a.observation.CATEGORY_CHAR || 'ZZZZZ' // Put unknown categories at the end
+    const categoryB = b.observation.category || b.observation.CATEGORY_CHAR || 'ZZZZZ'
+
+    // Primary sort by category
+    if (categoryA !== categoryB) {
+      return categoryA.localeCompare(categoryB)
+    }
+
+    // Secondary sort by concept name for same category
+    const conceptNameA = a.concept.name || a.concept.code
+    const conceptNameB = b.concept.name || b.concept.code
+    return conceptNameA.localeCompare(conceptNameB)
+  })
+
+  logger.debug('filledObservationsWithConcepts computed', {
+    visitId: props.visit.id,
+    totalObservations: currentEncounterObservations.length,
+    pairedObservations: result.length,
+    processedIds: Array.from(processedObservationIds),
+    categoriesFound: [...new Set(result.map((item) => item.observation.category || item.observation.CATEGORY_CHAR))],
+  })
+
+  return result
+})
+
+// Unfilled concepts - concepts that don't have any existing observations
+const unfilledConcepts = computed(() => {
+  const filledConceptCodes = new Set(filledObservationsWithConcepts.value.map((item) => item.concept.code))
+
+  return fieldSetConcepts.value.filter((concept) => {
+    // Skip medications as they are handled differently
+    if (concept.valueType === 'M') return false
+
+    // Check if this concept is already paired with an observation
+    return !filledConceptCodes.has(concept.code)
+  })
+})
+
 // Methods
+const findBestMatchingConcept = (observation) => {
+  const obsConceptCode = observation.conceptCode
+
+  // Find all potential matching concepts
+  const matches = fieldSetConcepts.value.filter((concept) => {
+    // Skip medications
+    if (concept.valueType === 'M') return false
+
+    // 1. Exact match (highest priority)
+    if (concept.code === obsConceptCode) return true
+
+    // 2. Extract numeric codes and compare (e.g., "LOINC:8867-4" vs "LID: 8867-4")
+    const conceptMatch = concept.code.match(/[:\s]([0-9-]+)$/)
+    const obsMatch = obsConceptCode.match(/[:\s]([0-9-]+)$/)
+    if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) return true
+
+    return false
+  })
+
+  if (matches.length === 0) {
+    logger.warn('No matching concept found for observation', {
+      observationId: observation.observationId,
+      obsConceptCode,
+      availableConcepts: fieldSetConcepts.value.map((c) => c.code),
+    })
+    return null
+  }
+
+  // Prefer exact matches first, then numeric matches
+  const exactMatch = matches.find((concept) => concept.code === obsConceptCode)
+  if (exactMatch) {
+    return exactMatch
+  }
+
+  // Return the first numeric match
+  return matches[0]
+}
+
 const getConceptName = (conceptCode) => {
   // Map common concept codes to human-readable names
   const conceptNames = {
@@ -277,52 +454,11 @@ const getConceptUnit = (conceptCode) => {
   return conceptUnits[conceptCode] || ''
 }
 
-// Get all observations that match a concept code (returns array)
-const getExistingObservations = (conceptCode) => {
-  logger.debug('getExistingObservations called', { conceptCode, observationCount: props.existingObservations?.length || 0 })
-
-  const matchingObservations =
-    props.existingObservations?.filter((obs) => {
-      // Try multiple matching strategies:
-      // 1. Exact match
-      if (obs.conceptCode === conceptCode) return true
-
-      // 2. Extract numeric codes and compare (e.g., "LOINC:8462-4" vs "LID: 8462-4")
-      const conceptMatch = conceptCode.match(/[:\s]([0-9-]+)$/)
-      const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
-      if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) {
-        logger.debug('Matched by numeric code', { conceptCode, matchedCode: obs.conceptCode })
-        return true
-      }
-
-      // 3. Full concept code includes the database concept code
-      if (conceptCode.includes(obs.conceptCode)) return true
-
-      // 4. Database concept code includes the full concept
-      if (obs.conceptCode.includes(conceptCode)) return true
-
-      // 5. Match just the code part (after the colon)
-      const [, code] = conceptCode.split(':')
-      if (code && obs.conceptCode.includes(code)) return true
-
-      // 6. Case-insensitive match
-      if (obs.conceptCode.toLowerCase().includes(conceptCode.toLowerCase())) return true
-
-      return false
-    }) || []
-
-  logger.debug('Found matching observations', {
-    conceptCode,
-    matchCount: matchingObservations.length,
-    matchingObservations: matchingObservations.map((obs) => ({
-      id: obs.observationId,
-      value: obs.originalValue || obs.value,
-      category: obs.category,
-    })),
-  })
-
-  return matchingObservations
-}
+// Legacy function - replaced by filledObservationsWithConcepts approach
+// const getExistingObservations = (conceptCode) => {
+//   // This function has been replaced with a more precise matching approach
+//   // to prevent duplicate observations from being displayed
+// }
 
 // Note: getExistingObservation (singular) has been replaced with getExistingObservations (plural)
 // to properly handle multiple observations with the same concept code
@@ -431,6 +567,65 @@ const onCustomObservationAdded = (data) => {
   // Emit the observation update to parent
   emit('observation-updated', data)
 }
+
+const createObservationFromChip = async (concept) => {
+  try {
+    logger.info('Creating observation from chip', {
+      conceptCode: concept.code,
+      conceptName: concept.name,
+      fieldSetId: props.fieldSet.id,
+    })
+
+    // Get default values from global settings store if available
+    const observationData = {
+      ENCOUNTER_NUM: props.visit.id,
+      CONCEPT_CD: concept.code,
+      VALTYPE_CD: concept.valueType,
+      START_DATE: new Date().toISOString().split('T')[0],
+      LOCATION_CD: 'VISITS_PAGE',
+      INSTANCE_NUM: 1,
+      UPLOAD_ID: 1,
+      // Initialize with empty values based on type
+      TVAL_CHAR: concept.valueType === 'N' ? null : '',
+      NVAL_NUM: concept.valueType === 'N' ? null : null,
+      UNIT_CD: concept.unit || null,
+      OBSERVATION_BLOB: null,
+    }
+
+    // Use visit store to create observation - it handles patient lookup and state updates
+    await visitStore.createObservation(observationData)
+
+    // Emit update to refresh the field set
+    emit('observation-updated', {
+      conceptCode: concept.code,
+      value: concept.valueType === 'N' ? null : '',
+      added: true,
+    })
+
+    logger.info('Observation created from chip successfully', {
+      conceptCode: concept.code,
+      conceptName: concept.name,
+      patientId: props.patient.id,
+      visitId: props.visit.id,
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: `${concept.name} observation added`,
+      position: 'top',
+    })
+  } catch (error) {
+    logger.error('Failed to create observation from chip', error, {
+      conceptCode: concept.code,
+      conceptName: concept.name,
+    })
+    $q.notify({
+      type: 'negative',
+      message: `Failed to add ${concept.name}`,
+      position: 'top',
+    })
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -506,6 +701,63 @@ const onCustomObservationAdded = (data) => {
   // For medication fields with col-12 class, make them span full width
   :deep(.medication-field.col-12) {
     grid-column: 1 / -1;
+  }
+}
+
+.unfilled-observations {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed $grey-4;
+
+  .unfilled-section-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.75rem;
+    color: $grey-6;
+
+    .section-title {
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+  }
+
+  .unfilled-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+
+    .unfilled-chip {
+      transition: all 0.2s ease;
+      cursor: pointer;
+      font-size: 0.75rem;
+
+      &:hover {
+        background-color: rgba($primary, 0.08);
+        border-color: $primary;
+        color: $primary;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba($primary, 0.15);
+
+        :deep(.q-icon) {
+          color: $primary;
+        }
+      }
+
+      &:active {
+        transform: translateY(0);
+        box-shadow: 0 1px 2px rgba($primary, 0.1);
+      }
+
+      :deep(.q-chip__content) {
+        padding: 4px 8px;
+      }
+
+      :deep(.q-icon) {
+        font-size: 14px;
+        margin-right: 4px;
+        transition: color 0.2s ease;
+      }
+    }
   }
 }
 
