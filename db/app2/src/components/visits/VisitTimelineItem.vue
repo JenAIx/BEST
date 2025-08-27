@@ -11,6 +11,10 @@
             <div class="visit-date">
               <q-icon name="event" class="q-mr-xs" />
               {{ formattedDate }}
+              <!-- Status Chip -->
+              <q-chip v-if="statusData.label !== 'Unknown'" :color="statusData.color" text-color="white" size="sm" class="q-ml-sm status-chip">
+                {{ statusData.label }}
+              </q-chip>
             </div>
             <div class="visit-actions">
               <q-btn flat round icon="visibility" size="sm" color="secondary" @click.stop="viewVisit">
@@ -121,9 +125,9 @@ onMounted(async () => {
   }
 })
 
-// Watch for changes in visit type or status
+// Watch for changes in visit type, status, or rawData
 watch(
-  () => [props.visit.type, props.visit.status],
+  () => [props.visit.type, props.visit.status, props.visit.rawData?.VISIT_BLOB],
   async () => {
     await resolveVisitType()
     await resolveVisitStatus()
@@ -133,42 +137,114 @@ watch(
 
 // Resolve visit type using store
 const resolveVisitType = async () => {
+  // Extract visit type from VISIT_BLOB if available (new approach)
+  let visitType = props.visit.type // fallback to legacy field
+
+  if (props.visit.rawData?.VISIT_BLOB) {
+    try {
+      const blobData = JSON.parse(props.visit.rawData.VISIT_BLOB)
+      if (blobData.visitType) {
+        visitType = blobData.visitType
+      }
+      logger.debug('Extracted visit type from VISIT_BLOB', {
+        visitId: props.visit.id,
+        visitBlob: props.visit.rawData.VISIT_BLOB,
+        extractedVisitType: visitType,
+      })
+    } catch {
+      logger.debug('Failed to parse VISIT_BLOB, using legacy type field', {
+        visitId: props.visit.id,
+        visitBlob: props.visit.rawData.VISIT_BLOB,
+        legacyType: props.visit.type,
+      })
+    }
+  }
+
   try {
-    if (!props.visit.type) {
+    if (!visitType) {
       visitTypeData.value = { label: 'General Visit', icon: 'local_hospital', color: 'primary' }
       return
     }
 
     // First try to find in global settings visit type options
-    const typeOption = visitTypeOptions.value.find((vt) => vt.value === props.visit.type)
+    const typeOption = visitTypeOptions.value.find((vt) => vt.value === visitType)
     if (typeOption) {
       visitTypeData.value = {
         label: typeOption.label,
-        icon: typeOption.icon || 'local_hospital',
-        color: typeOption.color || 'primary',
+        icon: typeOption.icon || getVisitTypeIcon(visitType),
+        color: typeOption.color || getVisitTypeColor(visitType),
       }
+      logger.debug('Resolved visit type from global settings', {
+        visitId: props.visit.id,
+        visitType,
+        resolvedLabel: typeOption.label,
+      })
       return
     }
 
     // Fallback to concept resolution
-    const resolved = await conceptStore.resolveConcept(props.visit.type, {
+    const resolved = await conceptStore.resolveConcept(visitType, {
       context: 'visit_type',
       table: 'VISIT_DIMENSION',
       column: 'VISIT_TYPE_CD',
     })
 
     visitTypeData.value = {
-      label: resolved.label || 'General Visit',
-      icon: 'local_hospital', // Default icon if not in global settings
-      color: resolved.color || 'primary',
+      label: resolved.label || getVisitTypeLabel(visitType),
+      icon: getVisitTypeIcon(visitType),
+      color: resolved.color || getVisitTypeColor(visitType),
     }
+
+    logger.debug('Resolved visit type from concept store', {
+      visitId: props.visit.id,
+      visitType,
+      resolvedLabel: resolved.label,
+    })
   } catch (error) {
     logger.error('Failed to resolve visit type', error, {
-      visitType: props.visit.type,
+      visitType: visitType || props.visit.type,
       visitId: props.visit.id,
     })
-    visitTypeData.value = { label: 'General Visit', icon: 'local_hospital', color: 'primary' }
+    visitTypeData.value = {
+      label: getVisitTypeLabel(visitType || props.visit.type),
+      icon: getVisitTypeIcon(visitType || props.visit.type),
+      color: getVisitTypeColor(visitType || props.visit.type),
+    }
   }
+}
+
+// Visit type helper methods (same as in VisitDataEntry.vue)
+const getVisitTypeLabel = (typeCode) => {
+  const labelMap = {
+    routine: 'Routine Check-up',
+    followup: 'Follow-up',
+    emergency: 'Emergency',
+    consultation: 'Consultation',
+    procedure: 'Procedure',
+  }
+  return labelMap[typeCode] || typeCode || 'General Visit'
+}
+
+const getVisitTypeIcon = (typeCode) => {
+  const iconMap = {
+    routine: 'health_and_safety',
+    followup: 'follow_the_signs',
+    emergency: 'emergency',
+    consultation: 'psychology',
+    procedure: 'medical_services',
+  }
+  return iconMap[typeCode] || 'local_hospital'
+}
+
+const getVisitTypeColor = (typeCode) => {
+  const colorMap = {
+    routine: 'blue',
+    followup: 'orange',
+    emergency: 'negative',
+    consultation: 'purple',
+    procedure: 'teal',
+  }
+  return colorMap[typeCode] || 'primary'
 }
 
 // Resolve visit status using concept resolution
@@ -185,22 +261,68 @@ const resolveVisitStatus = async () => {
       column: 'ACTIVE_STATUS_CD',
     })
 
-    // Map resolved status to CSS classes and colors
-    const statusMapping = {
-      Active: { class: 'status-active', color: 'positive' },
-      Completed: { class: 'status-completed', color: 'primary' },
-      Cancelled: { class: 'status-cancelled', color: 'negative' },
-      Discharged: { class: 'status-completed', color: 'primary' },
-      Inactive: { class: 'status-cancelled', color: 'negative' },
+    logger.debug('Visit status resolution result', {
+      visitId: props.visit.id,
+      rawStatus: props.visit.status,
+      resolvedLabel: resolved.label,
+      resolvedColor: resolved.color,
+      resolvedSource: resolved.source,
+    })
+
+    // Map resolved status labels to CSS classes - let concept store handle colors
+    const statusClassMapping = {
+      // SNOMED-CT visit status labels from concept-resolution-store
+      Active: 'status-active', // SCTID: 55561003
+      Classified: 'status-active', // SCTID: 73504009 (like active)
+      Closed: 'status-completed', // SCTID: 29179001 (completed)
+      Inactive: 'status-cancelled', // SCTID: 73425007
+
+      // Legacy labels (for backward compatibility)
+      Completed: 'status-completed',
+      Discharged: 'status-completed',
+      Cancelled: 'status-cancelled',
+      Pending: 'status-active',
     }
 
-    const mapping = statusMapping[resolved.label] || statusMapping[resolved.label?.toLowerCase()] || { class: 'status-default', color: 'grey' }
+    // Get CSS class based on resolved label, with fallback to raw status code mapping
+    const getCssClass = (label, rawStatus) => {
+      if (label && statusClassMapping[label]) {
+        return statusClassMapping[label]
+      }
+
+      // Fallback mapping for raw database codes (both legacy and SNOMED-CT)
+      const rawCodeMapping = {
+        // SNOMED-CT codes (preferred)
+        'SCTID: 55561003': 'status-active', // Active
+        'SCTID: 73504009': 'status-active', // Classified (like active)
+        'SCTID: 29179001': 'status-completed', // Closed (completed)
+        'SCTID: 73425007': 'status-cancelled', // Inactive
+
+        // Legacy single-letter codes (for backward compatibility)
+        A: 'status-active', // Active
+        C: 'status-completed', // Completed
+        I: 'status-cancelled', // Inactive
+        X: 'status-cancelled', // Cancelled
+        P: 'status-active', // Pending
+      }
+
+      return rawCodeMapping[rawStatus] || 'status-default'
+    }
 
     statusData.value = {
       label: resolved.label,
-      color: resolved.color || mapping.color,
-      class: mapping.class,
+      color: resolved.color, // Use concept store's color (now handles visit_status context properly)
+      class: getCssClass(resolved.label, props.visit.status),
     }
+
+    logger.debug('Final status mapping result', {
+      visitId: props.visit.id,
+      finalLabel: resolved.label,
+      finalColor: resolved.color,
+      finalClass: statusData.value.class,
+      conceptStoreColor: resolved.color,
+      usesConceptStore: true,
+    })
   } catch (error) {
     logger.error('Failed to resolve visit status', error, {
       visitStatus: props.visit.status,
@@ -331,18 +453,18 @@ const deleteVisit = () => {
     transition: all 0.3s ease;
 
     &.status-active {
+      background: $negative;
+      box-shadow: 0 0 0 4px rgba($negative, 0.2);
+    }
+
+    &.status-completed {
       background: $positive;
       box-shadow: 0 0 0 4px rgba($positive, 0.2);
     }
 
-    &.status-completed {
-      background: $primary;
-      box-shadow: 0 0 0 4px rgba($primary, 0.2);
-    }
-
     &.status-cancelled {
-      background: $negative;
-      box-shadow: 0 0 0 4px rgba($negative, 0.2);
+      background: $grey-5;
+      box-shadow: 0 0 0 4px rgba($grey-5, 0.2);
     }
 
     &.status-default {
@@ -385,11 +507,26 @@ const deleteVisit = () => {
     display: flex;
     align-items: center;
     font-size: 0.95rem;
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
 
   .visit-actions {
     display: flex;
     gap: 0.25rem;
+  }
+
+  .status-chip {
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    }
   }
 }
 
@@ -494,6 +631,22 @@ const deleteVisit = () => {
     margin-right: 1rem;
   }
 
+  .visit-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+
+    .visit-date {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .visit-actions {
+      align-self: flex-end;
+    }
+  }
+
   .visit-summary {
     flex-direction: column;
     align-items: flex-start;
@@ -503,6 +656,10 @@ const deleteVisit = () => {
   .visit-metadata {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .status-chip {
+    font-size: 0.7rem;
   }
 }
 </style>

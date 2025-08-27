@@ -261,7 +261,16 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
       const lowerText = text.toLowerCase()
 
       // Context-specific color mapping
-      if (context === 'status' || context === 'vital_status') {
+      if (context === 'visit_status') {
+        // Visit status specific color mapping (more colorful and intuitive)
+        if (lowerText.includes('active') || lowerText.includes('classified') || lowerText.includes('pending') || lowerText.includes('admitted')) {
+          return 'negative' // Red for active/ongoing/urgent/classified
+        } else if (lowerText.includes('closed') || lowerText.includes('completed') || lowerText.includes('discharged')) {
+          return 'positive' // Green for closed/completed/success
+        } else if (lowerText.includes('inactive') || lowerText.includes('cancelled') || lowerText.includes('suspended')) {
+          return 'grey' // Grey for inactive/cancelled
+        }
+      } else if (context === 'status' || context === 'vital_status') {
         if (lowerText.includes('active') || lowerText.includes('alive') || lowerText.includes('admitted')) {
           return 'positive'
         } else if (lowerText.includes('discharged') || lowerText.includes('completed') || lowerText.includes('inactive') || lowerText.includes('dead')) {
@@ -303,7 +312,9 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
         A: 'Active',
         I: 'Inactive',
         D: 'Discharged',
-        C: 'Cancelled',
+        C: 'Completed', // Changed from 'Cancelled' to 'Completed' to match EditVisitDialog
+        X: 'Cancelled', // X is used for Cancelled in EditVisitDialog
+        P: 'Pending',
         M: 'Male',
         F: 'Female',
       }
@@ -559,8 +570,8 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
           case 'gender':
           case 'sex':
             query = `
-              SELECT DISTINCT SEX_CD as code, SEX_RESOLVED as label 
-              FROM patient_list 
+              SELECT DISTINCT SEX_CD as code, SEX_RESOLVED as label
+              FROM patient_list
               WHERE SEX_RESOLVED IS NOT NULL AND SEX_RESOLVED != ''
               ORDER BY SEX_RESOLVED
             `
@@ -568,50 +579,71 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
           case 'vital_status':
           case 'status':
             query = `
-              SELECT DISTINCT VITAL_STATUS_CD as code, VITAL_STATUS_RESOLVED as label 
-              FROM patient_list 
+              SELECT DISTINCT VITAL_STATUS_CD as code, VITAL_STATUS_RESOLVED as label
+              FROM patient_list
               WHERE VITAL_STATUS_RESOLVED IS NOT NULL AND VITAL_STATUS_RESOLVED != ''
               ORDER BY VITAL_STATUS_RESOLVED
             `
             break
           case 'language':
             query = `
-              SELECT DISTINCT LANGUAGE_CD as code, LANGUAGE_RESOLVED as label 
-              FROM patient_list 
+              SELECT DISTINCT LANGUAGE_CD as code, LANGUAGE_RESOLVED as label
+              FROM patient_list
               WHERE LANGUAGE_RESOLVED IS NOT NULL AND LANGUAGE_RESOLVED != ''
               ORDER BY LANGUAGE_RESOLVED
             `
             break
           case 'race':
             query = `
-              SELECT DISTINCT RACE_CD as code, RACE_RESOLVED as label 
-              FROM patient_list 
+              SELECT DISTINCT RACE_CD as code, RACE_RESOLVED as label
+              FROM patient_list
               WHERE RACE_RESOLVED IS NOT NULL AND RACE_RESOLVED != ''
               ORDER BY RACE_RESOLVED
             `
             break
           case 'marital_status':
             query = `
-              SELECT DISTINCT MARITAL_STATUS_CD as code, MARITAL_STATUS_RESOLVED as label 
-              FROM patient_list 
+              SELECT DISTINCT MARITAL_STATUS_CD as code, MARITAL_STATUS_RESOLVED as label
+              FROM patient_list
               WHERE MARITAL_STATUS_RESOLVED IS NOT NULL AND MARITAL_STATUS_RESOLVED != ''
               ORDER BY MARITAL_STATUS_RESOLVED
             `
             break
           case 'religion':
             query = `
-              SELECT DISTINCT RELIGION_CD as code, RELIGION_RESOLVED as label 
-              FROM patient_list 
+              SELECT DISTINCT RELIGION_CD as code, RELIGION_RESOLVED as label
+              FROM patient_list
               WHERE RELIGION_RESOLVED IS NOT NULL AND RELIGION_RESOLVED != ''
               ORDER BY RELIGION_RESOLVED
             `
             break
           case 'visit_status':
-            // For visit status, query CONCEPT_DIMENSION or CODE_LOOKUP
+            // For visit status, query CONCEPT_DIMENSION for SNOMED-CT visit status concepts
             query = `
-              SELECT DISTINCT CODE_CD as code, NAME_CHAR as label 
-              FROM CODE_LOOKUP 
-              WHERE (TABLE_CD = 'VISIT_DIMENSION' OR COLUMN_CD = 'ACTIVE_STATUS_CD')
+              SELECT DISTINCT CONCEPT_CD as code, NAME_CHAR as label, CONCEPT_PATH
+              FROM CONCEPT_DIMENSION
+              WHERE CONCEPT_PATH LIKE '\\SNOMED-CT\\138875005\\362981000\\272099008\\106232001\\106234000\\%'
+              AND NAME_CHAR IS NOT NULL AND NAME_CHAR != ''
+              ORDER BY NAME_CHAR
+            `
+            break
+          case 'visit_type':
+            // For visit type, query CODE_LOOKUP for visit types
+            query = `
+              SELECT DISTINCT CODE_CD as code, NAME_CHAR as label
+              FROM CODE_LOOKUP
+              WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = 'VISIT_TYPE_CD'
+              AND NAME_CHAR IS NOT NULL AND NAME_CHAR != ''
+              ORDER BY NAME_CHAR
+            `
+            break
+          case 'inout_type':
+          case 'visit_inout':
+            // For inpatient/outpatient status, query CODE_LOOKUP for INOUT_CD values
+            query = `
+              SELECT DISTINCT CODE_CD as code, NAME_CHAR as label
+              FROM CODE_LOOKUP
+              WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = 'INOUT_CD'
               AND NAME_CHAR IS NOT NULL AND NAME_CHAR != ''
               ORDER BY NAME_CHAR
             `
@@ -620,8 +652,8 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
             // Generic concept lookup
             if (table && column) {
               query = `
-                SELECT DISTINCT CODE_CD as code, NAME_CHAR as label 
-                FROM CODE_LOOKUP 
+                SELECT DISTINCT CODE_CD as code, NAME_CHAR as label
+                FROM CODE_LOOKUP
                 WHERE TABLE_CD = ? AND COLUMN_CD = ?
                 AND NAME_CHAR IS NOT NULL AND NAME_CHAR != ''
                 ORDER BY NAME_CHAR
@@ -630,8 +662,8 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
             } else {
               // Fallback to CONCEPT_DIMENSION
               query = `
-                SELECT DISTINCT CONCEPT_CD as code, NAME_CHAR as label 
-                FROM CONCEPT_DIMENSION 
+                SELECT DISTINCT CONCEPT_CD as code, NAME_CHAR as label
+                FROM CONCEPT_DIMENSION
                 WHERE NAME_CHAR IS NOT NULL AND NAME_CHAR != ''
                 ORDER BY NAME_CHAR
                 LIMIT 50
@@ -721,10 +753,19 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
           { label: 'Widowed', value: 'W', color: 'grey' },
         ],
         religion: [{ label: 'Not Specified', value: 'unknown', color: 'grey' }],
-        visit_status: [
-          { label: 'Active', value: 'A', color: 'positive' },
-          { label: 'Inactive', value: 'I', color: 'grey' },
-          { label: 'Discharged', value: 'D', color: 'negative' },
+        visit_status: [], // Will be populated from database query - uses SNOMED-CT concepts from CONCEPT_DIMENSION
+        visit_type: [
+          { label: 'Routine Check-up', value: 'routine', color: 'blue' },
+          { label: 'Follow-up', value: 'followup', color: 'orange' },
+          { label: 'Emergency', value: 'emergency', color: 'negative' },
+          { label: 'Consultation', value: 'consultation', color: 'purple' },
+          { label: 'Procedure', value: 'procedure', color: 'teal' },
+        ],
+        inout_type: [
+          { label: 'Outpatient', value: 'O', color: 'blue' },
+          { label: 'Inpatient', value: 'I', color: 'orange' },
+          { label: 'Emergency', value: 'E', color: 'negative' },
+          { label: 'Day Care', value: 'D', color: 'teal' },
         ],
       }
 
@@ -757,12 +798,12 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
         // Build search query
         const query = `
           SELECT CONCEPT_CD, NAME_CHAR, CONCEPT_BLOB, VALTYPE_CD, SOURCESYSTEM_CD, UNIT_CD
-          FROM CONCEPT_DIMENSION 
+          FROM CONCEPT_DIMENSION
           WHERE (NAME_CHAR LIKE ? OR CONCEPT_CD LIKE ? OR CONCEPT_PATH LIKE ?)
           ${options.valueType ? 'AND VALTYPE_CD = ?' : ''}
           ${options.sourceSystem ? 'AND SOURCESYSTEM_CD = ?' : ''}
-          ORDER BY 
-            CASE 
+          ORDER BY
+            CASE
               WHEN NAME_CHAR LIKE ? THEN 1
               WHEN CONCEPT_CD LIKE ? THEN 2
               ELSE 3
@@ -885,13 +926,13 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
             // For findings, we look for answer values in the standard SNOMED-CT answer hierarchy
             // Path: \SNOMED-CT\362981000\260245000 contains standard clinical answer values
             const answerQuery = `
-              SELECT CONCEPT_CD, NAME_CHAR, CONCEPT_PATH 
-              FROM CONCEPT_DIMENSION 
+              SELECT CONCEPT_CD, NAME_CHAR, CONCEPT_PATH
+              FROM CONCEPT_DIMENSION
               WHERE CONCEPT_PATH LIKE '\\SNOMED-CT\\362981000\\260245000%'
               AND NAME_CHAR IS NOT NULL
               AND LENGTH(NAME_CHAR) < 50
-              ORDER BY 
-                CASE 
+              ORDER BY
+                CASE
                   WHEN NAME_CHAR LIKE '%yes%' THEN 1
                   WHEN NAME_CHAR LIKE '%positive%' THEN 2
                   WHEN NAME_CHAR LIKE '%present%' THEN 3
@@ -1068,9 +1109,9 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
             // Query for child concepts in the hierarchy path
             // Look for concepts that are children of this concept in the hierarchy
             const childQuery = `
-              SELECT CONCEPT_CD, NAME_CHAR, CONCEPT_PATH 
-              FROM CONCEPT_DIMENSION 
-              WHERE CONCEPT_PATH LIKE ? 
+              SELECT CONCEPT_CD, NAME_CHAR, CONCEPT_PATH
+              FROM CONCEPT_DIMENSION
+              WHERE CONCEPT_PATH LIKE ?
               AND CONCEPT_CD != ?
               AND LENGTH(CONCEPT_PATH) > LENGTH(?)
               AND NAME_CHAR IS NOT NULL

@@ -121,10 +121,29 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
 
       const patientVisits = await visitRepo.getPatientVisitTimeline(patientData.PATIENT_NUM)
 
+      logger.debug('Raw patient visits from database', {
+        patientId: patient.id,
+        visitCount: patientVisits.length,
+        sampleVisit: patientVisits[0]
+          ? {
+              ENCOUNTER_NUM: patientVisits[0].ENCOUNTER_NUM,
+              VISIT_BLOB: patientVisits[0].VISIT_BLOB,
+              ACTIVE_STATUS_CD: patientVisits[0].ACTIVE_STATUS_CD,
+            }
+          : null,
+      })
+
       // Load observation counts for each visit
       const visitsWithCounts = await Promise.all(
         patientVisits.map(async (visit) => {
           const observationCount = await getObservationCount(visit.ENCOUNTER_NUM)
+
+          logger.debug('Processing visit for store', {
+            encounterNum: visit.ENCOUNTER_NUM,
+            rawVisitBlob: visit.VISIT_BLOB,
+            parsedNotes: visit.VISIT_BLOB ? parseVisitNotes(visit.VISIT_BLOB) : '',
+          })
+
           return {
             id: visit.ENCOUNTER_NUM,
             date: visit.START_DATE,
@@ -134,6 +153,17 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             observationCount,
             location: visit.LOCATION_CD,
             endDate: visit.END_DATE,
+            // Include raw database fields for EditVisitDialog
+            rawData: {
+              ENCOUNTER_NUM: visit.ENCOUNTER_NUM,
+              START_DATE: visit.START_DATE,
+              END_DATE: visit.END_DATE,
+              ACTIVE_STATUS_CD: visit.ACTIVE_STATUS_CD,
+              LOCATION_CD: visit.LOCATION_CD,
+              INOUT_CD: visit.INOUT_CD,
+              SOURCESYSTEM_CD: visit.SOURCESYSTEM_CD,
+              VISIT_BLOB: visit.VISIT_BLOB, // Raw JSON blob
+            },
           }
         }),
       )
@@ -194,7 +224,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       logger.info('Loading observations for visit', { visitId: visit.id })
 
       const query = `
-        SELECT 
+        SELECT
           OBSERVATION_ID,
           CONCEPT_CD,
           VALTYPE_CD,
@@ -301,7 +331,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         PATIENT_NUM: patient.PATIENT_NUM,
         START_DATE: visitData.date || new Date().toISOString().split('T')[0],
         INOUT_CD: visitData.type === 'emergency' ? 'E' : 'O',
-        ACTIVE_STATUS_CD: 'A',
+        ACTIVE_STATUS_CD: 'SCTID: 55561003', // Active (SNOMED-CT)
         LOCATION_CD: visitData.location || 'CLINIC',
         VISIT_BLOB: visitData.notes ? JSON.stringify({ notes: visitData.notes }) : null,
       }
@@ -501,7 +531,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       logger.info('Loading all observations for patient', { patientNum })
 
       const query = `
-        SELECT 
+        SELECT
           OBSERVATION_ID,
           CONCEPT_CD,
           VALTYPE_CD,
