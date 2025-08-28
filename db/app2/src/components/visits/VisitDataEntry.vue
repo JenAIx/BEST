@@ -17,7 +17,9 @@
 
       <!-- Add Observation Button -->
       <div v-if="selectedVisit" class="add-observation-section">
-        <q-btn flat icon="add" label="ADD OBSERVATION" @click="showAddCustomDialog = true" class="add-observation-btn full-width" style="border: 2px dashed #ccc" />
+        <q-btn flat icon="add" label="ADD OBSERVATION" @click="showAddCustomDialog = true" class="add-observation-btn full-width" style="border: 2px dashed #ccc">
+          <q-tooltip>Add a custom observation</q-tooltip>
+        </q-btn>
       </div>
 
       <!-- Observation Forms -->
@@ -511,7 +513,7 @@ onMounted(async () => {
 }
 
 .add-observation-section {
-  margin: 1.5rem 0;
+  margin: 0.5rem 0;
 
   .add-observation-btn {
     color: $grey-6;

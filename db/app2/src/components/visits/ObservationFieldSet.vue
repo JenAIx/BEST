@@ -70,7 +70,7 @@
               class="unfilled-chip"
               @click="createObservationFromChip(concept)"
             >
-              <q-tooltip>Click to add {{ concept.name }}, {{ concept }}</q-tooltip>
+              <q-tooltip>Click to add {{ concept.name }}</q-tooltip>
             </q-chip>
           </div>
         </div>

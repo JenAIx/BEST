@@ -73,7 +73,20 @@
           >
             <q-card-section class="q-pa-sm">
               <div class="concept-header">
-                <div class="concept-name">{{ concept.NAME_CHAR }}</div>
+                <div class="concept-name-container">
+                  <div class="concept-name">{{ concept.NAME_CHAR }}</div>
+                  <q-icon 
+                    v-if="isConceptInCurrentVisit(concept.CONCEPT_CD)"
+                    name="warning"
+                    color="amber-7"
+                    size="18px"
+                    class="existing-observation-icon"
+                  >
+                    <q-tooltip class="bg-amber-7 text-black">
+                      This observation already exists in the current visit
+                    </q-tooltip>
+                  </q-icon>
+                </div>
                 <q-chip 
                   size="xs" 
                   :color="getValueTypeColor(concept.VALTYPE_CD)" 
@@ -269,6 +282,27 @@ const showDialog = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value),
 })
+
+// Helper to check if a concept already exists in the current visit
+const isConceptInCurrentVisit = (conceptCode) => {
+  if (!props.visit || !visitStore.observations) return false
+  
+  return visitStore.observations.some(obs => {
+    // Try multiple matching strategies:
+    // 1. Exact match
+    if (obs.conceptCode === conceptCode) return true
+    
+    // 2. Extract the numeric code from both sides and compare
+    // Handle formats like "LOINC:8480-6" vs "LID: 8480-6"
+    const conceptMatch = conceptCode.match(/[:\s]([0-9-]+)$/)
+    const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
+    if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) {
+      return true
+    }
+    
+    return false
+  })
+}
 
 // Watch for dialog close to reset state
 watch(showDialog, (newValue) => {
@@ -562,9 +596,20 @@ const resetState = () => {
           align-items: center;
           margin-bottom: 0.25rem;
           
-          .concept-name {
-            font-weight: 500;
-            color: $grey-8;
+          .concept-name-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            
+            .concept-name {
+              font-weight: 500;
+              color: $grey-8;
+            }
+            
+            .existing-observation-icon {
+              animation: pulse 2s infinite;
+            }
           }
           
           .value-type-chip {
@@ -665,6 +710,18 @@ const resetState = () => {
         }
       }
     }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
   }
 }
 </style>
