@@ -53,7 +53,7 @@ export const useQuestionnaireStore = defineStore('questionnaire', () => {
       const result = await dbStore.executeQuery(
         `SELECT CODE_CD, NAME_CHAR, LOOKUP_BLOB, UPDATE_DATE
          FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIR'
+         WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE'
          ORDER BY NAME_CHAR`
       )
 

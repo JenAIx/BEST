@@ -96,7 +96,7 @@ const tableOptions = [
 
 // Computed
 const isQuestionnaireColumn = computed(() => {
-  return props.selectedColumn === 'QUESTIONNAIR'
+  return props.selectedColumn === 'QUESTIONNAIRE'
 })
 
 // Methods

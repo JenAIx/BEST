@@ -109,7 +109,7 @@ const columnOptions = ref([])
 
 // Computed
 const isQuestionnaireColumn = computed(() => {
-  return selectedColumn.value === 'QUESTIONNAIR'
+  return selectedColumn.value === 'QUESTIONNAIRE'
 })
 
 // Methods
@@ -163,7 +163,7 @@ const loadColumnOptions = async () => {
           case 'FIELD_SET_CD':
             label = 'Field Sets'
             break
-          case 'QUESTIONNAIR':
+          case 'QUESTIONNAIRE':
             label = 'Questionnaires'
             break
           case 'FILE_TYPE_CD':
@@ -307,7 +307,7 @@ const importQuestionnaire = async (questionnaireData) => {
     const result = await globalSettingsStore.dbStore.executeCommand(
       `INSERT INTO CODE_LOOKUP (TABLE_CD, COLUMN_CD, CODE_CD, NAME_CHAR, LOOKUP_BLOB, UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD)
        VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'IMPORT')`,
-      ['SURVEY_BEST', 'QUESTIONNAIR', questionnaireData.CODE_CD, questionnaireData.NAME_CHAR, questionnaireData.LOOKUP_BLOB]
+      ['SURVEY_BEST', 'QUESTIONNAIRE', questionnaireData.CODE_CD, questionnaireData.NAME_CHAR, questionnaireData.LOOKUP_BLOB]
     )
 
     if (result.success) {
