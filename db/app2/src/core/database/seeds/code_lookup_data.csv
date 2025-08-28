@@ -24,7 +24,7 @@ CONCEPT_DIMENSION,VALTYPE_CD,F,"Finding (yes, no, unknown)","{""label"":""Findin
 CONCEPT_DIMENSION,VALTYPE_CD,S,Selection,"{""label"":""Selection"",""color"":""blue"",""icon"":""radio_button_checked""}",2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,VALTYPE_CD,N,Zahl,"{""label"":""Numeric"",""color"":""teal"",""icon"":""numbers""}",2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,VALTYPE_CD,A,Answer,"{""label"":""Answer"",""color"":""purple"",""icon"":""checklist""}",2024-01-01,,2024-01-01,SYSTEM,1
-CONCEPT_DIMENSION,VALTYPE_CD,Q,Questionnair,"{""label"":""Questionnaire"",""color"":""purple"",""icon"":""checklist""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,VALTYPE_CD,Q,Questionnaire,"{""label"":""Questionnaire"",""color"":""purple"",""icon"":""checklist""}",2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,LOINC,LOINC,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,SNOMED-CT,SNOMED-CT,,2024-01-01,,2024-01-01,SYSTEM,1
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,ICD10-2019,ICD10-2019,,2024-01-01,,2024-01-01,SYSTEM,1
