@@ -280,6 +280,11 @@ const visitPreviewInfo = computed(() => {
     }
   }
 
+  // Fallback to visit.type if no visitType found in VISIT_BLOB
+  if (!visitType && visit.type) {
+    visitType = visit.type
+  }
+
   // Fallback to visit.notes if no structured data
   if (!notes && visit.notes) {
     notes = visit.notes
@@ -290,6 +295,8 @@ const visitPreviewInfo = computed(() => {
     visitType,
     notes,
     hasRawData: !!visit.rawData,
+    fallbackType: visit.type,
+    fallbackNotes: visit.notes,
   })
 
   return {

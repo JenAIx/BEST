@@ -369,7 +369,12 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         INOUT_CD: visitData.type === 'emergency' ? 'E' : 'O',
         ACTIVE_STATUS_CD: 'SCTID: 55561003', // Active (SNOMED-CT)
         LOCATION_CD: visitData.location || 'CLINIC',
-        VISIT_BLOB: visitData.notes ? JSON.stringify({ notes: visitData.notes }) : null,
+        VISIT_BLOB: JSON.stringify({
+          notes: visitData.notes || '',
+          visitType: visitData.type || 'routine',
+          createdBy: 'VISIT_STORE',
+          createdAt: new Date().toISOString(),
+        }),
       }
 
       const createdVisit = await visitRepo.createVisit(newVisitData)
@@ -443,7 +448,10 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         LOCATION_CD: originalVisit.location || 'CLINIC',
         VISIT_BLOB: JSON.stringify({
           notes: `Cloned from visit on ${formatVisitDate(originalVisit.date)}`,
+          visitType: originalVisit.type || 'routine',
           originalVisit: originalVisit.id,
+          createdBy: 'VISIT_DUPLICATE',
+          createdAt: new Date().toISOString(),
         }),
       }
 
