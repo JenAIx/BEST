@@ -30,7 +30,22 @@
         </q-select>
       </div>
       <div class="col-md-4">
-        <q-btn color="primary" icon="add" label="Add New Value" @click="showAddDialog = true" :disable="!selectedColumn" />
+        <div class="q-gutter-sm">
+          <q-btn 
+            color="primary" 
+            icon="add" 
+            label="Add New Value" 
+            @click="showAddDialog = true" 
+            :disable="!selectedColumn" 
+          />
+          <q-btn 
+            v-if="isQuestionnaireColumn"
+            color="secondary" 
+            icon="upload" 
+            label="Import Questionnaire" 
+            @click="showImportDialog = true" 
+          />
+        </div>
       </div>
     </div>
 
@@ -72,8 +87,25 @@
           <q-td key="LOOKUP_BLOB" :props="props">
             <div v-if="editingRow !== props.row.CODE_CD">
               <div v-if="!props.row.LOOKUP_BLOB || props.row.LOOKUP_BLOB.trim() === ''" class="text-grey-5">No metadata</div>
+              <div v-else-if="isQuestionnaireColumn && isValidJson(props.row.LOOKUP_BLOB)">
+                <div class="q-gutter-sm">
+                  <q-chip dense color="green" text-color="white" icon="quiz" clickable @click="showQuestionnairePreview(props.row.LOOKUP_BLOB)">
+                    Preview Questionnaire
+                    <q-tooltip>Click to see how this questionnaire will appear to users</q-tooltip>
+                  </q-chip>
+                  <q-chip dense color="blue" text-color="white" icon="code" clickable @click="showJsonDialog(props.row.LOOKUP_BLOB)">
+                    View JSON
+                    <q-tooltip>Click to view raw JSON structure</q-tooltip>
+                  </q-chip>
+                </div>
+                <div class="text-caption text-grey-6 q-mt-xs">
+                  {{ getQuestionnaireInfo(props.row.LOOKUP_BLOB) }}
+                </div>
+              </div>
               <div v-else>
-                <q-chip v-if="isValidJson(props.row.LOOKUP_BLOB)" dense color="blue" text-color="white" icon="code" clickable @click="showJsonDialog(props.row.LOOKUP_BLOB)"> JSON Metadata </q-chip>
+                <q-chip v-if="isValidJson(props.row.LOOKUP_BLOB)" dense color="blue" text-color="white" icon="code" clickable @click="showJsonDialog(props.row.LOOKUP_BLOB)">
+                  JSON Metadata
+                </q-chip>
                 <span v-else class="text-body2">{{ props.row.LOOKUP_BLOB }}</span>
               </div>
             </div>
@@ -81,12 +113,12 @@
               v-else
               v-model="editForm.LOOKUP_BLOB"
               type="textarea"
-              rows="3"
+              :rows="isQuestionnaireColumn ? 8 : 3"
               dense
               outlined
               @keyup.enter="saveEdit"
               @keyup.escape="cancelEdit"
-              placeholder="Enter JSON metadata or description..."
+              :placeholder="isQuestionnaireColumn ? 'Enter questionnaire JSON...' : 'Enter JSON metadata or description...'"
             />
           </q-td>
           <q-td key="actions" :props="props">
@@ -109,7 +141,7 @@
 
     <!-- Add Dialog -->
     <q-dialog v-model="showAddDialog" persistent>
-      <q-card style="min-width: 400px">
+      <q-card :style="isQuestionnaireColumn ? 'min-width: 600px; max-width: 800px' : 'min-width: 400px'">
         <q-card-section>
           <div class="text-h6">Add New {{ getColumnTitle() }}</div>
         </q-card-section>
@@ -122,15 +154,24 @@
               outlined
               class="q-mb-md"
               :rules="[(val) => (val && val.length > 0) || 'Code is required', (val) => !lookupValues.some((v) => v.CODE_CD === val) || 'Code already exists']"
+              :hint="isQuestionnaireColumn ? 'Unique identifier for the questionnaire (e.g., quest_moca)' : 'Unique code identifier'"
             />
-            <q-input v-model="addForm.NAME_CHAR" label="Name/Value" outlined class="q-mb-md" :rules="[(val) => (val && val.length > 0) || 'Name is required']" />
+            <q-input 
+              v-model="addForm.NAME_CHAR" 
+              label="Name/Value" 
+              outlined 
+              class="q-mb-md" 
+              :rules="[(val) => (val && val.length > 0) || 'Name is required']"
+              :hint="isQuestionnaireColumn ? 'Display name for the questionnaire (e.g., MoCA)' : 'Display name'"
+            />
             <q-input
               v-model="addForm.LOOKUP_BLOB"
-              label="Metadata/Description (Optional)"
+              :label="isQuestionnaireColumn ? 'Questionnaire JSON' : 'Metadata/Description (Optional)'"
               outlined
               type="textarea"
-              rows="4"
-              hint='Enter JSON for metadata (e.g., {"icon": "star", "color": "blue"}) or plain text description'
+              :rows="isQuestionnaireColumn ? 10 : 4"
+              :rules="isQuestionnaireColumn ? [validateQuestionnaireJson] : []"
+              :hint="isQuestionnaireColumn ? 'Complete questionnaire JSON structure with title, items, and results configuration' : 'Enter JSON for metadata or plain text description'"
             />
 
             <div class="row justify-end q-gutter-sm q-mt-md">
@@ -143,29 +184,92 @@
       </q-card>
     </q-dialog>
 
-    <!-- JSON Viewer Dialog -->
-    <q-dialog v-model="showJsonViewDialog" persistent>
-      <q-card style="min-width: 500px; max-width: 700px">
+    <!-- Import Questionnaire Dialog -->
+    <q-dialog v-model="showImportDialog" persistent>
+      <q-card style="min-width: 500px">
         <q-card-section>
-          <div class="text-h6">JSON Metadata</div>
+          <div class="text-h6">Import Questionnaire</div>
+          <div class="text-body2 text-grey-6">Upload a questionnaire JSON file</div>
         </q-card-section>
 
-        <q-card-section class="q-pt-none">
-          <pre class="json-viewer">{{ formatJson(jsonContent) }}</pre>
+        <q-card-section>
+          <q-file
+            v-model="importFile"
+            label="Select questionnaire JSON file"
+            outlined
+            accept=".json"
+            @update:model-value="onFileSelected"
+            :rules="[(val) => !!val || 'Please select a file']"
+          >
+            <template v-slot:prepend>
+              <q-icon name="attach_file" />
+            </template>
+          </q-file>
+          
+          <div v-if="importPreview" class="q-mt-md">
+            <div class="text-subtitle2 q-mb-sm">Preview:</div>
+            <q-card flat bordered class="bg-grey-1">
+              <q-card-section>
+                <div><strong>Title:</strong> {{ importPreview.title || 'N/A' }}</div>
+                <div><strong>Short Title:</strong> {{ importPreview.short_title || 'N/A' }}</div>
+                <div><strong>Description:</strong> {{ importPreview.description || 'N/A' }}</div>
+                <div><strong>Items:</strong> {{ importPreview.items?.length || 0 }} questions</div>
+              </q-card-section>
+            </q-card>
+          </div>
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat label="Close" color="primary" v-close-popup />
+          <q-btn label="Cancel" color="grey" flat @click="cancelImport" />
+          <q-btn 
+            label="Import" 
+            color="primary" 
+            @click="importQuestionnaire"
+            :disable="!importPreview"
+            :loading="importing"
+          />
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- JSON Viewer Dialog -->
+    <AppDialog
+      v-model="showJsonViewDialog"
+      title="JSON Metadata"
+      subtitle="Raw JSON structure"
+      size="lg"
+      persistent
+      :show-ok="false"
+      cancel-label="Close"
+      @cancel="showJsonViewDialog = false"
+    >
+      <pre class="json-viewer">{{ formatJson(jsonContent) }}</pre>
+    </AppDialog>
+
+    <!-- Questionnaire Preview Dialog -->
+    <AppDialog
+      v-model="showPreviewDialog"
+      title="Questionnaire Preview"
+      subtitle="Interactive preview of how this questionnaire will appear to users"
+      size="full"
+      :show-ok="false"
+      cancel-label="Close"
+      :content-padding="false"
+      @cancel="showPreviewDialog = false"
+    >
+      <div class="q-pa-md">
+        <PreviewSurveyTemplate :questionnaire="previewQuestionnaire" />
+      </div>
+    </AppDialog>
   </q-page>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import PreviewSurveyTemplate from 'src/components/questionnaire/PreviewSurveyTemplate.vue'
+import AppDialog from 'src/components/shared/AppDialog.vue'
 
 const $q = useQuasar()
 const globalSettingsStore = useGlobalSettingsStore()
@@ -177,11 +281,17 @@ const lookupValues = ref([])
 const loading = ref(false)
 const filter = ref('')
 const showAddDialog = ref(false)
+const showImportDialog = ref(false)
 const showJsonViewDialog = ref(false)
+const showPreviewDialog = ref(false)
 const jsonContent = ref('')
+const previewQuestionnaire = ref(null)
 const editingRow = ref(null)
 const loadingColumns = ref(true)
 const loadingTables = ref(true)
+const importFile = ref(null)
+const importPreview = ref(null)
+const importing = ref(false)
 
 // Form data
 const addForm = ref({
@@ -204,6 +314,10 @@ const tableOptions = ref([
   {
     label: 'Visit Dimension (Visit Types, Field Sets)',
     value: 'VISIT_DIMENSION',
+  },
+  {
+    label: 'Survey System (Questionnaires)',
+    value: 'SURVEY_BEST',
   },
   {
     label: 'File Dimension (File Types)',
@@ -247,6 +361,11 @@ const pagination = ref({
   rowsPerPage: 20,
 })
 
+// Computed
+const isQuestionnaireColumn = computed(() => {
+  return selectedColumn.value === 'QUESTIONNAIR'
+})
+
 // Methods
 const getColumnTitle = () => {
   const option = columnOptions.value.find((opt) => opt.value === selectedColumn.value)
@@ -275,6 +394,49 @@ const formatJson = (jsonString) => {
 const showJsonDialog = (jsonString) => {
   jsonContent.value = jsonString
   showJsonViewDialog.value = true
+}
+
+const showQuestionnairePreview = (jsonString) => {
+  try {
+    previewQuestionnaire.value = JSON.parse(jsonString)
+    showPreviewDialog.value = true
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to parse questionnaire JSON',
+      caption: error.message
+    })
+  }
+}
+
+const getQuestionnaireInfo = (jsonString) => {
+  try {
+    const questionnaire = JSON.parse(jsonString)
+    const itemCount = questionnaire.items?.length || 0
+    const method = questionnaire.results?.method || 'N/A'
+    return `${itemCount} items • Method: ${method}`
+  } catch {
+    return 'Invalid JSON'
+  }
+}
+
+const validateQuestionnaireJson = (val) => {
+  if (!val || val.trim() === '') return 'Questionnaire JSON is required'
+  
+  try {
+    const questionnaire = JSON.parse(val)
+    
+    if (!questionnaire.title) return 'Missing required field: title'
+    if (!questionnaire.short_title) return 'Missing required field: short_title'
+    if (!questionnaire.items || !Array.isArray(questionnaire.items)) {
+      return 'Missing or invalid field: items (must be array)'
+    }
+    if (questionnaire.items.length === 0) return 'Questionnaire must have at least one item'
+    
+    return true
+  } catch (error) {
+    return `Invalid JSON: ${error.message}`
+  }
 }
 
 // Table selection handler
@@ -321,6 +483,9 @@ const loadColumnOptions = async () => {
             break
           case 'FIELD_SET_CD':
             label = 'Field Sets'
+            break
+          case 'QUESTIONNAIR':
+            label = 'Questionnaires'
             break
           case 'FILE_TYPE_CD':
             label = 'File Types'
@@ -439,6 +604,17 @@ const addValue = async () => {
       // Clear cache to ensure fresh data
       globalSettingsStore.clearCache()
 
+      // If this is a questionnaire, refresh the questionnaire store
+      if (isQuestionnaireColumn.value) {
+        try {
+          const { useQuestionnaireStore } = await import('src/stores/questionnaire-store.js')
+          const questionnaireStore = useQuestionnaireStore()
+          await questionnaireStore.refreshQuestionnaires()
+        } catch {
+          // Questionnaire store not available, that's fine
+        }
+      }
+
       $q.notify({
         type: 'positive',
         message: 'Value added successfully',
@@ -491,6 +667,86 @@ const resetAddForm = () => {
     NAME_CHAR: '',
     LOOKUP_BLOB: '',
   }
+}
+
+// Import functionality
+const onFileSelected = async (file) => {
+  if (!file) {
+    importPreview.value = null
+    return
+  }
+
+  try {
+    const text = await file.text()
+    const questionnaire = JSON.parse(text)
+    importPreview.value = questionnaire
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid JSON file',
+      caption: error.message
+    })
+    importPreview.value = null
+  }
+}
+
+const importQuestionnaire = async () => {
+  if (!importPreview.value) return
+
+  importing.value = true
+  try {
+    const questionnaire = importPreview.value
+    const codeCD = questionnaire.short_title || `quest_${Date.now()}`
+    const nameChar = questionnaire.title || 'Imported Questionnaire'
+    const lookupBlob = JSON.stringify(questionnaire, null, 2)
+
+    const result = await globalSettingsStore.dbStore.executeCommand(
+      `INSERT INTO CODE_LOOKUP (TABLE_CD, COLUMN_CD, CODE_CD, NAME_CHAR, LOOKUP_BLOB, UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD)
+       VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'IMPORT')`,
+      ['SURVEY_BEST', 'QUESTIONNAIR', codeCD, nameChar, lookupBlob]
+    )
+
+    if (result.success) {
+      // Clear cache and refresh questionnaire store
+      globalSettingsStore.clearCache()
+      
+      // Trigger questionnaire store refresh if available
+      try {
+        const { useQuestionnaireStore } = await import('src/stores/questionnaire-store.js')
+        const questionnaireStore = useQuestionnaireStore()
+        await questionnaireStore.refreshQuestionnaires()
+      } catch {
+        // Questionnaire store not available, that's fine
+      }
+      
+      $q.notify({
+        type: 'positive',
+        message: `Questionnaire "${nameChar}" imported successfully`,
+        caption: `Code: ${codeCD}`
+      })
+      
+      showImportDialog.value = false
+      cancelImport()
+      await loadLookupValues()
+    } else {
+      throw new Error(result.error)
+    }
+  } catch (error) {
+    console.error('Error importing questionnaire:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to import questionnaire',
+      caption: error.message
+    })
+  } finally {
+    importing.value = false
+  }
+}
+
+const cancelImport = () => {
+  importFile.value = null
+  importPreview.value = null
+  showImportDialog.value = false
 }
 
 // Load initial data
