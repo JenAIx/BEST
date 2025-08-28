@@ -136,109 +136,174 @@ export const useQuestionnaireStore = defineStore('questionnaire', () => {
   }
 
   /**
-   * Calculate questionnaire results
+   * Calculate questionnaire results (QuestMan-style)
    */
   const calculateResults = () => {
     if (!activeQuestionnaire.value) return null
 
+    // Create QuestMan-style summary structure
     const results = {
+      label: activeQuestionnaire.value.code,
+      title: activeQuestionnaire.value.title,
+      short_title: activeQuestionnaire.value.short_title || activeQuestionnaire.value.code,
       questionnaire_code: activeQuestionnaire.value.code,
-      questionnaire_title: activeQuestionnaire.value.title,
-      start_time: activeQuestionnaire.value.startTime,
-      end_time: Date.now(),
-      responses: [],
-      summary: null
+      date_start: activeQuestionnaire.value.startTime,
+      date_end: Date.now(),
+      items: [],
+      results: null,
+      coding: activeQuestionnaire.value.coding
     }
 
-    // Process individual responses
+    // Process individual responses (QuestMan items format)
     activeQuestionnaire.value.items.forEach(item => {
       if (item.id && currentResponses.value[item.id] !== undefined) {
-        const response = {
-          item_id: item.id,
+        const itemResult = {
+          id: item.id,
           label: item.label,
+          tag: item.tag || item.id,
           value: currentResponses.value[item.id],
-          coding: item.coding
+          coding: item.coding,
+          ignore_for_result: item.ignore_for_result
         }
         
         // Convert string numbers to actual numbers for calculation
-        if (item.type === 'number' && typeof response.value === 'string') {
-          response.value = parseFloat(response.value) || 0
+        if (item.type === 'number' && typeof itemResult.value === 'string') {
+          itemResult.value = parseFloat(itemResult.value) || 0
         }
         
-        results.responses.push(response)
+        results.items.push(itemResult)
       }
     })
 
-    // Calculate summary based on results configuration
+    // Calculate summary results based on configuration (QuestMan-style)
     if (activeQuestionnaire.value.results) {
-      results.summary = calculateSummary(results.responses, activeQuestionnaire.value.results)
+      results.results = calculateQuestManResults(results.items, activeQuestionnaire.value.results)
+      
+      // Apply evaluation if configured
+      if (activeQuestionnaire.value.results.evaluation) {
+        results.results = evaluateResults(results.results, activeQuestionnaire.value.results.evaluation)
+      }
     }
 
     return results
   }
 
   /**
-   * Calculate summary scores based on questionnaire configuration
+   * Calculate QuestMan-style results
    */
-  const calculateSummary = (responses, resultsConfig) => {
+  const calculateQuestManResults = (items, resultsConfig) => {
     if (!resultsConfig.method) return null
 
     switch (resultsConfig.method) {
       case 'sum':
-        return calculateSum(responses, resultsConfig)
+        return calculateQuestManSum(items, resultsConfig)
       case 'avg':
-        return calculateAverage(responses, resultsConfig)
+        return calculateQuestManAvg(items, resultsConfig)
+      case 'count':
+        return calculateQuestManCount(items, resultsConfig)
       default:
         logger.warn(`Unsupported results method: ${resultsConfig.method}`)
         return null
     }
   }
 
+
+
   /**
-   * Calculate sum of numeric responses
+   * QuestMan-style sum calculation
    */
-  const calculateSum = (responses, config) => {
+  const calculateQuestManSum = (items, config) => {
     let sum = 0
-    responses.forEach(response => {
-      if (typeof response.value === 'number') {
-        sum += response.value
+    items.forEach(item => {
+      if (typeof item.value === 'number' && item.ignore_for_result !== true) {
+        sum += item.value
+      } else if (Array.isArray(item.value) && item.ignore_for_result !== true) {
+        item.value.forEach(val => {
+          if (typeof val === 'number') sum += val
+        })
       }
     })
-
-    return {
-      method: 'sum',
-      value: sum,
-      coding: config.coding,
-      label: 'Sum'
-    }
+    
+    const result = { label: 'sum', value: sum }
+    if (config.coding) result.coding = config.coding
+    return [result]
   }
 
   /**
-   * Calculate average of numeric responses
+   * QuestMan-style average calculation
    */
-  const calculateAverage = (responses, config) => {
+  const calculateQuestManAvg = (items, config) => {
     let sum = 0
     let count = 0
-    
-    responses.forEach(response => {
-      if (typeof response.value === 'number') {
-        sum += response.value
+    items.forEach(item => {
+      if (typeof item.value === 'number' && item.ignore_for_result !== true) {
+        sum += item.value
         count++
       }
     })
-
+    
     const average = count > 0 ? Math.round((sum / count) * 100) / 100 : 0
-
-    return {
-      method: 'avg',
-      value: average,
-      coding: config.coding,
-      label: 'Average'
-    }
+    const result = { label: 'avg', value: average }
+    if (config.coding) result.coding = config.coding
+    return [result]
   }
 
   /**
-   * Save questionnaire response to database
+   * QuestMan-style count calculation
+   */
+  const calculateQuestManCount = (items, config) => {
+    const answers = []
+    items.forEach(item => answers.push(item.value))
+    
+    const uniqueAnswers = [...new Set(answers)]
+    const count = {}
+    uniqueAnswers.forEach(answer => {
+      count[answer] = { count: 0, label: answer }
+    })
+    
+    let total = 0
+    items.forEach(item => {
+      count[item.value].count++
+      total++
+    })
+    
+    const results = []
+    Object.keys(count).forEach(key => {
+      const result = {
+        label: count[key].label,
+        value: count[key].count,
+        total: total
+      }
+      if (config.coding) result.coding = config.coding
+      results.push(result)
+    })
+    
+    return results
+  }
+
+  /**
+   * Evaluate results based on evaluation configuration
+   */
+  const evaluateResults = (results, evaluation) => {
+    if (!Array.isArray(results)) return results
+    
+    results.forEach(result => {
+      if (result.label === 'sum') {
+        evaluation.forEach(evalItem => {
+          if (evalItem.range && evalItem.range[0] <= result.value && evalItem.range[1] >= result.value) {
+            result.evaluation = evalItem.label
+          }
+        })
+      }
+    })
+    
+    return results
+  }
+
+
+
+  /**
+   * Save questionnaire response to database (using new VALTYPE_CD='Q' approach)
    */
   const saveQuestionnaireResponse = async (patientNum, encounterNum, results) => {
     if (!results) return false
@@ -247,59 +312,118 @@ export const useQuestionnaireStore = defineStore('questionnaire', () => {
     error.value = null
 
     try {
-      // Save main questionnaire record
-      const mainResult = await dbStore.executeQuery(
+      logger.info('Saving questionnaire response with new Q approach', {
+        patientNum,
+        encounterNum,
+        questionnaireCode: results.questionnaire_code,
+        title: results.title
+      })
+
+      // Use the standard questionnaire concept for surveys
+      let conceptCode = 'CUSTOM: QUESTIONNAIRE'
+      
+      // Check if the concept exists in CONCEPT_DIMENSION
+      const conceptCheck = await dbStore.executeQuery(
+        'SELECT CONCEPT_CD FROM CONCEPT_DIMENSION WHERE CONCEPT_CD = ?',
+        [conceptCode]
+      )
+
+      if (!conceptCheck.success || conceptCheck.data.length === 0) {
+        logger.warn('Standard questionnaire concept not found in CONCEPT_DIMENSION', {
+          attemptedConcept: conceptCode,
+          fallbackTo: results.questionnaire_code
+        })
+        
+        // Check if questionnaire code exists as concept
+        const fallbackCheck = await dbStore.executeQuery(
+          'SELECT CONCEPT_CD FROM CONCEPT_DIMENSION WHERE CONCEPT_CD = ?',
+          [results.questionnaire_code]
+        )
+        
+        if (fallbackCheck.success && fallbackCheck.data.length > 0) {
+          conceptCode = results.questionnaire_code
+        } else {
+          // Create the standard questionnaire concept if it doesn't exist
+          logger.info('Creating missing standard questionnaire concept', {
+            conceptCode: 'CUSTOM: QUESTIONNAIRE'
+          })
+          
+          try {
+            await dbStore.executeQuery(
+              `INSERT INTO CONCEPT_DIMENSION (
+                CONCEPT_CD, NAME_CHAR, CONCEPT_BLOB, UPDATE_DATE, 
+                DOWNLOAD_DATE, IMPORT_DATE, SOURCESYSTEM_CD, UPLOAD_ID
+              ) VALUES (?, ?, ?, datetime('now'), datetime('now'), datetime('now'), ?, ?)`,
+              [
+                'CUSTOM: QUESTIONNAIRE',
+                'CUSTOM: QUESTIONNAIRE',
+                'Survey Best - Questionnaire',
+                'CUSTOM',
+                79190712
+              ]
+            )
+            
+            conceptCode = 'CUSTOM: QUESTIONNAIRE'
+            logger.success('Created standard questionnaire concept successfully')
+            
+          } catch (conceptError) {
+            logger.error('Failed to create questionnaire concept', conceptError)
+            throw new Error(`Failed to create questionnaire concept: ${conceptError.message}`)
+          }
+        }
+      }
+
+      // Save single questionnaire record using VALTYPE_CD='Q'
+      const result = await dbStore.executeQuery(
         `INSERT INTO OBSERVATION_FACT (
-          ENCOUNTER_NUM, PATIENT_NUM, CATEGORY_CHAR, CONCEPT_CD,
-          START_DATE, VALTYPE_CD, TVAL_CHAR, OBSERVATION_BLOB,
-          UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)`,
+          ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, PROVIDER_ID,
+          START_DATE, END_DATE, VALTYPE_CD, TVAL_CHAR, OBSERVATION_BLOB,
+          UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD, INSTANCE_NUM
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?)`,
         [
           encounterNum,
           patientNum,
-          'CAT_QUESTIONNAIRE',
-          results.questionnaire_code,
-          new Date(results.start_time).toISOString(),
-          'T',
-          results.questionnaire_title,
-          JSON.stringify(results),
-          'SURVEY_SYSTEM'
+          conceptCode,  // Use verified concept code
+          '@', // Default provider
+          new Date(results.date_start).toISOString(),
+          new Date(results.date_end).toISOString(),
+          'Q', // New questionnaire VALTYPE_CD
+          results.title, // Questionnaire title in TVAL_CHAR
+          JSON.stringify(results), // Complete QuestMan-style results in OBSERVATION_BLOB
+          'SURVEY_SYSTEM',
+          1 // Instance number
         ]
       )
 
-      if (!mainResult.success) {
-        throw new Error(mainResult.error)
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save questionnaire')
       }
 
-      // Save individual responses
-      for (const response of results.responses) {
-        await dbStore.executeQuery(
-          `INSERT INTO OBSERVATION_FACT (
-            ENCOUNTER_NUM, PATIENT_NUM, CATEGORY_CHAR, CONCEPT_CD,
-            START_DATE, VALTYPE_CD, TVAL_CHAR, NVAL_NUM, OBSERVATION_BLOB,
-            UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?)`,
-          [
-            encounterNum,
-            patientNum,
-            'CAT_QUESTIONNAIRE_ITEM',
-            `${results.questionnaire_code}_${response.item_id}`,
-            new Date(results.start_time).toISOString(),
-            typeof response.value === 'number' ? 'N' : 'T',
-            response.label,
-            typeof response.value === 'number' ? response.value : null,
-            JSON.stringify(response),
-            'SURVEY_SYSTEM'
-          ]
-        )
-      }
+      const observationId = result.lastInsertRowid || result.insertId
 
-      logger.success(`Saved questionnaire response for patient ${patientNum}`)
-      return true
+      logger.success('Questionnaire saved successfully', {
+        patientNum,
+        encounterNum,
+        observationId,
+        questionnaireCode: results.questionnaire_code,
+        title: results.title,
+        itemCount: results.items?.length || 0,
+        hasResults: !!results.results
+      })
+
+      return {
+        success: true,
+        observationId,
+        message: `Questionnaire "${results.title}" saved successfully`
+      }
 
     } catch (err) {
       error.value = err.message
-      logger.error('Failed to save questionnaire response', err)
+      logger.error('Failed to save questionnaire response', err, {
+        patientNum,
+        encounterNum,
+        questionnaireCode: results.questionnaire_code
+      })
       throw err
     } finally {
       loading.value = false
