@@ -5,23 +5,19 @@
       <div class="row q-col-gutter-md">
         <!-- Quick Actions -->
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="person_search" icon-color="primary" title="Quick Patient Search"
-            subtitle="Find and view patient records" :clickable="true" @click="$router.push('/patients')" />
+          <DashboardCard icon="person_search" icon-color="primary" title="Quick Patient Search" subtitle="Find and view patient records" :clickable="true" @click="$router.push('/patients')" />
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="person_add" icon-color="positive" title="New Patient"
-            subtitle="Add a new patient to the system" :clickable="true" @click="showNewPatientDialog" />
+          <DashboardCard icon="person_add" icon-color="positive" title="New Patient" subtitle="Add a new patient to the system" :clickable="true" @click="showNewPatientDialog" />
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="schedule" icon-color="info" title="Today's Schedule" subtitle="appointments"
-            :value="stats.visitsToday" value-color="text-primary" />
+          <DashboardCard icon="schedule" icon-color="info" title="Today's Schedule" subtitle="appointments" :value="stats.visitsToday" value-color="text-primary" />
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="upload_file" icon-color="accent" title="Quick Import" subtitle="Import patient data"
-            :clickable="true" @click="$router.push('/import')" />
+          <DashboardCard icon="upload_file" icon-color="accent" title="Quick Import" subtitle="Import patient data" :clickable="true" @click="$router.push('/import')" />
         </div>
       </div>
 
@@ -40,8 +36,7 @@
               </div>
 
               <q-list v-else-if="recentPatients.length > 0" separator>
-                <q-item v-for="patient in recentPatients" :key="patient.id" clickable v-ripple
-                  @click="onPatientClick(null, patient)">
+                <q-item v-for="patient in recentPatients" :key="patient.id" clickable v-ripple @click="onPatientClick(null, patient)">
                   <q-item-section avatar>
                     <PatientAvatar :patient="patient" size="40px" />
                   </q-item-section>
@@ -145,9 +140,7 @@
             <q-card-section>
               <div class="text-h6 text-grey-8">Active Studies</div>
               <div class="text-h3 text-info">{{ dataOverview.activeStudies }}</div>
-              <div class="text-caption text-grey-6">
-                {{ dataOverview.studyParticipants }} participants
-              </div>
+              <div class="text-caption text-grey-6">{{ dataOverview.studyParticipants }} participants</div>
             </q-card-section>
           </q-card>
         </div>
@@ -157,9 +150,7 @@
             <q-card-section>
               <div class="text-h6 text-grey-8">New Today</div>
               <div class="text-h3 text-positive">{{ dataOverview.newToday }}</div>
-              <div class="text-caption text-grey-6">
-                Observations recorded
-              </div>
+              <div class="text-caption text-grey-6">Observations recorded</div>
             </q-card-section>
           </q-card>
         </div>
@@ -187,20 +178,17 @@
         <q-card-section>
           <div class="row q-col-gutter-md items-end">
             <div class="col-12 col-md-4">
-              <q-input v-model="filters.search" label="Search by name or Patient ID" outlined dense clearable
-                debounce="300" placeholder="Search patients...">
+              <q-input v-model="filters.search" label="Search by name or Patient ID" outlined dense clearable debounce="300" placeholder="Search patients...">
                 <template v-slot:prepend>
                   <q-icon name="search" />
                 </template>
               </q-input>
             </div>
             <div class="col-12 col-md-3">
-              <q-select v-model="filters.gender" :options="genderOptions" label="Gender" outlined dense clearable
-                emit-value map-options />
+              <q-select v-model="filters.gender" :options="genderOptions" label="Gender" outlined dense clearable emit-value map-options />
             </div>
             <div class="col-12 col-md-3">
-              <q-select v-model="filters.status" :options="statusOptions" label="Vital Status" outlined dense clearable
-                emit-value map-options />
+              <q-select v-model="filters.status" :options="statusOptions" label="Vital Status" outlined dense clearable emit-value map-options />
             </div>
             <div class="col-12 col-md-2 text-right">
               <q-btn round flat icon="clear_all" color="grey-7" @click="clearFilters" size="md">
@@ -214,8 +202,12 @@
             <div class="col-12">
               <div class="text-caption text-grey-6 q-px-sm">
                 <q-icon name="people" size="14px" class="q-mr-xs" />
-                <span class="q-mr-md">Total: <strong>{{ dataOverview.totalPatients }}</strong></span>
-                <span v-if="hasActiveFilters">• Filtered: <strong>{{ pagination.rowsNumber }}</strong></span>
+                <span class="q-mr-md"
+                  >Total: <strong>{{ dataOverview.totalPatients }}</strong></span
+                >
+                <span v-if="hasActiveFilters"
+                  >• Filtered: <strong>{{ pagination.rowsNumber }}</strong></span
+                >
               </div>
             </div>
           </div>
@@ -223,9 +215,18 @@
 
         <!-- Data Table -->
         <q-card-section class="q-pa-none">
-          <q-table :rows="tableData" :columns="tableColumns" row-key="id" v-model:pagination="pagination"
-            :loading="loading" @request="onTableRequest" flat bordered @row-click="onPatientClick"
-            class="cursor-pointer">
+          <q-table
+            :rows="tableData"
+            :columns="tableColumns"
+            row-key="id"
+            v-model:pagination="pagination"
+            :loading="loading"
+            @request="onTableRequest"
+            flat
+            bordered
+            @row-click="onPatientClick"
+            class="cursor-pointer"
+          >
           </q-table>
         </q-card-section>
       </q-card>
@@ -266,7 +267,7 @@ const stats = ref({
   visitsToday: 0,
   pendingReports: 0,
   activeStudies: 0,
-  totalPatients: 0
+  totalPatients: 0,
 })
 
 // Deep Work Mode Data
@@ -276,13 +277,13 @@ const dataOverview = ref({
   activeStudies: 0,
   studyParticipants: 0,
   newToday: 0,
-  dataQuality: 95
+  dataQuality: 95,
 })
 
 const filters = ref({
   search: '',
   gender: null,
-  status: null
+  status: null,
 })
 
 // Dynamic filter options loaded from concept store
@@ -294,50 +295,50 @@ const pagination = ref({
   rowsPerPage: 10,
   rowsNumber: 0,
   sortBy: 'id',
-  descending: false
+  descending: false,
 })
 
 const tableColumns = [
   {
     name: 'id',
     label: 'Patient ID',
-    field: row => row.id,
+    field: (row) => row.id,
     align: 'left',
-    sortable: true
+    sortable: true,
   },
   {
     name: 'name',
     label: 'Name',
-    field: row => row.name,
+    field: (row) => row.name,
     align: 'left',
-    sortable: true
+    sortable: true,
   },
   {
     name: 'age',
     label: 'Age',
     field: 'age',
     align: 'center',
-    sortable: true
+    sortable: true,
   },
   {
     name: 'gender',
     label: 'Gender',
     field: 'gender',
-    align: 'center'
+    align: 'center',
   },
   {
     name: 'lastVisit',
     label: 'Created',
     field: 'lastVisit',
     align: 'left',
-    sortable: true
+    sortable: true,
   },
   {
     name: 'status',
     label: 'Vital Status',
     field: 'status',
-    align: 'center'
-  }
+    align: 'center',
+  },
 ]
 
 const tableData = ref([])
@@ -356,11 +357,11 @@ const loadRecentPatients = async () => {
     const result = await patientRepo.getPatientsPaginated(1, 5, {
       options: {
         orderBy: 'CREATED_AT',
-        orderDirection: 'DESC'
-      }
+        orderDirection: 'DESC',
+      },
     })
 
-    recentPatients.value = (result.patients || []).map(patient => ({
+    recentPatients.value = (result.patients || []).map((patient) => ({
       id: patient.PATIENT_CD,
       name: getPatientName(patient),
       age: patient.AGE_IN_YEARS || 'Unknown',
@@ -368,14 +369,14 @@ const loadRecentPatients = async () => {
       patient_num: patient.PATIENT_NUM,
       // Include original patient data for PatientAvatar component
       SEX_RESOLVED: patient.SEX_RESOLVED,
-      SEX_CD: patient.SEX_CD
+      SEX_CD: patient.SEX_CD,
     }))
   } catch (error) {
     console.error('Failed to load recent patients:', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to load recent patients',
-      position: 'top'
+      position: 'top',
     })
   }
 }
@@ -393,45 +394,37 @@ const loadDashboardStatistics = async () => {
     const today = new Date().toISOString().split('T')[0]
 
     // Count patients created today
-    const todayPatientsResult = await dbStore.executeQuery(
-      `SELECT COUNT(*) as count FROM patient_list WHERE DATE(CREATED_AT) = ?`,
-      [today]
-    )
+    const todayPatientsResult = await dbStore.executeQuery(`SELECT COUNT(*) as count FROM patient_list WHERE DATE(CREATED_AT) = ?`, [today])
 
     // Count total visits
-    const visitsResult = await dbStore.executeQuery(
-      'SELECT COUNT(*) as count FROM VISIT_DIMENSION'
-    )
+    const visitsResult = await dbStore.executeQuery('SELECT COUNT(*) as count FROM VISIT_DIMENSION')
 
     // Count observations created today
-    const todayObsResult = await dbStore.executeQuery(
-      `SELECT COUNT(*) as count FROM OBSERVATION_FACT WHERE DATE(IMPORT_DATE) = ?`,
-      [today]
-    )
+    const todayObsResult = await dbStore.executeQuery(`SELECT COUNT(*) as count FROM OBSERVATION_FACT WHERE DATE(IMPORT_DATE) = ?`, [today])
 
     stats.value = {
       patientsToday: todayPatientsResult.success ? todayPatientsResult.data[0]?.count || 0 : 0,
       visitsToday: visitsResult.success ? visitsResult.data[0]?.count || 0 : 0,
       pendingReports: 0, // Not implemented yet
-      activeStudies: 0,  // Not implemented yet
-      totalPatients: patientStats.totalPatients || 0
+      activeStudies: 0, // Not implemented yet
+      totalPatients: patientStats.totalPatients || 0,
     }
 
     // Update data overview for deep work mode
     dataOverview.value = {
       totalPatients: patientStats.totalPatients || 0,
       newPatientsWeek: 0, // Could calculate week stats
-      activeStudies: 0,   // Not implemented
+      activeStudies: 0, // Not implemented
       studyParticipants: patientStats.totalPatients || 0,
       newToday: todayObsResult.success ? todayObsResult.data[0]?.count || 0 : 0,
-      dataQuality: 95     // Static for now
+      dataQuality: 95, // Static for now
     }
   } catch (error) {
     console.error('Failed to load dashboard statistics:', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to load dashboard statistics',
-      position: 'top'
+      position: 'top',
     })
   }
 }
@@ -468,30 +461,32 @@ const loadTableData = async () => {
 
     // Add sorting options
     const sortOptions = {
-      orderBy: pagination.value.sortBy === 'id' ? 'PATIENT_CD' :
-        pagination.value.sortBy === 'name' ? 'PATIENT_CD' : // Use PATIENT_CD for name sorting as fallback
-          pagination.value.sortBy === 'age' ? 'AGE_IN_YEARS' :
-            pagination.value.sortBy === 'lastVisit' ? 'CREATED_AT' : 'PATIENT_CD',
-      orderDirection: pagination.value.descending ? 'DESC' : 'ASC'
+      orderBy:
+        pagination.value.sortBy === 'id'
+          ? 'PATIENT_CD'
+          : pagination.value.sortBy === 'name'
+            ? 'PATIENT_CD' // Use PATIENT_CD for name sorting as fallback
+            : pagination.value.sortBy === 'age'
+              ? 'AGE_IN_YEARS'
+              : pagination.value.sortBy === 'lastVisit'
+                ? 'CREATED_AT'
+                : 'PATIENT_CD',
+      orderDirection: pagination.value.descending ? 'DESC' : 'ASC',
     }
 
     // Use server-side pagination with sorting
-    const result = await patientRepo.getPatientsPaginated(
-      pagination.value.page,
-      pagination.value.rowsPerPage,
-      {
-        ...criteria,
-        options: sortOptions
-      }
-    )
+    const result = await patientRepo.getPatientsPaginated(pagination.value.page, pagination.value.rowsPerPage, {
+      ...criteria,
+      options: sortOptions,
+    })
 
-    tableData.value = (result.patients || []).map(patient => ({
+    tableData.value = (result.patients || []).map((patient) => ({
       id: patient.PATIENT_CD,
       name: getPatientName(patient),
       age: patient.AGE_IN_YEARS || 'Unknown',
       gender: patient.SEX_RESOLVED || patient.SEX_CD || 'Unknown',
       lastVisit: formatDate(patient.CREATED_AT),
-      status: patient.VITAL_STATUS_RESOLVED || patient.VITAL_STATUS_CD || 'Unknown'
+      status: patient.VITAL_STATUS_RESOLVED || patient.VITAL_STATUS_CD || 'Unknown',
     }))
 
     // Update pagination with total count from server
@@ -501,7 +496,7 @@ const loadTableData = async () => {
     $q.notify({
       type: 'negative',
       message: 'Failed to load table data',
-      position: 'top'
+      position: 'top',
     })
   } finally {
     loading.value = false
@@ -565,18 +560,13 @@ const onTableRequest = async (props) => {
   await loadTableData()
 }
 
-
-
 const showNewPatientDialog = () => {
   showCreatePatientDialog.value = true
 }
 
 const onPatientCreated = async (createdPatient) => {
   // Refresh recent patients and statistics
-  await Promise.all([
-    loadRecentPatients(),
-    loadDashboardStatistics()
-  ])
+  await Promise.all([loadRecentPatients(), loadDashboardStatistics()])
 
   $q.notify({
     type: 'positive',
@@ -589,9 +579,9 @@ const onPatientCreated = async (createdPatient) => {
         color: 'white',
         handler: () => {
           router.push({ path: `/patient/${createdPatient.PATIENT_CD}` })
-        }
-      }
-    ]
+        },
+      },
+    ],
   })
 }
 
@@ -599,7 +589,7 @@ const clearFilters = async () => {
   filters.value = {
     search: '',
     gender: null,
-    status: null
+    status: null,
   }
   pagination.value.page = 1
   pagination.value.sortBy = 'id'
@@ -608,20 +598,18 @@ const clearFilters = async () => {
   $q.notify({
     type: 'info',
     message: 'Filters cleared',
-    position: 'top'
+    position: 'top',
   })
 }
 
 // Load filter options from concept store
 const loadFilterOptions = async () => {
   try {
+    // Initialize concept store (will be skipped if already initialized)
     await conceptStore.initialize()
 
-    // Load gender and status options
-    const [genderOpts, statusOpts] = await Promise.all([
-      conceptStore.getConceptOptions('gender'),
-      conceptStore.getConceptOptions('vital_status')
-    ])
+    // Load gender and status options (will use cache if available)
+    const [genderOpts, statusOpts] = await Promise.all([conceptStore.getConceptOptions('gender'), conceptStore.getConceptOptions('vital_status')])
 
     genderOptions.value = genderOpts
     statusOptions.value = statusOpts
@@ -643,11 +631,7 @@ const initializeDashboard = async () => {
   loading.value = true
   try {
     // Always load basic dashboard data and filter options
-    await Promise.all([
-      loadRecentPatients(),
-      loadDashboardStatistics(),
-      loadFilterOptions()
-    ])
+    await Promise.all([loadRecentPatients(), loadDashboardStatistics(), loadFilterOptions()])
 
     // Only load table data if we're in deep work mode
     if (viewMode.value === 'deep') {
@@ -658,7 +642,7 @@ const initializeDashboard = async () => {
     $q.notify({
       type: 'negative',
       message: 'Failed to load dashboard data',
-      position: 'top'
+      position: 'top',
     })
   } finally {
     loading.value = false
@@ -705,14 +689,16 @@ onUnmounted(() => {
 })
 
 // Watch for filter changes to reload table data automatically
-watch(filters, async () => {
-  if (dbStore.canPerformOperations) {
-    pagination.value.page = 1 // Reset to first page when filters change
-    await loadTableData()
-  }
-}, { deep: true })
-
-
+watch(
+  filters,
+  async () => {
+    if (dbStore.canPerformOperations) {
+      pagination.value.page = 1 // Reset to first page when filters change
+      await loadTableData()
+    }
+  },
+  { deep: true },
+)
 </script>
 
 <style lang="scss" scoped>
