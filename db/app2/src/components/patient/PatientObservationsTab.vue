@@ -132,7 +132,7 @@
     </div>
 
     <!-- Create Visit Dialog -->
-    <CreateVisitDialog v-model="showCreateVisitDialog" :patient="patient" @visitCreated="onVisitCreated" />
+    <NewVisitDialog v-model="showCreateVisitDialog" :patient="patient" @created="onVisitCreated" />
   </div>
 </template>
 
@@ -141,7 +141,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
-import CreateVisitDialog from './CreateVisitDialog.vue'
+import NewVisitDialog from '../visits/NewVisitDialog.vue'
 import VisitItem from './VisitItem.vue'
 
 // Note: This component now relies on the patient being already selected in the visitObservationStore

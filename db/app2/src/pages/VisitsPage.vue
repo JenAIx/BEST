@@ -91,13 +91,38 @@ const onVisitSelected = async (visit) => {
 }
 
 const onVisitEdited = async (visit) => {
-  await visitStore.setSelectedVisit(visit)
+  // First reload visits to ensure we have the latest data with rawData
+  if (selectedPatient.value) {
+    await visitStore.loadVisitsForPatient(selectedPatient.value)
+  }
+
+  // Then find and select the visit from the store (which has complete data)
+  const fullVisitData = visitStore.visits.find((v) => v.id === visit.id)
+  if (fullVisitData) {
+    await visitStore.setSelectedVisit(fullVisitData)
+  } else {
+    // Fallback to the provided visit if not found in store
+    await visitStore.setSelectedVisit(visit)
+  }
+
   viewMode.value = 'entry'
 }
 
 const onVisitCreated = async (newVisit) => {
-  // Store handles adding the visit, just need to select it and switch mode
-  await visitStore.setSelectedVisit(newVisit)
+  // First reload visits to ensure we have the latest data with rawData
+  if (selectedPatient.value) {
+    await visitStore.loadVisitsForPatient(selectedPatient.value)
+  }
+
+  // Then find and select the visit from the store (which has complete data)
+  const fullVisitData = visitStore.visits.find((v) => v.id === newVisit.id)
+  if (fullVisitData) {
+    await visitStore.setSelectedVisit(fullVisitData)
+  } else {
+    // Fallback to the provided visit if not found in store
+    await visitStore.setSelectedVisit(newVisit)
+  }
+
   viewMode.value = 'entry'
 }
 
@@ -111,7 +136,7 @@ const loadPatientFromRoute = async () => {
       if (dbStore.canPerformOperations) {
         const patientRepo = dbStore.getRepository('patient')
         const patient = await patientRepo.findByPatientCode(patientId)
-        
+
         if (patient) {
           const visitPatient = {
             id: patient.PATIENT_CD,
@@ -137,7 +162,7 @@ const loadPatientFromRoute = async () => {
 // Helper method to get patient name
 const getPatientName = (patient) => {
   if (!patient) return 'Unknown Patient'
-  
+
   if (patient.PATIENT_BLOB) {
     try {
       const blob = JSON.parse(patient.PATIENT_BLOB)
@@ -151,11 +176,14 @@ const getPatientName = (patient) => {
 }
 
 // Watch for route changes
-watch(() => route.params.patientId, (newPatientId) => {
-  if (newPatientId && newPatientId !== selectedPatient.value?.id) {
-    loadPatientFromRoute()
-  }
-})
+watch(
+  () => route.params.patientId,
+  (newPatientId) => {
+    if (newPatientId && newPatientId !== selectedPatient.value?.id) {
+      loadPatientFromRoute()
+    }
+  },
+)
 
 // Initialize store and load patient if route has patientId
 onMounted(async () => {

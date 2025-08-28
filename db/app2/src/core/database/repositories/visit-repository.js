@@ -32,7 +32,7 @@ class VisitRepository extends BaseRepository {
 
     // Set default values for optional fields
     const visitWithDefaults = {
-      ACTIVE_STATUS_CD: 'A', // Active by default
+      ACTIVE_STATUS_CD: visitData.ACTIVE_STATUS_CD || 'SCTID: 55561003', // Active (SNOMED-CT) by default
       START_DATE: visitData.START_DATE || new Date().toISOString().split('T')[0],
       INOUT_CD: visitData.INOUT_CD || 'O', // Outpatient by default
       SOURCESYSTEM_CD: visitData.SOURCESYSTEM_CD || 'SYSTEM',
@@ -145,7 +145,7 @@ class VisitRepository extends BaseRepository {
    */
   async findVisitsWithObservations() {
     const sql = `
-      SELECT DISTINCT v.* 
+      SELECT DISTINCT v.*
       FROM ${this.tableName} v
       INNER JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
       ORDER BY v.START_DATE DESC
@@ -162,18 +162,10 @@ class VisitRepository extends BaseRepository {
     try {
       const [totalVisits, byStatus, byLocation, byInout, byMonth] = await Promise.all([
         this.connection.executeQuery(`SELECT COUNT(*) as count FROM ${this.tableName}`),
-        this.connection.executeQuery(
-          `SELECT ACTIVE_STATUS_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY ACTIVE_STATUS_CD`,
-        ),
-        this.connection.executeQuery(
-          `SELECT LOCATION_CD, COUNT(*) as count FROM ${this.tableName} WHERE LOCATION_CD IS NOT NULL GROUP BY LOCATION_CD`,
-        ),
-        this.connection.executeQuery(
-          `SELECT INOUT_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY INOUT_CD`,
-        ),
-        this.connection.executeQuery(
-          `SELECT strftime('%Y-%m', START_DATE) as month, COUNT(*) as count FROM ${this.tableName} GROUP BY month ORDER BY month DESC LIMIT 12`,
-        ),
+        this.connection.executeQuery(`SELECT ACTIVE_STATUS_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY ACTIVE_STATUS_CD`),
+        this.connection.executeQuery(`SELECT LOCATION_CD, COUNT(*) as count FROM ${this.tableName} WHERE LOCATION_CD IS NOT NULL GROUP BY LOCATION_CD`),
+        this.connection.executeQuery(`SELECT INOUT_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY INOUT_CD`),
+        this.connection.executeQuery(`SELECT strftime('%Y-%m', START_DATE) as month, COUNT(*) as count FROM ${this.tableName} GROUP BY month ORDER BY month DESC LIMIT 12`),
       ])
 
       return {
@@ -283,18 +275,14 @@ class VisitRepository extends BaseRepository {
     }
 
     const sql = `
-      SELECT * FROM ${this.tableName} 
-      WHERE LOCATION_CD LIKE ? 
-         OR ACTIVE_STATUS_CD LIKE ? 
+      SELECT * FROM ${this.tableName}
+      WHERE LOCATION_CD LIKE ?
+         OR ACTIVE_STATUS_CD LIKE ?
          OR CAST(PATIENT_NUM AS TEXT) LIKE ?
       ORDER BY START_DATE DESC
     `
     const searchPattern = `%${searchTerm.trim()}%`
-    const result = await this.connection.executeQuery(sql, [
-      searchPattern,
-      searchPattern,
-      searchPattern,
-    ])
+    const result = await this.connection.executeQuery(sql, [searchPattern, searchPattern, searchPattern])
     return result.success ? result.data : []
   }
 
@@ -336,7 +324,7 @@ class VisitRepository extends BaseRepository {
    */
   async getPatientVisitTimeline(patientNum) {
     const sql = `
-      SELECT v.*, 
+      SELECT v.*,
              COUNT(o.OBSERVATION_ID) as observationCount
       FROM ${this.tableName} v
       LEFT JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM

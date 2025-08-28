@@ -4,6 +4,9 @@
       <div class="text-h4">Concepts Administration</div>
       <div class="row items-center q-gutter-md">
         <div class="text-caption text-grey-6">Showing {{ concepts.length }} of {{ totalConcepts }} concepts</div>
+        <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
+          <q-tooltip>Export to CSV</q-tooltip>
+        </q-btn>
         <q-btn color="primary" icon="add" label="Create Concept" @click="onCreateConcept" />
       </div>
     </div>
@@ -145,6 +148,8 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useExportStore } from 'src/stores/export-store'
+import { createLogger } from 'src/core/services/logging-service'
 import ConceptEditDialog from 'components/ConceptEditDialog.vue'
 import ConceptCreateDialog from 'components/ConceptCreateDialog.vue'
 import ValueTypeIcon from 'components/shared/ValueTypeIcon.vue'
@@ -152,11 +157,14 @@ import ValueTypeIcon from 'components/shared/ValueTypeIcon.vue'
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const exportStore = useExportStore()
+const logger = createLogger('ConceptsPage')
 
 // State
 const concepts = ref([])
 const totalConcepts = ref(0)
 const loading = ref(false)
+const exportLoading = ref(false)
 const showEditDialog = ref(false)
 const showCreateDialog = ref(false)
 const selectedConcept = ref(null)
@@ -444,6 +452,66 @@ const onCancelEdit = () => {
 const onCancelCreate = () => {
   showCreateDialog.value = false
   selectedConcept.value = null
+}
+
+// Export functionality
+const onExportConcepts = async () => {
+  exportLoading.value = true
+  logger.info('User initiated concept CSV export', {
+    totalConceptsDisplayed: concepts.value.length,
+    totalConceptsInDatabase: totalConcepts.value,
+  })
+
+  try {
+    const result = await exportStore.exportConceptsToCSV()
+
+    if (result.success) {
+      logger.success('Concept CSV export completed successfully', {
+        recordCount: result.recordCount,
+        filename: result.filename,
+        fileSize: result.fileSize,
+        duration: result.duration,
+      })
+
+      $q.notify({
+        type: 'positive',
+        message: result.message,
+        caption: `File size: ${result.fileSize}KB • Export time: ${result.duration}ms`,
+        position: 'top',
+        timeout: 5000,
+        actions: [
+          {
+            label: 'Dismiss',
+            color: 'white',
+            handler: () => {
+              /* intentionally ignored */
+            },
+          },
+        ],
+      })
+    } else {
+      logger.error('Concept CSV export failed', null, {
+        error: result.error,
+        message: result.message,
+      })
+
+      $q.notify({
+        type: 'negative',
+        message: result.message,
+        position: 'top',
+      })
+    }
+  } catch (error) {
+    logger.error('Concept CSV export threw exception', error)
+    console.error('Failed to export concepts:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to export concepts',
+      position: 'top',
+    })
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 // Initialize

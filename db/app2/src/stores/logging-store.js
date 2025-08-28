@@ -1,6 +1,6 @@
 /**
  * Logging Store
- * 
+ *
  * Pinia store that provides reactive access to logging functionality
  * and integrates the logging service with the Vue.js application.
  */
@@ -15,43 +15,43 @@ export const useLoggingStore = defineStore('logging', () => {
   const currentLogLevel = ref(loggingService.getLogLevelName(loggingService.logLevel))
   const logs = ref([])
   const stats = ref({})
-  
+
   // Getters
   const recentLogs = computed(() => logs.value.slice(-50))
-  const errorLogs = computed(() => logs.value.filter(log => log.level === 'ERROR'))
-  const warningLogs = computed(() => logs.value.filter(log => log.level === 'WARN'))
+  const errorLogs = computed(() => logs.value.filter((log) => log.level === 'ERROR'))
+  const warningLogs = computed(() => logs.value.filter((log) => log.level === 'WARN'))
   const hasErrors = computed(() => errorLogs.value.length > 0)
   const hasWarnings = computed(() => warningLogs.value.length > 0)
-  
+
   const logStats = computed(() => ({
     total: logs.value.length,
     errors: errorLogs.value.length,
     warnings: warningLogs.value.length,
-    ...stats.value
+    ...stats.value,
   }))
-  
+
   // Actions
   const refreshLogs = () => {
     logs.value = loggingService.getRecentLogs(100)
     stats.value = loggingService.getStats()
   }
-  
+
   const clearLogs = () => {
     loggingService.clearLogs()
     refreshLogs()
   }
-  
+
   const setLogLevel = (level) => {
     loggingService.logLevel = loggingService.levels[level] || loggingService.levels.INFO
     currentLogLevel.value = level
     loggingService.info('LoggingStore', `Log level changed to ${level}`)
   }
-  
+
   const toggleLogging = () => {
     isLoggingEnabled.value = !isLoggingEnabled.value
     loggingService.info('LoggingStore', `Logging ${isLoggingEnabled.value ? 'enabled' : 'disabled'}`)
   }
-  
+
   const exportLogs = () => {
     const exported = loggingService.exportLogs()
     const blob = new Blob([JSON.stringify(exported, null, 2)], { type: 'application/json' })
@@ -63,10 +63,10 @@ export const useLoggingStore = defineStore('logging', () => {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
-    
+
     loggingService.success('LoggingStore', 'Logs exported successfully')
   }
-  
+
   // Convenience logging methods that update the store
   const debug = (context, message, data) => {
     if (isLoggingEnabled.value) {
@@ -74,63 +74,63 @@ export const useLoggingStore = defineStore('logging', () => {
       refreshLogs()
     }
   }
-  
+
   const info = (context, message, data) => {
     if (isLoggingEnabled.value) {
       loggingService.info(context, message, data)
       refreshLogs()
     }
   }
-  
+
   const success = (context, message, data) => {
     if (isLoggingEnabled.value) {
       loggingService.success(context, message, data)
       refreshLogs()
     }
   }
-  
+
   const warn = (context, message, data) => {
     if (isLoggingEnabled.value) {
       loggingService.warn(context, message, data)
       refreshLogs()
     }
   }
-  
+
   const error = (context, message, err, data) => {
     if (isLoggingEnabled.value) {
       loggingService.error(context, message, err, data)
       refreshLogs()
     }
   }
-  
+
   const logUserAction = (action, details) => {
     if (isLoggingEnabled.value) {
       loggingService.logUserAction(action, details)
       refreshLogs()
     }
   }
-  
+
   const logNavigation = (from, to, method) => {
     if (isLoggingEnabled.value) {
       loggingService.logNavigation(from, to, method)
       refreshLogs()
     }
   }
-  
+
   const startTimer = (label) => {
     return loggingService.startTimer(label)
   }
-  
+
   // Initialize
   refreshLogs()
-  
+
   return {
     // State
     isLoggingEnabled,
     currentLogLevel,
     logs,
     stats,
-    
+
     // Getters
     recentLogs,
     errorLogs,
@@ -138,14 +138,14 @@ export const useLoggingStore = defineStore('logging', () => {
     hasErrors,
     hasWarnings,
     logStats,
-    
+
     // Actions
     refreshLogs,
     clearLogs,
     setLogLevel,
     toggleLogging,
     exportLogs,
-    
+
     // Logging methods
     debug,
     info,
@@ -155,9 +155,45 @@ export const useLoggingStore = defineStore('logging', () => {
     logUserAction,
     logNavigation,
     startTimer,
-    
-    // Service access
-    createLogger: (context) => createLogger(context),
-    service: loggingService
+
+    // Service access with reactive integration
+    createLogger: (context) => {
+      const logger = createLogger(context)
+
+      // Override logger methods to trigger reactive updates
+      const originalError = logger.error.bind(logger)
+      const originalWarn = logger.warn.bind(logger)
+      const originalInfo = logger.info.bind(logger)
+      const originalDebug = logger.debug.bind(logger)
+      const originalSuccess = logger.success.bind(logger)
+
+      logger.error = (message, err, data) => {
+        originalError(message, err, data)
+        refreshLogs() // Trigger reactive update
+      }
+
+      logger.warn = (message, data) => {
+        originalWarn(message, data)
+        refreshLogs() // Trigger reactive update
+      }
+
+      logger.info = (message, data) => {
+        originalInfo(message, data)
+        refreshLogs() // Trigger reactive update
+      }
+
+      logger.debug = (message, data) => {
+        originalDebug(message, data)
+        refreshLogs() // Trigger reactive update
+      }
+
+      logger.success = (message, data) => {
+        originalSuccess(message, data)
+        refreshLogs() // Trigger reactive update
+      }
+
+      return logger
+    },
+    service: loggingService,
   }
 })

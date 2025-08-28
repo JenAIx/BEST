@@ -103,7 +103,9 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { getTemplateDescription, isValidTemplate } from 'src/shared/utils/template-utils'
 
 const props = defineProps({
   modelValue: {
@@ -121,6 +123,7 @@ const emit = defineEmits(['update:modelValue', 'created'])
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('NewVisitDialog')
 
@@ -162,14 +165,43 @@ const loadOptions = async () => {
   try {
     loadingOptions.value = true
 
-    // Load visit types from global settings
-    const visitTypeOptions = await globalSettingsStore.getVisitTypeOptions()
-    visitTypes.value = visitTypeOptions.map((vt) => ({
-      label: vt.label,
-      value: vt.value,
-      icon: vt.icon || 'local_hospital',
-      description: vt.description || '',
-    }))
+    // Load visit types from concept resolution store (from CODE_LOOKUP)
+    try {
+      const visitTypeOptions = await conceptStore.getConceptOptions('visit_type', 'VISIT_DIMENSION', 'VISIT_TYPE_CD')
+
+      if (visitTypeOptions && visitTypeOptions.length > 0) {
+        visitTypes.value = visitTypeOptions.map((vt) => ({
+          label: vt.label,
+          value: vt.value,
+          icon: getVisitTypeIcon(vt.value),
+          description: getVisitTypeDescription(vt.value),
+        }))
+        logger.debug('Loaded visit type options from concept store', {
+          optionsCount: visitTypeOptions.length,
+          options: visitTypeOptions.map((opt) => ({ label: opt.label, value: opt.value })),
+        })
+      } else {
+        // Fallback to global settings if concept store fails
+        const visitTypeOptions = await globalSettingsStore.getVisitTypeOptions()
+        visitTypes.value = visitTypeOptions.map((vt) => ({
+          label: vt.label,
+          value: vt.value,
+          icon: vt.icon || 'local_hospital',
+          description: vt.description || '',
+        }))
+        logger.debug('Loaded visit type options from global settings fallback')
+      }
+    } catch (error) {
+      logger.error('Failed to load visit type options from concept store', error)
+      // Use hardcoded fallback options
+      visitTypes.value = [
+        { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', description: 'Regular scheduled appointment' },
+        { label: 'Follow-up', value: 'followup', icon: 'follow_the_signs', description: 'Follow-up from previous visit' },
+        { label: 'Emergency', value: 'emergency', icon: 'emergency', description: 'Urgent medical attention' },
+        { label: 'Consultation', value: 'consultation', icon: 'psychology', description: 'Specialist consultation' },
+        { label: 'Procedure', value: 'procedure', icon: 'medical_services', description: 'Medical procedure or treatment' },
+      ]
+    }
 
     // Load location options from global settings
     // For now, we'll check if location options exist in CODE_LOOKUP
@@ -205,9 +237,12 @@ const loadOptions = async () => {
 
     // Load quick templates from global settings
     try {
-      quickTemplates.value = await globalSettingsStore.getVisitTemplateOptions()
+      const templates = await globalSettingsStore.getVisitTemplateOptions()
+      // Validate and enhance templates
+      quickTemplates.value = templates.filter((template) => isValidTemplate(template))
       logger.info('Quick templates loaded successfully', {
         templateCount: quickTemplates.value.length,
+        validTemplates: quickTemplates.value.map((t) => t.id),
       })
     } catch (error) {
       logger.error('Failed to load visit templates', error)
@@ -277,6 +312,30 @@ const getTypeIcon = (type) => {
   return typeObj?.icon || 'local_hospital'
 }
 
+// Helper function to get visit type icon based on type code
+const getVisitTypeIcon = (typeCode) => {
+  const iconMap = {
+    routine: 'health_and_safety',
+    followup: 'follow_the_signs',
+    emergency: 'emergency',
+    consultation: 'psychology',
+    procedure: 'medical_services',
+  }
+  return iconMap[typeCode] || 'local_hospital'
+}
+
+// Helper function to get visit type description based on type code
+const getVisitTypeDescription = (typeCode) => {
+  const descriptionMap = {
+    routine: 'Regular scheduled appointment',
+    followup: 'Follow-up from previous visit',
+    emergency: 'Urgent medical attention',
+    consultation: 'Specialist consultation',
+    procedure: 'Medical procedure or treatment',
+  }
+  return descriptionMap[typeCode] || ''
+}
+
 const filterLocations = (val, update) => {
   update(() => {
     if (val === '') {
@@ -297,8 +356,17 @@ const filterLocations = (val, update) => {
 }
 
 const applyTemplate = (template) => {
-  visitData.value.type = template.type
-  visitData.value.notes = template.notes
+  if (!isValidTemplate(template)) {
+    logger.warn('Invalid template provided', { template })
+    return
+  }
+
+  // Apply template properties to visit data
+  visitData.value.type = template.type || 'routine'
+
+  // Use template description or notes as visit notes
+  const templateNotes = getTemplateDescription(template)
+  visitData.value.notes = templateNotes !== 'Standard visit template' ? templateNotes : template.notes || ''
 
   // Apply location if provided in template
   if (template.location) {
@@ -314,10 +382,10 @@ const applyTemplate = (template) => {
   })
 
   $q.notify({
-    type: 'info',
-    message: `Applied ${template.name} template`,
+    type: 'positive',
+    message: `Applied "${template.name}" template`,
     position: 'top',
-    color: template.color || 'info',
+    color: template.color || 'primary',
     icon: template.icon || 'assignment',
   })
 }
@@ -345,12 +413,12 @@ const saveVisit = async () => {
     const newVisitData = {
       PATIENT_NUM: patient.PATIENT_NUM,
       START_DATE: startDate,
-      INOUT_CD: visitData.value.type === 'emergency' ? 'E' : 'O',
-      ACTIVE_STATUS_CD: 'A',
+      INOUT_CD: visitData.value.type === 'emergency' ? 'E' : 'O', // Map visit type to inpatient/outpatient
+      ACTIVE_STATUS_CD: 'SCTID: 55561003', // Active (SNOMED-CT)
       LOCATION_CD: visitData.value.location,
       VISIT_BLOB: JSON.stringify({
         notes: visitData.value.notes,
-        visitType: visitData.value.type,
+        visitType: visitData.value.type, // Store visit type in VISIT_BLOB since VISIT_TYPE_CD column doesn't exist
         createdBy: 'VISITS_PAGE',
         createdAt: new Date().toISOString(),
       }),
