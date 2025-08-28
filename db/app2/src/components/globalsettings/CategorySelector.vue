@@ -2,7 +2,7 @@
   <div class="row q-col-gutter-md q-mb-lg">
     <div class="col-md-4">
       <q-select 
-        v-model="selectedTable" 
+        :model-value="selectedTable" 
         :options="tableOptions" 
         label="Select Data Category" 
         outlined 
@@ -18,7 +18,7 @@
     </div>
     <div class="col-md-4">
       <q-select
-        v-model="selectedColumn"
+        :model-value="selectedColumn"
         :options="columnOptions"
         label="Select Configuration Type"
         outlined
