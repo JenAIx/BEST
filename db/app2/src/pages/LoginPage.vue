@@ -1,5 +1,13 @@
 <template>
   <q-page class="login-page flex flex-center">
+    <!-- Version Information -->
+    <div class="absolute-top-right q-pa-md">
+      <div class="version-info text-right" @click="onVersionInfo">
+        <div class="text-caption text-grey-6">{{ appName }}</div>
+        <div class="text-caption text-grey-7">v{{ appVersion }}</div>
+        <div class="text-caption text-grey-8" v-if="buildDate">{{ buildDate }}</div>
+      </div>
+    </div>
     <div class="login-container">
       <!-- Logo and Title -->
       <div class="text-center q-mb-xl">
@@ -15,7 +23,16 @@
             <!-- Database Selection -->
             <div>
               <label class="text-weight-medium text-grey-8 q-mb-xs block"> Database </label>
-              <q-select v-model="formData.database" :options="databaseOptions" option-value="value" option-label="label" outlined dense :rules="[(val) => !!val || 'Please select a database']" data-cy="login-database">
+              <q-select
+                v-model="formData.database"
+                :options="databaseOptions"
+                option-value="value"
+                option-label="label"
+                outlined
+                dense
+                :rules="[(val) => !!val || 'Please select a database']"
+                data-cy="login-database"
+              >
                 <template v-slot:prepend>
                   <q-icon name="storage" />
                 </template>
@@ -171,6 +188,26 @@ const localSettingsStore = useLocalSettingsStore()
 const logger = useLogger('LoginPage')
 // const dbStore = useDatabaseStore()
 
+// Version information from environment variables and package.json
+const appName = computed(() => import.meta.env.VITE_APP_NAME || 'BEST Medical System')
+const appVersion = computed(() => import.meta.env.VITE_APP_VERSION || '0.0.1')
+const buildDate = computed(() => {
+  const envDate = import.meta.env.VITE_APP_BUILD_DATE
+  if (envDate && envDate !== 'undefined') {
+    try {
+      return new Date(envDate).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+      })
+    } catch {
+      return envDate
+    }
+  }
+  // Show development mode indicator
+  return import.meta.env.DEV ? 'Development' : null
+})
+
 // Form data
 const formData = reactive({
   database: null,
@@ -231,6 +268,10 @@ onMounted(async () => {
     redirectFrom: route.query.redirect,
     isAuthenticated: authStore.isAuthenticated,
     hasCustomDatabasePaths: localSettingsStore.hasDatabaseCustomPaths(),
+    appVersion: appVersion.value,
+    appName: appName.value,
+    buildDate: buildDate.value,
+    isDevelopment: import.meta.env.DEV,
   })
 
   // Check if already authenticated
@@ -431,20 +472,52 @@ const selectCustomFolder = async () => {
   }
 }
 
+// Version info handler
+const onVersionInfo = () => {
+  logger.info('Version info clicked', {
+    appName: appName.value,
+    appVersion: appVersion.value,
+    buildDate: buildDate.value,
+  })
+
+  $q.dialog({
+    title: 'Version Information',
+    message: `
+      <div class="text-center q-mb-md">
+        <p class="text-h6 q-mb-sm">${appName.value}</p>
+        <p class="text-subtitle1 q-mb-xs">Version ${appVersion.value}</p>
+        ${buildDate.value ? `<p class="text-body2 q-mb-sm">Build Date: ${buildDate.value}</p>` : ''}
+        <p class="text-caption text-grey-7">Base for Experiment Storage & Tracking</p>
+      </div>
+
+      <div class="q-mb-md">
+        <p><strong>Environment:</strong> ${import.meta.env.DEV ? 'Development' : 'Production'}</p>
+        <p><strong>Mode:</strong> ${import.meta.env.MODE}</p>
+        <p><strong>Developer:</strong> Stefan Brodoehl</p>
+      </div>
+    `,
+    html: true,
+    persistent: false,
+    style: 'max-width: 400px',
+  })
+}
+
 // About handler
 const onAbout = () => {
   $q.dialog({
     title: 'About BEST Medical System',
     message: `
       <div class="text-center q-mb-md">
-        <p class="text-h6 q-mb-sm">BEST Medical System</p>
+        <p class="text-h6 q-mb-sm">${appName.value}</p>
+        <p class="text-subtitle2 q-mb-xs">Version ${appVersion.value}</p>
         <p class="text-caption text-grey-7">Base for Experiment Storage & Tracking</p>
+        ${buildDate.value ? `<p class="text-caption text-grey-7">Build: ${buildDate.value}</p>` : ''}
       </div>
-      
+
       <div class="q-mb-md">
         <p><strong>Developer:</strong> Stefan Brodoehl</p>
       </div>
-      
+
       <div class="q-mb-md">
         <p><strong>Technology Stack:</strong></p>
         <ul class="q-mt-xs">
@@ -454,7 +527,7 @@ const onAbout = () => {
           <li><strong>State Management:</strong> Pinia</li>
         </ul>
       </div>
-      
+
       <div class="q-mb-md">
         <p><strong>Database:</strong></p>
         <ul class="q-mt-xs">
@@ -463,7 +536,7 @@ const onAbout = () => {
           <li><strong>Storage:</strong> Local file-based database</li>
         </ul>
       </div>
-      
+
       <div class="q-mb-md">
         <p><strong>Architecture:</strong></p>
         <ul class="q-mt-xs">
@@ -510,5 +583,27 @@ label {
 
 :deep(.q-field__prepend) {
   color: $grey-6;
+}
+
+.version-info {
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  padding: 8px 12px;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.9);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  .text-caption {
+    line-height: 1.2;
+    font-size: 0.75rem;
+    margin: 1px 0;
+  }
 }
 </style>
