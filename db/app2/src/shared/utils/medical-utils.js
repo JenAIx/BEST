@@ -399,7 +399,6 @@ export const AVAILABLE_FIELD_SETS = [
       'SNOMED:32750006', // Inspection
       'SNOMED:113011001', // Palpation
       'SNOMED:37931006', // Auscultation
-      'SNOMED:113006009', // Percussion
     ],
   },
   {
