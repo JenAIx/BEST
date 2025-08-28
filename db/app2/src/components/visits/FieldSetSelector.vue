@@ -54,82 +54,92 @@
           </q-tooltip>
         </q-chip>
       </div>
-      <q-btn flat icon="settings" label="Configure" @click="emit('show-config')" size="sm" />
-    </div>
-
-    <div class="field-set-chips">
-      <!-- Active Field Sets (Left Side) -->
-      <div class="active-field-sets">
-        <q-chip
-          v-for="fieldSet in activeFieldSetsList"
-          :key="`active-${fieldSet.id}`"
-          selected
-          @click="emit('toggle-field-set', fieldSet.id)"
-          color="primary"
-          text-color="white"
-          clickable
-          class="field-set-chip active-chip"
-        >
-          <q-icon :name="fieldSet.icon" class="q-mr-xs" />
-          {{ fieldSet.name }}
-          <q-badge v-if="getFieldSetObservationCount(fieldSet.id) > 0" color="white" text-color="primary" class="q-ml-xs">
-            {{ getFieldSetObservationCount(fieldSet.id) }}
-          </q-badge>
-        </q-chip>
-      </div>
-
-      <!-- Inactive Field Sets (Right Side - Limited) -->
-      <div class="inactive-field-sets">
-        <q-chip
-          v-for="fieldSet in visibleInactiveFieldSets"
-          :key="`inactive-${fieldSet.id}`"
-          @click="emit('toggle-field-set', fieldSet.id)"
-          :color="getFieldSetObservationCount(fieldSet.id) > 0 ? 'blue-2' : 'grey-4'"
-          :text-color="getFieldSetObservationCount(fieldSet.id) > 0 ? 'blue-9' : 'grey-8'"
-          clickable
-          :class="['field-set-chip', 'inactive-chip', { 'has-observations': getFieldSetObservationCount(fieldSet.id) > 0 }]"
-        >
-          <q-icon :name="fieldSet.icon" class="q-mr-xs" />
-          {{ fieldSet.name }}
-          <q-badge v-if="getFieldSetObservationCount(fieldSet.id) > 0" color="primary" text-color="white" class="q-ml-xs">
-            {{ getFieldSetObservationCount(fieldSet.id) }}
-          </q-badge>
-        </q-chip>
-
-        <!-- More Inactive Categories Dropdown -->
-        <q-btn v-if="hiddenInactiveFieldSets.length > 0" flat round dense icon="more_horiz" color="grey-6" class="more-categories-btn" size="sm">
-          <q-tooltip>
-            {{ hiddenInactiveFieldSets.length }} more categories
-            <span v-if="hiddenInactiveFieldSets.some((fs) => getFieldSetObservationCount(fs.id) > 0)">
-              <br />({{ hiddenInactiveFieldSets.filter((fs) => getFieldSetObservationCount(fs.id) > 0).length }} with observations)
-            </span>
-          </q-tooltip>
-          <q-menu auto-close>
-            <q-list style="min-width: 200px">
-              <q-item v-for="fieldSet in hiddenInactiveFieldSets" :key="`hidden-${fieldSet.id}`" clickable @click="emit('toggle-field-set', fieldSet.id)" class="hidden-field-set-item">
-                <q-item-section avatar>
-                  <q-icon :name="fieldSet.icon" color="grey-6" />
-                </q-item-section>
-                <q-item-section>
-                  <q-item-label>{{ fieldSet.name }}</q-item-label>
-                  <q-item-label v-if="getFieldSetObservationCount(fieldSet.id) > 0" caption> {{ getFieldSetObservationCount(fieldSet.id) }} observations </q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-badge v-if="getFieldSetObservationCount(fieldSet.id) > 0" color="primary" rounded>
-                    {{ getFieldSetObservationCount(fieldSet.id) }}
-                  </q-badge>
-                </q-item-section>
-              </q-item>
-            </q-list>
-          </q-menu>
+      <div class="header-actions">
+        <q-btn flat icon="settings" label="Configure" @click="emit('show-config')" size="sm" />
+        <q-btn flat round :icon="isCollapsed ? 'expand_more' : 'expand_less'" @click="isCollapsed = !isCollapsed" size="sm" class="collapse-btn">
+          <q-tooltip>{{ isCollapsed ? 'Show all categories' : 'Hide categories' }}</q-tooltip>
         </q-btn>
       </div>
     </div>
+
+    <q-slide-transition>
+      <div v-show="!isCollapsed" class="field-set-chips expanded">
+        <!-- Active Field Sets (Left Side) -->
+        <div class="active-field-sets">
+          <q-chip
+            v-for="fieldSet in activeFieldSetsList"
+            :key="`active-${fieldSet.id}`"
+            selected
+            @click="emit('toggle-field-set', fieldSet.id)"
+            color="primary"
+            text-color="white"
+            clickable
+            class="field-set-chip active-chip"
+          >
+            <q-icon :name="fieldSet.icon" class="q-mr-xs" />
+            {{ fieldSet.name }}
+            <q-badge v-if="getFieldSetObservationCount(fieldSet.id) > 0" color="white" text-color="primary" class="q-ml-xs">
+              {{ getFieldSetObservationCount(fieldSet.id) }}
+            </q-badge>
+          </q-chip>
+        </div>
+
+        <!-- Inactive Field Sets (Right Side - Limited) -->
+        <div class="inactive-field-sets">
+          <q-chip
+            v-for="fieldSet in visibleInactiveFieldSets"
+            :key="`inactive-${fieldSet.id}`"
+            @click="emit('toggle-field-set', fieldSet.id)"
+            :color="getFieldSetObservationCount(fieldSet.id) > 0 ? 'blue-2' : 'grey-4'"
+            :text-color="getFieldSetObservationCount(fieldSet.id) > 0 ? 'blue-9' : 'grey-8'"
+            clickable
+            :class="['field-set-chip', 'inactive-chip', { 'has-observations': getFieldSetObservationCount(fieldSet.id) > 0 }]"
+          >
+            <q-icon :name="fieldSet.icon" class="q-mr-xs" />
+            {{ fieldSet.name }}
+            <q-badge v-if="getFieldSetObservationCount(fieldSet.id) > 0" color="primary" text-color="white" class="q-ml-xs">
+              {{ getFieldSetObservationCount(fieldSet.id) }}
+            </q-badge>
+          </q-chip>
+
+          <!-- More Inactive Categories Dropdown -->
+          <q-btn v-if="hiddenInactiveFieldSets.length > 0" flat round dense icon="more_horiz" color="grey-6" class="more-categories-btn" size="sm">
+            <q-tooltip>
+              {{ hiddenInactiveFieldSets.length }} more categories
+              <span v-if="hiddenInactiveFieldSets.some((fs) => getFieldSetObservationCount(fs.id) > 0)">
+                <br />({{ hiddenInactiveFieldSets.filter((fs) => getFieldSetObservationCount(fs.id) > 0).length }} with observations)
+              </span>
+            </q-tooltip>
+            <q-menu auto-close>
+              <q-list style="min-width: 200px">
+                <q-item v-for="fieldSet in hiddenInactiveFieldSets" :key="`hidden-${fieldSet.id}`" clickable @click="emit('toggle-field-set', fieldSet.id)" class="hidden-field-set-item">
+                  <q-item-section avatar>
+                    <q-icon :name="fieldSet.icon" color="grey-6" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ fieldSet.name }}</q-item-label>
+                    <q-item-label v-if="getFieldSetObservationCount(fieldSet.id) > 0" caption> {{ getFieldSetObservationCount(fieldSet.id) }} observations </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-badge v-if="getFieldSetObservationCount(fieldSet.id) > 0" color="primary" rounded>
+                      {{ getFieldSetObservationCount(fieldSet.id) }}
+                    </q-badge>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
+        </div>
+      </div>
+    </q-slide-transition>
   </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
+
+// State for collapse/expand functionality
+const isCollapsed = ref(false)
 
 const props = defineProps({
   availableFieldSets: {
@@ -211,7 +221,7 @@ const hiddenInactiveFieldSets = computed(() => {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
@@ -219,7 +229,21 @@ const hiddenInactiveFieldSets = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0rem;
+}
+
+.header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.collapse-btn {
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.05);
+  }
 }
 
 .field-set-title-section {
@@ -486,6 +510,10 @@ const hiddenInactiveFieldSets = computed(() => {
     margin-top: 0.5rem;
     padding-top: 0.5rem;
     border-top: 1px solid rgba(0, 0, 0, 0.1);
+  }
+
+  .header-actions {
+    gap: 0.5rem;
   }
 }
 </style>

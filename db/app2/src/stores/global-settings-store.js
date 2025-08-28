@@ -35,10 +35,10 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     loading.value = true
     try {
       const result = await dbStore.executeQuery(
-        `SELECT DISTINCT COLUMN_CD, COUNT(*) as count 
-         FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION' 
-         GROUP BY COLUMN_CD 
+        `SELECT DISTINCT COLUMN_CD, COUNT(*) as count
+         FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         GROUP BY COLUMN_CD
          ORDER BY COLUMN_CD`,
       )
 
@@ -98,9 +98,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     loading.value = true
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION' 
-         AND COLUMN_CD = ? 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = ?
          ORDER BY NAME_CHAR`,
         [columnCd],
       )
@@ -135,9 +135,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     // If not in cache, load from database
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION' 
-         AND COLUMN_CD = ? 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = ?
          AND CODE_CD = ?`,
         [columnCd, codeCd],
       )
@@ -183,7 +183,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   const updateLookupValue = async (codeCd, nameChar, lookupBlob = null) => {
     try {
       const result = await dbStore.executeCommand(
-        `UPDATE CODE_LOOKUP 
+        `UPDATE CODE_LOOKUP
          SET NAME_CHAR = ?, LOOKUP_BLOB = ?, UPDATE_DATE = datetime('now')
          WHERE CODE_CD = ?`,
         [nameChar, lookupBlob, codeCd],
@@ -535,9 +535,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'VISIT_DIMENSION' 
-         AND COLUMN_CD = 'VISIT_TYPE_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'VISIT_TYPE_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -593,9 +593,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'FILE_DIMENSION' 
-         AND COLUMN_CD = 'FILE_TYPE_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'FILE_DIMENSION'
+         AND COLUMN_CD = 'FILE_TYPE_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -654,9 +654,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'VISIT_DIMENSION' 
-         AND COLUMN_CD = 'FIELD_SET_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'FIELD_SET_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -678,41 +678,13 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         return options
       }
 
-      // Fallback to standard field sets
-      return [
-        {
-          id: 'vitals',
-          name: 'Vital Signs',
-          icon: 'favorite',
-          description: 'Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation',
-          concepts: ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4', 'LOINC:8310-5', 'LOINC:9279-1', 'LOINC:2708-6'],
-        },
-        {
-          id: 'symptoms',
-          name: 'Symptoms',
-          icon: 'sick',
-          description: 'Patient reported symptoms and complaints',
-          concepts: ['SNOMED:25064002', 'SNOMED:49727002', 'SNOMED:267036007'],
-        },
-        {
-          id: 'physical',
-          name: 'Physical Exam',
-          icon: 'medical_services',
-          description: 'Physical examination findings',
-          concepts: ['SNOMED:5880005', 'SNOMED:32750006', 'SNOMED:113011001'],
-        },
-      ]
+      // No fallback - field sets must be configured in database
+      logger.warn('No field sets found in database and no fallback provided')
+      return []
     } catch (error) {
       logger.error('Failed to get field set options', error)
-      return [
-        {
-          id: 'vitals',
-          name: 'Vital Signs',
-          icon: 'favorite',
-          description: 'Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation',
-          concepts: ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4'],
-        },
-      ]
+      // No fallback - database configuration is required
+      return []
     }
   }
 
@@ -796,9 +768,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'USER_DIMENSION' 
-         AND COLUMN_CD = 'ROLE_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'USER_DIMENSION'
+         AND COLUMN_CD = 'ROLE_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -854,9 +826,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'VISIT_DIMENSION' 
-         AND COLUMN_CD = 'TEMPLATE_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'TEMPLATE_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -909,9 +881,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Try to load from database first
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'MEDICATION_DIMENSION' 
-         AND COLUMN_CD = 'DRUG_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'MEDICATION_DIMENSION'
+         AND COLUMN_CD = 'DRUG_CD'
          ORDER BY NAME_CHAR`,
       )
 

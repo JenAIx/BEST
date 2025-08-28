@@ -113,11 +113,34 @@
 
       <!-- Raw Input (for raw data/files) -->
       <div v-else-if="actualValueType === 'R'" class="raw-input">
-        <q-input v-model="currentValue" placeholder="Enter details" outlined dense type="textarea" rows="2" :loading="saving">
-          <template v-slot:prepend>
-            <q-icon name="description" />
-          </template>
-        </q-input>
+        <!-- Show file attachment interface if no existing file -->
+        <div v-if="!hasExistingFile" class="file-upload-container">
+          <FileUploadInput v-model="fileData" :max-size-m-b="10" accepted-types=".txt,.png,.gif,.jpg,.jpeg,.pdf,.doc,.docx" @file-selected="onFileSelected" @file-cleared="onFileCleared" />
+        </div>
+
+        <!-- Show file preview if existing file -->
+        <div v-else class="existing-file-display">
+          <div class="file-info-card">
+            <div class="file-header">
+              <q-icon :name="getFileIcon()" :color="getFileColor()" size="32px" />
+              <div class="file-details">
+                <div class="file-name">{{ existingFileInfo.filename }}</div>
+                <div class="file-meta">
+                  <span class="file-size">{{ formatFileSize(existingFileInfo.size) }}</span>
+                  <span class="file-type">{{ existingFileInfo.ext?.toUpperCase() }}</span>
+                </div>
+              </div>
+            </div>
+            <div class="file-actions">
+              <q-btn flat round icon="visibility" size="sm" color="primary" @click="showFilePreview = true" class="preview-btn">
+                <q-tooltip>Preview file</q-tooltip>
+              </q-btn>
+              <q-btn flat round icon="download" size="sm" color="secondary" @click="downloadFile" :loading="downloading" class="download-btn">
+                <q-tooltip>Download file</q-tooltip>
+              </q-btn>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- Default/Unknown Input -->
@@ -168,6 +191,16 @@
         </q-tooltip>
       </q-btn>
     </div>
+
+    <!-- File Preview Dialog -->
+    <FilePreviewDialog
+      v-if="hasExistingFile"
+      v-model="showFilePreview"
+      :observation-id="existingObservation?.observationId"
+      :file-info="existingFileInfo"
+      :concept-name="resolvedConceptName || concept.name"
+      :upload-date="existingObservation?.date"
+    />
   </div>
 </template>
 
@@ -178,6 +211,9 @@ import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useDatabaseStore } from 'src/stores/database-store'
+import FileUploadInput from 'src/components/shared/FileUploadInput.vue'
+import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 
 const props = defineProps({
   concept: {
@@ -208,6 +244,7 @@ const $q = useQuasar()
 const visitStore = useVisitObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
+const dbStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ObservationField')
 
@@ -223,6 +260,10 @@ const removeConfirmationTimeout = ref(null)
 
 const hasPendingChanges = ref(false)
 const saveTimeout = ref(null)
+const fileData = ref(null)
+const showFilePreview = ref(false)
+const downloading = ref(false)
+const existingFileInfo = ref(null)
 
 // Computed
 const hasValue = computed(() => {
@@ -232,6 +273,11 @@ const hasValue = computed(() => {
 // Get the actual value type - use existing observation's VALTYPE_CD if available, otherwise use concept default
 const actualValueType = computed(() => {
   return props.existingObservation?.valueType || props.existingObservation?.valTypeCode || props.concept.valueType
+})
+
+// Check if there's an existing file for raw data type
+const hasExistingFile = computed(() => {
+  return actualValueType.value === 'R' && props.existingObservation && existingFileInfo.value
 })
 
 // displayValue removed - no longer needed since value is shown in input field
@@ -372,6 +418,7 @@ const createObservation = async (value) => {
   const valueType = actualValueType.value
   const observationData = {
     ENCOUNTER_NUM: props.visit.id,
+    PATIENT_NUM: props.patient.PATIENT_NUM || props.patient.id,
     CONCEPT_CD: props.concept.code,
     VALTYPE_CD: valueType,
     START_DATE: new Date().toISOString().split('T')[0],
@@ -383,35 +430,59 @@ const createObservation = async (value) => {
     UPLOAD_ID: 1,
   }
 
-  // Save numeric values to NVAL_NUM, all others to TVAL_CHAR
-  if (valueType === 'N') {
-    observationData.NVAL_NUM = parseFloat(value)
-    observationData.TVAL_CHAR = null // Explicitly clear text value
+  // Handle file upload for raw data type
+  if (valueType === 'R' && fileData.value) {
+    logger.info('Creating raw data observation with file upload', {
+      conceptCode: props.concept.code,
+      filename: fileData.value.fileInfo.filename,
+      size: fileData.value.fileInfo.size,
+    })
+
+    // Use database store's uploadRawData method
+    const uploadResult = await dbStore.uploadRawData(observationData, fileData.value)
+
+    if (!uploadResult || !uploadResult.success) {
+      throw new Error(uploadResult?.message || 'Failed to upload file')
+    }
+
+    logger.success('File observation created successfully', {
+      observationId: uploadResult.observationId,
+      filename: fileData.value.fileInfo.filename,
+    })
+
+    return uploadResult
   } else {
-    // T (text), D (date), R (raw), S (selection), A (answer), F (finding) all go to TVAL_CHAR
-    observationData.TVAL_CHAR = String(value)
-    observationData.NVAL_NUM = null // Explicitly clear numeric value
+    // Handle regular observations
+    // Save numeric values to NVAL_NUM, all others to TVAL_CHAR
+    if (valueType === 'N') {
+      observationData.NVAL_NUM = parseFloat(value)
+      observationData.TVAL_CHAR = null // Explicitly clear text value
+    } else {
+      // T (text), D (date), R (raw), S (selection), A (answer), F (finding) all go to TVAL_CHAR
+      observationData.TVAL_CHAR = String(value)
+      observationData.NVAL_NUM = null // Explicitly clear numeric value
+    }
+
+    if (props.concept.unit) {
+      observationData.UNIT_CD = props.concept.unit
+    }
+
+    logger.debug('Calling visitStore.createObservation', {
+      observationData,
+      storeSelectedVisit: visitStore.selectedVisit?.id,
+      storeSelectedPatient: visitStore.selectedPatient?.id,
+    })
+
+    // Use visit store to create observation - it handles patient lookup and state updates
+    const result = await visitStore.createObservation(observationData)
+
+    logger.debug('visitStore.createObservation completed', {
+      conceptCode: props.concept.code,
+      result,
+    })
+
+    return result
   }
-
-  if (props.concept.unit) {
-    observationData.UNIT_CD = props.concept.unit
-  }
-
-  logger.debug('Calling visitStore.createObservation', {
-    observationData,
-    storeSelectedVisit: visitStore.selectedVisit?.id,
-    storeSelectedPatient: visitStore.selectedPatient?.id,
-  })
-
-  // Use visit store to create observation - it handles patient lookup and state updates
-  const result = await visitStore.createObservation(observationData)
-
-  logger.debug('visitStore.createObservation completed', {
-    conceptCode: props.concept.code,
-    result,
-  })
-
-  return result
 }
 
 const updateObservation = async (value) => {
@@ -612,6 +683,117 @@ const formatVisitDate = (date) => {
   }
 }
 
+// File handling methods
+const onFileSelected = (data) => {
+  fileData.value = data
+  // Set the current value to the filename for display
+  currentValue.value = data.fileInfo.filename
+  hasPendingChanges.value = true
+  logger.info('File selected for observation', {
+    filename: data.fileInfo.filename,
+    size: data.fileInfo.size,
+    conceptCode: props.concept.code,
+  })
+}
+
+const onFileCleared = () => {
+  fileData.value = null
+  currentValue.value = ''
+  hasPendingChanges.value = false
+  logger.info('File cleared from observation')
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const getFileIcon = () => {
+  if (!existingFileInfo.value?.filename) return 'insert_drive_file'
+
+  const ext = existingFileInfo.value.filename.split('.').pop()?.toLowerCase()
+  const iconMap = {
+    pdf: 'picture_as_pdf',
+    png: 'image',
+    jpg: 'image',
+    jpeg: 'image',
+    gif: 'image',
+    txt: 'description',
+    doc: 'description',
+    docx: 'description',
+  }
+  return iconMap[ext] || 'insert_drive_file'
+}
+
+const getFileColor = () => {
+  if (!existingFileInfo.value?.filename) return 'grey'
+
+  const ext = existingFileInfo.value.filename.split('.').pop()?.toLowerCase()
+  const colorMap = {
+    pdf: 'red',
+    png: 'green',
+    jpg: 'green',
+    jpeg: 'green',
+    gif: 'green',
+    txt: 'blue',
+    doc: 'blue',
+    docx: 'blue',
+  }
+  return colorMap[ext] || 'grey'
+}
+
+const downloadFile = async () => {
+  if (!props.existingObservation?.observationId) return
+
+  try {
+    downloading.value = true
+    logger.info('Downloading file from observation', {
+      observationId: props.existingObservation.observationId,
+      filename: existingFileInfo.value?.filename,
+    })
+
+    const result = await dbStore.downloadRawData(props.existingObservation.observationId)
+
+    if (result.success) {
+      // Create blob and download
+      const blob = new Blob([result.blob], {
+        type: result.fileInfo.mimeType || 'application/octet-stream',
+      })
+
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = result.fileInfo.filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+
+      $q.notify({
+        type: 'positive',
+        message: `File "${result.fileInfo.filename}" downloaded successfully`,
+        position: 'top',
+        timeout: 3000,
+      })
+    } else {
+      throw new Error('Download failed')
+    }
+  } catch (error) {
+    logger.error('File download failed', error)
+    $q.notify({
+      type: 'negative',
+      message: `Failed to download file: ${error.message}`,
+      position: 'top',
+      timeout: 5000,
+    })
+  } finally {
+    downloading.value = false
+  }
+}
+
 // Initialize value from existing observation and resolve concept
 onMounted(async () => {
   console.log('🚀 ObservationField mounted!', {
@@ -653,10 +835,27 @@ onMounted(async () => {
     currentValue.value = initialValue
     lastUpdated.value = new Date(props.existingObservation.date)
 
+    // Parse file information for raw data type
+    if (actualValueType.value === 'R' && props.existingObservation.value) {
+      try {
+        existingFileInfo.value = JSON.parse(props.existingObservation.value)
+        logger.debug('Parsed existing file info', {
+          conceptCode: props.concept.code,
+          fileInfo: existingFileInfo.value,
+        })
+      } catch (error) {
+        logger.warn('Failed to parse file info from existing observation', error, {
+          conceptCode: props.concept.code,
+          value: props.existingObservation.value,
+        })
+      }
+    }
+
     logger.debug('Initialized with existing observation value', {
       conceptCode: props.concept.code,
       initialValue,
       lastUpdated: lastUpdated.value,
+      hasFileInfo: !!existingFileInfo.value,
     })
   } else {
     logger.debug('No existing observation, starting with empty value', {
@@ -964,6 +1163,76 @@ onUnmounted(() => {
     border-radius: 3px;
     border-left: 2px solid $orange;
     font-size: 0.75rem;
+  }
+
+  .raw-input {
+    .file-upload-container {
+      margin-bottom: 0.5rem;
+    }
+
+    .existing-file-display {
+      .file-info-card {
+        border: 1px solid $grey-3;
+        border-radius: 8px;
+        padding: 0.75rem;
+        background: $grey-1;
+        transition: all 0.2s ease;
+
+        &:hover {
+          border-color: $primary;
+          background: white;
+        }
+
+        .file-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+          margin-bottom: 0.5rem;
+
+          .file-details {
+            flex: 1;
+
+            .file-name {
+              font-weight: 500;
+              color: $grey-8;
+              font-size: 0.875rem;
+              word-break: break-word;
+            }
+
+            .file-meta {
+              display: flex;
+              gap: 0.5rem;
+              margin-top: 0.25rem;
+
+              .file-size,
+              .file-type {
+                font-size: 0.75rem;
+                color: $grey-6;
+              }
+
+              .file-type {
+                font-weight: 500;
+              }
+            }
+          }
+        }
+
+        .file-actions {
+          display: flex;
+          gap: 0.25rem;
+          justify-content: flex-end;
+
+          .preview-btn,
+          .download-btn {
+            transition: all 0.2s ease;
+
+            &:hover {
+              transform: scale(1.05);
+            }
+          }
+        }
+      }
+    }
   }
 }
 

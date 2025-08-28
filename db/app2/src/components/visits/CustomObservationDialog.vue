@@ -1,12 +1,5 @@
 <template>
-  <AppDialog
-    v-model="showDialog"
-    title="Search and Add Observation"
-    :subtitle="`Category: ${fieldSetName}`"
-    size="lg"
-    persistent
-    @close="cancelCustomObservation"
-  >
+  <AppDialog v-model="showDialog" title="Search and Add Observation" :subtitle="`Category: ${fieldSetName}`" size="lg" persistent @close="cancelCustomObservation">
     <template #header>
       <div class="text-h6">
         <q-icon name="search" class="q-mr-sm" color="primary" />
@@ -23,72 +16,56 @@
         <q-icon name="search" class="q-mr-xs" />
         Search for existing concepts in the database
       </div>
-      
+
       <div class="search-row">
-        <q-input
-          v-model="searchTerm"
-          placeholder="Search concepts (min. 2 characters)"
-          outlined
-          dense
-          class="search-input"
-          @keyup="onSearchInput"
-          @focus="showSearchResults = true"
-        >
+        <q-input v-model="searchTerm" placeholder="Search concepts (min. 2 characters)" outlined dense class="search-input" @keyup="onSearchInput" @focus="showSearchResults = true">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
           <template v-slot:append v-if="searchTerm">
-            <q-icon 
-              name="close" 
-              class="cursor-pointer" 
-              @click="clearSearch"
-            />
+            <q-icon name="close" class="cursor-pointer" @click="clearSearch" />
           </template>
         </q-input>
-        
-        <q-btn
-          color="primary"
-          icon="search"
-          label="Search"
-          @click="searchConcepts"
-          :loading="searching"
-          :disable="!searchTerm || searchTerm.length < 2"
-          class="search-btn"
-        />
+
+        <q-btn color="primary" icon="search" label="Search" @click="searchConcepts" :loading="searching" :disable="!searchTerm || searchTerm.length < 2" class="search-btn" />
+      </div>
+
+      <!-- Recent Concepts -->
+      <div v-if="recentConcepts.length > 0 && !searchTerm" class="recent-concepts-section q-mb-md">
+        <div class="text-subtitle2 text-grey-7 q-mb-sm">
+          <q-icon name="history" class="q-mr-xs" />
+          Recently Used Concepts
+        </div>
+        <div class="recent-concepts-grid">
+          <q-chip v-for="concept in recentConcepts" :key="concept.CONCEPT_CD" clickable @click="selectConcept(concept)" color="blue-1" text-color="primary" size="md" class="recent-concept-chip">
+            <q-icon name="history" size="14px" class="q-mr-xs" />
+            {{ concept.NAME_CHAR }}
+            <q-tooltip>{{ concept.CONCEPT_CD }}</q-tooltip>
+          </q-chip>
+        </div>
       </div>
 
       <!-- Search Results -->
       <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
-        <div class="text-caption text-grey-6 q-mb-xs">
-          Found {{ searchResults.length }} concept{{ searchResults.length > 1 ? 's' : '' }}
-        </div>
+        <div class="text-caption text-grey-6 q-mb-xs">Found {{ searchResults.length }} concept{{ searchResults.length > 1 ? 's' : '' }}</div>
         <div class="concept-list">
-          <q-card
-            v-for="concept in searchResults"
-            :key="concept.CONCEPT_CD"
-            flat
-            bordered
-            class="concept-item cursor-pointer"
-            @click="selectConcept(concept)"
-          >
+          <q-card v-for="concept in searchResults" :key="concept.CONCEPT_CD" flat bordered class="concept-item cursor-pointer" @click="selectConcept(concept)">
             <q-card-section class="q-pa-sm">
               <div class="concept-header">
-                <div class="concept-name">{{ concept.NAME_CHAR }}</div>
-                <q-chip 
-                  size="xs" 
-                  :color="getValueTypeColor(concept.VALTYPE_CD)" 
-                  text-color="white"
-                  class="value-type-chip"
-                >
+                <div class="concept-name-container">
+                  <div class="concept-name">{{ concept.NAME_CHAR }}</div>
+                  <q-icon v-if="isConceptInCurrentVisit(concept.CONCEPT_CD)" name="warning" color="amber-7" size="18px" class="existing-observation-icon">
+                    <q-tooltip class="bg-amber-7 text-black"> This observation already exists in the current visit </q-tooltip>
+                  </q-icon>
+                </div>
+                <q-chip size="xs" :color="getValueTypeColor(concept.VALTYPE_CD)" text-color="white" class="value-type-chip">
                   {{ concept.VALTYPE_CD }}
                 </q-chip>
               </div>
               <div class="concept-code text-caption text-grey-6">
                 {{ concept.CONCEPT_CD }}
               </div>
-              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">
-                Unit: {{ concept.UNIT_CD }}
-              </div>
+              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">Unit: {{ concept.UNIT_CD }}</div>
             </q-card-section>
           </q-card>
         </div>
@@ -101,49 +78,35 @@
       </div>
     </div>
 
-         <!-- Selected Concept Display -->
-     <div v-if="selectedConcept" class="selected-concept-section">
-       <q-separator class="q-my-sm" />
-       
-       <div class="selected-concept-inline">
-         <div class="selected-concept-info">
-           <q-icon name="check_circle" size="16px" color="positive" class="q-mr-sm" />
-           <span class="text-weight-medium">{{ selectedConcept.NAME_CHAR }}</span>
-           <q-chip 
-             size="xs" 
-             :color="getValueTypeColor(selectedConcept.VALTYPE_CD)" 
-             text-color="white"
-             class="q-ml-sm"
-           >
-             {{ selectedConcept.VALTYPE_CD }}
-           </q-chip>
-         </div>
-         <div class="selected-concept-details">
-           <span class="text-caption text-grey-6">{{ selectedConcept.CONCEPT_CD }}</span>
-           <span v-if="selectedConcept.UNIT_CD" class="text-caption text-grey-5 q-ml-md">
-             Unit: {{ selectedConcept.UNIT_CD }}
-           </span>
-         </div>
-         <q-btn 
-           flat 
-           size="sm" 
-           color="negative" 
-           icon="close" 
-           @click="clearSelectedConcept"
-           class="remove-btn"
-         />
-       </div>
-     </div>
+    <!-- Selected Concept Display -->
+    <div v-if="selectedConcept" class="selected-concept-section">
+      <q-separator class="q-my-sm" />
+
+      <div class="selected-concept-inline">
+        <div class="selected-concept-info">
+          <q-icon name="check_circle" size="16px" color="positive" class="q-mr-sm" />
+          <span class="text-weight-medium">{{ selectedConcept.NAME_CHAR }}</span>
+          <q-chip size="xs" :color="getValueTypeColor(selectedConcept.VALTYPE_CD)" text-color="white" class="q-ml-sm">
+            {{ selectedConcept.VALTYPE_CD }}
+          </q-chip>
+        </div>
+        <div class="selected-concept-details">
+          <span class="text-caption text-grey-6">{{ selectedConcept.CONCEPT_CD }}</span>
+          <span v-if="selectedConcept.UNIT_CD" class="text-caption text-grey-5 q-ml-md"> Unit: {{ selectedConcept.UNIT_CD }} </span>
+        </div>
+        <q-btn flat size="sm" color="negative" icon="close" @click="clearSelectedConcept" class="remove-btn" />
+      </div>
+    </div>
 
     <!-- Value Input Section -->
     <div v-if="selectedConcept" class="value-input-section">
       <q-separator class="q-my-md" />
-      
+
       <div class="text-subtitle2 q-mb-sm">
         <q-icon name="edit" class="q-mr-xs" />
         Enter Value
       </div>
-      
+
       <!-- Finding Type Options (Yes/No/K.A.) -->
       <div v-if="selectedConcept.VALTYPE_CD === 'F'" class="finding-options q-mb-md">
         <div class="text-caption text-grey-6 q-mb-sm">Select an answer:</div>
@@ -157,14 +120,23 @@
             size="sm"
             class="finding-option-btn"
             @click="selectFindingOption(option)"
-            :class="{ 'selected': customObservation.value === option.value }"
+            :class="{ selected: customObservation.value === option.value }"
           />
         </div>
       </div>
-      
-      <!-- Standard Input for non-Finding types -->
+
+      <!-- File Upload for Raw Data (R) type -->
+      <div v-if="selectedConcept.VALTYPE_CD === 'R'" class="file-upload-section">
+        <div class="text-subtitle2 q-mb-sm">
+          <q-icon name="attach_file" class="q-mr-xs" />
+          File Attachment
+        </div>
+        <FileUploadInput v-model="fileData" :max-size-m-b="10" accepted-types=".txt,.png,.gif,.jpg,.jpeg,.pdf,.doc,.docx" @file-selected="onFileSelected" @file-cleared="onFileCleared" />
+      </div>
+
+      <!-- Standard Input for non-Finding and non-Raw types -->
       <q-input
-        v-if="selectedConcept.VALTYPE_CD !== 'F'"
+        v-if="selectedConcept.VALTYPE_CD !== 'F' && selectedConcept.VALTYPE_CD !== 'R'"
         v-model="customObservation.value"
         :label="`Value for ${selectedConcept.NAME_CHAR}`"
         :type="getValueInputType()"
@@ -173,7 +145,7 @@
         :rules="[(val) => !!val || 'Value is required']"
         class="q-mb-md"
       />
-      
+
       <!-- Hidden input for Finding types to store the selected option -->
       <q-input
         v-if="selectedConcept.VALTYPE_CD === 'F'"
@@ -185,25 +157,19 @@
         :rules="[(val) => !!val || 'Please select an answer']"
         class="q-mb-md"
       />
-      
-      <q-input 
+
+      <q-input
         v-if="selectedConcept.VALTYPE_CD !== 'F'"
-        v-model="customObservation.unit" 
-        label="Unit (optional)" 
-        outlined 
+        v-model="customObservation.unit"
+        label="Unit (optional)"
+        outlined
         dense
         :placeholder="selectedConcept.UNIT_CD || 'Enter unit if different from concept default'"
       />
     </div>
 
     <template #actions>
-      <q-btn 
-        color="primary" 
-        label="Add Observation"
-        @click="saveCustomObservation" 
-        :disable="!canSave()"
-        :loading="saving"
-      />
+      <q-btn color="primary" label="Add Observation" @click="saveCustomObservation" :disable="!canSave()" :loading="saving" />
     </template>
   </AppDialog>
 </template>
@@ -215,7 +181,9 @@ import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useDatabaseStore } from 'src/stores/database-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
+import FileUploadInput from 'src/components/shared/FileUploadInput.vue'
 
 const props = defineProps({
   modelValue: {
@@ -246,6 +214,7 @@ const $q = useQuasar()
 const visitStore = useVisitObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
+const dbStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('CustomObservationDialog')
 
@@ -260,9 +229,11 @@ const searchResults = ref([])
 const searching = ref(false)
 const searchAttempted = ref(false)
 const showSearchResults = ref(false)
+const recentConcepts = ref([])
 const selectedConcept = ref(null)
 const saving = ref(false)
 const findingOptions = ref([])
+const fileData = ref(null)
 
 // Computed
 const showDialog = computed({
@@ -270,9 +241,33 @@ const showDialog = computed({
   set: (value) => emit('update:modelValue', value),
 })
 
+// Helper to check if a concept already exists in the current visit
+const isConceptInCurrentVisit = (conceptCode) => {
+  if (!props.visit || !visitStore.observations) return false
+
+  return visitStore.observations.some((obs) => {
+    // Try multiple matching strategies:
+    // 1. Exact match
+    if (obs.conceptCode === conceptCode) return true
+
+    // 2. Extract the numeric code from both sides and compare
+    // Handle formats like "LOINC:8480-6" vs "LID: 8480-6"
+    const conceptMatch = conceptCode.match(/[:\s]([0-9-]+)$/)
+    const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
+    if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) {
+      return true
+    }
+
+    return false
+  })
+}
+
 // Watch for dialog close to reset state
 watch(showDialog, (newValue) => {
-  if (!newValue) {
+  if (newValue) {
+    // Load recent concepts when dialog opens
+    loadRecentConcepts()
+  } else {
     resetState()
   }
 })
@@ -305,7 +300,7 @@ const searchConcepts = async () => {
 
     const results = await conceptStore.searchConcepts(searchTerm.value, searchOptions)
     // Filter out concepts with VALTYPE_CD = 'A'
-    searchResults.value = results.filter(concept => concept.VALTYPE_CD !== 'A')
+    searchResults.value = results.filter((concept) => concept.VALTYPE_CD !== 'A')
     showSearchResults.value = true
 
     logger.info('Concept search completed', {
@@ -347,10 +342,51 @@ const clearSearch = () => {
   searchAttempted.value = false
 }
 
+const loadRecentConcepts = () => {
+  try {
+    const stored = localStorage.getItem('recentCustomObservationConcepts')
+    if (stored) {
+      recentConcepts.value = JSON.parse(stored).slice(0, 7) // Limit to 7 recent concepts
+    }
+  } catch (error) {
+    logger.warn('Failed to load recent concepts', error)
+    recentConcepts.value = []
+  }
+}
+
+const saveRecentConcept = (concept) => {
+  try {
+    let recent = [...recentConcepts.value]
+
+    // Remove if already exists
+    recent = recent.filter((c) => c.CONCEPT_CD !== concept.CONCEPT_CD)
+
+    // Add to beginning
+    recent.unshift(concept)
+
+    // Limit to 7
+    recent = recent.slice(0, 7)
+
+    recentConcepts.value = recent
+    localStorage.setItem('recentCustomObservationConcepts', JSON.stringify(recent))
+
+    logger.debug('Saved recent concept', {
+      conceptCode: concept.CONCEPT_CD,
+      conceptName: concept.NAME_CHAR,
+      totalRecent: recent.length,
+    })
+  } catch (error) {
+    logger.warn('Failed to save recent concept', error)
+  }
+}
+
 const selectConcept = async (concept) => {
   selectedConcept.value = concept
   customObservation.value.unit = concept.UNIT_CD || ''
-  
+
+  // Save to recent concepts
+  saveRecentConcept(concept)
+
   // Load finding options if this is a Finding type concept
   if (concept.VALTYPE_CD === 'F') {
     try {
@@ -371,10 +407,10 @@ const selectConcept = async (concept) => {
   } else {
     findingOptions.value = []
   }
-  
+
   // Hide search results
   showSearchResults.value = false
-  
+
   logger.info('Concept selected', {
     conceptCode: concept.CONCEPT_CD,
     conceptName: concept.NAME_CHAR,
@@ -394,6 +430,23 @@ const selectFindingOption = (option) => {
     option: option.label,
     value: option.value,
   })
+}
+
+const onFileSelected = (data) => {
+  fileData.value = data
+  // For file observations, set the value to the filename
+  customObservation.value.value = data.fileInfo.filename
+  logger.info('File selected for observation', {
+    filename: data.fileInfo.filename,
+    size: data.fileInfo.size,
+    conceptCode: selectedConcept.value?.CONCEPT_CD,
+  })
+}
+
+const onFileCleared = () => {
+  fileData.value = null
+  customObservation.value.value = ''
+  logger.info('File cleared from observation')
 }
 
 const getValueInputType = () => {
@@ -426,7 +479,15 @@ const getValueTypeColor = (valueType) => {
 }
 
 const canSave = () => {
-  return !!selectedConcept.value && !!customObservation.value.value
+  if (!selectedConcept.value) return false
+
+  // For file type (R), require file data
+  if (selectedConcept.value.VALTYPE_CD === 'R') {
+    return !!fileData.value && !!fileData.value.fileInfo
+  }
+
+  // For other types, require value
+  return !!customObservation.value.value
 }
 
 const saveCustomObservation = async () => {
@@ -442,6 +503,7 @@ const saveCustomObservation = async () => {
 
     const observationData = {
       ENCOUNTER_NUM: props.visit.id,
+      PATIENT_NUM: props.patient.PATIENT_NUM || props.patient.id,
       CONCEPT_CD: conceptCode,
       VALTYPE_CD: valueType,
       START_DATE: new Date().toISOString().split('T')[0],
@@ -453,18 +515,40 @@ const saveCustomObservation = async () => {
       UPLOAD_ID: 1,
     }
 
-    if (valueType === 'N') {
-      observationData.NVAL_NUM = parseFloat(customObservation.value.value)
+    // Handle file upload for raw data type
+    if (valueType === 'R' && fileData.value) {
+      logger.info('Creating raw data observation with file upload', {
+        conceptCode,
+        filename: fileData.value.fileInfo.filename,
+        size: fileData.value.fileInfo.size,
+      })
+
+      // Use database store's uploadRawData method
+      const uploadResult = await dbStore.uploadRawData(observationData, fileData.value)
+
+      if (!uploadResult || !uploadResult.success) {
+        throw new Error(uploadResult?.message || 'Failed to upload file')
+      }
+
+      logger.success('File observation created successfully', {
+        observationId: uploadResult.observationId,
+        filename: fileData.value.fileInfo.filename,
+      })
     } else {
-      observationData.TVAL_CHAR = customObservation.value.value
-    }
+      // Handle regular observations
+      if (valueType === 'N') {
+        observationData.NVAL_NUM = parseFloat(customObservation.value.value)
+      } else {
+        observationData.TVAL_CHAR = customObservation.value.value
+      }
 
-    if (customObservation.value.unit) {
-      observationData.UNIT_CD = customObservation.value.unit
-    }
+      if (customObservation.value.unit) {
+        observationData.UNIT_CD = customObservation.value.unit
+      }
 
-    // Use visit store to create observation
-    await visitStore.createObservation(observationData)
+      // Use visit store to create observation
+      await visitStore.createObservation(observationData)
+    }
 
     emit('observation-added', {
       conceptCode,
@@ -512,85 +596,115 @@ const resetState = () => {
   selectedConcept.value = null
   saving.value = false
   findingOptions.value = []
+  fileData.value = null
 }
 </script>
 
 <style lang="scss" scoped>
 .concept-search-section {
   margin-bottom: 1.5rem;
-  
+
   .search-row {
     display: flex;
     gap: 0.5rem;
     align-items: flex-end;
-    
+
     .search-input {
       flex: 1;
     }
-    
+
     .search-btn {
       min-width: 80px;
     }
   }
-  
+
   .search-results {
     margin-top: 1rem;
-    
+
     .concept-list {
       max-height: 300px;
       overflow-y: auto;
       border: 1px solid $grey-3;
       border-radius: 6px;
-      
+
       .concept-item {
         border-radius: 0;
         border-bottom: 1px solid $grey-2;
         transition: all 0.2s ease;
-        
+
         &:last-child {
           border-bottom: none;
         }
-        
+
         &:hover {
           background: rgba($primary, 0.05);
           border-left: 3px solid $primary;
         }
-        
+
         .concept-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
           margin-bottom: 0.25rem;
-          
-          .concept-name {
-            font-weight: 500;
-            color: $grey-8;
+
+          .concept-name-container {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+
+            .concept-name {
+              font-weight: 500;
+              color: $grey-8;
+            }
+
+            .existing-observation-icon {
+              animation: pulse 2s infinite;
+            }
           }
-          
+
           .value-type-chip {
             font-size: 0.7rem;
           }
         }
-        
+
         .concept-code {
           font-family: monospace;
           margin-bottom: 0.25rem;
         }
-        
+
         .concept-unit {
           font-style: italic;
         }
       }
     }
   }
-  
+
   .no-results {
     text-align: center;
     padding: 2rem 1rem;
     color: $grey-6;
-    
+
     .q-icon {
       margin-bottom: 0.5rem;
+    }
+  }
+
+  .recent-concepts-section {
+    .recent-concepts-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+
+      .recent-concept-chip {
+        transition: all 0.2s ease;
+        cursor: pointer;
+
+        &:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+      }
     }
   }
 }
@@ -610,7 +724,7 @@ const resetState = () => {
       display: flex;
       align-items: center;
       flex: 1;
-      
+
       .text-weight-medium {
         color: $grey-8;
         margin-right: 0.5rem;
@@ -622,7 +736,7 @@ const resetState = () => {
       align-items: center;
       margin: 0 1rem;
       color: $grey-6;
-      
+
       .text-caption {
         font-size: 0.75rem;
       }
@@ -631,7 +745,7 @@ const resetState = () => {
     .remove-btn {
       opacity: 0.7;
       transition: opacity 0.2s ease;
-      
+
       &:hover {
         opacity: 1;
       }
@@ -643,28 +757,51 @@ const resetState = () => {
   .q-input {
     margin-bottom: 0.5rem;
   }
-  
+
+  .file-upload-section {
+    margin-bottom: 1rem;
+
+    .text-subtitle2 {
+      display: flex;
+      align-items: center;
+      color: $grey-7;
+      font-weight: 500;
+    }
+  }
+
   .finding-options {
     .finding-options-grid {
       display: flex;
       gap: 0.5rem;
       flex-wrap: wrap;
-      
+
       .finding-option-btn {
         min-width: 80px;
         transition: all 0.2s ease;
-        
+
         &.selected {
           background: $primary;
           color: white;
         }
-        
+
         &:hover {
           transform: translateY(-1px);
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
       }
     }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
   }
 }
 </style>

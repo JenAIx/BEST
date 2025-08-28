@@ -75,29 +75,12 @@
           </div>
         </div>
 
-        <!-- Add custom observation -->
-        <div class="add-custom-observation">
-          <q-btn
-            flat
-            icon="add"
-            :label="props.fieldSet.id === 'medications' ? 'Add Medication' : 'Add Custom Observation'"
-            @click="props.fieldSet.id === 'medications' ? addEmptyMedication() : (showAddCustomDialog = true)"
-            class="full-width"
-            style="border: 2px dashed #ccc"
-          />
+        <!-- Add medication button (only for medications fieldset) -->
+        <div v-if="props.fieldSet.id === 'medications'" class="add-medication">
+          <q-btn flat icon="add" label="Add Medication" @click="addEmptyMedication()" class="full-width" style="border: 2px dashed #ccc" />
         </div>
       </div>
     </q-slide-transition>
-
-    <!-- Custom Observation Dialog Component -->
-    <CustomObservationDialog
-      v-model="showAddCustomDialog"
-      :visit="visit"
-      :patient="patient"
-      :field-set-name="fieldSet.name"
-      :field-set-id="fieldSet.id"
-      @observation-added="onCustomObservationAdded"
-    />
   </div>
 </template>
 
@@ -106,9 +89,9 @@ import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ObservationField from './ObservationField.vue'
 import MedicationField from './MedicationField.vue'
-import CustomObservationDialog from './CustomObservationDialog.vue'
 
 const props = defineProps({
   fieldSet: {
@@ -138,12 +121,13 @@ const emit = defineEmits(['observation-updated', 'clone-from-previous'])
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
 const loggingStore = useLoggingStore()
+const conceptStore = useConceptResolutionStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
 
 // State
 const collapsed = ref(false)
-const showAddCustomDialog = ref(false)
 const removedConcepts = ref(new Set()) // Track concepts removed by user
+const resolvedConceptData = ref(new Map()) // Cache for resolved concept data (names, valueType, unit)
 
 // Component mounted
 onMounted(async () => {
@@ -156,7 +140,48 @@ onMounted(async () => {
     fieldSetConceptsCount: props.fieldSet?.concepts?.length || 0,
     fieldSetConcepts: props.fieldSet?.concepts,
   })
+
+  // Resolve concept names for all concepts in the field set
+  await resolveFieldSetConceptNames()
 })
+
+// Resolve concept names using concept resolution store
+const resolveFieldSetConceptNames = async () => {
+  if (!props.fieldSet?.concepts?.length) return
+
+  try {
+    logger.debug('Resolving concept names for field set', {
+      fieldSetId: props.fieldSet.id,
+      conceptCount: props.fieldSet.concepts.length,
+    })
+
+    // Resolve all concepts in batch for better performance
+    const conceptMap = await conceptStore.resolveBatch(props.fieldSet.concepts, {
+      context: 'observation',
+      table: 'CONCEPT_DIMENSION',
+      column: 'CONCEPT_CD',
+    })
+
+    // Update the reactive map with full concept data
+    for (const [conceptCode, resolved] of conceptMap) {
+      resolvedConceptData.value.set(conceptCode, {
+        label: resolved.label || conceptCode,
+        valueType: resolved.valueType,
+        unit: resolved.unit,
+      })
+    }
+
+    logger.success('Concept names resolved successfully', {
+      fieldSetId: props.fieldSet.id,
+      resolvedCount: conceptMap.size,
+    })
+  } catch (error) {
+    logger.error('Failed to resolve concept names', error, {
+      fieldSetId: props.fieldSet.id,
+      conceptCount: props.fieldSet.concepts?.length || 0,
+    })
+  }
+}
 
 // Computed
 const fieldSetConcepts = computed(() => {
@@ -166,13 +191,14 @@ const fieldSetConcepts = computed(() => {
       ?.filter((conceptCode) => !removedConcepts.value.has(conceptCode)) // Filter out removed concepts
       ?.map((conceptCode) => {
         const [system, code] = conceptCode.split(':')
+        const resolvedData = resolvedConceptData.value.get(conceptCode)
         return {
           code: conceptCode,
           system,
           localCode: code,
-          name: getConceptName(conceptCode),
-          valueType: getConceptValueType(conceptCode),
-          unit: getConceptUnit(conceptCode),
+          name: resolvedData?.label || getConceptName(conceptCode),
+          valueType: resolvedData?.valueType || getConceptValueType(conceptCode),
+          unit: resolvedData?.unit || getConceptUnit(conceptCode),
         }
       }) || []
   )
@@ -384,74 +410,37 @@ const findBestMatchingConcept = (observation) => {
 }
 
 const getConceptName = (conceptCode) => {
-  // Map common concept codes to human-readable names
-  const conceptNames = {
-    'LOINC:8480-6': 'Systolic Blood Pressure',
-    'LOINC:8462-4': 'Diastolic Blood Pressure',
-    'LOINC:8867-4': 'Heart Rate',
-    'LOINC:8310-5': 'Body Temperature',
-    'LOINC:9279-1': 'Respiratory Rate',
-    'LOINC:2708-6': 'Oxygen Saturation',
-    'SNOMED:25064002': 'Headache',
-    'SNOMED:49727002': 'Cough',
-    'SNOMED:267036007': 'Shortness of Breath',
-    'SNOMED:21522001': 'Abdominal Pain',
-    'SNOMED:386661006': 'Fever',
-    'SNOMED:84229001': 'Fatigue',
-    'SNOMED:5880005': 'Physical Examination',
-    'SNOMED:32750006': 'Inspection',
-    'SNOMED:113011001': 'Palpation',
-    'SNOMED:37931006': 'Auscultation',
-    'SNOMED:113006009': 'Percussion',
-    // Medication concepts
-    'LID: 52418-1': 'Current Medication',
-    'SNOMED:182836005': 'Medication Review',
-    'SNOMED:432102000': 'Drug Administration',
-    'SNOMED:182840001': 'Medication Discontinued',
-    'MED:PRESCRIPTION': 'New Prescription',
-    'MED:CURRENT': 'Current Medication',
-    'MED:ANALGESIC': 'Pain Medication',
-    'MED:ANTIBIOTIC': 'Antibiotic',
-    'MED:CARDIOVASCULAR': 'Heart Medication',
-  }
-
-  return conceptNames[conceptCode] || conceptCode.split(':')[1]
+  // Fallback: extract the code part after the colon if no database name is available
+  // All concept names should come from CONCEPT_DIMENSION.NAME_CHAR via concept resolution
+  const parts = conceptCode.split(':')
+  return parts.length > 1 ? parts[1] : conceptCode
 }
 
 const getConceptValueType = (conceptCode) => {
-  // Simple fallback logic for new concepts (existing observations will use their stored VALTYPE_CD)
-  const numericConcepts = ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4', 'LOINC:8310-5', 'LOINC:9279-1', 'LOINC:2708-6']
+  // Fallback logic - all value types should come from CONCEPT_DIMENSION.VALTYPE_CD
+  // This is only used when database resolution fails
 
-  // Medication concepts use the new 'M' type
-  const medicationConcepts = [
-    'LID: 52418-1', // Current medication, Name
-    'SNOMED:182836005', // Review of medication
-    'SNOMED:432102000', // Administration of substance
-    'SNOMED:182840001', // Drug treatment stopped
-    'MED:PRESCRIPTION', // New prescription entry
-    'MED:CURRENT', // Current medication review
-    'MED:ANALGESIC', // Pain medication
-    'MED:ANTIBIOTIC', // Antibiotic prescription
-    'MED:CARDIOVASCULAR', // Heart medication
-  ]
+  // Basic heuristics for common patterns
+  if (conceptCode.includes('52418')) return 'M' // Medication concept
+  if (conceptCode.includes('8480') || conceptCode.includes('8462') || conceptCode.includes('8867') || conceptCode.includes('8310') || conceptCode.includes('9279') || conceptCode.includes('2708')) {
+    return 'N' // Common vital signs are numeric
+  }
 
-  if (numericConcepts.includes(conceptCode)) return 'N'
-  if (medicationConcepts.includes(conceptCode)) return 'M'
-
-  return 'T'
+  return 'T' // Default to text
 }
 
 const getConceptUnit = (conceptCode) => {
-  const conceptUnits = {
-    'LOINC:8480-6': 'mmHg',
-    'LOINC:8462-4': 'mmHg',
-    'LOINC:8867-4': 'bpm',
-    'LOINC:8310-5': '°C',
-    'LOINC:9279-1': '/min',
-    'LOINC:2708-6': '%',
-  }
+  // Fallback logic - all units should come from CONCEPT_DIMENSION.UNIT_CD
+  // This is only used when database resolution fails
 
-  return conceptUnits[conceptCode] || ''
+  // Basic heuristics for common vital signs
+  if (conceptCode.includes('8480') || conceptCode.includes('8462')) return 'mmHg'
+  if (conceptCode.includes('8867')) return 'bpm'
+  if (conceptCode.includes('8310')) return '°C'
+  if (conceptCode.includes('9279')) return '/min'
+  if (conceptCode.includes('2708')) return '%'
+
+  return '' // No unit by default
 }
 
 // Legacy function - replaced by filledObservationsWithConcepts approach
@@ -556,23 +545,12 @@ const addEmptyMedication = async () => {
   }
 }
 
-const onCustomObservationAdded = (data) => {
-  logger.info('Custom observation added', {
-    conceptCode: data.conceptCode,
-    value: data.value,
-    unit: data.unit,
-    fieldSetId: props.fieldSet.id,
-  })
-
-  // Emit the observation update to parent
-  emit('observation-updated', data)
-}
-
 const createObservationFromChip = async (concept) => {
   try {
     logger.info('Creating observation from chip', {
       conceptCode: concept.code,
       conceptName: concept.name,
+      resolvedName: resolvedConceptData.value.get(concept.code)?.label,
       fieldSetId: props.fieldSet.id,
     })
 
@@ -609,9 +587,10 @@ const createObservationFromChip = async (concept) => {
       visitId: props.visit.id,
     })
 
+    const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
     $q.notify({
       type: 'positive',
-      message: `${concept.name} observation added`,
+      message: `${displayName} observation added`,
       position: 'top',
     })
   } catch (error) {
@@ -623,11 +602,12 @@ const createObservationFromChip = async (concept) => {
     })
 
     // Check for specific error types and provide appropriate messages
-    let errorMessage = `Failed to add ${concept.name}`
+    const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
+    let errorMessage = `Failed to add ${displayName}`
     let errorDetails = ''
 
     if (error.message?.includes('FOREIGN KEY constraint failed') || error.message?.includes('Concept not found')) {
-      errorMessage = `Concept "${concept.name}" not found in database`
+      errorMessage = `Concept "${displayName}" not found in database`
       errorDetails = `The concept code "${concept.code}" needs to be added to the CONCEPT_DIMENSION table before observations can be created.`
 
       logger.warn('Concept missing from database', {
@@ -663,7 +643,7 @@ const createObservationFromChip = async (concept) => {
     if (error.message?.includes('FOREIGN KEY constraint failed') || error.message?.includes('Concept not found')) {
       $q.dialog({
         title: 'Concept Not Found',
-        message: `The concept "${concept.name}" (${concept.code}) is not available in the database.`,
+        message: `The concept "${displayName}" (${concept.code}) is not available in the database.`,
         html: true,
         ok: {
           label: 'OK',
@@ -673,6 +653,7 @@ const createObservationFromChip = async (concept) => {
         logger.info('User acknowledged missing concept dialog', {
           conceptCode: concept.code,
           conceptName: concept.name,
+          resolvedName: displayName,
         })
       })
     }
@@ -813,7 +794,7 @@ const createObservationFromChip = async (concept) => {
   }
 }
 
-.add-custom-observation {
+.add-medication {
   margin-top: 1rem;
 
   .q-btn {
