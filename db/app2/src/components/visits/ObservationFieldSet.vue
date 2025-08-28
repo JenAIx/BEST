@@ -75,29 +75,12 @@
           </div>
         </div>
 
-        <!-- Add custom observation -->
-        <div class="add-custom-observation">
-          <q-btn
-            flat
-            icon="add"
-            :label="props.fieldSet.id === 'medications' ? 'Add Medication' : 'Add Custom Observation'"
-            @click="props.fieldSet.id === 'medications' ? addEmptyMedication() : (showAddCustomDialog = true)"
-            class="full-width"
-            style="border: 2px dashed #ccc"
-          />
+        <!-- Add medication button (only for medications fieldset) -->
+        <div v-if="props.fieldSet.id === 'medications'" class="add-medication">
+          <q-btn flat icon="add" label="Add Medication" @click="addEmptyMedication()" class="full-width" style="border: 2px dashed #ccc" />
         </div>
       </div>
     </q-slide-transition>
-
-    <!-- Custom Observation Dialog Component -->
-    <CustomObservationDialog
-      v-model="showAddCustomDialog"
-      :visit="visit"
-      :patient="patient"
-      :field-set-name="fieldSet.name"
-      :field-set-id="fieldSet.id"
-      @observation-added="onCustomObservationAdded"
-    />
   </div>
 </template>
 
@@ -109,7 +92,6 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ObservationField from './ObservationField.vue'
 import MedicationField from './MedicationField.vue'
-import CustomObservationDialog from './CustomObservationDialog.vue'
 
 const props = defineProps({
   fieldSet: {
@@ -144,7 +126,6 @@ const logger = loggingStore.createLogger('ObservationFieldSet')
 
 // State
 const collapsed = ref(false)
-const showAddCustomDialog = ref(false)
 const removedConcepts = ref(new Set()) // Track concepts removed by user
 const resolvedConceptData = ref(new Map()) // Cache for resolved concept data (names, valueType, unit)
 
@@ -564,18 +545,6 @@ const addEmptyMedication = async () => {
   }
 }
 
-const onCustomObservationAdded = (data) => {
-  logger.info('Custom observation added', {
-    conceptCode: data.conceptCode,
-    value: data.value,
-    unit: data.unit,
-    fieldSetId: props.fieldSet.id,
-  })
-
-  // Emit the observation update to parent
-  emit('observation-updated', data)
-}
-
 const createObservationFromChip = async (concept) => {
   try {
     logger.info('Creating observation from chip', {
@@ -825,7 +794,7 @@ const createObservationFromChip = async (concept) => {
   }
 }
 
-.add-custom-observation {
+.add-medication {
   margin-top: 1rem;
 
   .q-btn {

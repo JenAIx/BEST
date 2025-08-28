@@ -15,6 +15,11 @@
         @show-config="showFieldSetConfig = true"
       />
 
+      <!-- Add Observation Button -->
+      <div v-if="selectedVisit" class="add-observation-section">
+        <q-btn flat icon="add" label="ADD OBSERVATION" @click="showAddCustomDialog = true" class="add-observation-btn full-width" style="border: 2px dashed #ccc" />
+      </div>
+
       <!-- Observation Forms -->
       <div v-if="selectedVisit && activeFieldSets.length > 0" class="observation-forms">
         <ObservationFieldSet
@@ -81,6 +86,16 @@
 
     <!-- Edit Visit Dialog -->
     <EditVisitDialog v-model="showEditVisitDialog" :patient="patient" :visit="selectedVisitForEdit" @visitUpdated="onVisitUpdated" />
+
+    <!-- Custom Observation Dialog -->
+    <CustomObservationDialog
+      v-model="showAddCustomDialog"
+      :visit="selectedVisit"
+      :patient="patient"
+      :field-set-name="'Custom'"
+      :field-set-id="'custom'"
+      @observation-added="onCustomObservationAdded"
+    />
   </div>
 </template>
 
@@ -100,6 +115,7 @@ import FieldSetSelector from './FieldSetSelector.vue'
 import FieldSetConfigDialog from './FieldSetConfigDialog.vue'
 import EditVisitDialog from '../patient/EditVisitDialog.vue'
 import VisitSelector from './VisitSelector.vue'
+import CustomObservationDialog from './CustomObservationDialog.vue'
 
 const props = defineProps({
   patient: {
@@ -125,6 +141,7 @@ const logger = loggingStore.createLogger('VisitDataEntry')
 const showFieldSetConfig = ref(false)
 const showNewVisitDialog = ref(false)
 const showEditVisitDialog = ref(false)
+const showAddCustomDialog = ref(false)
 const loadingFieldSets = ref(false)
 
 // Field Sets Configuration - will be loaded from global settings
@@ -380,6 +397,24 @@ const onCloneFromPrevious = async (data) => {
   }
 }
 
+const onCustomObservationAdded = (data) => {
+  logger.info('Custom observation added', {
+    conceptCode: data.conceptCode,
+    value: data.value,
+    unit: data.unit,
+  })
+
+  // The observation has already been created by the dialog
+  // We just need to notify that an observation was updated to refresh the UI
+  onObservationUpdated(data)
+
+  $q.notify({
+    type: 'positive',
+    message: 'Custom observation added successfully',
+    position: 'top',
+  })
+}
+
 // Helper Methods use store methods
 
 // Watchers
@@ -475,9 +510,27 @@ onMounted(async () => {
   margin-top: 1.5rem;
 }
 
+.add-observation-section {
+  margin: 1.5rem 0;
+
+  .add-observation-btn {
+    color: $grey-6;
+    transition: all 0.3s ease;
+
+    &:hover {
+      color: $primary;
+      border-color: $primary;
+    }
+  }
+}
+
 @media (max-width: 768px) {
   .data-entry-view {
     padding: 1rem;
+  }
+
+  .add-observation-section {
+    margin: 1rem 0;
   }
 }
 </style>
