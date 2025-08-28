@@ -161,7 +161,7 @@ import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useUncategorizedObservations } from 'src/composables/useUncategorizedObservations'
 import { useFieldSetStatistics } from 'src/composables/useFieldSetStatistics'
-import { AVAILABLE_FIELD_SETS } from 'src/shared/utils/medical-utils'
+// NOTE: Field sets are now loaded exclusively from database via global-settings-store
 import ObservationFieldSet from './ObservationFieldSet.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
 import FieldSetSelector from './FieldSetSelector.vue'
@@ -353,8 +353,9 @@ const loadFieldSets = async () => {
     if (fieldSets && fieldSets.length > 0) {
       availableFieldSets.value = fieldSets
     } else {
-      // Fallback to hardcoded field sets from medical-utils
-      availableFieldSets.value = AVAILABLE_FIELD_SETS
+      // No field sets available in database
+      logger.warn('No field sets found in database')
+      availableFieldSets.value = []
     }
 
     // Field sets loaded and ready for use
@@ -366,10 +367,9 @@ const loadFieldSets = async () => {
       position: 'top',
     })
 
-    // Fallback to hardcoded field sets
-    availableFieldSets.value = AVAILABLE_FIELD_SETS
-
-    // Fallback field sets loaded
+    // No field sets available - database error
+    logger.error('Database field sets unavailable, no fallback provided')
+    availableFieldSets.value = []
   } finally {
     loadingFieldSets.value = false
   }

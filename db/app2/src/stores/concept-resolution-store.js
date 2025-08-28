@@ -215,11 +215,15 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
 
       try {
         // Try CONCEPT_DIMENSION first
-        let result = await dbStore.executeQuery('SELECT NAME_CHAR FROM CONCEPT_DIMENSION WHERE CONCEPT_CD = ?', [conceptCode])
+        let result = await dbStore.executeQuery('SELECT NAME_CHAR, VALTYPE_CD, UNIT_CD FROM CONCEPT_DIMENSION WHERE CONCEPT_CD = ?', [conceptCode])
 
         let resolvedName = null
+        let resolvedValueType = null
+        let resolvedUnit = null
         if (result.success && result.data.length > 0) {
           resolvedName = result.data[0].NAME_CHAR
+          resolvedValueType = result.data[0].VALTYPE_CD
+          resolvedUnit = result.data[0].UNIT_CD
         } else {
           // Try CODE_LOOKUP as fallback
           const tableFilter = options.table ? `AND TABLE_CD = "${options.table}"` : ''
@@ -242,6 +246,8 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
           color,
           resolved: !!resolvedName,
           source: resolvedName ? 'database' : 'fallback',
+          valueType: resolvedValueType,
+          unit: resolvedUnit,
         }
       } catch (error) {
         console.error(`[ConceptResolutionStore] Database resolution failed for ${conceptCode}:`, error)
