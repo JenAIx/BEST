@@ -294,8 +294,8 @@ const pagination = ref({
   page: 1,
   rowsPerPage: 10,
   rowsNumber: 0,
-  sortBy: 'id',
-  descending: false,
+  sortBy: 'lastChanged',
+  descending: true,
 })
 
 const tableColumns = [
@@ -327,9 +327,9 @@ const tableColumns = [
     align: 'center',
   },
   {
-    name: 'lastVisit',
-    label: 'Created',
-    field: 'lastVisit',
+    name: 'lastChanged',
+    label: 'Last Changed',
+    field: 'lastChanged',
     align: 'left',
     sortable: true,
   },
@@ -468,8 +468,8 @@ const loadTableData = async () => {
             ? 'PATIENT_CD' // Use PATIENT_CD for name sorting as fallback
             : pagination.value.sortBy === 'age'
               ? 'AGE_IN_YEARS'
-              : pagination.value.sortBy === 'lastVisit'
-                ? 'CREATED_AT'
+              : pagination.value.sortBy === 'lastChanged'
+                ? 'UPDATE_DATE_WITH_FALLBACK'
                 : 'PATIENT_CD',
       orderDirection: pagination.value.descending ? 'DESC' : 'ASC',
     }
@@ -485,7 +485,7 @@ const loadTableData = async () => {
       name: getPatientName(patient),
       age: patient.AGE_IN_YEARS || 'Unknown',
       gender: patient.SEX_RESOLVED || patient.SEX_CD || 'Unknown',
-      lastVisit: formatDate(patient.CREATED_AT),
+      lastChanged: formatDate(patient.UPDATE_DATE || patient.IMPORT_DATE || patient.CREATED_AT),
       status: patient.VITAL_STATUS_RESOLVED || patient.VITAL_STATUS_CD || 'Unknown',
     }))
 
@@ -592,8 +592,8 @@ const clearFilters = async () => {
     status: null,
   }
   pagination.value.page = 1
-  pagination.value.sortBy = 'id'
-  pagination.value.descending = false
+  pagination.value.sortBy = 'lastChanged'
+  pagination.value.descending = true
   await loadTableData()
   $q.notify({
     type: 'info',
