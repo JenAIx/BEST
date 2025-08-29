@@ -9,70 +9,29 @@
             <p class="text-body1 text-grey-6 q-ma-none">Select and complete medical questionnaires</p>
           </div>
           <div v-if="currentStep === 'questionnaire'" class="header-actions">
-            <q-btn
-              flat
-              color="grey-7"
-              icon="arrow_back"
-              label="Back to Selection"
-              @click="goBackToSelection"
-            />
+            <q-btn flat color="grey-7" icon="arrow_back" label="Back to Selection" @click="goBackToSelection" />
           </div>
         </div>
       </div>
 
       <!-- Step Indicator -->
-      <q-stepper
-        v-model="currentStepNumber"
-        color="primary"
-        animated
-        flat
-        bordered
-        class="q-mb-lg"
-      >
-        <q-step
-          :name="1"
-          title="Select Patient"
-          icon="person"
-          :done="currentStepNumber > 1"
-        />
-        <q-step
-          :name="2"
-          title="Select Visit"
-          icon="event"
-          :done="currentStepNumber > 2"
-        />
-        <q-step
-          :name="3"
-          title="Choose Questionnaire"
-          icon="quiz"
-          :done="currentStepNumber > 3"
-        />
-        <q-step
-          :name="4"
-          title="Complete Questionnaire"
-          icon="edit"
-          :done="currentStepNumber > 4"
-        />
-        <q-step
-          :name="5"
-          title="Review & Submit"
-          icon="check"
-          :done="submissionComplete"
-        />
+      <q-stepper v-model="currentStepNumber" color="primary" animated flat bordered class="q-mb-lg">
+        <q-step :name="1" title="Select Patient" icon="person" :done="currentStepNumber > 1" />
+        <q-step :name="2" title="Select Visit" icon="event" :done="currentStepNumber > 2" />
+        <q-step :name="3" title="Choose Questionnaire" icon="quiz" :done="currentStepNumber > 3" />
+        <q-step :name="4" title="Complete Questionnaire" icon="edit" :done="currentStepNumber > 4" />
+        <q-step :name="5" title="Review & Submit" icon="check" :done="submissionComplete" />
       </q-stepper>
 
       <!-- Main Content -->
       <div class="main-content">
-        
         <!-- Step 1: Patient Selection -->
         <div v-if="currentStep === 'patient'" class="step-content">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">Select Patient</div>
-              <div class="text-body2 text-grey-6 q-mb-lg">
-                Choose the patient for whom you want to complete a questionnaire.
-              </div>
-              
+              <div class="text-body2 text-grey-6 q-mb-lg">Choose the patient for whom you want to complete a questionnaire.</div>
+
               <!-- Patient Search/Selector -->
               <div class="patient-selection">
                 <q-input
@@ -122,12 +81,7 @@
 
                 <!-- Action Buttons -->
                 <div class="text-right q-mt-lg">
-                  <q-btn
-                    color="primary"
-                    label="Continue"
-                    @click="openVisitSelection"
-                    :disable="!selectedPatient"
-                  />
+                  <q-btn color="primary" label="Continue" @click="openVisitSelection" :disable="!selectedPatient" />
                 </div>
               </div>
             </q-card-section>
@@ -135,7 +89,7 @@
         </div>
 
         <!-- Step 2: Visit Selection (handled by dialog) -->
-        
+
         <!-- Step 3: Questionnaire Selection -->
         <div v-if="currentStep === 'selection'" class="step-content">
           <q-card flat bordered>
@@ -149,13 +103,7 @@
                       <div class="text-subtitle2">{{ getVisitDisplayName() }}</div>
                       <div class="text-caption text-grey-6">{{ getVisitDetails() }}</div>
                     </div>
-                    <q-btn 
-                      flat 
-                      size="sm" 
-                      color="primary" 
-                      label="Change Visit" 
-                      @click="openVisitSelection"
-                    />
+                    <q-btn flat size="sm" color="primary" label="Change Visit" @click="openVisitSelection" />
                   </q-card-section>
                 </q-card>
               </div>
@@ -184,10 +132,8 @@
             <q-card-section class="q-pa-xl">
               <q-icon name="check_circle" size="80px" color="green" class="q-mb-md" />
               <div class="text-h5 q-mb-sm">Questionnaire Completed!</div>
-              <div class="text-body1 text-grey-6 q-mb-lg">
-                The questionnaire has been successfully submitted and saved to the patient's record.
-              </div>
-              
+              <div class="text-body1 text-grey-6 q-mb-lg">The questionnaire has been successfully submitted and saved to the patient's record.</div>
+
               <!-- Summary -->
               <div v-if="lastSubmissionResults" class="submission-summary q-mb-lg">
                 <q-card flat bordered class="bg-grey-1">
@@ -213,22 +159,12 @@
 
               <!-- Actions -->
               <div class="q-gutter-md">
-                <q-btn
-                  color="primary"
-                  label="Complete Another Questionnaire"
-                  @click="startOver"
-                />
-                <q-btn
-                  flat
-                  color="grey-7"
-                  label="View Patient Record"
-                  @click="goToPatientRecord"
-                />
+                <q-btn color="primary" label="Complete Another Questionnaire" @click="startOver" />
+                <q-btn flat color="grey-7" label="View Patient Record" @click="goToPatientRecord" />
               </div>
             </q-card-section>
           </q-card>
         </div>
-
       </div>
     </div>
 
@@ -243,13 +179,7 @@
     </q-dialog>
 
     <!-- Visit Selection Dialog -->
-    <VisitSelectionDialog
-      v-if="selectedPatient"
-      v-model="showVisitDialog"
-      :patient="selectedPatient"
-      @visit-selected="onVisitSelected"
-      @cancel="onVisitDialogCancel"
-    />
+    <VisitSelectionDialog v-if="selectedPatient" v-model="showVisitDialog" :patient="selectedPatient" @visit-selected="onVisitSelected" @cancel="onVisitDialogCancel" />
   </q-page>
 </template>
 
@@ -287,12 +217,18 @@ const patients = ref([])
 // Computed
 const currentStepNumber = computed(() => {
   switch (currentStep.value) {
-    case 'patient': return 1
-    case 'visit': return 2
-    case 'selection': return 3
-    case 'questionnaire': return 4
-    case 'complete': return 5
-    default: return 1
+    case 'patient':
+      return 1
+    case 'visit':
+      return 2
+    case 'selection':
+      return 3
+    case 'questionnaire':
+      return 4
+    case 'complete':
+      return 5
+    default:
+      return 1
   }
 })
 
@@ -309,16 +245,16 @@ const searchPatients = async () => {
 
   try {
     const result = await dbStore.executeQuery(
-      `SELECT PATIENT_NUM, PATIENT_CD, PATIENT_BLOB 
-       FROM PATIENT_DIMENSION 
+      `SELECT PATIENT_NUM, PATIENT_CD, PATIENT_BLOB
+       FROM PATIENT_DIMENSION
        WHERE PATIENT_CD LIKE ? OR PATIENT_BLOB LIKE ?
        ORDER BY PATIENT_CD
        LIMIT 10`,
-      [`%${patientSearch.value}%`, `%${patientSearch.value}%`]
+      [`%${patientSearch.value}%`, `%${patientSearch.value}%`],
     )
 
     if (result.success) {
-      patients.value = result.data.map(patient => {
+      patients.value = result.data.map((patient) => {
         // Try to parse PATIENT_BLOB for additional info
         let additionalInfo = {}
         try {
@@ -328,10 +264,10 @@ const searchPatients = async () => {
         } catch {
           // Ignore parsing errors
         }
-        
+
         return {
           ...patient,
-          ...additionalInfo
+          ...additionalInfo,
         }
       })
     }
@@ -339,7 +275,7 @@ const searchPatients = async () => {
     logger.error('Failed to search patients', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to search patients'
+      message: 'Failed to search patients',
     })
   }
 }
@@ -352,11 +288,8 @@ const openVisitSelection = async () => {
   if (selectedPatient.value) {
     // Check if patient has any visits
     try {
-      const result = await dbStore.executeQuery(
-        `SELECT COUNT(*) as count FROM VISIT_DIMENSION WHERE PATIENT_NUM = ?`,
-        [selectedPatient.value.PATIENT_NUM]
-      )
-      
+      const result = await dbStore.executeQuery(`SELECT COUNT(*) as count FROM VISIT_DIMENSION WHERE PATIENT_NUM = ?`, [selectedPatient.value.PATIENT_NUM])
+
       if (result.success && result.data[0].count === 0) {
         // No visits exist, create one automatically
         await createVisitForPatient()
@@ -368,7 +301,7 @@ const openVisitSelection = async () => {
       logger.error('Failed to check patient visits', error)
       $q.notify({
         type: 'negative',
-        message: 'Failed to load patient visits'
+        message: 'Failed to load patient visits',
       })
     }
   }
@@ -378,7 +311,7 @@ const createVisitForPatient = async () => {
   try {
     const visitResult = await dbStore.executeQuery(
       `INSERT INTO VISIT_DIMENSION (
-        PATIENT_NUM, ACTIVE_STATUS_CD, START_DATE, INOUT_CD, 
+        PATIENT_NUM, ACTIVE_STATUS_CD, START_DATE, INOUT_CD,
         LOCATION_CD, VISIT_BLOB, IMPORT_DATE, SOURCESYSTEM_CD
       ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?)`,
       [
@@ -389,10 +322,10 @@ const createVisitForPatient = async () => {
         'Outpatient Clinic',
         JSON.stringify({
           visitNotes: 'Auto-created for questionnaire',
-          createdFor: 'questionnaire'
+          createdFor: 'questionnaire',
         }),
-        'SURVEY_SYSTEM'
-      ]
+        'SURVEY_SYSTEM',
+      ],
     )
 
     if (!visitResult.success) {
@@ -406,27 +339,27 @@ const createVisitForPatient = async () => {
       START_DATE: new Date().toISOString(),
       LOCATION_CD: 'Outpatient Clinic',
       visitNotes: 'Auto-created for questionnaire',
-      isNew: true
+      isNew: true,
     }
 
     selectedVisit.value = newVisit
     currentStep.value = 'selection'
-    
+
     $q.notify({
       type: 'positive',
       message: 'Visit created automatically',
-      timeout: 3000
+      timeout: 3000,
     })
 
-    logger.info('Auto-created visit for patient', { 
+    logger.info('Auto-created visit for patient', {
       encounterNum: newVisit.ENCOUNTER_NUM,
-      patientNum: selectedPatient.value.PATIENT_NUM 
+      patientNum: selectedPatient.value.PATIENT_NUM,
     })
   } catch (error) {
     logger.error('Failed to create visit for patient', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to create visit for patient'
+      message: 'Failed to create visit for patient',
     })
   }
 }
@@ -435,10 +368,10 @@ const onVisitSelected = (visit) => {
   selectedVisit.value = visit
   currentStep.value = 'selection'
   showVisitDialog.value = false
-  logger.info('Visit selected for questionnaire', { 
-    encounterNum: visit.ENCOUNTER_NUM, 
+  logger.info('Visit selected for questionnaire', {
+    encounterNum: visit.ENCOUNTER_NUM,
     patientNum: visit.PATIENT_NUM,
-    isNew: visit.isNew 
+    isNew: visit.isNew,
   })
 }
 
@@ -448,7 +381,7 @@ const onVisitDialogCancel = () => {
 
 const getVisitDisplayName = () => {
   if (!selectedVisit.value) return 'No visit selected'
-  
+
   if (selectedVisit.value.isNew) {
     return 'New Visit (Created)'
   } else {
@@ -459,28 +392,28 @@ const getVisitDisplayName = () => {
 
 const getVisitDetails = () => {
   if (!selectedVisit.value) return ''
-  
+
   const details = []
   if (selectedVisit.value.LOCATION_CD) {
     details.push(`Location: ${selectedVisit.value.LOCATION_CD}`)
   }
-  
+
   const statusMap = {
-    'A': 'Active',
-    'C': 'Completed', 
-    'S': 'Scheduled',
-    'X': 'Cancelled'
+    A: 'Active',
+    C: 'Completed',
+    S: 'Scheduled',
+    X: 'Cancelled',
   }
-  
+
   const status = statusMap[selectedVisit.value.ACTIVE_STATUS_CD] || selectedVisit.value.ACTIVE_STATUS_CD
   if (status) {
     details.push(`Status: ${status}`)
   }
-  
+
   if (selectedVisit.value.visitNotes) {
     details.push(`Notes: ${selectedVisit.value.visitNotes}`)
   }
-  
+
   return details.join(' • ')
 }
 
@@ -510,7 +443,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
   if (!selectedPatient.value) {
     $q.notify({
       type: 'negative',
-      message: 'No patient selected'
+      message: 'No patient selected',
     })
     return
   }
@@ -518,7 +451,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
   if (!selectedVisit.value) {
     $q.notify({
       type: 'negative',
-      message: 'No visit selected'
+      message: 'No visit selected',
     })
     return
   }
@@ -530,11 +463,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
     const encounterNum = selectedVisit.value.ENCOUNTER_NUM
 
     // Save the questionnaire response
-    await questionnaireStore.saveQuestionnaireResponse(
-      selectedPatient.value.PATIENT_NUM,
-      encounterNum,
-      results
-    )
+    await questionnaireStore.saveQuestionnaireResponse(selectedPatient.value.PATIENT_NUM, encounterNum, results)
 
     lastSubmissionResults.value = results
     submissionComplete.value = true
@@ -543,15 +472,14 @@ const onQuestionnaireSubmit = async ({ results }) => {
     $q.notify({
       type: 'positive',
       message: 'Questionnaire submitted successfully',
-      timeout: 3000
+      timeout: 3000,
     })
-
   } catch (error) {
     logger.error('Failed to submit questionnaire', error)
     $q.notify({
       type: 'negative',
       message: `Failed to submit questionnaire: ${error.message}`,
-      timeout: 5000
+      timeout: 5000,
     })
   } finally {
     showSubmissionDialog.value = false
@@ -583,7 +511,7 @@ const startOver = () => {
 
 const goToPatientRecord = () => {
   if (selectedPatient.value) {
-    router.push(`/patient/${selectedPatient.value.PATIENT_NUM}`)
+    router.push(`/patient/${selectedPatient.value.PATIENT_CD}`)
   }
 }
 
@@ -635,11 +563,11 @@ onMounted(() => {
   .page-container {
     padding: 1rem;
   }
-  
+
   .page-header {
     padding: 1rem;
   }
-  
+
   .header-actions {
     margin-top: 1rem;
   }
