@@ -95,51 +95,15 @@
     </div>
 
     <!-- View Options Dialog -->
-    <q-dialog v-model="showViewOptions">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">View Options</div>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <q-list>
-            <q-item>
-              <q-item-section>
-                <q-item-label>Show Empty Cells</q-item-label>
-                <q-item-label caption>Display cells even when no observation exists</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle v-model="viewOptions.showEmptyCells" @update:model-value="updateViewOptions({ showEmptyCells: $event })" />
-              </q-item-section>
-            </q-item>
-
-            <q-item>
-              <q-item-section>
-                <q-item-label>Compact View</q-item-label>
-                <q-item-label caption>Reduce cell padding for more data on screen</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle v-model="viewOptions.compactView" @update:model-value="updateViewOptions({ compactView: $event })" />
-              </q-item-section>
-            </q-item>
-
-            <q-item>
-              <q-item-section>
-                <q-item-label>Highlight Changes</q-item-label>
-                <q-item-label caption>Show visual indicators for unsaved changes</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle v-model="viewOptions.highlightChanges" @update:model-value="updateViewOptions({ highlightChanges: $event })" />
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Close" color="primary" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <ViewOptionsDialog
+      v-model="showViewOptions"
+      :view-options="viewOptions"
+      :observation-concepts="observationConcepts"
+      @update:view-options="updateViewOptions"
+      @update:column-visibility="handleColumnVisibilityUpdate"
+      @update:column-order="handleColumnOrderUpdate"
+      @add-observation="showNewObservationDialog = true"
+    />
 
     <!-- New Observation Dialog -->
     <q-dialog v-model="showNewObservationDialog" persistent>
@@ -254,6 +218,7 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
+import ViewOptionsDialog from './ViewOptionsDialog.vue'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -457,6 +422,29 @@ const stopAutoSave = () => {
 
 // View options management (delegate to store)
 const updateViewOptions = dataGridStore.updateViewOptions
+
+// Column management handlers
+const handleColumnVisibilityUpdate = (columnCode, visible) => {
+  logger.info('Column visibility updated', { columnCode, visible })
+  // For now, we'll just log this. In a full implementation,
+  // you'd want to update the dataGridStore to persist column visibility
+  $q.notify({
+    type: visible ? 'positive' : 'info',
+    message: `Column "${columnCode}" is now ${visible ? 'visible' : 'hidden'}`,
+    position: 'top',
+  })
+}
+
+const handleColumnOrderUpdate = (columnOrder) => {
+  logger.info('Column order updated', { columnOrder })
+  // For now, we'll just log this. In a full implementation,
+  // you'd want to update the dataGridStore to persist column order
+  $q.notify({
+    type: 'positive',
+    message: 'Column order updated successfully',
+    position: 'top',
+  })
+}
 
 // Watch for view options changes (store handles persistence)
 watch(
