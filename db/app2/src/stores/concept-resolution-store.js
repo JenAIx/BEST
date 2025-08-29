@@ -484,11 +484,20 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
      * @returns {Promise<Array>} Array of selection options
      */
     async getStandardSelectionOptions(conceptCode) {
+      this.logger.info('ConceptResolutionStore: getStandardSelectionOptions called', { conceptCode })
+
       if (!this.optionsLoader) {
         await this.initialize()
       }
 
-      return await this.optionsLoader.getStandardSelectionOptions(conceptCode)
+      const result = await this.optionsLoader.getStandardSelectionOptions(conceptCode)
+      this.logger.info('ConceptResolutionStore: getStandardSelectionOptions result', {
+        conceptCode,
+        resultCount: result ? result.length : 0,
+        firstFewResults: result ? result.slice(0, 2) : [],
+      })
+
+      return result
     },
 
     /**
