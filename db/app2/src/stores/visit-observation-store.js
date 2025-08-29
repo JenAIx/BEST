@@ -763,17 +763,20 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       const enhancedObservationData = {
         ...observationData,
         PROVIDER_ID: providerId,
-        SOURCESYSTEM_CD: conceptMetadata.sourceSystemCd,
-        // Use concept's CATEGORY_CHAR if not already provided
-        CATEGORY_CHAR: observationData.CATEGORY_CHAR || conceptMetadata.categoryCd,
+        // Only override SOURCESYSTEM_CD if not explicitly provided
+        SOURCESYSTEM_CD: observationData.SOURCESYSTEM_CD || conceptMetadata.sourceSystemCd,
+        // Use concept's category, but fallback to SURVEY_BEST for questionnaire observations
+        CATEGORY_CHAR: observationData.CATEGORY_CHAR || conceptMetadata.categoryCd || (observationData.LOCATION_CD === 'QUESTIONNAIRE' ? 'SURVEY_BEST' : 'General'),
       }
 
       logger.debug('Creating observation with enhanced data', {
         conceptCode: observationData.CONCEPT_CD,
+        originalCategoryChar: observationData.CATEGORY_CHAR,
+        conceptCategoryCd: conceptMetadata.categoryCd,
+        isQuestionnaireObs: observationData.LOCATION_CD === 'QUESTIONNAIRE',
+        finalCategoryChar: enhancedObservationData.CATEGORY_CHAR,
         providerId,
         sourceSystemCd: conceptMetadata.sourceSystemCd,
-        categoryCd: conceptMetadata.categoryCd,
-        finalData: enhancedObservationData,
       })
 
       const observationRepo = dbStore.getRepository('observation')

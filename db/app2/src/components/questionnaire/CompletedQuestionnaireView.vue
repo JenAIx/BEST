@@ -14,13 +14,15 @@
           <q-chip v-if="completionDate" color="secondary" text-color="white" icon="event" size="md">
             {{ formatDate(completionDate) }}
           </q-chip>
-          <q-chip v-if="results.results?.value !== undefined" color="positive" text-color="white" icon="star" size="md"> Score: {{ results.results.value }} </q-chip>
+          <q-chip v-if="computedResults.length > 0 && computedResults[0].value !== undefined" color="positive" text-color="white" icon="star" size="md">
+            {{ computedResults[0].coding?.display || computedResults[0].label }}: {{ computedResults[0].value }}
+          </q-chip>
         </div>
       </div>
     </div>
 
     <!-- Results Summary -->
-    <div v-if="results.results" class="results-summary q-mb-xl">
+    <div v-if="computedResults && computedResults.length > 0" class="results-summary q-mb-xl">
       <q-card flat bordered class="result-card">
         <q-card-section class="text-center bg-positive text-white">
           <div class="text-h5 q-mb-sm">
@@ -28,17 +30,9 @@
             Final Results
           </div>
           <div class="row justify-center q-gutter-lg">
-            <div v-if="results.results.value !== undefined" class="result-item">
-              <div class="text-h3 text-weight-bold">{{ results.results.value }}</div>
-              <div class="text-subtitle2">Score</div>
-            </div>
-            <div v-if="results.results.label" class="result-item">
-              <div class="text-h4 text-weight-medium">{{ results.results.label }}</div>
-              <div class="text-subtitle2">Category</div>
-            </div>
-            <div v-if="results.results.percentage !== undefined" class="result-item">
-              <div class="text-h3 text-weight-bold">{{ Math.round(results.results.percentage) }}%</div>
-              <div class="text-subtitle2">Percentage</div>
+            <div v-for="result in computedResults" :key="result.label" class="result-item">
+              <div class="text-h3 text-weight-bold">{{ result.value }}</div>
+              <div class="text-subtitle2">{{ result.coding?.display || result.label }}</div>
             </div>
           </div>
         </q-card-section>
@@ -129,7 +123,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { computed } from 'vue'
+
+const props = defineProps({
   results: {
     type: Object,
     default: null,
@@ -138,6 +134,32 @@ defineProps({
     type: String,
     default: null,
   },
+})
+
+// Computed property to handle both old format (object) and new format (array)
+const computedResults = computed(() => {
+  if (!props.results) return []
+
+  // Handle new format: results is an array
+  if (Array.isArray(props.results.results)) {
+    return props.results.results
+  }
+
+  // Handle old format: results is an object
+  if (props.results.results && typeof props.results.results === 'object') {
+    // Convert object format to array format for consistency
+    const result = props.results.results
+    return [
+      {
+        label: result.label || 'Score',
+        value: result.value,
+        coding: result.coding || null,
+        percentage: result.percentage,
+      },
+    ].filter((item) => item.value !== undefined)
+  }
+
+  return []
 })
 
 // Helper methods
