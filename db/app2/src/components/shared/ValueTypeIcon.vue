@@ -58,6 +58,7 @@ const getValueTypeIcon = (valueType) => {
         'D': 'event',          // Date - calendar icon
         'F': 'search',         // Finding - magnifying glass for findings
         'N': 'tag',            // Numeric - tag/number icon
+        'Q': 'quiz',           // Questionnaire - same as questionnaires in main menu
         'R': 'description',    // Raw Text - document icon
         'S': 'list',           // Selection - list icon for selections
         'T': 'text_fields'     // Text - text fields icon
@@ -71,6 +72,7 @@ const getValueTypeColor = (valueType) => {
         'D': 'orange',    // Date
         'F': 'green',     // Finding
         'N': 'teal',      // Numeric
+        'Q': 'deep-purple', // Questionnaire - distinctive color
         'R': 'purple',    // Raw Text
         'S': 'indigo',    // Selection
         'T': 'brown'      // Text
@@ -89,6 +91,7 @@ const getValueTypeLabel = (valueType) => {
         'D': 'Date',
         'F': 'Finding',
         'N': 'Numeric',
+        'Q': 'Questionnaire',
         'R': 'Raw Text',
         'S': 'Selection',
         'T': 'Text'
@@ -102,6 +105,7 @@ const getValueTypeDescription = (valueType) => {
         'D': 'Date and time values',
         'F': 'Clinical findings and observations',
         'N': 'Numeric measurements',
+        'Q': 'Questionnaire responses and forms',
         'R': 'Raw unstructured text',
         'S': 'Coded selection values',
         'T': 'Structured text values'

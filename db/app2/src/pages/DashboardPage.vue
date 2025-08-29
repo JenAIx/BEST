@@ -356,7 +356,7 @@ const loadRecentPatients = async () => {
     const patientRepo = dbStore.getRepository('patient')
     const result = await patientRepo.getPatientsPaginated(1, 5, {
       options: {
-        orderBy: 'CREATED_AT',
+        orderBy: 'UPDATE_DATE_WITH_FALLBACK',
         orderDirection: 'DESC',
       },
     })
@@ -365,7 +365,7 @@ const loadRecentPatients = async () => {
       id: patient.PATIENT_CD,
       name: getPatientName(patient),
       age: patient.AGE_IN_YEARS || 'Unknown',
-      lastVisit: formatRelativeTime(patient.CREATED_AT),
+      lastVisit: formatRelativeTime(patient.UPDATE_DATE || patient.IMPORT_DATE || patient.CREATED_AT),
       patient_num: patient.PATIENT_NUM,
       // Include original patient data for PatientAvatar component
       SEX_RESOLVED: patient.SEX_RESOLVED,

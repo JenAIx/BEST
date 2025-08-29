@@ -304,7 +304,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             // Additional fields for medication compatibility
             value: obs.TVAL_CHAR,
             numericValue: obs.NVAL_NUM,
-            observationBlob: obs.OBSERVATION_BLOB,
+            // observationBlob: obs.OBSERVATION_BLOB, // Not loaded by default for memory efficiency
             valTypeCode: obs.VALTYPE_CD,
           }
 
@@ -314,6 +314,10 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             case 'F': // Finding
             case 'A': // Array/Multiple choice
               processedObs.displayValue = obs.TVAL_RESOLVED || obs.TVAL_CHAR || 'No value'
+              break
+            case 'Q': // Questionnaire
+              // For questionnaires, show title (detailed data loaded on-demand by dialog)
+              processedObs.displayValue = obs.TVAL_CHAR || 'Questionnaire'
               break
             case 'R': // Raw data/File
               try {
@@ -616,6 +620,11 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             displayValue: null,
             fileInfo: null,
             encounterNum: obs.ENCOUNTER_NUM,
+            // Additional fields for compatibility
+            value: obs.TVAL_CHAR,
+            numericValue: obs.NVAL_NUM,
+            // observationBlob: obs.OBSERVATION_BLOB, // Not loaded by default for memory efficiency
+            valTypeCode: obs.VALTYPE_CD,
           }
 
           // Process different value types
@@ -624,6 +633,10 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             case 'F': // Finding
             case 'A': // Array/Multiple choice
               processedObs.displayValue = obs.TVAL_RESOLVED || obs.TVAL_CHAR || 'No value'
+              break
+            case 'Q': // Questionnaire
+              // For questionnaires, show title (detailed data loaded on-demand by dialog)
+              processedObs.displayValue = obs.TVAL_CHAR || 'Questionnaire'
               break
             case 'R': // Raw data/File
               try {
