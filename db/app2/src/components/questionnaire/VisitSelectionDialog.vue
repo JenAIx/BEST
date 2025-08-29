@@ -1,14 +1,5 @@
 <template>
-  <AppDialog
-    v-model="localShow"
-    :title="`Select Visit for ${patientName}`"
-    subtitle="Choose an existing visit to attach the questionnaire"
-    size="lg"
-    persistent
-    ok-label="Select Visit"
-    @ok="onConfirm"
-    @cancel="onCancel"
-  >
+  <AppDialog v-model="localShow" :title="`Select Visit for ${patientName}`" subtitle="Choose an existing visit to attach the questionnaire" size="lg" persistent :show-ok="false" @cancel="onCancel">
     <!-- Loading State -->
     <div v-if="loading" class="text-center q-pa-lg">
       <q-spinner-dots size="50px" color="primary" />
@@ -20,7 +11,7 @@
       <q-icon name="event_busy" size="64px" color="grey-4" />
       <div class="text-h6 text-grey-6 q-mt-md">No visits found</div>
       <div class="text-body2 text-grey-5 q-mt-sm">
-        No existing visits found for this patient.<br/>
+        No existing visits found for this patient.<br />
         Please create a visit first or select a different patient.
       </div>
     </div>
@@ -33,16 +24,11 @@
         clickable
         v-ripple
         @click="selectVisit(visit)"
-        :class="{ 'selected': selectedVisit?.ENCOUNTER_NUM === visit.ENCOUNTER_NUM }"
+        :class="{ selected: selectedVisit?.ENCOUNTER_NUM === visit.ENCOUNTER_NUM }"
         class="visit-item"
       >
         <q-item-section side>
-          <q-radio
-            :model-value="selectedVisit?.ENCOUNTER_NUM"
-            :val="visit.ENCOUNTER_NUM"
-            color="primary"
-            @update:model-value="() => selectVisit(visit)"
-          />
+          <q-radio :model-value="selectedVisit?.ENCOUNTER_NUM" :val="visit.ENCOUNTER_NUM" color="primary" @update:model-value="() => selectVisit(visit)" />
         </q-item-section>
 
         <q-item-section>
@@ -60,14 +46,8 @@
         </q-item-section>
 
         <q-item-section side top>
-          <q-badge 
-            :color="getVisitStatusColor(visit.ACTIVE_STATUS_CD)"
-            :label="getVisitStatusLabel(visit.ACTIVE_STATUS_CD)"
-            class="q-mb-sm"
-          />
-          <div class="text-caption text-grey-6">
-            ID: {{ visit.ENCOUNTER_NUM }}
-          </div>
+          <q-badge :color="getVisitStatusColor(visit.ACTIVE_STATUS_CD)" :label="getVisitStatusLabel(visit.ACTIVE_STATUS_CD)" class="q-mb-sm" />
+          <div class="text-caption text-grey-6">ID: {{ visit.ENCOUNTER_NUM }}</div>
         </q-item-section>
       </q-item>
     </q-list>
@@ -87,8 +67,8 @@ const props = defineProps({
   },
   patient: {
     type: Object,
-    required: true
-  }
+    required: true,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'visit-selected', 'cancel'])
@@ -111,8 +91,6 @@ const patientName = computed(() => {
   return props.patient.PATIENT_CD || 'Unknown Patient'
 })
 
-
-
 // Methods
 const loadVisits = async () => {
   if (!props.patient?.PATIENT_NUM) return
@@ -120,17 +98,17 @@ const loadVisits = async () => {
   loading.value = true
   try {
     const result = await dbStore.executeQuery(
-      `SELECT ENCOUNTER_NUM, PATIENT_NUM, ACTIVE_STATUS_CD, START_DATE, END_DATE, 
+      `SELECT ENCOUNTER_NUM, PATIENT_NUM, ACTIVE_STATUS_CD, START_DATE, END_DATE,
               LOCATION_CD, VISIT_BLOB
-       FROM VISIT_DIMENSION 
-       WHERE PATIENT_NUM = ? 
+       FROM VISIT_DIMENSION
+       WHERE PATIENT_NUM = ?
        ORDER BY START_DATE DESC
        LIMIT 20`,
-      [props.patient.PATIENT_NUM]
+      [props.patient.PATIENT_NUM],
     )
 
     if (result.success) {
-      visits.value = result.data.map(visit => {
+      visits.value = result.data.map((visit) => {
         // Try to parse VISIT_BLOB for additional info
         let additionalInfo = {}
         try {
@@ -138,18 +116,21 @@ const loadVisits = async () => {
             additionalInfo = JSON.parse(visit.VISIT_BLOB)
           }
         } catch {
-          // Ignore parsing errors
+          // Intentionally ignore JSON parsing errors for visit blob
+          Promise.resolve().catch(() => {
+            /* intentionally ignored */
+          })
         }
-        
+
         return {
           ...visit,
-          ...additionalInfo
+          ...additionalInfo,
         }
       })
-      
-      logger.info('Loaded visits for patient', { 
-        patientNum: props.patient.PATIENT_NUM, 
-        visitCount: visits.value.length 
+
+      logger.info('Loaded visits for patient', {
+        patientNum: props.patient.PATIENT_NUM,
+        visitCount: visits.value.length,
       })
     }
   } catch (error) {
@@ -162,11 +143,19 @@ const loadVisits = async () => {
 
 const selectVisit = (visit) => {
   selectedVisit.value = visit
+
+  // Automatically confirm selection and close dialog
+  logger.info('Auto-selected visit for questionnaire', {
+    encounterNum: visit.ENCOUNTER_NUM,
+    patientNum: props.patient.PATIENT_NUM,
+  })
+  emit('visit-selected', visit)
+  localShow.value = false
 }
 
 const formatVisitDate = (dateString) => {
   if (!dateString) return 'Unknown Date'
-  
+
   try {
     const date = new Date(dateString)
     return date.toLocaleDateString('en-US', {
@@ -174,29 +163,33 @@ const formatVisitDate = (dateString) => {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     })
   } catch {
+    // Intentionally ignore date parsing errors
+    Promise.resolve().catch(() => {
+      /* intentionally ignored */
+    })
     return dateString
   }
 }
 
 const getVisitStatusLabel = (status) => {
   const statusMap = {
-    'A': 'Active',
-    'C': 'Completed', 
-    'S': 'Scheduled',
-    'X': 'Cancelled'
+    A: 'Active',
+    C: 'Completed',
+    S: 'Scheduled',
+    X: 'Cancelled',
   }
   return statusMap[status] || status || 'Unknown'
 }
 
 const getVisitStatusColor = (status) => {
   const colorMap = {
-    'A': 'green',
-    'C': 'blue',
-    'S': 'orange', 
-    'X': 'red'
+    A: 'green',
+    C: 'blue',
+    S: 'orange',
+    X: 'red',
   }
   return colorMap[status] || 'grey'
 }
@@ -206,28 +199,17 @@ const onCancel = () => {
   emit('cancel')
 }
 
-const onConfirm = () => {
-  if (!selectedVisit.value) {
-    // Show notification if no visit is selected
-    return
-  }
-  
-  logger.info('Selected existing visit for questionnaire', { 
-    encounterNum: selectedVisit.value.ENCOUNTER_NUM,
-    patientNum: props.patient.PATIENT_NUM 
-  })
-  emit('visit-selected', selectedVisit.value)
-  localShow.value = false
-}
-
 // Watch for dialog visibility changes
-watch(() => props.modelValue, (newValue) => {
-  localShow.value = newValue
-  if (newValue) {
-    loadVisits()
-    selectedVisit.value = null // Reset selection
-  }
-})
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    localShow.value = newValue
+    if (newValue) {
+      loadVisits()
+      selectedVisit.value = null // Reset selection
+    }
+  },
+)
 
 watch(localShow, (newValue) => {
   if (!newValue) {

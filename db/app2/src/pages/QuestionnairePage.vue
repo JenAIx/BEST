@@ -78,11 +78,6 @@
                   <div class="text-subtitle1 text-grey-6 q-mt-sm">No patients found</div>
                   <div class="text-body2 text-grey-5">Try a different search term</div>
                 </div>
-
-                <!-- Action Buttons -->
-                <div class="text-right q-mt-lg">
-                  <q-btn color="primary" label="Continue" @click="openVisitSelection" :disable="!selectedPatient" />
-                </div>
               </div>
             </q-card-section>
           </q-card>
@@ -262,7 +257,10 @@ const searchPatients = async () => {
             additionalInfo = JSON.parse(patient.PATIENT_BLOB)
           }
         } catch {
-          // Ignore parsing errors
+          // Intentionally ignore JSON parsing errors for patient blob
+          Promise.resolve().catch(() => {
+            /* intentionally ignored */
+          })
         }
 
         return {
@@ -280,8 +278,10 @@ const searchPatients = async () => {
   }
 }
 
-const selectPatient = (patient) => {
+const selectPatient = async (patient) => {
   selectedPatient.value = patient
+  // Automatically continue to visit selection
+  await openVisitSelection()
 }
 
 const openVisitSelection = async () => {
