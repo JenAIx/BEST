@@ -313,7 +313,7 @@ export const useDatabaseStore = defineStore('database', () => {
         CATEGORY_CHAR, INSTANCE_NUM, VALTYPE_CD, TVAL_CHAR, NVAL_NUM, VALUEFLAG_CD,
         QUANTITY_NUM, UNIT_CD, LOCATION_CD, CONFIDENCE_NUM, OBSERVATION_BLOB,
         UPDATE_DATE, DOWNLOAD_DATE, IMPORT_DATE, SOURCESYSTEM_CD
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
         datetime('now'), datetime('now'), datetime('now'), 'FILE_UPLOAD')`
 
       const insertParams = [
@@ -388,7 +388,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
       const query = `
         SELECT TVAL_CHAR, OBSERVATION_BLOB, CONCEPT_CD, START_DATE
-        FROM OBSERVATION_FACT 
+        FROM OBSERVATION_FACT
         WHERE OBSERVATION_ID = ? AND VALTYPE_CD = 'R'
       `
 
@@ -438,9 +438,9 @@ export const useDatabaseStore = defineStore('database', () => {
       }
 
       const query = `
-        SELECT TVAL_CHAR, START_DATE, CONCEPT_CD, 
+        SELECT TVAL_CHAR, START_DATE, CONCEPT_CD,
                LENGTH(OBSERVATION_BLOB) as blob_size
-        FROM OBSERVATION_FACT 
+        FROM OBSERVATION_FACT
         WHERE OBSERVATION_ID = ? AND VALTYPE_CD = 'R'
       `
 
@@ -491,6 +491,231 @@ export const useDatabaseStore = defineStore('database', () => {
     return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
   }
 
+  // Data Grid specific operations
+  const loadBatchPatientData = async (patientIds) => {
+    const loggingStore = useLoggingStore()
+    const timer = loggingStore.startTimer('Batch Patient Data Load')
+
+    try {
+      if (!canPerformOperations.value) {
+        throw new Error('Database not ready for operations')
+      }
+
+      if (!patientIds || patientIds.length === 0) {
+        throw new Error('No patient IDs provided')
+      }
+
+      // Ensure patient IDs are clean strings
+      const cleanPatientIds = patientIds.map((id) => {
+        // Handle case where id might be an object with an id property
+        if (typeof id === 'object' && id.id) {
+          return String(id.id)
+        }
+        return String(id)
+      })
+
+      loggingStore.info('DatabaseStore', 'Loading batch patient data', {
+        patientIds: cleanPatientIds,
+        count: cleanPatientIds.length,
+      })
+
+      const patientRepo = getRepository('patient')
+      const visitRepo = getRepository('visit')
+
+      // Get patient details
+      const patientDetails = await Promise.all(
+        cleanPatientIds.map(async (patientId) => {
+          const patient = await patientRepo.findByPatientCode(patientId)
+          if (!patient) {
+            loggingStore.warn('DatabaseStore', 'Patient not found', { patientId })
+            return { patient: null, visits: [] }
+          }
+          const visits = await visitRepo.getPatientVisitTimeline(patient.PATIENT_NUM)
+          return { patient, visits }
+        }),
+      )
+
+      // Filter out null patients
+      const validPatientData = patientDetails.filter((p) => p.patient !== null)
+
+      if (validPatientData.length === 0) {
+        throw new Error('No valid patients found with the provided IDs')
+      }
+
+      const duration = timer.end()
+      loggingStore.success('DatabaseStore', 'Batch patient data loaded successfully', {
+        requested: cleanPatientIds.length,
+        loaded: validPatientData.length,
+        duration: `${duration.toFixed(2)}ms`,
+      })
+
+      return validPatientData
+    } catch (error) {
+      timer.end()
+      loggingStore.error('DatabaseStore', 'Failed to load batch patient data', error, { patientIds })
+      throw error
+    }
+  }
+
+  const loadBatchObservationData = async (patientIds) => {
+    const loggingStore = useLoggingStore()
+    const timer = loggingStore.startTimer('Batch Observation Data Load')
+
+    try {
+      if (!canPerformOperations.value) {
+        throw new Error('Database not ready for operations')
+      }
+
+      // Ensure patient IDs are clean strings
+      const cleanPatientIds = patientIds.map((id) => {
+        if (typeof id === 'object' && id.id) {
+          return String(id.id)
+        }
+        return String(id)
+      })
+
+      if (cleanPatientIds.length === 0) {
+        throw new Error('No valid patient IDs found')
+      }
+
+      loggingStore.info('DatabaseStore', 'Loading batch observation data', {
+        patientCount: cleanPatientIds.length,
+        patientIds: cleanPatientIds,
+      })
+
+      // Get all observations for selected patients using the patient_observations view
+      const placeholders = cleanPatientIds.map(() => '?').join(',')
+      const observationQuery = `
+        SELECT
+          OBSERVATION_ID,
+          PATIENT_CD,
+          ENCOUNTER_NUM,
+          CONCEPT_CD,
+          VALTYPE_CD,
+          TVAL_CHAR,
+          NVAL_NUM,
+          UNIT_CD,
+          START_DATE,
+          CATEGORY_CHAR,
+          CONCEPT_NAME_CHAR as CONCEPT_NAME,
+          TVAL_RESOLVED
+        FROM patient_observations
+        WHERE PATIENT_CD IN (${placeholders})
+        ORDER BY PATIENT_CD, ENCOUNTER_NUM, CONCEPT_CD
+      `
+
+      const result = await executeQuery(observationQuery, cleanPatientIds)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load observations')
+      }
+
+      const duration = timer.end()
+      loggingStore.success('DatabaseStore', 'Batch observation data loaded successfully', {
+        patientCount: cleanPatientIds.length,
+        observationCount: result.data.length,
+        duration: `${duration.toFixed(2)}ms`,
+      })
+
+      return result.data
+    } catch (error) {
+      timer.end()
+      loggingStore.error('DatabaseStore', 'Failed to load batch observation data', error, {
+        patientIds,
+        patientCount: patientIds?.length,
+      })
+      throw error
+    }
+  }
+
+  const processObservationDataForGrid = (observations, patientData) => {
+    try {
+      // Group observations by concept to create columns
+      const conceptMap = new Map()
+      const patientVisitMap = new Map()
+
+      observations.forEach((obs) => {
+        // Track concepts for columns
+        if (!conceptMap.has(obs.CONCEPT_CD)) {
+          conceptMap.set(obs.CONCEPT_CD, {
+            code: obs.CONCEPT_CD,
+            name: obs.CONCEPT_NAME || obs.CONCEPT_CD,
+            valueType: obs.VALTYPE_CD || 'T',
+          })
+        }
+
+        // Group by patient and encounter
+        const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
+        if (!patientVisitMap.has(key)) {
+          // Find patient data
+          const patientInfo = patientData.find((p) => p.patient?.PATIENT_CD === obs.PATIENT_CD)
+          const visitInfo = patientInfo?.visits.find((v) => v.ENCOUNTER_NUM === obs.ENCOUNTER_NUM)
+
+          patientVisitMap.set(key, {
+            patientId: obs.PATIENT_CD,
+            patientName: getPatientNameFromData(patientInfo?.patient),
+            encounterNum: obs.ENCOUNTER_NUM,
+            visitDate: visitInfo?.START_DATE || obs.START_DATE,
+            observations: {},
+          })
+        }
+
+        // Add observation to the row
+        const row = patientVisitMap.get(key)
+
+        // For Selection (S) and Finding (F) types, prefer resolved values
+        let displayValue = obs.TVAL_CHAR || obs.NVAL_NUM
+        if ((obs.VALTYPE_CD === 'S' || obs.VALTYPE_CD === 'F') && obs.TVAL_RESOLVED) {
+          displayValue = obs.TVAL_RESOLVED
+        }
+
+        row.observations[obs.CONCEPT_CD] = {
+          observationId: obs.OBSERVATION_ID,
+          value: displayValue,
+          valueType: obs.VALTYPE_CD,
+          unit: obs.UNIT_CD,
+          originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
+          resolvedValue: obs.TVAL_RESOLVED,
+        }
+      })
+
+      // Convert to arrays
+      const observationConcepts = Array.from(conceptMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+
+      const tableRows = Array.from(patientVisitMap.values()).sort((a, b) => {
+        // Sort by patient ID, then by encounter number
+        if (a.patientId !== b.patientId) {
+          return a.patientId.localeCompare(b.patientId)
+        }
+        return a.encounterNum - b.encounterNum
+      })
+
+      return {
+        observationConcepts,
+        tableRows,
+      }
+    } catch (error) {
+      console.error('Error processing observation data for grid:', error)
+      throw error
+    }
+  }
+
+  // Helper function for patient name formatting (used internally)
+  const getPatientNameFromData = (patient) => {
+    if (!patient) return 'Unknown Patient'
+
+    if (patient.PATIENT_BLOB) {
+      try {
+        const blob = JSON.parse(patient.PATIENT_BLOB)
+        if (blob.name) return blob.name
+        if (blob.firstName && blob.lastName) return `${blob.firstName} ${blob.lastName}`
+      } catch {
+        // Fallback to PATIENT_CD
+      }
+    }
+    return patient.PATIENT_CD || 'Unknown Patient'
+  }
+
   return {
     // State
     isConnected,
@@ -537,5 +762,10 @@ export const useDatabaseStore = defineStore('database', () => {
     uploadRawData,
     downloadRawData,
     getRawDataInfo,
+
+    // Data Grid operations
+    loadBatchPatientData,
+    loadBatchObservationData,
+    processObservationDataForGrid,
   }
 })

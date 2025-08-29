@@ -29,7 +29,7 @@ import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
 const router = useRouter()
 const localSettings = useLocalSettingsStore()
 
-// Computed properties
+// Computed properties (using store functions)
 const selectedPatientIds = computed(() => {
   const ids = localSettings.getDataGridSelectedPatients()
   console.log('Retrieved patient IDs from localStorage:', ids)
@@ -38,7 +38,7 @@ const selectedPatientIds = computed(() => {
 })
 
 const hasPatientSelection = computed(() => {
-  return selectedPatientIds.value.length > 0
+  return localSettings.hasDataGridSelectedPatients()
 })
 
 // Methods

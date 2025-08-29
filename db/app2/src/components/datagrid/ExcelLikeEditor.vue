@@ -13,6 +13,7 @@
         </div>
         <div class="col-auto q-gutter-sm">
           <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
+          <q-btn color="secondary" icon="add" label="New Observation" @click="showNewObservationDialog = true" />
           <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
           <q-btn color="primary" icon="save" label="Save All" @click="saveAllChanges" :loading="savingAll" :disable="!hasUnsavedChanges" />
           <q-btn flat icon="arrow_back" label="Back to Selection" @click="goBack" />
@@ -108,7 +109,7 @@
                 <q-item-label caption>Display cells even when no observation exists</q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-toggle v-model="viewOptions.showEmptyCells" />
+                <q-toggle v-model="viewOptions.showEmptyCells" @update:model-value="updateViewOptions({ showEmptyCells: $event })" />
               </q-item-section>
             </q-item>
 
@@ -118,7 +119,7 @@
                 <q-item-label caption>Reduce cell padding for more data on screen</q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-toggle v-model="viewOptions.compactView" />
+                <q-toggle v-model="viewOptions.compactView" @update:model-value="updateViewOptions({ compactView: $event })" />
               </q-item-section>
             </q-item>
 
@@ -128,7 +129,7 @@
                 <q-item-label caption>Show visual indicators for unsaved changes</q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-toggle v-model="viewOptions.highlightChanges" />
+                <q-toggle v-model="viewOptions.highlightChanges" @update:model-value="updateViewOptions({ highlightChanges: $event })" />
               </q-item-section>
             </q-item>
           </q-list>
@@ -136,6 +137,91 @@
 
         <q-card-actions align="right">
           <q-btn flat label="Close" color="primary" v-close-popup />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- New Observation Dialog -->
+    <q-dialog v-model="showNewObservationDialog" persistent>
+      <q-card style="min-width: 500px; max-width: 700px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6 text-secondary">
+            <q-icon name="add" class="q-mr-sm" />
+            Add New Observation Column
+          </div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section>
+          <div class="text-body2 text-grey-6 q-mb-md">Select a medical concept to add as a new column to the data grid.</div>
+
+          <!-- Concept Search -->
+          <div class="concept-search-section">
+            <q-input v-model="newConceptSearch" outlined dense placeholder="Search for medical concepts..." clearable class="q-mb-md" :loading="conceptSearchLoading">
+              <template v-slot:prepend>
+                <q-icon name="search" />
+              </template>
+            </q-input>
+
+            <!-- Search Results -->
+            <div v-if="newConceptSearch && conceptSearchResults.length > 0" class="search-results">
+              <div class="text-subtitle2 text-grey-7 q-mb-sm">
+                Search Results: {{ availableConceptSearchResults.length }} available
+                <span v-if="conceptSearchResults.length > availableConceptSearchResults.length" class="text-grey-5">
+                  ({{ conceptSearchResults.length - availableConceptSearchResults.length }} already added)
+                </span>
+              </div>
+
+              <!-- Available concepts -->
+              <div v-if="availableConceptSearchResults.length > 0">
+                <q-list bordered class="rounded-borders" style="max-height: 250px; overflow-y: auto">
+                  <q-item v-for="concept in availableConceptSearchResults" :key="concept.CONCEPT_CD" clickable @click="addNewObservationColumn(concept)" class="concept-item">
+                    <q-item-section>
+                      <q-item-label>{{ concept.NAME_CHAR }}</q-item-label>
+                      <q-item-label caption>{{ concept.CONCEPT_CD }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-icon name="add" color="secondary" />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
+
+              <!-- Already added concepts -->
+              <div v-if="alreadyAddedConcepts.length > 0" class="q-mb-md">
+                <div class="text-subtitle2 text-grey-7 q-mb-sm">Already in Grid: {{ alreadyAddedConcepts.length }}</div>
+                <q-list bordered class="rounded-borders" style="max-height: 150px; overflow-y: auto">
+                  <q-item v-for="concept in alreadyAddedConcepts" :key="`added-${concept.CONCEPT_CD}`" class="concept-item already-added">
+                    <q-item-section>
+                      <q-item-label class="text-grey-6">{{ concept.NAME_CHAR }}</q-item-label>
+                      <q-item-label caption class="text-grey-5">{{ concept.CONCEPT_CD }}</q-item-label>
+                    </q-item-section>
+                    <q-item-section side>
+                      <q-icon name="check_circle" color="positive" />
+                    </q-item-section>
+                  </q-item>
+                </q-list>
+              </div>
+
+              <!-- All concepts already added -->
+              <div v-if="availableConceptSearchResults.length === 0 && alreadyAddedConcepts.length > 0" class="text-center text-grey-6 q-py-md">
+                <q-icon name="check_circle" size="48px" color="positive" />
+                <div class="q-mt-sm">All found concepts are already in the grid</div>
+                <div class="text-caption">Try searching for different concepts</div>
+              </div>
+            </div>
+
+            <!-- No Results -->
+            <div v-if="newConceptSearch && !conceptSearchLoading && conceptSearchResults.length === 0" class="text-center text-grey-6 q-py-md">
+              <q-icon name="search_off" size="48px" />
+              <div class="q-mt-sm">No concepts found</div>
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Cancel" v-close-popup />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -163,8 +249,8 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
-import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useDataGridStore } from 'src/stores/data-grid-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
@@ -180,42 +266,52 @@ const props = defineProps({
 
 const $q = useQuasar()
 const router = useRouter()
-const dbStore = useDatabaseStore()
-const localSettings = useLocalSettingsStore()
+const dataGridStore = useDataGridStore()
+const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ExcelLikeEditor')
 
-// Data state
-const loading = ref(true)
-const savingAll = ref(false)
-const patientData = ref([])
-const observationConcepts = ref([])
-const tableRows = ref([])
-const pendingChanges = ref(new Map()) // Track unsaved changes
-const lastUpdateTime = ref(new Date().toLocaleTimeString())
-
-// View options
+// Local component state (only what's component-specific)
 const showViewOptions = ref(false)
-const viewOptions = ref({
-  showEmptyCells: true,
-  compactView: false,
-  highlightChanges: true,
+const showNewObservationDialog = ref(false)
+
+// New observation dialog state
+const newConceptSearch = ref('')
+const conceptSearchLoading = ref(false)
+const conceptSearchResults = ref([])
+
+// Computed property to filter out concepts already in the grid
+const availableConceptSearchResults = computed(() => {
+  const existingConceptCodes = new Set(dataGridStore.observationConcepts?.value?.map((c) => c.code) || [])
+
+  return conceptSearchResults.value.filter((concept) => !existingConceptCodes.has(concept.CONCEPT_CD))
 })
 
-// Computed properties
-const totalObservations = computed(() => {
-  return tableRows.value.reduce((total, row) => {
-    return total + Object.keys(row.observations || {}).length
-  }, 0)
+// Computed property to get concepts already in the grid
+const alreadyAddedConcepts = computed(() => {
+  const existingConceptCodes = new Set(dataGridStore.observationConcepts?.value?.map((c) => c.code) || [])
+
+  return conceptSearchResults.value.filter((concept) => existingConceptCodes.has(concept.CONCEPT_CD))
 })
 
-const hasUnsavedChanges = computed(() => {
-  return pendingChanges.value.size > 0
-})
+// Ensure reactive variables are properly initialized
+const initializeDialogState = () => {
+  newConceptSearch.value = ''
+  conceptSearchLoading.value = false
+  conceptSearchResults.value = []
+}
 
-const unsavedChangesCount = computed(() => {
-  return pendingChanges.value.size
-})
+// Computed properties (using store data)
+const totalObservations = computed(() => dataGridStore.totalObservations)
+const hasUnsavedChanges = computed(() => dataGridStore.hasUnsavedChanges)
+const unsavedChangesCount = computed(() => dataGridStore.unsavedChangesCount)
+const loading = computed(() => dataGridStore.loading)
+const savingAll = computed(() => dataGridStore.savingAll)
+const patientData = computed(() => dataGridStore.patientData)
+const observationConcepts = computed(() => dataGridStore.observationConcepts)
+const tableRows = computed(() => dataGridStore.tableRows)
+const lastUpdateTime = computed(() => dataGridStore.lastUpdateTime)
+const viewOptions = computed(() => dataGridStore.viewOptions)
 
 // Scroll area styling
 const thumbStyle = {
@@ -234,342 +330,98 @@ const barStyle = {
   opacity: 0.2,
 }
 
-// Data loading methods
+// Data loading methods (using store functions)
 const loadPatientData = async () => {
+  await dataGridStore.loadGridData(props.patientIds)
+}
+
+// Helper methods (using store functions)
+const getPatientInitials = dataGridStore.getPatientInitials
+const formatDate = dataGridStore.formatDate
+const getCellValue = dataGridStore.getCellValue
+const getCellObservationId = dataGridStore.getCellObservationId
+const getCellClass = dataGridStore.getCellClass
+const hasRowChanges = dataGridStore.hasRowChanges
+
+// Event handlers (using store functions)
+const onCellUpdate = dataGridStore.handleCellUpdate
+const onCellSave = dataGridStore.handleCellSave
+const onCellError = dataGridStore.handleCellError
+
+// New observation methods
+const searchConceptsForNewObservation = async (query) => {
+  if (!query || query.length < 2) {
+    conceptSearchResults.value = []
+    return
+  }
+
+  // Ensure concept store is initialized
+  if (!conceptStore) {
+    logger.warn('Concept store not available for search')
+    conceptSearchResults.value = []
+    return
+  }
+
+  conceptSearchLoading.value = true
   try {
-    loading.value = true
-
-    if (!props.patientIds.length) {
-      throw new Error('No patient IDs provided')
-    }
-
-    // Ensure patient IDs are clean strings
-    const cleanPatientIds = props.patientIds.map((id) => {
-      // Handle case where id might be an object with an id property
-      if (typeof id === 'object' && id.id) {
-        return String(id.id)
-      }
-      return String(id)
+    const results = await conceptStore.searchConcepts(query, {
+      limit: 20,
+      context: 'data_grid_new_observation',
     })
-
-    logger.info('Loading patient data', { patientIds: cleanPatientIds, count: cleanPatientIds.length })
-
-    // Load patient basic info and visits
-    const patientRepo = dbStore.getRepository('patient')
-    const visitRepo = dbStore.getRepository('visit')
-
-    // Get patient details
-    const patientDetails = await Promise.all(
-      cleanPatientIds.map(async (patientId) => {
-        const patient = await patientRepo.findByPatientCode(patientId)
-        if (!patient) {
-          logger.warn('Patient not found', { patientId })
-          return { patient: null, visits: [] }
-        }
-        const visits = await visitRepo.getPatientVisitTimeline(patient.PATIENT_NUM)
-        return { patient, visits }
-      }),
-    )
-
-    // Filter out null patients
-    patientData.value = patientDetails.filter((p) => p.patient !== null)
-
-    if (patientData.value.length === 0) {
-      throw new Error('No valid patients found with the provided IDs')
-    }
-
-    // Load all observations for these patients
-    await loadObservationData()
+    conceptSearchResults.value = results || []
   } catch (error) {
-    logger.error('Failed to load patient data', error)
+    logger.error('Concept search failed', error)
+    conceptSearchResults.value = []
     $q.notify({
       type: 'negative',
-      message: `Failed to load patient data: ${error.message}`,
+      message: `Search failed: ${error.message}`,
       position: 'top',
     })
   } finally {
-    loading.value = false
+    conceptSearchLoading.value = false
   }
 }
 
-const loadObservationData = async () => {
+const addNewObservationColumn = async (concept) => {
   try {
-    // Extract patient IDs from loaded patient data to ensure we have valid IDs
-    const validPatientIds = patientData.value.filter((p) => p.patient && p.patient.PATIENT_CD).map((p) => p.patient.PATIENT_CD)
+    logger.info('Adding new observation column', { conceptCode: concept.CONCEPT_CD, conceptName: concept.NAME_CHAR })
 
-    if (validPatientIds.length === 0) {
-      throw new Error('No valid patient IDs found')
-    }
+    // Add the concept to the data grid store using the store method
+    const result = await dataGridStore.addConceptToGrid(concept)
 
-    // Get all observations for selected patients using the patient_observations view
-    const placeholders = validPatientIds.map(() => '?').join(',')
-    const observationQuery = `
-            SELECT 
-                OBSERVATION_ID,
-                PATIENT_CD,
-                ENCOUNTER_NUM,
-                CONCEPT_CD,
-                VALTYPE_CD,
-                TVAL_CHAR,
-                NVAL_NUM,
-                UNIT_CD,
-                START_DATE,
-                CATEGORY_CHAR,
-                CONCEPT_NAME_CHAR as CONCEPT_NAME
-            FROM patient_observations
-            WHERE PATIENT_CD IN (${placeholders})
-            ORDER BY PATIENT_CD, ENCOUNTER_NUM, CONCEPT_CD
-        `
+    // Close the dialog (this will trigger the watch that resets state)
+    showNewObservationDialog.value = false
 
-    // Use clean array of patient ID strings
-    const result = await dbStore.executeQuery(observationQuery, validPatientIds)
-
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to load observations')
-    }
-
-    // Process observations and build table structure
-    processObservationData(result.data)
-  } catch (error) {
-    logger.error('Failed to load observation data', error)
-    throw error
-  }
-}
-
-const processObservationData = (observations) => {
-  // Group observations by concept to create columns
-  const conceptMap = new Map()
-  const patientVisitMap = new Map()
-
-  observations.forEach((obs) => {
-    // Track concepts for columns
-    if (!conceptMap.has(obs.CONCEPT_CD)) {
-      conceptMap.set(obs.CONCEPT_CD, {
-        code: obs.CONCEPT_CD,
-        name: obs.CONCEPT_NAME || obs.CONCEPT_CD,
-        valueType: obs.VALTYPE_CD || 'T',
+    // Show appropriate notification based on result
+    if (result.alreadyExists) {
+      $q.notify({
+        type: 'info',
+        message: `"${concept.NAME_CHAR}" is already in the grid`,
+        position: 'top',
+      })
+    } else {
+      $q.notify({
+        type: 'positive',
+        message: `Added "${concept.NAME_CHAR}" column to the grid`,
+        position: 'top',
       })
     }
-
-    // Group by patient and encounter
-    const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
-    if (!patientVisitMap.has(key)) {
-      // Find patient data
-      const patientInfo = patientData.value.find((p) => p.patient?.PATIENT_CD === obs.PATIENT_CD)
-      const visitInfo = patientInfo?.visits.find((v) => v.ENCOUNTER_NUM === obs.ENCOUNTER_NUM)
-
-      patientVisitMap.set(key, {
-        patientId: obs.PATIENT_CD,
-        patientName: getPatientName(patientInfo?.patient),
-        encounterNum: obs.ENCOUNTER_NUM,
-        visitDate: visitInfo?.START_DATE || obs.START_DATE,
-        observations: {},
-      })
-    }
-
-    // Add observation to the row
-    const row = patientVisitMap.get(key)
-
-    // For Selection (S) and Finding (F) types, prefer resolved values
-    let displayValue = obs.TVAL_CHAR || obs.NVAL_NUM
-    if ((obs.VALTYPE_CD === 'S' || obs.VALTYPE_CD === 'F') && obs.TVAL_RESOLVED) {
-      displayValue = obs.TVAL_RESOLVED
-    }
-
-    row.observations[obs.CONCEPT_CD] = {
-      observationId: obs.OBSERVATION_ID,
-      value: displayValue,
-      valueType: obs.VALTYPE_CD,
-      unit: obs.UNIT_CD,
-      originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
-      resolvedValue: obs.TVAL_RESOLVED,
-    }
-  })
-
-  // Convert to arrays
-  observationConcepts.value = Array.from(conceptMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-
-  tableRows.value = Array.from(patientVisitMap.values()).sort((a, b) => {
-    // Sort by patient ID, then by encounter number
-    if (a.patientId !== b.patientId) {
-      return a.patientId.localeCompare(b.patientId)
-    }
-    return a.encounterNum - b.encounterNum
-  })
-}
-
-// Helper methods
-const getPatientName = (patient) => {
-  if (!patient) return 'Unknown Patient'
-
-  if (patient.PATIENT_BLOB) {
-    try {
-      const blob = JSON.parse(patient.PATIENT_BLOB)
-      if (blob.name) return blob.name
-      if (blob.firstName && blob.lastName) return `${blob.firstName} ${blob.lastName}`
-    } catch {
-      // Fallback to PATIENT_CD
-    }
-  }
-  return patient.PATIENT_CD || 'Unknown Patient'
-}
-
-const getPatientInitials = (name) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return 'Unknown'
-  return new Date(dateStr).toLocaleDateString()
-}
-
-const getCellValue = (row, concept) => {
-  const obs = row.observations[concept.code]
-  return obs?.value || ''
-}
-
-const getCellObservationId = (row, concept) => {
-  const obs = row.observations[concept.code]
-  return obs?.observationId || null
-}
-
-const getCellClass = (row, concept) => {
-  const key = `${row.patientId}-${row.encounterNum}-${concept.code}`
-  const hasChange = pendingChanges.value.has(key)
-  const hasValue = !!row.observations[concept.code]
-
-  return {
-    'has-value': hasValue,
-    'empty-cell': !hasValue,
-    'has-pending-change': hasChange && viewOptions.value.highlightChanges,
-    compact: viewOptions.value.compactView,
-  }
-}
-
-const hasRowChanges = (row) => {
-  if (!viewOptions.value.highlightChanges) return false
-
-  return observationConcepts.value.some((concept) => {
-    const key = `${row.patientId}-${row.encounterNum}-${concept.code}`
-    return pendingChanges.value.has(key)
-  })
-}
-
-// Event handlers
-const onCellUpdate = (data) => {
-  const { patientId, encounterNum, conceptCode, value, observationId } = data
-  const key = `${patientId}-${encounterNum}-${conceptCode}`
-
-  // Track the change
-  pendingChanges.value.set(key, {
-    patientId,
-    encounterNum,
-    conceptCode,
-    value,
-    observationId,
-    timestamp: new Date(),
-  })
-
-  // Update the local data
-  const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
-  if (row) {
-    if (!row.observations[conceptCode]) {
-      row.observations[conceptCode] = {}
-    }
-    row.observations[conceptCode].value = value
-  }
-}
-
-const onCellSave = async (data) => {
-  const { patientId, encounterNum, conceptCode } = data
-  const key = `${patientId}-${encounterNum}-${conceptCode}`
-
-  try {
-    // Remove from pending changes
-    pendingChanges.value.delete(key)
-
-    // Update last save time
-    lastUpdateTime.value = new Date().toLocaleTimeString()
-
-    $q.notify({
-      type: 'positive',
-      message: 'Cell saved successfully',
-      position: 'top-right',
-      timeout: 2000,
-    })
   } catch (error) {
-    logger.error('Cell save error', error)
-  }
-}
-
-const onCellError = (error) => {
-  logger.error('Cell error', error)
-  $q.notify({
-    type: 'negative',
-    message: `Cell error: ${error.message}`,
-    position: 'top',
-  })
-}
-
-const saveAllChanges = async () => {
-  if (!hasUnsavedChanges.value) return
-
-  try {
-    savingAll.value = true
-
-    const changes = Array.from(pendingChanges.value.values())
-    let savedCount = 0
-
-    for (const change of changes) {
-      try {
-        // This would trigger the save in EditableCell component
-        // For now, we'll just clear the pending changes
-        const key = `${change.patientId}-${change.encounterNum}-${change.conceptCode}`
-        pendingChanges.value.delete(key)
-        savedCount++
-      } catch (error) {
-        logger.error('Failed to save change', error)
-      }
-    }
-
-    lastUpdateTime.value = new Date().toLocaleTimeString()
-
-    $q.notify({
-      type: 'positive',
-      message: `Saved ${savedCount} changes successfully`,
-      position: 'top',
-    })
-  } catch (error) {
-    logger.error('Failed to save all changes', error)
+    logger.error('Failed to add new observation column', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to save some changes',
+      message: `Failed to add column: ${error.message}`,
       position: 'top',
     })
-  } finally {
-    savingAll.value = false
   }
 }
 
-const refreshData = async () => {
-  await loadPatientData()
-  pendingChanges.value.clear()
-  lastUpdateTime.value = new Date().toLocaleTimeString()
-
-  $q.notify({
-    type: 'info',
-    message: 'Data refreshed',
-    position: 'top',
-  })
-}
+// Batch operations (using store functions)
+const saveAllChanges = dataGridStore.saveAllChanges
+const refreshData = () => dataGridStore.refreshData(props.patientIds)
 
 const goBack = () => {
-  if (hasUnsavedChanges.value) {
+  if (dataGridStore.hasUnsavedChanges) {
     $q.dialog({
       title: 'Unsaved Changes',
       message: 'You have unsaved changes. Are you sure you want to go back?',
@@ -603,31 +455,65 @@ const stopAutoSave = () => {
   }
 }
 
+// View options management (delegate to store)
+const updateViewOptions = dataGridStore.updateViewOptions
+
+// Watch for view options changes (store handles persistence)
+watch(
+  () => dataGridStore.viewOptions,
+  (newOptions) => {
+    // Store automatically handles persistence
+    logger.debug('View options changed', { newOptions })
+  },
+  { deep: true },
+)
+
+// Watch for new concept search input
+let conceptSearchTimeout = null
+watch(newConceptSearch, (newQuery) => {
+  // Clear previous timeout
+  if (conceptSearchTimeout) {
+    clearTimeout(conceptSearchTimeout)
+  }
+
+  if (!newQuery || newQuery.length < 2) {
+    conceptSearchResults.value = []
+    return
+  }
+
+  // Debounce search
+  conceptSearchTimeout = setTimeout(() => {
+    searchConceptsForNewObservation(newQuery)
+  }, 300)
+})
+
+// Watch for dialog visibility changes
+watch(showNewObservationDialog, (isVisible) => {
+  if (!isVisible) {
+    // Reset dialog state when closed
+    initializeDialogState()
+  }
+})
+
 // Lifecycle
 onMounted(async () => {
+  // Initialize stores
+  dataGridStore.initialize()
+  await conceptStore.initialize()
+
+  // Initialize dialog state
+  initializeDialogState()
+
   await loadPatientData()
   startAutoSave()
 })
 
 onUnmounted(() => {
   stopAutoSave()
-})
 
-// Watch for view options changes
-watch(
-  viewOptions,
-  () => {
-    // Save view options to local settings
-    localSettings.setSetting('dataGrid.viewOptions', viewOptions.value)
-  },
-  { deep: true },
-)
-
-// Load saved view options
-onMounted(() => {
-  const savedOptions = localSettings.getSetting('dataGrid.viewOptions')
-  if (savedOptions) {
-    viewOptions.value = { ...viewOptions.value, ...savedOptions }
+  // Clean up concept search timeout
+  if (conceptSearchTimeout) {
+    clearTimeout(conceptSearchTimeout)
   }
 })
 </script>
@@ -894,6 +780,28 @@ onMounted(() => {
       &.obs-cell {
         width: 100px;
         min-width: 100px;
+      }
+    }
+  }
+}
+
+// New observation dialog styles
+.concept-search-section {
+  .search-results {
+    .concept-item {
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: rgba(25, 118, 210, 0.08);
+      }
+
+      &.already-added {
+        background-color: rgba(76, 175, 80, 0.05);
+        border-left: 3px solid #4caf50;
+
+        &:hover {
+          background-color: rgba(76, 175, 80, 0.08);
+        }
       }
     }
   }
