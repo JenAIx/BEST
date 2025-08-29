@@ -65,14 +65,20 @@
               </td>
 
               <td class="fixed-col visit-col">
-                <div class="visit-date">
-                  {{ formatDate(row.visitDate) }}
+                <div class="visit-date-container">
+                  <div class="visit-date">
+                    {{ formatDate(row.visitDate) }}
+                  </div>
+                  <div class="visit-edit-icon" @click="openVisitEditDialog(row)">
+                    <q-icon name="edit" size="16px" color="grey-6" />
+                  </div>
                   <q-tooltip anchor="top middle" self="bottom middle" :offset="[10, 10]" class="bg-grey-9 text-white">
                     <div class="tooltip-content">
                       <div class="text-weight-bold q-mb-xs">Visit Information</div>
                       <div><strong>Patient:</strong> {{ row.patientName }}</div>
                       <div><strong>Encounter:</strong> {{ row.encounterNum }}</div>
                       <div><strong>Date:</strong> {{ formatDate(row.visitDate) }}</div>
+                      <div class="text-grey-4 text-caption q-mt-xs">Click edit icon to modify visit</div>
                     </div>
                   </q-tooltip>
                 </div>
@@ -194,6 +200,9 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Edit Visit Dialog -->
+    <EditVisitDialog v-model="showVisitEditDialog" :patient="selectedVisitData" :visit="selectedVisitData" @visitUpdated="handleVisitUpdated" />
   </div>
 </template>
 
@@ -207,6 +216,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
+import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -229,6 +239,8 @@ const logger = loggingStore.createLogger('ExcelLikeEditor')
 // Local component state (only what's component-specific)
 const showViewOptions = ref(false)
 const showNewObservationDialog = ref(false)
+const showVisitEditDialog = ref(false)
+const selectedVisitData = ref(null)
 
 // New observation dialog state
 const newConceptSearch = ref('')
@@ -411,6 +423,41 @@ const handleColumnOrderUpdate = (columnOrder) => {
   $q.notify({
     type: 'positive',
     message: 'Column order updated successfully',
+    position: 'top',
+  })
+}
+
+// Visit edit dialog methods
+const openVisitEditDialog = (row) => {
+  logger.info('Opening visit edit dialog', { patientId: row.patientId, encounterNum: row.encounterNum })
+
+  // Prepare visit data for the dialog
+  selectedVisitData.value = {
+    patientId: row.patientId,
+    patientName: row.patientName,
+    encounterNum: row.encounterNum,
+    visitDate: row.visitDate,
+    // Add other visit properties as needed
+    visit: {
+      ENCOUNTER_NUM: row.encounterNum,
+      START_DATE: row.visitDate,
+      // Add other visit fields that might be available
+      PATIENT_CD: row.patientId,
+    },
+  }
+
+  showVisitEditDialog.value = true
+}
+
+const handleVisitUpdated = (updatedVisit) => {
+  logger.info('Visit updated successfully', { updatedVisit })
+
+  // Refresh the data grid to show the updated visit information
+  refreshData()
+
+  $q.notify({
+    type: 'positive',
+    message: `Visit ${updatedVisit.ENCOUNTER_NUM} updated successfully`,
     position: 'top',
   })
 }
@@ -653,11 +700,47 @@ onUnmounted(() => {
   }
 }
 
+.visit-date-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px;
+  cursor: help;
+
+  &:hover .visit-edit-icon {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
 .visit-date {
   font-size: 0.8rem;
   color: $grey-8;
-  position: relative;
-  cursor: help;
+  flex: 1;
+}
+
+.visit-edit-icon {
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  margin-left: 8px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.08);
+    opacity: 1 !important;
+
+    .q-icon {
+      color: $primary !important;
+    }
+  }
+
+  .q-icon {
+    transition: color 0.2s ease;
+  }
 }
 
 .tooltip-content {
