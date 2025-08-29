@@ -12,9 +12,6 @@
 
     <!-- Excel-like Editor -->
     <ExcelLikeEditor v-else :patient-ids="selectedPatientIds" />
-
-    <!-- Combined Footer -->
-    <GridFooter v-if="hasPatientSelection" />
   </q-page>
 </template>
 
@@ -24,7 +21,6 @@ import { useRouter } from 'vue-router'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
-import GridFooter from 'src/components/datagrid/GridFooter.vue'
 
 // Note: This component does not use visit-observation-store because:
 // 1. It handles multiple patients simultaneously (visit-observation-store is single-patient focused)
@@ -70,9 +66,8 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .data-grid-editor-page {
-  height: 100vh;
+  height: calc(100vh - 200px);
   overflow: hidden;
-  padding-bottom: 70px; // Account for fixed footer
 }
 
 .no-selection-state {

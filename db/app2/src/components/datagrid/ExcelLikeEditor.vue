@@ -2,21 +2,10 @@
   <div class="excel-editor">
     <!-- Header Controls -->
     <div class="editor-header q-pa-md bg-white shadow-1">
-      <div class="row items-center justify-between">
-        <div class="col-auto">
-          <div class="text-h6 flex items-center">
-            <q-icon name="table_view" size="24px" color="primary" class="q-mr-sm" />
-            Data Grid Editor
-            <q-chip color="primary" text-color="white" size="sm" class="q-ml-sm"> {{ patientData.length }} patients • {{ visibleObservationConcepts.length }} observations </q-chip>
-            <div class="text-caption text-grey-6">Click any cell to edit • Changes auto-save • Use Tab/Enter to navigate</div>
-          </div>
-        </div>
-        <div class="col-auto q-gutter-sm q-mt-sm">
-          <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
-          <q-btn color="secondary" icon="add" label="New Observation" @click="showNewObservationDialog = true" />
-          <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
-          <q-btn flat icon="arrow_back" label="Back to Selection" @click="goBack" />
-        </div>
+      <div class="row items-center justify-start q-gutter-sm">
+        <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
+        <q-btn color="secondary" icon="add" label="New Observation" @click="showNewObservationDialog = true" />
+        <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
       </div>
     </div>
 
@@ -208,7 +197,6 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -230,7 +218,6 @@ const props = defineProps({
 // No longer need to emit events - store handles reactivity
 
 const $q = useQuasar()
-const router = useRouter()
 const dataGridStore = useDataGridStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
@@ -270,7 +257,6 @@ const initializeDialogState = () => {
 
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
-const patientData = computed(() => dataGridStore?.patientData || [])
 const observationConcepts = computed(() => dataGridStore?.observationConcepts || [])
 
 // Use store's reactive properties for visibility and statistics
@@ -386,21 +372,6 @@ const addNewObservationColumn = async (concept) => {
 
 // Batch operations (using store functions) - with defensive checks
 const refreshData = () => (dataGridStore?.refreshData ? dataGridStore.refreshData(props.patientIds) : () => {})
-
-const goBack = () => {
-  if (dataGridStore?.hasUnsavedChanges) {
-    $q.dialog({
-      title: 'Unsaved Changes',
-      message: 'You have unsaved changes. Are you sure you want to go back?',
-      cancel: true,
-      persistent: true,
-    }).onOk(() => {
-      router.push('/data-grid')
-    })
-  } else {
-    router.push('/data-grid')
-  }
-}
 
 // View options management (delegate to store)
 const updateViewOptions = dataGridStore.updateViewOptions
@@ -531,7 +502,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .excel-editor {
-  height: calc(100vh - 70px); // Account for the combined footer height
+  height: 100%; // Full height since footer is in GridLayout
   display: flex;
   flex-direction: column;
   background: $grey-1;

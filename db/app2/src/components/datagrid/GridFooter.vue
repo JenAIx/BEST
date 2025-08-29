@@ -1,25 +1,25 @@
 <template>
   <div class="grid-footer">
-    <!-- Status Bar Section -->
-    <div class="status-section">
-      <div class="status-container">
+    <div class="footer-container">
+      <!-- Status Section -->
+      <div class="footer-section status-section">
         <div class="status-item">
           <q-icon :name="hasUnsavedChanges ? 'edit' : 'check_circle'" :color="hasUnsavedChanges ? 'warning' : 'positive'" size="16px" class="q-mr-xs" />
           <span :class="hasUnsavedChanges ? 'text-warning' : 'text-positive'">
             {{ hasUnsavedChanges ? `${unsavedChangesCount} unsaved changes` : 'All changes saved' }}
           </span>
         </div>
-
         <div class="status-item">
           <q-icon name="access_time" size="16px" color="grey-6" class="q-mr-xs" />
           <span class="text-grey-6">Updated: {{ lastUpdateTime }}</span>
         </div>
       </div>
-    </div>
 
-    <!-- Statistics Section -->
-    <div class="stats-section" v-if="statistics">
-      <div class="stats-container">
+      <!-- Vertical Separator -->
+      <div class="footer-separator"></div>
+
+      <!-- Statistics Section -->
+      <div class="footer-section stats-section" v-if="statistics">
         <div class="stat-item">
           <q-icon name="table_chart" size="14px" color="primary" />
           <span class="stat-value">{{ statistics.totalObservations }}</span>
@@ -37,6 +37,9 @@
           <span class="stat-value">{{ statistics.hiddenObservations }}</span>
           <span class="stat-label">hidden</span>
         </div>
+
+        <!-- Vertical Separator -->
+        <div class="stat-separator"></div>
 
         <div class="stat-item">
           <q-icon name="check_circle" size="14px" color="positive" />
@@ -70,31 +73,33 @@ const statistics = computed(() => dataGridStore?.statistics || null)
 
 <style lang="scss" scoped>
 .grid-footer {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   background: white;
   border-top: 1px solid #e0e0e0;
   box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  display: flex;
-  flex-direction: column;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
-// Status Section
-.status-section {
-  background: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
-}
-
-.status-container {
+.footer-container {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 12px 24px;
   max-width: 1200px;
   margin: 0 auto;
+  min-height: 50px;
+}
+
+// Status Section (Left)
+.footer-section.status-section {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
 
   .status-item {
     display: flex;
@@ -108,19 +113,23 @@ const statistics = computed(() => dataGridStore?.statistics || null)
   }
 }
 
-// Statistics Section
-.stats-section {
-  background: white;
+// Main Vertical Separator
+.footer-separator {
+  width: 1px;
+  height: 32px;
+  background: #e0e0e0;
+  margin: 0 16px;
 }
 
-.stats-container {
+// Statistics Section (Right)
+.footer-section.stats-section {
+  background: #f0f8ff;
+  border-radius: 8px;
+  padding: 8px 16px;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 8px 16px;
-  gap: 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  gap: 20px;
+  flex: 0 0 auto;
 
   .stat-item {
     display: flex;
@@ -139,44 +148,65 @@ const statistics = computed(() => dataGridStore?.statistics || null)
       font-weight: 500;
     }
   }
+
+  // Mini separator between stats groups
+  .stat-separator {
+    width: 1px;
+    height: 20px;
+    background: #d0d0d0;
+    margin: 0 8px;
+  }
 }
 
 // Responsive adjustments
 @media (max-width: 1024px) {
-  .stats-container {
+  .footer-container {
+    padding: 10px 16px;
+    gap: 12px;
+  }
+
+  .footer-section.stats-section {
     gap: 16px;
     padding: 6px 12px;
   }
 
-  .status-container {
-    padding: 6px 12px;
+  .footer-section.status-section {
+    gap: 12px;
+    padding: 6px 10px;
   }
 }
 
 @media (max-width: 768px) {
-  .grid-footer {
+  .footer-container {
     flex-direction: column;
+    gap: 8px;
+    padding: 8px 12px;
   }
 
-  .status-container {
-    flex-direction: column;
-    gap: 4px;
-    align-items: flex-start;
+  .footer-separator {
+    width: 80%;
+    height: 1px;
+    margin: 4px 0;
   }
 
-  .stats-container {
+  .footer-section.status-section,
+  .footer-section.stats-section {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .footer-section.stats-section {
     flex-wrap: wrap;
     gap: 12px;
-    justify-content: center;
   }
 }
 
 @media (max-width: 480px) {
-  .stats-container .stat-item .stat-label {
+  .footer-section.stats-section .stat-item .stat-label {
     display: none; // Hide labels on very small screens
   }
 
-  .stats-container {
+  .footer-section.stats-section {
     gap: 8px;
   }
 }
