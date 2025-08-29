@@ -37,7 +37,6 @@
               <!-- Fixed columns -->
               <th class="fixed-col patient-col">Patient</th>
               <th class="fixed-col visit-col">Visit Date</th>
-              <th class="fixed-col encounter-col">Encounter</th>
 
               <!-- Dynamic observation columns -->
               <th v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-col" :title="concept.name">
@@ -67,11 +66,17 @@
               </td>
 
               <td class="fixed-col visit-col">
-                <div class="visit-date">{{ formatDate(row.visitDate) }}</div>
-              </td>
-
-              <td class="fixed-col encounter-col">
-                <div class="encounter-num">{{ row.encounterNum }}</div>
+                <div class="visit-date">
+                  {{ formatDate(row.visitDate) }}
+                  <q-tooltip anchor="top middle" self="bottom middle" :offset="[10, 10]" class="bg-grey-9 text-white">
+                    <div class="tooltip-content">
+                      <div class="text-weight-bold q-mb-xs">Visit Information</div>
+                      <div><strong>Patient:</strong> {{ row.patientName }}</div>
+                      <div><strong>Encounter:</strong> {{ row.encounterNum }}</div>
+                      <div><strong>Date:</strong> {{ formatDate(row.visitDate) }}</div>
+                    </div>
+                  </q-tooltip>
+                </div>
               </td>
 
               <!-- Observation cells -->
@@ -567,12 +572,6 @@ onUnmounted(() => {
         min-width: 120px;
       }
 
-      &.encounter-col {
-        left: 320px;
-        width: 100px;
-        min-width: 100px;
-      }
-
       &.obs-col {
         width: 150px;
         min-width: 150px;
@@ -635,10 +634,6 @@ onUnmounted(() => {
         &.visit-col {
           left: 200px;
         }
-
-        &.encounter-col {
-          left: 320px;
-        }
       }
 
       &.obs-cell {
@@ -687,12 +682,26 @@ onUnmounted(() => {
 .visit-date {
   font-size: 0.8rem;
   color: $grey-8;
+  position: relative;
+  cursor: help;
 }
 
-.encounter-num {
-  font-size: 0.8rem;
-  color: $grey-7;
-  text-align: center;
+.tooltip-content {
+  font-size: 0.75rem;
+  line-height: 1.4;
+
+  div {
+    margin-bottom: 4px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    strong {
+      color: $grey-4;
+      font-weight: 600;
+    }
+  }
 }
 
 // Responsive adjustments
@@ -731,12 +740,6 @@ onUnmounted(() => {
         min-width: 100px;
       }
 
-      &.encounter-col {
-        left: 250px;
-        width: 80px;
-        min-width: 80px;
-      }
-
       &.obs-col {
         width: 100px;
         min-width: 100px;
@@ -751,11 +754,6 @@ onUnmounted(() => {
       &.visit-col {
         left: 150px;
         width: 100px;
-      }
-
-      &.encounter-col {
-        left: 250px;
-        width: 80px;
       }
 
       &.obs-cell {
