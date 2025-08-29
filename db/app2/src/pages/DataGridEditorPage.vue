@@ -11,15 +11,25 @@
     </div>
 
     <!-- Excel-like Editor -->
-    <ExcelLikeEditor v-else :patient-ids="selectedPatientIds" />
+    <ExcelLikeEditor v-else :patient-ids="selectedPatientIds" @statistics-update="handleStatisticsUpdate" @status-update="handleStatusUpdate" />
+
+    <!-- Combined Footer -->
+    <GridFooter
+      v-if="hasPatientSelection"
+      :has-unsaved-changes="status.hasUnsavedChanges"
+      :unsaved-changes-count="status.unsavedChangesCount"
+      :last-update-time="status.lastUpdateTime"
+      :statistics="statistics"
+    />
   </q-page>
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
+import GridFooter from 'src/components/datagrid/GridFooter.vue'
 
 // Note: This component does not use visit-observation-store because:
 // 1. It handles multiple patients simultaneously (visit-observation-store is single-patient focused)
@@ -28,6 +38,16 @@ import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
 
 const router = useRouter()
 const localSettings = useLocalSettingsStore()
+
+// Statistics state
+const statistics = ref(null)
+
+// Status state
+const status = ref({
+  hasUnsavedChanges: false,
+  unsavedChangesCount: 0,
+  lastUpdateTime: '',
+})
 
 // Computed properties (using store functions)
 const selectedPatientIds = computed(() => {
@@ -44,6 +64,14 @@ const hasPatientSelection = computed(() => {
 // Methods
 const goToSelection = () => {
   router.push('/data-grid')
+}
+
+const handleStatisticsUpdate = (newStatistics) => {
+  statistics.value = newStatistics
+}
+
+const handleStatusUpdate = (newStatus) => {
+  status.value = { ...status.value, ...newStatus }
 }
 
 // Lifecycle
@@ -63,6 +91,7 @@ onMounted(() => {
 .data-grid-editor-page {
   height: 100vh;
   overflow: hidden;
+  padding-bottom: 70px; // Account for fixed footer
 }
 
 .no-selection-state {

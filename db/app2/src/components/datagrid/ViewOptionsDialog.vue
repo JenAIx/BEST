@@ -196,6 +196,11 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  columnVisibility: {
+    type: Object,
+    default: () => ({}),
+    validator: (value) => value !== null && value !== undefined,
+  },
 })
 
 // Emits
@@ -407,7 +412,7 @@ watch(
         code: concept.code,
         name: concept.name,
         valueType: concept.valueType,
-        visible: true, // Default to visible
+        visible: props.columnVisibility && props.columnVisibility[concept.code] !== false, // Use prop or default to visible
         observationCount: concept.observationCount || 0,
       }))
 

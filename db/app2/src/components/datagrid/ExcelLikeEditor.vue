@@ -7,7 +7,7 @@
           <div class="text-h6 flex items-center">
             <q-icon name="table_view" size="24px" color="primary" class="q-mr-sm" />
             Data Grid Editor
-            <q-chip color="primary" text-color="white" size="sm" class="q-ml-sm"> {{ patientData.length }} patients • {{ totalObservations }} observations </q-chip>
+            <q-chip color="primary" text-color="white" size="sm" class="q-ml-sm"> {{ patientData.length }} patients • {{ visibleObservationConcepts.length }} observations </q-chip>
           </div>
           <div class="text-caption text-grey-6">Click any cell to edit • Changes auto-save • Use Tab/Enter to navigate</div>
         </div>
@@ -40,7 +40,7 @@
               <th class="fixed-col encounter-col">Encounter</th>
 
               <!-- Dynamic observation columns -->
-              <th v-for="concept in observationConcepts" :key="concept.code" class="obs-col" :title="concept.name">
+              <th v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-col" :title="concept.name">
                 <div class="col-header">
                   <div class="concept-name">{{ concept.name }}</div>
                   <div class="concept-code">{{ concept.code }}</div>
@@ -75,7 +75,7 @@
               </td>
 
               <!-- Observation cells -->
-              <td v-for="concept in observationConcepts" :key="concept.code" class="obs-cell" :class="getCellClass(row, concept)">
+              <td v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-cell" :class="getCellClass(row, concept)">
                 <EditableCell
                   :value="getCellValue(row, concept)"
                   :value-type="concept.valueType"
@@ -99,6 +99,7 @@
       v-model="showViewOptions"
       :view-options="viewOptions"
       :observation-concepts="observationConcepts"
+      :column-visibility="getColumnVisibilityObject()"
       @update:view-options="updateViewOptions"
       @update:column-visibility="handleColumnVisibilityUpdate"
       @update:column-order="handleColumnOrderUpdate"
@@ -189,23 +190,6 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
-
-    <!-- Status Bar -->
-    <div class="status-bar q-pa-sm bg-grey-2 text-grey-7">
-      <div class="row items-center justify-between">
-        <div class="col-auto text-caption">
-          <span v-if="hasUnsavedChanges" class="text-orange-8">
-            <q-icon name="edit" size="14px" class="q-mr-xs" />
-            {{ unsavedChangesCount }} unsaved changes
-          </span>
-          <span v-else class="text-positive">
-            <q-icon name="check_circle" size="14px" class="q-mr-xs" />
-            All changes saved
-          </span>
-        </div>
-        <div class="col-auto text-caption">Last updated: {{ lastUpdateTime }}</div>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -229,6 +213,8 @@ const props = defineProps({
   },
 })
 
+const emit = defineEmits(['statistics-update', 'status-update'])
+
 const $q = useQuasar()
 const router = useRouter()
 const dataGridStore = useDataGridStore()
@@ -239,6 +225,7 @@ const logger = loggingStore.createLogger('ExcelLikeEditor')
 // Local component state (only what's component-specific)
 const showViewOptions = ref(false)
 const showNewObservationDialog = ref(false)
+const columnVisibility = ref(new Map()) // Map<columnCode, visible>
 
 // New observation dialog state
 const newConceptSearch = ref('')
@@ -267,13 +254,86 @@ const initializeDialogState = () => {
 }
 
 // Computed properties (using store data)
-const totalObservations = computed(() => dataGridStore.totalObservations)
 const hasUnsavedChanges = computed(() => dataGridStore.hasUnsavedChanges)
 const unsavedChangesCount = computed(() => dataGridStore.unsavedChangesCount)
 const loading = computed(() => dataGridStore.loading)
 const savingAll = computed(() => dataGridStore.savingAll)
 const patientData = computed(() => dataGridStore.patientData)
 const observationConcepts = computed(() => dataGridStore.observationConcepts)
+
+// Filter visible columns based on visibility state
+const visibleObservationConcepts = computed(() => {
+  const allConcepts = observationConcepts.value || []
+
+  // If no visibility state exists, show all columns
+  if (!columnVisibility.value) {
+    return allConcepts
+  }
+
+  try {
+    return allConcepts.filter((concept) => {
+      // If no visibility state exists for this column, default to visible
+      return columnVisibility.value.get(concept.code) !== false
+    })
+  } catch (error) {
+    logger.warn('Error filtering visible concepts', error)
+    return allConcepts // Fallback to showing all concepts
+  }
+})
+
+// Calculate statistics for the footer
+const statistics = computed(() => {
+  try {
+    const totalObservations = observationConcepts.value?.length || 0
+    const visibleObservations = visibleObservationConcepts.value?.length || 0
+    const hiddenObservations = totalObservations - visibleObservations
+
+    // Calculate cell statistics
+    const rows = tableRows.value || []
+    const visibleConcepts = visibleObservationConcepts.value || []
+
+    let totalCells = 0
+    let filledCells = 0
+
+    rows.forEach((row) => {
+      visibleConcepts.forEach((concept) => {
+        totalCells++
+        try {
+          const cellValue = getCellValue(row, concept)
+          // Consider a cell filled if it has a non-empty value
+          if (cellValue !== null && cellValue !== undefined && cellValue !== 'NULL' && (typeof cellValue === 'string' ? cellValue.trim() !== '' : String(cellValue).trim() !== '')) {
+            filledCells++
+          }
+        } catch (error) {
+          logger.warn('Error getting cell value', { row, concept, error })
+          // Count as empty cell
+        }
+      })
+    })
+
+    const filledCellsPercentage = totalCells > 0 ? Math.round((filledCells / totalCells) * 100) : 0
+
+    return {
+      totalObservations,
+      visibleObservations,
+      hiddenObservations,
+      totalCells,
+      filledCells,
+      filledCellsPercentage,
+    }
+  } catch (error) {
+    logger.warn('Error calculating statistics', error)
+    return {
+      totalObservations: 0,
+      visibleObservations: 0,
+      hiddenObservations: 0,
+      totalCells: 0,
+      filledCells: 0,
+      filledCellsPercentage: 0,
+    }
+  }
+})
+
 const tableRows = computed(() => dataGridStore.tableRows)
 const lastUpdateTime = computed(() => dataGridStore.lastUpdateTime)
 const viewOptions = computed(() => dataGridStore.viewOptions)
@@ -426,8 +486,16 @@ const updateViewOptions = dataGridStore.updateViewOptions
 // Column management handlers
 const handleColumnVisibilityUpdate = (columnCode, visible) => {
   logger.info('Column visibility updated', { columnCode, visible })
-  // For now, we'll just log this. In a full implementation,
-  // you'd want to update the dataGridStore to persist column visibility
+
+  // Safety check - ensure columnVisibility is initialized
+  if (!columnVisibility.value) {
+    logger.warn('Column visibility not initialized')
+    return
+  }
+
+  // Update the local visibility state
+  columnVisibility.value.set(columnCode, visible)
+
   $q.notify({
     type: visible ? 'positive' : 'info',
     message: `Column "${columnCode}" is now ${visible ? 'visible' : 'hidden'}`,
@@ -444,6 +512,19 @@ const handleColumnOrderUpdate = (columnOrder) => {
     message: 'Column order updated successfully',
     position: 'top',
   })
+}
+
+// Safe method to convert column visibility Map to object
+const getColumnVisibilityObject = () => {
+  try {
+    if (!columnVisibility.value || columnVisibility.value.size === 0) {
+      return {}
+    }
+    return Object.fromEntries(columnVisibility.value)
+  } catch (error) {
+    logger.warn('Error converting column visibility to object', error)
+    return {}
+  }
 }
 
 // Watch for view options changes (store handles persistence)
@@ -483,6 +564,53 @@ watch(showNewObservationDialog, (isVisible) => {
   }
 })
 
+// Initialize column visibility when concepts are loaded
+const initializeColumnVisibility = () => {
+  try {
+    const concepts = observationConcepts.value || []
+    if (!columnVisibility.value) return // Safety check
+
+    concepts.forEach((concept) => {
+      if (concept && concept.code && !columnVisibility.value.has(concept.code)) {
+        columnVisibility.value.set(concept.code, true) // Default to visible
+      }
+    })
+  } catch (error) {
+    logger.warn('Error initializing column visibility', error)
+  }
+}
+
+// Watch for concept changes to initialize visibility
+watch(
+  observationConcepts,
+  () => {
+    initializeColumnVisibility()
+  },
+  { immediate: true },
+)
+
+// Watch for statistics changes and emit updates
+watch(
+  statistics,
+  (newStats) => {
+    emit('statistics-update', newStats)
+  },
+  { immediate: true },
+)
+
+// Watch for status changes and emit updates
+watch(
+  [hasUnsavedChanges, unsavedChangesCount, lastUpdateTime],
+  ([hasChanges, count, time]) => {
+    emit('status-update', {
+      hasUnsavedChanges: hasChanges,
+      unsavedChangesCount: count,
+      lastUpdateTime: time,
+    })
+  },
+  { immediate: true },
+)
+
 // Lifecycle
 onMounted(async () => {
   // Initialize stores
@@ -508,7 +636,7 @@ onUnmounted(() => {
 
 <style lang="scss" scoped>
 .excel-editor {
-  height: calc(100vh - 120px);
+  height: calc(100vh - 70px); // Account for the combined footer height
   display: flex;
   flex-direction: column;
   background: $grey-1;
@@ -596,6 +724,7 @@ onUnmounted(() => {
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
+            line-clamp: 2;
           }
 
           .concept-code {
@@ -695,11 +824,6 @@ onUnmounted(() => {
   font-size: 0.8rem;
   color: $grey-7;
   text-align: center;
-}
-
-.status-bar {
-  flex-shrink: 0;
-  border-top: 1px solid $grey-4;
 }
 
 // Responsive adjustments
