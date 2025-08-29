@@ -48,7 +48,12 @@ export class ConceptResolver {
       }
 
       // Determine color and label
-      const color = determineColor(resolvedName || conceptCode, options.context)
+      let color = 'grey'
+      try {
+        color = determineColor(resolvedName || conceptCode, options.context)
+      } catch (error) {
+        this.log('warn', `Color determination failed for concept ${conceptCode}`, error)
+      }
       const label = resolvedName || this.getFallbackLabel(conceptCode)
 
       return {
@@ -139,7 +144,12 @@ export class ConceptResolver {
       for (const code of conceptCodes) {
         const found = foundConcepts.get(code)
         const resolvedName = found?.name
-        const color = determineColor(resolvedName || code, options.context)
+        let color = 'grey'
+        try {
+          color = determineColor(resolvedName || code, options.context)
+        } catch (error) {
+          this.log('warn', `Color determination failed for concept ${code}`, error)
+        }
         const label = resolvedName || this.getFallbackLabel(code)
 
         results.set(code, {

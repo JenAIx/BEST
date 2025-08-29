@@ -111,6 +111,34 @@
         </q-select>
       </div>
 
+      <!-- Questionnaire Input (for questionnaire data) -->
+      <div v-else-if="actualValueType === 'Q'" class="questionnaire-input">
+        <!-- Show questionnaire preview if existing data -->
+        <div v-if="hasExistingQuestionnaire" class="existing-questionnaire-display">
+          <div class="questionnaire-info-card clickable-card" @click="showQuestionnairePreview = true">
+            <div class="questionnaire-header">
+              <q-icon name="quiz" color="deep-purple" size="32px" />
+              <div class="questionnaire-details">
+                <div class="questionnaire-name">{{ existingObservation?.value || 'Questionnaire' }}</div>
+                <div class="questionnaire-meta">
+                  <span class="questionnaire-type">QUESTIONNAIRE</span>
+                  <span class="questionnaire-note">Click to view details</span>
+                </div>
+              </div>
+            </div>
+            <q-tooltip>Click to preview questionnaire</q-tooltip>
+          </div>
+        </div>
+        <!-- Show placeholder for new questionnaire data -->
+        <div v-else class="questionnaire-placeholder">
+          <q-input v-model="currentValue" placeholder="Questionnaire data (JSON)" outlined dense :loading="saving" type="textarea" rows="3">
+            <template v-slot:prepend>
+              <q-icon name="quiz" />
+            </template>
+          </q-input>
+        </div>
+      </div>
+
       <!-- Raw Input (for raw data/files) -->
       <div v-else-if="actualValueType === 'R'" class="raw-input">
         <!-- Show file attachment interface if no existing file -->
@@ -201,6 +229,15 @@
       :concept-name="resolvedConceptName || concept.name"
       :upload-date="existingObservation?.date"
     />
+
+    <!-- Questionnaire Preview Dialog -->
+    <QuestionnairePreviewDialog
+      v-if="actualValueType === 'Q' && existingObservation?.observationId"
+      v-model="showQuestionnairePreview"
+      :observation-id="existingObservation?.observationId"
+      :concept-name="resolvedConceptName || concept.name"
+      :completion-date="existingObservation?.date"
+    />
   </div>
 </template>
 
@@ -214,6 +251,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useDatabaseStore } from 'src/stores/database-store'
 import FileUploadInput from 'src/components/shared/FileUploadInput.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
+import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 
 const props = defineProps({
   concept: {
@@ -265,6 +303,9 @@ const showFilePreview = ref(false)
 const downloading = ref(false)
 const existingFileInfo = ref(null)
 
+// Questionnaire-related state for 'Q' type observations
+const showQuestionnairePreview = ref(false)
+
 // Computed
 const hasValue = computed(() => {
   return currentValue.value !== '' && currentValue.value !== null && currentValue.value !== undefined
@@ -278,6 +319,11 @@ const actualValueType = computed(() => {
 // Check if there's an existing file for raw data type
 const hasExistingFile = computed(() => {
   return actualValueType.value === 'R' && props.existingObservation && existingFileInfo.value
+})
+
+// Check if there's existing questionnaire data for questionnaire type
+const hasExistingQuestionnaire = computed(() => {
+  return actualValueType.value === 'Q' && props.existingObservation && props.existingObservation.observationId
 })
 
 // displayValue removed - no longer needed since value is shown in input field
@@ -851,6 +897,8 @@ onMounted(async () => {
       }
     }
 
+    // Questionnaire parsing removed - dialog now fetches data on-demand using observation ID
+
     logger.debug('Initialized with existing observation value', {
       conceptCode: props.concept.code,
       initialValue,
@@ -1232,6 +1280,71 @@ onUnmounted(() => {
           }
         }
       }
+    }
+  }
+
+  .questionnaire-input {
+    .existing-questionnaire-display {
+      .questionnaire-info-card {
+        border: 1px solid $deep-purple-3;
+        border-radius: 8px;
+        padding: 0.75rem;
+        background: rgba($deep-purple, 0.05);
+        transition: all 0.2s ease;
+
+        &.clickable-card {
+          cursor: pointer;
+
+          &:hover {
+            border-color: $deep-purple;
+            background: rgba($deep-purple, 0.12);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba($deep-purple, 0.15);
+          }
+        }
+
+        .questionnaire-header {
+          display: flex;
+          align-items: center;
+          gap: 0.75rem;
+
+          .questionnaire-details {
+            flex: 1;
+
+            .questionnaire-name {
+              font-weight: 500;
+              color: $grey-8;
+              font-size: 0.875rem;
+              word-break: break-word;
+            }
+
+            .questionnaire-meta {
+              display: flex;
+              gap: 0.5rem;
+              margin-top: 0.25rem;
+
+              .questionnaire-type,
+              .questionnaire-note {
+                font-size: 0.75rem;
+                color: $grey-6;
+              }
+
+              .questionnaire-type {
+                font-weight: 500;
+                color: $deep-purple;
+              }
+
+              .questionnaire-note {
+                font-style: italic;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    .questionnaire-placeholder {
+      margin-bottom: 0.5rem;
     }
   }
 }

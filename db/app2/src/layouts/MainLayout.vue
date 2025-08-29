@@ -118,6 +118,13 @@
             <q-item-section> Visits </q-item-section>
           </q-item>
 
+          <q-item clickable v-ripple to="/questionnaires" active-class="bg-primary text-white">
+            <q-item-section avatar>
+              <q-icon name="quiz" />
+            </q-item-section>
+            <q-item-section> Questionnaires </q-item-section>
+          </q-item>
+
           <q-separator spaced />
 
           <!-- Study Management -->

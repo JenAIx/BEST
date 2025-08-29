@@ -21,6 +21,7 @@ import { addNoteFactColumns } from '../database/migrations/003-add-note-fact-col
 // import { addCascadeTriggers } from '../database/migrations/004-add-cascade-triggers.js'
 import { createPatientListView } from '../database/migrations/005-create-patient-list-view.js'
 import { createPatientObservationsView } from '../database/migrations/006-create-patient-observations-view.js'
+import { patientUpdateTriggers } from '../database/migrations/007-patient-update-triggers.js'
 
 class DatabaseService {
   constructor() {
@@ -69,6 +70,7 @@ class DatabaseService {
       // this.migrationManager.registerMigration(addCascadeTriggers)
       this.migrationManager.registerMigration(createPatientListView)
       this.migrationManager.registerMigration(createPatientObservationsView)
+      this.migrationManager.registerMigration(patientUpdateTriggers)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()

@@ -150,15 +150,19 @@ const MEDICAL_CATEGORY_COLORS = {
 
 /**
  * Determine color based on text content and context
- * @param {string} text - Text to analyze for color mapping
+ * @param {string|number} text - Text to analyze for color mapping
  * @param {string} context - Context hint (e.g., 'status', 'gender', etc.)
  * @param {Object} options - Additional options
  * @returns {string} Quasar color name
  */
 export function determineColor(text, context = null, options = {}) {
-  if (!text) return options.defaultColor || 'grey'
+  if (!text && text !== 0) return options.defaultColor || 'grey'
 
-  const lowerText = text.toLowerCase().trim()
+  // Convert to string and ensure it's a valid string before calling toLowerCase
+  const textStr = String(text)
+  if (typeof textStr !== 'string') return options.defaultColor || 'grey'
+
+  const lowerText = textStr.toLowerCase().trim()
 
   // Handle simple single-character codes first
   if (lowerText.length === 1 && SIMPLE_CODE_COLORS[lowerText.toUpperCase()]) {
@@ -234,8 +238,10 @@ export function getPatientDisplayColor(patient) {
 
   // Color based on vital status if available
   if (patient.vital_status || patient.vitalStatus) {
-    const status = (patient.vital_status || patient.vitalStatus).toLowerCase()
-    return determineColor(status, 'vital_status')
+    const status = String(patient.vital_status || patient.vitalStatus)
+    if (typeof status === 'string') {
+      return determineColor(status.toLowerCase(), 'vital_status')
+    }
   }
 
   return 'primary'
@@ -252,13 +258,13 @@ export function getVisitStatusColor(status) {
 
 /**
  * Get color for observation value based on type and content
- * @param {string} value - Observation value
+ * @param {string|number} value - Observation value
  * @param {string} valueType - Value type (S, F, N, etc.)
  * @param {string} conceptCode - Concept code for additional context
  * @returns {string} Quasar color name
  */
 export function getObservationValueColor(value, valueType) {
-  if (!value) return 'grey'
+  if (!value && value !== 0) return 'grey'
 
   // Determine context based on value type
   let context = null
@@ -275,14 +281,18 @@ export function getObservationValueColor(value, valueType) {
     case 'D':
       return 'info'
     case 'T':
-    default:
+    default: {
       // For text values, try to infer context from content
-      if (value.toLowerCase().includes('status')) {
-        context = 'status'
-      } else if (value.toLowerCase().includes('result')) {
-        context = 'lab_result'
+      const valueStr = String(value)
+      if (typeof valueStr === 'string') {
+        if (valueStr.toLowerCase().includes('status')) {
+          context = 'status'
+        } else if (valueStr.toLowerCase().includes('result')) {
+          context = 'lab_result'
+        }
       }
       break
+    }
   }
 
   return determineColor(value, context)

@@ -140,6 +140,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import NewVisitDialog from '../visits/NewVisitDialog.vue'
 import VisitItem from './VisitItem.vue'
@@ -149,6 +150,7 @@ const emit = defineEmits(['updated'])
 
 const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
+const globalSettingsStore = useGlobalSettingsStore()
 const visitObservationStore = useVisitObservationStore()
 
 // Reactive state
@@ -190,6 +192,7 @@ const filteredObservations = computed(() => {
     START_DATE: obs.date,
     UNIT_CD: obs.unit,
     ENCOUNTER_NUM: obs.encounterNum, // Use the actual encounter number from the observation
+    // OBSERVATION_BLOB removed - dialog fetches this data itself using observation ID for better memory efficiency
   }))
 
   let filtered = [...mappedObservations]
@@ -267,25 +270,52 @@ const groupedObservations = computed(() => {
     }))
 })
 
-const valueTypeOptions = [
-  { label: 'Answer (A)', value: 'A' },
-  { label: 'Date (D)', value: 'D' },
-  { label: 'Finding (F)', value: 'F' },
-  { label: 'Numeric (N)', value: 'N' },
-  { label: 'Raw Text (R)', value: 'R' },
-  { label: 'Selection (S)', value: 'S' },
-  { label: 'Text (T)', value: 'T' },
-  { label: '--- Data Types ---', value: '', disable: true },
-  { label: 'Has Numeric Values', value: 'numeric' },
-  { label: 'Has Text Values', value: 'text' },
-  { label: 'Empty Values', value: 'empty' },
-]
+// Dynamic value type options from global settings store
+const valueTypeOptions = ref([])
+
+// Load value type options from store
+const loadValueTypeOptions = async () => {
+  try {
+    // Get value types from the global settings store
+    const storeOptions = await globalSettingsStore.getValueTypeOptions()
+
+    // Combine store options with useful data type filters
+    valueTypeOptions.value = [
+      ...storeOptions,
+      { label: '--- Data Types ---', value: '', disable: true },
+      { label: 'Has Numeric Values', value: 'numeric' },
+      { label: 'Has Text Values', value: 'text' },
+      { label: 'Empty Values', value: 'empty' },
+    ]
+  } catch (error) {
+    console.error('Failed to load value type options:', error)
+    // Fallback to basic options if store fails
+    valueTypeOptions.value = [
+      { label: 'Answer (A)', value: 'A' },
+      { label: 'Date (D)', value: 'D' },
+      { label: 'Finding (F)', value: 'F' },
+      { label: 'Numeric (N)', value: 'N' },
+      { label: 'Questionnaire (Q)', value: 'Q' },
+      { label: 'Raw Text (R)', value: 'R' },
+      { label: 'Selection (S)', value: 'S' },
+      { label: 'Text (T)', value: 'T' },
+      { label: '--- Data Types ---', value: '', disable: true },
+      { label: 'Has Numeric Values', value: 'numeric' },
+      { label: 'Has Text Values', value: 'text' },
+      { label: 'Empty Values', value: 'empty' },
+    ]
+  }
+}
 
 // Initialize concept store and preload concepts when component mounts
 onMounted(async () => {
   // Initialize stores
   await conceptStore.initialize()
   await localSettingsStore.initialize()
+  await globalSettingsStore.initialize()
+
+  // Load value type options from global settings store
+  await loadValueTypeOptions()
 
   // Load sort mode from settings store
   sortMode.value = localSettingsStore.getPatientObservationsSortMode()
@@ -312,14 +342,15 @@ const preloadObservationConcepts = async () => {
   const conceptsToResolve = new Set()
 
   observations.value.forEach((obs) => {
-    // Add concept codes that might need resolution
-    if (obs.conceptCode && !obs.conceptName) {
+    // Add concept codes that might need resolution (only strings)
+    if (obs.conceptCode && !obs.conceptName && typeof obs.conceptCode === 'string') {
       conceptsToResolve.add(obs.conceptCode)
     }
-    if (obs.originalValue && !obs.resolvedValue) {
+    // Only add text values for resolution, not numeric values
+    if (obs.originalValue && !obs.resolvedValue && typeof obs.originalValue === 'string' && isNaN(obs.originalValue)) {
       conceptsToResolve.add(obs.originalValue)
     }
-    if (obs.unit && !obs.unitResolved) {
+    if (obs.unit && !obs.unitResolved && typeof obs.unit === 'string') {
       conceptsToResolve.add(obs.unit)
     }
   })
