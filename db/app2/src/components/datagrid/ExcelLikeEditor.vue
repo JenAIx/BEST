@@ -8,14 +8,13 @@
             <q-icon name="table_view" size="24px" color="primary" class="q-mr-sm" />
             Data Grid Editor
             <q-chip color="primary" text-color="white" size="sm" class="q-ml-sm"> {{ patientData.length }} patients • {{ visibleObservationConcepts.length }} observations </q-chip>
+            <div class="text-caption text-grey-6">Click any cell to edit • Changes auto-save • Use Tab/Enter to navigate</div>
           </div>
-          <div class="text-caption text-grey-6">Click any cell to edit • Changes auto-save • Use Tab/Enter to navigate</div>
         </div>
-        <div class="col-auto q-gutter-sm">
+        <div class="col-auto q-gutter-sm q-mt-sm">
           <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
           <q-btn color="secondary" icon="add" label="New Observation" @click="showNewObservationDialog = true" />
           <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
-          <q-btn color="primary" icon="save" label="Save All" @click="saveAllChanges" :loading="savingAll" :disable="!dataGridStore?.hasUnsavedChanges" />
           <q-btn flat icon="arrow_back" label="Back to Selection" @click="goBack" />
         </div>
       </div>
@@ -259,7 +258,6 @@ const initializeDialogState = () => {
 
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
-const savingAll = computed(() => dataGridStore?.savingAll || false)
 const patientData = computed(() => dataGridStore?.patientData || [])
 const observationConcepts = computed(() => dataGridStore?.observationConcepts || [])
 
@@ -375,7 +373,6 @@ const addNewObservationColumn = async (concept) => {
 }
 
 // Batch operations (using store functions) - with defensive checks
-const saveAllChanges = dataGridStore?.saveAllChanges || (() => {})
 const refreshData = () => (dataGridStore?.refreshData ? dataGridStore.refreshData(props.patientIds) : () => {})
 
 const goBack = () => {
@@ -390,26 +387,6 @@ const goBack = () => {
     })
   } else {
     router.push('/data-grid')
-  }
-}
-
-// Auto-save functionality
-let autoSaveInterval = null
-
-const startAutoSave = () => {
-  autoSaveInterval = setInterval(() => {
-    if (dataGridStore.hasUnsavedChanges) {
-      // Auto-save logic could be implemented here
-      // For now, we'll just update the timestamp
-      dataGridStore.lastUpdateTime = new Date().toLocaleTimeString()
-    }
-  }, 30000) // Auto-save every 30 seconds
-}
-
-const stopAutoSave = () => {
-  if (autoSaveInterval) {
-    clearInterval(autoSaveInterval)
-    autoSaveInterval = null
   }
 }
 
@@ -495,12 +472,9 @@ onMounted(async () => {
   initializeDialogState()
 
   await loadPatientData()
-  startAutoSave()
 })
 
 onUnmounted(() => {
-  stopAutoSave()
-
   // Clean up concept search timeout
   if (conceptSearchTimeout) {
     clearTimeout(conceptSearchTimeout)
