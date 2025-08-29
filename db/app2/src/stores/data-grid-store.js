@@ -41,6 +41,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // View options
   const viewOptions = ref(getDefaultViewOptions())
 
+  // Column visibility state (Map<columnCode, visible>)
+  const columnVisibility = ref(new Map())
+
   // Getters
   const totalObservations = computed(() => {
     return tableRows.value.reduce((total, row) => {
@@ -54,6 +57,79 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
   const unsavedChangesCount = computed(() => {
     return pendingChanges.value.size
+  })
+
+  // Visible observation concepts based on column visibility
+  const getVisibleObservationConcepts = computed(() => {
+    const allConcepts = observationConcepts.value || []
+
+    // If no visibility state exists, show all columns
+    if (!columnVisibility.value || columnVisibility.value.size === 0) {
+      return allConcepts
+    }
+
+    try {
+      return allConcepts.filter((concept) => {
+        // If no visibility state exists for this column, default to visible
+        return columnVisibility.value.get(concept.code) !== false
+      })
+    } catch (error) {
+      logger.warn('Error filtering visible concepts in store', error)
+      return allConcepts // Fallback to showing all concepts
+    }
+  })
+
+  // Statistics computation
+  const statistics = computed(() => {
+    try {
+      const totalObservations = observationConcepts.value?.length || 0
+      const visibleObservations = getVisibleObservationConcepts.value?.length || 0
+      const hiddenObservations = totalObservations - visibleObservations
+
+      // Calculate cell statistics
+      const rows = tableRows.value || []
+      const visibleConcepts = getVisibleObservationConcepts.value || []
+
+      let totalCells = 0
+      let filledCells = 0
+
+      rows.forEach((row) => {
+        visibleConcepts.forEach((concept) => {
+          totalCells++
+          try {
+            const cellValue = getCellValue(row, concept)
+            // Consider a cell filled if it has a non-empty value
+            if (cellValue !== null && cellValue !== undefined && cellValue !== 'NULL' && (typeof cellValue === 'string' ? cellValue.trim() !== '' : String(cellValue).trim() !== '')) {
+              filledCells++
+            }
+          } catch (error) {
+            logger.warn('Error getting cell value for statistics', { row, concept, error })
+            // Count as empty cell
+          }
+        })
+      })
+
+      const filledCellsPercentage = totalCells > 0 ? Math.round((filledCells / totalCells) * 100) : 0
+
+      return {
+        totalObservations,
+        visibleObservations,
+        hiddenObservations,
+        totalCells,
+        filledCells,
+        filledCellsPercentage,
+      }
+    } catch (error) {
+      logger.warn('Error calculating statistics', error)
+      return {
+        totalObservations: 0,
+        visibleObservations: 0,
+        hiddenObservations: 0,
+        totalCells: 0,
+        filledCells: 0,
+        filledCellsPercentage: 0,
+      }
+    }
   })
 
   // Utility functions
@@ -251,6 +327,102 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     }
   }
 
+  // Column visibility management
+  const updateColumnVisibility = (columnCode, visible) => {
+    logger.info('Updating column visibility in store', { columnCode, visible })
+
+    // Safety check - ensure columnVisibility is initialized
+    if (!columnVisibility.value) {
+      columnVisibility.value = new Map()
+    }
+
+    // Update the visibility state
+    columnVisibility.value.set(columnCode, visible)
+
+    // Save to local settings for persistence
+    const visibilityObject = Object.fromEntries(columnVisibility.value)
+    localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+
+    logger.debug('Column visibility updated', { columnCode, visible, totalColumns: columnVisibility.value.size })
+  }
+
+  const loadColumnVisibility = () => {
+    const savedVisibility = localSettings.getSetting('dataGrid.columnVisibility')
+    if (savedVisibility && typeof savedVisibility === 'object') {
+      columnVisibility.value = new Map(Object.entries(savedVisibility))
+      logger.debug('Loaded saved column visibility', { savedVisibility })
+    }
+  }
+
+  const initializeColumnVisibility = () => {
+    try {
+      const concepts = observationConcepts.value || []
+      if (!columnVisibility.value) {
+        columnVisibility.value = new Map()
+      }
+
+      concepts.forEach((concept) => {
+        if (concept && concept.code && !columnVisibility.value.has(concept.code)) {
+          columnVisibility.value.set(concept.code, true) // Default to visible
+        }
+      })
+
+      // Save to local settings
+      const visibilityObject = Object.fromEntries(columnVisibility.value)
+      localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+
+      logger.debug('Initialized column visibility for concepts', { conceptCount: concepts.length })
+    } catch (error) {
+      logger.warn('Error initializing column visibility', error)
+    }
+  }
+
+  const showAllColumns = () => {
+    const concepts = observationConcepts.value || []
+    concepts.forEach((concept) => {
+      if (concept && concept.code) {
+        columnVisibility.value.set(concept.code, true)
+      }
+    })
+
+    // Save to local settings
+    const visibilityObject = Object.fromEntries(columnVisibility.value)
+    localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+
+    logger.info('Showed all columns', { columnCount: concepts.length })
+  }
+
+  const hideAllColumns = () => {
+    const concepts = observationConcepts.value || []
+    concepts.forEach((concept) => {
+      if (concept && concept.code) {
+        columnVisibility.value.set(concept.code, false)
+      }
+    })
+
+    // Save to local settings
+    const visibilityObject = Object.fromEntries(columnVisibility.value)
+    localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+
+    logger.info('Hid all columns', { columnCount: concepts.length })
+  }
+
+  const resetColumnOrder = () => {
+    // Reset all columns to visible
+    const concepts = observationConcepts.value || []
+    concepts.forEach((concept) => {
+      if (concept && concept.code) {
+        columnVisibility.value.set(concept.code, true)
+      }
+    })
+
+    // Save to local settings
+    const visibilityObject = Object.fromEntries(columnVisibility.value)
+    localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+
+    logger.info('Reset column order - all columns now visible', { columnCount: concepts.length })
+  }
+
   // Reset functions
   const resetGridData = () => {
     patientData.value = []
@@ -333,6 +505,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // Initialize function
   const initialize = () => {
     loadViewOptions()
+    loadColumnVisibility()
     logger.info('DataGridStore initialized')
   }
 
@@ -346,11 +519,14 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     pendingChanges,
     lastUpdateTime,
     viewOptions,
+    columnVisibility,
 
     // Getters
     totalObservations,
     hasUnsavedChanges,
     unsavedChangesCount,
+    getVisibleObservationConcepts,
+    statistics,
 
     // Utility functions
     getPatientName,
@@ -376,6 +552,14 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     // View options
     updateViewOptions,
     loadViewOptions,
+
+    // Column visibility management
+    updateColumnVisibility,
+    loadColumnVisibility,
+    initializeColumnVisibility,
+    showAllColumns,
+    hideAllColumns,
+    resetColumnOrder,
 
     // Reset
     resetGridData,

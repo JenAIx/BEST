@@ -55,29 +55,17 @@
 </template>
 
 <script setup>
-// Props - accessed in template
-/* eslint-disable no-unused-vars */
-const props = defineProps({
-  hasUnsavedChanges: {
-    type: Boolean,
-    default: false,
-  },
-  unsavedChangesCount: {
-    type: Number,
-    default: 0,
-  },
-  lastUpdateTime: {
-    type: String,
-    default: '',
-  },
-  statistics: {
-    type: Object,
-    default: null,
-  },
-})
+import { computed } from 'vue'
+import { useDataGridStore } from 'src/stores/data-grid-store'
 
-// Note: Statistics are accessed directly from props in the template
-// No computed properties needed since template uses direct prop access
+// Use store directly for reactive data
+const dataGridStore = useDataGridStore()
+
+// Reactive computed properties from store
+const hasUnsavedChanges = computed(() => dataGridStore?.hasUnsavedChanges || false)
+const unsavedChangesCount = computed(() => dataGridStore?.unsavedChangesCount || 0)
+const lastUpdateTime = computed(() => dataGridStore?.lastUpdateTime || '')
+const statistics = computed(() => dataGridStore?.statistics || null)
 </script>
 
 <style lang="scss" scoped>

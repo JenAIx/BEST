@@ -15,7 +15,7 @@
           <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
           <q-btn color="secondary" icon="add" label="New Observation" @click="showNewObservationDialog = true" />
           <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
-          <q-btn color="primary" icon="save" label="Save All" @click="saveAllChanges" :loading="savingAll" :disable="!hasUnsavedChanges" />
+          <q-btn color="primary" icon="save" label="Save All" @click="saveAllChanges" :loading="savingAll" :disable="!dataGridStore?.hasUnsavedChanges" />
           <q-btn flat icon="arrow_back" label="Back to Selection" @click="goBack" />
         </div>
       </div>
@@ -99,7 +99,7 @@
       v-model="showViewOptions"
       :view-options="viewOptions"
       :observation-concepts="observationConcepts"
-      :column-visibility="getColumnVisibilityObject()"
+      :column-visibility="dataGridStore?.columnVisibility ? Object.fromEntries(dataGridStore.columnVisibility) : {}"
       @update:view-options="updateViewOptions"
       @update:column-visibility="handleColumnVisibilityUpdate"
       @update:column-order="handleColumnOrderUpdate"
@@ -213,7 +213,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['statistics-update', 'status-update'])
+// No longer need to emit events - store handles reactivity
 
 const $q = useQuasar()
 const router = useRouter()
@@ -225,7 +225,6 @@ const logger = loggingStore.createLogger('ExcelLikeEditor')
 // Local component state (only what's component-specific)
 const showViewOptions = ref(false)
 const showNewObservationDialog = ref(false)
-const columnVisibility = ref(new Map()) // Map<columnCode, visible>
 
 // New observation dialog state
 const newConceptSearch = ref('')
@@ -254,89 +253,16 @@ const initializeDialogState = () => {
 }
 
 // Computed properties (using store data)
-const hasUnsavedChanges = computed(() => dataGridStore.hasUnsavedChanges)
-const unsavedChangesCount = computed(() => dataGridStore.unsavedChangesCount)
-const loading = computed(() => dataGridStore.loading)
-const savingAll = computed(() => dataGridStore.savingAll)
-const patientData = computed(() => dataGridStore.patientData)
-const observationConcepts = computed(() => dataGridStore.observationConcepts)
+const loading = computed(() => dataGridStore?.loading || false)
+const savingAll = computed(() => dataGridStore?.savingAll || false)
+const patientData = computed(() => dataGridStore?.patientData || [])
+const observationConcepts = computed(() => dataGridStore?.observationConcepts || [])
 
-// Filter visible columns based on visibility state
-const visibleObservationConcepts = computed(() => {
-  const allConcepts = observationConcepts.value || []
+// Use store's reactive properties for visibility and statistics
+const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObservationConcepts || [])
 
-  // If no visibility state exists, show all columns
-  if (!columnVisibility.value) {
-    return allConcepts
-  }
-
-  try {
-    return allConcepts.filter((concept) => {
-      // If no visibility state exists for this column, default to visible
-      return columnVisibility.value.get(concept.code) !== false
-    })
-  } catch (error) {
-    logger.warn('Error filtering visible concepts', error)
-    return allConcepts // Fallback to showing all concepts
-  }
-})
-
-// Calculate statistics for the footer
-const statistics = computed(() => {
-  try {
-    const totalObservations = observationConcepts.value?.length || 0
-    const visibleObservations = visibleObservationConcepts.value?.length || 0
-    const hiddenObservations = totalObservations - visibleObservations
-
-    // Calculate cell statistics
-    const rows = tableRows.value || []
-    const visibleConcepts = visibleObservationConcepts.value || []
-
-    let totalCells = 0
-    let filledCells = 0
-
-    rows.forEach((row) => {
-      visibleConcepts.forEach((concept) => {
-        totalCells++
-        try {
-          const cellValue = getCellValue(row, concept)
-          // Consider a cell filled if it has a non-empty value
-          if (cellValue !== null && cellValue !== undefined && cellValue !== 'NULL' && (typeof cellValue === 'string' ? cellValue.trim() !== '' : String(cellValue).trim() !== '')) {
-            filledCells++
-          }
-        } catch (error) {
-          logger.warn('Error getting cell value', { row, concept, error })
-          // Count as empty cell
-        }
-      })
-    })
-
-    const filledCellsPercentage = totalCells > 0 ? Math.round((filledCells / totalCells) * 100) : 0
-
-    return {
-      totalObservations,
-      visibleObservations,
-      hiddenObservations,
-      totalCells,
-      filledCells,
-      filledCellsPercentage,
-    }
-  } catch (error) {
-    logger.warn('Error calculating statistics', error)
-    return {
-      totalObservations: 0,
-      visibleObservations: 0,
-      hiddenObservations: 0,
-      totalCells: 0,
-      filledCells: 0,
-      filledCellsPercentage: 0,
-    }
-  }
-})
-
-const tableRows = computed(() => dataGridStore.tableRows)
-const lastUpdateTime = computed(() => dataGridStore.lastUpdateTime)
-const viewOptions = computed(() => dataGridStore.viewOptions)
+const tableRows = computed(() => dataGridStore?.tableRows || [])
+const viewOptions = computed(() => dataGridStore?.viewOptions || {})
 
 // Scroll area styling
 const thumbStyle = {
@@ -357,21 +283,23 @@ const barStyle = {
 
 // Data loading methods (using store functions)
 const loadPatientData = async () => {
-  await dataGridStore.loadGridData(props.patientIds)
+  if (dataGridStore?.loadGridData) {
+    await dataGridStore.loadGridData(props.patientIds)
+  }
 }
 
-// Helper methods (using store functions)
-const getPatientInitials = dataGridStore.getPatientInitials
-const formatDate = dataGridStore.formatDate
-const getCellValue = dataGridStore.getCellValue
-const getCellObservationId = dataGridStore.getCellObservationId
-const getCellClass = dataGridStore.getCellClass
-const hasRowChanges = dataGridStore.hasRowChanges
+// Helper methods (using store functions) - with defensive checks
+const getPatientInitials = dataGridStore?.getPatientInitials || (() => 'U')
+const formatDate = dataGridStore?.formatDate || ((date) => date || '')
+const getCellValue = dataGridStore?.getCellValue || (() => '')
+const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
+const getCellClass = dataGridStore?.getCellClass || (() => '')
+const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
 
-// Event handlers (using store functions)
-const onCellUpdate = dataGridStore.handleCellUpdate
-const onCellSave = dataGridStore.handleCellSave
-const onCellError = dataGridStore.handleCellError
+// Event handlers (using store functions) - with defensive checks
+const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
+const onCellSave = dataGridStore?.handleCellSave || (() => {})
+const onCellError = dataGridStore?.handleCellError || (() => {})
 
 // New observation methods
 const searchConceptsForNewObservation = async (query) => {
@@ -441,12 +369,12 @@ const addNewObservationColumn = async (concept) => {
   }
 }
 
-// Batch operations (using store functions)
-const saveAllChanges = dataGridStore.saveAllChanges
-const refreshData = () => dataGridStore.refreshData(props.patientIds)
+// Batch operations (using store functions) - with defensive checks
+const saveAllChanges = dataGridStore?.saveAllChanges || (() => {})
+const refreshData = () => (dataGridStore?.refreshData ? dataGridStore.refreshData(props.patientIds) : () => {})
 
 const goBack = () => {
-  if (dataGridStore.hasUnsavedChanges) {
+  if (dataGridStore?.hasUnsavedChanges) {
     $q.dialog({
       title: 'Unsaved Changes',
       message: 'You have unsaved changes. Are you sure you want to go back?',
@@ -465,10 +393,10 @@ let autoSaveInterval = null
 
 const startAutoSave = () => {
   autoSaveInterval = setInterval(() => {
-    if (hasUnsavedChanges.value) {
+    if (dataGridStore.hasUnsavedChanges) {
       // Auto-save logic could be implemented here
       // For now, we'll just update the timestamp
-      lastUpdateTime.value = new Date().toLocaleTimeString()
+      dataGridStore.lastUpdateTime = new Date().toLocaleTimeString()
     }
   }, 30000) // Auto-save every 30 seconds
 }
@@ -483,18 +411,9 @@ const stopAutoSave = () => {
 // View options management (delegate to store)
 const updateViewOptions = dataGridStore.updateViewOptions
 
-// Column management handlers
+// Column management handlers - delegate to store
 const handleColumnVisibilityUpdate = (columnCode, visible) => {
-  logger.info('Column visibility updated', { columnCode, visible })
-
-  // Safety check - ensure columnVisibility is initialized
-  if (!columnVisibility.value) {
-    logger.warn('Column visibility not initialized')
-    return
-  }
-
-  // Update the local visibility state
-  columnVisibility.value.set(columnCode, visible)
+  dataGridStore.updateColumnVisibility(columnCode, visible)
 
   $q.notify({
     type: visible ? 'positive' : 'info',
@@ -512,19 +431,6 @@ const handleColumnOrderUpdate = (columnOrder) => {
     message: 'Column order updated successfully',
     position: 'top',
   })
-}
-
-// Safe method to convert column visibility Map to object
-const getColumnVisibilityObject = () => {
-  try {
-    if (!columnVisibility.value || columnVisibility.value.size === 0) {
-      return {}
-    }
-    return Object.fromEntries(columnVisibility.value)
-  } catch (error) {
-    logger.warn('Error converting column visibility to object', error)
-    return {}
-  }
 }
 
 // Watch for view options changes (store handles persistence)
@@ -564,58 +470,21 @@ watch(showNewObservationDialog, (isVisible) => {
   }
 })
 
-// Initialize column visibility when concepts are loaded
-const initializeColumnVisibility = () => {
-  try {
-    const concepts = observationConcepts.value || []
-    if (!columnVisibility.value) return // Safety check
+// Store automatically handles column visibility initialization
+// when concepts are loaded via initializeColumnVisibility method
 
-    concepts.forEach((concept) => {
-      if (concept && concept.code && !columnVisibility.value.has(concept.code)) {
-        columnVisibility.value.set(concept.code, true) // Default to visible
-      }
-    })
-  } catch (error) {
-    logger.warn('Error initializing column visibility', error)
-  }
-}
-
-// Watch for concept changes to initialize visibility
-watch(
-  observationConcepts,
-  () => {
-    initializeColumnVisibility()
-  },
-  { immediate: true },
-)
-
-// Watch for statistics changes and emit updates
-watch(
-  statistics,
-  (newStats) => {
-    emit('statistics-update', newStats)
-  },
-  { immediate: true },
-)
-
-// Watch for status changes and emit updates
-watch(
-  [hasUnsavedChanges, unsavedChangesCount, lastUpdateTime],
-  ([hasChanges, count, time]) => {
-    emit('status-update', {
-      hasUnsavedChanges: hasChanges,
-      unsavedChangesCount: count,
-      lastUpdateTime: time,
-    })
-  },
-  { immediate: true },
-)
+// Store handles all reactive updates automatically
+// No need for event emissions since components can react to store changes directly
 
 // Lifecycle
 onMounted(async () => {
   // Initialize stores
-  dataGridStore.initialize()
-  await conceptStore.initialize()
+  if (dataGridStore?.initialize) {
+    dataGridStore.initialize()
+  }
+  if (conceptStore?.initialize) {
+    await conceptStore.initialize()
+  }
 
   // Initialize dialog state
   initializeDialogState()

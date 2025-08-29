@@ -11,23 +11,18 @@
     </div>
 
     <!-- Excel-like Editor -->
-    <ExcelLikeEditor v-else :patient-ids="selectedPatientIds" @statistics-update="handleStatisticsUpdate" @status-update="handleStatusUpdate" />
+    <ExcelLikeEditor v-else :patient-ids="selectedPatientIds" />
 
     <!-- Combined Footer -->
-    <GridFooter
-      v-if="hasPatientSelection"
-      :has-unsaved-changes="status.hasUnsavedChanges"
-      :unsaved-changes-count="status.unsavedChangesCount"
-      :last-update-time="status.lastUpdateTime"
-      :statistics="statistics"
-    />
+    <GridFooter v-if="hasPatientSelection" />
   </q-page>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useDataGridStore } from 'src/stores/data-grid-store'
 import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
 import GridFooter from 'src/components/datagrid/GridFooter.vue'
 
@@ -38,16 +33,7 @@ import GridFooter from 'src/components/datagrid/GridFooter.vue'
 
 const router = useRouter()
 const localSettings = useLocalSettingsStore()
-
-// Statistics state
-const statistics = ref(null)
-
-// Status state
-const status = ref({
-  hasUnsavedChanges: false,
-  unsavedChangesCount: 0,
-  lastUpdateTime: '',
-})
+const dataGridStore = useDataGridStore()
 
 // Computed properties (using store functions)
 const selectedPatientIds = computed(() => {
@@ -61,23 +47,18 @@ const hasPatientSelection = computed(() => {
   return localSettings.hasDataGridSelectedPatients()
 })
 
+// Note: GridFooter now uses store directly, so these computed properties are no longer needed here
+
 // Methods
 const goToSelection = () => {
   router.push('/data-grid')
 }
 
-const handleStatisticsUpdate = (newStatistics) => {
-  statistics.value = newStatistics
-}
-
-const handleStatusUpdate = (newStatus) => {
-  status.value = { ...status.value, ...newStatus }
-}
-
 // Lifecycle
 onMounted(() => {
-  // Initialize local settings
+  // Initialize stores
   localSettings.initialize()
+  dataGridStore.initialize()
 
   // If no patients selected, redirect to selection page
   if (!hasPatientSelection.value) {
