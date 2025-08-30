@@ -57,11 +57,14 @@
       </template>
     </q-table>
 
-    <!-- Edit User Dialog -->
-    <UserEditDialog v-model="showEditDialog" :user="selectedUser" @save="onSaveUser" @cancel="onCancelEdit" />
-
-    <!-- Create User Dialog -->
-    <UserCreateDialog v-model="showCreateDialog" @save="onSaveNewUser" @cancel="onCancelCreate" />
+    <!-- User Dialog (Create/Edit) -->
+    <UserDialog 
+      v-model="showUserDialog" 
+      :mode="userDialogMode"
+      :user="selectedUser" 
+      @saved="onUserSaved" 
+      @cancelled="onUserCancelled" 
+    />
 
     <!-- Password Reset Dialog -->
     <PasswordResetDialog v-model="showPasswordDialog" @save="onPasswordSave" @cancel="onPasswordCancel" />
@@ -73,8 +76,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useDatabaseStore } from 'src/stores/database-store'
-import UserEditDialog from 'components/UserEditDialog.vue'
-import UserCreateDialog from 'components/UserCreateDialog.vue'
+import UserDialog from 'components/UserDialog.vue'
 import PasswordResetDialog from 'components/PasswordResetDialog.vue'
 
 const $q = useQuasar()
@@ -84,8 +86,8 @@ const dbStore = useDatabaseStore()
 // State
 const users = ref([])
 const loading = ref(false)
-const showEditDialog = ref(false)
-const showCreateDialog = ref(false)
+const showUserDialog = ref(false)
+const userDialogMode = ref('create')
 const showPasswordDialog = ref(false)
 const selectedUser = ref(null)
 
@@ -196,12 +198,15 @@ const formatDate = (dateString) => {
 
 // User actions
 const onCreateUser = () => {
-  showCreateDialog.value = true
+  selectedUser.value = null
+  userDialogMode.value = 'create'
+  showUserDialog.value = true
 }
 
 const onEditUser = (user) => {
   selectedUser.value = { ...user }
-  showEditDialog.value = true
+  userDialogMode.value = 'edit'
+  showUserDialog.value = true
 }
 
 const onResetUserPassword = (user) => {
@@ -240,50 +245,15 @@ const onDeleteUser = (user) => {
 }
 
 // Dialog handlers
-const onSaveUser = async (userData) => {
-  try {
-    const userRepo = dbStore.getUserRepository()
-    await userRepo.updateUser(selectedUser.value.USER_ID, userData)
-
-    $q.notify({
-      type: 'positive',
-      message: 'User updated successfully',
-      position: 'top'
-    })
-
-    showEditDialog.value = false
-    await loadUsers()
-  } catch (error) {
-    console.error('Failed to update user:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update user',
-      position: 'top'
-    })
-  }
+const onUserSaved = async () => {
+  // Notification is handled by the dialog component
+  // Just refresh the list
+  await loadUsers()
 }
 
-const onSaveNewUser = async (userData) => {
-  try {
-    const userRepo = dbStore.getUserRepository()
-    await userRepo.createUser(userData)
-
-    $q.notify({
-      type: 'positive',
-      message: 'User created successfully',
-      position: 'top'
-    })
-
-    showCreateDialog.value = false
-    await loadUsers()
-  } catch (error) {
-    console.error('Failed to create user:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to create user',
-      position: 'top'
-    })
-  }
+const onUserCancelled = () => {
+  // Dialog will close itself
+  selectedUser.value = null
 }
 
 const onPasswordSave = async (passwordData) => {
@@ -310,14 +280,7 @@ const onPasswordSave = async (passwordData) => {
   }
 }
 
-const onCancelEdit = () => {
-  showEditDialog.value = false
-  selectedUser.value = null
-}
 
-const onCancelCreate = () => {
-  showCreateDialog.value = false
-}
 
 const onPasswordCancel = () => {
   showPasswordDialog.value = false
