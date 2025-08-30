@@ -222,8 +222,7 @@
   <!-- Edit Answers Dialog -->
   <EditConceptAnswersDialog
     v-model="showEditAnswers"
-    :concept-code="localFormData.conceptCode"
-    :answers="currentAnswers"
+    :concept="conceptForDialog"
     @save="onAnswersSaved"
   />
 
@@ -326,6 +325,13 @@ const selectionAnswers = computed(() => {
   return null
 })
 
+// Concept object for dialogs
+const conceptForDialog = computed(() => ({
+  conceptCode: localFormData.value.conceptCode || '',
+  name: localFormData.value.name || '',
+  conceptPath: localFormData.value.conceptPath || ''
+}))
+
 // Methods
 const validateForm = (formData, isEditMode) => {
   if (!formData.conceptCode || formData.conceptCode.trim() === '') return false
@@ -343,9 +349,9 @@ const validateForm = (formData, isEditMode) => {
 const loadOptions = async () => {
   try {
     const [categories, valueTypes, sourceSystems] = await Promise.all([
-      globalSettingsStore.getConceptCategories(),
-      globalSettingsStore.getValueTypes(),
-      globalSettingsStore.getSourceSystems()
+      globalSettingsStore.getCategoryOptions(),
+      globalSettingsStore.getValueTypeOptions(),
+      globalSettingsStore.getSourceSystemOptions()
     ])
     
     categoryOptions.value = categories.map(c => ({
