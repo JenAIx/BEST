@@ -236,11 +236,7 @@ const handleColumnVisibilityUpdate = (...args) => {
     const [columnCode, visible] = args
     dataGridStore.updateColumnVisibility(columnCode, visible)
 
-    $q.notify({
-      type: visible ? 'positive' : 'info',
-      message: `Column "${columnCode}" is now ${visible ? 'visible' : 'hidden'}`,
-      position: 'top',
-    })
+
   } else if (args.length === 1 && typeof args[0] === 'object') {
     // Batch update: (visibilityObject)
     const visibilityObject = args[0]
@@ -248,14 +244,7 @@ const handleColumnVisibilityUpdate = (...args) => {
       dataGridStore.updateColumnVisibility(columnCode, visible)
     })
 
-    // Optional: Show a batch notification
-    const visibleCount = Object.values(visibilityObject).filter(v => v).length
-    const totalCount = Object.keys(visibilityObject).length
-    $q.notify({
-      type: 'positive',
-      message: `Updated column visibility: ${visibleCount}/${totalCount} columns visible`,
-      position: 'top',
-    })
+    // Batch updates completed silently
   }
 }
 
@@ -267,11 +256,7 @@ const handleColumnOrderUpdate = (columnOrder) => {
     dataGridStore.updateColumnOrder(columnOrder)
   }
 
-  $q.notify({
-    type: 'positive',
-    message: 'Column order updated successfully',
-    position: 'top',
-  })
+  // Column order updated silently
 }
 
 // Visit edit dialog methods

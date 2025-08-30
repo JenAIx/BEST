@@ -8,7 +8,7 @@
     :show-actions="false"
     :content-padding="false"
   >
-    <div class="column-management-content">
+    <div class="column-management-content non-selectable">
             <div class="panel-header">
               <q-icon name="view_column" size="20px" color="secondary" class="q-mr-sm" />
               <span class="text-h6">Column Management</span>
@@ -44,12 +44,16 @@
                 ghost-class="sortable-ghost"
                 chosen-class="sortable-chosen"
                 drag-class="sortable-drag"
-                @end="onColumnReorder"
+                :force-fallback="true"
+                fallback-class="sortable-fallback"
+                @start="onDragStart"
+                @end="onDragEnd"
+                @move="onDragMove"
               >
                 <template #item="{ element: column }">
                   <div class="column-item" :class="{ 'column-hidden': !column.visible }">
                     <!-- Drag Handle -->
-                    <q-icon name="drag_indicator" class="drag-handle text-grey-5 q-mr-sm" style="cursor: grab" />
+                    <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
 
                     <!-- Move Buttons -->
                     <div class="move-buttons">
@@ -89,7 +93,7 @@
 
       <!-- Footer -->
       <div class="dialog-footer">
-        <div class="text-caption text-grey-6">Changes are applied instantly • Drag or use top/bottom buttons to reorder</div>
+        <div class="text-caption text-grey-6">Changes are applied instantly • Drag to reorder columns</div>
         
       </div>
     </div>
@@ -141,8 +145,12 @@ const toggleColumnVisibility = (columnCode) => {
     const newVisibility = !localColumns.value[columnIndex].visible
     localColumns.value[columnIndex].visible = newVisibility
 
-    // Re-sort columns to move hidden ones to the end
-    localColumns.value = sortColumnsByVisibility(localColumns.value)
+    // If hiding a column, move it to the end of the list
+    if (!newVisibility) {
+      const columnToMove = localColumns.value.splice(columnIndex, 1)[0]
+      localColumns.value.push(columnToMove)
+      emitColumnOrder()
+    }
 
     // Emit individual column visibility update for single column changes
     emit('update:columnVisibility', columnCode, newVisibility)
@@ -153,7 +161,7 @@ const showAllColumns = () => {
   localColumns.value.forEach((col) => {
     col.visible = true
   })
-  localColumns.value = sortColumnsByVisibility(localColumns.value)
+  // Preserve user's drag order - no automatic sorting
 
   const updatedVisibility = {}
   localColumns.value.forEach((col) => {
@@ -166,7 +174,7 @@ const hideAllColumns = () => {
   localColumns.value.forEach((col) => {
     col.visible = false
   })
-  localColumns.value = sortColumnsByVisibility(localColumns.value)
+  // Preserve user's drag order - no automatic sorting
 
   const updatedVisibility = {}
   localColumns.value.forEach((col) => {
@@ -186,7 +194,7 @@ const resetColumnOrder = () => {
       observationCount: concept.observationCount || 0,
     }))
 
-    localColumns.value = sortColumnsByVisibility(columns)
+    localColumns.value = columns
     emitColumnOrder()
   }
 }
@@ -217,8 +225,25 @@ const isLastColumn = (columnCode) => {
   return localColumns.value.findIndex((col) => col.code === columnCode) === localColumns.value.length - 1
 }
 
-const onColumnReorder = () => {
+const onDragStart = () => {
+  // Add visual feedback when drag starts
+  document.body.classList.add('dragging-column')
+}
+
+const onDragEnd = () => {
+  // Clean up visual feedback when drag ends
+  document.body.classList.remove('dragging-column')
   emitColumnOrder()
+}
+
+const onDragMove = (evt) => {
+  // Enhanced drop zone feedback - allow all moves for now
+  const { relatedContext } = evt
+  if (relatedContext && relatedContext.element) {
+    // You can add custom logic here for move validation
+    return true
+  }
+  return true
 }
 
 const emitColumnOrder = () => {
@@ -226,13 +251,7 @@ const emitColumnOrder = () => {
   emit('update:columnOrder', columnOrder)
 }
 
-const sortColumnsByVisibility = (columns) => {
-  return [...columns].sort((a, b) => {
-    if (a.visible && !b.visible) return -1
-    if (!a.visible && b.visible) return 1
-    return 0
-  })
-}
+
 
 // Watchers
 // Removed the watcher that emits full visibility object - individual column changes
@@ -251,8 +270,8 @@ watch(
         observationCount: concept.observationCount || 0,
       }))
 
-      // Sort columns: visible first, hidden last
-      localColumns.value = sortColumnsByVisibility(columns)
+      // Preserve original order from props
+      localColumns.value = columns
     } else {
       localColumns.value = []
     }
@@ -320,22 +339,122 @@ onMounted(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* Enhanced drag feedback styles */
 .column-item.sortable-ghost {
-  opacity: 0.4;
-  background: #e3f2fd;
+  opacity: 0.3;
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+  border: 2px dashed #2196f3;
+  border-radius: 8px;
+  transform: scale(0.98);
+  position: relative;
+}
+
+.column-item.sortable-ghost::before {
+  content: "Drop here";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #1976d2;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  pointer-events: none;
 }
 
 .column-item.sortable-chosen {
-  cursor: grabbing;
-  transform: rotate(2deg);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  cursor: grabbing !important;
+  transform: rotate(3deg) scale(1.02);
+  box-shadow: 0 8px 25px rgba(33, 150, 243, 0.3);
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border: 2px solid #2196f3;
+  border-radius: 8px;
+  z-index: 1000;
+  transition: all 0.2s ease;
 }
 
 .column-item.sortable-drag {
-  background: white;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+  box-shadow: 0 12px 35px rgba(33, 150, 243, 0.4);
+  border: 2px solid #2196f3;
+  border-radius: 12px;
+  transform: rotate(8deg) scale(1.05);
+  z-index: 2000;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sortable-fallback {
+  background: linear-gradient(135deg, #ffffff 0%, #e3f2fd 100%);
+  box-shadow: 0 15px 40px rgba(33, 150, 243, 0.5);
+  border: 3px solid #1976d2;
+  border-radius: 12px;
+  transform: rotate(5deg) scale(1.03);
+  opacity: 0.9;
+}
+
+/* Global drag state styles */
+body.dragging-column .column-item:not(.sortable-chosen):not(.sortable-ghost) {
+  transition: all 0.2s ease;
+  opacity: 0.7;
+}
+
+body.dragging-column .column-item:hover:not(.sortable-chosen) {
+  background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%);
+  border: 2px dashed #2196f3;
+  border-radius: 8px;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+}
+
+body.dragging-column .column-item:hover:not(.sortable-chosen)::after {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #2196f3, #21cbf3);
+  border-radius: 2px;
+  box-shadow: 0 0 8px rgba(33, 150, 243, 0.6);
+}
+
+/* Enhanced drag handle styling */
+.drag-handle {
+  color: #9e9e9e;
+  cursor: grab;
+  transition: all 0.2s ease;
+  padding: 4px;
   border-radius: 4px;
-  transform: rotate(5deg);
+  position: relative;
+}
+
+.drag-handle:hover {
+  color: #2196f3;
+  background: rgba(33, 150, 243, 0.1);
+  transform: scale(1.1);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  color: #1976d2;
+  background: rgba(33, 150, 243, 0.2);
+  transform: scale(0.95);
+}
+
+body.dragging-column .drag-handle {
+  color: #2196f3;
+  background: rgba(33, 150, 243, 0.15);
+}
+
+/* Pulse animation for drag handle when dragging */
+@keyframes drag-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+body.dragging-column .column-item:not(.sortable-chosen) .drag-handle {
+  animation: drag-pulse 1.5s ease-in-out infinite;
 }
 
 .column-info {
