@@ -30,36 +30,64 @@ export class ConceptResolver {
       let resolvedName = null
       let resolvedValueType = null
       let resolvedUnit = null
+      let parsedBlobData = null
 
       if (result.success && result.data.length > 0) {
         resolvedName = result.data[0].NAME_CHAR
         resolvedValueType = result.data[0].VALTYPE_CD
         resolvedUnit = result.data[0].UNIT_CD
       } else {
-        // Try CODE_LOOKUP as fallback
+        // Try CODE_LOOKUP as fallback - include LOOKUP_BLOB for icon/color data
         const tableFilter = options.table ? `AND TABLE_CD = "${options.table}"` : ''
         const columnFilter = options.column ? `AND COLUMN_CD = "${options.column}"` : ''
 
-        result = await this.dbStore.executeQuery(`SELECT NAME_CHAR FROM CODE_LOOKUP WHERE CODE_CD = ? ${tableFilter} ${columnFilter}`, [conceptCode])
+        result = await this.dbStore.executeQuery(`SELECT NAME_CHAR, LOOKUP_BLOB FROM CODE_LOOKUP WHERE CODE_CD = ? ${tableFilter} ${columnFilter}`, [conceptCode])
 
         if (result.success && result.data.length > 0) {
           resolvedName = result.data[0].NAME_CHAR
+
+          // Parse LOOKUP_BLOB for additional metadata (icon, color, etc.)
+          const lookupBlob = result.data[0].LOOKUP_BLOB
+          if (lookupBlob) {
+            try {
+              parsedBlobData = JSON.parse(lookupBlob)
+            } catch (error) {
+              this.log('warn', `Failed to parse LOOKUP_BLOB for concept ${conceptCode}`, error)
+            }
+          }
         }
       }
 
-      // Determine color and label
+      // Determine color and label - use LOOKUP_BLOB data if available
       let color = 'grey'
-      try {
-        color = determineColor(resolvedName || conceptCode, options.context)
-      } catch (error) {
-        this.log('warn', `Color determination failed for concept ${conceptCode}`, error)
+      let icon = null
+      let label = resolvedName || this.getFallbackLabel(conceptCode)
+
+      // Use data from LOOKUP_BLOB if available
+      if (parsedBlobData) {
+        if (parsedBlobData.color) {
+          color = parsedBlobData.color
+        }
+        if (parsedBlobData.icon) {
+          icon = parsedBlobData.icon
+        }
+        if (parsedBlobData.label) {
+          label = parsedBlobData.label
+        }
+      } else {
+        // Fallback to automatic color determination
+        try {
+          color = determineColor(resolvedName || conceptCode, options.context)
+        } catch (error) {
+          this.log('warn', `Color determination failed for concept ${conceptCode}`, error)
+        }
       }
-      const label = resolvedName || this.getFallbackLabel(conceptCode)
 
       return {
         code: conceptCode,
         label,
         color,
+        icon,
         resolved: !!resolvedName,
         source: resolvedName ? 'database' : 'fallback',
         valueType: resolvedValueType,

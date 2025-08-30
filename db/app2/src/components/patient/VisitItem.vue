@@ -1,6 +1,68 @@
 <template>
   <div class="q-mb-lg">
     <!-- Visit Header -->
+    <q-tooltip :delay="500" class="bg-grey-9 text-white shadow-4" max-width="350px">
+      <div class="text-body2">
+        <div class="text-weight-medium q-mb-sm">Visit Details</div>
+
+        <!-- Date Range -->
+        <div class="q-mb-xs">
+          <q-icon name="event" class="q-mr-xs" />
+          {{ formatDate(visitGroup.visitDate) }}
+          <span v-if="visitGroup.visit?.END_DATE"> - {{ formatDate(visitGroup.visit.END_DATE) }}</span>
+          <span v-if="visitGroup.visit?.last_changed" class="text-caption text-grey-3 q-ml-sm">
+            (updated: {{ formatDate(visitGroup.visit.last_changed) }})
+          </span>
+        </div>
+
+        <!-- Status -->
+        <div class="q-mb-xs" v-if="visitGroup.visit?.ACTIVE_STATUS_CD">
+          <q-icon name="info" class="q-mr-xs" />
+          Status: {{ getStatusLabel(visitGroup.visit.ACTIVE_STATUS_CD) }}
+        </div>
+
+        <!-- Visit Type (from VISIT_BLOB) -->
+        <div class="q-mb-xs" v-if="visitGroup.visit?.visitType">
+          <q-icon :name="typeIcon" class="q-mr-xs" />
+          Visit Type: {{ visitTypeLabel }}
+        </div>
+
+        <!-- Admission Type (INOUT_CD) -->
+        <div class="q-mb-xs" v-if="visitGroup.visit?.INOUT_CD">
+          <q-icon name="local_hospital" class="q-mr-xs" />
+          Admission: {{ getInoutTypeLabel(visitGroup.visit.INOUT_CD) }}
+        </div>
+
+        <!-- Location -->
+        <div class="q-mb-xs" v-if="visitGroup.visit?.LOCATION_CD">
+          <q-icon name="place" class="q-mr-xs" />
+          Location: {{ visitGroup.visit.LOCATION_CD }}
+        </div>
+
+        <!-- Notes -->
+        <div class="q-mb-xs" v-if="visitGroup.visit?.notes">
+          <q-icon name="notes" class="q-mr-xs" />
+          <div class="q-ml-xl">
+            <div class="text-caption text-grey-3 q-mb-xs">Notes:</div>
+            <div class="text-white" style="word-wrap: break-word; max-width: 250px;">
+              {{ visitGroup.visit.notes.length > 100 ? visitGroup.visit.notes.substring(0, 100) + '...' : visitGroup.visit.notes }}
+            </div>
+          </div>
+        </div>
+
+        <!-- Observations Count -->
+        <div class="q-mb-xs">
+          <q-icon name="assignment" class="q-mr-xs" />
+          {{ visitGroup.observations.length }} observations
+        </div>
+
+        <!-- Technical ID -->
+        <div class="text-caption q-mt-sm text-grey-4">
+          ID: {{ visitGroup.encounterNum }}
+        </div>
+      </div>
+    </q-tooltip>
+
     <div
       class="visit-header q-mb-md"
       :class="{ 'cursor-pointer': visitGroup.observations.length > 0 }"
@@ -9,43 +71,62 @@
       @mouseleave="hoveredVisit = false"
     >
       <div class="row items-center q-gutter-md">
-        <q-avatar color="primary" text-color="white" size="40px">
-          {{ visitGroup.encounterNum }}
+        <!-- Visit Type Icon -->
+        <q-avatar :color="visitTypeColor" text-color="white" size="40px">
+          <q-icon :name="typeIcon" />
         </q-avatar>
 
-        <!-- Status Chip -->
-        <div class="col-auto text-center" v-if="visitGroup.visit?.ACTIVE_STATUS_CD">
-          <q-chip :color="getStatusColor(visitGroup.visit.ACTIVE_STATUS_CD)" text-color="white" size="xs">
-            {{ getStatusLabel(visitGroup.visit.ACTIVE_STATUS_CD) }}
-          </q-chip>
+        <!-- Visit Type and Status -->
+        <div class="col-auto">
+          <div class="visit-type-status">
+            <!-- Visit Type -->
+            <div v-if="visitGroup.visit?.visitType" class="q-mb-xs">
+              <q-chip
+                size="sm"
+                :color="visitTypeColor"
+                text-color="white"
+                class="q-px-xs"
+              >
+                {{ visitTypeLabel }}
+              </q-chip>
+            </div>
+
+            <!-- Status Chip -->
+            <div v-if="visitGroup.visit?.ACTIVE_STATUS_CD">
+              <q-chip :color="getStatusColor()" text-color="white" size="xs">
+                {{ getStatusLabel() }}
+              </q-chip>
+            </div>
+          </div>
         </div>
 
         <div class="col">
           <div class="text-h6 text-primary">
             {{ formatDate(visitGroup.visitDate) }}
             <span v-if="visitGroup.visit?.END_DATE"> - {{ formatDate(visitGroup.visit.END_DATE) }}</span>
-            <!-- Visit Notes inline -->
-            <span v-if="visitGroup.visit?.VISIT_BLOB" class="visit-notes-inline q-ml-md">
-              <q-icon name="notes" size="16px" class="q-mr-xs" />
+
+            <!-- Notes Preview -->
+            <span v-if="visitGroup.visit?.notes" class="visit-notes-inline q-ml-sm">
+              <q-icon name="notes" size="14px" class="q-mr-xs text-grey-6" />
               <span class="text-body2 text-grey-7">
-                <span v-if="visitGroup.visit.VISIT_BLOB.length <= 60">
-                  {{ visitGroup.visit.VISIT_BLOB }}
+                <span v-if="visitGroup.visit.notes.length <= 40">
+                  {{ visitGroup.visit.notes }}
                 </span>
                 <span v-else>
                   <span v-if="!isNotesExpanded">
-                    {{ visitGroup.visit.VISIT_BLOB.substring(0, 60) }}...
-                    <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs"> more </q-btn>
+                    {{ visitGroup.visit.notes.substring(0, 40) }}...
+                    <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs q-px-xs">more</q-btn>
                   </span>
                   <span v-else>
-                    {{ visitGroup.visit.VISIT_BLOB }}
-                    <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs"> less </q-btn>
+                    {{ visitGroup.visit.notes }}
+                    <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs q-px-xs">less</q-btn>
                   </span>
                 </span>
               </span>
             </span>
           </div>
           <div class="text-caption text-grey-6">
-            Visit {{ visitGroup.encounterNum }} • {{ visitGroup.observations.length }} observations
+            {{ visitGroup.observations.length }} observations
             <span v-if="visitGroup.visit?.LOCATION_CD"> • {{ visitGroup.visit.LOCATION_CD }}</span>
           </div>
         </div>
@@ -142,9 +223,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ObservationCard from './ObservationCard.vue'
@@ -170,6 +252,7 @@ const props = defineProps({
 const emit = defineEmits(['toggleExpansion', 'observationUpdated', 'observationDeleted', 'visitUpdated'])
 
 const $q = useQuasar()
+const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
 const databaseStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
@@ -178,6 +261,11 @@ const logger = loggingStore.createLogger('VisitItem')
 // Local state
 const hoveredVisit = ref(false)
 const isNotesExpanded = ref(false)
+
+// Reactive state for resolved data (same as VisitTimelineItem)
+const visitTypeData = ref({ label: 'General Visit', icon: 'local_hospital', color: 'primary' })
+const statusData = ref({ label: 'Unknown', color: 'grey', class: 'status-default' })
+const visitTypeOptions = ref([])
 
 // Dialog states
 const showEditVisitDialog = ref(false)
@@ -204,16 +292,217 @@ const toggleNotesExpansion = () => {
   isNotesExpanded.value = !isNotesExpanded.value
 }
 
-// Status resolution functions
-const getStatusColor = (statusCode) => {
-  const resolved = conceptStore.getResolved(statusCode)
-  return resolved?.color || 'grey'
+// Status resolution functions (using reactive statusData)
+const getStatusColor = () => {
+  return statusData.value.color || 'grey'
 }
 
-const getStatusLabel = (statusCode) => {
-  const resolved = conceptStore.getResolved(statusCode)
-  return resolved?.label || conceptStore.getFallbackLabel(statusCode)
+const getStatusLabel = () => {
+  return statusData.value.label || 'Unknown'
 }
+
+const getInoutTypeLabel = (inoutCode) => {
+  const labelMap = {
+    'I': 'Inpatient',
+    'O': 'Outpatient',
+    'E': 'Emergency',
+  }
+  return labelMap[inoutCode] || inoutCode || 'Unknown'
+}
+
+// Load visit type options on mount
+onMounted(async () => {
+  try {
+    visitTypeOptions.value = await globalSettingsStore.getVisitTypeOptions()
+    await resolveVisitType()
+    await resolveVisitStatus()
+  } catch (error) {
+    logger.error('Failed to load visit type options', error, { visitId: props.visitGroup.encounterNum })
+  }
+})
+
+// Watch for changes in visit type, status, or rawData
+watch(
+  () => [props.visitGroup.visit?.visitType, props.visitGroup.visit?.ACTIVE_STATUS_CD, props.visitGroup.visit?.VISIT_BLOB],
+  async () => {
+    await resolveVisitType()
+    await resolveVisitStatus()
+  },
+  { immediate: false },
+)
+
+// Resolve visit type using store (same as VisitTimelineItem)
+const resolveVisitType = async () => {
+  // Extract visit type from VISIT_BLOB if available
+  let visitType = props.visitGroup.visit?.visitType
+
+  if (props.visitGroup.visit?.VISIT_BLOB) {
+    try {
+      const blobData = JSON.parse(props.visitGroup.visit.VISIT_BLOB)
+      if (blobData.visitType) {
+        visitType = blobData.visitType
+      }
+      logger.debug('Extracted visit type from VISIT_BLOB', {
+        visitId: props.visitGroup.encounterNum,
+        visitBlob: props.visitGroup.visit.VISIT_BLOB,
+        extractedVisitType: visitType,
+      })
+    } catch {
+      logger.debug('Failed to parse VISIT_BLOB, using visitType field', {
+        visitId: props.visitGroup.encounterNum,
+        visitBlob: props.visitGroup.visit.VISIT_BLOB,
+        visitType: props.visitGroup.visit?.visitType,
+      })
+    }
+  }
+
+  try {
+    if (!visitType) {
+      visitTypeData.value = { label: 'General Visit', icon: 'local_hospital', color: 'primary' }
+      return
+    }
+
+    // First try to find in global settings visit type options
+    const typeOption = visitTypeOptions.value.find((vt) => vt.value === visitType)
+    if (typeOption) {
+      visitTypeData.value = {
+        label: typeOption.label,
+        icon: typeOption.icon || getVisitTypeIcon(visitType),
+        color: typeOption.color || getVisitTypeColor(visitType),
+      }
+      logger.debug('Resolved visit type from global settings', {
+        visitId: props.visitGroup.encounterNum,
+        visitType,
+        resolvedLabel: typeOption.label,
+      })
+      return
+    }
+
+    // Fallback to concept resolution
+    const resolved = await conceptStore.resolveConcept(visitType, {
+      context: 'visit_type',
+      table: 'VISIT_DIMENSION',
+      column: 'VISIT_TYPE_CD',
+    })
+
+    visitTypeData.value = {
+      label: resolved.label || getVisitTypeLabel(visitType),
+      icon: resolved.icon || getVisitTypeIcon(visitType),
+      color: resolved.color || getVisitTypeColor(visitType),
+    }
+
+    logger.debug('Resolved visit type from concept store', {
+      visitId: props.visitGroup.encounterNum,
+      visitType,
+      resolvedLabel: resolved.label,
+      resolvedIcon: resolved.icon,
+      resolvedColor: resolved.color,
+    })
+  } catch (error) {
+    logger.error('Failed to resolve visit type', error, {
+      visitType: visitType || props.visitGroup.visit?.visitType,
+      visitId: props.visitGroup.encounterNum,
+    })
+    visitTypeData.value = {
+      label: getVisitTypeLabel(visitType || props.visitGroup.visit?.visitType),
+      icon: getVisitTypeIcon(visitType || props.visitGroup.visit?.visitType),
+      color: getVisitTypeColor(visitType || props.visitGroup.visit?.visitType),
+    }
+  }
+}
+
+// Resolve visit status using concept resolution
+const resolveVisitStatus = async () => {
+  try {
+    if (!props.visitGroup.visit?.ACTIVE_STATUS_CD) {
+      statusData.value = { label: 'Unknown', color: 'grey', class: 'status-default' }
+      return
+    }
+
+    const resolved = await conceptStore.resolveConcept(props.visitGroup.visit.ACTIVE_STATUS_CD, {
+      context: 'visit_status',
+      table: 'VISIT_DIMENSION',
+      column: 'ACTIVE_STATUS_CD',
+    })
+
+    // Map resolved status labels to CSS classes
+    const statusClassMapping = {
+      Active: 'status-active',
+      Classified: 'status-active',
+      Closed: 'status-completed',
+      Inactive: 'status-cancelled',
+      Completed: 'status-completed',
+      Discharged: 'status-completed',
+      Cancelled: 'status-cancelled',
+      Pending: 'status-active',
+    }
+
+    const getCssClass = (label) => {
+      if (label && statusClassMapping[label]) {
+        return statusClassMapping[label]
+      }
+      return 'status-default'
+    }
+
+    statusData.value = {
+      label: resolved.label,
+      color: resolved.color,
+      class: getCssClass(resolved.label),
+    }
+
+    logger.debug('Final status mapping result', {
+      visitId: props.visitGroup.encounterNum,
+      finalLabel: resolved.label,
+      finalColor: resolved.color,
+      finalClass: statusData.value.class,
+    })
+  } catch (error) {
+    logger.error('Failed to resolve visit status', error, {
+      visitStatus: props.visitGroup.visit?.ACTIVE_STATUS_CD,
+      visitId: props.visitGroup.encounterNum,
+    })
+    statusData.value = { label: 'Unknown', color: 'grey', class: 'status-default' }
+  }
+}
+
+// Visit type helper methods (same as in VisitTimelineItem.vue)
+const getVisitTypeLabel = (typeCode) => {
+  const labelMap = {
+    routine: 'Routine Check-up',
+    followup: 'Follow-up',
+    emergency: 'Emergency',
+    consultation: 'Consultation',
+    procedure: 'Procedure',
+  }
+  return labelMap[typeCode] || typeCode || 'General Visit'
+}
+
+const getVisitTypeIcon = (typeCode) => {
+  const iconMap = {
+    routine: 'health_and_safety',
+    followup: 'follow_the_signs',
+    emergency: 'emergency',
+    consultation: 'psychology',
+    procedure: 'medical_services',
+  }
+  return iconMap[typeCode] || 'local_hospital'
+}
+
+const getVisitTypeColor = (typeCode) => {
+  const colorMap = {
+    routine: 'blue',
+    followup: 'orange',
+    emergency: 'negative',
+    consultation: 'purple',
+    procedure: 'teal',
+  }
+  return colorMap[typeCode] || 'primary'
+}
+
+// Computed properties using resolved data
+const visitTypeLabel = computed(() => visitTypeData.value.label)
+const typeIcon = computed(() => visitTypeData.value.icon)
+const visitTypeColor = computed(() => visitTypeData.value.color)
 
 // Visit action methods
 const openEditVisitDialog = () => {
@@ -230,7 +519,7 @@ const confirmDeleteVisit = () => {
 
   // Set up first confirmation dialog
   deleteDialogTitle.value = 'Delete Visit'
-  deleteDialogMessage.value = `Are you sure you want to delete visit <strong>${props.visitGroup.encounterNum}</strong> from <strong>${visitDate}</strong>?`
+  deleteDialogMessage.value = `Are you sure you want to delete the visit from <strong>${visitDate}</strong>?`
 
   // Show first confirmation dialog
   showDeleteConfirmDialog.value = true
@@ -407,6 +696,12 @@ const onObservationCreated = () => {
 
   .q-avatar {
     box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+  }
+
+  .visit-type-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
   }
 
   .text-h6 {

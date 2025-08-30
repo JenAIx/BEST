@@ -127,7 +127,7 @@ onMounted(async () => {
 
 // Watch for changes in visit type, status, or rawData
 watch(
-  () => [props.visit.type, props.visit.status, props.visit.rawData?.VISIT_BLOB],
+  () => [props.visit.visitType, props.visit.status, props.visit.rawData?.VISIT_BLOB],
   async () => {
     await resolveVisitType()
     await resolveVisitStatus()
@@ -138,7 +138,7 @@ watch(
 // Resolve visit type using store
 const resolveVisitType = async () => {
   // Extract visit type from VISIT_BLOB if available (new approach)
-  let visitType = props.visit.type // fallback to legacy field
+  let visitType = props.visit.visitType // Use the new visitType field
 
   if (props.visit.rawData?.VISIT_BLOB) {
     try {
@@ -152,10 +152,10 @@ const resolveVisitType = async () => {
         extractedVisitType: visitType,
       })
     } catch {
-      logger.debug('Failed to parse VISIT_BLOB, using legacy type field', {
+      logger.debug('Failed to parse VISIT_BLOB, using visitType field', {
         visitId: props.visit.id,
         visitBlob: props.visit.rawData.VISIT_BLOB,
-        legacyType: props.visit.type,
+        visitType: props.visit.visitType,
       })
     }
   }
@@ -202,13 +202,13 @@ const resolveVisitType = async () => {
     })
   } catch (error) {
     logger.error('Failed to resolve visit type', error, {
-      visitType: visitType || props.visit.type,
+      visitType: visitType || props.visit.visitType,
       visitId: props.visit.id,
     })
     visitTypeData.value = {
-      label: getVisitTypeLabel(visitType || props.visit.type),
-      icon: getVisitTypeIcon(visitType || props.visit.type),
-      color: getVisitTypeColor(visitType || props.visit.type),
+      label: getVisitTypeLabel(visitType || props.visit.visitType),
+      icon: getVisitTypeIcon(visitType || props.visit.visitType),
+      color: getVisitTypeColor(visitType || props.visit.visitType),
     }
   }
 }
@@ -370,7 +370,7 @@ const visitDuration = computed(() => {
 const selectVisit = () => {
   logger.logUserAction('visit_selected', {
     visitId: props.visit.id,
-    visitType: props.visit.type,
+    visitType: props.visit.visitType,
     visitDate: props.visit.date,
   })
   emit('select', props.visit)
@@ -379,7 +379,7 @@ const selectVisit = () => {
 const editVisit = () => {
   logger.logUserAction('visit_edit_initiated', {
     visitId: props.visit.id,
-    visitType: props.visit.type,
+    visitType: props.visit.visitType,
     visitDate: props.visit.date,
     observationCount: props.visit.observationCount || 0,
   })
@@ -389,7 +389,7 @@ const editVisit = () => {
 const viewVisit = () => {
   logger.logUserAction('visit_view_requested', {
     visitId: props.visit.id,
-    visitType: props.visit.type,
+    visitType: props.visit.visitType,
     visitDate: props.visit.date,
   })
   emit('view', props.visit)
@@ -398,7 +398,7 @@ const viewVisit = () => {
 const duplicateVisit = () => {
   logger.logUserAction('visit_clone_initiated', {
     originalVisitId: props.visit.id,
-    visitType: props.visit.type,
+    visitType: props.visit.visitType,
     visitDate: props.visit.date,
     observationCount: props.visit.observationCount || 0,
   })
@@ -408,7 +408,7 @@ const duplicateVisit = () => {
 const deleteVisit = () => {
   logger.logUserAction('visit_delete_initiated', {
     visitId: props.visit.id,
-    visitType: props.visit.type,
+    visitType: props.visit.visitType,
     visitDate: props.visit.date,
     observationCount: props.visit.observationCount || 0,
     severity: 'high', // Deletion is a high-impact action

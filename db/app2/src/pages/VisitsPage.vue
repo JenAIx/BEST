@@ -88,6 +88,8 @@ const deselectPatient = () => {
 
 const onVisitSelected = async (visit) => {
   await visitStore.setSelectedVisit(visit)
+  // Switch to data entry view when a visit is clicked
+  viewMode.value = 'entry'
 }
 
 const onVisitEdited = async (visit) => {

@@ -191,7 +191,7 @@
     </q-dialog>
 
     <!-- Edit Visit Dialog -->
-    <EditVisitDialog v-model="showVisitEditDialog" :patient="selectedVisitData" :visit="selectedVisitData" @visitUpdated="handleVisitUpdated" />
+    <EditVisitDialog v-if="selectedVisitData" v-model="showVisitEditDialog" :patient="selectedVisitData" :visit="selectedVisitData" @visitUpdated="handleVisitUpdated" />
   </div>
 </template>
 

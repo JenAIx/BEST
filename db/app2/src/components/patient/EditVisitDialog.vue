@@ -514,6 +514,9 @@ const handleSubmit = async () => {
       }
     })
 
+    // Always update the UPDATE_DATE when saving
+    updateData.UPDATE_DATE = new Date().toISOString()
+
     // Update the visit
     const visitData = props.visit.visit || props.visit
     await visitRepository.update(visitData.ENCOUNTER_NUM, updateData)

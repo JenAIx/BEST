@@ -87,7 +87,7 @@
     <NewVisitDialog v-model="showNewVisitDialog" :patient="patient" @created="onVisitCreated" />
 
     <!-- Edit Visit Dialog -->
-    <EditVisitDialog v-model="showEditVisitDialog" :patient="patient" :visit="selectedVisitForEdit" @visitUpdated="onVisitUpdated" />
+    <EditVisitDialog v-if="selectedVisitForEdit" v-model="showEditVisitDialog" :patient="patient" :visit="selectedVisitForEdit" @visitUpdated="onVisitUpdated" />
 
     <!-- Custom Observation Dialog -->
     <CustomObservationDialog
