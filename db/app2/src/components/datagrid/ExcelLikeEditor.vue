@@ -30,7 +30,9 @@
                 <div class="col-header">
                   <div class="concept-name">{{ concept.name }}</div>
                   <div class="concept-code">{{ concept.code }}</div>
-                  <ValueTypeIcon :value-type="concept.valueType" size="16px" variant="minimal" />
+                  <!-- Show quiz icon for questionnaire concepts, otherwise use ValueTypeIcon -->
+                  <q-icon v-if="concept.valueType === 'Q'" name="quiz" size="16px" color="deep-purple" />
+                  <ValueTypeIcon v-else :value-type="concept.valueType" size="16px" variant="minimal" />
                 </div>
               </th>
             </tr>
@@ -74,7 +76,18 @@
 
               <!-- Observation cells -->
               <td v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-cell" :class="getCellClass(row, concept)">
+                <!-- Custom questionnaire cell for Q type -->
+                <div v-if="concept.valueType === 'Q' && getCellValue(row, concept)" class="questionnaire-cell" @click="openQuestionnairePreview(row, concept)">
+                  <div class="questionnaire-content">
+                    {{ getCellValue(row, concept) }}
+                  </div>
+                  <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
+                    Click to view questionnaire data
+                  </q-tooltip>
+                </div>
+                <!-- Regular editable cell for other types -->
                 <EditableCell
+                  v-else
                   :value="getCellValue(row, concept)"
                   :value-type="concept.valueType"
                   :concept-code="concept.code"
@@ -105,6 +118,15 @@
 
     <!-- Edit Visit Dialog -->
     <EditVisitDialog v-if="selectedVisitData" v-model="showVisitEditDialog" :patient="selectedVisitData" :visit="selectedVisitData" @visitUpdated="handleVisitUpdated" />
+
+    <!-- Questionnaire Preview Dialog -->
+    <QuestionnairePreviewDialog
+      v-if="selectedQuestionnaireData"
+      v-model="showQuestionnairePreview"
+      :observation-id="selectedQuestionnaireData.observationId"
+      :concept-name="selectedQuestionnaireData.conceptName"
+      :completion-date="selectedQuestionnaireData.completionDate"
+    />
   </div>
 </template>
 
@@ -119,6 +141,7 @@ import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
+import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -142,6 +165,10 @@ const logger = loggingStore.createLogger('ExcelLikeEditor')
 const showViewOptions = ref(false)
 const showVisitEditDialog = ref(false)
 const selectedVisitData = ref(null)
+
+// Questionnaire preview dialog state
+const showQuestionnairePreview = ref(false)
+const selectedQuestionnaireData = ref(null)
 
 
 
@@ -387,6 +414,66 @@ const handleVisitUpdated = (updatedVisit) => {
   })
 }
 
+// Questionnaire preview dialog methods
+const openQuestionnairePreview = async (row, concept) => {
+  logger.info('Opening questionnaire preview', {
+    patientId: row.patientId,
+    encounterNum: row.encounterNum,
+    conceptCode: concept.code,
+    conceptName: concept.name,
+  })
+
+  try {
+    const observationId = getCellObservationId(row, concept)
+    const cellValue = getCellValue(row, concept)
+
+    if (!observationId) {
+      logger.warn('No observation ID found for questionnaire cell', {
+        patientId: row.patientId,
+        encounterNum: row.encounterNum,
+        conceptCode: concept.code,
+      })
+      $q.notify({
+        type: 'warning',
+        message: 'No questionnaire data available for this cell',
+        position: 'top',
+      })
+      return
+    }
+
+    // Prepare data for the questionnaire preview dialog
+    selectedQuestionnaireData.value = {
+      observationId: observationId,
+      conceptName: concept.name,
+      completionDate: row.visitDate,
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      value: cellValue,
+    }
+
+    showQuestionnairePreview.value = true
+
+    logger.debug('Prepared questionnaire data for preview', {
+      observationId: observationId,
+      conceptName: concept.name,
+      hasValue: !!cellValue,
+    })
+
+  } catch (error) {
+    logger.error('Failed to open questionnaire preview', error, {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      conceptCode: concept.code,
+    })
+
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to open questionnaire preview',
+      position: 'top',
+    })
+  }
+}
+
 // Watch for view options changes (store handles persistence)
 watch(
   () => dataGridStore.viewOptions,
@@ -600,6 +687,30 @@ onMounted(async () => {
 
         &.empty-cell {
           background: $grey-1;
+        }
+
+        // Questionnaire cell styling
+        .questionnaire-cell {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          height: 100%;
+          padding: 4px 6px;
+          border-radius: 4px;
+          transition: all 0.2s ease;
+
+          &:hover {
+            background: rgba($primary, 0.08);
+          }
+
+          .questionnaire-content {
+            font-size: 0.875rem;
+            text-align: center;
+            line-height: 1.2;
+            word-break: break-word;
+            color: $grey-8;
+          }
         }
       }
     }

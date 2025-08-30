@@ -70,8 +70,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'close'])
 
-// Local state
-const localShow = ref(false)
+// Local state - initialize with modelValue
+const localShow = ref(props.modelValue || false)
 
 // State for loading questionnaire data
 const questionnaire = ref(null)
@@ -165,9 +165,13 @@ watch(
   async (newValue) => {
     localShow.value = newValue
     if (newValue) {
+      // Reset state when opening
+      questionnaire.value = null
+      loadError.value = null
       await loadQuestionnaireData()
     }
   },
+  { immediate: true }
 )
 
 watch(localShow, (newValue) => {
