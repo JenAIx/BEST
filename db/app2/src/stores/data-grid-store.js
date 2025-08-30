@@ -44,6 +44,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // Column visibility state (Map<columnCode, visible>)
   const columnVisibility = ref(new Map())
 
+  // Column order state (Array<columnCode>)
+  const columnOrder = ref([])
+
   // Getters
   const totalObservations = computed(() => {
     return tableRows.value.reduce((total, row) => {
@@ -59,7 +62,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     return pendingChanges.value.size
   })
 
-  // Visible observation concepts based on column visibility
+  // Visible observation concepts based on column visibility and order
   const getVisibleObservationConcepts = computed(() => {
     const allConcepts = observationConcepts.value || []
 
@@ -69,10 +72,25 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     }
 
     try {
-      return allConcepts.filter((concept) => {
+      // First filter by visibility
+      const visibleConcepts = allConcepts.filter((concept) => {
         // If no visibility state exists for this column, default to visible
         return columnVisibility.value.get(concept.code) !== false
       })
+
+      // If we have a custom column order, use it to sort the visible concepts
+      if (columnOrder.value && columnOrder.value.length > 0) {
+        const orderMap = new Map(columnOrder.value.map((code, index) => [code, index]))
+
+        return visibleConcepts.sort((a, b) => {
+          const aIndex = orderMap.get(a.code) ?? 999
+          const bIndex = orderMap.get(b.code) ?? 999
+          return aIndex - bIndex
+        })
+      }
+
+      // No custom order, return visible concepts as-is
+      return visibleConcepts
     } catch (error) {
       logger.warn('Error filtering visible concepts in store', error)
       return allConcepts // Fallback to showing all concepts
@@ -346,11 +364,37 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     logger.debug('Column visibility updated', { columnCode, visible, totalColumns: columnVisibility.value.size })
   }
 
+  // Column order management
+  const updateColumnOrder = (newOrder) => {
+    logger.info('Updating column order in store', { newOrder })
+
+    if (!Array.isArray(newOrder)) {
+      logger.warn('Invalid column order provided, must be an array', { newOrder })
+      return
+    }
+
+    // Update the column order state
+    columnOrder.value = [...newOrder]
+
+    // Save to local settings for persistence
+    localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
+
+    logger.debug('Column order updated', { orderCount: columnOrder.value.length })
+  }
+
   const loadColumnVisibility = () => {
     const savedVisibility = localSettings.getSetting('dataGrid.columnVisibility')
     if (savedVisibility && typeof savedVisibility === 'object') {
       columnVisibility.value = new Map(Object.entries(savedVisibility))
       logger.debug('Loaded saved column visibility', { savedVisibility })
+    }
+  }
+
+  const loadColumnOrder = () => {
+    const savedOrder = localSettings.getSetting('dataGrid.columnOrder')
+    if (savedOrder && Array.isArray(savedOrder)) {
+      columnOrder.value = [...savedOrder]
+      logger.debug('Loaded saved column order', { savedOrder })
     }
   }
 
@@ -374,6 +418,23 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       logger.debug('Initialized column visibility for concepts', { conceptCount: concepts.length })
     } catch (error) {
       logger.warn('Error initializing column visibility', error)
+    }
+  }
+
+  const initializeColumnOrder = () => {
+    try {
+      const concepts = observationConcepts.value || []
+
+      // Only initialize if we don't already have an order or if the order is empty
+      if (!columnOrder.value || columnOrder.value.length === 0) {
+        columnOrder.value = concepts.map((concept) => concept.code)
+        localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
+        logger.debug('Initialized column order for concepts', { conceptCount: concepts.length })
+      } else {
+        logger.debug('Column order already exists, skipping initialization', { orderCount: columnOrder.value.length })
+      }
+    } catch (error) {
+      logger.warn('Error initializing column order', error)
     }
   }
 
@@ -416,11 +477,15 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       }
     })
 
+    // Reset column order to original order
+    columnOrder.value = concepts.map((concept) => concept.code)
+
     // Save to local settings
     const visibilityObject = Object.fromEntries(columnVisibility.value)
     localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+    localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
 
-    logger.info('Reset column order - all columns now visible', { columnCount: concepts.length })
+    logger.info('Reset column order - all columns now visible and in original order', { columnCount: concepts.length })
   }
 
   // Reset functions
@@ -506,6 +571,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   const initialize = () => {
     loadViewOptions()
     loadColumnVisibility()
+    loadColumnOrder()
     logger.info('DataGridStore initialized')
   }
 
@@ -520,6 +586,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     lastUpdateTime,
     viewOptions,
     columnVisibility,
+    columnOrder,
 
     // Getters
     totalObservations,
@@ -560,6 +627,11 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     showAllColumns,
     hideAllColumns,
     resetColumnOrder,
+
+    // Column order management
+    updateColumnOrder,
+    loadColumnOrder,
+    initializeColumnOrder,
 
     // Reset
     resetGridData,

@@ -286,6 +286,14 @@ const barStyle = {
 const loadPatientData = async () => {
   if (dataGridStore?.loadGridData) {
     await dataGridStore.loadGridData(props.patientIds)
+
+    // Initialize column visibility and order after loading data
+    if (dataGridStore?.initializeColumnVisibility) {
+      dataGridStore.initializeColumnVisibility()
+    }
+    if (dataGridStore?.initializeColumnOrder) {
+      dataGridStore.initializeColumnOrder()
+    }
   }
 }
 
@@ -389,8 +397,12 @@ const handleColumnVisibilityUpdate = (columnCode, visible) => {
 
 const handleColumnOrderUpdate = (columnOrder) => {
   logger.info('Column order updated', { columnOrder })
-  // For now, we'll just log this. In a full implementation,
-  // you'd want to update the dataGridStore to persist column order
+
+  // Update the column order in the store
+  if (dataGridStore?.updateColumnOrder) {
+    dataGridStore.updateColumnOrder(columnOrder)
+  }
+
   $q.notify({
     type: 'positive',
     message: 'Column order updated successfully',
