@@ -128,7 +128,12 @@ const showFilePreview = ref(false)
 
 // Computed properties
 const displayValue = computed(() => {
-    if (hasUnsavedChanges.value) {
+    if (hasUnsavedChanges.value && !isEditing.value) {
+        // For S/F types, convert the code value back to display value
+        if ((props.valueType === 'F' || props.valueType === 'S') && editValue.value && selectionOptions.value.length > 0) {
+            const matchingOption = selectionOptions.value.find(option => option.value === editValue.value)
+            return matchingOption ? matchingOption.label : editValue.value
+        }
         return editValue.value
     }
 
@@ -163,12 +168,29 @@ const startEdit = async () => {
     if (isEditing.value) return
 
     isEditing.value = true
-    editValue.value = props.value || ''
     originalValue.value = props.value || ''
 
     // Load selection options for F and S types
     if (props.valueType === 'F' || props.valueType === 'S') {
         await loadSelectionOptions()
+
+        // For S/F types, we need to find the code value that corresponds to the current display value
+        if (props.value && selectionOptions.value.length > 0) {
+            // Find the option where the label matches the current display value
+            const matchingOption = selectionOptions.value.find(option => option.label === props.value)
+            if (matchingOption) {
+                // Use the code value for editing
+                editValue.value = matchingOption.value
+            } else {
+                // If no match found, use the original value (might be a code)
+                editValue.value = props.value
+            }
+        } else {
+            editValue.value = props.value || ''
+        }
+    } else {
+        // For other types, use the value directly
+        editValue.value = props.value || ''
     }
 
     // Focus the input after DOM update
@@ -212,12 +234,21 @@ const saveEdit = async () => {
     try {
         isSaving.value = true
 
+        // For S/F types, emit the resolved display value for proper display
+        let emitValue = editValue.value
+        if ((props.valueType === 'F' || props.valueType === 'S') && selectionOptions.value.length > 0) {
+            const matchingOption = selectionOptions.value.find(option => option.value === editValue.value)
+            if (matchingOption) {
+                emitValue = matchingOption.label // Emit display value for S/F types
+            }
+        }
+
         // Emit update event to parent
         emit('update', {
             patientId: props.patientId,
             encounterNum: props.encounterNum,
             conceptCode: props.conceptCode,
-            value: editValue.value,
+            value: emitValue,
             observationId: props.observationId,
             valueType: props.valueType
         })
@@ -342,12 +373,21 @@ const createObservation = async () => {
         throw new Error('Failed to create observation - no ID returned')
     }
 
+    // For S/F types, emit the resolved display value for proper display
+    let emitValue = editValue.value
+    if ((props.valueType === 'F' || props.valueType === 'S') && selectionOptions.value.length > 0) {
+        const matchingOption = selectionOptions.value.find(option => option.value === editValue.value)
+        if (matchingOption) {
+            emitValue = matchingOption.label // Emit display value for S/F types
+        }
+    }
+
     // Update the observation ID for future updates
     emit('update', {
         patientId: props.patientId,
         encounterNum: props.encounterNum,
         conceptCode: props.conceptCode,
-        value: editValue.value,
+        value: emitValue,
         observationId: result.OBSERVATION_ID,
         valueType: props.valueType
     })
@@ -355,7 +395,21 @@ const createObservation = async () => {
 
 const cancelEdit = () => {
     isEditing.value = false
-    editValue.value = originalValue.value
+    // For S/F types, we need to convert back to the code value for consistency
+    if (props.valueType === 'F' || props.valueType === 'S') {
+        if (originalValue.value && selectionOptions.value.length > 0) {
+            const matchingOption = selectionOptions.value.find(option => option.label === originalValue.value)
+            if (matchingOption) {
+                editValue.value = matchingOption.value
+            } else {
+                editValue.value = originalValue.value
+            }
+        } else {
+            editValue.value = originalValue.value
+        }
+    } else {
+        editValue.value = originalValue.value
+    }
     hasUnsavedChanges.value = false
 }
 

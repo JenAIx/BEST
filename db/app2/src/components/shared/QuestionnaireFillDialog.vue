@@ -16,14 +16,14 @@
             <q-card-section class="row items-center">
               <q-icon name="person" size="24px" color="primary" class="q-mr-sm" />
               <div class="col">
-                <div class="text-subtitle2">{{ questionnaireFillData?.patientName }}</div>
-                <div class="text-caption text-grey-6">Patient ID: {{ questionnaireFillData?.patientId }}</div>
+                <div class="text-subtitle2">{{ patientName || patientId }}</div>
+                <div class="text-caption text-grey-6">Patient ID: {{ patientId }}</div>
               </div>
               <div class="col-auto">
                 <q-icon name="event" size="24px" color="secondary" class="q-mr-sm" />
                 <div class="text-center">
-                  <div class="text-subtitle2">{{ formatVisitDate(questionnaireFillData?.visitDate) }}</div>
-                  <div class="text-caption text-grey-6">Encounter: {{ questionnaireFillData?.encounterNum }}</div>
+                  <div class="text-subtitle2">{{ formatVisitDate(visitDate) }}</div>
+                  <div class="text-caption text-grey-6">Encounter: {{ encounterNum }}</div>
                 </div>
               </div>
             </q-card-section>
@@ -47,13 +47,14 @@
         <!-- Questionnaire Form -->
         <div v-else-if="questionnaire">
           <div class="questionnaire-header q-mb-md">
-            <div class="text-h6">{{ questionnaireFillData?.conceptName }}</div>
+            <div class="text-h6">{{ conceptName }}</div>
             <div class="text-body2 text-grey-6">{{ questionnaire.title || 'Medical Questionnaire' }}</div>
           </div>
 
           <QuestionnaireRenderer
             :questionnaire="questionnaire"
             :show-patient-field="false"
+            :show-submit-button="true"
             :show-debug-actions="false"
             @submit="onQuestionnaireSubmit"
             @validation-change="onValidationChange"
@@ -78,29 +79,48 @@
 import { ref, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useQuestionnaireStore } from '../../stores/questionnaire-store.js'
+import { useDatabaseStore } from '../../stores/database-store.js'
 import { logger } from '../../core/services/logging-service.js'
 import QuestionnaireRenderer from '../questionnaire/QuestionnaireRenderer.vue'
 
 const props = defineProps({
   modelValue: Boolean,
-  questionnaireFillData: {
-    type: Object,
-    required: true,
-    validator: (value) => {
-      return value &&
-             value.patientId &&
-             value.encounterNum &&
-             value.conceptCode &&
-             value.conceptName
-    }
+  encounterNum: {
+    type: [Number, String],
+    required: true
+  },
+  patientId: {
+    type: String,
+    required: true
+  },
+  questionnaireBlob: {
+    type: String,
+    required: true
+  },
+  conceptCode: {
+    type: String,
+    default: 'CUSTOM: QUESTIONNAIRE'
+  },
+  conceptName: {
+    type: String,
+    default: 'Questionnaire'
+  },
+  patientName: {
+    type: String,
+    default: ''
+  },
+  visitDate: {
+    type: String,
+    default: ''
   }
 })
 
-const emit = defineEmits(['update:modelValue', 'questionnaire-completed'])
+const emit = defineEmits(['update:modelValue', 'questionnaire-completed', 'close'])
 
 // Composables
 const $q = useQuasar()
 const questionnaireStore = useQuestionnaireStore()
+const databaseStore = useDatabaseStore()
 
 // State
 const localShow = ref(false)
@@ -111,7 +131,7 @@ const showSubmissionDialog = ref(false)
 
 // Methods
 const loadQuestionnaire = async () => {
-  if (!props.questionnaireFillData) {
+  if (!props.questionnaireBlob) {
     loadError.value = 'No questionnaire data provided'
     return
   }
@@ -120,123 +140,103 @@ const loadQuestionnaire = async () => {
     loading.value = true
     loadError.value = null
 
-    logger.info('Loading questionnaire for concept', {
-      conceptCode: props.questionnaireFillData.conceptCode,
-      conceptName: props.questionnaireFillData.conceptName,
-      hasExistingType: !!props.questionnaireFillData.existingQuestionnaireType,
+    logger.info('Loading questionnaire from BLOB', {
+      encounterNum: props.encounterNum,
+      patientId: props.patientId,
+      conceptName: props.conceptName,
+      blobLength: props.questionnaireBlob.length
     })
 
-    // Strategy 1: Use existing questionnaire type from observations (preferred)
-    if (props.questionnaireFillData.existingQuestionnaireType) {
-      logger.info('Using existing questionnaire type from observations', {
-        title: props.questionnaireFillData.existingQuestionnaireType.title,
-        itemCount: props.questionnaireFillData.existingQuestionnaireType.items?.length || 0,
-      })
+    // Parse the questionnaire BLOB directly
+    const questionnaireData = JSON.parse(props.questionnaireBlob)
 
-      questionnaire.value = {
-        title: props.questionnaireFillData.existingQuestionnaireType.title,
-        short_title: props.questionnaireFillData.existingQuestionnaireType.shortTitle,
-        items: props.questionnaireFillData.existingQuestionnaireType.items,
-        // Add default properties that might be expected
-        description: `Questionnaire: ${props.questionnaireFillData.existingQuestionnaireType.title}`,
-        coding: {
-          system: 'CUSTOM',
-          code: props.questionnaireFillData.conceptCode,
-          display: props.questionnaireFillData.existingQuestionnaireType.title
+    logger.debug('Parsed questionnaire BLOB', {
+      title: questionnaireData.title,
+      itemCount: questionnaireData.items?.length || 0,
+      hasItems: !!questionnaireData.items,
+      topLevelKeys: Object.keys(questionnaireData),
+      firstItemType: questionnaireData.items?.[0]?.type,
+      firstItemStructure: questionnaireData.items?.[0] ? Object.keys(questionnaireData.items[0]) : null,
+      firstItemFull: questionnaireData.items?.[0] || null,
+      rawBlobSample: props.questionnaireBlob.substring(0, 500)
+    })
+
+    // Fix missing type fields and clear pre-filled values (ensure clean template)
+    if (questionnaireData.items) {
+      questionnaireData.items.forEach((item, index) => {
+        // Clear any pre-filled values to ensure clean template
+        item.value = null
+        
+        // If type is missing, infer it from the item structure
+        if (!item.type) {
+          if (item.options && item.options.length > 0) {
+            // Has options - determine if radio or checkbox
+            if (Array.isArray(item.value)) {
+              item.type = 'checkbox'
+            } else {
+              item.type = 'radio'
+            }
+          } else if (item.label && (item.label.includes('Jahr') || item.label.includes('Punkte') || item.label.includes('Versuch') || item.label.includes('Rechnen'))) {
+            // Likely numeric based on German MoCA labels
+            item.type = 'number'
+          } else {
+            // Default to text for unknown items
+            item.type = 'text'
+          }
+          
+          logger.debug(`Fixed missing type for item ${index + 1}`, {
+            id: item.id,
+            label: item.label?.substring(0, 30),
+            inferredType: item.type,
+            hasOptions: !!item.options,
+            optionsCount: item.options?.length || 0,
+            clearedValue: item.value
+          })
+        } else {
+          // Type exists, just clear the value
+          logger.debug(`Cleared pre-filled value for item ${index + 1}`, {
+            id: item.id,
+            type: item.type,
+            label: item.label?.substring(0, 30),
+            previousValue: item.value,
+            clearedValue: null
+          })
+          item.value = null
         }
-      }
-
-      return
-    }
-
-    // Strategy 2: Fall back to questionnaire store (original logic)
-    logger.info('No existing questionnaire type found, falling back to questionnaire store')
-
-    // Load questionnaires if not already loaded
-    if (!questionnaireStore.questionnaires || Object.keys(questionnaireStore.questionnaires).length === 0) {
-      logger.info('Loading questionnaires from database...')
-      await questionnaireStore.loadQuestionnaires()
-    }
-
-    // Get questionnaire templates from store
-    const templates = Object.values(questionnaireStore.questionnaires || {})
-
-    logger.info('Questionnaire store status', {
-      questionnairesLoaded: !!questionnaireStore.questionnaires,
-      questionnaireCount: Object.keys(questionnaireStore.questionnaires || {}).length,
-      templatesFound: templates.length,
-      questionnaireKeys: Object.keys(questionnaireStore.questionnaires || {})
-    })
-
-    logger.debug('Available questionnaires', {
-      count: templates.length,
-      templates: templates.map(t => ({ code: t.code, title: t.title }))
-    })
-
-    // Find the questionnaire that matches our concept
-    // Try multiple matching strategies
-    let matchingQuestionnaire = null
-
-    // Strategy 1: Exact match by concept code
-    matchingQuestionnaire = templates.find(q =>
-      q.conceptCode === props.questionnaireFillData.conceptCode ||
-      q.code === props.questionnaireFillData.conceptCode
-    )
-
-    // Strategy 2: Match by name/title (case-insensitive partial match)
-    if (!matchingQuestionnaire) {
-      const searchTerm = props.questionnaireFillData.conceptName.toLowerCase()
-      matchingQuestionnaire = templates.find(q => {
-        const title = (q.title || '').toLowerCase()
-        const name = (q.name || '').toLowerCase()
-        const displayName = (q._metadata?.displayName || '').toLowerCase()
-
-        return title.includes(searchTerm) ||
-               name.includes(searchTerm) ||
-               displayName.includes(searchTerm) ||
-               searchTerm.includes(title) ||
-               searchTerm.includes(name)
       })
     }
 
-    // Strategy 3: First available questionnaire as fallback
-    if (!matchingQuestionnaire && templates.length > 0) {
-      matchingQuestionnaire = templates[0]
-      logger.warn('No exact questionnaire match found, using first available questionnaire as fallback', {
-        requestedConcept: props.questionnaireFillData.conceptName,
-        fallbackQuestionnaire: matchingQuestionnaire.title || matchingQuestionnaire._metadata?.displayName
-      })
-    }
+    // Add questionnaire to store and set as active (like QuestionnairePage.vue)
+    const tempCode = `TEMP_${Date.now()}`
+    questionnaireStore.questionnaires[tempCode] = questionnaireData
+    questionnaireStore.setActiveQuestionnaire(tempCode)
+    
+    questionnaire.value = questionnaireData
 
-    if (!matchingQuestionnaire) {
-      // List available questionnaires for debugging
-      const availableQuestionnaires = templates.map(q => ({
-        code: q.code,
-        title: q.title,
-        displayName: q._metadata?.displayName
-      }))
-
-      logger.error('No questionnaire found', {
-        requestedConceptCode: props.questionnaireFillData.conceptCode,
-        requestedConceptName: props.questionnaireFillData.conceptName,
-        availableQuestionnaires: availableQuestionnaires
-      })
-
-      throw new Error(`No questionnaire template found for concept: ${props.questionnaireFillData.conceptName}. Available questionnaires: ${availableQuestionnaires.map(q => q.title || q.displayName).join(', ')}`)
-    }
-
-    questionnaire.value = matchingQuestionnaire
-
-    logger.info('Questionnaire loaded successfully', {
-      conceptCode: props.questionnaireFillData.conceptCode,
-      questionnaireTitle: matchingQuestionnaire.title,
+    logger.info('Questionnaire loaded and set active in store', {
+      title: questionnaireData.title,
+      itemCount: questionnaireData.items?.length || 0,
+      storeActiveQuestionnaire: !!questionnaireStore.activeQuestionnaire,
+      storeActiveTitle: questionnaireStore.activeQuestionnaire?.title,
+      allItemDetails: questionnaireData.items?.map((item, index) => ({
+        index,
+        id: item.id,
+        type: item.type,
+        label: item.label?.substring(0, 30),
+        hasOptions: !!item.options,
+        optionsCount: item.options?.length || 0,
+        force: item.force,
+        fullItem: item
+      })) || []
     })
 
   } catch (error) {
-    logger.error('Failed to load questionnaire', error, {
-      conceptCode: props.questionnaireFillData.conceptCode,
+    logger.error('Failed to load questionnaire from BLOB', error, {
+      encounterNum: props.encounterNum,
+      patientId: props.patientId,
+      blobLength: props.questionnaireBlob?.length || 0
     })
-    loadError.value = error.message || 'Failed to load questionnaire'
+    loadError.value = error.message || 'Failed to parse questionnaire data'
   } finally {
     loading.value = false
   }
@@ -250,7 +250,7 @@ watch(
   () => props.modelValue,
   (newValue) => {
     localShow.value = newValue
-    if (newValue && props.questionnaireFillData) {
+    if (newValue && props.questionnaireBlob) {
       loadQuestionnaire()
     }
   },
@@ -264,53 +264,67 @@ watch(localShow, (newValue) => {
 })
 
 const onQuestionnaireSubmit = async ({ results }) => {
-  if (!props.questionnaireFillData) {
-    $q.notify({
-      type: 'negative',
-      message: 'Missing questionnaire data',
-    })
-    return
-  }
-
   showSubmissionDialog.value = true
 
   try {
-    const { patientId, encounterNum, conceptCode, conceptName } = props.questionnaireFillData
-
     logger.info('Submitting questionnaire', {
-      patientId,
-      encounterNum,
-      conceptCode,
-      conceptName,
+      patientId: props.patientId,
+      encounterNum: props.encounterNum,
+      conceptName: props.conceptName,
       responsesCount: results.responses?.length || 0,
     })
 
-    // Save the questionnaire response
-    await questionnaireStore.saveQuestionnaireResponse(patientId, encounterNum, results)
+    // Get PATIENT_NUM from PATIENT_DIMENSION table using PATIENT_CD
+    const patientResult = await databaseStore.executeQuery(
+      'SELECT PATIENT_NUM FROM PATIENT_DIMENSION WHERE PATIENT_CD = ?',
+      [props.patientId]
+    )
+
+    if (!patientResult.success || patientResult.data.length === 0) {
+      throw new Error(`Patient not found: ${props.patientId}`)
+    }
+
+    const patientNum = patientResult.data[0].PATIENT_NUM
+
+    logger.debug('Resolved patient number', {
+      patientId: props.patientId,
+      patientNum: patientNum,
+      encounterNum: props.encounterNum
+    })
+
+    // Save questionnaire response using the questionnaire store with correct patientNum
+    // Use the specific concept code for this questionnaire instance
+    const conceptCode = props.conceptCode || 'CUSTOM: QUESTIONNAIRE'
+    
+    // Override the concept code in results to use the specific column's concept code
+    const modifiedResults = {
+      ...results,
+      conceptCode: conceptCode
+    }
+    
+    await questionnaireStore.saveQuestionnaireResponse(patientNum, props.encounterNum, modifiedResults)
 
     // Emit completion event
     emit('questionnaire-completed', {
-      patientId,
-      encounterNum,
-      conceptCode,
-      conceptName,
-      results,
+      patientId: props.patientId,
+      encounterNum: props.encounterNum,
+      conceptCode: conceptCode,
+      conceptName: props.conceptName,
+      results: modifiedResults,
     })
 
     // Close dialog
     localShow.value = false
 
     logger.info('Questionnaire submitted successfully', {
-      patientId,
-      encounterNum,
-      conceptCode,
+      patientId: props.patientId,
+      encounterNum: props.encounterNum,
     })
 
   } catch (error) {
     logger.error('Failed to submit questionnaire', error, {
-      patientId: props.questionnaireFillData.patientId,
-      encounterNum: props.questionnaireFillData.encounterNum,
-      conceptCode: props.questionnaireFillData.conceptCode,
+      patientId: props.patientId,
+      encounterNum: props.encounterNum,
     })
 
     $q.notify({
@@ -330,6 +344,7 @@ const onValidationChange = (isValid) => {
 
 const onCancel = () => {
   localShow.value = false
+  emit('close')
 }
 
 const formatVisitDate = (date) => {
@@ -363,7 +378,7 @@ const formatVisitDate = (date) => {
 
 // Load questionnaire when component mounts (if data is available)
 onMounted(() => {
-  if (props.modelValue && props.questionnaireFillData) {
+  if (props.modelValue && props.questionnaireBlob) {
     loadQuestionnaire()
   }
 })

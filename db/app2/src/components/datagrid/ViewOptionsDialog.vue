@@ -9,18 +9,56 @@
     :content-padding="false"
   >
     <div class="column-management-content non-selectable">
-            <div class="panel-header">
-              <q-icon name="view_column" size="20px" color="secondary" class="q-mr-sm" />
-              <span class="text-h6">Column Management</span>
-              <q-chip :label="`${visibleColumns} / ${totalColumns} visible`" color="secondary" text-color="white" size="sm" class="q-ml-md" />
-            </div>
-
-            <!-- Column Controls -->
-            <div class="column-controls q-pa-md">
-              <div class="row items-center q-gutter-sm">
-                <q-btn flat icon="visibility" label="Show All" color="positive" @click="showAllColumns" :disable="visibleColumns === totalColumns" />
-                <q-btn flat icon="visibility_off" label="Hide All" color="negative" @click="hideAllColumns" :disable="visibleColumns === 0" />
-                <q-btn flat icon="shuffle" label="Reset Order" color="primary" @click="resetColumnOrder" />
+            <!-- Compact Header with Controls -->
+            <div class="compact-header">
+              <div class="header-left">
+                <q-icon name="view_column" size="18px" color="secondary" />
+                <span class="text-subtitle1 q-ml-xs">Column Management</span>
+              </div>
+              <div class="header-center">
+                <q-chip
+                  :label="`${visibleColumns}/${totalColumns}`"
+                  color="secondary"
+                  text-color="white"
+                  size="sm"
+                  dense
+                />
+              </div>
+              <div class="header-right">
+                <q-btn-group flat>
+                  <q-btn
+                    flat
+                    dense
+                    icon="visibility"
+                    size="sm"
+                    color="positive"
+                    @click="showAllColumns"
+                    :disable="visibleColumns === totalColumns"
+                  >
+                    <q-tooltip>Show All</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    icon="visibility_off"
+                    size="sm"
+                    color="negative"
+                    @click="hideAllColumns"
+                    :disable="visibleColumns === 0"
+                  >
+                    <q-tooltip>Hide All</q-tooltip>
+                  </q-btn>
+                  <q-btn
+                    flat
+                    dense
+                    icon="shuffle"
+                    size="sm"
+                    color="primary"
+                    @click="resetColumnOrder"
+                  >
+                    <q-tooltip>Reset Order</q-tooltip>
+                  </q-btn>
+                </q-btn-group>
               </div>
             </div>
 
@@ -86,7 +124,16 @@
               <!-- Add New Observation Button -->
               <div v-if="localColumns.length > 0" class="q-pa-md text-center">
                 <div class="row justify-center">
-
+                  <q-btn
+                    flat
+                    icon="add"
+                    label="Add Observation"
+                    color="primary"
+                    @click="showAddObservationDialog = true"
+                    class="add-observation-btn"
+                  >
+                    <q-tooltip>Add a new observation column to the grid</q-tooltip>
+                  </q-btn>
                 </div>
               </div>
             </div>
@@ -98,12 +145,21 @@
       </div>
     </div>
   </AppDialog>
+
+  <!-- Add Observation Dialog -->
+  <AddObservationDialog
+    v-model="showAddObservationDialog"
+    :existing-concepts="localColumns"
+    @concept-added="onConceptAdded"
+  />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 import draggable from 'vuedraggable'
+import AddObservationDialog from 'src/components/datagrid/AddObservationDialog.vue'
 
 // Props
 const props = defineProps({
@@ -129,10 +185,14 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['update:modelValue', 'update:viewOptions', 'update:columnVisibility', 'update:columnOrder'])
 
+// Composables
+const $q = useQuasar()
+
 // Local state
 const localOptions = ref({ ...props.viewOptions })
 const localColumns = ref([])
 const dialogVisible = ref(false)
+const showAddObservationDialog = ref(false)
 
 // Computed
 const totalColumns = computed(() => localColumns.value.length)
@@ -251,6 +311,26 @@ const emitColumnOrder = () => {
   emit('update:columnOrder', columnOrder)
 }
 
+const onConceptAdded = (concept) => {
+  // The concept has already been added to the grid by the dialog
+  // We just need to update our local columns list to reflect the change
+  const newColumn = {
+    code: concept.code,
+    name: concept.name,
+    valueType: concept.valueType,
+    visible: true,
+    observationCount: 0,
+  }
+
+  localColumns.value.push(newColumn)
+
+  $q.notify({
+    type: 'positive',
+    message: `Column "${concept.name}" added successfully`,
+    position: 'top',
+  })
+}
+
 
 
 // Watchers
@@ -304,17 +384,32 @@ onMounted(() => {
   min-height: 500px;
 }
 
-.panel-header {
-  padding: 20px;
-  border-bottom: 1px solid #e0e0e0;
+.compact-header {
+  padding: 12px 16px;
   background: white;
+  border-bottom: 1px solid #e0e0e0;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
 }
 
-.column-controls {
-  background: #f8f9fa;
-  border-bottom: 1px solid #e0e0e0;
+.header-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.header-center {
+  display: flex;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.header-right {
+  display: flex;
+  justify-content: flex-end;
+  flex: 1;
 }
 
 .column-list {
@@ -325,7 +420,7 @@ onMounted(() => {
 
 .column-item {
   border-bottom: 1px solid #f0f0f0;
-  padding: 12px 16px;
+  padding: 12px 6px;
   transition: all 0.2s ease;
   cursor: grab;
   min-height: 60px;
@@ -547,5 +642,18 @@ body.dragging-column .column-item:not(.sortable-chosen) .drag-handle {
   font-size: 64px;
   color: #ccc;
   margin-bottom: 16px;
+}
+
+.add-observation-btn {
+  border: 2px dashed #1976d2;
+  border-radius: 8px;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #1565c0;
+    background: rgba(25, 118, 210, 0.05);
+    transform: translateY(-1px);
+  }
 }
 </style>

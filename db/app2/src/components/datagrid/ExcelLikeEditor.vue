@@ -141,8 +141,15 @@
     <QuestionnaireFillDialog
       v-if="selectedQuestionnaireFillData"
       v-model="showQuestionnaireFillDialog"
-      :questionnaire-fill-data="selectedQuestionnaireFillData"
+      :encounter-num="selectedQuestionnaireFillData.encounterNum"
+      :patient-id="selectedQuestionnaireFillData.patientId"
+      :questionnaire-blob="selectedQuestionnaireFillData.questionnaireBlob"
+      :concept-code="selectedQuestionnaireFillData.conceptCode"
+      :concept-name="selectedQuestionnaireFillData.conceptName"
+      :patient-name="selectedQuestionnaireFillData.patientName"
+      :visit-date="selectedQuestionnaireFillData.visitDate"
       @questionnaire-completed="handleQuestionnaireCompleted"
+      @close="handleQuestionnaireClosed"
     />
   </div>
 </template>
@@ -189,9 +196,6 @@ const showQuestionnairePreview = ref(false)
 const selectedQuestionnaireData = ref(null)
 const showQuestionnaireFillDialog = ref(false)
 const selectedQuestionnaireFillData = ref(null)
-
-
-
 
 
 // Computed properties (using store data)
@@ -266,11 +270,12 @@ const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
 
 
-
-
-
 // Batch operations (using store functions) - with defensive checks
-const refreshData = () => (dataGridStore?.refreshData ? dataGridStore.refreshData(props.patientIds) : () => {})
+const refreshData = () => {
+  if (dataGridStore?.refreshData) {
+    dataGridStore.refreshData(props.patientIds)
+  }
+}
 
 // View options management (delegate to store)
 const updateViewOptions = dataGridStore.updateViewOptions
@@ -437,7 +442,6 @@ const handleVisitUpdated = (updatedVisit) => {
 // Questionnaire fill dialog methods
 const handleQuestionnaireCompleted = (completedData) => {
   logger.info('Questionnaire completed successfully', {
-    conceptCode: completedData.conceptCode,
     patientId: completedData.patientId,
     encounterNum: completedData.encounterNum,
   })
@@ -453,59 +457,169 @@ const handleQuestionnaireCompleted = (completedData) => {
   })
 }
 
-const findQuestionnaireTypeFromExistingObservations = async (conceptCode) => {
-  try {
-    logger.info('Finding questionnaire type from existing observations', { conceptCode })
+const handleQuestionnaireClosed = () => {
+  logger.debug('Questionnaire dialog closed without completion')
+  // No need to refresh data since nothing was saved
+}
 
-    // Query for existing observations with this concept code
-    const result = await databaseStore.executeQuery(
-      `SELECT OBSERVATION_BLOB
-       FROM OBSERVATION_FACT
-       WHERE CONCEPT_CD = ?
-       AND OBSERVATION_BLOB IS NOT NULL
-       AND LENGTH(OBSERVATION_BLOB) > 0
-       LIMIT 5`,
-      [conceptCode]
+const findQuestionnaireNameInColumn = (conceptCode) => {
+  try {
+    // Look through all table rows to find a filled questionnaire for this concept
+    const rows = tableRows.value || []
+    
+    for (const row of rows) {
+      const cellValue = getCellValue(row, { code: conceptCode })
+      if (cellValue && cellValue.trim() !== '') {
+        logger.info('Found questionnaire name in column', {
+          conceptCode,
+          questionnaireName: cellValue,
+          patientId: row.patientId,
+          encounterNum: row.encounterNum
+        })
+        return cellValue.trim()
+      }
+    }
+    
+    logger.info('No filled questionnaire found in column', { conceptCode })
+    return null
+  } catch (error) {
+    logger.error('Failed to find questionnaire name in column', error, { conceptCode })
+    return null
+  }
+}
+
+const getAvailableQuestionnaires = async () => {
+  try {
+    const templateResult = await databaseStore.executeQuery(
+      `SELECT NAME_CHAR, CODE_CD, LOOKUP_BLOB
+       FROM CODE_LOOKUP
+       WHERE TABLE_CD = 'SURVEY_BEST' 
+       AND COLUMN_CD = 'QUESTIONNAIRE'
+       AND LOOKUP_BLOB IS NOT NULL
+       ORDER BY NAME_CHAR`,
+      []
     )
 
-    if (!result.success || result.data.length === 0) {
-      logger.info('No existing observations found for concept', { conceptCode })
-      return null
+    if (templateResult.success) {
+      return templateResult.data.map(t => ({
+        name: t.NAME_CHAR,
+        code: t.CODE_CD,
+        blob: t.LOOKUP_BLOB
+      }))
     }
 
-    // Try to parse questionnaire data from existing observations
-    for (const row of result.data) {
+    return []
+  } catch (error) {
+    logger.error('Failed to get available questionnaires', error)
+    return []
+  }
+}
+
+const getQuestionnaireTemplateByName = async (questionnaireName) => {
+  try {
+    logger.info('Getting questionnaire template by name', { questionnaireName })
+
+    // Get clean template from CODE_LOOKUP table by name
+    const templateResult = await databaseStore.executeQuery(
+      `SELECT LOOKUP_BLOB, NAME_CHAR, CODE_CD
+       FROM CODE_LOOKUP
+       WHERE TABLE_CD = 'SURVEY_BEST' 
+       AND COLUMN_CD = 'QUESTIONNAIRE'
+       AND (NAME_CHAR = ? OR NAME_CHAR LIKE ?)
+       AND LOOKUP_BLOB IS NOT NULL
+       LIMIT 1`,
+      [questionnaireName, `%${questionnaireName}%`]
+    )
+
+    if (templateResult.success && templateResult.data.length > 0) {
+      const template = templateResult.data[0]
+      
       try {
-        const observationData = JSON.parse(row.OBSERVATION_BLOB)
-
-        // Look for questionnaire metadata
-        if (observationData.questionnaireTitle || observationData.title) {
-          const questionnaireType = {
-            title: observationData.questionnaireTitle || observationData.title,
-            shortTitle: observationData.questionnaireShortTitle || observationData.short_title,
-            items: observationData.items || []
-          }
-
-          logger.info('Found questionnaire type from existing observation', {
-            conceptCode,
-            questionnaireTitle: questionnaireType.title,
-            itemCount: questionnaireType.items.length
-          })
-
-          return questionnaireType
-        }
+        const parsed = JSON.parse(template.LOOKUP_BLOB)
+        logger.info('Found matching questionnaire template', {
+          questionnaireName,
+          foundName: template.NAME_CHAR,
+          code: template.CODE_CD,
+          title: parsed.title,
+          itemCount: parsed.items?.length || 0,
+          firstItemType: parsed.items?.[0]?.type
+        })
+        return template.LOOKUP_BLOB
       } catch (parseError) {
-        logger.debug('Failed to parse observation BLOB', { conceptCode, error: parseError.message })
-        continue
+        logger.error('Failed to parse template BLOB', { questionnaireName, error: parseError.message })
+        return null
       }
     }
 
-    logger.info('No questionnaire data found in existing observations', { conceptCode })
+    logger.warn('No template found for questionnaire name', { questionnaireName })
     return null
 
   } catch (error) {
-    logger.error('Failed to find questionnaire type from existing observations', error, { conceptCode })
+    logger.error('Failed to get questionnaire template by name', error, { questionnaireName })
     return null
+  }
+}
+
+const createNewQuestionnaireColumn = async (questionnaireName, baseConceptCode) => {
+  try {
+    logger.info('Creating new questionnaire column', { questionnaireName, baseConceptCode })
+
+    // Generate unique concept code for this questionnaire instance
+    const timestamp = Date.now()
+    const newConceptCode = `${baseConceptCode}_${questionnaireName.toUpperCase().replace(/\s+/g, '_')}_${timestamp}`
+
+    // Create concept in CONCEPT_DIMENSION
+    const conceptResult = await databaseStore.executeQuery(
+      `INSERT INTO CONCEPT_DIMENSION (
+        CONCEPT_CD, NAME_CHAR, CONCEPT_BLOB, UPDATE_DATE, DOWNLOAD_DATE, 
+        IMPORT_DATE, SOURCESYSTEM_CD, UPLOAD_ID, VALTYPE_CD, CATEGORY_CHAR
+      ) VALUES (?, ?, ?, datetime('now'), datetime('now'), datetime('now'), ?, ?, ?, ?)`,
+      [
+        newConceptCode,
+        `${questionnaireName} - Instance`,
+        JSON.stringify({ 
+          questionnaireName: questionnaireName,
+          baseConceptCode: baseConceptCode,
+          createdAt: new Date().toISOString()
+        }),
+        'SYSTEM',
+        1,
+        'Q',
+        'CAT_ASSESSMENT'
+      ]
+    )
+
+    if (!conceptResult.success) {
+      throw new Error('Failed to create concept in database')
+    }
+
+    // Add concept to grid
+    const newConcept = {
+      CONCEPT_CD: newConceptCode,
+      NAME_CHAR: `${questionnaireName} - Instance`,
+      VALTYPE_CD: 'Q'
+    }
+
+    const addResult = dataGridStore.addConceptToGrid(newConcept)
+    
+    if (!addResult.success) {
+      throw new Error('Failed to add concept to grid')
+    }
+
+    logger.info('New questionnaire column created successfully', {
+      newConceptCode,
+      questionnaireName,
+      addResult
+    })
+
+    return newConceptCode
+
+  } catch (error) {
+    logger.error('Failed to create new questionnaire column', error, {
+      questionnaireName,
+      baseConceptCode
+    })
+    throw error
   }
 }
 
@@ -518,18 +632,59 @@ const openQuestionnaireFillDialog = async (row, concept) => {
   })
 
   try {
-    // First, try to find the questionnaire type from existing observations
-    const existingQuestionnaireType = await findQuestionnaireTypeFromExistingObservations(concept.code)
+    // Step 1: Find what questionnaire name is used in this column
+    let questionnaireName = findQuestionnaireNameInColumn(concept.code)
+    let targetConceptCode = concept.code
+    
+    if (!questionnaireName) {
+      // No existing questionnaire found - show selection dialog
+      const availableQuestionnaires = await getAvailableQuestionnaires()
+      
+      if (availableQuestionnaires.length === 0) {
+        $q.notify({
+          type: 'warning',
+          message: 'No questionnaire templates available',
+          position: 'top',
+        })
+        return
+      }
+
+      // For now, use the first available questionnaire
+      // TODO: In future, show selection dialog for user to choose
+      questionnaireName = availableQuestionnaires[0].name
+      
+      // Create new column for this questionnaire type
+      targetConceptCode = await createNewQuestionnaireColumn(questionnaireName, concept.code)
+      
+      logger.info('Created new questionnaire column', {
+        questionnaireName,
+        originalConceptCode: concept.code,
+        newConceptCode: targetConceptCode
+      })
+    }
+
+    // Step 2: Get clean template for this questionnaire name from CODE_LOOKUP
+    const questionnaireBlob = await getQuestionnaireTemplateByName(questionnaireName)
+    
+    if (!questionnaireBlob) {
+      $q.notify({
+        type: 'warning',
+        message: `No template found for questionnaire: ${questionnaireName}`,
+        position: 'top',
+      })
+      return
+    }
 
     // Prepare data for the questionnaire fill dialog
     selectedQuestionnaireFillData.value = {
-      patientId: row.patientId,
       encounterNum: row.encounterNum,
-      conceptCode: concept.code,
+      patientId: row.patientId,
+      questionnaireBlob: questionnaireBlob,
+      conceptCode: targetConceptCode,
       conceptName: concept.name,
+      questionnaireName: questionnaireName,
       patientName: row.patientName,
       visitDate: row.visitDate,
-      existingQuestionnaireType: existingQuestionnaireType,
     }
 
     showQuestionnaireFillDialog.value = true
@@ -537,9 +692,11 @@ const openQuestionnaireFillDialog = async (row, concept) => {
     logger.debug('Prepared questionnaire fill data', {
       patientId: row.patientId,
       encounterNum: row.encounterNum,
-      conceptCode: concept.code,
-      foundExistingType: !!existingQuestionnaireType,
-      questionnaireTitle: existingQuestionnaireType?.title,
+      originalConceptCode: concept.code,
+      targetConceptCode: targetConceptCode,
+      questionnaireName: questionnaireName,
+      hasBlobData: !!questionnaireBlob,
+      blobLength: questionnaireBlob?.length || 0,
     })
 
   } catch (error) {
@@ -628,12 +785,6 @@ watch(
 )
 
 
-
-// Store automatically handles column visibility initialization
-// when concepts are loaded via initializeColumnVisibility method
-
-// Store handles all reactive updates automatically
-// No need for event emissions since components can react to store changes directly
 
 // Lifecycle
 onMounted(async () => {
