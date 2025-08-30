@@ -77,13 +77,22 @@
               <!-- Observation cells -->
               <td v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-cell" :class="getCellClass(row, concept)">
                 <!-- Custom questionnaire cell for Q type -->
-                <div v-if="concept.valueType === 'Q' && getCellValue(row, concept)" class="questionnaire-cell" @click="openQuestionnairePreview(row, concept)">
-                  <div class="questionnaire-content">
+                <div v-if="concept.valueType === 'Q'" class="questionnaire-cell">
+                  <!-- Filled questionnaire -->
+                  <div v-if="getCellValue(row, concept)" class="questionnaire-content" @click="openQuestionnairePreview(row, concept)">
                     {{ getCellValue(row, concept) }}
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
+                      Click to view questionnaire data
+                    </q-tooltip>
                   </div>
-                  <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
-                    Click to view questionnaire data
-                  </q-tooltip>
+                  <!-- Empty questionnaire - clickable to fill -->
+                  <div v-else class="questionnaire-empty" @click="openQuestionnaireFillDialog(row, concept)">
+                    <q-icon name="add" size="16px" color="grey-5" />
+                    <div class="empty-label">Add</div>
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
+                      Click to complete questionnaire
+                    </q-tooltip>
+                  </div>
                 </div>
                 <!-- Regular editable cell for other types -->
                 <EditableCell
@@ -127,6 +136,14 @@
       :concept-name="selectedQuestionnaireData.conceptName"
       :completion-date="selectedQuestionnaireData.completionDate"
     />
+
+    <!-- Questionnaire Fill Dialog -->
+    <QuestionnaireFillDialog
+      v-if="selectedQuestionnaireFillData"
+      v-model="showQuestionnaireFillDialog"
+      :questionnaire-fill-data="selectedQuestionnaireFillData"
+      @questionnaire-completed="handleQuestionnaireCompleted"
+    />
   </div>
 </template>
 
@@ -142,6 +159,7 @@ import EditableCell from './EditableCell.vue'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
+import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -166,9 +184,11 @@ const showViewOptions = ref(false)
 const showVisitEditDialog = ref(false)
 const selectedVisitData = ref(null)
 
-// Questionnaire preview dialog state
+// Questionnaire dialogs state
 const showQuestionnairePreview = ref(false)
 const selectedQuestionnaireData = ref(null)
+const showQuestionnaireFillDialog = ref(false)
+const selectedQuestionnaireFillData = ref(null)
 
 
 
@@ -412,6 +432,129 @@ const handleVisitUpdated = (updatedVisit) => {
     message: `Visit ${updatedVisit.ENCOUNTER_NUM} updated successfully`,
     position: 'top',
   })
+}
+
+// Questionnaire fill dialog methods
+const handleQuestionnaireCompleted = (completedData) => {
+  logger.info('Questionnaire completed successfully', {
+    conceptCode: completedData.conceptCode,
+    patientId: completedData.patientId,
+    encounterNum: completedData.encounterNum,
+  })
+
+  // Refresh the data grid to show the new questionnaire data
+  refreshData()
+
+  $q.notify({
+    type: 'positive',
+    message: 'Questionnaire completed and saved successfully',
+    position: 'top',
+    timeout: 3000,
+  })
+}
+
+const findQuestionnaireTypeFromExistingObservations = async (conceptCode) => {
+  try {
+    logger.info('Finding questionnaire type from existing observations', { conceptCode })
+
+    // Query for existing observations with this concept code
+    const result = await databaseStore.executeQuery(
+      `SELECT OBSERVATION_BLOB
+       FROM OBSERVATION_FACT
+       WHERE CONCEPT_CD = ?
+       AND OBSERVATION_BLOB IS NOT NULL
+       AND LENGTH(OBSERVATION_BLOB) > 0
+       LIMIT 5`,
+      [conceptCode]
+    )
+
+    if (!result.success || result.data.length === 0) {
+      logger.info('No existing observations found for concept', { conceptCode })
+      return null
+    }
+
+    // Try to parse questionnaire data from existing observations
+    for (const row of result.data) {
+      try {
+        const observationData = JSON.parse(row.OBSERVATION_BLOB)
+
+        // Look for questionnaire metadata
+        if (observationData.questionnaireTitle || observationData.title) {
+          const questionnaireType = {
+            title: observationData.questionnaireTitle || observationData.title,
+            shortTitle: observationData.questionnaireShortTitle || observationData.short_title,
+            items: observationData.items || []
+          }
+
+          logger.info('Found questionnaire type from existing observation', {
+            conceptCode,
+            questionnaireTitle: questionnaireType.title,
+            itemCount: questionnaireType.items.length
+          })
+
+          return questionnaireType
+        }
+      } catch (parseError) {
+        logger.debug('Failed to parse observation BLOB', { conceptCode, error: parseError.message })
+        continue
+      }
+    }
+
+    logger.info('No questionnaire data found in existing observations', { conceptCode })
+    return null
+
+  } catch (error) {
+    logger.error('Failed to find questionnaire type from existing observations', error, { conceptCode })
+    return null
+  }
+}
+
+const openQuestionnaireFillDialog = async (row, concept) => {
+  logger.info('Opening questionnaire fill dialog', {
+    patientId: row.patientId,
+    encounterNum: row.encounterNum,
+    conceptCode: concept.code,
+    conceptName: concept.name,
+  })
+
+  try {
+    // First, try to find the questionnaire type from existing observations
+    const existingQuestionnaireType = await findQuestionnaireTypeFromExistingObservations(concept.code)
+
+    // Prepare data for the questionnaire fill dialog
+    selectedQuestionnaireFillData.value = {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      conceptCode: concept.code,
+      conceptName: concept.name,
+      patientName: row.patientName,
+      visitDate: row.visitDate,
+      existingQuestionnaireType: existingQuestionnaireType,
+    }
+
+    showQuestionnaireFillDialog.value = true
+
+    logger.debug('Prepared questionnaire fill data', {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      conceptCode: concept.code,
+      foundExistingType: !!existingQuestionnaireType,
+      questionnaireTitle: existingQuestionnaireType?.title,
+    })
+
+  } catch (error) {
+    logger.error('Failed to open questionnaire fill dialog', error, {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      conceptCode: concept.code,
+    })
+
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to open questionnaire dialog',
+      position: 'top',
+    })
+  }
 }
 
 // Questionnaire preview dialog methods
@@ -710,6 +853,27 @@ onMounted(async () => {
             line-height: 1.2;
             word-break: break-word;
             color: $grey-8;
+            cursor: pointer;
+          }
+
+          .questionnaire-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            color: $grey-5;
+
+            &:hover {
+              color: $primary;
+            }
+
+            .empty-label {
+              font-size: 0.65rem;
+              font-weight: 400;
+              text-align: center;
+              line-height: 1.1;
+            }
           }
         }
       }
