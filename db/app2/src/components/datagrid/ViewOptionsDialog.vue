@@ -62,7 +62,7 @@
                       <div class="column-name">{{ column.name }}</div>
                       <div class="column-meta">
                         <span class="value-type-badge" :class="`value-type-${column.valueType}`">{{ column.valueType }}</span>
-                        <span class="text-grey-6">{{ column.observationCount || 0 }} observations</span>
+                        <span class="text-grey-6">{{ column.code }}</span>
                       </div>
                     </div>
 
