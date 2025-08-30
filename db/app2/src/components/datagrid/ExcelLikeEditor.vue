@@ -4,7 +4,6 @@
     <div class="editor-header q-pa-md bg-white shadow-1">
       <div class="row items-center justify-start q-gutter-sm">
         <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
-        <q-btn color="secondary" icon="add" label="New Observation" @click="showNewObservationDialog = true" />
         <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
       </div>
     </div>
@@ -102,93 +101,7 @@
       @update:view-options="updateViewOptions"
       @update:column-visibility="handleColumnVisibilityUpdate"
       @update:column-order="handleColumnOrderUpdate"
-      @add-observation="showNewObservationDialog = true"
     />
-
-    <!-- New Observation Dialog -->
-    <q-dialog v-model="showNewObservationDialog" persistent>
-      <q-card style="min-width: 500px; max-width: 700px">
-        <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6 text-secondary">
-            <q-icon name="add" class="q-mr-sm" />
-            Add New Observation Column
-          </div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
-        </q-card-section>
-
-        <q-card-section>
-          <div class="text-body2 text-grey-6 q-mb-md">Select a medical concept to add as a new column to the data grid.</div>
-
-          <!-- Concept Search -->
-          <div class="concept-search-section">
-            <q-input v-model="newConceptSearch" outlined dense placeholder="Search for medical concepts..." clearable class="q-mb-md" :loading="conceptSearchLoading">
-              <template v-slot:prepend>
-                <q-icon name="search" />
-              </template>
-            </q-input>
-
-            <!-- Search Results -->
-            <div v-if="newConceptSearch && conceptSearchResults.length > 0" class="search-results">
-              <div class="text-subtitle2 text-grey-7 q-mb-sm">
-                Search Results: {{ availableConceptSearchResults.length }} available
-                <span v-if="conceptSearchResults.length > availableConceptSearchResults.length" class="text-grey-5">
-                  ({{ conceptSearchResults.length - availableConceptSearchResults.length }} already added)
-                </span>
-              </div>
-
-              <!-- Available concepts -->
-              <div v-if="availableConceptSearchResults.length > 0">
-                <q-list bordered class="rounded-borders" style="max-height: 250px; overflow-y: auto">
-                  <q-item v-for="concept in availableConceptSearchResults" :key="concept.CONCEPT_CD" clickable @click="addNewObservationColumn(concept)" class="concept-item">
-                    <q-item-section>
-                      <q-item-label>{{ concept.NAME_CHAR }}</q-item-label>
-                      <q-item-label caption>{{ concept.CONCEPT_CD }}</q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-icon name="add" color="secondary" />
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </div>
-
-              <!-- Already added concepts -->
-              <div v-if="alreadyAddedConcepts.length > 0" class="q-mb-md">
-                <div class="text-subtitle2 text-grey-7 q-mb-sm">Already in Grid: {{ alreadyAddedConcepts.length }}</div>
-                <q-list bordered class="rounded-borders" style="max-height: 150px; overflow-y: auto">
-                  <q-item v-for="concept in alreadyAddedConcepts" :key="`added-${concept.CONCEPT_CD}`" class="concept-item already-added">
-                    <q-item-section>
-                      <q-item-label class="text-grey-6">{{ concept.NAME_CHAR }}</q-item-label>
-                      <q-item-label caption class="text-grey-5">{{ concept.CONCEPT_CD }}</q-item-label>
-                    </q-item-section>
-                    <q-item-section side>
-                      <q-icon name="check_circle" color="positive" />
-                    </q-item-section>
-                  </q-item>
-                </q-list>
-              </div>
-
-              <!-- All concepts already added -->
-              <div v-if="availableConceptSearchResults.length === 0 && alreadyAddedConcepts.length > 0" class="text-center text-grey-6 q-py-md">
-                <q-icon name="check_circle" size="48px" color="positive" />
-                <div class="q-mt-sm">All found concepts are already in the grid</div>
-                <div class="text-caption">Try searching for different concepts</div>
-              </div>
-            </div>
-
-            <!-- No Results -->
-            <div v-if="newConceptSearch && !conceptSearchLoading && conceptSearchResults.length === 0" class="text-center text-grey-6 q-py-md">
-              <q-icon name="search_off" size="48px" />
-              <div class="q-mt-sm">No concepts found</div>
-            </div>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
 
     <!-- Edit Visit Dialog -->
     <EditVisitDialog v-if="selectedVisitData" v-model="showVisitEditDialog" :patient="selectedVisitData" :visit="selectedVisitData" @visitUpdated="handleVisitUpdated" />
@@ -196,7 +109,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -227,35 +140,12 @@ const logger = loggingStore.createLogger('ExcelLikeEditor')
 
 // Local component state (only what's component-specific)
 const showViewOptions = ref(false)
-const showNewObservationDialog = ref(false)
 const showVisitEditDialog = ref(false)
 const selectedVisitData = ref(null)
 
-// New observation dialog state
-const newConceptSearch = ref('')
-const conceptSearchLoading = ref(false)
-const conceptSearchResults = ref([])
 
-// Computed property to filter out concepts already in the grid
-const availableConceptSearchResults = computed(() => {
-  const existingConceptCodes = new Set(dataGridStore.observationConcepts?.value?.map((c) => c.code) || [])
 
-  return conceptSearchResults.value.filter((concept) => !existingConceptCodes.has(concept.CONCEPT_CD))
-})
 
-// Computed property to get concepts already in the grid
-const alreadyAddedConcepts = computed(() => {
-  const existingConceptCodes = new Set(dataGridStore.observationConcepts?.value?.map((c) => c.code) || [])
-
-  return conceptSearchResults.value.filter((concept) => existingConceptCodes.has(concept.CONCEPT_CD))
-})
-
-// Ensure reactive variables are properly initialized
-const initializeDialogState = () => {
-  newConceptSearch.value = ''
-  conceptSearchLoading.value = false
-  conceptSearchResults.value = []
-}
 
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
@@ -328,73 +218,9 @@ const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
 const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
 
-// New observation methods
-const searchConceptsForNewObservation = async (query) => {
-  if (!query || query.length < 2) {
-    conceptSearchResults.value = []
-    return
-  }
 
-  // Ensure concept store is initialized
-  if (!conceptStore) {
-    logger.warn('Concept store not available for search')
-    conceptSearchResults.value = []
-    return
-  }
 
-  conceptSearchLoading.value = true
-  try {
-    const results = await conceptStore.searchConcepts(query, {
-      limit: 20,
-      context: 'data_grid_new_observation',
-    })
-    conceptSearchResults.value = results || []
-  } catch (error) {
-    logger.error('Concept search failed', error)
-    conceptSearchResults.value = []
-    $q.notify({
-      type: 'negative',
-      message: `Search failed: ${error.message}`,
-      position: 'top',
-    })
-  } finally {
-    conceptSearchLoading.value = false
-  }
-}
 
-const addNewObservationColumn = async (concept) => {
-  try {
-    logger.info('Adding new observation column', { conceptCode: concept.CONCEPT_CD, conceptName: concept.NAME_CHAR })
-
-    // Add the concept to the data grid store using the store method
-    const result = await dataGridStore.addConceptToGrid(concept)
-
-    // Close the dialog (this will trigger the watch that resets state)
-    showNewObservationDialog.value = false
-
-    // Show appropriate notification based on result
-    if (result.alreadyExists) {
-      $q.notify({
-        type: 'info',
-        message: `"${concept.NAME_CHAR}" is already in the grid`,
-        position: 'top',
-      })
-    } else {
-      $q.notify({
-        type: 'positive',
-        message: `Added "${concept.NAME_CHAR}" column to the grid`,
-        position: 'top',
-      })
-    }
-  } catch (error) {
-    logger.error('Failed to add new observation column', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to add column: ${error.message}`,
-      position: 'top',
-    })
-  }
-}
 
 // Batch operations (using store functions) - with defensive checks
 const refreshData = () => (dataGridStore?.refreshData ? dataGridStore.refreshData(props.patientIds) : () => {})
@@ -403,14 +229,34 @@ const refreshData = () => (dataGridStore?.refreshData ? dataGridStore.refreshDat
 const updateViewOptions = dataGridStore.updateViewOptions
 
 // Column management handlers - delegate to store
-const handleColumnVisibilityUpdate = (columnCode, visible) => {
-  dataGridStore.updateColumnVisibility(columnCode, visible)
+const handleColumnVisibilityUpdate = (...args) => {
+  // Handle both individual updates (columnCode, visible) and batch updates (visibilityObject)
+  if (args.length === 2 && typeof args[0] === 'string') {
+    // Individual column update: (columnCode, visible)
+    const [columnCode, visible] = args
+    dataGridStore.updateColumnVisibility(columnCode, visible)
 
-  $q.notify({
-    type: visible ? 'positive' : 'info',
-    message: `Column "${columnCode}" is now ${visible ? 'visible' : 'hidden'}`,
-    position: 'top',
-  })
+    $q.notify({
+      type: visible ? 'positive' : 'info',
+      message: `Column "${columnCode}" is now ${visible ? 'visible' : 'hidden'}`,
+      position: 'top',
+    })
+  } else if (args.length === 1 && typeof args[0] === 'object') {
+    // Batch update: (visibilityObject)
+    const visibilityObject = args[0]
+    Object.entries(visibilityObject).forEach(([columnCode, visible]) => {
+      dataGridStore.updateColumnVisibility(columnCode, visible)
+    })
+
+    // Optional: Show a batch notification
+    const visibleCount = Object.values(visibilityObject).filter(v => v).length
+    const totalCount = Object.keys(visibilityObject).length
+    $q.notify({
+      type: 'positive',
+      message: `Updated column visibility: ${visibleCount}/${totalCount} columns visible`,
+      position: 'top',
+    })
+  }
 }
 
 const handleColumnOrderUpdate = (columnOrder) => {
@@ -566,32 +412,7 @@ watch(
   { deep: true },
 )
 
-// Watch for new concept search input
-let conceptSearchTimeout = null
-watch(newConceptSearch, (newQuery) => {
-  // Clear previous timeout
-  if (conceptSearchTimeout) {
-    clearTimeout(conceptSearchTimeout)
-  }
 
-  if (!newQuery || newQuery.length < 2) {
-    conceptSearchResults.value = []
-    return
-  }
-
-  // Debounce search
-  conceptSearchTimeout = setTimeout(() => {
-    searchConceptsForNewObservation(newQuery)
-  }, 300)
-})
-
-// Watch for dialog visibility changes
-watch(showNewObservationDialog, (isVisible) => {
-  if (!isVisible) {
-    // Reset dialog state when closed
-    initializeDialogState()
-  }
-})
 
 // Store automatically handles column visibility initialization
 // when concepts are loaded via initializeColumnVisibility method
@@ -609,18 +430,10 @@ onMounted(async () => {
     await conceptStore.initialize()
   }
 
-  // Initialize dialog state
-  initializeDialogState()
-
   await loadPatientData()
 })
 
-onUnmounted(() => {
-  // Clean up concept search timeout
-  if (conceptSearchTimeout) {
-    clearTimeout(conceptSearchTimeout)
-  }
-})
+
 </script>
 
 <style lang="scss" scoped>
@@ -802,15 +615,6 @@ onUnmounted(() => {
 
         &.empty-cell {
           background: $grey-1;
-        }
-
-        &.has-pending-change {
-          background: $orange-2;
-          border-color: $orange-5;
-        }
-
-        &.compact {
-          padding: 1px;
         }
       }
     }

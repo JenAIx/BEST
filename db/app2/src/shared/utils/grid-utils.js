@@ -7,20 +7,14 @@
  * Get CSS classes for a grid cell based on its state
  * @param {Object} row - Table row data
  * @param {Object} concept - Concept definition
- * @param {boolean} highlightChanges - Whether to highlight changes
- * @param {boolean} compactView - Whether to use compact view
  * @returns {Object} CSS class object
  */
-export const getCellClass = (row, concept, highlightChanges = true, compactView = false) => {
-  const key = `${row.patientId}-${row.encounterNum}-${concept.code}`
-  const hasChange = row.pendingChanges?.has(key)
+export const getCellClass = (row, concept) => {
   const hasValue = !!row.observations[concept.code]
 
   return {
     'has-value': hasValue,
     'empty-cell': !hasValue,
-    'has-pending-change': hasChange && highlightChanges,
-    compact: compactView,
   }
 }
 
@@ -28,12 +22,9 @@ export const getCellClass = (row, concept, highlightChanges = true, compactView 
  * Check if a table row has unsaved changes
  * @param {Object} row - Table row data
  * @param {Array} concepts - Array of concept definitions
- * @param {boolean} highlightChanges - Whether to highlight changes
  * @returns {boolean} True if row has changes
  */
-export const hasRowChanges = (row, concepts, highlightChanges = true) => {
-  if (!highlightChanges) return false
-
+export const hasRowChanges = (row, concepts) => {
   return concepts.some((concept) => {
     const key = `${row.patientId}-${row.encounterNum}-${concept.code}`
     return row.pendingChanges?.has(key)
@@ -134,23 +125,13 @@ export const parseChangeKey = (key) => {
  * @returns {Object} Default view options
  */
 export const getDefaultViewOptions = () => {
-  return {
-    showEmptyCells: true,
-    compactView: false,
-    highlightChanges: true,
-  }
+  return {}
 }
 
 /**
  * Validate view options object
- * @param {Object} options - View options to validate
  * @returns {Object} Validated view options
  */
-export const validateViewOptions = (options) => {
-  const defaults = getDefaultViewOptions()
-  return {
-    showEmptyCells: typeof options.showEmptyCells === 'boolean' ? options.showEmptyCells : defaults.showEmptyCells,
-    compactView: typeof options.compactView === 'boolean' ? options.compactView : defaults.compactView,
-    highlightChanges: typeof options.highlightChanges === 'boolean' ? options.highlightChanges : defaults.highlightChanges,
-  }
+export const validateViewOptions = () => {
+  return {} // No view options to validate
 }

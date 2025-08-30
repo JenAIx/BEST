@@ -155,11 +155,11 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
   // Enhanced cell utility functions with pending changes context
   const getCellClassWithContext = (row, concept) => {
-    return getCellClass(row, concept, viewOptions.value.highlightChanges, viewOptions.value.compactView)
+    return getCellClass(row, concept)
   }
 
   const hasRowChangesWithContext = (row) => {
-    return hasRowChanges(row, observationConcepts.value, viewOptions.value.highlightChanges)
+    return hasRowChanges(row, observationConcepts.value)
   }
 
   // Data loading
