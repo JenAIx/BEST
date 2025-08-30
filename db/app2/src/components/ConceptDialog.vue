@@ -1,8 +1,9 @@
 <template>
   <BaseEntityDialog
+    ref="baseDialogRef"
     v-model="dialogVisible"
     :mode="mode"
-    :entity="concept"
+    :entity="transformedConcept"
     entity-name="Concept"
     icon="science"
     size="lg"
@@ -10,8 +11,12 @@
     :custom-validator="validateForm"
     @submit="handleSubmit"
     @cancel="handleCancel"
+    @change="onFormDataChange"
   >
     <template #default="{ formData, isEditMode }">
+      <!-- Initialize our form data references -->
+      <div style="display: none;">{{ initFormDataRefs(formData) }}</div>
+      
       <!-- Source System Field (at top for create mode) -->
       <q-select
         v-if="!isEditMode"
@@ -69,7 +74,7 @@
           >
             <template v-slot:append v-if="!isEditMode && formData.sourceSystem === 'SNOMED-CT'">
               <q-icon name="search" @click="handleConceptCodeSearch" class="cursor-pointer">
-                <q-tooltip>Search SNOMED concepts</q-tooltip>
+                <q-tooltip>Search SNOMED CT API</q-tooltip>
               </q-icon>
             </template>
           </q-input>
@@ -87,7 +92,7 @@
       >
         <template v-slot:append v-if="!isEditMode && formData.sourceSystem === 'SNOMED-CT'">
           <q-icon name="search" @click="handleConceptNameSearch" class="cursor-pointer">
-            <q-tooltip>Search SNOMED concepts</q-tooltip>
+            <q-tooltip>Search SNOMED CT API</q-tooltip>
           </q-icon>
         </template>
       </q-input>
@@ -199,7 +204,7 @@
         hint="Related concept code (optional)"
       />
 
-      <!-- Description Field -->
+      <!-- Description Field (stored in CONCEPT_BLOB) -->
       <q-input
         v-model="formData.description"
         label="Description"
@@ -207,7 +212,8 @@
         dense
         type="textarea"
         rows="3"
-        hint="Additional description or notes (optional)"
+        hint="Additional description or notes (stored in concept blob)"
+        @update:model-value="updateConceptBlob"
       />
     </template>
   </BaseEntityDialog>
@@ -215,7 +221,7 @@
   <!-- Path Picker Dialog -->
   <ConceptPathPickerDialog
     v-model="showPathPicker"
-    :current-path="localFormData.conceptPath"
+    :current-path="formDataRef?.conceptPath || ''"
     @select="onPathSelected"
   />
 
@@ -271,7 +277,8 @@ const logger = loggingStore.createLogger('ConceptDialog')
 
 // State
 const isSaving = ref(false)
-const localFormData = ref({})
+const currentFormData = ref({})
+const formDataRef = ref(null) // Reference to actual BaseEntityDialog formData
 const showPathPicker = ref(false)
 const showEditAnswers = ref(false)
 const showSNOMEDSearch = ref(false)
@@ -292,9 +299,9 @@ const dialogVisible = computed({
 
 // Helper to parse concept blob
 const parseConceptBlob = () => {
-  if (localFormData.value.conceptBlob) {
+  if (formDataRef.value?.conceptBlob) {
     try {
-      const blob = JSON.parse(localFormData.value.conceptBlob)
+      const blob = JSON.parse(formDataRef.value.conceptBlob)
       if (blob.answers && Array.isArray(blob.answers)) {
         answersCount.value = blob.answers.length
         currentAnswers.value = blob.answers
@@ -308,7 +315,7 @@ const parseConceptBlob = () => {
 }
 
 const selectionAnswers = computed(() => {
-  if (localFormData.value.valueType !== 'S') return null
+  if (formDataRef.value?.valueType !== 'S') return null
   
   const blob = parseConceptBlob()
   if (!blob) return null
@@ -327,10 +334,33 @@ const selectionAnswers = computed(() => {
 
 // Concept object for dialogs
 const conceptForDialog = computed(() => ({
-  conceptCode: localFormData.value.conceptCode || '',
-  name: localFormData.value.name || '',
-  conceptPath: localFormData.value.conceptPath || ''
+  conceptCode: formDataRef.value?.conceptCode || '',
+  name: formDataRef.value?.name || '',
+  conceptPath: formDataRef.value?.conceptPath || ''
 }))
+
+// Watch for BaseEntityDialog initialization to get formData reference
+const baseDialogRef = ref(null)
+
+// Initialize form data references (called from template) 
+const initFormDataRefs = (formData) => {
+  try {
+    if (formData && typeof formData === 'object') {
+      currentFormData.value = formData
+      formDataRef.value = formData
+    }
+  } catch (error) {
+    console.warn('[ConceptDialog] Error initializing form data refs:', error)
+  }
+  return '' // Return empty string for template
+}
+
+// Handle form data changes from BaseEntityDialog
+const onFormDataChange = ({ data }) => {
+  // Keep our references in sync with BaseEntityDialog's formData
+  currentFormData.value = data
+  formDataRef.value = data
+}
 
 // Methods
 const validateForm = (formData, isEditMode) => {
@@ -395,20 +425,46 @@ const loadOptions = async () => {
 }
 
 const onSourceSystemChange = (value) => {
-  localFormData.value.sourceSystem = value
-}
-
-const onValueTypeChange = (value) => {
-  localFormData.value.valueType = value
-  if (value !== 'S') {
-    // Clear selection-related data
-    currentAnswers.value = []
-    answersCount.value = 0
+  if (formDataRef.value) {
+    formDataRef.value.sourceSystem = value
   }
 }
 
+const onValueTypeChange = (value) => {
+  if (formDataRef.value) {
+    formDataRef.value.valueType = value
+    if (value !== 'S') {
+      // Clear selection-related data
+      currentAnswers.value = []
+      answersCount.value = 0
+    }
+  }
+}
+
+const updateConceptBlob = (description) => {
+  if (!formDataRef.value) return
+  
+  // Merge description into concept blob as JSON
+  let blob = {}
+  try {
+    blob = formDataRef.value.conceptBlob ? JSON.parse(formDataRef.value.conceptBlob) : {}
+  } catch {
+    blob = {}
+  }
+  
+  if (description && description.trim()) {
+    blob.description = description.trim()
+  } else {
+    delete blob.description
+  }
+  
+  formDataRef.value.conceptBlob = Object.keys(blob).length > 0 ? JSON.stringify(blob) : null
+}
+
 const onPathSelected = (path) => {
-  localFormData.value.conceptPath = path
+  if (formDataRef.value) {
+    formDataRef.value.conceptPath = path
+  }
   showPathPicker.value = false
 }
 
@@ -416,16 +472,20 @@ const onAnswersSaved = (answers) => {
   currentAnswers.value = answers
   answersCount.value = answers.length
   
+  if (!formDataRef.value) return
+  
   // Update concept blob
-  const blob = localFormData.value.conceptBlob ? JSON.parse(localFormData.value.conceptBlob) : {}
+  const blob = formDataRef.value.conceptBlob ? JSON.parse(formDataRef.value.conceptBlob) : {}
   blob.answers = answers
   delete blob.linkedAnswersConceptCode
-  localFormData.value.conceptBlob = JSON.stringify(blob)
+  formDataRef.value.conceptBlob = JSON.stringify(blob)
   
   showEditAnswers.value = false
 }
 
 const linkAnswer = async () => {
+  if (!formDataRef.value) return
+  
   // Show dialog to select concept to link answers from
   const result = await $q.dialog({
     title: 'Link to Existing Answers',
@@ -439,33 +499,84 @@ const linkAnswer = async () => {
   })
   
   if (result) {
-    const blob = localFormData.value.conceptBlob ? JSON.parse(localFormData.value.conceptBlob) : {}
+    const blob = formDataRef.value.conceptBlob ? JSON.parse(formDataRef.value.conceptBlob) : {}
     blob.linkedAnswersConceptCode = result
     delete blob.answers
-    localFormData.value.conceptBlob = JSON.stringify(blob)
+    formDataRef.value.conceptBlob = JSON.stringify(blob)
   }
 }
 
 const unlinkAnswer = () => {
-  const blob = localFormData.value.conceptBlob ? JSON.parse(localFormData.value.conceptBlob) : {}
+  if (!formDataRef.value) return
+  
+  const blob = formDataRef.value.conceptBlob ? JSON.parse(formDataRef.value.conceptBlob) : {}
   delete blob.linkedAnswersConceptCode
-  localFormData.value.conceptBlob = JSON.stringify(blob)
+  formDataRef.value.conceptBlob = JSON.stringify(blob)
 }
 
 const handleConceptCodeSearch = () => {
-  snomedSearchQuery.value = localFormData.value.conceptCode
+  if (!formDataRef.value) {
+    console.warn('[ConceptDialog] Form data not ready for search')
+    return
+  }
+  snomedSearchQuery.value = formDataRef.value.conceptCode || ''
   showSNOMEDSearch.value = true
 }
 
 const handleConceptNameSearch = () => {
-  snomedSearchQuery.value = localFormData.value.name
+  if (!formDataRef.value) {
+    console.warn('[ConceptDialog] Form data not ready for search')
+    return
+  }
+  snomedSearchQuery.value = formDataRef.value.name || ''
   showSNOMEDSearch.value = true
 }
 
-const onSNOMEDSelected = (concept) => {
-  localFormData.value.conceptCode = concept.code
-  localFormData.value.name = concept.display
+const onSNOMEDSelected = async (concept) => {
+  if (!formDataRef.value) return
+  
+  // Fill in the basic concept information directly in BaseEntityDialog's formData
+  formDataRef.value.conceptCode = concept.code
+  formDataRef.value.name = concept.display || concept.preferredTerm
   showSNOMEDSearch.value = false
+  
+  // Auto-resolve the hierarchical path using SNOMED CT API
+  try {
+    const snomedApiService = (await import('src/core/services/snomed-api-service')).default
+    const conceptPath = await snomedApiService.resolve(concept.code)
+    
+    if (conceptPath) {
+      formDataRef.value.conceptPath = conceptPath
+      
+      // Also auto-set source system if not already set
+      if (!formDataRef.value.sourceSystem) {
+        formDataRef.value.sourceSystem = 'SNOMED-CT'
+      }
+      
+      $q.notify({
+        type: 'positive',
+        message: 'SNOMED CT concept selected and path resolved',
+        caption: `Path: ${conceptPath}`,
+        position: 'top',
+        timeout: 3000
+      })
+    } else {
+      // Fallback to basic path if resolution fails
+      formDataRef.value.conceptPath = `\\SNOMED-CT\\${concept.code}`
+      $q.notify({
+        type: 'warning',
+        message: 'SNOMED CT concept selected, but path resolution failed',
+        caption: 'Using basic path format',
+        position: 'top'
+      })
+    }
+  } catch (error) {
+    console.error('Failed to resolve SNOMED CT path:', error)
+    // Fallback to basic path
+    if (formDataRef.value) {
+      formDataRef.value.conceptPath = `\\SNOMED-CT\\${concept.code}`
+    }
+  }
 }
 
 const handleSubmit = async ({ mode, data, changes }) => {
@@ -475,18 +586,39 @@ const handleSubmit = async ({ mode, data, changes }) => {
     const conceptRepo = dbStore.getRepository('concept')
     
     if (mode === 'create') {
-      // Prepare create data
+      // Prepare concept blob with description and other data
+      let conceptBlob = null
+      if (data.conceptBlob || data.description) {
+        const blob = {}
+        
+        // Include existing blob data
+        if (data.conceptBlob) {
+          try {
+            Object.assign(blob, JSON.parse(data.conceptBlob))
+          } catch {
+            // Invalid JSON, ignore
+          }
+        }
+        
+        // Include description if provided
+        if (data.description && data.description.trim()) {
+          blob.description = data.description.trim()
+        }
+        
+        conceptBlob = Object.keys(blob).length > 0 ? JSON.stringify(blob) : null
+      }
+      
+      // Prepare create data (match database schema exactly)
       const conceptData = {
         CONCEPT_CD: data.conceptCode,
         CONCEPT_PATH: data.conceptPath,
         NAME_CHAR: data.name,
-        CONCEPT_BLOB: data.conceptBlob || null,
+        CONCEPT_BLOB: conceptBlob,
         CATEGORY_CHAR: data.category,
         VALTYPE_CD: data.valueType,
         SOURCESYSTEM_CD: data.sourceSystem,
         UNIT_CD: data.unitCode || null,
-        RELATED_CONCEPT_CD: data.relatedConcept || null,
-        DESCRIPTION: data.description || null
+        RELATED_CONCEPT: data.relatedConcept || null
       }
       
       // Check if concept already exists
@@ -517,9 +649,32 @@ const handleSubmit = async ({ mode, data, changes }) => {
       if (changes.valueType) updateData.VALTYPE_CD = data.valueType
       if (changes.sourceSystem) updateData.SOURCESYSTEM_CD = data.sourceSystem
       if (changes.unitCode !== undefined) updateData.UNIT_CD = data.unitCode
-      if (changes.relatedConcept !== undefined) updateData.RELATED_CONCEPT_CD = data.relatedConcept
-      if (changes.description !== undefined) updateData.DESCRIPTION = data.description
-      if (changes.conceptBlob !== undefined) updateData.CONCEPT_BLOB = data.conceptBlob
+      if (changes.relatedConcept !== undefined) updateData.RELATED_CONCEPT = data.relatedConcept
+      
+      // Handle concept blob and description changes
+      if (changes.conceptBlob !== undefined || changes.description !== undefined) {
+        let blob = {}
+        
+        // Start with existing blob data
+        if (data.conceptBlob) {
+          try {
+            Object.assign(blob, JSON.parse(data.conceptBlob))
+          } catch {
+            // Invalid JSON, ignore
+          }
+        }
+        
+        // Update description if changed
+        if (changes.description !== undefined) {
+          if (data.description && data.description.trim()) {
+            blob.description = data.description.trim()
+          } else {
+            delete blob.description
+          }
+        }
+        
+        updateData.CONCEPT_BLOB = Object.keys(blob).length > 0 ? JSON.stringify(blob) : null
+      }
       
       // Update concept
       const updatedConcept = await conceptRepo.updateConcept(props.concept.CONCEPT_CD, updateData)
@@ -549,24 +704,59 @@ const handleCancel = () => {
   emit('cancelled')
 }
 
-// Initialize concept data for edit mode
-watch(() => props.concept, (newConcept) => {
-  if (props.mode === 'edit' && newConcept) {
-    // Transform concept data to match form fields
-    localFormData.value = {
-      conceptCode: newConcept.CONCEPT_CD || '',
-      name: newConcept.NAME_CHAR || '',
-      conceptPath: newConcept.CONCEPT_PATH || '',
-      category: newConcept.CATEGORY_CHAR || '',
-      valueType: newConcept.VALTYPE_CD || '',
-      unitCode: newConcept.UNIT_CD || '',
-      sourceSystem: newConcept.SOURCESYSTEM_CD || '',
-      relatedConcept: newConcept.RELATED_CONCEPT_CD || '',
-      description: newConcept.DESCRIPTION || '',
-      conceptBlob: newConcept.CONCEPT_BLOB || ''
+// Transform concept data for BaseEntityDialog
+const transformedConcept = computed(() => {
+  if (props.mode === 'edit' && props.concept) {
+    // Extract description from concept blob
+    let description = ''
+    if (props.concept.CONCEPT_BLOB) {
+      try {
+        const blob = JSON.parse(props.concept.CONCEPT_BLOB)
+        description = blob.description || ''
+      } catch {
+        // Invalid JSON, ignore
+      }
+    }
+    
+    // Transform database fields to form fields
+    return {
+      conceptCode: props.concept.CONCEPT_CD || '',
+      name: props.concept.NAME_CHAR || '',
+      conceptPath: props.concept.CONCEPT_PATH || '',
+      category: props.concept.CATEGORY_CHAR || '',
+      valueType: props.concept.VALTYPE_CD || '',
+      unitCode: props.concept.UNIT_CD || '',
+      sourceSystem: props.concept.SOURCESYSTEM_CD || '',
+      relatedConcept: props.concept.RELATED_CONCEPT || '',
+      description: description,
+      conceptBlob: props.concept.CONCEPT_BLOB || ''
+    }
+  } else if (props.mode === 'create') {
+    // Default values for create mode
+    return {
+      conceptCode: '',
+      name: '',
+      conceptPath: '',
+      category: '',
+      valueType: '',
+      unitCode: '',
+      sourceSystem: 'SNOMED-CT', // Default to SNOMED-CT for new concepts
+      relatedConcept: '',
+      description: '',
+      conceptBlob: ''
     }
   }
-}, { immediate: true, deep: true })
+  return null
+})
+
+// Clear form data when dialog closes
+watch(() => props.modelValue, (isOpen) => {
+  if (!isOpen) {
+    // Clear when dialog closes
+    currentFormData.value = {}
+    formDataRef.value = null
+  }
+})
 
 // Load options on mount
 onMounted(() => {

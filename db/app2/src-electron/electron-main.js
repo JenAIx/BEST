@@ -31,8 +31,9 @@ function createWindow() {
       // More info: https://v2.quasar.dev/quasar-cli-vite/developing-electron-apps/electron-preload-script
       preload: process.env.QUASAR_ELECTRON_PRELOAD ? path.resolve(__dirname, process.env.QUASAR_ELECTRON_PRELOAD) : path.resolve(__dirname, 'preload/electron-preload.cjs'),
       sandbox: false,
-      nodeIntegration: false,
-      enableRemoteModule: false
+      // Allow external HTTP requests like in the original working app
+      webSecurity: false,
+      allowRunningInsecureContent: true
     }
   })
 
