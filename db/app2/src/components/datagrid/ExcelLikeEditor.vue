@@ -200,6 +200,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
@@ -220,6 +221,7 @@ const props = defineProps({
 const $q = useQuasar()
 const dataGridStore = useDataGridStore()
 const conceptStore = useConceptResolutionStore()
+const databaseStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ExcelLikeEditor')
 
@@ -304,6 +306,22 @@ const getCellValue = dataGridStore?.getCellValue || (() => '')
 const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
 const getCellClass = dataGridStore?.getCellClass || (() => '')
 const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
+
+// Helper function to get observation count for a visit
+const getObservationCount = async (encounterNum) => {
+  try {
+    const query = `
+      SELECT COUNT(*) as count
+      FROM OBSERVATION_FACT
+      WHERE ENCOUNTER_NUM = ?
+    `
+    const result = await databaseStore.executeQuery(query, [encounterNum])
+    return result.success && result.data.length > 0 ? result.data[0].count : 0
+  } catch (error) {
+    logger.warn('Failed to get observation count', error)
+    return 0
+  }
+}
 
 // Event handlers (using store functions) - with defensive checks
 const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
@@ -411,25 +429,118 @@ const handleColumnOrderUpdate = (columnOrder) => {
 }
 
 // Visit edit dialog methods
-const openVisitEditDialog = (row) => {
+const openVisitEditDialog = async (row) => {
   logger.info('Opening visit edit dialog', { patientId: row.patientId, encounterNum: row.encounterNum })
 
-  // Prepare visit data for the dialog
-  selectedVisitData.value = {
-    patientId: row.patientId,
-    patientName: row.patientName,
-    encounterNum: row.encounterNum,
-    visitDate: row.visitDate,
-    // Add other visit properties as needed
-    visit: {
-      ENCOUNTER_NUM: row.encounterNum,
-      START_DATE: row.visitDate,
-      // Add other visit fields that might be available
-      PATIENT_CD: row.patientId,
-    },
-  }
+  try {
+    // Load complete visit data from database (same pattern as visit-observation-store)
+    const visitRepo = databaseStore.getRepository('visit')
+    const patientRepo = databaseStore.getRepository('patient')
 
-  showVisitEditDialog.value = true
+    // Get patient data
+    const patient = await patientRepo.findByPatientCode(row.patientId)
+    if (!patient) {
+      throw new Error('Patient not found')
+    }
+
+    // Get visit data
+    const visitData = await visitRepo.findById(row.encounterNum)
+    if (!visitData) {
+      throw new Error('Visit not found')
+    }
+
+    // Get observation count for the visit (for logging purposes)
+    const observationCount = await getObservationCount(row.encounterNum)
+
+    // Parse VISIT_BLOB to extract visitType and notes (same as visit-observation-store)
+    let visitType = 'routine'
+    let visitNotes = ''
+    if (visitData.VISIT_BLOB) {
+      try {
+        const blobData = JSON.parse(visitData.VISIT_BLOB)
+        visitType = blobData.visitType || 'routine'
+        visitNotes = blobData.notes || ''
+      } catch (error) {
+        logger.warn('Failed to parse VISIT_BLOB', error, { visitBlob: visitData.VISIT_BLOB })
+        visitNotes = visitData.VISIT_BLOB // Fallback to raw blob as notes
+      }
+    }
+
+    // Log the loaded visit data for debugging
+    logger.debug('Loaded visit data from database', {
+      encounterNum: visitData.ENCOUNTER_NUM,
+      startDate: visitData.START_DATE,
+      endDate: visitData.END_DATE,
+      status: visitData.ACTIVE_STATUS_CD,
+      location: visitData.LOCATION_CD,
+      inoutCd: visitData.INOUT_CD,
+      sourceSystem: visitData.SOURCESYSTEM_CD,
+      visitBlob: visitData.VISIT_BLOB,
+      extractedVisitType: visitType,
+      extractedNotes: visitNotes,
+      observationCount: observationCount,
+    })
+
+    // Prepare data for the dialog (patient + visit structure that EditVisitDialog expects)
+    selectedVisitData.value = {
+      // Patient data
+      PATIENT_CD: row.patientId,
+      patientId: row.patientId,
+      patientName: row.patientName,
+      
+      // Visit data structure that EditVisitDialog expects
+      visit: {
+        // Raw database fields that EditVisitDialog directly accesses
+        ENCOUNTER_NUM: visitData.ENCOUNTER_NUM,
+        START_DATE: visitData.START_DATE,
+        END_DATE: visitData.END_DATE,
+        UPDATE_DATE: visitData.UPDATE_DATE,
+        ACTIVE_STATUS_CD: visitData.ACTIVE_STATUS_CD,
+        LOCATION_CD: visitData.LOCATION_CD,
+        INOUT_CD: visitData.INOUT_CD,
+        SOURCESYSTEM_CD: visitData.SOURCESYSTEM_CD,
+        VISIT_BLOB: visitData.VISIT_BLOB, // Raw JSON blob for EditVisitDialog to parse
+        
+        // Additional fields for compatibility
+        encounterNum: visitData.ENCOUNTER_NUM,
+        visitType: visitType,
+        notes: visitNotes,
+      }
+    }
+
+    showVisitEditDialog.value = true
+
+    logger.debug('Prepared complete visit data for edit dialog', {
+      encounterNum: row.encounterNum,
+      visitType: visitType,
+      visitNotes: visitNotes,
+      hasVisitBlob: !!visitData.VISIT_BLOB,
+      rawVisitBlob: visitData.VISIT_BLOB,
+      status: visitData.ACTIVE_STATUS_CD,
+      location: visitData.LOCATION_CD,
+      startDate: visitData.START_DATE,
+      endDate: visitData.END_DATE,
+      inoutCd: visitData.INOUT_CD,
+      sourceSystem: visitData.SOURCESYSTEM_CD,
+      selectedVisitDataStructure: {
+        hasVisitProperty: !!selectedVisitData.value.visit,
+        visitKeys: selectedVisitData.value.visit ? Object.keys(selectedVisitData.value.visit) : null,
+        patientKeys: Object.keys(selectedVisitData.value),
+      }
+    })
+
+  } catch (error) {
+    logger.error('Failed to load visit data for edit dialog', error, {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+    })
+
+    $q.notify({
+      type: 'negative',
+      message: `Failed to load visit data: ${error.message}`,
+      position: 'top',
+    })
+  }
 }
 
 const handleVisitUpdated = (updatedVisit) => {
@@ -548,13 +659,15 @@ onUnmounted(() => {
     background: $grey-2;
 
     th {
-      padding: 12px 8px;
+      padding: 8px 6px;
       border: 1px solid $grey-4;
       border-top: none;
       font-weight: 600;
-      text-align: left;
+      text-align: center;
       background: $grey-2;
       position: relative;
+      height: 60px;
+      vertical-align: middle;
 
       &.fixed-col {
         position: sticky;
@@ -562,6 +675,7 @@ onUnmounted(() => {
         z-index: 11;
         background: $grey-3;
         box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+        text-align: left; // Override center alignment for fixed column headers
       }
 
       &.patient-col {
@@ -574,6 +688,7 @@ onUnmounted(() => {
         left: 200px;
         width: 120px;
         min-width: 120px;
+        text-align: center; // Center align visit date header
       }
 
       &.obs-col {
@@ -620,16 +735,19 @@ onUnmounted(() => {
     }
 
     td {
-      padding: 8px;
+      padding: 4px 6px;
       border: 1px solid $grey-4;
       border-top: none;
-      vertical-align: top;
+      vertical-align: middle;
+      text-align: center;
+      height: 40px;
 
       &.fixed-col {
         position: sticky;
         background: white;
         z-index: 5;
         box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+        text-align: left; // Override center alignment for fixed columns
 
         &.patient-col {
           left: 0;
@@ -637,13 +755,46 @@ onUnmounted(() => {
 
         &.visit-col {
           left: 200px;
+          text-align: center; // Center align visit date
         }
       }
 
       &.obs-cell {
         width: 150px;
         min-width: 150px;
-        padding: 4px;
+        padding: 2px;
+        text-align: center;
+        vertical-align: middle;
+
+        // Override EditableCell alignment for all value types
+        :deep(.editable-cell) {
+          text-align: center !important;
+          
+          &.value-type-n {
+            text-align: center !important; // Override right alignment for numeric values
+          }
+          
+          .cell-display {
+            justify-content: center;
+            text-align: center;
+            
+            .cell-value {
+              text-align: center;
+            }
+          }
+          
+          .cell-edit {
+            .cell-input {
+              :deep(.q-field__native) {
+                text-align: center !important;
+              }
+              
+              :deep(input) {
+                text-align: center !important;
+              }
+            }
+          }
+        }
 
         &.has-value {
           background: white;
@@ -659,7 +810,7 @@ onUnmounted(() => {
         }
 
         &.compact {
-          padding: 2px;
+          padding: 1px;
         }
       }
     }
@@ -687,9 +838,10 @@ onUnmounted(() => {
   position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px;
+  justify-content: center;
+  padding: 4px;
   cursor: help;
+  height: 100%;
 
   &:hover .visit-edit-icon {
     opacity: 1;
@@ -700,7 +852,8 @@ onUnmounted(() => {
 .visit-date {
   font-size: 0.8rem;
   color: $grey-8;
-  flex: 1;
+  text-align: center;
+  line-height: 1.2;
 }
 
 .visit-edit-icon {
@@ -708,9 +861,11 @@ onUnmounted(() => {
   visibility: hidden;
   transition: all 0.2s ease;
   cursor: pointer;
-  padding: 4px;
+  padding: 2px;
   border-radius: 4px;
-  margin-left: 8px;
+  position: absolute;
+  top: 2px;
+  right: 2px;
 
   &:hover {
     background: rgba(0, 0, 0, 0.08);

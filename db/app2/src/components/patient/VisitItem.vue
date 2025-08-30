@@ -91,11 +91,11 @@
               </q-chip>
             </div>
 
-            <!-- Status Chip -->
+        <!-- Status Chip -->
             <div v-if="visitGroup.visit?.ACTIVE_STATUS_CD">
               <q-chip :color="getStatusColor()" text-color="white" size="xs">
                 {{ getStatusLabel() }}
-              </q-chip>
+          </q-chip>
             </div>
           </div>
         </div>
@@ -642,71 +642,146 @@ const onObservationCreated = () => {
 
 <style lang="scss" scoped>
 .visit-header {
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  transition: all 0.3s ease;
+  background: linear-gradient(145deg, #ffffff 0%, #f8f9ff 100%);
+  border: 1px solid #e8ecf4;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 20px;
+  position: relative;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+
+  // Subtle inner shadow for depth
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 16px;
+    background: linear-gradient(145deg, rgba(255, 255, 255, 0.8) 0%, rgba(248, 249, 255, 0.4) 100%);
+    pointer-events: none;
+  }
 
   &.cursor-pointer {
     user-select: none;
 
     &:hover {
-      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      background: linear-gradient(145deg, #f0f4ff 0%, #e8f0ff 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
+                  0 2px 8px rgba(0, 0, 0, 0.06);
+      border-color: rgba(25, 118, 210, 0.3);
+
+      .q-avatar {
+        transform: scale(1.05);
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+      }
+
+      .visit-type-status .q-chip {
       transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
     }
   }
 
   // Style for empty visits (non-clickable)
   &:not(.cursor-pointer) {
-    opacity: 0.7;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    opacity: 0.8;
+    background: linear-gradient(145deg, #fafbfc 0%, #f1f3f4 100%);
+    border-color: #e0e3e7;
 
     .text-h6 {
-      color: #6c757d !important;
-    }
-  }
-
-  .visit-notes-inline {
-    font-style: italic;
-    display: inline-flex;
-    align-items: center;
-    background-color: rgba(0, 0, 0, 0.04);
-    padding: 4px 8px;
-    border-radius: 12px;
-    border: 1px solid rgba(25, 118, 210, 0.2);
-
-    .q-icon {
-      color: rgba(25, 118, 210, 0.7);
+      color: #9e9e9e !important;
     }
 
-    .text-body2 {
-      font-size: 0.85rem;
-      line-height: 1.3;
-    }
-
-    .q-btn {
-      min-height: auto;
-      padding: 2px 6px;
-      font-size: 0.75rem;
-      text-transform: none;
+    .q-avatar {
+      opacity: 0.6;
     }
   }
 
   .q-avatar {
-    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15),
+                0 1px 4px rgba(0, 0, 0, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.8);
+
+    &:hover {
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    }
   }
 
   .visit-type-status {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 0.5rem;
+
+    .q-chip {
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      border-radius: 20px;
+      font-weight: 500;
+      letter-spacing: 0.025em;
+
+      &:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+    }
+  }
+
+  .visit-notes-inline {
+    font-style: normal;
+    display: inline-flex;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(25, 118, 210, 0.04) 100%);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(25, 118, 210, 0.15);
+    transition: all 0.3s ease;
+
+    .q-icon {
+      color: #1976d2;
+      opacity: 0.8;
+    }
+
+    .text-body2 {
+      font-size: 0.875rem;
+      line-height: 1.4;
+      color: #424242;
+      font-weight: 400;
+    }
+
+    .q-btn {
+      min-height: auto;
+      padding: 3px 8px;
+      font-size: 0.75rem;
+      text-transform: none;
+      border-radius: 12px;
+      background: rgba(25, 118, 210, 0.1);
+
+      &:hover {
+        background: rgba(25, 118, 210, 0.2);
+      }
+    }
+
+    &:hover {
+      background: linear-gradient(135deg, rgba(25, 118, 210, 0.12) 0%, rgba(25, 118, 210, 0.08) 100%);
+      border-color: rgba(25, 118, 210, 0.25);
+    }
   }
 
   .text-h6 {
     font-weight: 600;
     letter-spacing: -0.025em;
+    color: #1976d2;
+    margin-bottom: 4px;
+  }
+
+  .text-caption {
+    color: #757575;
+    font-weight: 500;
   }
 }
 
@@ -721,49 +796,61 @@ const onObservationCreated = () => {
 .visit-actions {
   display: flex;
   align-items: center;
-  animation: fadeInRight 0.3s ease;
+  gap: 8px;
+  animation: slideInFromRight 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 
   .q-btn {
-    transition: all 0.2s ease;
-    min-height: 40px;
-    min-width: 40px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 44px;
+    min-width: 44px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(0, 0, 0, 0.05);
 
     &:hover {
-      transform: translateY(-1px) scale(1.1);
-      box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+      transform: translateY(-2px) scale(1.05);
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     }
 
     // Enhanced button styling for better visibility
     &.text-positive {
-      background-color: rgba(76, 175, 80, 0.1);
+      background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, rgba(76, 175, 80, 0.1) 100%);
+      border-color: rgba(76, 175, 80, 0.2);
 
       &:hover {
-        background-color: rgba(76, 175, 80, 0.2);
+        background: linear-gradient(135deg, rgba(76, 175, 80, 0.25) 0%, rgba(76, 175, 80, 0.15) 100%);
+        border-color: rgba(76, 175, 80, 0.3);
       }
     }
 
     &.text-primary {
-      background-color: rgba(25, 118, 210, 0.1);
+      background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(25, 118, 210, 0.1) 100%);
+      border-color: rgba(25, 118, 210, 0.2);
 
       &:hover {
-        background-color: rgba(25, 118, 210, 0.2);
+        background: linear-gradient(135deg, rgba(25, 118, 210, 0.25) 0%, rgba(25, 118, 210, 0.15) 100%);
+        border-color: rgba(25, 118, 210, 0.3);
       }
     }
 
     &.text-negative {
-      background-color: rgba(244, 67, 54, 0.1);
+      background: linear-gradient(135deg, rgba(244, 67, 54, 0.15) 0%, rgba(244, 67, 54, 0.1) 100%);
+      border-color: rgba(244, 67, 54, 0.2);
 
       &:hover {
-        background-color: rgba(244, 67, 54, 0.2);
+        background: linear-gradient(135deg, rgba(244, 67, 54, 0.25) 0%, rgba(244, 67, 54, 0.15) 100%);
+        border-color: rgba(244, 67, 54, 0.3);
       }
     }
   }
 }
 
-@keyframes fadeInRight {
+// Enhanced animations
+@keyframes slideInFromRight {
   from {
     opacity: 0;
-    transform: translateX(10px);
+    transform: translateX(20px);
   }
 
   to {
@@ -774,13 +861,39 @@ const onObservationCreated = () => {
 
 // Animation for new cards
 .observation-card {
-  animation: fadeInUp 0.5s ease-out;
+  animation: fadeInScale 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-@keyframes fadeInUp {
+@keyframes fadeInScale {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(30px) scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// Overall item animation
+.timeline-item {
+  animation: slideInFromBottom 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:nth-child(1) { animation-delay: 0.1s; }
+  &:nth-child(2) { animation-delay: 0.2s; }
+  &:nth-child(3) { animation-delay: 0.3s; }
+  &:nth-child(4) { animation-delay: 0.4s; }
+  &:nth-child(5) { animation-delay: 0.5s; }
+  &:nth-child(6) { animation-delay: 0.6s; }
+  &:nth-child(7) { animation-delay: 0.7s; }
+  &:nth-child(8) { animation-delay: 0.8s; }
+}
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
   }
 
   to {
@@ -791,17 +904,41 @@ const onObservationCreated = () => {
 
 // Responsive adjustments
 @media (max-width: 768px) {
+  .visit-header {
+    padding: 16px;
+    margin-bottom: 16px;
+    border-radius: 12px;
+
+    &::before {
+      border-radius: 12px;
+    }
+  }
+
   .observations-grid {
     grid-template-columns: 1fr;
     gap: 12px;
   }
 
-  .visit-header {
-    padding: 12px;
+  .visit-actions {
+    gap: 6px;
+
+    .q-btn {
+      min-height: 40px;
+      min-width: 40px;
+    }
   }
 }
 
 @media (max-width: 480px) {
+  .visit-header {
+    padding: 12px;
+    border-radius: 10px;
+
+    &::before {
+      border-radius: 10px;
+    }
+  }
+
   .observations-grid {
     gap: 8px;
   }
@@ -810,6 +947,71 @@ const onObservationCreated = () => {
     .q-card-section {
       padding: 8px !important;
     }
+  }
+
+  .visit-actions {
+    gap: 4px;
+
+    .q-btn {
+      min-height: 36px;
+      min-width: 36px;
+    }
+  }
+
+  .q-avatar {
+    size: 36px !important;
+  }
+
+  .text-h6 {
+    font-size: 1rem;
+  }
+}
+
+// Dark theme support
+@media (prefers-color-scheme: dark) {
+  .visit-header {
+    background: linear-gradient(145deg, #1e1e1e 0%, #2a2a2a 100%);
+    border-color: #404040;
+
+    &::before {
+      background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+    }
+
+    &.cursor-pointer:hover {
+      background: linear-gradient(145deg, #2a2a2a 0%, #333333 100%);
+      border-color: rgba(25, 118, 210, 0.4);
+    }
+
+    &:not(.cursor-pointer) {
+      background: linear-gradient(145deg, #1a1a1a 0%, #202020 100%);
+      border-color: #303030;
+
+      .text-h6 {
+        color: #9e9e9e !important;
+      }
+    }
+
+    .text-h6 {
+      color: #2196f3;
+    }
+
+    .text-caption {
+      color: #b0b0b0;
+    }
+
+    .visit-notes-inline {
+      background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(25, 118, 210, 0.08) 100%);
+      border-color: rgba(25, 118, 210, 0.25);
+
+      .text-body2 {
+        color: #e0e0e0;
+      }
+    }
+  }
+
+  .visit-actions .q-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 }
 </style>
