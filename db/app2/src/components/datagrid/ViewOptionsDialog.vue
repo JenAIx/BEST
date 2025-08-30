@@ -53,8 +53,8 @@
 
                     <!-- Move Buttons -->
                     <div class="move-buttons">
-                      <q-btn flat dense round icon="keyboard_arrow_up" size="xs" class="move-btn" @click="moveColumnUp(column.code)" :disable="isFirstColumn(column.code)" />
-                      <q-btn flat dense round icon="keyboard_arrow_down" size="xs" class="move-btn" @click="moveColumnDown(column.code)" :disable="isLastColumn(column.code)" />
+                      <q-btn flat dense round icon="vertical_align_top" size="xs" class="move-btn" @click="moveColumnToTop(column.code)" :disable="isFirstColumn(column.code)" />
+                      <q-btn flat dense round icon="vertical_align_bottom" size="xs" class="move-btn" @click="moveColumnToBottom(column.code)" :disable="isLastColumn(column.code)" />
                     </div>
 
                     <!-- Column Info -->
@@ -191,22 +191,20 @@ const resetColumnOrder = () => {
   }
 }
 
-const moveColumnUp = (columnCode) => {
+const moveColumnToTop = (columnCode) => {
   const currentIndex = localColumns.value.findIndex((col) => col.code === columnCode)
   if (currentIndex > 0) {
-    const temp = localColumns.value[currentIndex]
-    localColumns.value[currentIndex] = localColumns.value[currentIndex - 1]
-    localColumns.value[currentIndex - 1] = temp
+    const columnToMove = localColumns.value.splice(currentIndex, 1)[0]
+    localColumns.value.unshift(columnToMove)
     emitColumnOrder()
   }
 }
 
-const moveColumnDown = (columnCode) => {
+const moveColumnToBottom = (columnCode) => {
   const currentIndex = localColumns.value.findIndex((col) => col.code === columnCode)
   if (currentIndex < localColumns.value.length - 1) {
-    const temp = localColumns.value[currentIndex]
-    localColumns.value[currentIndex] = localColumns.value[currentIndex + 1]
-    localColumns.value[currentIndex + 1] = temp
+    const columnToMove = localColumns.value.splice(currentIndex, 1)[0]
+    localColumns.value.push(columnToMove)
     emitColumnOrder()
   }
 }
