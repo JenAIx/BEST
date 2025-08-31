@@ -250,6 +250,7 @@ const searchResults = ref([])
 const selectedPath = ref(null)
 const editablePath = ref([])
 const newSegment = ref('')
+const originalConceptCode = ref('') // Store the last element of original path
 
 // Search options for dropdown
 const searchOptions = [
@@ -278,10 +279,21 @@ const performSearch = async () => {
   searchResults.value = []
 
   try {
-    const result = await dbStore.executeQuery('SELECT * FROM CONCEPT_DIMENSION WHERE ?? LIKE ?', [
-      searchType.value,
-      `%${searchQuery.value}%`
-    ])
+    // Validate search type against allowed columns
+    const allowedColumns = {
+      'NAME_CHAR': 'NAME_CHAR',
+      'CONCEPT_CD': 'CONCEPT_CD',
+      'CONCEPT_PATH': 'CONCEPT_PATH'
+    }
+
+    const column = allowedColumns[searchType.value]
+    if (!column) {
+      throw new Error(`Invalid search type: ${searchType.value}`)
+    }
+
+    // Use proper SQLite syntax with parameterized query
+    const query = `SELECT * FROM CONCEPT_DIMENSION WHERE ${column} LIKE ?`
+    const result = await dbStore.executeQuery(query, [`%${searchQuery.value}%`])
 
     if (result.success && result.data) {
       searchResults.value = result.data.slice(0, 20) // Limit to 20 results
@@ -309,16 +321,29 @@ const performSearch = async () => {
 
 const selectFromResults = (result) => {
   if (result.CONCEPT_PATH) {
-    // Split the path and populate editable path
-    const pathParts = result.CONCEPT_PATH.split('\\').filter(part => part && part !== '')
-    editablePath.value = pathParts
-    selectedPath.value = result.CONCEPT_PATH
+    // Split the search result path
+    const searchPathParts = result.CONCEPT_PATH.split('\\').filter(part => part && part !== '')
 
-    loggingStore.debug('ConceptPathPickerDialog', 'Selected from search results', {
-      conceptCode: result.CONCEPT_CD,
-      conceptName: result.NAME_CHAR,
-      path: result.CONCEPT_PATH
-    })
+    if (searchPathParts.length > 0) {
+      // Use the search result path but replace the last element with the original concept code
+      const newPathParts = [...searchPathParts]
+
+      if (originalConceptCode.value) {
+        // Replace the last element with the original concept code
+        newPathParts[newPathParts.length - 1] = originalConceptCode.value
+      }
+
+      // Update the editable path and selected path
+      editablePath.value = newPathParts
+      selectedPath.value = `\\${newPathParts.join('\\')}\\`
+
+      loggingStore.debug('ConceptPathPickerDialog', 'Selected from search results', {
+        originalConceptCode: originalConceptCode.value,
+        searchResultPath: result.CONCEPT_PATH,
+        finalPath: selectedPath.value,
+        conceptName: result.NAME_CHAR
+      })
+    }
   }
 }
 
@@ -374,8 +399,14 @@ watch(() => props.currentPath, (newPath) => {
     // Split the path for editing
     const pathParts = newPath.split('\\').filter(part => part && part !== '')
     editablePath.value = pathParts
+
+    // Store the last element (concept code) from original path
+    if (pathParts.length > 0) {
+      originalConceptCode.value = pathParts[pathParts.length - 1]
+    }
   } else {
     editablePath.value = []
+    originalConceptCode.value = ''
   }
 }, { immediate: true })
 

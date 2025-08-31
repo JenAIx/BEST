@@ -220,6 +220,7 @@
 
   <!-- Path Picker Dialog -->
   <ConceptPathPickerDialog
+    v-if="showPathPicker"
     v-model="showPathPicker"
     :current-path="formDataRef?.conceptPath || ''"
     @select="onPathSelected"
