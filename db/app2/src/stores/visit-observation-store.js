@@ -180,20 +180,37 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
             parsedNotes: visit.VISIT_BLOB ? parseVisitNotes(visit.VISIT_BLOB) : '',
           })
 
+          // Parse VISIT_BLOB to extract visitType and notes
+          let visitType = 'routine'
+          let visitNotes = ''
+          if (visit.VISIT_BLOB) {
+            try {
+              const blobData = JSON.parse(visit.VISIT_BLOB)
+              visitType = blobData.visitType || 'routine'
+              visitNotes = blobData.notes || ''
+            } catch (error) {
+              logger.warn('Failed to parse VISIT_BLOB', error, { visitBlob: visit.VISIT_BLOB })
+              visitNotes = visit.VISIT_BLOB // Fallback to raw blob as notes
+            }
+          }
+
           return {
             id: visit.ENCOUNTER_NUM,
             date: visit.START_DATE,
-            type: visit.INOUT_CD === 'E' ? 'emergency' : 'routine',
-            notes: visit.VISIT_BLOB ? parseVisitNotes(visit.VISIT_BLOB) : '',
-            status: visit.ACTIVE_STATUS_CD || 'completed',
-            observationCount,
-            location: visit.LOCATION_CD,
+            last_changed: visit.UPDATE_DATE,
             endDate: visit.END_DATE,
+            inout: visit.INOUT_CD || 'O', // O=Outpatient, I=Inpatient, E=Emergency
+            location: visit.LOCATION_CD,
+            status: visit.ACTIVE_STATUS_CD || 'completed',
+            visitType: visitType, // Extracted from VISIT_BLOB
+            notes: visitNotes, // Extracted from VISIT_BLOB
+            observationCount,
             // Include raw database fields for EditVisitDialog
             rawData: {
               ENCOUNTER_NUM: visit.ENCOUNTER_NUM,
               START_DATE: visit.START_DATE,
               END_DATE: visit.END_DATE,
+              UPDATE_DATE: visit.UPDATE_DATE,
               ACTIVE_STATUS_CD: visit.ACTIVE_STATUS_CD,
               LOCATION_CD: visit.LOCATION_CD,
               INOUT_CD: visit.INOUT_CD,
@@ -367,17 +384,23 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
 
       const patient = await patientRepo.findByPatientCode(selectedPatient.value.id)
 
+      const currentTimestamp = new Date().toISOString()
+
       const newVisitData = {
         PATIENT_NUM: patient.PATIENT_NUM,
         START_DATE: visitData.date || new Date().toISOString().split('T')[0],
-        INOUT_CD: visitData.type === 'emergency' ? 'E' : 'O',
-        ACTIVE_STATUS_CD: 'SCTID: 55561003', // Active (SNOMED-CT)
+        END_DATE: visitData.endDate || null,
+        UPDATE_DATE: currentTimestamp,
+        INOUT_CD: visitData.inout || (visitData.type === 'emergency' ? 'E' : 'O'),
+        ACTIVE_STATUS_CD: visitData.status || 'SCTID: 55561003', // Active (SNOMED-CT)
         LOCATION_CD: visitData.location || 'CLINIC',
+        SOURCESYSTEM_CD: 'SYSTEM',
         VISIT_BLOB: JSON.stringify({
           notes: visitData.notes || '',
-          visitType: visitData.type || 'routine',
+          visitType: visitData.visitType || visitData.type || 'routine',
           createdBy: 'VISIT_STORE',
-          createdAt: new Date().toISOString(),
+          createdAt: currentTimestamp,
+          updatedAt: currentTimestamp,
         }),
       }
 
@@ -386,12 +409,25 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       const newVisit = {
         id: createdVisit.ENCOUNTER_NUM,
         date: newVisitData.START_DATE,
-        type: visitData.type || 'routine',
+        last_changed: newVisitData.UPDATE_DATE,
+        endDate: newVisitData.END_DATE,
+        inout: newVisitData.INOUT_CD,
+        location: newVisitData.LOCATION_CD,
+        status: newVisitData.ACTIVE_STATUS_CD,
+        visitType: visitData.visitType || visitData.type || 'routine',
         notes: visitData.notes || '',
-        status: 'active',
         observationCount: 0,
-        location: visitData.location || 'CLINIC',
-        endDate: null,
+        rawData: {
+          ENCOUNTER_NUM: createdVisit.ENCOUNTER_NUM,
+          START_DATE: newVisitData.START_DATE,
+          END_DATE: newVisitData.END_DATE,
+          UPDATE_DATE: newVisitData.UPDATE_DATE,
+          ACTIVE_STATUS_CD: newVisitData.ACTIVE_STATUS_CD,
+          LOCATION_CD: newVisitData.LOCATION_CD,
+          INOUT_CD: newVisitData.INOUT_CD,
+          SOURCESYSTEM_CD: newVisitData.SOURCESYSTEM_CD,
+          VISIT_BLOB: newVisitData.VISIT_BLOB,
+        },
       }
 
       visits.value.unshift(newVisit)
@@ -444,18 +480,24 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
 
       const patient = await patientRepo.findByPatientCode(selectedPatient.value.id)
 
+      const currentTimestamp = new Date().toISOString()
+
       const newVisitData = {
         PATIENT_NUM: patient.PATIENT_NUM,
         START_DATE: new Date().toISOString().split('T')[0],
-        INOUT_CD: originalVisit.type === 'emergency' ? 'E' : 'O',
-        ACTIVE_STATUS_CD: 'A',
+        END_DATE: originalVisit.endDate || null,
+        UPDATE_DATE: currentTimestamp,
+        INOUT_CD: originalVisit.inout || (originalVisit.visitType === 'emergency' ? 'E' : 'O'),
+        ACTIVE_STATUS_CD: originalVisit.status || 'SCTID: 55561003',
         LOCATION_CD: originalVisit.location || 'CLINIC',
+        SOURCESYSTEM_CD: 'SYSTEM',
         VISIT_BLOB: JSON.stringify({
           notes: `Cloned from visit on ${formatVisitDate(originalVisit.date)}`,
-          visitType: originalVisit.type || 'routine',
+          visitType: originalVisit.visitType || originalVisit.type || 'routine',
           originalVisit: originalVisit.id,
           createdBy: 'VISIT_DUPLICATE',
-          createdAt: new Date().toISOString(),
+          createdAt: currentTimestamp,
+          updatedAt: currentTimestamp,
         }),
       }
 
@@ -502,12 +544,25 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       const newVisit = {
         id: createdVisit.ENCOUNTER_NUM,
         date: newVisitData.START_DATE,
-        type: originalVisit.type,
+        last_changed: newVisitData.UPDATE_DATE,
+        endDate: newVisitData.END_DATE,
+        inout: newVisitData.INOUT_CD,
+        location: newVisitData.LOCATION_CD,
+        status: newVisitData.ACTIVE_STATUS_CD,
+        visitType: originalVisit.visitType || originalVisit.type || 'routine',
         notes: `Cloned from visit on ${formatVisitDate(originalVisit.date)}`,
-        status: 'active',
         observationCount: clonedCount,
-        location: originalVisit.location || 'CLINIC',
-        endDate: null,
+        rawData: {
+          ENCOUNTER_NUM: createdVisit.ENCOUNTER_NUM,
+          START_DATE: newVisitData.START_DATE,
+          END_DATE: newVisitData.END_DATE,
+          UPDATE_DATE: newVisitData.UPDATE_DATE,
+          ACTIVE_STATUS_CD: newVisitData.ACTIVE_STATUS_CD,
+          LOCATION_CD: newVisitData.LOCATION_CD,
+          INOUT_CD: newVisitData.INOUT_CD,
+          SOURCESYSTEM_CD: newVisitData.SOURCESYSTEM_CD,
+          VISIT_BLOB: newVisitData.VISIT_BLOB,
+        },
       }
 
       visits.value.unshift(newVisit)

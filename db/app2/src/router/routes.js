@@ -115,14 +115,24 @@ const routes = [
         component: () => import('pages/DataGridPage.vue'),
         meta: { requiresAuth: true },
       },
-      {
-        path: 'data-grid/editor',
-        component: () => import('pages/DataGridEditorPage.vue'),
-        meta: { requiresAuth: true },
-      },
+
       {
         path: 'database-test',
         component: () => import('pages/DatabaseTest.vue'),
+        meta: { requiresAuth: true },
+      },
+    ],
+  },
+
+  // Data Grid Editor with GridLayout
+  {
+    path: '/data-grid/editor',
+    component: () => import('layouts/GridLayout.vue'),
+    beforeEnter: requireAuth,
+    children: [
+      {
+        path: '',
+        component: () => import('pages/DataGridEditorPage.vue'),
         meta: { requiresAuth: true },
       },
     ],

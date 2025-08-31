@@ -189,6 +189,12 @@
           <q-icon name="warning" />
         </template>
         Unsupported question type: {{ item.type }}
+        <div class="text-caption q-mt-xs">
+          Item ID: {{ item.id }}, Label: {{ item.label?.substring(0, 50) }}
+        </div>
+        <div class="text-caption">
+          Full item: {{ JSON.stringify(item, null, 2) }}
+        </div>
       </q-banner>
     </div>
   </div>

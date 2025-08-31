@@ -19,6 +19,7 @@
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useDataGridStore } from 'src/stores/data-grid-store'
 import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
 
 // Note: This component does not use visit-observation-store because:
@@ -28,8 +29,9 @@ import ExcelLikeEditor from 'src/components/datagrid/ExcelLikeEditor.vue'
 
 const router = useRouter()
 const localSettings = useLocalSettingsStore()
+const dataGridStore = useDataGridStore()
 
-// Computed properties
+// Computed properties (using store functions)
 const selectedPatientIds = computed(() => {
   const ids = localSettings.getDataGridSelectedPatients()
   console.log('Retrieved patient IDs from localStorage:', ids)
@@ -38,8 +40,10 @@ const selectedPatientIds = computed(() => {
 })
 
 const hasPatientSelection = computed(() => {
-  return selectedPatientIds.value.length > 0
+  return localSettings.hasDataGridSelectedPatients()
 })
+
+// Note: GridFooter now uses store directly, so these computed properties are no longer needed here
 
 // Methods
 const goToSelection = () => {
@@ -48,8 +52,9 @@ const goToSelection = () => {
 
 // Lifecycle
 onMounted(() => {
-  // Initialize local settings
+  // Initialize stores
   localSettings.initialize()
+  dataGridStore.initialize()
 
   // If no patients selected, redirect to selection page
   if (!hasPatientSelection.value) {
@@ -61,7 +66,7 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .data-grid-editor-page {
-  height: 100vh;
+  height: calc(100vh - 200px);
   overflow: hidden;
 }
 

@@ -139,6 +139,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
@@ -152,6 +153,7 @@ const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const visitObservationStore = useVisitObservationStore()
+const loggingStore = useLoggingStore()
 
 // Reactive state
 const filterText = ref('')
@@ -246,9 +248,15 @@ const groupedObservations = computed(() => {
       ENCOUNTER_NUM: visit.id,
       START_DATE: visit.date,
       END_DATE: visit.endDate,
+      UPDATE_DATE: visit.last_changed,
       ACTIVE_STATUS_CD: visit.status,
       LOCATION_CD: visit.location,
-      INOUT_CD: visit.type === 'emergency' ? 'E' : 'O',
+      INOUT_CD: visit.inout || 'O',
+      SOURCESYSTEM_CD: visit.rawData?.SOURCESYSTEM_CD || 'SYSTEM',
+      VISIT_BLOB: visit.rawData?.VISIT_BLOB,
+      // Include parsed fields for EditVisitDialog
+      visitType: visit.visitType,
+      notes: visit.notes,
     }, // Map to expected format
     observations: [],
   }))
@@ -288,7 +296,10 @@ const loadValueTypeOptions = async () => {
       { label: 'Empty Values', value: 'empty' },
     ]
   } catch (error) {
-    console.error('Failed to load value type options:', error)
+    loggingStore.error('PatientObservationsTab', 'Failed to load value type options', error, {
+      action: 'loadValueTypeOptions',
+      fallbackUsed: true
+    })
     // Fallback to basic options if store fails
     valueTypeOptions.value = [
       { label: 'Answer (A)', value: 'A' },

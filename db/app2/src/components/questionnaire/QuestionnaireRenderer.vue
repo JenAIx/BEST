@@ -115,6 +115,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useQuestionnaireStore } from '../../stores/questionnaire-store.js'
+import { useLoggingStore } from '../../stores/logging-store.js'
 import QuestionInput from './QuestionInput.vue'
 
 const props = defineProps({
@@ -148,6 +149,7 @@ const emit = defineEmits(['submit', 'validation-change'])
 
 // Store
 const questionnaireStore = useQuestionnaireStore()
+const loggingStore = useLoggingStore()
 
 // State
 const patientId = ref(props.initialPatientId)
@@ -202,7 +204,11 @@ const onSubmit = async () => {
       results: results
     })
   } catch (error) {
-    console.error('Error during questionnaire submission:', error)
+    loggingStore.error('QuestionnaireRenderer', 'Error during questionnaire submission', error, {
+      patientId: patientId.value,
+      questionnaireTitle: props.questionnaire?.title,
+      hasResults: !!questionnaireStore.calculateResults()
+    })
   } finally {
     submitting.value = false
   }

@@ -68,11 +68,14 @@
       </template>
     </q-table>
 
-    <!-- Edit CQL Rule Dialog -->
-    <CqlEditDialog v-model="showEditDialog" :cqlRule="selectedRule" @save="onSaveRule" @cancel="onCancelEdit" />
-
-    <!-- Create CQL Rule Dialog -->
-    <CqlCreateDialog v-model="showCreateDialog" @save="onSaveNewRule" @cancel="onCancelCreate" />
+    <!-- CQL Dialog (Create/Edit) -->
+    <CqlDialog 
+      v-model="showCqlDialog" 
+      :mode="cqlDialogMode"
+      :cqlRule="selectedRule" 
+      @saved="onCqlSaved" 
+      @cancelled="onCqlCancelled" 
+    />
 
     <!-- Test CQL Rule Dialog -->
     <CqlTestDialog v-model="showTestDialog" :cqlRule="selectedRule" @cancel="onCancelTest" />
@@ -84,8 +87,7 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import CqlTestDialog from 'components/CqlTestDialog.vue'
-import CqlEditDialog from 'components/CqlEditDialog.vue'
-import CqlCreateDialog from 'components/CqlCreateDialog.vue'
+import CqlDialog from 'components/CqlDialog.vue'
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
@@ -94,8 +96,8 @@ const dbStore = useDatabaseStore()
 const cqlRules = ref([])
 const totalRules = ref(0)
 const loading = ref(false)
-const showEditDialog = ref(false)
-const showCreateDialog = ref(false)
+const showCqlDialog = ref(false)
+const cqlDialogMode = ref('create')
 const showTestDialog = ref(false)
 const selectedRule = ref(null)
 const searchQuery = ref('')
@@ -233,12 +235,15 @@ const truncateText = (text, maxLength) => {
 
 // CQL Rule actions
 const onCreateRule = () => {
-  showCreateDialog.value = true
+  selectedRule.value = null
+  cqlDialogMode.value = 'create'
+  showCqlDialog.value = true
 }
 
 const onEditRule = (rule) => {
   selectedRule.value = { ...rule }
-  showEditDialog.value = true
+  cqlDialogMode.value = 'edit'
+  showCqlDialog.value = true
 }
 
 const onTestRule = (rule) => {
@@ -277,59 +282,14 @@ const onDeleteRule = (rule) => {
 }
 
 // Dialog handlers
-const onSaveRule = async (ruleData) => {
-  try {
-    const cqlRepo = dbStore.getRepository('cql')
-    await cqlRepo.updateCqlRule(selectedRule.value.CQL_ID, ruleData)
-
-    $q.notify({
-      type: 'positive',
-      message: 'CQL rule updated successfully',
-      position: 'top'
-    })
-
-    showEditDialog.value = false
-    await loadCqlRules()
-  } catch (error) {
-    console.error('Failed to update CQL rule:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update CQL rule',
-      position: 'top'
-    })
-  }
+const onCqlSaved = async () => {
+  // Notification is handled by the dialog component
+  // Just refresh the list
+  await loadCqlRules()
 }
 
-const onSaveNewRule = async (ruleData) => {
-  try {
-    const cqlRepo = dbStore.getRepository('cql')
-    await cqlRepo.createCqlRule(ruleData)
-
-    $q.notify({
-      type: 'positive',
-      message: 'CQL rule created successfully',
-      position: 'top'
-    })
-
-    showCreateDialog.value = false
-    await loadCqlRules()
-  } catch (error) {
-    console.error('Failed to create CQL rule:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to create CQL rule',
-      position: 'top'
-    })
-  }
-}
-
-const onCancelEdit = () => {
-  showEditDialog.value = false
-  selectedRule.value = null
-}
-
-const onCancelCreate = () => {
-  showCreateDialog.value = false
+const onCqlCancelled = () => {
+  // Dialog will close itself
   selectedRule.value = null
 }
 

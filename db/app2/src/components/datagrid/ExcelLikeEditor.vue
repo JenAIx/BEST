@@ -2,21 +2,9 @@
   <div class="excel-editor">
     <!-- Header Controls -->
     <div class="editor-header q-pa-md bg-white shadow-1">
-      <div class="row items-center justify-between">
-        <div class="col-auto">
-          <div class="text-h6 flex items-center">
-            <q-icon name="table_view" size="24px" color="primary" class="q-mr-sm" />
-            Data Grid Editor
-            <q-chip color="primary" text-color="white" size="sm" class="q-ml-sm"> {{ patientData.length }} patients • {{ totalObservations }} observations </q-chip>
-          </div>
-          <div class="text-caption text-grey-6">Click any cell to edit • Changes auto-save • Use Tab/Enter to navigate</div>
-        </div>
-        <div class="col-auto q-gutter-sm">
-          <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
-          <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
-          <q-btn color="primary" icon="save" label="Save All" @click="saveAllChanges" :loading="savingAll" :disable="!hasUnsavedChanges" />
-          <q-btn flat icon="arrow_back" label="Back to Selection" @click="goBack" />
-        </div>
+      <div class="row items-center justify-start q-gutter-sm">
+        <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
+        <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
       </div>
     </div>
 
@@ -36,14 +24,15 @@
               <!-- Fixed columns -->
               <th class="fixed-col patient-col">Patient</th>
               <th class="fixed-col visit-col">Visit Date</th>
-              <th class="fixed-col encounter-col">Encounter</th>
 
               <!-- Dynamic observation columns -->
-              <th v-for="concept in observationConcepts" :key="concept.code" class="obs-col" :title="concept.name">
+              <th v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-col" :title="concept.name">
                 <div class="col-header">
                   <div class="concept-name">{{ concept.name }}</div>
                   <div class="concept-code">{{ concept.code }}</div>
-                  <ValueTypeIcon :value-type="concept.valueType" size="16px" variant="minimal" />
+                  <!-- Show quiz icon for questionnaire concepts, otherwise use ValueTypeIcon -->
+                  <q-icon v-if="concept.valueType === 'Q'" name="quiz" size="16px" color="deep-purple" />
+                  <ValueTypeIcon v-else :value-type="concept.valueType" size="16px" variant="minimal" />
                 </div>
               </th>
             </tr>
@@ -66,16 +55,48 @@
               </td>
 
               <td class="fixed-col visit-col">
-                <div class="visit-date">{{ formatDate(row.visitDate) }}</div>
-              </td>
-
-              <td class="fixed-col encounter-col">
-                <div class="encounter-num">{{ row.encounterNum }}</div>
+                <div class="visit-date-container">
+                  <div class="visit-date">
+                    {{ formatDate(row.visitDate) }}
+                  </div>
+                  <div class="visit-edit-icon" @click="openVisitEditDialog(row)">
+                    <q-icon name="edit" size="16px" color="grey-6" />
+                  </div>
+                  <q-tooltip anchor="top middle" self="bottom middle" :offset="[10, 10]" class="bg-grey-9 text-white">
+                    <div class="tooltip-content">
+                      <div class="text-weight-bold q-mb-xs">Visit Information</div>
+                      <div><strong>Patient:</strong> {{ row.patientName }}</div>
+                      <div><strong>Encounter:</strong> {{ row.encounterNum }}</div>
+                      <div><strong>Date:</strong> {{ formatDate(row.visitDate) }}</div>
+                      <div class="text-grey-4 text-caption q-mt-xs">Click edit icon to modify visit</div>
+                    </div>
+                  </q-tooltip>
+                </div>
               </td>
 
               <!-- Observation cells -->
-              <td v-for="concept in observationConcepts" :key="concept.code" class="obs-cell" :class="getCellClass(row, concept)">
+              <td v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-cell" :class="getCellClass(row, concept)">
+                <!-- Custom questionnaire cell for Q type -->
+                <div v-if="concept.valueType === 'Q'" class="questionnaire-cell">
+                  <!-- Filled questionnaire -->
+                  <div v-if="getCellValue(row, concept)" class="questionnaire-content" @click="openQuestionnairePreview(row, concept)">
+                    {{ getCellValue(row, concept) }}
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
+                      Click to view questionnaire data
+                    </q-tooltip>
+                  </div>
+                  <!-- Empty questionnaire - clickable to fill -->
+                  <div v-else class="questionnaire-empty" @click="openQuestionnaireFillDialog(row, concept)">
+                    <q-icon name="add" size="16px" color="grey-5" />
+                    <div class="empty-label">Add</div>
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
+                      Click to complete questionnaire
+                    </q-tooltip>
+                  </div>
+                </div>
+                <!-- Regular editable cell for other types -->
                 <EditableCell
+                  v-else
                   :value="getCellValue(row, concept)"
                   :value-type="concept.valueType"
                   :concept-code="concept.code"
@@ -94,80 +115,58 @@
     </div>
 
     <!-- View Options Dialog -->
-    <q-dialog v-model="showViewOptions">
-      <q-card style="min-width: 400px">
-        <q-card-section>
-          <div class="text-h6">View Options</div>
-        </q-card-section>
+    <ViewOptionsDialog
+      v-model="showViewOptions"
+      :view-options="viewOptions"
+      :observation-concepts="observationConcepts"
+      :column-visibility="dataGridStore?.columnVisibility ? Object.fromEntries(dataGridStore.columnVisibility) : {}"
+      @update:view-options="updateViewOptions"
+      @update:column-visibility="handleColumnVisibilityUpdate"
+      @update:column-order="handleColumnOrderUpdate"
+    />
 
-        <q-card-section class="q-pt-none">
-          <q-list>
-            <q-item>
-              <q-item-section>
-                <q-item-label>Show Empty Cells</q-item-label>
-                <q-item-label caption>Display cells even when no observation exists</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle v-model="viewOptions.showEmptyCells" />
-              </q-item-section>
-            </q-item>
+    <!-- Edit Visit Dialog -->
+    <EditVisitDialog v-if="selectedVisitData" v-model="showVisitEditDialog" :patient="selectedVisitData" :visit="selectedVisitData" @visitUpdated="handleVisitUpdated" />
 
-            <q-item>
-              <q-item-section>
-                <q-item-label>Compact View</q-item-label>
-                <q-item-label caption>Reduce cell padding for more data on screen</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle v-model="viewOptions.compactView" />
-              </q-item-section>
-            </q-item>
+    <!-- Questionnaire Preview Dialog -->
+    <QuestionnairePreviewDialog
+      v-if="selectedQuestionnaireData"
+      v-model="showQuestionnairePreview"
+      :observation-id="selectedQuestionnaireData.observationId"
+      :concept-name="selectedQuestionnaireData.conceptName"
+      :completion-date="selectedQuestionnaireData.completionDate"
+    />
 
-            <q-item>
-              <q-item-section>
-                <q-item-label>Highlight Changes</q-item-label>
-                <q-item-label caption>Show visual indicators for unsaved changes</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-toggle v-model="viewOptions.highlightChanges" />
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Close" color="primary" v-close-popup />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- Status Bar -->
-    <div class="status-bar q-pa-sm bg-grey-2 text-grey-7">
-      <div class="row items-center justify-between">
-        <div class="col-auto text-caption">
-          <span v-if="hasUnsavedChanges" class="text-orange-8">
-            <q-icon name="edit" size="14px" class="q-mr-xs" />
-            {{ unsavedChangesCount }} unsaved changes
-          </span>
-          <span v-else class="text-positive">
-            <q-icon name="check_circle" size="14px" class="q-mr-xs" />
-            All changes saved
-          </span>
-        </div>
-        <div class="col-auto text-caption">Last updated: {{ lastUpdateTime }}</div>
-      </div>
-    </div>
+    <!-- Questionnaire Fill Dialog -->
+    <QuestionnaireFillDialog
+      v-if="selectedQuestionnaireFillData"
+      v-model="showQuestionnaireFillDialog"
+      :encounter-num="selectedQuestionnaireFillData.encounterNum"
+      :patient-id="selectedQuestionnaireFillData.patientId"
+      :questionnaire-blob="selectedQuestionnaireFillData.questionnaireBlob"
+      :concept-code="selectedQuestionnaireFillData.conceptCode"
+      :concept-name="selectedQuestionnaireFillData.conceptName"
+      :patient-name="selectedQuestionnaireFillData.patientName"
+      :visit-date="selectedQuestionnaireFillData.visitDate"
+      @questionnaire-completed="handleQuestionnaireCompleted"
+      @close="handleQuestionnaireClosed"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useDataGridStore } from 'src/stores/data-grid-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useDatabaseStore } from 'src/stores/database-store'
-import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
+import ViewOptionsDialog from './ViewOptionsDialog.vue'
+import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
+import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
+import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -178,44 +177,36 @@ const props = defineProps({
   },
 })
 
+// No longer need to emit events - store handles reactivity
+
 const $q = useQuasar()
-const router = useRouter()
-const dbStore = useDatabaseStore()
-const localSettings = useLocalSettingsStore()
+const dataGridStore = useDataGridStore()
+const conceptStore = useConceptResolutionStore()
+const databaseStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ExcelLikeEditor')
 
-// Data state
-const loading = ref(true)
-const savingAll = ref(false)
-const patientData = ref([])
-const observationConcepts = ref([])
-const tableRows = ref([])
-const pendingChanges = ref(new Map()) // Track unsaved changes
-const lastUpdateTime = ref(new Date().toLocaleTimeString())
-
-// View options
+// Local component state (only what's component-specific)
 const showViewOptions = ref(false)
-const viewOptions = ref({
-  showEmptyCells: true,
-  compactView: false,
-  highlightChanges: true,
-})
+const showVisitEditDialog = ref(false)
+const selectedVisitData = ref(null)
 
-// Computed properties
-const totalObservations = computed(() => {
-  return tableRows.value.reduce((total, row) => {
-    return total + Object.keys(row.observations || {}).length
-  }, 0)
-})
+// Questionnaire dialogs state
+const showQuestionnairePreview = ref(false)
+const selectedQuestionnaireData = ref(null)
+const showQuestionnaireFillDialog = ref(false)
+const selectedQuestionnaireFillData = ref(null)
 
-const hasUnsavedChanges = computed(() => {
-  return pendingChanges.value.size > 0
-})
 
-const unsavedChangesCount = computed(() => {
-  return pendingChanges.value.size
-})
+// Computed properties (using store data)
+const loading = computed(() => dataGridStore?.loading || false)
+const observationConcepts = computed(() => dataGridStore?.observationConcepts || [])
+
+// Use store's reactive properties for visibility and statistics
+const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObservationConcepts || [])
+
+const tableRows = computed(() => dataGridStore?.tableRows || [])
+const viewOptions = computed(() => dataGridStore?.viewOptions || {})
 
 // Scroll area styling
 const thumbStyle = {
@@ -234,407 +225,586 @@ const barStyle = {
   opacity: 0.2,
 }
 
-// Data loading methods
+// Data loading methods (using store functions)
 const loadPatientData = async () => {
-  try {
-    loading.value = true
+  if (dataGridStore?.loadGridData) {
+    await dataGridStore.loadGridData(props.patientIds)
 
-    if (!props.patientIds.length) {
-      throw new Error('No patient IDs provided')
+    // Initialize column visibility and order after loading data
+    if (dataGridStore?.initializeColumnVisibility) {
+      dataGridStore.initializeColumnVisibility()
     }
-
-    // Ensure patient IDs are clean strings
-    const cleanPatientIds = props.patientIds.map((id) => {
-      // Handle case where id might be an object with an id property
-      if (typeof id === 'object' && id.id) {
-        return String(id.id)
-      }
-      return String(id)
-    })
-
-    logger.info('Loading patient data', { patientIds: cleanPatientIds, count: cleanPatientIds.length })
-
-    // Load patient basic info and visits
-    const patientRepo = dbStore.getRepository('patient')
-    const visitRepo = dbStore.getRepository('visit')
-
-    // Get patient details
-    const patientDetails = await Promise.all(
-      cleanPatientIds.map(async (patientId) => {
-        const patient = await patientRepo.findByPatientCode(patientId)
-        if (!patient) {
-          logger.warn('Patient not found', { patientId })
-          return { patient: null, visits: [] }
-        }
-        const visits = await visitRepo.getPatientVisitTimeline(patient.PATIENT_NUM)
-        return { patient, visits }
-      }),
-    )
-
-    // Filter out null patients
-    patientData.value = patientDetails.filter((p) => p.patient !== null)
-
-    if (patientData.value.length === 0) {
-      throw new Error('No valid patients found with the provided IDs')
+    if (dataGridStore?.initializeColumnOrder) {
+      dataGridStore.initializeColumnOrder()
     }
-
-    // Load all observations for these patients
-    await loadObservationData()
-  } catch (error) {
-    logger.error('Failed to load patient data', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to load patient data: ${error.message}`,
-      position: 'top',
-    })
-  } finally {
-    loading.value = false
   }
 }
 
-const loadObservationData = async () => {
+// Helper methods (using store functions) - with defensive checks
+const getPatientInitials = dataGridStore?.getPatientInitials || (() => 'U')
+const formatDate = dataGridStore?.formatDate || ((date) => date || '')
+const getCellValue = dataGridStore?.getCellValue || (() => '')
+const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
+const getCellClass = dataGridStore?.getCellClass || (() => '')
+const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
+
+// Helper function to get observation count for a visit
+const getObservationCount = async (encounterNum) => {
   try {
-    // Extract patient IDs from loaded patient data to ensure we have valid IDs
-    const validPatientIds = patientData.value.filter((p) => p.patient && p.patient.PATIENT_CD).map((p) => p.patient.PATIENT_CD)
-
-    if (validPatientIds.length === 0) {
-      throw new Error('No valid patient IDs found')
-    }
-
-    // Get all observations for selected patients using the patient_observations view
-    const placeholders = validPatientIds.map(() => '?').join(',')
-    const observationQuery = `
-            SELECT 
-                OBSERVATION_ID,
-                PATIENT_CD,
-                ENCOUNTER_NUM,
-                CONCEPT_CD,
-                VALTYPE_CD,
-                TVAL_CHAR,
-                NVAL_NUM,
-                UNIT_CD,
-                START_DATE,
-                CATEGORY_CHAR,
-                CONCEPT_NAME_CHAR as CONCEPT_NAME
-            FROM patient_observations
-            WHERE PATIENT_CD IN (${placeholders})
-            ORDER BY PATIENT_CD, ENCOUNTER_NUM, CONCEPT_CD
-        `
-
-    // Use clean array of patient ID strings
-    const result = await dbStore.executeQuery(observationQuery, validPatientIds)
-
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to load observations')
-    }
-
-    // Process observations and build table structure
-    processObservationData(result.data)
+    const query = `
+      SELECT COUNT(*) as count
+      FROM OBSERVATION_FACT
+      WHERE ENCOUNTER_NUM = ?
+    `
+    const result = await databaseStore.executeQuery(query, [encounterNum])
+    return result.success && result.data.length > 0 ? result.data[0].count : 0
   } catch (error) {
-    logger.error('Failed to load observation data', error)
+    logger.warn('Failed to get observation count', error)
+    return 0
+  }
+}
+
+// Event handlers (using store functions) - with defensive checks
+const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
+const onCellSave = dataGridStore?.handleCellSave || (() => {})
+const onCellError = dataGridStore?.handleCellError || (() => {})
+
+
+// Batch operations (using store functions) - with defensive checks
+const refreshData = () => {
+  if (dataGridStore?.refreshData) {
+    dataGridStore.refreshData(props.patientIds)
+  }
+}
+
+// View options management (delegate to store)
+const updateViewOptions = dataGridStore.updateViewOptions
+
+// Column management handlers - delegate to store
+const handleColumnVisibilityUpdate = (...args) => {
+  // Handle both individual updates (columnCode, visible) and batch updates (visibilityObject)
+  if (args.length === 2 && typeof args[0] === 'string') {
+    // Individual column update: (columnCode, visible)
+    const [columnCode, visible] = args
+    dataGridStore.updateColumnVisibility(columnCode, visible)
+
+
+  } else if (args.length === 1 && typeof args[0] === 'object') {
+    // Batch update: (visibilityObject)
+    const visibilityObject = args[0]
+    Object.entries(visibilityObject).forEach(([columnCode, visible]) => {
+      dataGridStore.updateColumnVisibility(columnCode, visible)
+    })
+
+    // Batch updates completed silently
+  }
+}
+
+const handleColumnOrderUpdate = (columnOrder) => {
+  logger.info('Column order updated', { columnOrder })
+
+  // Update the column order in the store
+  if (dataGridStore?.updateColumnOrder) {
+    dataGridStore.updateColumnOrder(columnOrder)
+  }
+
+  // Column order updated silently
+}
+
+// Visit edit dialog methods
+const openVisitEditDialog = async (row) => {
+  logger.info('Opening visit edit dialog', { patientId: row.patientId, encounterNum: row.encounterNum })
+
+  try {
+    // Load complete visit data from database (same pattern as visit-observation-store)
+    const visitRepo = databaseStore.getRepository('visit')
+    const patientRepo = databaseStore.getRepository('patient')
+
+    // Get patient data
+    const patient = await patientRepo.findByPatientCode(row.patientId)
+    if (!patient) {
+      throw new Error('Patient not found')
+    }
+
+    // Get visit data
+    const visitData = await visitRepo.findById(row.encounterNum)
+    if (!visitData) {
+      throw new Error('Visit not found')
+    }
+
+    // Get observation count for the visit (for logging purposes)
+    const observationCount = await getObservationCount(row.encounterNum)
+
+    // Parse VISIT_BLOB to extract visitType and notes (same as visit-observation-store)
+    let visitType = 'routine'
+    let visitNotes = ''
+    if (visitData.VISIT_BLOB) {
+      try {
+        const blobData = JSON.parse(visitData.VISIT_BLOB)
+        visitType = blobData.visitType || 'routine'
+        visitNotes = blobData.notes || ''
+      } catch (error) {
+        logger.warn('Failed to parse VISIT_BLOB', error, { visitBlob: visitData.VISIT_BLOB })
+        visitNotes = visitData.VISIT_BLOB // Fallback to raw blob as notes
+      }
+    }
+
+    // Log the loaded visit data for debugging
+    logger.debug('Loaded visit data from database', {
+      encounterNum: visitData.ENCOUNTER_NUM,
+      startDate: visitData.START_DATE,
+      endDate: visitData.END_DATE,
+      status: visitData.ACTIVE_STATUS_CD,
+      location: visitData.LOCATION_CD,
+      inoutCd: visitData.INOUT_CD,
+      sourceSystem: visitData.SOURCESYSTEM_CD,
+      visitBlob: visitData.VISIT_BLOB,
+      extractedVisitType: visitType,
+      extractedNotes: visitNotes,
+      observationCount: observationCount,
+    })
+
+    // Prepare data for the dialog (patient + visit structure that EditVisitDialog expects)
+    selectedVisitData.value = {
+      // Patient data
+      PATIENT_CD: row.patientId,
+      patientId: row.patientId,
+      patientName: row.patientName,
+      
+      // Visit data structure that EditVisitDialog expects
+      visit: {
+        // Raw database fields that EditVisitDialog directly accesses
+        ENCOUNTER_NUM: visitData.ENCOUNTER_NUM,
+        START_DATE: visitData.START_DATE,
+        END_DATE: visitData.END_DATE,
+        UPDATE_DATE: visitData.UPDATE_DATE,
+        ACTIVE_STATUS_CD: visitData.ACTIVE_STATUS_CD,
+        LOCATION_CD: visitData.LOCATION_CD,
+        INOUT_CD: visitData.INOUT_CD,
+        SOURCESYSTEM_CD: visitData.SOURCESYSTEM_CD,
+        VISIT_BLOB: visitData.VISIT_BLOB, // Raw JSON blob for EditVisitDialog to parse
+        
+        // Additional fields for compatibility
+        encounterNum: visitData.ENCOUNTER_NUM,
+        visitType: visitType,
+        notes: visitNotes,
+      }
+    }
+
+    showVisitEditDialog.value = true
+
+    logger.debug('Prepared complete visit data for edit dialog', {
+      encounterNum: row.encounterNum,
+      visitType: visitType,
+      visitNotes: visitNotes,
+      hasVisitBlob: !!visitData.VISIT_BLOB,
+      rawVisitBlob: visitData.VISIT_BLOB,
+      status: visitData.ACTIVE_STATUS_CD,
+      location: visitData.LOCATION_CD,
+      startDate: visitData.START_DATE,
+      endDate: visitData.END_DATE,
+      inoutCd: visitData.INOUT_CD,
+      sourceSystem: visitData.SOURCESYSTEM_CD,
+      selectedVisitDataStructure: {
+        hasVisitProperty: !!selectedVisitData.value.visit,
+        visitKeys: selectedVisitData.value.visit ? Object.keys(selectedVisitData.value.visit) : null,
+        patientKeys: Object.keys(selectedVisitData.value),
+      }
+    })
+
+  } catch (error) {
+    logger.error('Failed to load visit data for edit dialog', error, {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+    })
+
+    $q.notify({
+      type: 'negative',
+      message: `Failed to load visit data: ${error.message}`,
+      position: 'top',
+    })
+  }
+}
+
+const handleVisitUpdated = (updatedVisit) => {
+  logger.info('Visit updated successfully', { updatedVisit })
+
+  // Refresh the data grid to show the updated visit information
+  refreshData()
+
+  $q.notify({
+    type: 'positive',
+    message: `Visit ${updatedVisit.ENCOUNTER_NUM} updated successfully`,
+    position: 'top',
+  })
+}
+
+// Questionnaire fill dialog methods
+const handleQuestionnaireCompleted = (completedData) => {
+  logger.info('Questionnaire completed successfully', {
+    patientId: completedData.patientId,
+    encounterNum: completedData.encounterNum,
+  })
+
+  // Refresh the data grid to show the new questionnaire data
+  refreshData()
+
+  $q.notify({
+    type: 'positive',
+    message: 'Questionnaire completed and saved successfully',
+    position: 'top',
+    timeout: 3000,
+  })
+}
+
+const handleQuestionnaireClosed = () => {
+  logger.debug('Questionnaire dialog closed without completion')
+  // No need to refresh data since nothing was saved
+}
+
+const findQuestionnaireNameInColumn = (conceptCode) => {
+  try {
+    // Look through all table rows to find a filled questionnaire for this concept
+    const rows = tableRows.value || []
+    
+    for (const row of rows) {
+      const cellValue = getCellValue(row, { code: conceptCode })
+      if (cellValue && cellValue.trim() !== '') {
+        logger.info('Found questionnaire name in column', {
+          conceptCode,
+          questionnaireName: cellValue,
+          patientId: row.patientId,
+          encounterNum: row.encounterNum
+        })
+        return cellValue.trim()
+      }
+    }
+    
+    logger.info('No filled questionnaire found in column', { conceptCode })
+    return null
+  } catch (error) {
+    logger.error('Failed to find questionnaire name in column', error, { conceptCode })
+    return null
+  }
+}
+
+const getAvailableQuestionnaires = async () => {
+  try {
+    const templateResult = await databaseStore.executeQuery(
+      `SELECT NAME_CHAR, CODE_CD, LOOKUP_BLOB
+       FROM CODE_LOOKUP
+       WHERE TABLE_CD = 'SURVEY_BEST' 
+       AND COLUMN_CD = 'QUESTIONNAIRE'
+       AND LOOKUP_BLOB IS NOT NULL
+       ORDER BY NAME_CHAR`,
+      []
+    )
+
+    if (templateResult.success) {
+      return templateResult.data.map(t => ({
+        name: t.NAME_CHAR,
+        code: t.CODE_CD,
+        blob: t.LOOKUP_BLOB
+      }))
+    }
+
+    return []
+  } catch (error) {
+    logger.error('Failed to get available questionnaires', error)
+    return []
+  }
+}
+
+const getQuestionnaireTemplateByName = async (questionnaireName) => {
+  try {
+    logger.info('Getting questionnaire template by name', { questionnaireName })
+
+    // Get clean template from CODE_LOOKUP table by name
+    const templateResult = await databaseStore.executeQuery(
+      `SELECT LOOKUP_BLOB, NAME_CHAR, CODE_CD
+       FROM CODE_LOOKUP
+       WHERE TABLE_CD = 'SURVEY_BEST' 
+       AND COLUMN_CD = 'QUESTIONNAIRE'
+       AND (NAME_CHAR = ? OR NAME_CHAR LIKE ?)
+       AND LOOKUP_BLOB IS NOT NULL
+       LIMIT 1`,
+      [questionnaireName, `%${questionnaireName}%`]
+    )
+
+    if (templateResult.success && templateResult.data.length > 0) {
+      const template = templateResult.data[0]
+      
+      try {
+        const parsed = JSON.parse(template.LOOKUP_BLOB)
+        logger.info('Found matching questionnaire template', {
+          questionnaireName,
+          foundName: template.NAME_CHAR,
+          code: template.CODE_CD,
+          title: parsed.title,
+          itemCount: parsed.items?.length || 0,
+          firstItemType: parsed.items?.[0]?.type
+        })
+        return template.LOOKUP_BLOB
+      } catch (parseError) {
+        logger.error('Failed to parse template BLOB', { questionnaireName, error: parseError.message })
+        return null
+      }
+    }
+
+    logger.warn('No template found for questionnaire name', { questionnaireName })
+    return null
+
+  } catch (error) {
+    logger.error('Failed to get questionnaire template by name', error, { questionnaireName })
+    return null
+  }
+}
+
+const createNewQuestionnaireColumn = async (questionnaireName, baseConceptCode) => {
+  try {
+    logger.info('Creating new questionnaire column', { questionnaireName, baseConceptCode })
+
+    // Generate unique concept code for this questionnaire instance
+    const timestamp = Date.now()
+    const newConceptCode = `${baseConceptCode}_${questionnaireName.toUpperCase().replace(/\s+/g, '_')}_${timestamp}`
+
+    // Create concept in CONCEPT_DIMENSION
+    const conceptResult = await databaseStore.executeQuery(
+      `INSERT INTO CONCEPT_DIMENSION (
+        CONCEPT_CD, NAME_CHAR, CONCEPT_BLOB, UPDATE_DATE, DOWNLOAD_DATE, 
+        IMPORT_DATE, SOURCESYSTEM_CD, UPLOAD_ID, VALTYPE_CD, CATEGORY_CHAR
+      ) VALUES (?, ?, ?, datetime('now'), datetime('now'), datetime('now'), ?, ?, ?, ?)`,
+      [
+        newConceptCode,
+        `${questionnaireName} - Instance`,
+        JSON.stringify({ 
+          questionnaireName: questionnaireName,
+          baseConceptCode: baseConceptCode,
+          createdAt: new Date().toISOString()
+        }),
+        'SYSTEM',
+        1,
+        'Q',
+        'CAT_ASSESSMENT'
+      ]
+    )
+
+    if (!conceptResult.success) {
+      throw new Error('Failed to create concept in database')
+    }
+
+    // Add concept to grid
+    const newConcept = {
+      CONCEPT_CD: newConceptCode,
+      NAME_CHAR: `${questionnaireName} - Instance`,
+      VALTYPE_CD: 'Q'
+    }
+
+    const addResult = dataGridStore.addConceptToGrid(newConcept)
+    
+    if (!addResult.success) {
+      throw new Error('Failed to add concept to grid')
+    }
+
+    logger.info('New questionnaire column created successfully', {
+      newConceptCode,
+      questionnaireName,
+      addResult
+    })
+
+    return newConceptCode
+
+  } catch (error) {
+    logger.error('Failed to create new questionnaire column', error, {
+      questionnaireName,
+      baseConceptCode
+    })
     throw error
   }
 }
 
-const processObservationData = (observations) => {
-  // Group observations by concept to create columns
-  const conceptMap = new Map()
-  const patientVisitMap = new Map()
-
-  observations.forEach((obs) => {
-    // Track concepts for columns
-    if (!conceptMap.has(obs.CONCEPT_CD)) {
-      conceptMap.set(obs.CONCEPT_CD, {
-        code: obs.CONCEPT_CD,
-        name: obs.CONCEPT_NAME || obs.CONCEPT_CD,
-        valueType: obs.VALTYPE_CD || 'T',
-      })
-    }
-
-    // Group by patient and encounter
-    const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
-    if (!patientVisitMap.has(key)) {
-      // Find patient data
-      const patientInfo = patientData.value.find((p) => p.patient?.PATIENT_CD === obs.PATIENT_CD)
-      const visitInfo = patientInfo?.visits.find((v) => v.ENCOUNTER_NUM === obs.ENCOUNTER_NUM)
-
-      patientVisitMap.set(key, {
-        patientId: obs.PATIENT_CD,
-        patientName: getPatientName(patientInfo?.patient),
-        encounterNum: obs.ENCOUNTER_NUM,
-        visitDate: visitInfo?.START_DATE || obs.START_DATE,
-        observations: {},
-      })
-    }
-
-    // Add observation to the row
-    const row = patientVisitMap.get(key)
-
-    // For Selection (S) and Finding (F) types, prefer resolved values
-    let displayValue = obs.TVAL_CHAR || obs.NVAL_NUM
-    if ((obs.VALTYPE_CD === 'S' || obs.VALTYPE_CD === 'F') && obs.TVAL_RESOLVED) {
-      displayValue = obs.TVAL_RESOLVED
-    }
-
-    row.observations[obs.CONCEPT_CD] = {
-      observationId: obs.OBSERVATION_ID,
-      value: displayValue,
-      valueType: obs.VALTYPE_CD,
-      unit: obs.UNIT_CD,
-      originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
-      resolvedValue: obs.TVAL_RESOLVED,
-    }
+const openQuestionnaireFillDialog = async (row, concept) => {
+  logger.info('Opening questionnaire fill dialog', {
+    patientId: row.patientId,
+    encounterNum: row.encounterNum,
+    conceptCode: concept.code,
+    conceptName: concept.name,
   })
-
-  // Convert to arrays
-  observationConcepts.value = Array.from(conceptMap.values()).sort((a, b) => a.name.localeCompare(b.name))
-
-  tableRows.value = Array.from(patientVisitMap.values()).sort((a, b) => {
-    // Sort by patient ID, then by encounter number
-    if (a.patientId !== b.patientId) {
-      return a.patientId.localeCompare(b.patientId)
-    }
-    return a.encounterNum - b.encounterNum
-  })
-}
-
-// Helper methods
-const getPatientName = (patient) => {
-  if (!patient) return 'Unknown Patient'
-
-  if (patient.PATIENT_BLOB) {
-    try {
-      const blob = JSON.parse(patient.PATIENT_BLOB)
-      if (blob.name) return blob.name
-      if (blob.firstName && blob.lastName) return `${blob.firstName} ${blob.lastName}`
-    } catch {
-      // Fallback to PATIENT_CD
-    }
-  }
-  return patient.PATIENT_CD || 'Unknown Patient'
-}
-
-const getPatientInitials = (name) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
-const formatDate = (dateStr) => {
-  if (!dateStr) return 'Unknown'
-  return new Date(dateStr).toLocaleDateString()
-}
-
-const getCellValue = (row, concept) => {
-  const obs = row.observations[concept.code]
-  return obs?.value || ''
-}
-
-const getCellObservationId = (row, concept) => {
-  const obs = row.observations[concept.code]
-  return obs?.observationId || null
-}
-
-const getCellClass = (row, concept) => {
-  const key = `${row.patientId}-${row.encounterNum}-${concept.code}`
-  const hasChange = pendingChanges.value.has(key)
-  const hasValue = !!row.observations[concept.code]
-
-  return {
-    'has-value': hasValue,
-    'empty-cell': !hasValue,
-    'has-pending-change': hasChange && viewOptions.value.highlightChanges,
-    compact: viewOptions.value.compactView,
-  }
-}
-
-const hasRowChanges = (row) => {
-  if (!viewOptions.value.highlightChanges) return false
-
-  return observationConcepts.value.some((concept) => {
-    const key = `${row.patientId}-${row.encounterNum}-${concept.code}`
-    return pendingChanges.value.has(key)
-  })
-}
-
-// Event handlers
-const onCellUpdate = (data) => {
-  const { patientId, encounterNum, conceptCode, value, observationId } = data
-  const key = `${patientId}-${encounterNum}-${conceptCode}`
-
-  // Track the change
-  pendingChanges.value.set(key, {
-    patientId,
-    encounterNum,
-    conceptCode,
-    value,
-    observationId,
-    timestamp: new Date(),
-  })
-
-  // Update the local data
-  const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
-  if (row) {
-    if (!row.observations[conceptCode]) {
-      row.observations[conceptCode] = {}
-    }
-    row.observations[conceptCode].value = value
-  }
-}
-
-const onCellSave = async (data) => {
-  const { patientId, encounterNum, conceptCode } = data
-  const key = `${patientId}-${encounterNum}-${conceptCode}`
 
   try {
-    // Remove from pending changes
-    pendingChanges.value.delete(key)
-
-    // Update last save time
-    lastUpdateTime.value = new Date().toLocaleTimeString()
-
-    $q.notify({
-      type: 'positive',
-      message: 'Cell saved successfully',
-      position: 'top-right',
-      timeout: 2000,
-    })
-  } catch (error) {
-    logger.error('Cell save error', error)
-  }
-}
-
-const onCellError = (error) => {
-  logger.error('Cell error', error)
-  $q.notify({
-    type: 'negative',
-    message: `Cell error: ${error.message}`,
-    position: 'top',
-  })
-}
-
-const saveAllChanges = async () => {
-  if (!hasUnsavedChanges.value) return
-
-  try {
-    savingAll.value = true
-
-    const changes = Array.from(pendingChanges.value.values())
-    let savedCount = 0
-
-    for (const change of changes) {
-      try {
-        // This would trigger the save in EditableCell component
-        // For now, we'll just clear the pending changes
-        const key = `${change.patientId}-${change.encounterNum}-${change.conceptCode}`
-        pendingChanges.value.delete(key)
-        savedCount++
-      } catch (error) {
-        logger.error('Failed to save change', error)
+    // Step 1: Find what questionnaire name is used in this column
+    let questionnaireName = findQuestionnaireNameInColumn(concept.code)
+    let targetConceptCode = concept.code
+    
+    if (!questionnaireName) {
+      // No existing questionnaire found - show selection dialog
+      const availableQuestionnaires = await getAvailableQuestionnaires()
+      
+      if (availableQuestionnaires.length === 0) {
+        $q.notify({
+          type: 'warning',
+          message: 'No questionnaire templates available',
+          position: 'top',
+        })
+        return
       }
+
+      // For now, use the first available questionnaire
+      // TODO: In future, show selection dialog for user to choose
+      questionnaireName = availableQuestionnaires[0].name
+      
+      // Create new column for this questionnaire type
+      targetConceptCode = await createNewQuestionnaireColumn(questionnaireName, concept.code)
+      
+      logger.info('Created new questionnaire column', {
+        questionnaireName,
+        originalConceptCode: concept.code,
+        newConceptCode: targetConceptCode
+      })
     }
 
-    lastUpdateTime.value = new Date().toLocaleTimeString()
+    // Step 2: Get clean template for this questionnaire name from CODE_LOOKUP
+    const questionnaireBlob = await getQuestionnaireTemplateByName(questionnaireName)
+    
+    if (!questionnaireBlob) {
+      $q.notify({
+        type: 'warning',
+        message: `No template found for questionnaire: ${questionnaireName}`,
+        position: 'top',
+      })
+      return
+    }
 
-    $q.notify({
-      type: 'positive',
-      message: `Saved ${savedCount} changes successfully`,
-      position: 'top',
+    // Prepare data for the questionnaire fill dialog
+    selectedQuestionnaireFillData.value = {
+      encounterNum: row.encounterNum,
+      patientId: row.patientId,
+      questionnaireBlob: questionnaireBlob,
+      conceptCode: targetConceptCode,
+      conceptName: concept.name,
+      questionnaireName: questionnaireName,
+      patientName: row.patientName,
+      visitDate: row.visitDate,
+    }
+
+    showQuestionnaireFillDialog.value = true
+
+    logger.debug('Prepared questionnaire fill data', {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      originalConceptCode: concept.code,
+      targetConceptCode: targetConceptCode,
+      questionnaireName: questionnaireName,
+      hasBlobData: !!questionnaireBlob,
+      blobLength: questionnaireBlob?.length || 0,
     })
+
   } catch (error) {
-    logger.error('Failed to save all changes', error)
+    logger.error('Failed to open questionnaire fill dialog', error, {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      conceptCode: concept.code,
+    })
+
     $q.notify({
       type: 'negative',
-      message: 'Failed to save some changes',
+      message: 'Failed to open questionnaire dialog',
       position: 'top',
     })
-  } finally {
-    savingAll.value = false
   }
 }
 
-const refreshData = async () => {
-  await loadPatientData()
-  pendingChanges.value.clear()
-  lastUpdateTime.value = new Date().toLocaleTimeString()
-
-  $q.notify({
-    type: 'info',
-    message: 'Data refreshed',
-    position: 'top',
+// Questionnaire preview dialog methods
+const openQuestionnairePreview = async (row, concept) => {
+  logger.info('Opening questionnaire preview', {
+    patientId: row.patientId,
+    encounterNum: row.encounterNum,
+    conceptCode: concept.code,
+    conceptName: concept.name,
   })
-}
 
-const goBack = () => {
-  if (hasUnsavedChanges.value) {
-    $q.dialog({
-      title: 'Unsaved Changes',
-      message: 'You have unsaved changes. Are you sure you want to go back?',
-      cancel: true,
-      persistent: true,
-    }).onOk(() => {
-      router.push('/data-grid')
-    })
-  } else {
-    router.push('/data-grid')
-  }
-}
+  try {
+    const observationId = getCellObservationId(row, concept)
+    const cellValue = getCellValue(row, concept)
 
-// Auto-save functionality
-let autoSaveInterval = null
-
-const startAutoSave = () => {
-  autoSaveInterval = setInterval(() => {
-    if (hasUnsavedChanges.value) {
-      // Auto-save logic could be implemented here
-      // For now, we'll just update the timestamp
-      lastUpdateTime.value = new Date().toLocaleTimeString()
+    if (!observationId) {
+      logger.warn('No observation ID found for questionnaire cell', {
+        patientId: row.patientId,
+        encounterNum: row.encounterNum,
+        conceptCode: concept.code,
+      })
+      $q.notify({
+        type: 'warning',
+        message: 'No questionnaire data available for this cell',
+        position: 'top',
+      })
+      return
     }
-  }, 30000) // Auto-save every 30 seconds
-}
 
-const stopAutoSave = () => {
-  if (autoSaveInterval) {
-    clearInterval(autoSaveInterval)
-    autoSaveInterval = null
+    // Prepare data for the questionnaire preview dialog
+    selectedQuestionnaireData.value = {
+      observationId: observationId,
+      conceptName: concept.name,
+      completionDate: row.visitDate,
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      value: cellValue,
+    }
+
+    showQuestionnairePreview.value = true
+
+    logger.debug('Prepared questionnaire data for preview', {
+      observationId: observationId,
+      conceptName: concept.name,
+      hasValue: !!cellValue,
+    })
+
+  } catch (error) {
+    logger.error('Failed to open questionnaire preview', error, {
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+      conceptCode: concept.code,
+    })
+
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to open questionnaire preview',
+      position: 'top',
+    })
   }
 }
 
-// Lifecycle
-onMounted(async () => {
-  await loadPatientData()
-  startAutoSave()
-})
-
-onUnmounted(() => {
-  stopAutoSave()
-})
-
-// Watch for view options changes
+// Watch for view options changes (store handles persistence)
 watch(
-  viewOptions,
-  () => {
-    // Save view options to local settings
-    localSettings.setSetting('dataGrid.viewOptions', viewOptions.value)
+  () => dataGridStore.viewOptions,
+  (newOptions) => {
+    // Store automatically handles persistence
+    logger.debug('View options changed', { newOptions })
   },
   { deep: true },
 )
 
-// Load saved view options
-onMounted(() => {
-  const savedOptions = localSettings.getSetting('dataGrid.viewOptions')
-  if (savedOptions) {
-    viewOptions.value = { ...viewOptions.value, ...savedOptions }
+
+
+// Lifecycle
+onMounted(async () => {
+  // Initialize stores
+  if (dataGridStore?.initialize) {
+    dataGridStore.initialize()
   }
+  if (conceptStore?.initialize) {
+    await conceptStore.initialize()
+  }
+
+  await loadPatientData()
 })
+
+
 </script>
 
 <style lang="scss" scoped>
 .excel-editor {
-  height: calc(100vh - 120px);
+  height: 100%; // Full height since footer is in GridLayout
   display: flex;
   flex-direction: column;
   background: $grey-1;
@@ -668,13 +838,15 @@ onMounted(() => {
     background: $grey-2;
 
     th {
-      padding: 12px 8px;
+      padding: 8px 6px;
       border: 1px solid $grey-4;
       border-top: none;
       font-weight: 600;
-      text-align: left;
+      text-align: center;
       background: $grey-2;
       position: relative;
+      height: 60px;
+      vertical-align: middle;
 
       &.fixed-col {
         position: sticky;
@@ -682,6 +854,7 @@ onMounted(() => {
         z-index: 11;
         background: $grey-3;
         box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+        text-align: left; // Override center alignment for fixed column headers
       }
 
       &.patient-col {
@@ -694,12 +867,7 @@ onMounted(() => {
         left: 200px;
         width: 120px;
         min-width: 120px;
-      }
-
-      &.encounter-col {
-        left: 320px;
-        width: 100px;
-        min-width: 100px;
+        text-align: center; // Center align visit date header
       }
 
       &.obs-col {
@@ -722,6 +890,7 @@ onMounted(() => {
             display: -webkit-box;
             -webkit-line-clamp: 2;
             -webkit-box-orient: vertical;
+            line-clamp: 2;
           }
 
           .concept-code {
@@ -745,16 +914,19 @@ onMounted(() => {
     }
 
     td {
-      padding: 8px;
+      padding: 4px 6px;
       border: 1px solid $grey-4;
       border-top: none;
-      vertical-align: top;
+      vertical-align: middle;
+      text-align: center;
+      height: 40px;
 
       &.fixed-col {
         position: sticky;
         background: white;
         z-index: 5;
         box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+        text-align: left; // Override center alignment for fixed columns
 
         &.patient-col {
           left: 0;
@@ -762,17 +934,46 @@ onMounted(() => {
 
         &.visit-col {
           left: 200px;
-        }
-
-        &.encounter-col {
-          left: 320px;
+          text-align: center; // Center align visit date
         }
       }
 
       &.obs-cell {
         width: 150px;
         min-width: 150px;
-        padding: 4px;
+        padding: 2px;
+        text-align: center;
+        vertical-align: middle;
+
+        // Override EditableCell alignment for all value types
+        :deep(.editable-cell) {
+          text-align: center !important;
+          
+          &.value-type-n {
+            text-align: center !important; // Override right alignment for numeric values
+          }
+          
+          .cell-display {
+            justify-content: center;
+            text-align: center;
+            
+            .cell-value {
+              text-align: center;
+            }
+          }
+          
+          .cell-edit {
+            .cell-input {
+              :deep(.q-field__native) {
+                text-align: center !important;
+              }
+              
+              :deep(input) {
+                text-align: center !important;
+              }
+            }
+          }
+        }
 
         &.has-value {
           background: white;
@@ -782,13 +983,49 @@ onMounted(() => {
           background: $grey-1;
         }
 
-        &.has-pending-change {
-          background: $orange-2;
-          border-color: $orange-5;
-        }
+        // Questionnaire cell styling
+        .questionnaire-cell {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          height: 100%;
+          padding: 4px 6px;
+          border-radius: 4px;
+          transition: all 0.2s ease;
 
-        &.compact {
-          padding: 2px;
+          &:hover {
+            background: rgba($primary, 0.08);
+          }
+
+          .questionnaire-content {
+            font-size: 0.875rem;
+            text-align: center;
+            line-height: 1.2;
+            word-break: break-word;
+            color: $grey-8;
+            cursor: pointer;
+          }
+
+          .questionnaire-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            color: $grey-5;
+
+            &:hover {
+              color: $primary;
+            }
+
+            .empty-label {
+              font-size: 0.65rem;
+              font-weight: 400;
+              text-align: center;
+              line-height: 1.1;
+            }
+          }
         }
       }
     }
@@ -812,20 +1049,69 @@ onMounted(() => {
   }
 }
 
+.visit-date-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  cursor: help;
+  height: 100%;
+
+  &:hover .visit-edit-icon {
+    opacity: 1;
+    visibility: visible;
+  }
+}
+
 .visit-date {
   font-size: 0.8rem;
   color: $grey-8;
-}
-
-.encounter-num {
-  font-size: 0.8rem;
-  color: $grey-7;
   text-align: center;
+  line-height: 1.2;
 }
 
-.status-bar {
-  flex-shrink: 0;
-  border-top: 1px solid $grey-4;
+.visit-edit-icon {
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  position: absolute;
+  top: 2px;
+  right: 2px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.08);
+    opacity: 1 !important;
+
+    .q-icon {
+      color: $primary !important;
+    }
+  }
+
+  .q-icon {
+    transition: color 0.2s ease;
+  }
+}
+
+.tooltip-content {
+  font-size: 0.75rem;
+  line-height: 1.4;
+
+  div {
+    margin-bottom: 4px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    strong {
+      color: $grey-4;
+      font-weight: 600;
+    }
+  }
 }
 
 // Responsive adjustments
@@ -864,12 +1150,6 @@ onMounted(() => {
         min-width: 100px;
       }
 
-      &.encounter-col {
-        left: 250px;
-        width: 80px;
-        min-width: 80px;
-      }
-
       &.obs-col {
         width: 100px;
         min-width: 100px;
@@ -886,14 +1166,31 @@ onMounted(() => {
         width: 100px;
       }
 
-      &.encounter-col {
-        left: 250px;
-        width: 80px;
-      }
-
       &.obs-cell {
         width: 100px;
         min-width: 100px;
+      }
+    }
+  }
+}
+
+// New observation dialog styles
+.concept-search-section {
+  .search-results {
+    .concept-item {
+      transition: all 0.2s ease;
+
+      &:hover {
+        background-color: rgba(25, 118, 210, 0.08);
+      }
+
+      &.already-added {
+        background-color: rgba(76, 175, 80, 0.05);
+        border-left: 3px solid #4caf50;
+
+        &:hover {
+          background-color: rgba(76, 175, 80, 0.08);
+        }
       }
     }
   }

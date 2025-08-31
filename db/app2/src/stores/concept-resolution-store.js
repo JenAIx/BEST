@@ -270,6 +270,36 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
     },
 
     /**
+     * Get visit type icon from resolved concept data
+     * @param {string} visitType - The visit type code
+     * @returns {string} Icon name or default
+     */
+    getVisitTypeIcon(visitType) {
+      const resolved = this.getResolved(visitType)
+      return resolved?.icon || 'category'
+    },
+
+    /**
+     * Get visit type color from resolved concept data
+     * @param {string} visitType - The visit type code
+     * @returns {string} Color name or default
+     */
+    getVisitTypeColor(visitType) {
+      const resolved = this.getResolved(visitType)
+      return resolved?.color || 'primary'
+    },
+
+    /**
+     * Get visit type label from resolved concept data
+     * @param {string} visitType - The visit type code
+     * @returns {string} Label or default
+     */
+    getVisitTypeLabel(visitType) {
+      const resolved = this.getResolved(visitType)
+      return resolved?.label || visitType || 'General Visit'
+    },
+
+    /**
      * Clear all cached data
      */
     async clearCache() {
