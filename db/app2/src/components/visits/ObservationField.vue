@@ -415,7 +415,7 @@ const saveObservation = async (value) => {
 const onValueChange = (newValue) => {
   const originalValue = props.existingObservation?.originalValue || props.existingObservation?.value || ''
 
-  console.log('🔍 ObservationField onValueChange triggered!', {
+  loggingStore.debug('ObservationField', 'onValueChange triggered', {
     conceptCode: props.concept.code,
     newValue,
     originalValue,
@@ -432,13 +432,15 @@ const onValueChange = (newValue) => {
 
   // Check if the new value is different from the original/saved value
   if (newValue === originalValue) {
-    console.log('🔄 Value matches original, no pending changes')
+    loggingStore.debug('ObservationField', 'Value matches original, no pending changes', {
+      conceptCode: props.concept.code
+    })
     hasPendingChanges.value = false
     return
   }
 
   hasPendingChanges.value = true
-  console.log('✅ Set hasPendingChanges to true!', {
+  loggingStore.debug('ObservationField', 'Set hasPendingChanges to true', {
     conceptCode: props.concept.code,
     hasPendingChanges: hasPendingChanges.value,
   })
@@ -842,7 +844,7 @@ const downloadFile = async () => {
 
 // Initialize value from existing observation and resolve concept
 onMounted(async () => {
-  console.log('🚀 ObservationField mounted!', {
+  loggingStore.debug('ObservationField', 'Component mounted', {
     conceptCode: props.concept.code,
     conceptName: props.concept.name,
     conceptValueType: props.concept.valueType,
@@ -966,7 +968,7 @@ watch(
   (newValue, oldValue) => {
     // Don't trigger on initial mount or when we're programmatically setting the value
     if (oldValue !== undefined && newValue !== oldValue) {
-      console.log('🔍 currentValue watcher triggered!', {
+      loggingStore.debug('ObservationField', 'currentValue watcher triggered', {
         conceptCode: props.concept.code,
         oldValue,
         newValue,

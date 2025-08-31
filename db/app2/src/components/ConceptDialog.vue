@@ -571,7 +571,10 @@ const onSNOMEDSelected = async (concept) => {
       })
     }
   } catch (error) {
-    console.error('Failed to resolve SNOMED CT path:', error)
+    loggingStore.error('ConceptDialog', 'Failed to resolve SNOMED CT path', error, {
+      conceptCode: concept.code,
+      conceptDisplay: concept.display
+    })
     // Fallback to basic path
     if (formDataRef.value) {
       formDataRef.value.conceptPath = `\\SNOMED-CT\\${concept.code}`

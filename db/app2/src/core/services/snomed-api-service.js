@@ -9,6 +9,7 @@
  */
 
 import axios from 'axios'
+import loggingService from './logging-service.js'
 
 class SnomedApiService {
   constructor() {
@@ -55,7 +56,7 @@ class SnomedApiService {
    * @returns {Promise<Object>} Search results with concepts array
    */
   async searchConcepts(searchTerm, options = {}) {
-    console.log('snomed_api/searchConcepts: ', searchTerm)
+    loggingService.debug('SnomedApiService', 'searchConcepts called', { searchTerm })
     
     if (!searchTerm || typeof searchTerm !== 'string' || searchTerm.length < 3) {
       return {
@@ -84,7 +85,7 @@ class SnomedApiService {
         'includeDesignations': 'true'
       }
       
-      console.log('[SNOMED API] FHIR Search:', url, params)
+      loggingService.debug('SnomedApiService', 'Making FHIR Search request', { url, params })
 
       // Direct axios call (webSecurity disabled in Electron allows external requests)
       const response = await axios.get(url, { 
@@ -112,7 +113,7 @@ class SnomedApiService {
         }
       }
     } catch (error) {
-      console.error('[SNOMED API] Search failed:', error)
+      loggingService.error('SnomedApiService', 'Search failed', error, { searchTerm, options })
       return {
         success: false,
         error: this.handleApiError(error).message,
@@ -130,7 +131,7 @@ class SnomedApiService {
    * @returns {Promise<Object>} Concept details
    */
   async query(snomedId) {
-    console.log('snomed_api/query: ', snomedId)
+    loggingService.debug('SnomedApiService', 'query called', { snomedId })
     
     if (!snomedId) {
       return {
@@ -168,7 +169,7 @@ class SnomedApiService {
         }
       }
     } catch (error) {
-      console.error('[SNOMED API] Query failed:', error)
+      loggingService.error('SnomedApiService', 'Query failed', error, { snomedId })
       return {
         success: false,
         error: this.handleApiError(error).message,
@@ -206,7 +207,7 @@ class SnomedApiService {
         return null
       }
     } catch (error) {
-      console.error('[SNOMED API] Full query failed:', error)
+      loggingService.error('SnomedApiService', 'Full query failed', error, { snomedId })
       return null
     }
   }
@@ -217,7 +218,7 @@ class SnomedApiService {
    * @returns {Promise<string>} Full concept path like \\SNOMED-CT\\parentId\\childId\\conceptId
    */
   async resolve(snomedId) {
-    console.log('snomed_api/resolve: ', snomedId)
+    loggingService.debug('SnomedApiService', 'resolve called', { snomedId })
     
     if (!snomedId || (typeof snomedId !== 'number' && typeof snomedId !== 'string')) {
       return null
@@ -249,7 +250,7 @@ class SnomedApiService {
 
       return `\\SNOMED-CT\\${url}`
     } catch (error) {
-      console.error('[SNOMED API] Resolve failed:', error)
+      loggingService.error('SnomedApiService', 'Resolve failed', error, { snomedId })
       return null
     }
   }
@@ -309,7 +310,7 @@ class SnomedApiService {
         }
       }
     } catch (error) {
-      console.error('[SNOMED API] Get descriptions failed:', error)
+      loggingService.error('SnomedApiService', 'Get descriptions failed', error, { conceptId })
       return {
         success: false,
         error: this.handleApiError(error).message,

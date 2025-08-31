@@ -139,6 +139,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
@@ -152,6 +153,7 @@ const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const visitObservationStore = useVisitObservationStore()
+const loggingStore = useLoggingStore()
 
 // Reactive state
 const filterText = ref('')
@@ -294,7 +296,10 @@ const loadValueTypeOptions = async () => {
       { label: 'Empty Values', value: 'empty' },
     ]
   } catch (error) {
-    console.error('Failed to load value type options:', error)
+    loggingStore.error('PatientObservationsTab', 'Failed to load value type options', error, {
+      action: 'loadValueTypeOptions',
+      fallbackUsed: true
+    })
     // Fallback to basic options if store fails
     valueTypeOptions.value = [
       { label: 'Answer (A)', value: 'A' },

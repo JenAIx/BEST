@@ -304,6 +304,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
+import { useLoggingStore } from '../../stores/logging-store.js'
 
 const props = defineProps({
   modelValue: {
@@ -319,6 +320,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'select'])
 
 const $q = useQuasar()
+const loggingStore = useLoggingStore()
 
 const localSearchQuery = ref('')
 const searching = ref(false)
@@ -375,7 +377,9 @@ const search = async () => {
     }
     
   } catch (error) {
-    console.error('SNOMED CT API search failed:', error)
+    loggingStore.error('SNOMEDSearchDialog', 'SNOMED CT API search failed', error, {
+      searchQuery: localSearchQuery.value
+    })
     
     // Show user-friendly error message
     let errorMessage = 'Failed to search SNOMED CT'

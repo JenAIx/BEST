@@ -34,6 +34,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from './AppDialog.vue'
 import PreviewSurveyTemplate from '../questionnaire/PreviewSurveyTemplate.vue'
 import CompletedQuestionnaireView from '../questionnaire/CompletedQuestionnaireView.vue'
@@ -69,6 +70,9 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])
+
+// Initialize stores
+const loggingStore = useLoggingStore()
 
 // Local state - initialize with modelValue
 const localShow = ref(props.modelValue || false)
@@ -123,7 +127,10 @@ const loadQuestionnaireFromObservation = async () => {
       loadError.value = 'No questionnaire data found for this observation'
     }
   } catch (error) {
-    console.error('Failed to load questionnaire data:', error)
+    loggingStore.error('QuestionnairePreviewDialog', 'Failed to load questionnaire data', error, {
+      observationId: props.observationId,
+      conceptName: props.conceptName
+    })
     loadError.value = 'Failed to load questionnaire data'
   } finally {
     loading.value = false

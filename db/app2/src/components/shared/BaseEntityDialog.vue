@@ -227,8 +227,12 @@ const initializeFormData = () => {
     // Deep clone the entity for editing
     localFormData.value = _.cloneDeep(props.entity)
     originalFormData.value = _.cloneDeep(props.entity)
+  } else if (props.entity) {
+    // Use provided entity data for creation (includes default values)
+    localFormData.value = _.cloneDeep(props.entity)
+    originalFormData.value = _.cloneDeep(props.entity)
   } else {
-    // Initialize empty form for creation
+    // Initialize empty form for creation if no entity provided
     localFormData.value = {}
     originalFormData.value = {}
   }
