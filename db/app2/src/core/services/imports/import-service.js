@@ -145,7 +145,7 @@ export class ImportService {
       // Detect format
       const format = this.detectFormat(content, filename)
       if (!format) {
-        return this.createErrorResult('UNSUPPORTED_FORMAT', `Unsupported file format for ${filename}`)
+        return this.createErrorResult('UNSUPPORTED_FORMAT', `Unsupported file format for ${filename}`, filename)
       }
 
       logger.info('Detected file format', { format, filename })
@@ -153,7 +153,7 @@ export class ImportService {
       // Route to appropriate service
       const service = this.services[format]
       if (!service) {
-        return this.createErrorResult('SERVICE_NOT_FOUND', `No import service available for format: ${format}`)
+        return this.createErrorResult('SERVICE_NOT_FOUND', `No import service available for format: ${format}`, filename)
       }
 
       // Call the appropriate import method
@@ -172,7 +172,7 @@ export class ImportService {
           result = await service.importFromHtml(content, options)
           break
         default:
-          return this.createErrorResult('UNSUPPORTED_FORMAT', `Unsupported format: ${format}`)
+          return this.createErrorResult('UNSUPPORTED_FORMAT', `Unsupported format: ${format}`, filename)
       }
 
       // If import was successful and we have clinical data, save it to database
@@ -181,15 +181,29 @@ export class ImportService {
           const saveResult = await this.saveClinicalDataToDatabase(result.data, options)
           result.metadata = {
             ...result.metadata,
+            filename: filename,
             savedToDatabase: saveResult.success,
             savedPatients: saveResult.patientsSaved,
             savedVisits: saveResult.visitsSaved,
             savedObservations: saveResult.observationsSaved,
           }
 
+          // Pass through actual IDs from relaxed ID approach
+          if (saveResult.actualPatientNum) {
+            result.actualPatientNum = saveResult.actualPatientNum
+          }
+          if (saveResult.actualEncounterNum) {
+            result.actualEncounterNum = saveResult.actualEncounterNum
+          }
+
           if (!saveResult.success) {
             result.success = false
             result.errors = [...(result.errors || []), ...saveResult.errors]
+            // Ensure filename is preserved even on save failure
+            result.metadata = {
+              ...result.metadata,
+              filename: filename,
+            }
           }
 
           logger.info('Database save completed', {
@@ -210,6 +224,12 @@ export class ImportService {
             },
           ]
         }
+      } else {
+        // Ensure filename is preserved even when no data to save
+        if (!result.metadata) {
+          result.metadata = {}
+        }
+        result.metadata.filename = filename
       }
 
       logger.info('Import completed', {
@@ -223,7 +243,7 @@ export class ImportService {
       return result
     } catch (error) {
       logger.error('Import failed', error)
-      return this.createErrorResult('IMPORT_FAILED', error.message)
+      return this.createErrorResult('IMPORT_FAILED', error.message, filename)
     }
   }
 
@@ -240,6 +260,9 @@ export class ImportService {
       visitsSaved: 0,
       observationsSaved: 0,
       errors: [],
+      // Store actual IDs for patient-specific imports
+      actualPatientNum: null,
+      actualEncounterNum: null,
     }
 
     // Maps to track original IDs to database-generated IDs
@@ -253,11 +276,110 @@ export class ImportService {
       hasPatients: !!clinicalData.patients,
       hasVisits: !!clinicalData.visits,
       hasObservations: !!clinicalData.observations,
+      targetPatientNum: options.targetPatientNum,
+      targetEncounterNum: options.targetEncounterNum,
     })
+
+    // Handle patient-specific imports with relaxed ID approach
+    let actualPatientNum = null
+    let actualEncounterNum = null
+
+    if (options.targetPatientNum && options.targetEncounterNum) {
+      try {
+        // Relaxed approach: Create patient/visit without forcing specific IDs
+        // Let the database auto-generate IDs and map them properly
+
+        console.log('Starting patient-specific import with relaxed IDs', {
+          targetPatientNum: options.targetPatientNum,
+          targetEncounterNum: options.targetEncounterNum,
+          hasClinicalData: !!clinicalData,
+          hasPatients: !!(clinicalData && clinicalData.patients),
+          patientsLength: clinicalData?.patients?.length || 0,
+        })
+
+        // Create a patient (ID will be auto-generated)
+        const patientData = clinicalData.patients && clinicalData.patients[0] ? { ...clinicalData.patients[0] } : { PATIENT_CD: `PATIENT_${Date.now()}` }
+
+        delete patientData.PATIENT_NUM // Let database auto-generate
+        patientData.UPDATE_DATE = new Date().toISOString()
+        patientData.DOWNLOAD_DATE = new Date().toISOString()
+        patientData.IMPORT_DATE = new Date().toISOString()
+        patientData.SOURCESYSTEM_CD = patientData.SOURCESYSTEM_CD || 'IMPORT_SYSTEM'
+        patientData.UPLOAD_ID = 0
+
+        console.log('Attempting to save patient with data:', patientData)
+
+        const savedPatient = await this.patientRepo.createPatient(patientData)
+        actualPatientNum = savedPatient.PATIENT_NUM
+        result.actualPatientNum = actualPatientNum // Store in result
+        result.patientsSaved++
+        console.log('Created patient with relaxed ID:', actualPatientNum)
+
+        // Create a visit (ID will be auto-generated)
+        const visitData = clinicalData.visits && clinicalData.visits[0] ? { ...clinicalData.visits[0] } : { ENCOUNTER_CD: `ENCOUNTER_${Date.now()}` }
+
+        delete visitData.ENCOUNTER_NUM // Let database auto-generate
+        visitData.PATIENT_NUM = actualPatientNum
+        visitData.START_DATE = visitData.START_DATE || new Date().toISOString().split('T')[0]
+        visitData.UPDATE_DATE = new Date().toISOString()
+        visitData.DOWNLOAD_DATE = new Date().toISOString()
+        visitData.IMPORT_DATE = new Date().toISOString()
+        visitData.SOURCESYSTEM_CD = visitData.SOURCESYSTEM_CD || 'IMPORT_SYSTEM'
+        visitData.UPLOAD_ID = 0
+
+        const savedVisit = await this.visitRepo.createVisit(visitData)
+        actualEncounterNum = savedVisit.ENCOUNTER_NUM
+        result.actualEncounterNum = actualEncounterNum // Store in result
+        result.visitsSaved++
+        console.log('Created visit with relaxed ID:', actualEncounterNum)
+
+        // Map all patient IDs in the imported data to the actual patient ID
+        if (clinicalData.patients) {
+          clinicalData.patients.forEach((patient) => {
+            patientIdMap.set(patient.PATIENT_NUM, actualPatientNum)
+          })
+        }
+        // Also map the requested target ID
+        patientIdMap.set(options.targetPatientNum, actualPatientNum)
+
+        // Map all visit IDs in the imported data to the actual encounter ID
+        if (clinicalData.visits) {
+          clinicalData.visits.forEach((visit) => {
+            visitIdMap.set(visit.ENCOUNTER_NUM, actualEncounterNum)
+          })
+        }
+        // Also map the requested target ID
+        visitIdMap.set(options.targetEncounterNum, actualEncounterNum)
+
+        // Debug logging
+        console.log('Patient-specific import ID mappings (relaxed):', {
+          requestedPatientNum: options.targetPatientNum,
+          requestedEncounterNum: options.targetEncounterNum,
+          actualPatientNum,
+          actualEncounterNum,
+          patientIdMapEntries: Array.from(patientIdMap.entries()),
+          visitIdMapEntries: Array.from(visitIdMap.entries()),
+        })
+
+        // For patient-specific imports, skip normal patient/visit processing
+        // and go directly to observations
+      } catch (error) {
+        console.error('Error setting up patient-specific import:', error)
+        logger.error('Error setting up patient-specific import', error)
+        result.errors.push({
+          code: 'PATIENT_SETUP_ERROR',
+          message: `Failed to setup patient/encounter: ${error.message}`,
+          details: error,
+          stack: error.stack,
+        })
+        result.success = false
+      }
+    }
 
     try {
       // Save patients first and track their database-generated IDs
-      if (clinicalData.patients && Array.isArray(clinicalData.patients)) {
+      // Only process if not a patient-specific import
+      if (!options.targetPatientNum && clinicalData.patients && Array.isArray(clinicalData.patients)) {
         for (const patient of clinicalData.patients) {
           try {
             // Store the original patient ID
@@ -321,7 +443,8 @@ export class ImportService {
       }
 
       // Save visits and track their database-generated IDs
-      if (clinicalData.visits && Array.isArray(clinicalData.visits)) {
+      // Only process if not a patient-specific import
+      if (!options.targetPatientNum && clinicalData.visits && Array.isArray(clinicalData.visits)) {
         for (const visit of clinicalData.visits) {
           try {
             // Store the original visit ID
@@ -385,7 +508,7 @@ export class ImportService {
           try {
             // Map the patient and encounter IDs to database-generated IDs
             let patientNum = patientIdMap.get(observation.PATIENT_NUM) || observation.PATIENT_NUM
-            const encounterNum = visitIdMap.get(observation.ENCOUNTER_NUM) || observation.ENCOUNTER_NUM
+            let encounterNum = visitIdMap.get(observation.ENCOUNTER_NUM) || observation.ENCOUNTER_NUM
 
             // If observation doesn't have PATIENT_NUM, try to get it from the visit
             if (!patientNum && encounterNum) {
@@ -397,8 +520,33 @@ export class ImportService {
             }
 
             // If still no patient number and we only have one patient, use that
-            if (!patientNum && clinicalData.patients.length === 1 && savedPatients.length > 0) {
-              patientNum = savedPatients[0].PATIENT_NUM
+            if (!patientNum && clinicalData.patients && clinicalData.patients.length === 1) {
+              patientNum = patientIdMap.values().next().value || clinicalData.patients[0].PATIENT_NUM
+            }
+
+            // For patient-specific imports, use the actual IDs that were created
+            if (options.targetPatientNum) {
+              // Use the actual IDs from the relaxed ID approach
+              const actualPatient = result.actualPatientNum || options.targetPatientNum
+              const actualEncounter = result.actualEncounterNum || options.targetEncounterNum
+
+              // Debug what's happening before override
+              if (!global.patientSpecificDebugLogged) {
+                console.log('Patient-specific observation mapping:', {
+                  originalPatientNum: observation.PATIENT_NUM,
+                  mappedPatientNum: patientNum,
+                  requestedPatientNum: options.targetPatientNum,
+                  actualPatientNum: actualPatient,
+                  originalEncounterNum: observation.ENCOUNTER_NUM,
+                  mappedEncounterNum: encounterNum,
+                  requestedEncounterNum: options.targetEncounterNum,
+                  actualEncounterNum: actualEncounter,
+                })
+                global.patientSpecificDebugLogged = true
+              }
+
+              patientNum = actualPatient
+              encounterNum = actualEncounter
             }
 
             // Debug missing patient num
@@ -407,9 +555,9 @@ export class ImportService {
                 observation,
                 patientNum,
                 encounterNum,
-                clinicalDataPatientsLength: clinicalData.patients.length,
-                savedPatientsLength: savedPatients.length,
-                savedPatients: savedPatients.map((p) => ({ PATIENT_NUM: p.PATIENT_NUM, PATIENT_CD: p.PATIENT_CD })),
+                clinicalDataPatientsLength: clinicalData.patients ? clinicalData.patients.length : 0,
+                patientIdMapSize: patientIdMap.size,
+                visitIdMapSize: visitIdMap.size,
               })
               global.patientNumDebugLogged = true
             }
@@ -518,13 +666,34 @@ export class ImportService {
         contentLength: content.length,
       })
 
-      const result = await this.importFile(content, filename, options)
+      // Pass the patient/encounter IDs through options so they can be used during import
+      const importOptions = {
+        ...options,
+        targetPatientNum: patientNum,
+        targetEncounterNum: encounterNum,
+      }
 
-      if (result.success && result.data) {
-        // Associate imported data with patient/visit if needed
-        result.data.patientNum = patientNum
-        result.data.encounterNum = encounterNum
+      const result = await this.importFile(content, filename, importOptions)
 
+      // Always ensure result.data exists for patient/encounter association
+      if (!result.data) {
+        result.data = {}
+      }
+
+      // Associate imported data with patient/visit
+      // Use actual IDs if they were generated (relaxed ID approach)
+      result.data.patientNum = result.actualPatientNum || patientNum
+      result.data.encounterNum = result.actualEncounterNum || encounterNum
+
+      // Also pass through the actual IDs for test verification
+      if (result.actualPatientNum) {
+        result.data.actualPatientNum = result.actualPatientNum
+      }
+      if (result.actualEncounterNum) {
+        result.data.actualEncounterNum = result.actualEncounterNum
+      }
+
+      if (result.success) {
         logger.info('Patient import completed successfully', {
           patientNum,
           encounterNum,
@@ -534,12 +703,27 @@ export class ImportService {
             observations: result.data.observations?.length || 0,
           },
         })
+      } else {
+        logger.warn('Patient import completed with errors', {
+          patientNum,
+          encounterNum,
+          errors: result.errors?.length || 0,
+        })
       }
 
       return result
     } catch (error) {
       logger.error('Patient import failed', error)
-      return this.createErrorResult('PATIENT_IMPORT_FAILED', error.message)
+      const errorResult = this.createErrorResult('PATIENT_IMPORT_FAILED', error.message, filename)
+
+      // Ensure patient/encounter association even on error
+      if (!errorResult.data) {
+        errorResult.data = {}
+      }
+      errorResult.data.patientNum = patientNum
+      errorResult.data.encounterNum = encounterNum
+
+      return errorResult
     }
   }
 
@@ -566,13 +750,14 @@ export class ImportService {
    * @param {string} message - Error message
    * @returns {Object} Error result
    */
-  createErrorResult(code, message) {
+  createErrorResult(code, message, filename = null) {
     return {
       success: false,
       data: null,
       metadata: {
         importDate: new Date().toISOString(),
         service: 'ImportService',
+        filename: filename,
       },
       errors: [
         {
