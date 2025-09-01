@@ -453,14 +453,17 @@ const importConfig = {
 
 ### 🚧 **IN PROGRESS/PLANNED PHASES**
 
-#### Phase 6: Integration & UI ⚠️ **PARTIALLY INTEGRATED**
+#### Phase 6: Integration & UI 🔴 **CRITICAL - NEEDS IMMEDIATE ATTENTION**
 
-- [x] Import services with ImportPage.vue (basic integration exists)
-- [x] Update ImportPage.vue to use new services (partially implemented)
-- [ ] Add import progress indicators
-- [ ] Implement import result display
+- [x] ImportPage.vue UI framework completed (stepper, file upload, progress)
+- [x] Patient/visit selection logic implemented
+- [ ] **CRITICAL**: Connect ImportPage.vue to actual import services (currently uses simulation)
+- [ ] Replace simulated import with real ImportService integration
+- [ ] Add import progress indicators with real-time updates
+- [ ] Implement comprehensive import result display
 - [ ] Add import history and audit trails
 - [ ] Improve error handling in UI components
+- [ ] Add support for different import formats in UI
 
 #### Phase 7: Advanced Features 🆕 **NEW OPPORTUNITIES IDENTIFIED**
 
@@ -492,6 +495,250 @@ const importConfig = {
 - [ ] Add import compliance logging (HIPAA/GDPR)
 - [ ] Add data sanitization and validation
 - [ ] Implement import audit trails with user tracking
+
+### 🔥 **CRITICAL NEXT STEPS - IMMEDIATE ACTION REQUIRED**
+
+#### **Phase 6A: Complete UI-Backend Integration** 🚨 **URGENT**
+
+The single most critical issue is that **ImportPage.vue does not actually use the import services**. The import logic is currently simulated:
+
+```javascript
+// CURRENT: Simulated import (ImportPage.vue lines 442-467)
+importProgress.value = 'Reading file...'
+await new Promise((resolve) => setTimeout(resolve, 1000))
+// ... more simulation steps
+// NO ACTUAL IMPORT HAPPENS!
+```
+
+**Required Actions:**
+
+1. **Replace Simulated Import Logic**
+
+   ```javascript
+   // TODO: Replace this simulation with actual import
+   const { ImportService } = require('../core/services/imports')
+   const importService = new ImportService(databaseService)
+
+   const result = await importService.importForPatient(selectedFile.value.content, selectedFile.value.name, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, importOptions.value)
+   ```
+
+2. **Implement Real Progress Tracking**
+   - Use import service callbacks for real-time progress
+   - Display actual parsing, validation, and database save progress
+   - Show detailed error messages from import service
+
+3. **Add Format-Specific UI Support**
+   - Detect file format automatically
+   - Show format-specific options (HL7 signature verification, etc.)
+   - Display appropriate validation messages per format
+
+4. **Enhance Error Handling**
+   - Show detailed validation errors from import services
+   - Provide user-friendly error messages
+   - Allow retry for transient failures
+
+#### **Phase 6B: Integration Testing** 📊
+
+- [ ] Test ImportPage.vue with all supported formats (CSV, JSON, HL7, HTML)
+- [ ] Verify patient-specific import flow works end-to-end
+- [ ] Test error scenarios and recovery mechanisms
+- [ ] Validate import results are properly displayed
+
+#### **Estimated Timeline**: 1-2 days for Phase 6A completion
+
+### **🔄 MULTI-PATIENT/VISIT IMPORT STRATEGY** 🆕 **NEW REQUIREMENT IDENTIFIED**
+
+#### **Problem Analysis**
+
+Current ImportPage.vue assumes **single patient/visit context**, but imported files may contain:
+
+- **Multiple patients** (e.g., CSV with 10 different patients)
+- **Multiple visits** per patient
+- **Complex relationships** between patients and their visits
+
+#### **Proposed Solution: Adaptive Import Flow**
+
+##### **Phase 1: File Analysis & Mode Detection** 📊
+
+```javascript
+// NEW: Add to ImportService
+async analyzeFileContent(content, filename) {
+  // Parse file and return structure analysis
+  return {
+    format: 'csv',
+    patientsCount: 5,
+    visitsCount: 12,
+    observationsCount: 156,
+    hasMultiplePatients: true,
+    hasMultipleVisits: true,
+    patients: [/* patient summaries */],
+    visits: [/* visit summaries */],
+    estimatedImportTime: '2-3 minutes'
+  }
+}
+```
+
+##### **Phase 2: Dynamic UI Flow** 🔀
+
+**Option A: Single Patient Mode** (Current - Keep for backward compatibility)
+
+- User selects 1 patient → 1 visit → Upload → Import
+- Best for: Targeted data updates, small files
+
+**Option B: Multi-Patient Batch Mode** (New - Recommended for complex files)
+
+1. **File Upload** → **Auto-Analysis** → **Mode Selection**
+2. **Preview & Mapping** → **Import Strategy** → **Batch Import**
+
+**Option C: Smart Auto-Import** (New - For bulk operations)
+
+- Auto-detect and import all data with intelligent conflict resolution
+- Best for: Bulk data migration, trusted sources
+
+##### **Phase 3: Import Strategy Selection** 🎯
+
+**Strategy 1: Strict Mode**
+
+- Only import if exact patient/visit matches exist
+- Reject if any data conflicts
+- Best for: Data integrity critical scenarios
+
+**Strategy 2: Create Missing Mode**
+
+- Create new patients/visits as needed
+- Link observations to appropriate records
+- Best for: New patient data, bulk imports
+
+**Strategy 3: Interactive Mode**
+
+- Show preview of what will be imported
+- Let user review and approve each patient/visit
+- Best for: Manual review required scenarios
+
+##### **Phase 4: Implementation Steps**
+
+1. **Add File Analysis Service**
+
+   ```javascript
+   // New service method
+   const analysis = await importService.analyzeFileContent(fileContent, filename)
+
+   if (analysis.hasMultiplePatients) {
+     // Switch to batch mode
+     currentStep.value = 'batch-preview'
+   } else {
+     // Continue with single patient mode
+     currentStep.value = 'upload'
+   }
+   ```
+
+2. **Update UI Flow**
+
+   ```javascript
+   // New step definitions
+   const steps = [
+     { name: 'patient', title: 'Select Patient', icon: 'person' },
+     { name: 'visit', title: 'Select Visit', icon: 'event' },
+     { name: 'upload', title: 'Upload File', icon: 'upload' },
+     { name: 'analyze', title: 'Analyze File', icon: 'search' }, // NEW
+     { name: 'strategy', title: 'Import Strategy', icon: 'settings' }, // NEW
+     { name: 'preview', title: 'Preview & Confirm', icon: 'preview' }, // NEW
+     { name: 'import', title: 'Import Data', icon: 'check' },
+   ]
+   ```
+
+3. **Add Preview Component**
+   ```vue
+   <!-- New component for batch preview -->
+   <BatchImportPreview :analysis="fileAnalysis" :importStrategy="selectedStrategy" @strategy-changed="updateStrategy" @confirmed="startBatchImport" />
+   ```
+
+##### **Phase 5: Backend Enhancements**
+
+1. **Enhanced ImportService Methods**
+
+   ```javascript
+   // Add batch import capability
+   async importBatch(fileContent, filename, options) {
+     const analysis = await this.analyzeFileContent(fileContent, filename)
+
+     switch (options.strategy) {
+       case 'strict':
+         return this.importBatchStrict(analysis, options)
+       case 'create_missing':
+         return this.importBatchCreateMissing(analysis, options)
+       case 'interactive':
+         return this.importBatchInteractive(analysis, options)
+       default:
+         throw new Error('Unknown import strategy')
+     }
+   }
+   ```
+
+2. **Smart Conflict Resolution**
+   ```javascript
+   // Intelligent patient matching
+   async resolvePatientConflicts(patients, strategy) {
+     const resolved = []
+     for (const patient of patients) {
+       const existing = await this.findSimilarPatient(patient)
+       if (existing && strategy === 'merge') {
+         resolved.push({ ...patient, action: 'merge', targetId: existing.id })
+       } else {
+         resolved.push({ ...patient, action: 'create' })
+       }
+     }
+     return resolved
+   }
+   ```
+
+#### **Timeline & Implementation Priority**
+
+**Week 1: Core Multi-Patient Support** 🚀
+
+- [ ] Add file analysis capability
+- [ ] Implement batch import mode detection
+- [ ] Create preview component
+- [ ] Basic conflict resolution
+
+**Week 2: Advanced Features** ⚡
+
+- [ ] Smart auto-matching algorithms
+- [ ] Interactive review mode
+- [ ] Progress tracking for batch imports
+- [ ] Error recovery and rollback
+
+**Week 3: Polish & Testing** ✨
+
+- [ ] UI/UX improvements
+- [ ] Comprehensive testing
+- [ ] Performance optimization
+- [ ] Documentation updates
+
+#### **Benefits of This Approach**
+
+1. **Backward Compatibility**: Single patient mode still works
+2. **Flexible Options**: Multiple strategies for different use cases
+3. **User Control**: Preview and confirmation steps
+4. **Scalable**: Handles both small files and bulk imports
+5. **Data Integrity**: Smart conflict resolution prevents duplicates
+
+#### **Example Use Cases**
+
+**Use Case 1: Single Patient Update**
+
+- User selects patient → uploads file with single patient data → imports
+- Current flow works perfectly
+
+**Use Case 2: Bulk Patient Import**
+
+- User uploads CSV with 50 patients → system analyzes → shows preview
+- User selects "Create Missing" strategy → batch import creates all patients
+
+**Use Case 3: Data Migration**
+
+- Admin uploads large dataset → system auto-detects multiple patients
+- Smart matching finds existing patients → merges data appropriately
 
 ### 📋 **NEWLY IDENTIFIED REQUIREMENTS**
 
@@ -715,37 +962,40 @@ const advancedOptions = {
 
 ### **✅ ACHIEVEMENTS**
 
-- **Complete Core Implementation**: All 5 core phases fully implemented and tested
-- **122/122 Unit Tests Passing**: Excellent test coverage for individual services
-- **Multi-Format Support**: CSV, JSON, HL7 CDA, HTML Survey import capabilities
-- **Questionnaire Integration**: Full integration with existing questionnaire system
-- **Production-Ready Architecture**: Modular, extensible, and maintainable design
+- **Complete Backend Implementation**: All 5 core phases fully implemented and tested (122/122 tests passing)
+- **Multi-Format Support**: CSV, JSON, HL7 CDA, HTML Survey import capabilities with comprehensive validation
+- **Questionnaire Integration**: Full integration with existing questionnaire system and VALTYPE_CD='Q' support
+- **Patient-Specific Import**: Advanced `importForPatient()` method with relaxed ID handling
+- **Production-Ready Architecture**: Modular, extensible, and maintainable design with excellent error handling
+- **Comprehensive Test Coverage**: 100% unit test coverage plus integration tests for patient-specific scenarios
 
 ### **📋 IMMEDIATE NEXT STEPS**
 
-#### **High Priority** 🔴
+#### **High Priority** 🔴 **CRITICAL BLOCKER**
 
-1. **Add `importForPatient()` Integration Tests**
-   - Test patient-specific import scenarios
-   - Validate data association with correct patient/encounter
-   - Add error handling for invalid patient/encounter combinations
-
-2. **Complete UI Integration**
-   - Enhance ImportPage.vue with progress indicators
-   - Add import result visualization
-   - Implement import history and audit trails
+1. **Complete UI-Backend Integration** 🚨
+   - Replace simulated import in ImportPage.vue with actual ImportService calls
+   - Connect patient-specific import workflow to backend services
+   - Add real-time progress tracking and error handling
+   - Test end-to-end import flow with all supported formats
 
 #### **Medium Priority** 🟡
 
-3. **Enhanced Error Recovery**
-   - Add automatic retry mechanisms
-   - Implement partial import recovery
-   - Create comprehensive rollback procedures
+2. **Enhanced UI Features**
+   - Add format-specific import options (HL7 signature verification, etc.)
+   - Implement import history and audit trail display
+   - Add import result visualization with detailed statistics
+   - Create import template system for common scenarios
 
-4. **Performance Optimization**
-   - Add streaming processing for large files
+3. **Advanced Error Recovery**
+   - Add automatic retry mechanisms for transient failures
+   - Implement partial import recovery with rollback
+   - Create comprehensive error reporting and user guidance
+
+4. **Performance & Scalability**
+   - Add streaming processing for large files (>50MB)
    - Implement parallel processing for bulk imports
-   - Add performance profiling tools
+   - Add performance profiling and optimization tools
 
 ### **🔮 FUTURE ENHANCEMENTS**
 
@@ -772,17 +1022,35 @@ const advancedOptions = {
 3. **🔗 Integration Strength**: Seamless integration with existing questionnaire system
 4. **📊 Performance Ready**: Architecture supports high-volume clinical data imports
 5. **🔒 Security Foundation**: Built-in validation and error handling for clinical data integrity
+6. **⚠️ Critical Gap**: UI simulation prevents actual functionality despite complete backend
 
 ### **🚀 RECOMMENDATION**
 
-The import system is **production-ready for core functionality**. Focus should now shift to:
+**The import system backend is production-ready**, but **the UI integration is the critical blocker**:
 
-1. **Complete integration testing** for `importForPatient()` scenarios
-2. **UI/UX improvements** for better user experience
-3. **Performance optimization** for large-scale deployments
-4. **Security hardening** for production environments
+#### **Immediate Action Required** 🚨 **UPDATED PRIORITIES**
 
-This import system represents a **robust, scalable solution** for clinical data import that maintains data integrity and compliance standards while providing excellent extensibility for future requirements.
+1. **Fix ImportPage.vue**: Replace simulation with actual ImportService calls (1-2 days)
+2. **Complete Integration Testing**: Verify end-to-end functionality (1 day)
+3. **Add Real Progress Tracking**: Connect UI to backend progress callbacks (2-3 days)
+4. **🆕 Add Multi-Patient Support**: Implement adaptive import flow for files with multiple patients/visits (3-5 days)
+
+#### **Post-Integration Focus**
+
+5. **Enhanced Error Recovery**: Add retry mechanisms and better UX
+6. **Performance Optimization**: Streaming and parallel processing
+7. **Security Hardening**: Production-ready validation and monitoring
+8. **Advanced Multi-Patient Features**: Smart conflict resolution, interactive review mode
+
+**Timeline Estimate**: **3-5 days** for basic functionality, **1-2 weeks** for full multi-patient support.
+
+This import system represents a **near-complete, robust solution** for clinical data import. The backend is production-ready, but we need to:
+
+1. Connect the UI to backend services (critical blocker)
+2. Add multi-patient import capabilities (major enhancement)
+3. Implement smart conflict resolution (advanced feature)
+
+The combination of these improvements will create a **comprehensive, user-friendly import system** that handles both simple single-patient imports and complex multi-patient bulk operations.
 
 ## Test Files Reference
 
