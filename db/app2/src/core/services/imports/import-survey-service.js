@@ -14,7 +14,7 @@ import { Hl7Service } from '../hl7-service.js'
 // Import existing questionnaire processing functionality
 import { calculateResults } from '../../../shared/quest/questionnaire-results.js'
 import { saveQuestionnaireResponse } from '../../../shared/quest/questionnaire-database.js'
-import { randomFill, testQuestionnaireExtraction } from '../../../shared/quest/questionnaire-utils.js'
+
 
 export class ImportSurveyService extends BaseImportService {
   constructor(conceptRepository, cqlRepository) {

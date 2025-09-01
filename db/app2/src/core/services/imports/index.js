@@ -5,6 +5,7 @@
  */
 
 // Main orchestrator
+import { ImportService } from './import-service.js'
 export { ImportService, default as ImportServiceDefault } from './import-service.js'
 
 // Base service

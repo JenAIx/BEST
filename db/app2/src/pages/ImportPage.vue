@@ -19,7 +19,8 @@
         <q-step :name="1" title="Select Patient" icon="person" :done="currentStepNumber > 1" />
         <q-step :name="2" title="Select Visit" icon="event" :done="currentStepNumber > 2" />
         <q-step :name="3" title="Upload File" icon="upload" :done="currentStepNumber > 3" />
-        <q-step :name="4" title="Import Data" icon="check" :done="importComplete" />
+        <q-step :name="4" title="Analyze File" icon="search" :done="currentStepNumber > 4" />
+        <q-step :name="5" title="Import Data" icon="check" :done="importComplete" />
       </q-stepper>
 
       <!-- Main Content -->
@@ -118,7 +119,117 @@
           </q-card>
         </div>
 
-        <!-- Step 4: Import Progress/Complete -->
+        <!-- Step 4: File Analysis -->
+        <div v-if="currentStep === 'analyze'" class="step-content">
+          <q-card flat bordered>
+            <q-card-section>
+              <div class="text-h6 q-mb-md">File Analysis</div>
+              <div class="text-body2 text-grey-6 q-mb-lg">
+                Analyzing your file to determine the best import strategy...
+              </div>
+
+              <!-- Analyzing State -->
+              <div v-if="analyzingFile" class="analyzing-state">
+                <q-spinner-dots size="60px" color="primary" class="q-mb-md" />
+                <div class="text-h5 q-mb-sm">Analyzing File...</div>
+                <div class="text-body1 text-grey-6">Please wait while we analyze your file structure.</div>
+              </div>
+
+              <!-- Analysis Results -->
+              <div v-else-if="fileAnalysis" class="analysis-results">
+                <q-card flat bordered class="bg-grey-1 q-mb-lg">
+                  <q-card-section>
+                    <div class="text-subtitle1 q-mb-md">File Analysis Results</div>
+
+                    <div class="row q-gutter-md q-mb-md">
+                      <div class="col-12 col-md-3">
+                        <div class="text-center">
+                          <div class="text-h6">{{ fileAnalysis.patientsCount }}</div>
+                          <div class="text-caption text-grey-6">Patients</div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <div class="text-center">
+                          <div class="text-h6">{{ fileAnalysis.visitsCount }}</div>
+                          <div class="text-caption text-grey-6">Visits</div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <div class="text-center">
+                          <div class="text-h6">{{ fileAnalysis.observationsCount }}</div>
+                          <div class="text-caption text-grey-6">Observations</div>
+                        </div>
+                      </div>
+                      <div class="col-12 col-md-3">
+                        <div class="text-center">
+                          <div class="text-h6">{{ fileAnalysis.estimatedImportTime }}</div>
+                          <div class="text-caption text-grey-6">Est. Time</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="text-body2 q-mb-sm">
+                      <strong>Format:</strong> {{ fileAnalysis.format.toUpperCase() }}
+                    </div>
+                    <div class="text-body2 q-mb-sm">
+                      <strong>Recommended Strategy:</strong>
+                      <q-chip
+                        :color="fileAnalysis.recommendedStrategy === 'single_patient' ? 'green' : fileAnalysis.recommendedStrategy === 'batch_import' ? 'orange' : 'blue'"
+                        text-color="white"
+                        size="sm"
+                      >
+                        {{ fileAnalysis.recommendedStrategy.replace('_', ' ').toUpperCase() }}
+                      </q-chip>
+                    </div>
+
+                    <!-- Warnings -->
+                    <div v-if="fileAnalysis.warnings && fileAnalysis.warnings.length > 0" class="q-mt-md">
+                      <q-banner class="bg-orange-1 text-orange-8" rounded>
+                        <template v-slot:avatar>
+                          <q-icon name="warning" />
+                        </template>
+                        <div v-for="warning in fileAnalysis.warnings" :key="warning">
+                          {{ warning }}
+                        </div>
+                      </q-banner>
+                    </div>
+
+                    <!-- Errors -->
+                    <div v-if="fileAnalysis.errors && fileAnalysis.errors.length > 0" class="q-mt-md">
+                      <q-banner class="bg-negative-1 text-negative-8" rounded>
+                        <template v-slot:avatar>
+                          <q-icon name="error" />
+                        </template>
+                        <div v-for="error in fileAnalysis.errors" :key="error">
+                          {{ error }}
+                        </div>
+                      </q-banner>
+                    </div>
+                  </q-card-section>
+                </q-card>
+
+                <!-- Action Buttons -->
+                <div class="q-gutter-md">
+                  <q-btn
+                    color="primary"
+                    icon="upload"
+                    label="Start Import"
+                    @click="startImport"
+                    :disable="fileAnalysis.errors && fileAnalysis.errors.length > 0"
+                  />
+                  <q-btn
+                    flat
+                    color="grey-7"
+                    label="Upload Different File"
+                    @click="goBackToUpload"
+                  />
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <!-- Step 5: Import Progress/Complete -->
         <div v-if="currentStep === 'import'" class="step-content">
           <q-card flat bordered class="text-center">
             <q-card-section class="q-pa-xl">
@@ -201,6 +312,7 @@ import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from '../stores/visit-observation-store.js'
 import { useDatabaseStore } from '../stores/database-store.js'
 import { logger } from '../core/services/logging-service.js'
+import { ImportService } from '../core/services/imports/import-service.js'
 import FileUploadInput from '../components/shared/FileUploadInput.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
 import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
@@ -211,12 +323,17 @@ const $q = useQuasar()
 const visitStore = useVisitObservationStore()
 const dbStore = useDatabaseStore()
 
+// Initialize Import Service
+const importService = new ImportService(dbStore, null, null)
+
 // State
-const currentStep = ref('patient') // patient -> visit -> upload -> import
+const currentStep = ref('patient') // patient -> visit -> upload -> analyze -> import
 const selectedPatient = ref(null)
 const selectedVisit = ref(null)
 const selectedFile = ref(null)
 const showVisitDialog = ref(false)
+const fileAnalysis = ref(null)
+const analyzingFile = ref(false)
 
 // Patient search handled by PatientSelectionCard component
 
@@ -246,8 +363,10 @@ const currentStepNumber = computed(() => {
       return 2
     case 'upload':
       return 3
-    case 'import':
+    case 'analyze':
       return 4
+    case 'import':
+      return 5
     default:
       return 1
   }
@@ -415,19 +534,72 @@ const getPatientName = (patient) => {
 
 
 
-const onFileSelected = (fileData) => {
+const onFileSelected = async (fileData) => {
   logger.info('File selected for import', {
     filename: fileData.fileInfo.filename,
     size: fileData.fileInfo.size,
   })
+
+  // Start file analysis
+  analyzingFile.value = true
+  currentStep.value = 'analyze'
+
+  try {
+    const analysis = await importService.analyzeFileContent(fileData.content, fileData.fileInfo.filename)
+    fileAnalysis.value = analysis
+
+    if (!analysis.success) {
+      $q.notify({
+        type: 'negative',
+        message: `File analysis failed: ${analysis.errors?.[0] || 'Unknown error'}`,
+        timeout: 5000,
+      })
+      return
+    }
+
+    logger.info('File analysis completed', {
+      format: analysis.format,
+      patientsCount: analysis.patientsCount,
+      recommendedStrategy: analysis.recommendedStrategy,
+    })
+
+  } catch (error) {
+    logger.error('File analysis error', error)
+    fileAnalysis.value = {
+      success: false,
+      errors: [`Analysis failed: ${error.message}`],
+      format: 'unknown',
+      patientsCount: 0,
+      visitsCount: 0,
+      observationsCount: 0,
+      recommendedStrategy: 'single_patient',
+      warnings: [],
+    }
+
+    $q.notify({
+      type: 'negative',
+      message: `File analysis failed: ${error.message}`,
+      timeout: 5000,
+    })
+  } finally {
+    analyzingFile.value = false
+  }
 }
 
 const onFileCleared = () => {
   logger.info('File cleared from import')
+  // Reset analysis state
+  fileAnalysis.value = null
+  analyzingFile.value = false
+  currentStep.value = 'upload'
 }
 
 const startImport = async () => {
   if (!selectedFile.value || !selectedPatient.value || !selectedVisit.value) {
+    $q.notify({
+      type: 'negative',
+      message: 'Missing required information for import',
+    })
     return
   }
 
@@ -439,49 +611,73 @@ const startImport = async () => {
   currentStep.value = 'import'
 
   try {
-    // Simulate import progress
     importProgress.value = 'Reading file...'
     importProgressValue.value = 20
-    await new Promise(resolve => setTimeout(resolve, 1000))
 
-    importProgress.value = 'Parsing data...'
-    importProgressValue.value = 40
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    // Use the real ImportService to import for the specific patient
+    const result = await importService.importForPatient(
+      selectedFile.value.content,
+      selectedFile.value.fileInfo.filename,
+      selectedPatient.value.PATIENT_NUM,
+      selectedVisit.value.ENCOUNTER_NUM,
+      {
+        createMissingConcepts: true,
+        validateData: importOptions.value.includes('validateData'),
+        duplicateHandling: importOptions.value.includes('updateExisting') ? 'update' : 'skip',
+      }
+    )
 
-    importProgress.value = 'Validating data...'
-    importProgressValue.value = 60
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    if (result.success) {
+      importProgress.value = 'Import completed successfully!'
+      importProgressValue.value = 100
+      importComplete.value = true
 
-    importProgress.value = 'Saving to database...'
-    importProgressValue.value = 80
-    await new Promise(resolve => setTimeout(resolve, 1000))
+      // Set import summary from the result
+      importSummary.value = {
+        totalRecords: (result.data?.patients?.length || 0) +
+                     (result.data?.visits?.length || 0) +
+                     (result.data?.observations?.length || 0),
+        successfulImports: result.metadata?.savedObservations || 0,
+        errors: result.errors?.length || 0,
+      }
 
-    // Here you would implement the actual import logic
-    // For now, we'll simulate a successful import
-    importSummary.value = {
-      totalRecords: 25,
-      successfulImports: 23,
-      errors: 2,
+      $q.notify({
+        type: 'positive',
+        message: 'Data imported successfully',
+        timeout: 3000,
+      })
+
+      logger.info('Import completed successfully', {
+        patientId: selectedPatient.value.PATIENT_CD,
+        visitId: selectedVisit.value.ENCOUNTER_NUM,
+        summary: importSummary.value,
+        result: result,
+      })
+    } else {
+      // Import failed
+      importError.value = result.errors?.[0]?.message || 'Import failed'
+      importProgress.value = 'Import failed'
+      importProgressValue.value = 0
+
+      $q.notify({
+        type: 'negative',
+        message: `Import failed: ${importError.value}`,
+        timeout: 5000,
+      })
+
+      logger.error('Import failed', {
+        patientId: selectedPatient.value.PATIENT_CD,
+        visitId: selectedVisit.value.ENCOUNTER_NUM,
+        errors: result.errors,
+      })
     }
 
-    importProgress.value = 'Import completed!'
-    importProgressValue.value = 100
-    importComplete.value = true
-
-    $q.notify({
-      type: 'positive',
-      message: 'Data imported successfully',
-      timeout: 3000,
-    })
-
-    logger.info('Import completed successfully', {
-      patientId: selectedPatient.value.PATIENT_CD,
-      visitId: selectedVisit.value.ENCOUNTER_NUM,
-      summary: importSummary.value,
-    })
   } catch (error) {
     logger.error('Import failed', error)
     importError.value = error.message || 'An error occurred during import'
+    importProgress.value = 'Import failed'
+    importProgressValue.value = 0
+
     $q.notify({
       type: 'negative',
       message: `Import failed: ${error.message}`,
@@ -499,6 +695,9 @@ const retryImport = () => {
 
 const goBackToUpload = () => {
   importError.value = ''
+  // Reset analysis state
+  fileAnalysis.value = null
+  analyzingFile.value = false
   currentStep.value = 'upload'
 }
 
@@ -507,6 +706,8 @@ const goBackToPatientSelection = () => {
   selectedPatient.value = null
   selectedVisit.value = null
   selectedFile.value = null
+  fileAnalysis.value = null
+  analyzingFile.value = false
   importComplete.value = false
   importSummary.value = null
 }
@@ -516,6 +717,8 @@ const startOver = () => {
   selectedPatient.value = null
   selectedVisit.value = null
   selectedFile.value = null
+  fileAnalysis.value = null
+  analyzingFile.value = false
   importComplete.value = false
   importSummary.value = null
   importError.value = ''

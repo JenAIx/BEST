@@ -186,4 +186,253 @@ describe('Import Service', () => {
       expect(result.errors[0].code).toBe('UNSUPPORTED_FORMAT')
     })
   })
+
+  describe('File Content Analysis', () => {
+    describe('analyzeFileContent', () => {
+      it('should analyze CSV content successfully', async () => {
+        const csvContent = `Patient ID,Gender,Age,Visit Date,BMI
+PAT001,M,45,2024-01-15,25.5
+PAT002,F,32,2024-01-16,22.1
+PAT003,M,67,2024-01-17,28.3`
+
+        const result = await importService.analyzeFileContent(csvContent, 'test.csv')
+
+        expect(result.success).toBe(true)
+        expect(result.format).toBe('csv')
+        expect(result.patientsCount).toBeGreaterThan(0)
+        expect(result.observationsCount).toBe(3)
+        expect(result.recommendedStrategy).toBeDefined()
+        expect(result.estimatedImportTime).toBeDefined()
+      })
+
+      it('should analyze JSON content successfully', async () => {
+        const jsonContent = JSON.stringify({
+          patients: [
+            { PATIENT_CD: 'PAT001', SEX_CD: 'M', AGE_IN_YEARS: 45 },
+            { PATIENT_CD: 'PAT002', SEX_CD: 'F', AGE_IN_YEARS: 32 }
+          ],
+          visits: [
+            { ENCOUNTER_NUM: 1, PATIENT_NUM: 1 },
+            { ENCOUNTER_NUM: 2, PATIENT_NUM: 2 }
+          ],
+          observations: [
+            { PATIENT_NUM: 1, ENCOUNTER_NUM: 1, CONCEPT_CD: 'LOINC:123' }
+          ]
+        })
+
+        const result = await importService.analyzeFileContent(jsonContent, 'test.json')
+
+        expect(result.success).toBe(true)
+        expect(result.format).toBe('json')
+        expect(result.patientsCount).toBe(2)
+        expect(result.visitsCount).toBe(2)
+        expect(result.observationsCount).toBe(1)
+      })
+
+      it('should analyze HL7 CDA content successfully', async () => {
+        const hl7Content = JSON.stringify({
+          resourceType: 'Composition',
+          subject: { display: 'PAT001' },
+          section: [
+            { title: 'Vital Signs', entry: [{ value: '120/80' }] },
+            { title: 'Labs', entry: [{ value: '5.5' }] }
+          ]
+        })
+
+        const result = await importService.analyzeFileContent(hl7Content, 'test.hl7')
+
+        expect(result.success).toBe(true)
+        expect(result.format).toBe('hl7')
+        expect(result.patientsCount).toBe(1)
+        expect(result.visitsCount).toBe(1)
+        expect(result.observationsCount).toBe(2)
+      })
+
+      it('should analyze HTML survey content successfully', async () => {
+        const htmlContent = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <script>
+      CDA = {
+        "cda": {
+          "subject": { "display": "PAT001" },
+          "section": [
+            { "title": "Assessment", "entry": [{ "value": 25 }] }
+          ]
+        }
+      }
+    </script>
+  </head>
+  <body>Survey Results</body>
+</html>`
+
+        const result = await importService.analyzeFileContent(htmlContent, 'test.html')
+
+        expect(result.success).toBe(true)
+        expect(result.format).toBe('html')
+        expect(result.patientsCount).toBe(1)
+        expect(result.visitsCount).toBe(1)
+        expect(result.observationsCount).toBe(1)
+      })
+
+      it('should handle unsupported format gracefully', async () => {
+        const result = await importService.analyzeFileContent('plain text content', 'test.txt')
+
+        expect(result.success).toBe(false)
+        expect(result.errors).toHaveLength(1)
+        expect(result.errors[0].code).toBe('UNSUPPORTED_FORMAT')
+      })
+
+      it('should recommend single_patient strategy for single patient', async () => {
+        const csvContent = `Patient ID,Gender,Age
+PAT001,M,45`
+
+        const result = await importService.analyzeFileContent(csvContent, 'test.csv')
+
+        expect(result.recommendedStrategy).toBe('single_patient')
+      })
+
+      it('should recommend batch_import strategy for multiple patients', async () => {
+        const csvContent = `Patient ID,Gender,Age
+PAT001,M,45
+PAT002,F,32
+PAT003,M,67
+PAT004,F,28
+PAT005,M,55`
+
+        const result = await importService.analyzeFileContent(csvContent, 'test.csv')
+
+        expect(result.recommendedStrategy).toBe('batch_import')
+      })
+
+      it('should recommend interactive strategy for many patients', async () => {
+        // Create CSV with 15 patients
+        const patients = []
+        for (let i = 1; i <= 15; i++) {
+          patients.push(`PAT${String(i).padStart(3, '0')},M,${30 + i}`)
+        }
+        const csvContent = `Patient ID,Gender,Age\n${patients.join('\n')}`
+
+        const result = await importService.analyzeFileContent(csvContent, 'test.csv')
+
+        expect(result.recommendedStrategy).toBe('interactive')
+      })
+
+      it('should estimate import time correctly', async () => {
+        const csvContent = `Patient ID,Gender,Age
+PAT001,M,45`
+
+        const result = await importService.analyzeFileContent(csvContent, 'test.csv')
+
+        expect(result.estimatedImportTime).toBeDefined()
+        expect(typeof result.estimatedImportTime).toBe('string')
+      })
+
+      it('should handle malformed CSV gracefully', async () => {
+        const malformedCsv = 'malformed content without proper structure'
+
+        const result = await importService.analyzeFileContent(malformedCsv, 'test.csv')
+
+        // CSV analysis should succeed even with malformed content, just with warnings
+        expect(result.success).toBe(true)
+        expect(result.warnings).toBeDefined()
+      })
+
+      it('should handle invalid JSON gracefully', async () => {
+        const invalidJson = '{invalid json content}'
+
+        const result = await importService.analyzeFileContent(invalidJson, 'test.json')
+
+        expect(result.success).toBe(false)
+        expect(result.errors).toHaveLength(1)
+      })
+
+      it('should detect CSV delimiter correctly', () => {
+        const commaDelimited = 'col1,col2,col3\nval1,val2,val3'
+        const semicolonDelimited = 'col1;col2;col3\nval1;val2;val3'
+
+        expect(importService.detectCsvDelimiter(commaDelimited)).toBe(',')
+        expect(importService.detectCsvDelimiter(semicolonDelimited)).toBe(';')
+      })
+
+      it('should extract patient information from CSV', async () => {
+        const csvContent = `Patient ID,Gender,Age,Patient Name
+PAT001,M,45,John Doe
+PAT002,F,32,Jane Smith`
+
+        const result = await importService.analyzeFileContent(csvContent, 'test.csv')
+
+        expect(result.patients).toBeDefined()
+        expect(result.patients.length).toBeGreaterThan(0)
+        expect(result.patients[0]).toHaveProperty('id')
+        expect(result.patients[0]).toHaveProperty('name')
+      })
+
+      it('should handle files with no patient data', async () => {
+        const csvContent = `Some Column,Another Column
+Value1,Value2
+Value3,Value4`
+
+        const result = await importService.analyzeFileContent(csvContent, 'test.csv')
+
+        expect(result.success).toBe(true)
+        expect(result.patientsCount).toBe(0)
+        expect(result.warnings).toContain('No patient data detected - will use single patient mode')
+      })
+    })
+
+    describe('CSV Analysis Helper Methods', () => {
+      it('should parse CSV headers and detect patient columns', () => {
+        const headerLine = 'PATIENT_CD,SEX_CD,AGE_IN_YEARS,START_DATE'
+        const delimiter = ','
+
+        // This is internal method testing - we test through the public interface
+        const csvContent = `${headerLine}\nPAT001,M,45,2024-01-15`
+        expect(() => importService.analyzeCsvContent(csvContent, {})).not.toThrow()
+      })
+
+      it('should handle CSV with different delimiters', async () => {
+        const semicolonCsv = `Patient ID;Gender;Age
+PAT001;M;45
+PAT002;F;32`
+
+        const result = await importService.analyzeFileContent(semicolonCsv, 'test.csv')
+
+        expect(result.success).toBe(true)
+        expect(result.patientsCount).toBeGreaterThan(0)
+      })
+    })
+
+    describe('Strategy Determination', () => {
+      it('should determine strategy based on patient count', () => {
+        const analysis = { patientsCount: 0 }
+        importService.determineRecommendedStrategy(analysis)
+        expect(analysis.recommendedStrategy).toBe('single_patient')
+
+        analysis.patientsCount = 1
+        importService.determineRecommendedStrategy(analysis)
+        expect(analysis.recommendedStrategy).toBe('single_patient')
+
+        analysis.patientsCount = 5
+        importService.determineRecommendedStrategy(analysis)
+        expect(analysis.recommendedStrategy).toBe('batch_import')
+
+        analysis.patientsCount = 15
+        importService.determineRecommendedStrategy(analysis)
+        expect(analysis.recommendedStrategy).toBe('interactive')
+      })
+    })
+
+    describe('Import Time Estimation', () => {
+      it('should estimate time based on record count', () => {
+        expect(importService.estimateImportTime({ patientsCount: 0, visitsCount: 0, observationsCount: 0 })).toBe('Instant')
+        expect(importService.estimateImportTime({ patientsCount: 1, visitsCount: 1, observationsCount: 5 })).toBe('< 1 minute')
+        expect(importService.estimateImportTime({ patientsCount: 5, visitsCount: 10, observationsCount: 50 })).toBe('1-2 minutes')
+        expect(importService.estimateImportTime({ patientsCount: 10, visitsCount: 20, observationsCount: 500 })).toBe('2-5 minutes')
+        expect(importService.estimateImportTime({ patientsCount: 20, visitsCount: 50, observationsCount: 5000 })).toBe('5-15 minutes')
+        expect(importService.estimateImportTime({ patientsCount: 50, visitsCount: 100, observationsCount: 50000 })).toBe('15+ minutes')
+      })
+    })
+  })
 })
