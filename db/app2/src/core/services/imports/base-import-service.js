@@ -112,7 +112,6 @@ export class BaseImportService {
       AGE_IN_YEARS: this.parseNumericValue(patientData.AGE_IN_YEARS || patientData.age),
       BIRTH_DATE: this.normalizeDate(patientData.BIRTH_DATE || patientData.birthDate),
       // Add other standard patient fields
-      IMPORT_SOURCE: this.constructor.name,
       IMPORT_DATE: new Date().toISOString(),
     }
   }
@@ -131,7 +130,6 @@ export class BaseImportService {
       LOCATION_CD: visitData.LOCATION_CD || visitData.location,
       INOUT_CD: this.normalizeInOutCode(visitData.INOUT_CD || visitData.inOut),
       // Add other standard visit fields
-      IMPORT_SOURCE: this.constructor.name,
       IMPORT_DATE: new Date().toISOString(),
     }
   }
@@ -152,7 +150,6 @@ export class BaseImportService {
       CONCEPT_CD: conceptCd,
       VALTYPE_CD: valtypeCd,
       START_DATE: this.normalizeDate(observationData.START_DATE || observationData.startDate) || new Date().toISOString().split('T')[0],
-      IMPORT_SOURCE: this.constructor.name,
       IMPORT_DATE: new Date().toISOString(),
     }
 

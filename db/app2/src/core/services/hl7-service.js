@@ -1024,6 +1024,11 @@ export class Hl7Service {
 
       const { cda, hash } = hl7Document
 
+      // Skip verification if requested (for import-only documents)
+      if (hash.skipVerification) {
+        return true
+      }
+
       // Generate current hash
       const currentHash = this.generateDocumentHash(cda)
 

@@ -11,11 +11,21 @@ import { ImportHl7Service } from './import-hl7-service.js'
 import { ImportSurveyService } from './import-survey-service.js'
 import { logger } from '../logging-service.js'
 
+// Import repositories for database operations
+import PatientRepository from '../../database/repositories/patient-repository.js'
+import VisitRepository from '../../database/repositories/visit-repository.js'
+import ObservationRepository from '../../database/repositories/observation-repository.js'
+
 export class ImportService {
   constructor(databaseStore, conceptRepository, cqlRepository) {
     this.databaseStore = databaseStore
     this.conceptRepository = conceptRepository
     this.cqlRepository = cqlRepository
+
+    // Initialize repositories for database operations
+    this.patientRepo = new PatientRepository(databaseStore)
+    this.visitRepo = new VisitRepository(databaseStore)
+    this.observationRepo = new ObservationRepository(databaseStore)
 
     // Initialize individual import services
     this.services = {
@@ -165,11 +175,49 @@ export class ImportService {
           return this.createErrorResult('UNSUPPORTED_FORMAT', `Unsupported format: ${format}`)
       }
 
+      // If import was successful and we have clinical data, save it to database
+      if (result.success && result.data) {
+        try {
+          const saveResult = await this.saveClinicalDataToDatabase(result.data, options)
+          result.metadata = {
+            ...result.metadata,
+            savedToDatabase: saveResult.success,
+            savedPatients: saveResult.patientsSaved,
+            savedVisits: saveResult.visitsSaved,
+            savedObservations: saveResult.observationsSaved,
+          }
+
+          if (!saveResult.success) {
+            result.success = false
+            result.errors = [...(result.errors || []), ...saveResult.errors]
+          }
+
+          logger.info('Database save completed', {
+            success: saveResult.success,
+            patients: saveResult.patientsSaved,
+            visits: saveResult.visitsSaved,
+            observations: saveResult.observationsSaved,
+          })
+        } catch (saveError) {
+          logger.error('Database save failed', saveError)
+          result.success = false
+          result.errors = [
+            ...(result.errors || []),
+            {
+              code: 'DATABASE_SAVE_FAILED',
+              message: `Failed to save data to database: ${saveError.message}`,
+              details: saveError,
+            },
+          ]
+        }
+      }
+
       logger.info('Import completed', {
         format,
         success: result.success,
         errors: result.errors?.length || 0,
         warnings: result.warnings?.length || 0,
+        savedToDatabase: result.metadata?.savedToDatabase || false,
       })
 
       return result
@@ -177,6 +225,252 @@ export class ImportService {
       logger.error('Import failed', error)
       return this.createErrorResult('IMPORT_FAILED', error.message)
     }
+  }
+
+  /**
+   * Save clinical data to database
+   * @param {Object} clinicalData - Processed clinical data
+   * @param {Object} options - Save options
+   * @returns {Promise<Object>} Save result
+   */
+  async saveClinicalDataToDatabase(clinicalData, options = {}) {
+    const result = {
+      success: true,
+      patientsSaved: 0,
+      visitsSaved: 0,
+      observationsSaved: 0,
+      errors: [],
+    }
+
+    // Maps to track original IDs to database-generated IDs
+    const patientIdMap = new Map()
+    const visitIdMap = new Map()
+
+    console.log('Starting saveClinicalDataToDatabase', {
+      patients: clinicalData.patients?.length || 0,
+      visits: clinicalData.visits?.length || 0,
+      observations: clinicalData.observations?.length || 0,
+      hasPatients: !!clinicalData.patients,
+      hasVisits: !!clinicalData.visits,
+      hasObservations: !!clinicalData.observations,
+    })
+
+    try {
+      // Save patients first and track their database-generated IDs
+      if (clinicalData.patients && Array.isArray(clinicalData.patients)) {
+        for (const patient of clinicalData.patients) {
+          try {
+            // Store the original patient ID
+            const originalPatientId = patient.PATIENT_NUM
+
+            // Add default fields if not present
+            const patientData = {
+              ...patient,
+              UPDATE_DATE: patient.UPDATE_DATE || new Date().toISOString(),
+              DOWNLOAD_DATE: patient.DOWNLOAD_DATE || new Date().toISOString(),
+              IMPORT_DATE: patient.IMPORT_DATE || new Date().toISOString(),
+              SOURCESYSTEM_CD: patient.SOURCESYSTEM_CD || 'IMPORT_SYSTEM',
+              UPLOAD_ID: patient.UPLOAD_ID || 0,
+            }
+
+            // Remove the PATIENT_NUM field so SQLite can auto-generate it
+            delete patientData.PATIENT_NUM
+
+            // Debug patient data before save
+            if (!global.firstPatientDataLogged) {
+              console.log('First patient data to save:', patientData)
+              global.firstPatientDataLogged = true
+            }
+
+            const savedPatient = await this.patientRepo.create(patientData)
+            result.patientsSaved++
+
+            // Debug saved patient result
+            if (!global.firstSavedPatientLogged) {
+              console.log('First saved patient result:', savedPatient)
+              global.firstSavedPatientLogged = true
+            }
+
+            // Map the original ID to the database-generated ID
+            patientIdMap.set(originalPatientId, savedPatient.PATIENT_NUM)
+
+            logger.debug('Patient ID mapping created', {
+              originalPatientId,
+              databasePatientId: savedPatient.PATIENT_NUM,
+              patientIdMapSize: patientIdMap.size,
+            })
+
+            // Debug first patient mapping
+            if (!global.firstPatientLogged) {
+              console.log('First patient mapping:', {
+                originalPatientId,
+                databasePatientId: savedPatient.PATIENT_NUM,
+                patientIdMapKeys: Array.from(patientIdMap.keys()),
+              })
+              global.firstPatientLogged = true
+            }
+          } catch (error) {
+            logger.warn('Failed to save patient', { patient, error: error.message })
+            result.errors.push({
+              code: 'PATIENT_SAVE_FAILED',
+              message: `Failed to save patient: ${error.message}`,
+              details: patient,
+            })
+          }
+        }
+      }
+
+      // Save visits and track their database-generated IDs
+      if (clinicalData.visits && Array.isArray(clinicalData.visits)) {
+        for (const visit of clinicalData.visits) {
+          try {
+            // Store the original visit ID
+            const originalVisitId = visit.ENCOUNTER_NUM
+
+            // Map the patient ID to the database-generated patient ID
+            const patientId = patientIdMap.get(visit.PATIENT_NUM) || visit.PATIENT_NUM
+
+            // Add default fields if not present
+            const visitData = {
+              ...visit,
+              PATIENT_NUM: patientId,
+              UPDATE_DATE: visit.UPDATE_DATE || new Date().toISOString(),
+              DOWNLOAD_DATE: visit.DOWNLOAD_DATE || new Date().toISOString(),
+              IMPORT_DATE: visit.IMPORT_DATE || new Date().toISOString(),
+              SOURCESYSTEM_CD: visit.SOURCESYSTEM_CD || 'IMPORT_SYSTEM',
+              UPLOAD_ID: visit.UPLOAD_ID || 0,
+            }
+
+            // Remove the ENCOUNTER_NUM field so SQLite can auto-generate it
+            delete visitData.ENCOUNTER_NUM
+
+            const savedVisit = await this.visitRepo.create(visitData)
+            result.visitsSaved++
+
+            // Map the original ID to the database-generated ID
+            visitIdMap.set(originalVisitId, savedVisit.ENCOUNTER_NUM)
+
+            logger.debug('Visit ID mapping created', {
+              originalVisitId,
+              databaseVisitId: savedVisit.ENCOUNTER_NUM,
+              patientId: patientId,
+              visitIdMapSize: visitIdMap.size,
+            })
+
+            // Debug first visit mapping
+            if (!global.firstVisitLogged) {
+              console.log('First visit mapping:', {
+                originalVisitId,
+                databaseVisitId: savedVisit.ENCOUNTER_NUM,
+                mappedPatientId: patientId,
+                visitIdMapKeys: Array.from(visitIdMap.keys()),
+              })
+              global.firstVisitLogged = true
+            }
+          } catch (error) {
+            logger.warn('Failed to save visit', { visit, error: error.message })
+            result.errors.push({
+              code: 'VISIT_SAVE_FAILED',
+              message: `Failed to save visit: ${error.message}`,
+              details: visit,
+            })
+          }
+        }
+      }
+
+      // Save observations with mapped IDs
+      if (clinicalData.observations && Array.isArray(clinicalData.observations)) {
+        console.log(`Saving ${clinicalData.observations.length} observations`)
+        for (const observation of clinicalData.observations) {
+          try {
+            // Map the patient and encounter IDs to database-generated IDs
+            const patientNum = patientIdMap.get(observation.PATIENT_NUM) || observation.PATIENT_NUM
+            const encounterNum = visitIdMap.get(observation.ENCOUNTER_NUM) || observation.ENCOUNTER_NUM
+
+            // Debug problematic observations
+            if (patientNum !== observation.PATIENT_NUM || encounterNum !== observation.ENCOUNTER_NUM) {
+              if (!global.mappingDebugCount) global.mappingDebugCount = 0
+              if (global.mappingDebugCount < 3) {
+                console.log('Observation ID mapping worked', {
+                  originalPatientNum: observation.PATIENT_NUM,
+                  mappedPatientNum: patientNum,
+                  originalEncounterNum: observation.ENCOUNTER_NUM,
+                  mappedEncounterNum: encounterNum,
+                })
+                global.mappingDebugCount++
+              }
+            } else if (!global.noMappingDebugLogged) {
+              console.log('Observation ID mapping failed (no mapping found)', {
+                patientNum: observation.PATIENT_NUM,
+                encounterNum: observation.ENCOUNTER_NUM,
+                isPatientLevel: observation.ENCOUNTER_NUM === null || observation.ENCOUNTER_NUM === undefined,
+                patientIdMapKeys: Array.from(patientIdMap.keys()),
+                visitIdMapKeys: Array.from(visitIdMap.keys()),
+                patientIdMapHasPatient: patientIdMap.has(observation.PATIENT_NUM),
+                visitIdMapHasEncounter: visitIdMap.has(observation.ENCOUNTER_NUM),
+              })
+              global.noMappingDebugLogged = true
+            }
+
+            const observationData = {
+              ENCOUNTER_NUM: encounterNum,
+              PATIENT_NUM: patientNum,
+              CONCEPT_CD: observation.CONCEPT_CD,
+              PROVIDER_ID: observation.PROVIDER_ID,
+              START_DATE: observation.START_DATE,
+              INSTANCE_NUM: observation.INSTANCE_NUM || 1,
+              VALTYPE_CD: observation.VALTYPE_CD,
+              TVAL_CHAR: observation.TVAL_CHAR,
+              NVAL_NUM: observation.NVAL_NUM,
+              VALUEFLAG_CD: observation.VALUEFLAG_CD,
+              QUANTITY_NUM: observation.QUANTITY_NUM,
+              UNIT_CD: observation.UNIT_CD,
+              END_DATE: observation.END_DATE,
+              LOCATION_CD: observation.LOCATION_CD,
+              CONFIDENCE_NUM: observation.CONFIDENCE_NUM,
+              OBSERVATION_BLOB: observation.OBSERVATION_BLOB,
+              UPDATE_DATE: observation.UPDATE_DATE || new Date().toISOString(),
+              DOWNLOAD_DATE: observation.DOWNLOAD_DATE || new Date().toISOString(),
+              IMPORT_DATE: observation.IMPORT_DATE || observation.IMPORT_SOURCE || new Date().toISOString(),
+              SOURCESYSTEM_CD: observation.SOURCESYSTEM_CD || 'IMPORT_SYSTEM',
+              UPLOAD_ID: observation.UPLOAD_ID || 0,
+            }
+
+            // Remove undefined values to avoid database errors
+            Object.keys(observationData).forEach((key) => {
+              if (observationData[key] === undefined) {
+                delete observationData[key]
+              }
+            })
+
+            await this.observationRepo.create(observationData)
+            result.observationsSaved++
+          } catch (error) {
+            logger.warn('Failed to save observation', { observation, error: error.message })
+            result.errors.push({
+              code: 'OBSERVATION_SAVE_FAILED',
+              message: `Failed to save observation: ${error.message}`,
+              details: observation,
+            })
+          }
+        }
+      }
+
+      // If any saves failed, mark as not successful but don't fail the whole operation
+      if (result.errors.length > 0) {
+        result.success = false
+      }
+    } catch (error) {
+      logger.error('Critical database save error', error)
+      result.success = false
+      result.errors.push({
+        code: 'DATABASE_ERROR',
+        message: `Database error during save: ${error.message}`,
+        details: error,
+      })
+    }
+
+    return result
   }
 
   /**

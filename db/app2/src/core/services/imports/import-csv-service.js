@@ -74,6 +74,19 @@ export class ImportCsvService extends BaseImportService {
 
       const isValid = allErrors.length === 0
 
+      // Debug logging for first import
+      if (!global.csvImportLogged) {
+        console.log('CSV Import Debug:', {
+          isValid,
+          validationErrors: validationResult.errors.length,
+          clinicalErrors: clinicalValidation.errors.length,
+          allErrors: allErrors.length,
+          firstValidationError: validationResult.errors[0],
+          firstClinicalError: clinicalValidation.errors[0],
+        })
+        global.csvImportLogged = true
+      }
+
       return this.createImportResult(isValid, clinicalData, metadata, allErrors, allWarnings)
     } catch (error) {
       return this.handleImportError(error, 'CSV processing')
@@ -396,7 +409,7 @@ export class ImportCsvService extends BaseImportService {
           // Create observations for this visit
           if (visitInfo.observations && visitInfo.observations.length > 0) {
             visitInfo.observations.forEach((obsInfo) => {
-              const observation = this.createObservationFromData(obsInfo, visit.ENCOUNTER_NUM)
+              const observation = this.createObservationFromData(obsInfo, visit.ENCOUNTER_NUM, patient.PATIENT_NUM)
               observations.push(observation)
             })
           }
@@ -406,7 +419,7 @@ export class ImportCsvService extends BaseImportService {
       // Create patient-level observations
       if (patientData.observations && patientData.observations.length > 0) {
         patientData.observations.forEach((obsInfo) => {
-          const observation = this.createObservationFromData(obsInfo, null)
+          const observation = this.createObservationFromData(obsInfo, null, patient.PATIENT_NUM)
           observations.push(observation)
         })
       }
@@ -551,9 +564,17 @@ export class ImportCsvService extends BaseImportService {
    * @param {Array} row - Full row data
    * @param {Object} headers - Header information
    */
-  addVisitData(patientData, conceptCode, value) {
-    // Find or create visit
-    let visit = patientData.visits.find((v) => v.START_DATE === value)
+  addVisitData(patientData, conceptCode, value, row, headers) {
+    // Get the START_DATE from the row to identify the visit
+    const startDateIndex = headers.conceptCodes.indexOf('START_DATE')
+    const visitStartDate = startDateIndex >= 0 ? row[startDateIndex] : null
+
+    // Find or create visit based on START_DATE
+    let visit = null
+    if (visitStartDate) {
+      visit = patientData.visits.find((v) => v.START_DATE === visitStartDate)
+    }
+
     if (!visit) {
       visit = {
         observations: [],
@@ -701,9 +722,15 @@ export class ImportCsvService extends BaseImportService {
    * Create observation object from extracted data
    * @param {Object} obsInfo - Observation information
    * @param {number} encounterNum - Encounter number (null for patient-level)
+   * @param {number} patientNum - Patient number
    * @returns {Object} Observation object
    */
-  createObservationFromData(obsInfo, encounterNum) {
-    return this.normalizeObservation(obsInfo, encounterNum)
+  createObservationFromData(obsInfo, encounterNum, patientNum) {
+    const observation = this.normalizeObservation(obsInfo, encounterNum)
+
+    // Add patient number to the observation
+    observation.PATIENT_NUM = patientNum
+
+    return observation
   }
 }

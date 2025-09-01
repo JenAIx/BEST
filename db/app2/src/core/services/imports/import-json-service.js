@@ -257,7 +257,7 @@ export class ImportJsonService extends BaseImportService {
       encounterNum = `VISIT_REF_${obsData.visitId}`
     }
 
-    return this.normalizeObservation(
+    const observation = this.normalizeObservation(
       {
         ENCOUNTER_NUM: encounterNum,
         CONCEPT_CD: obsData.CONCEPT_CD || obsData.conceptCode,
@@ -269,6 +269,13 @@ export class ImportJsonService extends BaseImportService {
       },
       encounterNum,
     )
+    
+    // Include PATIENT_NUM from the source data
+    if (obsData.PATIENT_NUM) {
+      observation.PATIENT_NUM = obsData.PATIENT_NUM
+    }
+    
+    return observation
   }
 
   /**

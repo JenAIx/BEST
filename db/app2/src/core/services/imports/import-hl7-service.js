@@ -29,8 +29,22 @@ export class ImportHl7Service extends BaseImportService {
       // Parse HL7 content to extract CDA document
       const cdaDocument = this.parseHl7Content(hl7Content)
 
+      // Check if this is a wrapped document with hash or just the CDA
+      let hl7Document = cdaDocument
+      if (!cdaDocument.cda && !cdaDocument.hash) {
+        // This is a raw CDA document, wrap it for the HL7 service
+        hl7Document = {
+          cda: cdaDocument,
+          // Skip hash verification for import-only documents
+          hash: { 
+            documentHash: 'import-only',
+            skipVerification: true
+          }
+        }
+      }
+
       // Use existing HL7 service to process the document
-      const hl7Result = await this.hl7Service.importFromHl7(cdaDocument)
+      const hl7Result = await this.hl7Service.importFromHl7(hl7Document)
 
       if (!hl7Result.success) {
         return this.createImportResult(
@@ -139,10 +153,33 @@ export class ImportHl7Service extends BaseImportService {
       })
     }
 
+    // If we have observations but no visits, create a default visit
+    if (hl7Data.observations && hl7Data.observations.length > 0 && visits.length === 0 && patients.length > 0) {
+      const defaultVisit = this.normalizeVisit({
+        ENCOUNTER_NUM: this.generateId(),
+        PATIENT_NUM: patients[0].PATIENT_NUM,
+        START_DATE: new Date().toISOString().split('T')[0],
+        LOCATION_CD: 'HL7_IMPORT',
+        INOUT_CD: 'O',
+      }, patients[0].PATIENT_NUM)
+      visits.push(defaultVisit)
+    }
+
     // Process observations section
     if (hl7Data.observations && Array.isArray(hl7Data.observations)) {
       hl7Data.observations.forEach((obsData) => {
         const observation = this.createObservationFromHl7(obsData)
+        
+        // If observation has no ENCOUNTER_NUM and we have visits, associate with first visit
+        if (!observation.ENCOUNTER_NUM && visits.length > 0) {
+          observation.ENCOUNTER_NUM = visits[0].ENCOUNTER_NUM
+        }
+        
+        // If observation has no PATIENT_NUM and we have patients, associate with first patient
+        if (!observation.PATIENT_NUM && patients.length > 0) {
+          observation.PATIENT_NUM = patients[0].PATIENT_NUM
+        }
+        
         observations.push(observation)
       })
     }
@@ -227,7 +264,14 @@ export class ImportHl7Service extends BaseImportService {
       ...obsData,
     }
 
-    return this.normalizeObservation(obsInfo, obsInfo.ENCOUNTER_NUM)
+    const observation = this.normalizeObservation(obsInfo, obsInfo.ENCOUNTER_NUM)
+    
+    // Include PATIENT_NUM if available in source data
+    if (obsData.PATIENT_NUM || obsData.patientNum || obsData.subject?.reference) {
+      observation.PATIENT_NUM = obsData.PATIENT_NUM || obsData.patientNum || parseInt(obsData.subject?.reference?.replace(/\D/g, ''))
+    }
+    
+    return observation
   }
 
   /**

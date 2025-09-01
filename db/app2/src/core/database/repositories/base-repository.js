@@ -72,11 +72,7 @@ class BaseRepository {
           params.push(...value)
         } else if (typeof value === 'object' && value.operator) {
           // Handle custom operators (>, <, LIKE, BETWEEN, etc.)
-          if (
-            value.operator === 'BETWEEN' &&
-            Array.isArray(value.value) &&
-            value.value.length === 2
-          ) {
+          if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
             sql += ` AND ${key} BETWEEN ? AND ?`
             params.push(value.value[0], value.value[1])
           } else {
@@ -129,11 +125,7 @@ class BaseRepository {
           params.push(...value)
         } else if (typeof value === 'object' && value.operator) {
           // Handle custom operators (>, <, LIKE, BETWEEN, etc.)
-          if (
-            value.operator === 'BETWEEN' &&
-            Array.isArray(value.value) &&
-            value.value.length === 2
-          ) {
+          if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
             sql += ` AND ${key} BETWEEN ? AND ?`
             params.push(value.value[0], value.value[1])
           } else {
@@ -171,7 +163,7 @@ class BaseRepository {
     const result = await this.connection.executeCommand(sql, values)
 
     if (result.success) {
-      return { ...entity, [this.primaryKey]: result.lastID }
+      return { ...entity, [this.primaryKey]: result.lastId }
     }
     throw new Error('Failed to create entity')
   }
@@ -184,9 +176,7 @@ class BaseRepository {
    */
   async update(id, entity) {
     // Filter out undefined values and primary key field
-    const fields = Object.keys(entity).filter(
-      (key) => entity[key] !== undefined && key !== this.primaryKey,
-    )
+    const fields = Object.keys(entity).filter((key) => entity[key] !== undefined && key !== this.primaryKey)
 
     if (fields.length === 0) {
       throw new Error('No fields to update')
@@ -199,7 +189,7 @@ class BaseRepository {
     const result = await this.connection.executeCommand(sql, values)
 
     // Check if the update was successful by looking at the changes count
-    // The result from executeCommand returns { lastID, changes }
+    // The result from executeCommand returns { lastId, changes }
     return result && typeof result.changes === 'number' && result.changes > 0
   }
 
@@ -222,9 +212,7 @@ class BaseRepository {
    */
   async updateByCriteria(criteria, updateData) {
     // Filter out undefined values
-    const updateFields = Object.keys(updateData).filter(
-      (key) => updateData[key] !== undefined
-    )
+    const updateFields = Object.keys(updateData).filter((key) => updateData[key] !== undefined)
 
     if (updateFields.length === 0) {
       throw new Error('No fields to update')
@@ -234,11 +222,13 @@ class BaseRepository {
     const params = []
 
     // Build SET clause
-    const setClause = updateFields.map((field) => {
-      params.push(updateData[field])
-      return `${field} = ?`
-    }).join(', ')
-    
+    const setClause = updateFields
+      .map((field) => {
+        params.push(updateData[field])
+        return `${field} = ?`
+      })
+      .join(', ')
+
     sql += setClause + ` WHERE 1=1`
 
     // Build WHERE clause
