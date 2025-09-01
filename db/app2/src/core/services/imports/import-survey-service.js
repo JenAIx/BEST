@@ -257,10 +257,8 @@ export class ImportSurveyService extends BaseImportService {
     }
 
     // Extract responses from various possible locations
-    const responses = cdaData.responses || 
-                     (cdaData.cda && cdaData.cda.section && cdaData.cda.section[0] && cdaData.cda.section[0].entry) ||
-                     (cdaData.section && cdaData.section[0] && cdaData.section[0].entry) ||
-                     []
+    const responses =
+      cdaData.responses || (cdaData.cda && cdaData.cda.section && cdaData.cda.section[0] && cdaData.cda.section[0].entry) || (cdaData.section && cdaData.section[0] && cdaData.section[0].entry) || []
 
     // If we have database stores, use the full questionnaire processing pipeline
     if (dbStore && visitObservationStore && conceptResolutionStore && responses.length > 0) {
@@ -305,24 +303,22 @@ export class ImportSurveyService extends BaseImportService {
   extractPatientFromSurvey(cdaData) {
     // Try multiple locations for patient data
     const patientData = cdaData.patient || cdaData.subject || (cdaData.cda && cdaData.cda.patient)
-    
-    // Also check info field for PID
-    const patientId = cdaData.info?.PID || cdaData.PID || 
-                     (typeof patientData === 'object' && patientData?.display) ||
-                     patientData?.id || patientData?.patientNum
 
-    if (!patientData && !patientId) return null
+    // Also check info field for PID and direct patient data in cdaData
+    const patientId = cdaData.info?.PID || cdaData.PID || (typeof patientData === 'object' && patientData?.display) || patientData?.patientNum
+
+    if (!patientData && !patientId && !cdaData?.identifier && !cdaData?.gender) return null
 
     const patient = this.normalizePatient({
       PATIENT_NUM: this.generateId(), // Generate a temporary ID
-      PATIENT_CD: patientId || patientData?.identifier || patientData?.patientId || patientData?.uid || 'UNKNOWN',
-      SEX_CD: patientData?.gender || patientData?.sex,
-      AGE_IN_YEARS: patientData?.age,
-      BIRTH_DATE: patientData?.birthDate || patientData?.dob,
+      PATIENT_CD: patientData?.identifier || patientId || patientData?.patientId || patientData?.uid || cdaData?.identifier || 'UNKNOWN',
+      SEX_CD: patientData?.gender || patientData?.sex || cdaData?.gender,
+      AGE_IN_YEARS: patientData?.age || cdaData?.age,
+      BIRTH_DATE: patientData?.birthDate || patientData?.dob || cdaData?.birthDate,
     })
 
-    // Don't add survey-specific fields to patient as they're not in the database schema
-    // These fields should be stored as observations or visit metadata instead
+    // Add survey type for UI purposes (not stored in database)
+    patient.surveyType = cdaData.questionnaire?.type || cdaData.surveyType
 
     return patient
   }
@@ -346,8 +342,8 @@ export class ImportSurveyService extends BaseImportService {
       patientNum,
     )
 
-    // Don't add survey-specific fields to visit as they're not in the database schema
-    // Survey type and other metadata should be stored as observations
+    // Add survey type for UI purposes (not stored in database)
+    visit.surveyType = cdaData.questionnaire?.type || cdaData.surveyType
 
     return visit
   }
@@ -362,13 +358,14 @@ export class ImportSurveyService extends BaseImportService {
     const observations = []
 
     // Get responses from various possible locations
-    const responses = cdaData.responses || 
-                     cdaData.answers || 
-                     (cdaData.cda && cdaData.cda.responses) || 
-                     (cdaData.cda && cdaData.cda.section && cdaData.cda.section[0] && cdaData.cda.section[0].entry) ||
-                     (cdaData.section && cdaData.section[0] && cdaData.section[0].entry) ||
-                     (cdaData.questionnaire && cdaData.questionnaire.responses) || 
-                     []
+    const responses =
+      cdaData.responses ||
+      cdaData.answers ||
+      (cdaData.cda && cdaData.cda.responses) ||
+      (cdaData.cda && cdaData.cda.section && cdaData.cda.section[0] && cdaData.cda.section[0].entry) ||
+      (cdaData.section && cdaData.section[0] && cdaData.section[0].entry) ||
+      (cdaData.questionnaire && cdaData.questionnaire.responses) ||
+      []
 
     if (!Array.isArray(responses)) return observations
 
@@ -414,12 +411,26 @@ export class ImportSurveyService extends BaseImportService {
     if (!response) return null
 
     // Determine concept code - handle CDA structure
-    let conceptCode = response.code || 
-                     response.questionCode ||
-                     (response.code && response.code[0] && response.code[0].coding && response.code[0].coding[0] && response.code[0].coding[0].code)
+    let conceptCode = null
+
+    // Handle different code structures
+    if (typeof response.code === 'string') {
+      conceptCode = response.code
+    } else if (response.questionCode) {
+      conceptCode = response.questionCode
+    } else if (response.code && Array.isArray(response.code) && response.code[0]) {
+      // Handle CDA code structure
+      if (response.code[0].coding && response.code[0].coding[0] && response.code[0].coding[0].code) {
+        conceptCode = response.code[0].coding[0].code
+      }
+    }
+
     if (!conceptCode) {
       // Generate a concept code if none provided
       conceptCode = `SURVEY_Q_${index + 1}`
+    } else if (conceptCode.match(/^\d+$/)) {
+      // If it's just a numeric code, assume it's SNOMED
+      conceptCode = `SCTID: ${conceptCode}`
     }
 
     // Determine value and type

@@ -53,7 +53,7 @@ describe('VisitRepository', () => {
         PATIENT_NUM: 72,
         START_DATE: '2023-12-28',
         LOCATION_CD: 'UKJ/NEURO',
-        ACTIVE_STATUS_CD: 'A',
+        ACTIVE_STATUS_CD: 'SCTID: 55561003',
         INOUT_CD: 'O',
         SOURCESYSTEM_CD: 'SYSTEM',
         UPLOAD_ID: 1,
@@ -62,7 +62,7 @@ describe('VisitRepository', () => {
 
       expect(mockConnection.executeCommand).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO VISIT_DIMENSION'),
-        expect.arrayContaining([72, '2023-12-28', 'UKJ/NEURO', 'A', 'O', 'SYSTEM', 1]),
+        expect.arrayContaining([72, '2023-12-28', 'UKJ/NEURO', 'SCTID: 55561003', 'O', 'SYSTEM', 1]),
       )
     })
 
@@ -77,7 +77,7 @@ describe('VisitRepository', () => {
 
       const result = await visitRepository.createVisit(visitData)
 
-      expect(result.ACTIVE_STATUS_CD).toBe('A')
+      expect(result.ACTIVE_STATUS_CD).toBe('SCTID: 55561003')
       expect(result.INOUT_CD).toBe('O')
       expect(result.SOURCESYSTEM_CD).toBe('SYSTEM')
       expect(result.UPLOAD_ID).toBe(1)
@@ -87,9 +87,7 @@ describe('VisitRepository', () => {
     it('should throw error if PATIENT_NUM is missing', async () => {
       const visitData = { START_DATE: '2023-12-28' }
 
-      await expect(visitRepository.createVisit(visitData)).rejects.toThrow(
-        'PATIENT_NUM is required for visit creation',
-      )
+      await expect(visitRepository.createVisit(visitData)).rejects.toThrow('PATIENT_NUM is required for visit creation')
     })
 
     it('should override defaults with provided values', async () => {
@@ -131,10 +129,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.findByPatientNum(72)
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        'SELECT * FROM VISIT_DIMENSION WHERE PATIENT_NUM = ? ORDER BY START_DATE DESC',
-        [72],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith('SELECT * FROM VISIT_DIMENSION WHERE PATIENT_NUM = ? ORDER BY START_DATE DESC', [72])
     })
 
     it('should return empty array if no visits found', async () => {
@@ -175,10 +170,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.findByDateRange('2023-12-25', '2023-12-30')
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        'SELECT * FROM VISIT_DIMENSION WHERE START_DATE BETWEEN ? AND ? ORDER BY START_DATE DESC',
-        ['2023-12-25', '2023-12-30'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith('SELECT * FROM VISIT_DIMENSION WHERE START_DATE BETWEEN ? AND ? ORDER BY START_DATE DESC', ['2023-12-25', '2023-12-30'])
     })
   })
 
@@ -194,10 +186,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.findByLocationCode('UKJ/NEURO')
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        'SELECT * FROM VISIT_DIMENSION WHERE LOCATION_CD = ? ORDER BY START_DATE DESC',
-        ['UKJ/NEURO'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith('SELECT * FROM VISIT_DIMENSION WHERE LOCATION_CD = ? ORDER BY START_DATE DESC', ['UKJ/NEURO'])
     })
   })
 
@@ -213,10 +202,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.findByActiveStatus('A')
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        'SELECT * FROM VISIT_DIMENSION WHERE ACTIVE_STATUS_CD = ? ORDER BY START_DATE DESC',
-        ['A'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith('SELECT * FROM VISIT_DIMENSION WHERE ACTIVE_STATUS_CD = ? ORDER BY START_DATE DESC', ['A'])
     })
   })
 
@@ -232,10 +218,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.findByInoutCode('O')
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        'SELECT * FROM VISIT_DIMENSION WHERE INOUT_CD = ? ORDER BY START_DATE DESC',
-        ['O'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith('SELECT * FROM VISIT_DIMENSION WHERE INOUT_CD = ? ORDER BY START_DATE DESC', ['O'])
     })
   })
 
@@ -254,9 +237,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.findActiveVisits()
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM VISIT_DIMENSION WHERE ACTIVE_STATUS_CD'),
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM VISIT_DIMENSION WHERE ACTIVE_STATUS_CD'))
     })
   })
 
@@ -272,9 +253,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.findVisitsWithObservations()
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('INNER JOIN OBSERVATION_FACT'),
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('INNER JOIN OBSERVATION_FACT'))
     })
   })
 
@@ -368,12 +347,7 @@ describe('VisitRepository', () => {
 
       await visitRepository.getVisitsPaginated(1, 20, criteria)
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining(
-          'WHERE 1=1 AND PATIENT_NUM = ? AND ACTIVE_STATUS_CD = ? AND LOCATION_CD = ?',
-        ),
-        [72, 'A', 'UKJ/NEURO'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE 1=1 AND PATIENT_NUM = ? AND ACTIVE_STATUS_CD = ? AND LOCATION_CD = ?'), [72, 'A', 'UKJ/NEURO'])
     })
 
     it('should handle pagination errors gracefully', async () => {
@@ -398,10 +372,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.searchVisits('UKJ')
 
       expect(result).toEqual(mockVisits)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE LOCATION_CD LIKE ?'),
-        ['%UKJ%', '%UKJ%', '%UKJ%'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE LOCATION_CD LIKE ?'), ['%UKJ%', '%UKJ%', '%UKJ%'])
     })
 
     it('should return empty array for empty search term', async () => {
@@ -435,9 +406,7 @@ describe('VisitRepository', () => {
     it('should throw error for non-existent visit', async () => {
       vi.spyOn(visitRepository, 'findById').mockResolvedValue(null)
 
-      await expect(visitRepository.updateVisit(999, { LOCATION_CD: 'NEW' })).rejects.toThrow(
-        'Visit with ENCOUNTER_NUM 999 not found',
-      )
+      await expect(visitRepository.updateVisit(999, { LOCATION_CD: 'NEW' })).rejects.toThrow('Visit with ENCOUNTER_NUM 999 not found')
     })
   })
 
@@ -488,10 +457,7 @@ describe('VisitRepository', () => {
       const result = await visitRepository.getPatientVisitTimeline(72)
 
       expect(result).toEqual(mockTimeline)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('LEFT JOIN OBSERVATION_FACT'),
-        [72],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('LEFT JOIN OBSERVATION_FACT'), [72])
     })
   })
 

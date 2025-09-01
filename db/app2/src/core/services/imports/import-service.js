@@ -384,8 +384,35 @@ export class ImportService {
         for (const observation of clinicalData.observations) {
           try {
             // Map the patient and encounter IDs to database-generated IDs
-            const patientNum = patientIdMap.get(observation.PATIENT_NUM) || observation.PATIENT_NUM
+            let patientNum = patientIdMap.get(observation.PATIENT_NUM) || observation.PATIENT_NUM
             const encounterNum = visitIdMap.get(observation.ENCOUNTER_NUM) || observation.ENCOUNTER_NUM
+
+            // If observation doesn't have PATIENT_NUM, try to get it from the visit
+            if (!patientNum && encounterNum) {
+              // Find the visit with this encounter number
+              const visit = clinicalData.visits.find((v) => v.ENCOUNTER_NUM === observation.ENCOUNTER_NUM)
+              if (visit && visit.PATIENT_NUM) {
+                patientNum = patientIdMap.get(visit.PATIENT_NUM) || visit.PATIENT_NUM
+              }
+            }
+
+            // If still no patient number and we only have one patient, use that
+            if (!patientNum && clinicalData.patients.length === 1 && savedPatients.length > 0) {
+              patientNum = savedPatients[0].PATIENT_NUM
+            }
+
+            // Debug missing patient num
+            if (!patientNum && !global.patientNumDebugLogged) {
+              console.log('Observation missing PATIENT_NUM debug:', {
+                observation,
+                patientNum,
+                encounterNum,
+                clinicalDataPatientsLength: clinicalData.patients.length,
+                savedPatientsLength: savedPatients.length,
+                savedPatients: savedPatients.map((p) => ({ PATIENT_NUM: p.PATIENT_NUM, PATIENT_CD: p.PATIENT_CD })),
+              })
+              global.patientNumDebugLogged = true
+            }
 
             // Debug problematic observations
             if (patientNum !== observation.PATIENT_NUM || encounterNum !== observation.ENCOUNTER_NUM) {

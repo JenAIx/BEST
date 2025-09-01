@@ -163,7 +163,9 @@ class BaseRepository {
     const result = await this.connection.executeCommand(sql, values)
 
     if (result.success) {
-      return { ...entity, [this.primaryKey]: result.lastId }
+      // Handle different connection types that may use different property names
+      const id = result.lastID || result.lastId
+      return { ...entity, [this.primaryKey]: id }
     }
     throw new Error('Failed to create entity')
   }
@@ -189,7 +191,7 @@ class BaseRepository {
     const result = await this.connection.executeCommand(sql, values)
 
     // Check if the update was successful by looking at the changes count
-    // The result from executeCommand returns { lastId, changes }
+    // The result from executeCommand returns { lastID/lastId, changes }
     return result && typeof result.changes === 'number' && result.changes > 0
   }
 

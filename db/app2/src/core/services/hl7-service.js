@@ -773,7 +773,7 @@ export class Hl7Service {
   async importFromHl7(hl7Document) {
     try {
       // Verify document integrity first
-      if (!this.verifyCda(hl7Document)) {
+      if (!(await this.verifyCda(hl7Document))) {
         return {
           success: false,
           errors: [
@@ -1014,9 +1014,9 @@ export class Hl7Service {
   /**
    * Verify CDA document signature
    * @param {Object} hl7Document - HL7 document with signature
-   * @returns {boolean} Verification result
+   * @returns {Promise<boolean>} Verification result
    */
-  verifyCda(hl7Document) {
+  async verifyCda(hl7Document) {
     try {
       if (!hl7Document || !hl7Document.cda || !hl7Document.hash) {
         return false
@@ -1030,7 +1030,7 @@ export class Hl7Service {
       }
 
       // Generate current hash
-      const currentHash = this.generateDocumentHash(cda)
+      const currentHash = await this.generateDocumentHash(cda)
 
       // Compare hashes
       return currentHash.documentHash === hash.documentHash
@@ -1052,32 +1052,68 @@ export class Hl7Service {
       observations: [],
     }
 
-    // Extract patient information
-    if (cda.subject) {
-      clinicalData.patients.push({
-        PATIENT_CD: cda.subject.display || 'Unknown',
-        SOURCESYSTEM_CD: 'HL7_IMPORT',
-        UPLOAD_ID: 1,
-      })
-    }
+    // Track patients we've seen to avoid duplicates
+    const patientMap = new Map()
+    const visitMap = new Map()
 
-    // Extract visit information
-    if (cda.event && Array.isArray(cda.event)) {
-      for (let i = 0; i < cda.event.length; i++) {
-        const event = cda.event[i]
-        clinicalData.visits.push({
-          START_DATE: (event.period && event.period.start) || null,
-          LOCATION_CD: 'HL7_IMPORT',
-          INOUT_CD: 'O',
-          SOURCESYSTEM_CD: 'HL7_IMPORT',
-          UPLOAD_ID: 1,
-        })
-      }
-    }
-
-    // Extract observations from sections
+    // Extract data from sections
     if (cda.section && Array.isArray(cda.section)) {
       for (const section of cda.section) {
+        // Extract patient information from Patient Information section
+        if (section.title === 'Patient Information' && section.entry) {
+          for (const entry of section.entry) {
+            if (entry.title && entry.title.includes('Patient:')) {
+              const patientCode = entry.title.replace('Patient:', '').trim()
+              if (!patientMap.has(patientCode)) {
+                patientMap.set(patientCode, {
+                  PATIENT_CD: patientCode,
+                  SOURCESYSTEM_CD: 'HL7_IMPORT',
+                  UPLOAD_ID: 1,
+                })
+              }
+            }
+          }
+        }
+
+        // Extract visit information from Visit sections
+        if (section.title && section.title.startsWith('Visit')) {
+          const visitData = {
+            SOURCESYSTEM_CD: 'HL7_IMPORT',
+            UPLOAD_ID: 1,
+            INOUT_CD: 'O',
+            LOCATION_CD: 'HL7_IMPORT',
+          }
+
+          // Try to extract patient reference from section title or narrative
+          // Look for patterns like "Visit 1: DEMO_PATIENT_01"
+          const titleMatch = section.title.match(/Visit\s+\d+:\s*(.+)/)
+          if (titleMatch) {
+            visitData.PATIENT_CD = titleMatch[1].trim()
+          }
+
+          // Extract visit details from entries
+          if (section.entry) {
+            for (const entry of section.entry) {
+              if (entry.title === 'Visit Date' && entry.value) {
+                visitData.START_DATE = entry.value
+              } else if (entry.title === 'Location' && entry.value) {
+                visitData.LOCATION_CD = entry.value
+              } else if (entry.title === 'Type' && entry.value) {
+                visitData.INOUT_CD = entry.value
+              }
+            }
+          }
+
+          // Add visit if we have at least a date
+          if (visitData.START_DATE) {
+            const visitKey = `${visitData.START_DATE}-${visitData.LOCATION_CD}`
+            if (!visitMap.has(visitKey)) {
+              visitMap.set(visitKey, visitData)
+            }
+          }
+        }
+
+        // Extract observations from all sections
         if (section.entry && Array.isArray(section.entry)) {
           for (const entry of section.entry) {
             const observation = this.extractObservationFromEntry(entry)
@@ -1087,6 +1123,19 @@ export class Hl7Service {
           }
         }
       }
+    }
+
+    // Convert maps to arrays
+    clinicalData.patients = Array.from(patientMap.values())
+    clinicalData.visits = Array.from(visitMap.values())
+
+    // If no patients found but we have a subject, use that
+    if (clinicalData.patients.length === 0 && cda.subject) {
+      clinicalData.patients.push({
+        PATIENT_CD: cda.subject.display || 'Unknown',
+        SOURCESYSTEM_CD: 'HL7_IMPORT',
+        UPLOAD_ID: 1,
+      })
     }
 
     return clinicalData
