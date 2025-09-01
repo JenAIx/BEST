@@ -13,7 +13,16 @@
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="schedule" icon-color="info" title="Today's Schedule" subtitle="appointments" :value="stats.visitsToday" value-color="text-primary" />
+          <DashboardCard
+            icon="schedule"
+            icon-color="info"
+            title="Patient Visits"
+            subtitle="Manage patient visits"
+            :value="stats.visitsToday"
+            value-color="text-primary"
+            :clickable="true"
+            @click="$router.push('/visits')"
+          />
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
