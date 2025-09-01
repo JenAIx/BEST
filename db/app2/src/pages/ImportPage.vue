@@ -323,8 +323,10 @@ const $q = useQuasar()
 const visitStore = useVisitObservationStore()
 const dbStore = useDatabaseStore()
 
-// Initialize Import Service
-const importService = new ImportService(dbStore, null, null)
+// Initialize Import Service with proper repositories
+const conceptRepository = dbStore.getRepository('concept')
+const cqlRepository = dbStore.getRepository('cql')
+const importService = new ImportService(dbStore, conceptRepository, cqlRepository)
 
 // State
 const currentStep = ref('patient') // patient -> visit -> upload -> analyze -> import
