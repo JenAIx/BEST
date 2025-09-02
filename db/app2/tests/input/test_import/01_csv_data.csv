@@ -6,7 +6,7 @@
 
 Patient ID,Gender,Age,Date of Birth,Visit Date,Location,Type,MOCA Total Score,Survey Best - Questionnaire,Differential diagnosis,Natrium (mole/volume) in Blood,Kalium,Date of admission,BMI (body mass index),"Current medication, Name",Occupation,Stress,Body height,Blood pressure diastolic,NIHSS - Score,Gender,Haemoglobin A1c/haemoglobin.total in Blood durch IFCC-protokoll,Body weight,Primary Diagnosis,Heart rate
 PATIENT_CD,SEX_CD,AGE_IN_YEARS,BIRTH_DATE,START_DATE,LOCATION_CD,INOUT_CD,LID: 72172-0,CUSTOM: QUESTIONNAIRE,SCTID: 47965005,LID: 2947-0,LID: 6298-4,SCTID: 399423000,SCTID: 60621009,LID: 52418-1,LID: 74287-4,SCTID: 262188008,SCTID: 1153637007,LID: 8462-4,SCTID: 450743008,SCTID: 263495000,LID: 74246-8,SCTID: 27113001,LID: 18630-4,LID: 8867-4
-DEMO_PATIENT_01,SCTID: 407374003,32,1993-05-10,2024-11-29,DEMO_HOSPITAL/INTERNAL,E,73,Unknown,Exclude pulmonary embolism,143.1,5,2024-11-29,24.1,Metformin 2x500mg,Manual laborer,Moderate stress,174.6,44,45,Unknown,4.8,117.4,,
+DEMO_PATIENT_01,SCTID: 407374003,32,1993-05-10,2024-11-29,DEMO_HOSPITAL/INTERNAL,E,73,Unknown,Exclude pulmonary embolism,143.1,5,2024-11-29,24.1,Metformin 2x500mg,Manual laborer,Moderate stress,174.6,44,45,Female,4.8,117.4,,
 DEMO_PATIENT_01,SCTID: 407374003,32,1993-05-10,2023-10-02,DEMO_CLINIC/FAMILY,I,,,,,,,,,,,,,,,,,,
 DEMO_PATIENT_02,SCTID: 32570691000036108,79,1946-08-26,2024-07-22,DEMO_HOSPITAL/NEURO,I,44,,Exclude pulmonary embolism,136.2,5.1,2024-07-22,19.1,Atorvastatin 20mg,,Mild stress,163.6,79,,,,109.9,Hypertension,111.1
 DEMO_PATIENT_02,SCTID: 32570691000036108,79,1946-08-26,2023-11-09,DEMO_CLINIC/OUTPATIENT,O,,,,,,,,,,,,,,,,,,
