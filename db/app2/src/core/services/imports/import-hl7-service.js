@@ -22,9 +22,10 @@ export class ImportHl7Service extends BaseImportService {
   /**
    * Import HL7 CDA data from file content
    * @param {string} hl7Content - Raw HL7 CDA file content
+   * @param {Object} options - Import options including target patient and visit
    * @returns {Promise<Object>} Import result with success/data/errors
    */
-  async importFromHl7(hl7Content) {
+  async importFromHl7(hl7Content, options = {}) {
     try {
       // Parse HL7 content to extract CDA document
       const cdaDocument = this.parseHl7Content(hl7Content)
@@ -60,8 +61,8 @@ export class ImportHl7Service extends BaseImportService {
         )
       }
 
-      // Extract and normalize clinical data
-      const clinicalData = this.extractClinicalDataFromHl7Result(hl7Result.data)
+      // Extract and normalize clinical data, respecting target patient/visit options
+      const clinicalData = this.extractClinicalDataFromHl7Result(hl7Result.data, options)
 
       // Validate clinical data structure
       const clinicalValidation = this.validateClinicalData(clinicalData)
@@ -130,43 +131,100 @@ export class ImportHl7Service extends BaseImportService {
   /**
    * Extract clinical data from HL7 import result
    * @param {Object} hl7Data - Data from HL7 service
+   * @param {Object} options - Import options including target patient and visit
    * @returns {Object} Normalized clinical data
    */
-  extractClinicalDataFromHl7Result(hl7Data) {
+  extractClinicalDataFromHl7Result(hl7Data, options = {}) {
     const patients = []
     const visits = []
     const observations = []
 
-    // Process patients section
-    if (hl7Data.patients && Array.isArray(hl7Data.patients)) {
-      hl7Data.patients.forEach((patientData) => {
-        const patient = this.createPatientFromHl7(patientData)
-        patients.push(patient)
-      })
-    }
+    // Handle target patient/visit assignment
+    const { targetPatientNum, targetEncounterNum, targetPatientData, createMultipleVisits = true } = options
 
-    // Process visits section - map to patients first
-    if (hl7Data.visits && Array.isArray(hl7Data.visits)) {
-      hl7Data.visits.forEach((visitData, index) => {
-        // If visit has PATIENT_CD, find matching patient
-        if (visitData.PATIENT_CD) {
-          const patient = patients.find((p) => p.PATIENT_CD === visitData.PATIENT_CD)
-          if (patient) {
-            visitData.PATIENT_NUM = patient.PATIENT_NUM
+    if (targetPatientNum && targetPatientData) {
+      // Use the selected patient instead of creating new ones from HL7 data
+      const targetPatient = {
+        PATIENT_NUM: targetPatientNum,
+        PATIENT_CD: targetPatientData.PATIENT_CD,
+        SOURCESYSTEM_CD: targetPatientData.SOURCESYSTEM_CD || 'TARGET_PATIENT',
+        ...targetPatientData,
+      }
+      patients.push(targetPatient)
+
+      // Process visits section - assign to target patient
+      if (hl7Data.visits && Array.isArray(hl7Data.visits)) {
+        if (hl7Data.visits.length === 1 && targetEncounterNum) {
+          // Single visit in HL7 + selected visit → use the selected visit
+          const selectedVisit = {
+            ENCOUNTER_NUM: targetEncounterNum,
+            PATIENT_NUM: targetPatientNum,
+            SOURCESYSTEM_CD: 'HL7_IMPORT',
+            // Keep the selected visit structure
           }
+          visits.push(selectedVisit)
+        } else if (createMultipleVisits) {
+          // Multiple visits in HL7 → create new visits for the selected patient
+          hl7Data.visits.forEach((visitData, index) => {
+            const visit = this.createVisitFromHl7({
+              ...visitData,
+              PATIENT_NUM: targetPatientNum,
+              PATIENT_CD: targetPatient.PATIENT_CD,
+            })
+            visits.push(visit)
+          })
         } else {
-          // Otherwise, use a simple mapping: first half of visits to first patient, second half to second patient
-          if (patients.length === 2 && hl7Data.visits.length === 4) {
-            // Special case for our test data: visits 0-1 go to patient 0, visits 2-3 go to patient 1
-            visitData.PATIENT_NUM = patients[index < 2 ? 0 : 1].PATIENT_NUM
-          } else if (patients.length > 0) {
-            // Default: assign to first patient
-            visitData.PATIENT_NUM = patients[0].PATIENT_NUM
+          // Use target visit if specified
+          if (targetEncounterNum) {
+            const selectedVisit = {
+              ENCOUNTER_NUM: targetEncounterNum,
+              PATIENT_NUM: targetPatientNum,
+              SOURCESYSTEM_CD: 'HL7_IMPORT',
+            }
+            visits.push(selectedVisit)
           }
         }
-        const visit = this.createVisitFromHl7(visitData)
-        visits.push(visit)
-      })
+      } else if (targetEncounterNum) {
+        // No visits in HL7 data, use selected visit
+        const selectedVisit = {
+          ENCOUNTER_NUM: targetEncounterNum,
+          PATIENT_NUM: targetPatientNum,
+          SOURCESYSTEM_CD: 'HL7_IMPORT',
+        }
+        visits.push(selectedVisit)
+      }
+    } else {
+      // Original logic: process patients from HL7 data
+      if (hl7Data.patients && Array.isArray(hl7Data.patients)) {
+        hl7Data.patients.forEach((patientData) => {
+          const patient = this.createPatientFromHl7(patientData)
+          patients.push(patient)
+        })
+      }
+
+      // Process visits section - map to patients first
+      if (hl7Data.visits && Array.isArray(hl7Data.visits)) {
+        hl7Data.visits.forEach((visitData, index) => {
+          // If visit has PATIENT_CD, find matching patient
+          if (visitData.PATIENT_CD) {
+            const patient = patients.find((p) => p.PATIENT_CD === visitData.PATIENT_CD)
+            if (patient) {
+              visitData.PATIENT_NUM = patient.PATIENT_NUM
+            }
+          } else {
+            // Otherwise, use a simple mapping: first half of visits to first patient, second half to second patient
+            if (patients.length === 2 && hl7Data.visits.length === 4) {
+              // Special case for our test data: visits 0-1 go to patient 0, visits 2-3 go to patient 1
+              visitData.PATIENT_NUM = patients[index < 2 ? 0 : 1].PATIENT_NUM
+            } else if (patients.length > 0) {
+              // Default: assign to first patient
+              visitData.PATIENT_NUM = patients[0].PATIENT_NUM
+            }
+          }
+          const visit = this.createVisitFromHl7(visitData)
+          visits.push(visit)
+        })
+      }
     }
 
     // If we have observations but no visits, create a default visit
@@ -189,14 +247,30 @@ export class ImportHl7Service extends BaseImportService {
       hl7Data.observations.forEach((obsData) => {
         const observation = this.createObservationFromHl7(obsData)
 
-        // If observation has no ENCOUNTER_NUM and we have visits, associate with first visit
-        if (!observation.ENCOUNTER_NUM && visits.length > 0) {
-          observation.ENCOUNTER_NUM = visits[0].ENCOUNTER_NUM
-        }
+        // If using target patient/visit, assign accordingly
+        if (targetPatientNum) {
+          observation.PATIENT_NUM = targetPatientNum
 
-        // If observation has no PATIENT_NUM and we have patients, associate with first patient
-        if (!observation.PATIENT_NUM && patients.length > 0) {
-          observation.PATIENT_NUM = patients[0].PATIENT_NUM
+          // For multiple visits, distribute observations across them
+          if (visits.length > 1) {
+            // Use visit assignment logic based on observation context
+            // For now, assign to first available visit, but this could be enhanced
+            observation.ENCOUNTER_NUM = visits[0].ENCOUNTER_NUM
+          } else if (visits.length === 1) {
+            observation.ENCOUNTER_NUM = visits[0].ENCOUNTER_NUM
+          } else if (targetEncounterNum) {
+            observation.ENCOUNTER_NUM = targetEncounterNum
+          }
+        } else {
+          // Original logic: If observation has no ENCOUNTER_NUM and we have visits, associate with first visit
+          if (!observation.ENCOUNTER_NUM && visits.length > 0) {
+            observation.ENCOUNTER_NUM = visits[0].ENCOUNTER_NUM
+          }
+
+          // If observation has no PATIENT_NUM and we have patients, associate with first patient
+          if (!observation.PATIENT_NUM && patients.length > 0) {
+            observation.PATIENT_NUM = patients[0].PATIENT_NUM
+          }
         }
 
         observations.push(observation)

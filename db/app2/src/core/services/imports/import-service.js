@@ -1,8 +1,8 @@
 /**
- * Main Import Service Orchestrator
+ * Import Analysis Service
  *
- * Central service that handles format detection, routing to appropriate
- * import services, and provides unified import functionality.
+ * Service that handles format detection and content analysis for import files.
+ * Focuses on analyzing file structure and determining import strategies.
  */
 
 import { ImportCsvService } from './import-csv-service.js'
@@ -11,23 +11,13 @@ import { ImportHl7Service } from './import-hl7-service.js'
 import { ImportSurveyService } from './import-survey-service.js'
 import { logger } from '../logging-service.js'
 
-// Import repositories for database operations
-import PatientRepository from '../../database/repositories/patient-repository.js'
-import VisitRepository from '../../database/repositories/visit-repository.js'
-import ObservationRepository from '../../database/repositories/observation-repository.js'
-
 export class ImportService {
   constructor(databaseStore, conceptRepository, cqlRepository) {
     this.databaseStore = databaseStore
     this.conceptRepository = conceptRepository
     this.cqlRepository = cqlRepository
 
-    // Initialize repositories for database operations
-    this.patientRepo = new PatientRepository(databaseStore)
-    this.visitRepo = new VisitRepository(databaseStore)
-    this.observationRepo = new ObservationRepository(databaseStore)
-
-    // Initialize individual import services
+    // Initialize individual import services for analysis only
     this.services = {
       csv: new ImportCsvService(conceptRepository, cqlRepository),
       json: new ImportJsonService(conceptRepository, cqlRepository),
@@ -39,10 +29,6 @@ export class ImportService {
     this.config = {
       maxFileSize: '50MB',
       supportedFormats: ['csv', 'json', 'hl7', 'html'],
-      validationLevel: 'strict',
-      duplicateHandling: 'skip',
-      batchSize: 1000,
-      transactionMode: 'single',
     }
   }
 
@@ -132,118 +118,101 @@ export class ImportService {
   }
 
   /**
-   * Import file content using detected format
+   * Analyze file content and return detailed structure information
    * @param {string} content - File content
    * @param {string} filename - Original filename
-   * @param {Object} options - Import options
-   * @returns {Promise<Object>} Import result
+   * @returns {Promise<Object>} Analysis result with file structure information
    */
-  async importFile(content, filename, options = {}) {
+  async analyzeFileContent(content, filename) {
     try {
-      logger.info('Starting file import', { filename, contentLength: content.length })
+      // Validate input parameters
+      if (!content) {
+        logger.error('File content analysis failed: content is undefined', { filename })
+        return this.createErrorResult('INVALID_CONTENT', 'File content is empty or undefined', filename)
+      }
 
-      // Detect format
+      if (!filename) {
+        logger.error('File content analysis failed: filename is undefined')
+        return this.createErrorResult('INVALID_FILENAME', 'Filename is undefined', 'unknown')
+      }
+
+      logger.info('Starting file content analysis', {
+        filename,
+        contentLength: content.length,
+        contentType: typeof content,
+      })
+
+      // Detect format first
       const format = this.detectFormat(content, filename)
       if (!format) {
         return this.createErrorResult('UNSUPPORTED_FORMAT', `Unsupported file format for ${filename}`, filename)
       }
 
-      logger.info('Detected file format', { format, filename })
-
-      // Route to appropriate service
-      const service = this.services[format]
-      if (!service) {
-        return this.createErrorResult('SERVICE_NOT_FOUND', `No import service available for format: ${format}`, filename)
+      const analysis = {
+        success: true,
+        format,
+        filename,
+        fileSize: content.length,
+        patientsCount: 0,
+        visitsCount: 0,
+        observationsCount: 0,
+        hasMultiplePatients: false,
+        hasMultipleVisits: false,
+        patients: [],
+        visits: [],
+        observations: [], // Detailed observation data
+        estimatedImportTime: 'Unknown',
+        recommendedStrategy: 'single_patient', // 'single_patient', 'multiple_visits', 'multiple_patients', 'batch_import'
+        warnings: [],
+        errors: [],
       }
 
-      // Call the appropriate import method
-      let result
+      // Format-specific analysis
       switch (format) {
         case 'csv':
-          result = await service.importFromCsv(content, options)
+          await this.analyzeCsvContent(content, analysis)
           break
         case 'json':
-          result = await service.importFromJson(content, options)
+          await this.analyzeJsonContent(content, analysis)
           break
         case 'hl7':
-          result = await service.importFromHl7(content)
+          await this.analyzeHl7Content(content, analysis)
           break
         case 'html':
-          result = await service.importFromHtml(content, options)
+          await this.analyzeHtmlContent(content, analysis)
           break
-        default:
-          return this.createErrorResult('UNSUPPORTED_FORMAT', `Unsupported format: ${format}`, filename)
       }
 
-      // If import was successful and we have clinical data, save it to database
-      if (result.success && result.data) {
-        try {
-          const saveResult = await this.saveClinicalDataToDatabase(result.data, options)
-          result.metadata = {
-            ...result.metadata,
-            filename: filename,
-            savedToDatabase: saveResult.success,
-            savedPatients: saveResult.patientsSaved,
-            savedVisits: saveResult.visitsSaved,
-            savedObservations: saveResult.observationsSaved,
-          }
-
-          // Pass through actual IDs from relaxed ID approach
-          if (saveResult.actualPatientNum) {
-            result.actualPatientNum = saveResult.actualPatientNum
-          }
-          if (saveResult.actualEncounterNum) {
-            result.actualEncounterNum = saveResult.actualEncounterNum
-          }
-
-          if (!saveResult.success) {
-            result.success = false
-            result.errors = [...(result.errors || []), ...saveResult.errors]
-            // Ensure filename is preserved even on save failure
-            result.metadata = {
-              ...result.metadata,
-              filename: filename,
-            }
-          }
-
-          logger.info('Database save completed', {
-            success: saveResult.success,
-            patients: saveResult.patientsSaved,
-            visits: saveResult.visitsSaved,
-            observations: saveResult.observationsSaved,
-          })
-        } catch (saveError) {
-          logger.error('Database save failed', saveError)
-          result.success = false
-          result.errors = [
-            ...(result.errors || []),
-            {
-              code: 'DATABASE_SAVE_FAILED',
-              message: `Failed to save data to database: ${saveError.message}`,
-              details: saveError,
-            },
-          ]
-        }
-      } else {
-        // Ensure filename is preserved even when no data to save
-        if (!result.metadata) {
-          result.metadata = {}
-        }
-        result.metadata.filename = filename
+      // Check if format-specific analysis failed (only for JSON parsing errors, not CSV warnings)
+      if (analysis.errors && analysis.errors.length > 0 && format !== 'csv') {
+        analysis.success = false
       }
 
-      logger.info('Import completed', {
+      // Determine recommended strategy
+      this.determineRecommendedStrategy(analysis)
+
+      // Estimate import time
+      analysis.estimatedImportTime = this.estimateImportTime(analysis)
+
+      logger.info('File content analysis completed', {
         format,
-        success: result.success,
-        errors: result.errors?.length || 0,
-        warnings: result.warnings?.length || 0,
-        savedToDatabase: result.metadata?.savedToDatabase || false,
+        patientsCount: analysis.patientsCount,
+        visitsCount: analysis.visitsCount,
+        observationsCount: analysis.observationsCount,
+        recommendedStrategy: analysis.recommendedStrategy,
       })
 
-      return result
+      return analysis
     } catch (error) {
-      logger.error('Import failed', error)
-      return this.createErrorResult('IMPORT_FAILED', error.message, filename)
+      logger.error('File content analysis failed', {
+        error: error.message,
+        stack: error.stack,
+        filename,
+        contentLength: content?.length,
+        contentType: typeof content,
+        errorType: error.constructor.name,
+      })
+      return this.createErrorResult('ANALYSIS_FAILED', error.message, filename)
     }
   }
 
@@ -666,11 +635,26 @@ export class ImportService {
         contentLength: content.length,
       })
 
+      // Get selected patient data for HL7 imports
+      let targetPatientData = null
+      if (patientNum) {
+        try {
+          const patientResult = await this.databaseStore.executeQuery(`SELECT * FROM PATIENT_DIMENSION WHERE PATIENT_NUM = ?`, [patientNum])
+          if (patientResult.success && patientResult.data.length > 0) {
+            targetPatientData = patientResult.data[0]
+          }
+        } catch (error) {
+          logger.warn('Failed to load target patient data', error)
+        }
+      }
+
       // Pass the patient/encounter IDs through options so they can be used during import
       const importOptions = {
         ...options,
         targetPatientNum: patientNum,
         targetEncounterNum: encounterNum,
+        targetPatientData: targetPatientData,
+        createMultipleVisits: options.createMultipleVisits !== false, // Default to true
       }
 
       const result = await this.importFile(content, filename, importOptions)
@@ -946,36 +930,157 @@ export class ImportService {
     try {
       const data = JSON.parse(content)
 
-      // HL7 CDA typically has patient and visit information
-      if (data.subject && data.subject.display) {
-        analysis.patientsCount = 1
-        analysis.patients = [
-          {
-            id: data.subject.display,
-            name: data.subject.display,
-          },
-        ]
-      }
+      // Extract patients from Patient Information section
+      const patientMap = new Map()
+      const visitMap = new Map()
+      let totalObservations = 0
 
-      // Look for section data
       if (data.section && Array.isArray(data.section)) {
-        analysis.visitsCount = 1 // CDA typically represents one visit
-        analysis.observationsCount = data.section.length
+        for (const section of data.section) {
+          // Extract patients from Patient Information section
+          if (section.title === 'Patient Information' && section.entry) {
+            for (const entry of section.entry) {
+              if (entry.title && entry.title.startsWith('Patient:')) {
+                const patientId = entry.value || entry.title.replace('Patient:', '').trim()
+                if (patientId && !patientMap.has(patientId)) {
+                  patientMap.set(patientId, {
+                    id: patientId,
+                    name: patientId,
+                    source: 'HL7 CDA',
+                  })
+                }
+              }
+            }
+          }
 
-        // Extract detailed observations for HL7 CDA
-        analysis.observations = data.section.slice(0, 10).map((section, index) => ({
-          id: `obs_${index + 1}`,
-          concept: section.title || section.code?.display || `HL7 Section ${index + 1}`,
-          valtype: 'Q', // HL7 CDA typically contains questionnaire-like data
-          value: section.title || section.code?.display || `HL7 CDA Section ${index + 1}`,
-          category: 'HL7 CDA',
-          description: section.text?.div || 'HL7 CDA clinical section',
-        }))
+          // Extract visits from Visit sections
+          if (section.title && section.title.startsWith('Visit')) {
+            const visitData = {
+              title: section.title,
+              patientId: null,
+              date: null,
+              location: null,
+            }
+
+            // Try to extract patient reference from section title
+            const titleMatch = section.title.match(/Visit\s+\d+(?::\s*(.+))?/)
+            if (titleMatch && titleMatch[1]) {
+              visitData.patientId = titleMatch[1].trim()
+            }
+
+            // Extract visit details from entries
+            if (section.entry) {
+              for (const entry of section.entry) {
+                if (entry.title === 'Visit Date' && entry.value) {
+                  visitData.date = entry.value
+                } else if (entry.title === 'Location' && entry.value) {
+                  visitData.location = entry.value
+                }
+              }
+            }
+
+            // Create unique visit key
+            if (visitData.date || visitData.location) {
+              const visitKey = `${visitData.patientId || 'unknown'}-${visitData.date || 'unknown'}-${visitData.location || 'unknown'}`
+              if (!visitMap.has(visitKey)) {
+                visitMap.set(visitKey, visitData)
+              }
+            }
+          }
+
+          // Count observations from all sections with entries
+          if (section.entry && Array.isArray(section.entry)) {
+            totalObservations += section.entry.filter((entry) => entry.title && entry.value !== undefined && !entry.title.startsWith('Visit') && !entry.title.startsWith('Patient')).length
+          }
+        }
       }
 
-      analysis.hasMultiplePatients = false
-      analysis.hasMultipleVisits = false
+      // If no patients found in Patient Information section, check subject
+      if (patientMap.size === 0 && data.subject && data.subject.display) {
+        patientMap.set(data.subject.display, {
+          id: data.subject.display,
+          name: data.subject.display,
+          source: 'HL7 CDA Subject',
+        })
+      }
+
+      // If no visits found but we have sections, estimate from structure
+      if (visitMap.size === 0 && data.section) {
+        const visitSections = data.section.filter((s) => s.title && s.title.startsWith('Visit'))
+        if (visitSections.length > 0) {
+          visitSections.forEach((section, index) => {
+            visitMap.set(`visit-${index}`, {
+              title: section.title,
+              patientId: null,
+              date: `Visit ${index + 1}`,
+              location: 'HL7 Import',
+            })
+          })
+        } else if (totalObservations > 0) {
+          // If we have observations but no visit structure, assume one visit
+          visitMap.set('default-visit', {
+            title: 'Default Visit',
+            patientId: null,
+            date: new Date().toISOString().split('T')[0],
+            location: 'HL7 Import',
+          })
+        }
+      }
+
+      // Set analysis results
+      analysis.patientsCount = patientMap.size
+      analysis.visitsCount = visitMap.size
+      analysis.observationsCount = totalObservations
+
+      analysis.patients = Array.from(patientMap.values())
+      analysis.visits = Array.from(visitMap.values()).slice(0, 10) // Limit for preview
+
+      analysis.hasMultiplePatients = patientMap.size > 1
+      analysis.hasMultipleVisits = visitMap.size > 1
+
+      // Extract sample observations for preview
+      if (data.section && Array.isArray(data.section)) {
+        analysis.observations = []
+        let obsCount = 0
+
+        for (const section of data.section) {
+          if (section.entry && Array.isArray(section.entry) && obsCount < 10) {
+            for (const entry of section.entry) {
+              if (entry.title && entry.value !== undefined && !entry.title.startsWith('Visit') && !entry.title.startsWith('Patient') && obsCount < 10) {
+                analysis.observations.push({
+                  id: `obs_${obsCount + 1}`,
+                  concept: entry.title,
+                  valtype: typeof entry.value === 'number' ? 'N' : 'T',
+                  value: entry.value,
+                  category: 'HL7 CDA',
+                  description: section.title || 'HL7 CDA clinical observation',
+                })
+                obsCount++
+              }
+            }
+          }
+        }
+      }
+
+      // Determine recommended strategy
+      if (analysis.hasMultipleVisits) {
+        analysis.recommendedStrategy = 'multiple_visits'
+      } else if (analysis.hasMultiplePatients) {
+        analysis.recommendedStrategy = 'multiple_patients'
+      } else {
+        analysis.recommendedStrategy = 'single_patient'
+      }
+
+      logger.info('HL7 content analysis completed', {
+        patients: analysis.patientsCount,
+        visits: analysis.visitsCount,
+        observations: analysis.observationsCount,
+        hasMultiplePatients: analysis.hasMultiplePatients,
+        hasMultipleVisits: analysis.hasMultipleVisits,
+        strategy: analysis.recommendedStrategy,
+      })
     } catch (error) {
+      logger.error('HL7 analysis failed', error)
       analysis.errors.push(`HL7 analysis failed: ${error.message}`)
     }
   }
@@ -1042,7 +1147,6 @@ export class ImportService {
                 category: 'Questionnaire',
                 description: section.text || 'CDA clinical section',
               }))
-
             } else if (cdaData.subject) {
               analysis.patientsCount = 1
               analysis.patients = [
@@ -1064,7 +1168,6 @@ export class ImportService {
                 category: 'Questionnaire',
                 description: section.text?.div || 'FHIR CDA clinical section',
               }))
-
             } else {
               // Fallback - assume there's at least one patient and observation
               analysis.patientsCount = 1
@@ -1076,14 +1179,16 @@ export class ImportService {
               ]
               analysis.visitsCount = 1
               analysis.observationsCount = 1
-              analysis.observations = [{
-                id: 'obs_1',
-                concept: 'Unknown Questionnaire',
-                valtype: 'Q',
-                value: 'Questionnaire Response',
-                category: 'Questionnaire',
-                description: 'Imported questionnaire data',
-              }]
+              analysis.observations = [
+                {
+                  id: 'obs_1',
+                  concept: 'Unknown Questionnaire',
+                  valtype: 'Q',
+                  value: 'Questionnaire Response',
+                  category: 'Questionnaire',
+                  description: 'Imported questionnaire data',
+                },
+              ]
             }
           } catch {
             // Script content might not be pure JSON

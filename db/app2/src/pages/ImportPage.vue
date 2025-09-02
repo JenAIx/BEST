@@ -142,13 +142,18 @@
                     <div class="text-body2 q-mb-sm"><strong>Format:</strong> {{ fileAnalysis.format ? fileAnalysis.format.toUpperCase() : 'Unknown' }}</div>
                     <div class="text-body2 q-mb-sm">
                       <strong>Recommended Strategy:</strong>
-                      <q-chip
-                        :color="fileAnalysis.recommendedStrategy === 'single_patient' ? 'green' : fileAnalysis.recommendedStrategy === 'batch_import' ? 'orange' : 'blue'"
-                        text-color="white"
-                        size="sm"
-                      >
-                        {{ fileAnalysis.recommendedStrategy ? fileAnalysis.recommendedStrategy.replace('_', ' ').toUpperCase() : 'UNKNOWN' }}
+                      <q-chip :color="getStrategyColor(fileAnalysis.recommendedStrategy)" text-color="white" size="sm">
+                        {{ getStrategyLabel(fileAnalysis.recommendedStrategy) }}
                       </q-chip>
+                    </div>
+
+                    <!-- Multi-visit handling info for HL7 -->
+                    <div v-if="fileAnalysis.format === 'hl7' && fileAnalysis.hasMultipleVisits" class="text-body2 q-mb-sm">
+                      <strong>Import Behavior:</strong>
+                      <div class="text-caption text-blue-8 q-mt-xs">
+                        <q-icon name="info" class="q-mr-xs" />
+                        Multiple visits detected. New visits will be created for the selected patient.
+                      </div>
                     </div>
 
                     <!-- Warnings -->
@@ -258,6 +263,10 @@
                         <div class="text-center">
                           <div class="text-h6">{{ importSummary.successfulImports }}</div>
                           <div class="text-caption text-grey-6">Successfully Imported</div>
+                        </div>
+                        <div v-if="importSummary.visits > 1" class="text-center">
+                          <div class="text-h6">{{ importSummary.visits }}</div>
+                          <div class="text-caption text-grey-6">Visits Created</div>
                         </div>
                         <div v-if="importSummary.errors > 0" class="text-center">
                           <div class="text-h6 text-negative">{{ importSummary.errors }}</div>
@@ -526,6 +535,36 @@ const getPatientName = (patient) => {
   return patient.PATIENT_CD || 'Unknown Patient'
 }
 
+const getStrategyColor = (strategy) => {
+  switch (strategy) {
+    case 'single_patient':
+      return 'green'
+    case 'multiple_visits':
+      return 'blue'
+    case 'multiple_patients':
+      return 'orange'
+    case 'batch_import':
+      return 'orange'
+    default:
+      return 'grey'
+  }
+}
+
+const getStrategyLabel = (strategy) => {
+  switch (strategy) {
+    case 'single_patient':
+      return 'SINGLE PATIENT'
+    case 'multiple_visits':
+      return 'MULTIPLE VISITS'
+    case 'multiple_patients':
+      return 'MULTIPLE PATIENTS'
+    case 'batch_import':
+      return 'BATCH IMPORT'
+    default:
+      return 'UNKNOWN'
+  }
+}
+
 const onFileSelected = async (fileData) => {
   logger.info('File selected for import', {
     filename: fileData?.fileInfo?.filename,
@@ -724,27 +763,54 @@ const startImport = async () => {
       throw new Error('File appears to be empty or contains no readable content.')
     }
 
-    // Use the import store which handles survey imports properly
-    const result = await importStore.importForPatient(content, selectedFile.value.fileInfo.filename, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, {
+    // Determine import options based on file analysis
+    const importOpts = {
       createMissingConcepts: true,
       validateData: importOptions.value.includes('validateData'),
-    })
+    }
+
+    // For HL7 files with multiple visits, allow creation of multiple visits
+    if (fileAnalysis.value?.format === 'hl7' && fileAnalysis.value?.hasMultipleVisits) {
+      importOpts.createMultipleVisits = true
+      logger.info('HL7 import with multiple visits enabled', {
+        visitsCount: fileAnalysis.value.visitsCount,
+        strategy: fileAnalysis.value.recommendedStrategy,
+      })
+    }
+
+    // Use the import store which handles survey imports properly
+    const result = await importStore.importForPatient(content, selectedFile.value.fileInfo.filename, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, importOpts)
 
     if (result.success) {
       importComplete.value = true
 
       // Set import summary from the result
       importSummary.value = {
-        totalRecords: result.metadata?.responseCount || 1,
+        totalRecords: result.metadata?.responseCount || result.metadata?.observations || 1,
         successfulImports: 1,
         errors: result.errors?.length || 0,
         questionnaire: result.metadata?.questionnaire,
         title: result.metadata?.title,
+        visits: result.metadata?.visits || 0,
+        patients: result.metadata?.patients || 0,
+        format: result.metadata?.format,
+      }
+
+      // Customize success message based on format and content
+      let successMessage = 'Data imported successfully'
+      if (result.metadata?.format === 'HTML Survey') {
+        successMessage = 'Survey imported successfully'
+      } else if (result.metadata?.format?.includes('HL7')) {
+        if (result.metadata?.visits > 1) {
+          successMessage = `HL7 data imported successfully (${result.metadata.visits} visits, ${result.metadata.observations || 0} observations)`
+        } else {
+          successMessage = 'HL7 data imported successfully'
+        }
       }
 
       $q.notify({
         type: 'positive',
-        message: result.metadata?.format === 'HTML Survey' ? 'Survey imported successfully' : 'Data imported successfully',
+        message: successMessage,
         timeout: 3000,
       })
 
