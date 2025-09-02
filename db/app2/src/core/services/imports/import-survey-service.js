@@ -329,8 +329,10 @@ export class ImportSurveyService extends BaseImportService {
     const cda = cdaData.cda || {}
     const info = cdaData.info || {}
 
-    const questionnaireTitle = info.title || cda.title || 'Imported Questionnaire'
-    // const questionnaireCode = info.label || 'imported_questionnaire'
+    // Transform CDA structure to simple JSON format
+    const simpleQuestionnaire = this.transformCdaToSimpleJson(cda, info)
+
+    const questionnaireTitle = simpleQuestionnaire.title
 
     return {
       OBSERVATION_ID: 1,
@@ -350,13 +352,71 @@ export class ImportSurveyService extends BaseImportService {
       END_DATE: cda.event?.[0]?.period?.end ? this.parseDate(cda.event[0].period.end) + 'T00:00:00.000Z' : null,
       LOCATION_CD: 'QUESTIONNAIRE',
       CONFIDENCE_NUM: null,
-      OBSERVATION_BLOB: JSON.stringify(cda), // Store CDA structure as requested
+      OBSERVATION_BLOB: JSON.stringify(simpleQuestionnaire), // Store transformed simple JSON structure
       UPDATE_DATE: new Date().toISOString().split('T')[0],
       DOWNLOAD_DATE: null,
       IMPORT_DATE: new Date().toISOString().split('T')[0],
       SOURCESYSTEM_CD: 'SURVEY_SYSTEM',
       UPLOAD_ID: null,
       CREATED_AT: new Date().toISOString().split('T')[0],
+    }
+  }
+
+  /**
+   * Transform CDA structure to simple JSON questionnaire format
+   * @param {Object} cda - CDA data
+   * @param {Object} info - Additional info
+   * @returns {Object} Simple JSON questionnaire structure
+   */
+  transformCdaToSimpleJson(cda, info) {
+    const items = []
+    const results = []
+
+    // Extract items from CDA sections
+    cda.section?.forEach(section => {
+      if (section.entry && Array.isArray(section.entry)) {
+        section.entry.forEach(entry => {
+          // Create item from CDA entry
+          const item = {
+            id: items.length + 1,
+            label: entry.title || 'Unknown Question',
+            type: typeof entry.value === 'number' ? 'number' : 'text',
+            value: entry.value,
+            coding: entry.code?.[0]?.coding?.[0] || null
+          }
+          items.push(item)
+        })
+      }
+    })
+
+    // Extract results from Results Section
+    const resultsSection = cda.section?.find(s =>
+      s.title?.toLowerCase().includes('result')
+    )
+    if (resultsSection?.entry) {
+      resultsSection.entry.forEach(entry => {
+        results.push({
+          label: entry.title || 'Result',
+          value: entry.value,
+          coding: entry.code?.[0]?.coding?.[0] || null
+        })
+      })
+    }
+
+    // Transform to simple JSON structure
+    return {
+      title: info.title || cda.title || 'Imported Questionnaire',
+      short_title: info.label || null,
+      questionnaire_code: info.label || 'imported_questionnaire',
+      date_start: cda.event?.[0]?.period?.start ? this.parseDate(cda.event[0].period.start) : null,
+      date_end: cda.event?.[0]?.period?.end ? this.parseDate(cda.event[0].period.end) : null,
+      items: items,
+      results: results.length > 0 ? results : null,
+      coding: {
+        system: 'LOINC', // Default to LOINC
+        code: '72133-2', // Default MoCA code, can be overridden
+        display: info.title || cda.title || 'Imported Questionnaire'
+      }
     }
   }
 
