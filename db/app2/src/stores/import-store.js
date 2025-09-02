@@ -170,11 +170,17 @@ export const useImportStore = defineStore('import', () => {
       // Convert survey data to questionnaire response format
       const questionnaireResponse = convertSurveyToQuestionnaireResponse(surveyData)
 
+      logger.info('Proceeding with import without duplicate checking', {
+        patientNum,
+        encounterNum,
+        questionnaireCode: questionnaireResponse.questionnaire_code,
+      })
+
       importProgress.value = 'Saving questionnaire response...'
-      importProgressValue.value = 70
+      importProgressValue.value = 75
 
       // Use the same storage method as QuestionnairePage.vue
-      await questionnaireStore.saveQuestionnaireResponseStore(patientNum, encounterNum, questionnaireResponse)
+      await questionnaireStore.saveQuestionnaireResponse(patientNum, encounterNum, questionnaireResponse)
 
       importProgress.value = 'Import completed!'
       importProgressValue.value = 100
@@ -196,7 +202,9 @@ export const useImportStore = defineStore('import', () => {
           encounterNum,
           questionnaire: questionnaireResponse,
         },
-        metadata: importRecord.metadata,
+        metadata: {
+          ...importRecord.metadata,
+        },
         errors: [],
         warnings: [],
       }
@@ -227,26 +235,190 @@ export const useImportStore = defineStore('import', () => {
    */
   const extractSurveyDataFromHtml = (htmlContent) => {
     try {
-      // Look for CDA data in script tags
-      const cdaScriptMatch = htmlContent.match(/<script[^>]*>[\s\S]*?CDA\s*=\s*({[\s\S]*?})[\s\S]*?<\/script>/i)
+      // Look for CDA data in script tags with improved pattern
+      const cdaScriptMatch = htmlContent.match(/<script[^>]*>([\s\S]*?)<\/script>/i)
 
       if (!cdaScriptMatch || !cdaScriptMatch[1]) {
-        logger.error('No CDA data found in HTML script tag')
+        logger.error('No script tag found in HTML')
         return null
       }
 
-      const cdaDataString = cdaScriptMatch[1]
-      const cdaData = JSON.parse(cdaDataString)
+      const scriptContent = cdaScriptMatch[1].trim()
+
+      // Look for CDA= assignment and extract the JSON object using string methods
+      const cdaIndex = scriptContent.indexOf('CDA=')
+      if (cdaIndex === -1) {
+        logger.error('No CDA= found in script content')
+        return null
+      }
+
+      // Extract everything after 'CDA='
+      let cdaDataString = scriptContent.substring(cdaIndex + 4).trim()
+
+      // Remove trailing semicolon if present
+      if (cdaDataString.endsWith(';')) {
+        cdaDataString = cdaDataString.slice(0, -1)
+      }
+
+      logger.debug('Attempting to parse CDA JSON', {
+        stringLength: cdaDataString.length,
+        startsWithBrace: cdaDataString.startsWith('{'),
+        endsWithBrace: cdaDataString.endsWith('}'),
+        preview: cdaDataString.substring(0, 200) + '...',
+        lastChars: cdaDataString.substring(Math.max(0, cdaDataString.length - 50)),
+      })
+
+      let cdaData
+      try {
+        cdaData = JSON.parse(cdaDataString)
+      } catch (jsonError) {
+        logger.error('JSON parsing failed', {
+          error: jsonError.message,
+          stringLength: cdaDataString.length,
+          contextAround170: cdaDataString.substring(160, 180),
+          charAtPosition170: cdaDataString.charAt(170),
+          charCodeAt170: cdaDataString.charCodeAt(170),
+        })
+        throw new Error(`JSON parsing failed: ${jsonError.message}`)
+      }
 
       if (!cdaData.cda) {
         logger.error('Invalid CDA structure - missing cda property')
         return null
       }
 
+      logger.info('Successfully extracted CDA data', {
+        hasPatient: !!cdaData.cda.subject,
+        hasTitle: !!cdaData.cda.title,
+        hasSections: !!cdaData.cda.section,
+        sectionsCount: cdaData.cda.section?.length || 0,
+        hasInfo: !!cdaData.info,
+        patientId: cdaData.cda.subject?.display || 'unknown',
+      })
+
       return cdaData
     } catch (error) {
       logger.error('Failed to extract survey data from HTML', error)
-      return null
+
+      // Try alternative extraction method
+      try {
+        return extractCdaAlternativeMethod(htmlContent)
+      } catch (altError) {
+        logger.error('Alternative extraction method also failed', altError)
+        return null
+      }
+    }
+  }
+
+  /**
+   * Alternative method to extract CDA data using a more robust approach
+   * @param {string} htmlContent - HTML file content
+   * @returns {Object|null} Extracted survey data
+   */
+  const extractCdaAlternativeMethod = (htmlContent) => {
+    // Find the script tag content
+    const scriptTagRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi
+    let match
+
+    while ((match = scriptTagRegex.exec(htmlContent)) !== null) {
+      const scriptContent = match[1]
+
+      if (scriptContent.includes('CDA=')) {
+        // Find the start of CDA assignment
+        const cdaStart = scriptContent.indexOf('CDA=') + 4
+
+        // Find the opening brace
+        let openBraceIndex = -1
+        for (let i = cdaStart; i < scriptContent.length; i++) {
+          if (scriptContent[i] === '{') {
+            openBraceIndex = i
+            break
+          }
+        }
+
+        if (openBraceIndex === -1) {
+          continue
+        }
+
+        // Find the matching closing brace
+        let braceCount = 0
+        let closeBraceIndex = -1
+
+        for (let i = openBraceIndex; i < scriptContent.length; i++) {
+          if (scriptContent[i] === '{') {
+            braceCount++
+          } else if (scriptContent[i] === '}') {
+            braceCount--
+            if (braceCount === 0) {
+              closeBraceIndex = i
+              break
+            }
+          }
+        }
+
+        if (closeBraceIndex === -1) {
+          continue
+        }
+
+        // Extract the JSON string
+        const jsonString = scriptContent.substring(openBraceIndex, closeBraceIndex + 1)
+
+        try {
+          const cdaData = JSON.parse(jsonString)
+
+          if (cdaData.cda) {
+            logger.info('Successfully extracted CDA data using alternative method')
+            return cdaData
+          }
+        } catch (parseError) {
+          logger.debug('Failed to parse extracted JSON with alternative method', parseError)
+          continue
+        }
+      }
+    }
+
+    throw new Error('Could not extract valid CDA data using any method')
+  }
+
+  /**
+   * Parse date string from CDA format to ISO format
+   * @param {string|number} dateValue - Date value from CDA data
+   * @returns {string} ISO date string
+   */
+  const parseCdaDate = (dateValue) => {
+    if (!dateValue) {
+      return new Date().toISOString()
+    }
+
+    // If it's a Unix timestamp (number)
+    if (typeof dateValue === 'number') {
+      return new Date(dateValue).toISOString()
+    }
+
+    // If it's a string, try to handle different formats
+    let dateString = dateValue.toString()
+
+    // Handle format like "2025-09-01T10:26:49GMT+0200"
+    if (dateString.includes('GMT')) {
+      // Replace GMT+XXXX with +XX:XX format
+      dateString = dateString.replace(/GMT([+-]\d{4})$/, (match, offset) => {
+        // Convert +0200 to +02:00
+        const hours = offset.substring(0, 3)
+        const minutes = offset.substring(3)
+        return `${hours}:${minutes}`
+      })
+    }
+
+    try {
+      const parsedDate = new Date(dateString)
+      if (isNaN(parsedDate.getTime())) {
+        logger.warn('Failed to parse date, using current date', { originalDate: dateValue, parsedString: dateString })
+        return new Date().toISOString()
+      }
+      return parsedDate.toISOString()
+    } catch (error) {
+      logger.warn('Date parsing error, using current date', { originalDate: dateValue, error: error.message })
+      return new Date().toISOString()
     }
   }
 
@@ -259,14 +431,24 @@ export const useImportStore = defineStore('import', () => {
     const cda = surveyData.cda
     const info = surveyData.info || {}
 
-    // Extract basic information
-    const title = cda.title || info.title || 'Imported Survey'
+    // Extract basic information - prioritize the proper questionnaire display name
+    const title = cda.event?.[0]?.code?.[0]?.coding?.[0]?.display || info.title || cda.title || 'Imported Survey'
     const questionnaireCode = info.label || cda.event?.[0]?.code?.[0]?.coding?.[0]?.code || 'imported-survey'
     const patientId = cda.subject?.display || info.PID || 'UNKNOWN'
 
-    // Extract dates
-    const startDate = cda.event?.[0]?.period?.start || cda.date || info.date || new Date().toISOString()
-    const endDate = cda.event?.[0]?.period?.end || startDate
+    // Extract and parse dates properly
+    const startDateRaw = cda.event?.[0]?.period?.start || cda.date || info.date || Date.now()
+    const endDateRaw = cda.event?.[0]?.period?.end || startDateRaw
+
+    const startDate = parseCdaDate(startDateRaw)
+    const endDate = parseCdaDate(endDateRaw)
+
+    logger.debug('Survey date conversion', {
+      startDateRaw,
+      endDateRaw,
+      startDate,
+      endDate,
+    })
 
     // Extract individual responses and results
     const responses = []
@@ -341,7 +523,133 @@ export const useImportStore = defineStore('import', () => {
    */
   const analyzeFileContent = async (content, filename) => {
     const service = initializeImportService()
-    return await service.analyzeFileContent(content, filename)
+    const basicAnalysis = await service.analyzeFileContent(content, filename)
+
+    // If it's an HTML survey file, enhance the analysis with survey-specific details
+    if (basicAnalysis.format === 'html') {
+      try {
+        const surveyData = extractSurveyDataFromHtml(content)
+
+        if (surveyData && surveyData.cda) {
+          const surveyAnalysis = analyzeSurveyData(surveyData)
+
+          // Merge survey-specific analysis with basic analysis
+          return {
+            ...basicAnalysis,
+            isSurvey: true,
+            surveyData: surveyAnalysis,
+            title: surveyAnalysis.title,
+            questionnaire: surveyAnalysis.questionnaire,
+            items: surveyAnalysis.items,
+            results: surveyAnalysis.results,
+            summary: surveyAnalysis.summary,
+          }
+        }
+      } catch (error) {
+        logger.warn('Failed to analyze survey data for preview', error)
+      }
+    }
+
+    return basicAnalysis
+  }
+
+  /**
+   * Analyze survey data for preview
+   * @param {Object} surveyData - Extracted survey data
+   * @returns {Object} Survey analysis
+   */
+  const analyzeSurveyData = (surveyData) => {
+    const cda = surveyData.cda
+    const info = surveyData.info || {}
+
+    // Extract basic information - prioritize the proper questionnaire display name
+    const title = cda.event?.[0]?.code?.[0]?.coding?.[0]?.display || info.title || cda.title || 'Imported Survey'
+    const questionnaireCode = info.label || cda.event?.[0]?.code?.[0]?.coding?.[0]?.code || 'imported-survey'
+    const questionnaire = {
+      code: questionnaireCode,
+      title: title,
+      system: cda.event?.[0]?.code?.[0]?.coding?.[0]?.system || 'http://snomed.info/sct',
+      display: cda.event?.[0]?.code?.[0]?.coding?.[0]?.display || title,
+    }
+
+    // Extract individual survey items (responses)
+    const items = []
+    const results = []
+
+    // Process sections for findings (individual responses)
+    if (cda.section) {
+      for (const section of cda.section) {
+        if (section.title === 'Findings Section' && section.entry) {
+          for (const entry of section.entry) {
+            const item = {
+              id: entry.title,
+              title: entry.title,
+              value: entry.value,
+              coding: entry.code?.[0]?.coding?.[0] || null,
+              selected: true, // Default to selected
+              type: typeof entry.value === 'number' ? 'numeric' : 'text',
+              system: entry.code?.[0]?.coding?.[0]?.system || 'http://snomed.info/sct',
+              code: entry.code?.[0]?.coding?.[0]?.code || '',
+              display: entry.code?.[0]?.coding?.[0]?.display || entry.title,
+            }
+            items.push(item)
+          }
+        }
+
+        // Process results section
+        if (section.title === 'Results Section' && section.entry) {
+          for (const entry of section.entry) {
+            const result = {
+              id: entry.title,
+              title: entry.title,
+              value: entry.value,
+              coding: entry.code?.[0]?.coding?.[0] || null,
+              selected: true, // Default to selected
+              type: 'result',
+              system: entry.code?.[0]?.coding?.[0]?.system || 'http://snomed.info/sct',
+              code: entry.code?.[0]?.coding?.[0]?.code || '',
+              display: entry.code?.[0]?.coding?.[0]?.display || entry.title,
+            }
+            results.push(result)
+          }
+        }
+      }
+    }
+
+    // Create summary
+    const totalScore = results.find((r) => r.id === 'sum' || r.title.toLowerCase().includes('sum'))
+    const summary = {
+      totalItems: items.length,
+      totalResults: results.length,
+      totalScore: totalScore ? totalScore.value : null,
+      questionnaire: questionnaire.display || questionnaire.title,
+      patientId: cda.subject?.display || info.PID || 'Unknown',
+    }
+
+    // Add evaluation if available
+    if (cda.section) {
+      const evalSection = cda.section.find((s) => s.title === 'Evaluation Section')
+      if (evalSection && evalSection.text && evalSection.text.div) {
+        // Extract evaluation text (remove HTML tags)
+        const evaluationText = evalSection.text.div
+          .replace(/<[^>]*>/g, '')
+          .replace(/&[^;]+;/g, '')
+          .trim()
+        summary.evaluation = evaluationText
+      }
+    }
+
+    return {
+      title,
+      questionnaire,
+      items,
+      results,
+      summary,
+      dates: {
+        start: cda.event?.[0]?.period?.start || cda.date || info.date,
+        end: cda.event?.[0]?.period?.end || cda.event?.[0]?.period?.start || cda.date || info.date,
+      },
+    }
   }
 
   /**
@@ -398,6 +706,9 @@ export const useImportStore = defineStore('import', () => {
 
     // Utility functions (exported for testing)
     extractSurveyDataFromHtml,
+    extractCdaAlternativeMethod,
+    parseCdaDate,
+    analyzeSurveyData,
     convertSurveyToQuestionnaireResponse,
   }
 })

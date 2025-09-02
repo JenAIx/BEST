@@ -85,12 +85,7 @@
 
                 <div class="text-caption text-grey-6 q-mb-md">
                   <q-icon name="info" class="q-mr-xs" />
-                  Select how you want to handle the imported data. You can choose to create new observations or update existing ones.
-                </div>
-
-                <!-- Import Button -->
-                <div class="q-mt-lg">
-                  <q-btn color="primary" icon="upload" label="Start Import" :loading="importStore.isImporting" :disable="!canImport" @click="startImport" class="full-width" />
+                  Select how you want to handle the imported data. New observations will be added to the patient's record.
                 </div>
               </div>
             </q-card-section>
@@ -184,8 +179,7 @@
 
                 <!-- Action Buttons -->
                 <div class="q-gutter-md">
-                  <q-btn color="info" icon="preview" label="Preview Import" @click="showPreviewDialog = true" :disable="!fileAnalysis.success" no-caps />
-                  <q-btn color="primary" icon="upload" label="Start Import" @click="startImport" :disable="fileAnalysis.errors && fileAnalysis.errors.length > 0" />
+                  <q-btn color="primary" icon="preview" label="Preview & Import" @click="showPreviewDialog = true" :disable="!fileAnalysis.success" no-caps class="q-px-lg" />
                   <q-btn flat color="grey-7" label="Upload Different File" @click="goBackToUpload" />
                 </div>
               </div>
@@ -355,8 +349,6 @@ const importSummary = ref(null)
 const importOptions = ref(['createNewObservations'])
 const importOptionList = [
   { label: 'Create new observations', value: 'createNewObservations' },
-  { label: 'Update existing observations (if matching)', value: 'updateExisting' },
-  { label: 'Skip duplicate entries', value: 'skipDuplicates' },
   { label: 'Validate data before import', value: 'validateData' },
 ]
 
@@ -376,10 +368,6 @@ const currentStepNumber = computed(() => {
     default:
       return 1
   }
-})
-
-const canImport = computed(() => {
-  return selectedFile.value && !importStore.isImporting
 })
 
 // Methods
@@ -740,7 +728,6 @@ const startImport = async () => {
     const result = await importStore.importForPatient(content, selectedFile.value.fileInfo.filename, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, {
       createMissingConcepts: true,
       validateData: importOptions.value.includes('validateData'),
-      duplicateHandling: importOptions.value.includes('updateExisting') ? 'update' : 'skip',
     })
 
     if (result.success) {
@@ -837,13 +824,24 @@ const goToPatientRecord = () => {
   }
 }
 
-const proceedWithImport = () => {
+const proceedWithImport = (selectionData) => {
   logger.info('User confirmed import from preview dialog', {
     filename: selectedFile.value?.fileInfo?.filename,
     patientId: selectedPatient.value?.PATIENT_CD,
     visitId: selectedVisit.value?.ENCOUNTER_NUM,
     strategy: fileAnalysis.value?.recommendedStrategy,
+    selectionData: selectionData || null,
   })
+
+  // Store selection data for the import process
+  if (selectionData) {
+    // For survey imports, we might want to pass the selection data to the import process
+    logger.info('Survey items selected for import', {
+      selectedItems: selectionData.selectedItems?.length || 0,
+      selectedResults: selectionData.selectedResults?.length || 0,
+      totalSelected: selectionData.totalSelected || 0,
+    })
+  }
 
   // Close the preview dialog
   showPreviewDialog.value = false
