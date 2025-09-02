@@ -3,46 +3,31 @@
  *
  * Handles import of clinical data from CSV files with support for:
  * - Two-header format (human-readable + concept codes) - Variant A
- * - Three-header format (FIELD_NAME + VALTYPE_CD + NAME_CHAR) - Variant B
+ * - Four-header format (FIELD_NAME + VALTYPE_CD + UNIT_CD + NAME_CHAR) - Variant B
  * - Automatic format detection and parsing
  * - Data validation and transformation
- * - Error handling and reporting
+ * - Proper handling of questionnaire observations with ValType='Q'
  */
 
-import { BaseImportService } from './base-import-service.js'
+import { createImportStructure } from './import-structure.js'
+import { logger } from '../logging-service.js'
 
-export class ImportCsvService extends BaseImportService {
+export class ImportCsvService {
   constructor(conceptRepository, cqlRepository) {
-    super(conceptRepository, cqlRepository)
-
-    // CSV configuration for different variants
-    this.config = {
-      variantA: {
-        delimiter: ',',
-        quoteChar: '"',
-        escapeChar: '"',
-        headerRows: 2, // Human-readable + concept codes
-        commentPrefix: '#',
-      },
-      variantB: {
-        delimiter: ';',
-        quoteChar: '"',
-        escapeChar: '"',
-        headerRows: 4, // FIELD_NAME + VALTYPE_CD + UNIT_CD + NAME_CHAR
-        commentPrefix: '#',
-      },
-    }
+    this.conceptRepository = conceptRepository
+    this.cqlRepository = cqlRepository
   }
 
   /**
    * Import CSV data from file content
    * @param {string} csvContent - Raw CSV file content
-   * @param {Object} options - Import options
+   * @param {string} filename - Original filename
    * @returns {Promise<Object>} Import result with success/data/errors
    */
-  // eslint-disable-next-line no-unused-vars
-  async importFromCsv(csvContent, _options = {}) {
+  async importFromCsv(csvContent, filename) {
     try {
+      logger.info('Starting CSV import', { filename })
+
       // Detect CSV variant
       const variant = this.detectCsvVariant(csvContent)
 
@@ -51,45 +36,50 @@ export class ImportCsvService extends BaseImportService {
 
       // Validate parsed structure
       const validationResult = this.validateCsvStructure(parsedData, variant)
+      if (!validationResult.isValid) {
+        return {
+          success: false,
+          data: null,
+          errors: validationResult.errors,
+          warnings: validationResult.warnings,
+        }
+      }
 
-      // Transform to clinical objects
-      const clinicalData = await this.transformCsvToClinical(parsedData, variant)
+      // Transform to importStructure format
+      const importStructure = this.transformToImportStructure(parsedData, variant, filename)
 
-      // Validate clinical data structure
-      const clinicalValidation = this.validateClinicalData(clinicalData)
+      // Validate the transformed structure
+      const structureValidation = this.validateImportStructure(importStructure)
+      if (!structureValidation.isValid) {
+        return {
+          success: false,
+          data: null,
+          errors: structureValidation.errors,
+          warnings: structureValidation.warnings,
+        }
+      }
 
-      const metadata = {
-        ...parsedData.metadata,
+      logger.info('CSV import completed successfully', {
         variant,
-        rowsProcessed: parsedData.dataRows.length,
-        patients: clinicalData.patients.length,
-        visits: clinicalData.visits.length,
-        observations: clinicalData.observations.length,
-        format: variant === 'variantA' ? 'Two-header (App Export)' : 'Four-header (Condensed)',
+        patients: importStructure.data.patients.length,
+        visits: importStructure.data.visits.length,
+        observations: importStructure.data.observations.length,
+      })
+
+      return {
+        success: true,
+        data: importStructure,
+        errors: [],
+        warnings: validationResult.warnings,
       }
-
-      // Combine all errors and warnings
-      const allErrors = [...validationResult.errors, ...clinicalValidation.errors]
-      const allWarnings = [...validationResult.warnings, ...clinicalValidation.warnings]
-
-      const isValid = allErrors.length === 0
-
-      // Debug logging for first import
-      if (!global.csvImportLogged) {
-        console.log('CSV Import Debug:', {
-          isValid,
-          validationErrors: validationResult.errors.length,
-          clinicalErrors: clinicalValidation.errors.length,
-          allErrors: allErrors.length,
-          firstValidationError: validationResult.errors[0],
-          firstClinicalError: clinicalValidation.errors[0],
-        })
-        global.csvImportLogged = true
-      }
-
-      return this.createImportResult(isValid, clinicalData, metadata, allErrors, allWarnings)
     } catch (error) {
-      return this.handleImportError(error, 'CSV processing')
+      logger.error('CSV import failed', { error: error.message, filename })
+      return {
+        success: false,
+        data: null,
+        errors: [{ code: 'CSV_IMPORT_ERROR', message: error.message }],
+        warnings: [],
+      }
     }
   }
 
@@ -105,26 +95,27 @@ export class ImportCsvService extends BaseImportService {
       throw new Error('CSV must have at least header rows')
     }
 
-    // Check if it uses semicolons (common in Variant B)
-    if (csvContent.includes(';')) {
-      // Check for Variant B patterns
-      const firstLine = lines[0]
-      const secondLine = lines[1] || ''
+    // First, detect the delimiter by counting occurrences
+    // const delimiter = this.detectDelimiterFromContent(csvContent)
 
-      // Variant B typically starts with FIELD_NAME
-      if (firstLine.startsWith('FIELD_NAME;') || firstLine.includes('FIELD_NAME;')) {
-        return 'variantB'
-      }
+    // Now determine variant based on content structure
+    const firstLine = lines[0]
 
-      // Check if second line has VALTYPE_CD patterns
+    // Check for Variant B patterns (FIELD_NAME header)
+    if (firstLine.includes('FIELD_NAME')) {
+      return 'variantB'
+    }
+
+    // Check if second line has VALTYPE_CD patterns (Variant B)
+    if (lines.length > 1) {
+      const secondLine = lines[1]
       if (secondLine.includes('VALTYPE_CD') || secondLine.includes('numeric') || secondLine.includes('date')) {
         return 'variantB'
       }
     }
 
     // Check for Variant A patterns (human-readable headers)
-    const firstLine = lines[0]
-    if (firstLine.toLowerCase().includes('patient id') || firstLine.toLowerCase().includes('gender') || firstLine.toLowerCase().includes('date of birth') || firstLine.toLowerCase().includes('age')) {
+    if (firstLine.toLowerCase().includes('patient id') || firstLine.toLowerCase().includes('gender') || firstLine.toLowerCase().includes('age')) {
       return 'variantA'
     }
 
@@ -138,6 +129,129 @@ export class ImportCsvService extends BaseImportService {
   }
 
   /**
+   * Parse CSV content based on detected variant
+   * @param {string} csvContent - Raw CSV content
+   * @param {string} variant - 'variantA' or 'variantB'
+   * @returns {Object} Parsed CSV structure
+   */
+  parseCsvContent(csvContent, variant) {
+    const lines = csvContent.split(/\r?\n/)
+
+    // Extract comments for metadata
+    const commentLines = lines.filter((line) => line.trim().startsWith('#'))
+
+    // Extract data lines (non-empty, non-comment)
+    const dataLines = lines.filter((line) => line.trim() && !line.startsWith('#'))
+
+    // Detect delimiter from content
+    const delimiter = this.detectDelimiterFromContent(csvContent)
+
+    if (variant === 'variantA') {
+      return this.parseVariantA(dataLines, commentLines, delimiter)
+    } else {
+      return this.parseVariantB(dataLines, commentLines, delimiter)
+    }
+  }
+
+  /**
+   * Parse Variant A format (2 headers: human-readable + concept codes)
+   * @param {Array} dataLines - Data lines
+   * @param {Array} commentLines - Comment lines
+   * @param {string} delimiter - Detected delimiter
+   * @returns {Object} Parsed structure
+   */
+  parseVariantA(dataLines, commentLines, delimiter) {
+    if (dataLines.length < 2) {
+      throw new Error('Variant A CSV must have at least 2 header rows')
+    }
+
+    const headers = {
+      humanReadable: this.parseCsvRow(dataLines[0], delimiter),
+      conceptCodes: this.parseCsvRow(dataLines[1], delimiter),
+    }
+
+    const dataRows = dataLines.slice(2).map((line) => this.parseCsvRow(line, delimiter))
+
+    return {
+      headers,
+      dataRows,
+      metadata: this.extractMetadataFromComments(commentLines),
+      variant: 'variantA',
+    }
+  }
+
+  /**
+   * Parse Variant B format (4 headers: FIELD_NAME + VALTYPE_CD + UNIT_CD + NAME_CHAR)
+   * @param {Array} dataLines - Data lines
+   * @param {Array} commentLines - Comment lines
+   * @param {string} delimiter - Detected delimiter
+   * @returns {Object} Parsed structure
+   */
+  parseVariantB(dataLines, commentLines, delimiter) {
+    if (dataLines.length < 4) {
+      throw new Error('Variant B CSV must have at least 4 header rows')
+    }
+
+    const headers = {
+      fieldNames: this.parseCsvRow(dataLines[0], delimiter),
+      valtypeCodes: this.parseCsvRow(dataLines[1], delimiter),
+      unitCodes: this.parseCsvRow(dataLines[2], delimiter),
+      nameChars: this.parseCsvRow(dataLines[3], delimiter),
+    }
+
+    const dataRows = dataLines.slice(4).map((line) => this.parseCsvRow(line, delimiter))
+
+    return {
+      headers,
+      dataRows,
+      metadata: this.extractMetadataFromComments(commentLines),
+      variant: 'variantB',
+    }
+  }
+
+  /**
+   * Detect the most likely delimiter used in CSV content by counting occurrences
+   * @param {string} csvContent - Full CSV content
+   * @returns {string} Detected delimiter (defaults to comma)
+   */
+  detectDelimiterFromContent(csvContent) {
+    const lines = csvContent.split(/\r?\n/).filter((line) => line.trim() && !line.startsWith('#'))
+
+    if (lines.length === 0) {
+      return ','
+    }
+
+    // Count occurrences of each delimiter across all lines
+    const delimiters = [',', ';', '|', '\t']
+    const totalCounts = {}
+
+    delimiters.forEach((delimiter) => {
+      totalCounts[delimiter] = 0
+    })
+
+    // Count occurrences in each line
+    lines.forEach((line) => {
+      delimiters.forEach((delimiter) => {
+        const count = (line.match(new RegExp('\\' + delimiter, 'g')) || []).length
+        totalCounts[delimiter] += count
+      })
+    })
+
+    // Find delimiter with highest total count
+    let bestDelimiter = ','
+    let maxCount = 0
+
+    Object.entries(totalCounts).forEach(([delimiter, count]) => {
+      if (count > maxCount) {
+        maxCount = count
+        bestDelimiter = delimiter
+      }
+    })
+
+    return bestDelimiter
+  }
+
+  /**
    * Detect the most likely delimiter used in a CSV line
    * @param {string} line - Sample CSV line
    * @returns {string|null} Detected delimiter or null
@@ -146,12 +260,11 @@ export class ImportCsvService extends BaseImportService {
     const delimiters = [',', ';', '|', '\t']
     const counts = {}
 
-    // Count occurrences of each delimiter
     delimiters.forEach((delimiter) => {
       counts[delimiter] = line.split(delimiter).length - 1
     })
 
-    // Find delimiter with highest count (but at least 2 occurrences to be reliable)
+    // Find delimiter with highest count (but at least 2 occurrences)
     let bestDelimiter = null
     let maxCount = 0
 
@@ -163,59 +276,6 @@ export class ImportCsvService extends BaseImportService {
     })
 
     return bestDelimiter
-  }
-
-  /**
-   * Parse CSV content based on detected variant
-   * @param {string} csvContent - Raw CSV content
-   * @param {string} variant - 'variantA' or 'variantB'
-   * @returns {Object} Parsed CSV structure
-   */
-  parseCsvContent(csvContent, variant) {
-    const config = this.config[variant]
-    const lines = csvContent.split(/\r?\n/)
-
-    // Extract comments for metadata
-    const commentLines = lines.filter((line) => line.trim().startsWith(config.commentPrefix))
-
-    // Extract data lines (non-empty, non-comment)
-    const dataLines = lines.filter((line) => line.trim() && !line.startsWith(config.commentPrefix))
-
-    if (dataLines.length < config.headerRows) {
-      throw new Error(`CSV must have at least ${config.headerRows} header rows for ${variant}`)
-    }
-
-    let headers, dataRows
-
-    if (variant === 'variantA') {
-      // Variant A: Two headers (human-readable + concept codes)
-      const actualDelimiter = this.detectDelimiter(dataLines[0]) || config.delimiter
-      headers = {
-        humanReadable: this.parseCsvRow(dataLines[0], actualDelimiter),
-        conceptCodes: this.parseCsvRow(dataLines[1], actualDelimiter),
-      }
-      dataRows = dataLines.slice(2).map((line) => this.parseCsvRow(line, actualDelimiter))
-    } else {
-      // Variant B: Four headers (FIELD_NAME + VALTYPE_CD + UNIT_CD + NAME_CHAR)
-      const actualDelimiter = this.detectDelimiter(dataLines[0]) || config.delimiter
-      headers = {
-        fieldNames: this.parseCsvRow(dataLines[0], actualDelimiter),
-        valtypeCodes: this.parseCsvRow(dataLines[1], actualDelimiter),
-        unitCodes: this.parseCsvRow(dataLines[2], actualDelimiter),
-        nameChars: this.parseCsvRow(dataLines[3], actualDelimiter),
-      }
-      dataRows = dataLines.slice(4).map((line) => this.parseCsvRow(line, actualDelimiter))
-    }
-
-    // Extract metadata from comments
-    const metadata = this.extractMetadataFromComments(commentLines)
-
-    return {
-      headers,
-      dataRows,
-      metadata,
-      variant,
-    }
   }
 
   /**
@@ -256,7 +316,6 @@ export class ImportCsvService extends BaseImportService {
 
     // Add final field
     result.push(current.trim())
-
     return result
   }
 
@@ -300,116 +359,132 @@ export class ImportCsvService extends BaseImportService {
     const errors = []
     const warnings = []
 
-    try {
-      const { headers, dataRows } = parsedData
+    const { headers, dataRows } = parsedData
 
-      // Check headers
-      if (variant === 'variantA') {
-        if (!headers.humanReadable || headers.humanReadable.length === 0) {
-          errors.push(this.createError('MISSING_HEADERS', 'Human-readable headers are missing', { type: 'header' }))
-        }
-        if (!headers.conceptCodes || headers.conceptCodes.length === 0) {
-          errors.push(this.createError('MISSING_HEADERS', 'Concept code headers are missing', { type: 'header' }))
-        }
-        if (headers.humanReadable?.length !== headers.conceptCodes?.length) {
-          errors.push(this.createError('HEADER_MISMATCH', 'Header row lengths do not match', { type: 'header' }))
-        }
-      } else {
-        if (!headers.fieldNames || headers.fieldNames.length === 0) {
-          errors.push(this.createError('MISSING_HEADERS', 'Field name headers are missing', { type: 'header' }))
-        }
-        if (!headers.valtypeCodes || headers.valtypeCodes.length === 0) {
-          errors.push(this.createError('MISSING_HEADERS', 'Value type headers are missing', { type: 'header' }))
-        }
-        if (!headers.unitCodes || headers.unitCodes.length === 0) {
-          errors.push(this.createError('MISSING_HEADERS', 'Unit code headers are missing', { type: 'header' }))
-        }
-        if (!headers.nameChars || headers.nameChars.length === 0) {
-          errors.push(this.createError('MISSING_HEADERS', 'Name character headers are missing', { type: 'header' }))
-        }
+    // Check headers
+    if (variant === 'variantA') {
+      if (!headers.humanReadable || headers.humanReadable.length === 0) {
+        errors.push({ code: 'MISSING_HEADERS', message: 'Human-readable headers are missing' })
       }
-
-      // Check data rows
-      if (!dataRows || dataRows.length === 0) {
-        errors.push(this.createError('NO_DATA_ROWS', 'No data rows found in CSV', { type: 'data' }))
-      } else {
-        // Validate each data row has correct number of columns
-        const expectedColumns = variant === 'variantA' ? headers.humanReadable?.length : headers.fieldNames?.length
-
-        dataRows.forEach((row, index) => {
-          if (row.length !== expectedColumns) {
-            errors.push(this.createError('ROW_LENGTH_MISMATCH', `Row ${index + 1} has ${row.length} columns, expected ${expectedColumns}`, { type: 'data', row: index + 1 }))
-          }
-        })
+      if (!headers.conceptCodes || headers.conceptCodes.length === 0) {
+        errors.push({ code: 'MISSING_HEADERS', message: 'Concept code headers are missing' })
       }
-
-      // Validate required fields exist
-      if (variant === 'variantA') {
-        const conceptHeaders = headers.conceptCodes || []
-        const requiredFields = ['PATIENT_CD', 'START_DATE']
-
-        requiredFields.forEach((field) => {
-          if (!conceptHeaders.includes(field)) {
-            warnings.push(this.createWarning('MISSING_RECOMMENDED_FIELD', `Recommended field '${field}' not found in headers`, { type: 'field' }))
-          }
-        })
+      if (headers.humanReadable?.length !== headers.conceptCodes?.length) {
+        errors.push({ code: 'HEADER_MISMATCH', message: 'Header row lengths do not match' })
       }
-    } catch (error) {
-      errors.push(this.createError('VALIDATION_ERROR', `Validation failed: ${error.message}`, { type: 'system' }))
+    } else {
+      if (!headers.fieldNames || headers.fieldNames.length === 0) {
+        errors.push({ code: 'MISSING_HEADERS', message: 'Field name headers are missing' })
+      }
+      if (!headers.valtypeCodes || headers.valtypeCodes.length === 0) {
+        errors.push({ code: 'MISSING_HEADERS', message: 'Value type headers are missing' })
+      }
     }
 
-    return {
-      isValid: errors.length === 0,
-      errors,
-      warnings,
+    // Check data rows
+    if (!dataRows || dataRows.length === 0) {
+      errors.push({ code: 'NO_DATA_ROWS', message: 'No data rows found in CSV' })
     }
+
+    return { isValid: errors.length === 0, errors, warnings }
   }
 
   /**
-   * Transform parsed CSV data to clinical objects
+   * Transform parsed CSV data to importStructure format
    * @param {Object} parsedData - Parsed CSV data
    * @param {string} variant - CSV variant
-   * @param {Object} options - Transformation options
-   * @returns {Promise<Object>} Clinical data structure
+   * @param {string} filename - Original filename
+   * @returns {Object} Import structure
    */
-  async transformCsvToClinical(parsedData, variant) {
-    const { headers, dataRows } = parsedData
+  transformToImportStructure(parsedData, variant, filename) {
+    const importStructure = createImportStructure({
+      metadata: {
+        title: parsedData.metadata.description || 'CSV Import',
+        format: 'csv',
+        source: parsedData.metadata.source || 'CSV Import Service',
+        author: 'CSV Import Service',
+        exportDate: parsedData.metadata.exportDate || new Date().toISOString(),
+        filename: filename,
+      },
+      exportInfo: {
+        format: 'csv',
+        version: parsedData.metadata.version || '1.0',
+        exportedAt: new Date().toISOString(),
+        source: 'CSV Import Service',
+      },
+    })
 
+    // Extract data from CSV
+    const { patients, visits, observations } = this.extractDataFromCsv(parsedData, variant)
+
+    // Populate import structure
+    importStructure.data.patients = patients
+    importStructure.data.visits = visits
+    importStructure.data.observations = observations
+
+    // Update statistics
+    importStructure.statistics.patientCount = patients.length
+    importStructure.statistics.visitCount = visits.length
+    importStructure.statistics.observationCount = observations.length
+    importStructure.metadata.patientCount = patients.length
+    importStructure.metadata.visitCount = visits.length
+    importStructure.metadata.observationCount = observations.length
+    importStructure.metadata.patientIds = patients.map((p) => p.PATIENT_CD || p.id)
+
+    return importStructure
+  }
+
+  /**
+   * Extract clinical data from CSV
+   * @param {Object} parsedData - Parsed CSV data
+   * @param {string} variant - CSV variant
+   * @returns {Object} Extracted clinical data
+   */
+  extractDataFromCsv(parsedData, variant) {
     const patients = []
     const visits = []
     const observations = []
 
+    // Track patient and visit mappings
+    const patientMap = new Map()
+    const visitMap = new Map()
+    let patientCounter = 1
+    let visitCounter = 1
+    let observationCounter = 1
+
     // Group rows by patient
     const patientGroups = new Map()
 
-    dataRows.forEach((row, rowIndex) => {
+    parsedData.dataRows.forEach((row, rowIndex) => {
       try {
         if (variant === 'variantA') {
-          this.processVariantARow(row, headers, patientGroups, rowIndex)
+          this.processVariantARow(row, parsedData.headers, patientGroups, rowIndex)
         } else {
-          this.processVariantBRow(row, headers, patientGroups, rowIndex)
+          this.processVariantBRow(row, parsedData.headers, patientGroups, rowIndex)
         }
       } catch (error) {
-        console.warn(`Failed to process row ${rowIndex + 1}:`, error.message)
+        logger.warn(`Failed to process row ${rowIndex + 1}:`, error.message)
       }
     })
 
     // Convert grouped data to clinical objects
     for (const [, patientData] of patientGroups) {
       // Create patient
-      const patient = this.createPatientFromData(patientData.patientInfo)
+      const patient = this.createPatientFromData(patientData.patientInfo, patientCounter++)
       patients.push(patient)
+      patientMap.set(patient.PATIENT_CD, patient)
 
       // Create visits
       if (patientData.visits && patientData.visits.length > 0) {
         patientData.visits.forEach((visitInfo) => {
-          const visit = this.createVisitFromData(visitInfo, patient.PATIENT_NUM)
+          const visit = this.createVisitFromData(visitInfo, patient.PATIENT_NUM, visitCounter++)
           visits.push(visit)
+          visitMap.set(visit.ENCOUNTER_NUM, visit)
 
           // Create observations for this visit
           if (visitInfo.observations && visitInfo.observations.length > 0) {
             visitInfo.observations.forEach((obsInfo) => {
-              const observation = this.createObservationFromData(obsInfo, visit.ENCOUNTER_NUM, patient.PATIENT_NUM)
+              const observation = this.createObservationFromData(obsInfo, visit.ENCOUNTER_NUM, patient.PATIENT_NUM, observationCounter++)
               observations.push(observation)
             })
           }
@@ -419,17 +494,13 @@ export class ImportCsvService extends BaseImportService {
       // Create patient-level observations
       if (patientData.observations && patientData.observations.length > 0) {
         patientData.observations.forEach((obsInfo) => {
-          const observation = this.createObservationFromData(obsInfo, null, patient.PATIENT_NUM)
+          const observation = this.createObservationFromData(obsInfo, null, patient.PATIENT_NUM, observationCounter++)
           observations.push(observation)
         })
       }
     }
 
-    return {
-      patients,
-      visits,
-      observations,
-    }
+    return { patients, visits, observations }
   }
 
   /**
@@ -440,7 +511,10 @@ export class ImportCsvService extends BaseImportService {
    * @param {number} rowIndex - Row index for error reporting
    */
   processVariantARow(row, headers, patientGroups, rowIndex) {
-    const patientKey = row[headers.conceptCodes.indexOf('PATIENT_CD')] || `PATIENT_${rowIndex}`
+    const patientCdIndex = headers.conceptCodes.indexOf('PATIENT_CD')
+    if (patientCdIndex === -1) return
+
+    const patientKey = row[patientCdIndex]?.trim() || `PATIENT_${rowIndex}`
 
     if (!patientGroups.has(patientKey)) {
       patientGroups.set(patientKey, {
@@ -455,17 +529,14 @@ export class ImportCsvService extends BaseImportService {
     // Extract patient information
     headers.conceptCodes.forEach((conceptCode, colIndex) => {
       const value = row[colIndex]?.trim()
+      if (!value) return
 
-      if (value && conceptCode) {
-        if (this.isPatientField(conceptCode)) {
-          patientData.patientInfo[conceptCode] = value
-        } else if (this.isVisitField(conceptCode)) {
-          // Create or update visit
-          this.addVisitData(patientData, conceptCode, value, row, headers)
-        } else {
-          // Observation data
-          this.addObservationData(patientData, conceptCode, value, row, headers)
-        }
+      if (this.isPatientField(conceptCode)) {
+        patientData.patientInfo[conceptCode] = value
+      } else if (this.isVisitField(conceptCode)) {
+        this.addVisitData(patientData, conceptCode, value, row, headers)
+      } else {
+        this.addObservationData(patientData, conceptCode, value, row, headers)
       }
     })
   }
@@ -477,17 +548,11 @@ export class ImportCsvService extends BaseImportService {
    * @param {Map} patientGroups - Patient grouping map
    * @param {number} rowIndex - Row index for error reporting
    */
-  processVariantBRow(row, headers, patientGroups) {
-    // For Variant B, we need to identify the patient first
-    // The format has specific column positions, but we need to map them
-    const fieldNames = headers.fieldNames
+  processVariantBRow(row, headers, patientGroups, rowIndex) {
+    const patientCdIndex = headers.fieldNames.indexOf('PATIENT_CD')
+    if (patientCdIndex === -1) return
 
-    // Find patient identifier
-    const patientCdIndex = fieldNames.indexOf('PATIENT_CD')
-    if (patientCdIndex === -1) return // Can't process without patient ID
-
-    const patientKey = row[patientCdIndex]?.trim()
-    if (!patientKey) return
+    const patientKey = row[patientCdIndex]?.trim() || `PATIENT_${rowIndex}`
 
     if (!patientGroups.has(patientKey)) {
       patientGroups.set(patientKey, {
@@ -500,18 +565,19 @@ export class ImportCsvService extends BaseImportService {
     const patientData = patientGroups.get(patientKey)
 
     // Extract data based on field names
-    fieldNames.forEach((fieldName, colIndex) => {
+    headers.fieldNames.forEach((fieldName, colIndex) => {
       const value = row[colIndex]?.trim()
       if (!value) return
 
-      // Map Variant B fields to our internal format
+      const valtypeCd = headers.valtypeCodes[colIndex] || 'text'
+      const unitCd = headers.unitCodes[colIndex] || null
+
       if (this.isPatientFieldVariantB(fieldName)) {
         patientData.patientInfo[fieldName] = value
       } else if (this.isVisitFieldVariantB(fieldName)) {
         this.addVisitDataVariantB(patientData, fieldName, value, row, headers)
       } else {
-        // Observation data
-        this.addObservationDataVariantB(patientData, fieldName, value, row, headers)
+        this.addObservationDataVariantB(patientData, fieldName, value, valtypeCd, unitCd, row, headers)
       }
     })
   }
@@ -532,18 +598,8 @@ export class ImportCsvService extends BaseImportService {
    * @returns {boolean} True if patient field
    */
   isPatientFieldVariantB(fieldName) {
-    const patientFields = ['PATIENT_CD', 'PATIENT_NUM', 'SEX_CD', 'GENDER', 'AGE_IN_YEARS', 'AGE', 'BIRTH_DATE', 'DOB']
+    const patientFields = ['PATIENT_NUM', 'PATIENT_CD', 'SEX_CD', 'AGE_IN_YEARS', 'BIRTH_DATE']
     return patientFields.includes(fieldName)
-  }
-
-  /**
-   * Check if field name is a visit-level field (Variant B)
-   * @param {string} fieldName - Field name to check
-   * @returns {boolean} True if visit field
-   */
-  isVisitFieldVariantB(fieldName) {
-    const visitFields = ['START_DATE', 'VISIT_DATE', 'END_DATE', 'LOCATION_CD', 'INOUT_CD', 'ENCOUNTER_NUM']
-    return visitFields.includes(fieldName)
   }
 
   /**
@@ -557,6 +613,16 @@ export class ImportCsvService extends BaseImportService {
   }
 
   /**
+   * Check if field name is a visit-level field (Variant B)
+   * @param {string} fieldName - Field name to check
+   * @returns {boolean} True if visit field
+   */
+  isVisitFieldVariantB(fieldName) {
+    const visitFields = ['ENCOUNTER_NUM', 'START_DATE', 'END_DATE', 'PROVIDER_ID', 'LOCATION_CD']
+    return visitFields.includes(fieldName)
+  }
+
+  /**
    * Add visit data to patient data structure
    * @param {Object} patientData - Patient data object
    * @param {string} conceptCode - Concept code
@@ -565,20 +631,16 @@ export class ImportCsvService extends BaseImportService {
    * @param {Object} headers - Header information
    */
   addVisitData(patientData, conceptCode, value, row, headers) {
-    // Get the START_DATE from the row to identify the visit
     const startDateIndex = headers.conceptCodes.indexOf('START_DATE')
     const visitStartDate = startDateIndex >= 0 ? row[startDateIndex] : null
 
-    // Find or create visit based on START_DATE
     let visit = null
     if (visitStartDate) {
       visit = patientData.visits.find((v) => v.START_DATE === visitStartDate)
     }
 
     if (!visit) {
-      visit = {
-        observations: [],
-      }
+      visit = { observations: [] }
       patientData.visits.push(visit)
     }
 
@@ -600,21 +662,17 @@ export class ImportCsvService extends BaseImportService {
       VALTYPE_CD: this.determineValtypeCd(value),
     }
 
-    // Try to associate with a visit if visit data exists in the same row
+    // Try to associate with a visit
     const visitIndex = headers.conceptCodes.indexOf('START_DATE')
     if (visitIndex >= 0 && row[visitIndex]) {
       const visitDate = row[visitIndex]
       let visit = patientData.visits.find((v) => v.START_DATE === visitDate)
       if (!visit) {
-        visit = {
-          START_DATE: visitDate,
-          observations: [],
-        }
+        visit = { START_DATE: visitDate, observations: [] }
         patientData.visits.push(visit)
       }
       visit.observations.push(observation)
     } else {
-      // Patient-level observation
       patientData.observations.push(observation)
     }
   }
@@ -628,18 +686,12 @@ export class ImportCsvService extends BaseImportService {
    * @param {Object} headers - Header information
    */
   addVisitDataVariantB(patientData, fieldName, value) {
-    // For Variant B, we need to find or create a visit
-    // This is simplified - in practice we'd need more sophisticated logic
-    let visit = patientData.visits[0] // For now, just use the first visit or create one
-
+    let visit = patientData.visits[0]
     if (!visit) {
-      visit = {
-        observations: [],
-      }
+      visit = { observations: [] }
       patientData.visits.push(visit)
     }
 
-    // Map field name to our internal format
     const mappedField = this.mapVariantBFieldToInternal(fieldName)
     visit[mappedField] = value
   }
@@ -649,26 +701,26 @@ export class ImportCsvService extends BaseImportService {
    * @param {Object} patientData - Patient data object
    * @param {string} fieldName - Field name
    * @param {string} value - Field value
+   * @param {string} valtypeCd - Value type code
+   * @param {string} unitCd - Unit code
    * @param {Array} row - Full row data
    * @param {Object} headers - Header information
    */
-  addObservationDataVariantB(patientData, fieldName, value) {
-    // Skip standard fields that are handled elsewhere
+  addObservationDataVariantB(patientData, fieldName, value, valtypeCd, unitCd) {
     if (this.isPatientFieldVariantB(fieldName) || this.isVisitFieldVariantB(fieldName)) {
       return
     }
 
     const observation = {
-      CONCEPT_CD: fieldName, // Use field name as concept code for now
+      CONCEPT_CD: fieldName,
       VALUE: value,
-      VALTYPE_CD: this.determineValtypeCd(value),
+      VALTYPE_CD: this.mapValtypeCd(valtypeCd),
+      UNIT_CD: unitCd,
     }
 
-    // Try to associate with a visit if one exists
     if (patientData.visits.length > 0) {
       patientData.visits[0].observations.push(observation)
     } else {
-      // Patient-level observation
       patientData.observations.push(observation)
     }
   }
@@ -684,38 +736,114 @@ export class ImportCsvService extends BaseImportService {
       PATIENT_CD: 'PATIENT_CD',
       ENCOUNTER_NUM: 'ENCOUNTER_NUM',
       START_DATE: 'START_DATE',
-      VISIT_DATE: 'START_DATE',
       END_DATE: 'END_DATE',
+      PROVIDER_ID: 'PROVIDER_ID',
       LOCATION_CD: 'LOCATION_CD',
-      INOUT_CD: 'INOUT_CD',
-      SEX_CD: 'SEX_CD',
-      GENDER: 'SEX_CD',
-      AGE_IN_YEARS: 'AGE_IN_YEARS',
-      AGE: 'AGE_IN_YEARS',
-      BIRTH_DATE: 'BIRTH_DATE',
-      DOB: 'BIRTH_DATE',
+    }
+    return mapping[fieldName] || fieldName
+  }
+
+  /**
+   * Map Variant B value type codes to internal format
+   * @param {string} valtypeCd - Variant B value type code
+   * @returns {string} Internal value type code
+   */
+  mapValtypeCd(valtypeCd) {
+    const mapping = {
+      numeric: 'N',
+      text: 'T',
+      date: 'D',
+      finding: 'T',
+    }
+    return mapping[valtypeCd] || 'T'
+  }
+
+  /**
+   * Determine value type code from value
+   * @param {string} value - Field value
+   * @returns {string} Value type code
+   */
+  determineValtypeCd(value) {
+    if (!value) return 'T'
+
+    // Check if it's a number
+    if (!isNaN(value) && !isNaN(parseFloat(value))) {
+      return 'N'
     }
 
-    return mapping[fieldName] || fieldName
+    // Check if it's a date
+    if (this.isDate(value)) {
+      return 'D'
+    }
+
+    return 'T'
+  }
+
+  /**
+   * Check if value is a date
+   * @param {string} value - Value to check
+   * @returns {boolean} True if date
+   */
+  isDate(value) {
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+    return dateRegex.test(value)
   }
 
   /**
    * Create patient object from extracted data
    * @param {Object} patientInfo - Patient information
+   * @param {number} patientNum - Patient number
    * @returns {Object} Patient object
    */
-  createPatientFromData(patientInfo) {
-    return this.normalizePatient(patientInfo)
+  createPatientFromData(patientInfo, patientNum) {
+    return {
+      PATIENT_NUM: patientNum,
+      PATIENT_CD: patientInfo.PATIENT_CD || `PATIENT_${patientNum}`,
+      VITAL_STATUS_CD: 'SCTID: 438949009', // Default: alive
+      BIRTH_DATE: patientInfo.BIRTH_DATE || null,
+      DEATH_DATE: null,
+      AGE_IN_YEARS: patientInfo.AGE_IN_YEARS ? parseInt(patientInfo.AGE_IN_YEARS) : null,
+      SEX_CD: patientInfo.SEX_CD || null,
+      LANGUAGE_CD: null,
+      RACE_CD: null,
+      MARITAL_STATUS_CD: null,
+      RELIGION_CD: null,
+      STATECITYZIP_PATH: null,
+      PATIENT_BLOB: null,
+      UPDATE_DATE: new Date().toISOString().split('T')[0],
+      DOWNLOAD_DATE: null,
+      IMPORT_DATE: new Date().toISOString(),
+      SOURCESYSTEM_CD: 'CSV_IMPORT',
+      UPLOAD_ID: 1,
+      CREATED_AT: new Date().toISOString(),
+      UPDATED_AT: new Date().toISOString(),
+    }
   }
 
   /**
    * Create visit object from extracted data
    * @param {Object} visitInfo - Visit information
    * @param {number} patientNum - Patient number
+   * @param {number} visitNum - Visit number
    * @returns {Object} Visit object
    */
-  createVisitFromData(visitInfo, patientNum) {
-    return this.normalizeVisit(visitInfo, patientNum)
+  createVisitFromData(visitInfo, patientNum, visitNum) {
+    return {
+      ENCOUNTER_NUM: visitInfo.ENCOUNTER_NUM || visitNum,
+      PATIENT_NUM: patientNum,
+      ACTIVE_STATUS_CD: 'SCTID: 55561003', // Default: active
+      START_DATE: visitInfo.START_DATE || new Date().toISOString().split('T')[0],
+      END_DATE: visitInfo.END_DATE || null,
+      INOUT_CD: visitInfo.INOUT_CD || 'O', // Default: outpatient
+      LOCATION_CD: visitInfo.LOCATION_CD || 'CSV_IMPORT',
+      VISIT_BLOB: null,
+      UPDATE_DATE: null,
+      DOWNLOAD_DATE: null,
+      IMPORT_DATE: null,
+      SOURCESYSTEM_CD: 'CSV_IMPORT',
+      UPLOAD_ID: 1,
+      CREATED_AT: new Date().toISOString().split('T')[0],
+    }
   }
 
   /**
@@ -723,14 +851,91 @@ export class ImportCsvService extends BaseImportService {
    * @param {Object} obsInfo - Observation information
    * @param {number} encounterNum - Encounter number (null for patient-level)
    * @param {number} patientNum - Patient number
+   * @param {number} observationNum - Observation number
    * @returns {Object} Observation object
    */
-  createObservationFromData(obsInfo, encounterNum, patientNum) {
-    const observation = this.normalizeObservation(obsInfo, encounterNum)
+  createObservationFromData(obsInfo, encounterNum, patientNum, observationNum) {
+    const observation = {
+      OBSERVATION_ID: observationNum,
+      ENCOUNTER_NUM: encounterNum,
+      PATIENT_NUM: patientNum,
+      CATEGORY_CHAR: this.determineCategory(obsInfo.CONCEPT_CD),
+      CONCEPT_CD: obsInfo.CONCEPT_CD,
+      PROVIDER_ID: null,
+      START_DATE: new Date().toISOString().split('T')[0],
+      INSTANCE_NUM: 1,
+      VALTYPE_CD: obsInfo.VALTYPE_CD || 'T',
+      TVAL_CHAR: null,
+      NVAL_NUM: null,
+      VALUEFLAG_CD: null,
+      QUANTITY_NUM: null,
+      UNIT_CD: obsInfo.UNIT_CD || null,
+      END_DATE: null,
+      LOCATION_CD: null,
+      CONFIDENCE_NUM: null,
+      OBSERVATION_BLOB: null,
+      UPDATE_DATE: null,
+      DOWNLOAD_DATE: null,
+      IMPORT_DATE: null,
+      SOURCESYSTEM_CD: 'CSV_IMPORT',
+      UPLOAD_ID: 1,
+      CREATED_AT: new Date().toISOString().split('T')[0],
+    }
 
-    // Add patient number to the observation
-    observation.PATIENT_NUM = patientNum
+    // Set value based on type
+    if (obsInfo.VALTYPE_CD === 'N') {
+      observation.NVAL_NUM = parseFloat(obsInfo.VALUE)
+    } else {
+      observation.TVAL_CHAR = obsInfo.VALUE
+    }
 
     return observation
+  }
+
+  /**
+   * Determine observation category from concept code
+   * @param {string} conceptCd - Concept code
+   * @returns {string} Category code
+   */
+  determineCategory(conceptCd) {
+    if (!conceptCd) return 'CLINICAL'
+
+    const conceptLower = conceptCd.toLowerCase()
+    if (conceptLower.includes('questionnaire') || conceptLower.includes('custom')) return 'SURVEY_BEST'
+    if (conceptLower.includes('lid:') && conceptLower.includes('72172')) return 'SURVEY_BEST' // MoCA
+    if (conceptLower.includes('sctid:') && conceptLower.includes('47965005')) return 'DIAGNOSIS'
+    if (conceptLower.includes('lid:') && (conceptLower.includes('2947') || conceptLower.includes('6298'))) return 'LAB'
+    if (conceptLower.includes('sctid:') && conceptLower.includes('399423000')) return 'ADMINISTRATIVE'
+    if (conceptLower.includes('sctid:') && conceptLower.includes('60621009')) return 'VITAL_SIGNS'
+    if (conceptLower.includes('lid:') && conceptLower.includes('52418')) return 'MEDICATION'
+    if (conceptLower.includes('lid:') && conceptLower.includes('74287')) return 'SOCIAL_HISTORY'
+    if (conceptLower.includes('sctid:') && conceptLower.includes('262188008')) return 'ASSESSMENT'
+
+    return 'CLINICAL'
+  }
+
+  /**
+   * Validate import structure
+   * @param {Object} importStructure - Import structure to validate
+   * @returns {Object} Validation result
+   */
+  validateImportStructure(importStructure) {
+    const errors = []
+    const warnings = []
+
+    if (!importStructure) {
+      errors.push({ code: 'MISSING_STRUCTURE', message: 'Import structure is missing' })
+      return { isValid: false, errors, warnings }
+    }
+
+    if (!importStructure.data) {
+      errors.push({ code: 'MISSING_DATA', message: 'Import structure missing data section' })
+    }
+
+    if (!importStructure.metadata) {
+      errors.push({ code: 'MISSING_METADATA', message: 'Import structure missing metadata section' })
+    }
+
+    return { isValid: errors.length === 0, errors, warnings }
   }
 }

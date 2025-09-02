@@ -1,17 +1,17 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store.js'
-import { useQuestionnaireStore } from './questionnaire-store.js'
+// import { useQuestionnaireStore } from './questionnaire-store.js'
 import { logger } from '../core/services/logging-service.js'
 import { ImportService } from '../core/services/imports/import-service.js'
 
 /**
  * Import Management Store
- * Handles file import operations, survey imports, and import state management
+ * Handles file import operations using the new modular import system
  */
 export const useImportStore = defineStore('import', () => {
   const dbStore = useDatabaseStore()
-  const questionnaireStore = useQuestionnaireStore()
+  // const questionnaireStore = useQuestionnaireStore()
 
   // State
   const importHistory = ref([])
@@ -20,6 +20,10 @@ export const useImportStore = defineStore('import', () => {
   const importProgress = ref('')
   const importProgressValue = ref(0)
   const lastImportResult = ref(null)
+
+  // Selection state for preview dialog
+  const currentSelections = ref(null)
+  const selectionHistory = ref([])
 
   // Import service instance
   const importService = ref(null)
@@ -52,15 +56,133 @@ export const useImportStore = defineStore('import', () => {
   // Actions
 
   /**
-   * Import file for specific patient and visit
+   * Analyze file content for import preview
    * @param {string} content - File content
    * @param {string} filename - Original filename
-   * @param {number} patientNum - Patient number
-   * @param {number} encounterNum - Encounter number
+   * @returns {Promise<Object>} Analysis result with importStructure
+   */
+  const analyzeFileContent = async (content, filename) => {
+    const service = initializeImportService()
+
+    try {
+      logger.info('Starting file analysis', { filename, contentLength: content.length })
+
+      // Use the new import service to analyze the file
+      const analysisResult = await service.analyzeFile(content, filename)
+
+      if (!analysisResult.success) {
+        logger.error('File analysis failed', { filename, errors: analysisResult.errors })
+        return {
+          success: false,
+          errors: analysisResult.errors,
+          format: 'unknown',
+          patientsCount: 0,
+          visitsCount: 0,
+          observationsCount: 0,
+          recommendedStrategy: 'single_patient',
+          warnings: [],
+          estimatedImportTime: 'N/A',
+        }
+      }
+
+      // For supported formats, also get the full import structure for preview
+      let importStructure = null
+      if (analysisResult.data.isSupported) {
+        try {
+          const importResult = await service.importFile(content, filename)
+          if (importResult.success) {
+            importStructure = importResult.data
+          }
+        } catch (error) {
+          logger.warn('Failed to get import structure for preview', { error: error.message })
+        }
+      }
+
+      // Create analysis result with importStructure
+      const result = {
+        success: true,
+        format: analysisResult.data.format,
+        filename: analysisResult.data.filename,
+        fileSize: analysisResult.data.fileSize,
+        estimatedImportTime: analysisResult.data.estimatedImportTime,
+        isSupported: analysisResult.data.isSupported,
+        validFileSize: analysisResult.data.validFileSize,
+        maxFileSize: analysisResult.data.maxFileSize,
+        // Import structure data for preview
+        importStructure: importStructure,
+        patientsCount: importStructure?.data?.patients?.length || 0,
+        visitsCount: importStructure?.data?.visits?.length || 0,
+        observationsCount: importStructure?.data?.observations?.length || 0,
+        // Determine recommended strategy based on data
+        recommendedStrategy: determineImportStrategy(importStructure),
+        hasMultiplePatients: (importStructure?.data?.patients?.length || 0) > 1,
+        hasMultipleVisits: (importStructure?.data?.visits?.length || 0) > 1,
+        warnings: [],
+        errors: [],
+      }
+
+      logger.info('File analysis completed successfully', {
+        filename,
+        format: result.format,
+        patientsCount: result.patientsCount,
+        visitsCount: result.visitsCount,
+        observationsCount: result.observationsCount,
+        recommendedStrategy: result.recommendedStrategy,
+      })
+
+      return result
+    } catch (error) {
+      logger.error('File analysis failed with exception', {
+        error: error.message,
+        filename,
+        contentLength: content.length,
+      })
+
+      return {
+        success: false,
+        errors: [`Analysis failed: ${error.message}`],
+        format: 'unknown',
+        patientsCount: 0,
+        visitsCount: 0,
+        observationsCount: 0,
+        recommendedStrategy: 'single_patient',
+        warnings: [],
+        estimatedImportTime: 'N/A',
+      }
+    }
+  }
+
+  /**
+   * Determine the recommended import strategy based on importStructure
+   * @param {Object} importStructure - Import structure data
+   * @returns {string} Recommended strategy
+   */
+  const determineImportStrategy = (importStructure) => {
+    if (!importStructure?.data) {
+      return 'single_patient'
+    }
+
+    const { patients, visits } = importStructure.data
+    const patientCount = patients?.length || 0
+    const visitCount = visits?.length || 0
+
+    if (patientCount > 1) {
+      return 'multiple_patients'
+    } else if (visitCount > 1) {
+      return 'multiple_visits'
+    } else {
+      return 'single_patient'
+    }
+  }
+
+  /**
+   * Import file using the new import service
+   * @param {string} content - File content
+   * @param {string} filename - Original filename
    * @param {Object} options - Import options
    * @returns {Promise<Object>} Import result
    */
-  const importForPatient = async (content, filename, patientNum, encounterNum, options = {}) => {
+  const importFile = async (content, filename, options = {}) => {
     const service = initializeImportService()
 
     isImporting.value = true
@@ -70,8 +192,6 @@ export const useImportStore = defineStore('import', () => {
     const importRecord = {
       id: Date.now(),
       filename,
-      patientNum,
-      encounterNum,
       timestamp: new Date().toISOString(),
       success: false,
       error: null,
@@ -79,36 +199,17 @@ export const useImportStore = defineStore('import', () => {
     }
 
     try {
-      logger.info('Starting patient-specific import via store', {
+      logger.info('Starting file import via store', {
         filename,
-        patientNum,
-        encounterNum,
         contentLength: content.length,
+        options,
       })
 
       importProgress.value = 'Detecting file format...'
       importProgressValue.value = 20
 
-      // Detect format first
-      const format = service.detectFormat(content, filename)
-      importRecord.format = format
-
-      if (!format) {
-        throw new Error(`Unsupported file format for ${filename}`)
-      }
-
-      logger.info('Detected file format', { format, filename })
-
-      // Handle survey/questionnaire files specially
-      if (format === 'html') {
-        return await importSurveyForPatient(content, filename, patientNum, encounterNum, options, importRecord)
-      }
-
-      // Handle other formats through regular import service
-      importProgress.value = 'Processing file...'
-      importProgressValue.value = 40
-
-      const result = await service.importForPatient(content, filename, patientNum, encounterNum, options)
+      // Use the new import service
+      const result = await service.importFile(content, filename, options)
 
       // Update progress
       importProgress.value = result.success ? 'Import completed!' : 'Import failed'
@@ -117,11 +218,25 @@ export const useImportStore = defineStore('import', () => {
       // Record the import
       importRecord.success = result.success
       importRecord.error = result.success ? null : result.errors?.[0]?.message || 'Unknown error'
-      importRecord.metadata = result.metadata || {}
+      importRecord.metadata = {
+        format: result.data?.metadata?.format || 'unknown',
+        patientCount: result.data?.data?.patients?.length || 0,
+        visitCount: result.data?.data?.visits?.length || 0,
+        observationCount: result.data?.data?.observations?.length || 0,
+        ...result.metadata,
+      }
 
       importHistory.value.push(importRecord)
       lastImportResult.value = result
       currentImport.value = importRecord
+
+      logger.info('File import completed via store', {
+        filename,
+        success: result.success,
+        patientCount: importRecord.metadata.patientCount,
+        visitCount: importRecord.metadata.visitCount,
+        observationCount: importRecord.metadata.observationCount,
+      })
 
       return result
     } catch (error) {
@@ -143,513 +258,28 @@ export const useImportStore = defineStore('import', () => {
   }
 
   /**
-   * Import survey/questionnaire file for specific patient and visit
-   * @param {string} content - HTML file content
+   * Import file for specific patient and visit (legacy method for compatibility)
+   * @param {string} content - File content
    * @param {string} filename - Original filename
    * @param {number} patientNum - Patient number
    * @param {number} encounterNum - Encounter number
    * @param {Object} options - Import options
-   * @param {Object} importRecord - Import record to update
    * @returns {Promise<Object>} Import result
    */
-  const importSurveyForPatient = async (content, filename, patientNum, encounterNum, options, importRecord) => {
-    try {
-      importProgress.value = 'Parsing survey data...'
-      importProgressValue.value = 30
-
-      // Extract and parse survey data from HTML
-      const surveyData = await extractSurveyDataFromHtml(content)
-
-      if (!surveyData) {
-        throw new Error('No valid survey data found in HTML file')
-      }
-
-      importProgress.value = 'Converting to questionnaire format...'
-      importProgressValue.value = 50
-
-      // Convert survey data to questionnaire response format
-      const questionnaireResponse = convertSurveyToQuestionnaireResponse(surveyData)
-
-      logger.info('Proceeding with import without duplicate checking', {
-        patientNum,
-        encounterNum,
-        questionnaireCode: questionnaireResponse.questionnaire_code,
-      })
-
-      importProgress.value = 'Saving questionnaire response...'
-      importProgressValue.value = 75
-
-      // Use the same storage method as QuestionnairePage.vue
-      await questionnaireStore.saveQuestionnaireResponse(patientNum, encounterNum, questionnaireResponse)
-
-      importProgress.value = 'Import completed!'
-      importProgressValue.value = 100
-
-      // Update import record
-      importRecord.success = true
-      importRecord.metadata = {
-        questionnaire: questionnaireResponse.questionnaire_code || 'unknown',
-        title: questionnaireResponse.title || filename,
-        responseCount: questionnaireResponse.items?.length || 0,
-        hasResults: !!questionnaireResponse.results,
-        format: 'HTML Survey',
-      }
-
-      const result = {
-        success: true,
-        data: {
-          patientNum,
-          encounterNum,
-          questionnaire: questionnaireResponse,
-        },
-        metadata: {
-          ...importRecord.metadata,
-        },
-        errors: [],
-        warnings: [],
-      }
-
-      importHistory.value.push(importRecord)
-      lastImportResult.value = result
-      currentImport.value = importRecord
-
-      logger.info('Survey import completed successfully', {
-        filename,
-        patientNum,
-        encounterNum,
-        questionnaire: questionnaireResponse.questionnaire_code,
-        title: questionnaireResponse.title,
-      })
-
-      return result
-    } catch (error) {
-      logger.error('Survey import failed', error)
-      throw error
-    }
-  }
-
-  /**
-   * Extract survey data from HTML content
-   * @param {string} htmlContent - HTML file content
-   * @returns {Object|null} Extracted survey data
-   */
-  const extractSurveyDataFromHtml = (htmlContent) => {
-    try {
-      // Look for CDA data in script tags with improved pattern
-      const cdaScriptMatch = htmlContent.match(/<script[^>]*>([\s\S]*?)<\/script>/i)
-
-      if (!cdaScriptMatch || !cdaScriptMatch[1]) {
-        logger.error('No script tag found in HTML')
-        return null
-      }
-
-      const scriptContent = cdaScriptMatch[1].trim()
-
-      // Look for CDA= assignment and extract the JSON object using string methods
-      const cdaIndex = scriptContent.indexOf('CDA=')
-      if (cdaIndex === -1) {
-        logger.error('No CDA= found in script content')
-        return null
-      }
-
-      // Extract everything after 'CDA='
-      let cdaDataString = scriptContent.substring(cdaIndex + 4).trim()
-
-      // Remove trailing semicolon if present
-      if (cdaDataString.endsWith(';')) {
-        cdaDataString = cdaDataString.slice(0, -1)
-      }
-
-      logger.debug('Attempting to parse CDA JSON', {
-        stringLength: cdaDataString.length,
-        startsWithBrace: cdaDataString.startsWith('{'),
-        endsWithBrace: cdaDataString.endsWith('}'),
-        preview: cdaDataString.substring(0, 200) + '...',
-        lastChars: cdaDataString.substring(Math.max(0, cdaDataString.length - 50)),
-      })
-
-      let cdaData
-      try {
-        cdaData = JSON.parse(cdaDataString)
-      } catch (jsonError) {
-        logger.error('JSON parsing failed', {
-          error: jsonError.message,
-          stringLength: cdaDataString.length,
-          contextAround170: cdaDataString.substring(160, 180),
-          charAtPosition170: cdaDataString.charAt(170),
-          charCodeAt170: cdaDataString.charCodeAt(170),
-        })
-        throw new Error(`JSON parsing failed: ${jsonError.message}`)
-      }
-
-      if (!cdaData.cda) {
-        logger.error('Invalid CDA structure - missing cda property')
-        return null
-      }
-
-      logger.info('Successfully extracted CDA data', {
-        hasPatient: !!cdaData.cda.subject,
-        hasTitle: !!cdaData.cda.title,
-        hasSections: !!cdaData.cda.section,
-        sectionsCount: cdaData.cda.section?.length || 0,
-        hasInfo: !!cdaData.info,
-        patientId: cdaData.cda.subject?.display || 'unknown',
-      })
-
-      return cdaData
-    } catch (error) {
-      logger.error('Failed to extract survey data from HTML', error)
-
-      // Try alternative extraction method
-      try {
-        return extractCdaAlternativeMethod(htmlContent)
-      } catch (altError) {
-        logger.error('Alternative extraction method also failed', altError)
-        return null
-      }
-    }
-  }
-
-  /**
-   * Alternative method to extract CDA data using a more robust approach
-   * @param {string} htmlContent - HTML file content
-   * @returns {Object|null} Extracted survey data
-   */
-  const extractCdaAlternativeMethod = (htmlContent) => {
-    // Find the script tag content
-    const scriptTagRegex = /<script[^>]*>([\s\S]*?)<\/script>/gi
-    let match
-
-    while ((match = scriptTagRegex.exec(htmlContent)) !== null) {
-      const scriptContent = match[1]
-
-      if (scriptContent.includes('CDA=')) {
-        // Find the start of CDA assignment
-        const cdaStart = scriptContent.indexOf('CDA=') + 4
-
-        // Find the opening brace
-        let openBraceIndex = -1
-        for (let i = cdaStart; i < scriptContent.length; i++) {
-          if (scriptContent[i] === '{') {
-            openBraceIndex = i
-            break
-          }
-        }
-
-        if (openBraceIndex === -1) {
-          continue
-        }
-
-        // Find the matching closing brace
-        let braceCount = 0
-        let closeBraceIndex = -1
-
-        for (let i = openBraceIndex; i < scriptContent.length; i++) {
-          if (scriptContent[i] === '{') {
-            braceCount++
-          } else if (scriptContent[i] === '}') {
-            braceCount--
-            if (braceCount === 0) {
-              closeBraceIndex = i
-              break
-            }
-          }
-        }
-
-        if (closeBraceIndex === -1) {
-          continue
-        }
-
-        // Extract the JSON string
-        const jsonString = scriptContent.substring(openBraceIndex, closeBraceIndex + 1)
-
-        try {
-          const cdaData = JSON.parse(jsonString)
-
-          if (cdaData.cda) {
-            logger.info('Successfully extracted CDA data using alternative method')
-            return cdaData
-          }
-        } catch (parseError) {
-          logger.debug('Failed to parse extracted JSON with alternative method', parseError)
-          continue
-        }
-      }
-    }
-
-    throw new Error('Could not extract valid CDA data using any method')
-  }
-
-  /**
-   * Parse date string from CDA format to ISO format
-   * @param {string|number} dateValue - Date value from CDA data
-   * @returns {string} ISO date string
-   */
-  const parseCdaDate = (dateValue) => {
-    if (!dateValue) {
-      return new Date().toISOString()
-    }
-
-    // If it's a Unix timestamp (number)
-    if (typeof dateValue === 'number') {
-      return new Date(dateValue).toISOString()
-    }
-
-    // If it's a string, try to handle different formats
-    let dateString = dateValue.toString()
-
-    // Handle format like "2025-09-01T10:26:49GMT+0200"
-    if (dateString.includes('GMT')) {
-      // Replace GMT+XXXX with +XX:XX format
-      dateString = dateString.replace(/GMT([+-]\d{4})$/, (match, offset) => {
-        // Convert +0200 to +02:00
-        const hours = offset.substring(0, 3)
-        const minutes = offset.substring(3)
-        return `${hours}:${minutes}`
-      })
-    }
-
-    try {
-      const parsedDate = new Date(dateString)
-      if (isNaN(parsedDate.getTime())) {
-        logger.warn('Failed to parse date, using current date', { originalDate: dateValue, parsedString: dateString })
-        return new Date().toISOString()
-      }
-      return parsedDate.toISOString()
-    } catch (error) {
-      logger.warn('Date parsing error, using current date', { originalDate: dateValue, error: error.message })
-      return new Date().toISOString()
-    }
-  }
-
-  /**
-   * Convert survey CDA data to questionnaire response format
-   * @param {Object} surveyData - Extracted survey data
-   * @returns {Object} Questionnaire response format
-   */
-  const convertSurveyToQuestionnaireResponse = (surveyData) => {
-    const cda = surveyData.cda
-    const info = surveyData.info || {}
-
-    // Extract basic information - prioritize the proper questionnaire display name
-    const title = cda.event?.[0]?.code?.[0]?.coding?.[0]?.display || info.title || cda.title || 'Imported Survey'
-    const questionnaireCode = info.label || cda.event?.[0]?.code?.[0]?.coding?.[0]?.code || 'imported-survey'
-    const patientId = cda.subject?.display || info.PID || 'UNKNOWN'
-
-    // Extract and parse dates properly
-    const startDateRaw = cda.event?.[0]?.period?.start || cda.date || info.date || Date.now()
-    const endDateRaw = cda.event?.[0]?.period?.end || startDateRaw
-
-    const startDate = parseCdaDate(startDateRaw)
-    const endDate = parseCdaDate(endDateRaw)
-
-    logger.debug('Survey date conversion', {
-      startDateRaw,
-      endDateRaw,
-      startDate,
-      endDate,
+  const importForPatient = async (content, filename, patientNum, encounterNum, options = {}) => {
+    // For now, use the general import method
+    // TODO: Implement patient-specific import logic if needed
+    logger.info('Import for patient called (using general import)', {
+      filename,
+      patientNum,
+      encounterNum,
     })
 
-    // Extract individual responses and results
-    const responses = []
-    const results = []
-
-    // Process sections for findings (individual responses)
-    if (cda.section) {
-      for (const section of cda.section) {
-        if (section.title === 'Findings Section' && section.entry) {
-          for (const entry of section.entry) {
-            const response = {
-              id: entry.title,
-              title: entry.title,
-              value: entry.value,
-              response: entry.value,
-              coding: entry.code?.[0]?.coding?.[0] || null,
-            }
-            responses.push(response)
-          }
-        }
-
-        // Process results section
-        if (section.title === 'Results Section' && section.entry) {
-          for (const entry of section.entry) {
-            const result = {
-              id: entry.title,
-              title: entry.title,
-              value: entry.value,
-              coding: entry.code?.[0]?.coding?.[0] || null,
-            }
-            results.push(result)
-          }
-        }
-      }
-    }
-
-    // Create questionnaire response in the expected format
-    const questionnaireResponse = {
-      questionnaire_code: questionnaireCode,
-      questionnaire_title: title,
-      title: title,
-      date_start: startDate,
-      date_end: endDate,
-      patient_id: patientId,
-      items: responses,
-      responses: responses,
-      results: results,
-      summary:
-        results.length > 0
-          ? {
-              value: results[0].value,
-              label: results[0].title,
-            }
-          : null,
-      metadata: {
-        source: 'HTML Survey Import',
-        original_format: 'CDA/HTML',
-        import_timestamp: new Date().toISOString(),
-        document_id: cda.identifier?.value || null,
-        questionnaire_system: cda.event?.[0]?.code?.[0]?.coding?.[0]?.system || 'http://snomed.info/sct',
-      },
-    }
-
-    return questionnaireResponse
-  }
-
-  /**
-   * Analyze file content for import preview
-   * @param {string} content - File content
-   * @param {string} filename - Original filename
-   * @returns {Promise<Object>} Analysis result
-   */
-  const analyzeFileContent = async (content, filename) => {
-    const service = initializeImportService()
-    const basicAnalysis = await service.analyzeFileContent(content, filename)
-
-    // If it's an HTML survey file, enhance the analysis with survey-specific details
-    if (basicAnalysis.format === 'html') {
-      try {
-        const surveyData = extractSurveyDataFromHtml(content)
-
-        if (surveyData && surveyData.cda) {
-          const surveyAnalysis = analyzeSurveyData(surveyData)
-
-          // Merge survey-specific analysis with basic analysis
-          return {
-            ...basicAnalysis,
-            isSurvey: true,
-            surveyData: surveyAnalysis,
-            title: surveyAnalysis.title,
-            questionnaire: surveyAnalysis.questionnaire,
-            items: surveyAnalysis.items,
-            results: surveyAnalysis.results,
-            summary: surveyAnalysis.summary,
-          }
-        }
-      } catch (error) {
-        logger.warn('Failed to analyze survey data for preview', error)
-      }
-    }
-
-    return basicAnalysis
-  }
-
-  /**
-   * Analyze survey data for preview
-   * @param {Object} surveyData - Extracted survey data
-   * @returns {Object} Survey analysis
-   */
-  const analyzeSurveyData = (surveyData) => {
-    const cda = surveyData.cda
-    const info = surveyData.info || {}
-
-    // Extract basic information - prioritize the proper questionnaire display name
-    const title = cda.event?.[0]?.code?.[0]?.coding?.[0]?.display || info.title || cda.title || 'Imported Survey'
-    const questionnaireCode = info.label || cda.event?.[0]?.code?.[0]?.coding?.[0]?.code || 'imported-survey'
-    const questionnaire = {
-      code: questionnaireCode,
-      title: title,
-      system: cda.event?.[0]?.code?.[0]?.coding?.[0]?.system || 'http://snomed.info/sct',
-      display: cda.event?.[0]?.code?.[0]?.coding?.[0]?.display || title,
-    }
-
-    // Extract individual survey items (responses)
-    const items = []
-    const results = []
-
-    // Process sections for findings (individual responses)
-    if (cda.section) {
-      for (const section of cda.section) {
-        if (section.title === 'Findings Section' && section.entry) {
-          for (const entry of section.entry) {
-            const item = {
-              id: entry.title,
-              title: entry.title,
-              value: entry.value,
-              coding: entry.code?.[0]?.coding?.[0] || null,
-              selected: true, // Default to selected
-              type: typeof entry.value === 'number' ? 'numeric' : 'text',
-              system: entry.code?.[0]?.coding?.[0]?.system || 'http://snomed.info/sct',
-              code: entry.code?.[0]?.coding?.[0]?.code || '',
-              display: entry.code?.[0]?.coding?.[0]?.display || entry.title,
-            }
-            items.push(item)
-          }
-        }
-
-        // Process results section
-        if (section.title === 'Results Section' && section.entry) {
-          for (const entry of section.entry) {
-            const result = {
-              id: entry.title,
-              title: entry.title,
-              value: entry.value,
-              coding: entry.code?.[0]?.coding?.[0] || null,
-              selected: true, // Default to selected
-              type: 'result',
-              system: entry.code?.[0]?.coding?.[0]?.system || 'http://snomed.info/sct',
-              code: entry.code?.[0]?.coding?.[0]?.code || '',
-              display: entry.code?.[0]?.coding?.[0]?.display || entry.title,
-            }
-            results.push(result)
-          }
-        }
-      }
-    }
-
-    // Create summary
-    const totalScore = results.find((r) => r.id === 'sum' || r.title.toLowerCase().includes('sum'))
-    const summary = {
-      totalItems: items.length,
-      totalResults: results.length,
-      totalScore: totalScore ? totalScore.value : null,
-      questionnaire: questionnaire.display || questionnaire.title,
-      patientId: cda.subject?.display || info.PID || 'Unknown',
-    }
-
-    // Add evaluation if available
-    if (cda.section) {
-      const evalSection = cda.section.find((s) => s.title === 'Evaluation Section')
-      if (evalSection && evalSection.text && evalSection.text.div) {
-        // Extract evaluation text (remove HTML tags)
-        const evaluationText = evalSection.text.div
-          .replace(/<[^>]*>/g, '')
-          .replace(/&[^;]+;/g, '')
-          .trim()
-        summary.evaluation = evaluationText
-      }
-    }
-
-    return {
-      title,
-      questionnaire,
-      items,
-      results,
-      summary,
-      dates: {
-        start: cda.event?.[0]?.period?.start || cda.date || info.date,
-        end: cda.event?.[0]?.period?.end || cda.event?.[0]?.period?.start || cda.date || info.date,
-      },
-    }
+    return await importFile(content, filename, {
+      ...options,
+      targetPatientNum: patientNum,
+      targetEncounterNum: encounterNum,
+    })
   }
 
   /**
@@ -680,6 +310,81 @@ export const useImportStore = defineStore('import', () => {
     return importHistory.value.find((imp) => imp.id === importId) || null
   }
 
+  /**
+   * Update current selections from preview dialog
+   * @param {Object} selections - Selection data from preview dialog
+   */
+  const updateSelections = (selections) => {
+    currentSelections.value = selections
+
+    // Add to selection history
+    const selectionRecord = {
+      id: Date.now(),
+      timestamp: new Date().toISOString(),
+      selections: JSON.parse(JSON.stringify(selections)), // Deep copy
+      summary: {
+        patients: selections.patients?.length || 0,
+        visits: selections.visits?.length || 0,
+        observations: selections.observations?.length || 0,
+      },
+    }
+
+    selectionHistory.value.push(selectionRecord)
+
+    // Keep only last 10 selection records
+    if (selectionHistory.value.length > 10) {
+      selectionHistory.value = selectionHistory.value.slice(-10)
+    }
+
+    logger.info('Updated import selections', {
+      patients: selectionRecord.summary.patients,
+      visits: selectionRecord.summary.visits,
+      observations: selectionRecord.summary.observations,
+    })
+  }
+
+  /**
+   * Get current selections
+   * @returns {Object|null} Current selections
+   */
+  const getCurrentSelections = () => {
+    return currentSelections.value
+  }
+
+  /**
+   * Clear current selections
+   */
+  const clearSelections = () => {
+    currentSelections.value = null
+  }
+
+  /**
+   * Get selection history
+   * @returns {Array} Selection history
+   */
+  const getSelectionHistory = () => {
+    return selectionHistory.value
+  }
+
+  /**
+   * Get supported file formats
+   * @returns {Array<string>} Supported formats
+   */
+  const getSupportedFormats = () => {
+    const service = initializeImportService()
+    return service.getSupportedFormats()
+  }
+
+  /**
+   * Validate file size
+   * @param {string} content - File content
+   * @returns {boolean} True if valid size
+   */
+  const validateFileSize = (content) => {
+    const service = initializeImportService()
+    return service.validateFileSize(content)
+  }
+
   return {
     // State
     importHistory,
@@ -688,6 +393,8 @@ export const useImportStore = defineStore('import', () => {
     importProgress,
     importProgressValue,
     lastImportResult,
+    currentSelections,
+    selectionHistory,
 
     // Computed
     isInitialized,
@@ -696,19 +403,22 @@ export const useImportStore = defineStore('import', () => {
     failedImports,
 
     // Actions
-    importForPatient,
-    importSurveyForPatient,
     analyzeFileContent,
+    importFile,
+    importForPatient,
     clearImportHistory,
     resetImportState,
     getImportById,
     initializeImportService,
 
-    // Utility functions (exported for testing)
-    extractSurveyDataFromHtml,
-    extractCdaAlternativeMethod,
-    parseCdaDate,
-    analyzeSurveyData,
-    convertSurveyToQuestionnaireResponse,
+    // Selection management
+    updateSelections,
+    getCurrentSelections,
+    clearSelections,
+    getSelectionHistory,
+
+    // Utility methods
+    getSupportedFormats,
+    validateFileSize,
   }
 })

@@ -73,7 +73,10 @@
               <div v-else-if="fileAnalysis && fileAnalysis.success" class="analysis-results">
                 <q-card flat bordered class="bg-grey-1 q-mb-lg">
                   <q-card-section>
-                    <div class="text-subtitle1 q-mb-md">File Analysis Results</div>
+                    <div class="row items-center justify-between q-mb-md">
+                      <div class="text-subtitle1">File Analysis Results</div>
+                      <q-btn color="primary" icon="preview" label="Preview" size="lg" @click="showPreviewDialog = true" />
+                    </div>
 
                     <div class="text-body2 q-mb-sm">
                       <strong>Patients:</strong> {{ fileAnalysis.patientsCount || 0 }} • <strong>Visits:</strong> {{ fileAnalysis.visitsCount || 0 }} • <strong>Observations:</strong>
@@ -301,7 +304,16 @@
     <!-- Visit Selection Dialog -->
     <VisitSelectionDialog v-if="selectedPatient" v-model="showVisitDialog" :patient="selectedPatient" @visit-selected="onVisitSelected" @cancel="onVisitDialogCancel" />
 
-    <!-- Import Preview Dialog (removed in new flow) -->
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      v-model="showPreviewDialog"
+      :file-analysis="fileAnalysis"
+      :selected-mode="selectedMode"
+      :patient-mode="patientMode"
+      :selected-patient="selectedPatient"
+      :selected-visit="selectedVisit"
+      @update:selections="handleSelectionUpdate"
+    />
   </q-page>
 </template>
 
@@ -316,7 +328,7 @@ import { logger } from '../core/services/logging-service.js'
 import FileUploadInput from '../components/shared/FileUploadInput.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
 import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
-// import ImportPreviewDialog from '../components/shared/ImportPreviewDialog.vue' // Removed in new flow
+import ImportPreviewDialog from '../components/shared/ImportPreviewDialog.vue'
 
 // Composables
 const router = useRouter()
@@ -334,6 +346,7 @@ const patientMode = ref('create') // 'create' or 'existing'
 const selectedPatient = ref(null)
 const selectedVisit = ref(null)
 const showVisitDialog = ref(false)
+const showPreviewDialog = ref(false)
 
 // Patient search handled by PatientSelectionCard component
 
@@ -418,6 +431,28 @@ const formatFileSize = (bytes) => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const handleSelectionUpdate = (selections) => {
+  // Update the import store with the new selections
+  importStore.updateSelections(selections)
+
+  // Update the file analysis with the new selections
+  if (fileAnalysis.value && selections) {
+    // Update counts based on selections
+    fileAnalysis.value.patientsCount = selections.patients?.length || 0
+    fileAnalysis.value.visitsCount = selections.visits?.length || 0
+    fileAnalysis.value.observationsCount = selections.observations?.length || 0
+
+    // Store the selections in the file analysis for later use
+    fileAnalysis.value.selections = selections
+
+    logger.info('Updated file analysis with new selections', {
+      patients: fileAnalysis.value.patientsCount,
+      visits: fileAnalysis.value.visitsCount,
+      observations: fileAnalysis.value.observationsCount,
+    })
+  }
 }
 
 const onPatientSearch = (searchResult) => {
@@ -686,11 +721,8 @@ const onFileSelected = async (fileData) => {
       throw new Error('File appears to be empty or contains no readable content.')
     }
 
-    // Use the new ImportService for analysis
-    const { ImportService } = await import('../core/services/imports/import-service.js')
-    const importService = new ImportService(dbStore, null, null)
-
-    const analysis = await importService.analyzeFileContent(content, fileData.fileInfo.filename)
+    // Use the new import store for analysis
+    const analysis = await importStore.analyzeFileContent(content, fileData.fileInfo.filename)
 
     // Ensure we have a valid analysis result
     if (!analysis) {
@@ -830,38 +862,46 @@ const startImport = async () => {
       throw new Error('File appears to be empty or contains no readable content.')
     }
 
-    // For now, we'll simulate the import since we're focusing on the UI flow
-    // TODO: Implement actual import logic based on selected mode
-    logger.info('Starting import simulation', {
+    // Use the new import store for actual import
+    logger.info('Starting import', {
       mode: selectedMode.value,
       patientMode: patientMode.value,
       filename: selectedFile.value.fileInfo.filename,
     })
 
-    // Simulate import progress
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-
-    // Simulate successful import
-    importComplete.value = true
-    importSummary.value = {
-      totalRecords: fileAnalysis.value?.observationsCount || 0,
-      successfulImports: 1,
-      errors: 0,
-      visits: fileAnalysis.value?.visitsCount || 0,
-      patients: fileAnalysis.value?.patientsCount || 0,
-      format: fileAnalysis.value?.format || 'unknown',
+    const importOptions = {
+      mode: selectedMode.value,
+      patientMode: patientMode.value,
+      selectedPatient: selectedPatient.value,
+      selectedVisit: selectedVisit.value,
     }
 
-    $q.notify({
-      type: 'positive',
-      message: 'Import completed successfully (simulated)',
-      timeout: 3000,
-    })
+    const result = await importStore.importFile(content, selectedFile.value.fileInfo.filename, importOptions)
 
-    logger.info('Import simulation completed', {
-      mode: selectedMode.value,
-      summary: importSummary.value,
-    })
+    if (result.success) {
+      importComplete.value = true
+      importSummary.value = {
+        totalRecords: result.data?.data?.observations?.length || 0,
+        successfulImports: 1,
+        errors: 0,
+        visits: result.data?.data?.visits?.length || 0,
+        patients: result.data?.data?.patients?.length || 0,
+        format: result.data?.metadata?.format || 'unknown',
+      }
+
+      $q.notify({
+        type: 'positive',
+        message: 'Import completed successfully',
+        timeout: 3000,
+      })
+
+      logger.info('Import completed successfully', {
+        mode: selectedMode.value,
+        summary: importSummary.value,
+      })
+    } else {
+      throw new Error(result.errors?.[0]?.message || 'Import failed')
+    }
   } catch (error) {
     logger.error('Import failed', error)
     importError.value = error.message || 'An error occurred during import'
