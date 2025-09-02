@@ -393,8 +393,8 @@ export class ImportSurveyService extends BaseImportService {
     if (typeof entry.value === 'number') {
       valtypeCd = 'N'
       nvalNum = entry.value
-      // For numeric values, use the display name for TVAL_CHAR for better readability
-      tvalChar = coding.display || entry.title || String(entry.value)
+      // For numeric values, TVAL_CHAR should be null
+      tvalChar = null
     } else if (typeof entry.value === 'string') {
       valtypeCd = 'T'
       tvalChar = entry.value

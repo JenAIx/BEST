@@ -403,23 +403,16 @@ const availableModes = computed(() => {
 
   const modes = []
 
-  // Always offer single patient mode
-  modes.push({
-    label: 'Single Patient Mode',
-    value: 'single_patient',
-    description: 'Import data for one patient',
-  })
-
-  // Offer multiple visits mode if applicable
-  if (fileAnalysis.value.hasMultipleVisits) {
+  // Only offer single patient mode if there's only one patient
+  if (!fileAnalysis.value.hasMultiplePatients) {
     modes.push({
-      label: 'Multiple Visits Mode',
-      value: 'multiple_visits',
-      description: 'Create multiple visits for the selected patient',
+      label: 'Single Patient Mode',
+      value: 'single_patient',
+      description: 'Import data for one patient',
     })
   }
 
-  // Offer multiple patients mode if applicable
+  // Only offer multiple patients mode if there are multiple patients
   if (fileAnalysis.value.hasMultiplePatients) {
     modes.push({
       label: 'Multiple Patients Mode',
@@ -505,8 +498,6 @@ const getModeTitle = (mode) => {
   switch (mode) {
     case 'single_patient':
       return 'Single Patient Mode'
-    case 'multiple_visits':
-      return 'Multiple Visits Mode'
     case 'multiple_patients':
       return 'Multiple Patients Mode'
     case 'batch_import':
@@ -520,8 +511,6 @@ const getModeDescription = (mode) => {
   switch (mode) {
     case 'single_patient':
       return 'Import data for a single patient. You can create a new patient or add data to an existing patient.'
-    case 'multiple_visits':
-      return 'Create multiple visits for the selected patient. Each visit will contain its own set of observations.'
     case 'multiple_patients':
       return 'Import data for multiple patients. Each patient will be created or updated with their respective data.'
     case 'batch_import':
@@ -678,8 +667,6 @@ const getStrategyColor = (strategy) => {
   switch (strategy) {
     case 'single_patient':
       return 'green'
-    case 'multiple_visits':
-      return 'blue'
     case 'multiple_patients':
       return 'orange'
     case 'batch_import':
@@ -693,8 +680,6 @@ const getStrategyLabel = (strategy) => {
   switch (strategy) {
     case 'single_patient':
       return 'SINGLE PATIENT'
-    case 'multiple_visits':
-      return 'MULTIPLE VISITS'
     case 'multiple_patients':
       return 'MULTIPLE PATIENTS'
     case 'batch_import':

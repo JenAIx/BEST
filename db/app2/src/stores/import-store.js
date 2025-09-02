@@ -128,7 +128,6 @@ export const useImportStore = defineStore('import', () => {
         // Determine recommended strategy based on data
         recommendedStrategy: determineImportStrategy(importStructure),
         hasMultiplePatients: (importStructure?.data?.patients?.length || 0) > 1,
-        hasMultipleVisits: (importStructure?.data?.visits?.length || 0) > 1,
         warnings: [],
         errors: [],
       }
@@ -174,14 +173,11 @@ export const useImportStore = defineStore('import', () => {
       return 'single_patient'
     }
 
-    const { patients, visits } = importStructure.data
+    const { patients } = importStructure.data
     const patientCount = patients?.length || 0
-    const visitCount = visits?.length || 0
 
     if (patientCount > 1) {
       return 'multiple_patients'
-    } else if (visitCount > 1) {
-      return 'multiple_visits'
     } else {
       return 'single_patient'
     }

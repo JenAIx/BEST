@@ -344,7 +344,7 @@ export class ImportHl7Service {
       if (typeof entry.value === 'number') {
         valtypeCd = 'N'
         nvalNum = entry.value
-        tvalChar = entry.title // Use title for readability
+        tvalChar = null // For numeric values, TVAL_CHAR should be null
       } else if (typeof entry.value === 'string') {
         valtypeCd = 'T'
         tvalChar = entry.value
