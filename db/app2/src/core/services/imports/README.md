@@ -502,7 +502,16 @@ const importConfig = {
 
 The single most critical issue is that **ImportPage.vue does not actually use the import services**. The import logic is currently simulated:
 
-**✅ RECENTLY COMPLETED**: Added HL7 (.hl7) and HTML (.html) file support to ImportPage.vue file selection dialog
+**✅ RECENTLY COMPLETED**:
+
+- Added HL7 (.hl7) and HTML (.html) file support to ImportPage.vue file selection dialog
+- **FIXED**: File content access issue - ImportPage.vue now correctly uses `fileData.blob` instead of `fileData.content`
+- **FIXED**: Text decoding for Uint8Array blob content to string for import services
+- **✅ ADDED**: Import Preview Dialog - Users can now preview import data before proceeding
+- **✅ ADDED**: Visual import strategy display with file format, patient/visit counts, and target information
+- **✅ ADDED**: Enhanced user experience with detailed preview of what will be imported
+- **✅ ADDED**: Modular `ImportPreviewDialog.vue` component for better code organization
+- **✅ ADDED**: Observation summary with Valtype indicators (Q=Questionnaire, N=Numeric, T=Text)
 
 ```javascript
 // CURRENT: Simulated import (ImportPage.vue lines 442-467)
@@ -734,6 +743,8 @@ Fixed critical error handling issues where file analysis failures caused unhandl
 - **TypeError: Cannot read properties of undefined (reading 'length')** in `ImportService.analyzeFileContent()`
 - **TypeError: Cannot read properties of undefined (reading 'toUpperCase')** in `ImportPage.vue` UI rendering
 - **Unhandled promise rejections** during file analysis failures
+- **File Content Access Issue**: ImportPage.vue was looking for `fileData.content` but FileUploadInput.vue provided `fileData.blob`
+- **Text Decoding Issue**: Blob content (Uint8Array) needed to be decoded to string for import services
 
 #### **Solutions Implemented**
 

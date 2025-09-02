@@ -184,6 +184,7 @@
 
                 <!-- Action Buttons -->
                 <div class="q-gutter-md">
+                  <q-btn color="info" icon="preview" label="Preview Import" @click="showPreviewDialog = true" :disable="!fileAnalysis.success" no-caps />
                   <q-btn color="primary" icon="upload" label="Start Import" @click="startImport" :disable="fileAnalysis.errors && fileAnalysis.errors.length > 0" />
                   <q-btn flat color="grey-7" label="Upload Different File" @click="goBackToUpload" />
                 </div>
@@ -299,6 +300,17 @@
 
     <!-- Visit Selection Dialog -->
     <VisitSelectionDialog v-if="selectedPatient" v-model="showVisitDialog" :patient="selectedPatient" @visit-selected="onVisitSelected" @cancel="onVisitDialogCancel" />
+
+    <!-- Import Preview Dialog -->
+    <ImportPreviewDialog
+      v-model="showPreviewDialog"
+      :file-analysis="fileAnalysis"
+      :selected-patient="selectedPatient"
+      :selected-visit="selectedVisit"
+      :importing="importing"
+      @proceed="proceedWithImport"
+      @cancel="showPreviewDialog = false"
+    />
   </q-page>
 </template>
 
@@ -313,6 +325,7 @@ import { ImportService } from '../core/services/imports/import-service.js'
 import FileUploadInput from '../components/shared/FileUploadInput.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
 import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
+import ImportPreviewDialog from '../components/shared/ImportPreviewDialog.vue'
 
 // Composables
 const router = useRouter()
@@ -333,6 +346,7 @@ const selectedFile = ref(null)
 const showVisitDialog = ref(false)
 const fileAnalysis = ref(null)
 const analyzingFile = ref(false)
+const showPreviewDialog = ref(false)
 
 // Patient search handled by PatientSelectionCard component
 
@@ -535,9 +549,9 @@ const onFileSelected = async (fileData) => {
   logger.info('File selected for import', {
     filename: fileData?.fileInfo?.filename,
     size: fileData?.fileInfo?.size,
-    hasContent: !!fileData?.content,
-    contentLength: fileData?.content?.length,
-    contentType: typeof fileData?.content,
+    hasContent: !!fileData?.blob,
+    contentLength: fileData?.blob?.length,
+    contentType: typeof fileData?.blob,
     fileDataKeys: fileData ? Object.keys(fileData) : 'undefined',
     fileInfoKeys: fileData?.fileInfo ? Object.keys(fileData.fileInfo) : 'undefined',
   })
@@ -553,10 +567,11 @@ const onFileSelected = async (fileData) => {
     return
   }
 
-  if (!fileData.content) {
+  if (!fileData.blob) {
     logger.error('File content is missing', {
       fileData,
       hasFileInfo: !!fileData.fileInfo,
+      availableKeys: Object.keys(fileData),
     })
     $q.notify({
       type: 'negative',
@@ -571,7 +586,20 @@ const onFileSelected = async (fileData) => {
   currentStep.value = 'analyze'
 
   try {
-    const analysis = await importService.analyzeFileContent(fileData.content, fileData.fileInfo.filename)
+    // Convert blob (Uint8Array) to string for import services
+    let content
+    try {
+      content = new TextDecoder('utf-8').decode(fileData.blob)
+    } catch (decodeError) {
+      logger.error('Failed to decode file content', { decodeError, filename: fileData.fileInfo.filename })
+      throw new Error('File content cannot be decoded. Please ensure the file is a valid text file.')
+    }
+
+    if (!content || content.trim().length === 0) {
+      throw new Error('File appears to be empty or contains no readable content.')
+    }
+
+    const analysis = await importService.analyzeFileContent(content, fileData.fileInfo.filename)
 
     // Ensure we have a valid analysis result
     if (!analysis) {
@@ -624,7 +652,7 @@ const onFileSelected = async (fileData) => {
       error: error.message,
       stack: error.stack,
       filename: fileData?.fileInfo?.filename,
-      contentLength: fileData?.content?.length,
+      contentLength: fileData?.blob?.length,
     })
 
     // Create a comprehensive error analysis for display
@@ -667,7 +695,7 @@ const onFileCleared = () => {
 const retryAnalysis = () => {
   logger.info('Retrying file analysis', {
     filename: selectedFile.value?.fileInfo?.filename,
-    hasContent: !!selectedFile.value?.content,
+    hasContent: !!selectedFile.value?.blob,
   })
 
   if (selectedFile.value) {
@@ -708,8 +736,24 @@ const startImport = async () => {
     importProgress.value = 'Reading file...'
     importProgressValue.value = 20
 
+    // Convert blob (Uint8Array) to string for import services
+    let content
+    try {
+      content = new TextDecoder('utf-8').decode(selectedFile.value.blob)
+    } catch (decodeError) {
+      logger.error('Failed to decode file content for import', { decodeError, filename: selectedFile.value.fileInfo.filename })
+      throw new Error('File content cannot be decoded. Please ensure the file is a valid text file.')
+    }
+
+    if (!content || content.trim().length === 0) {
+      throw new Error('File appears to be empty or contains no readable content.')
+    }
+
+    importProgress.value = 'Parsing data...'
+    importProgressValue.value = 40
+
     // Use the real ImportService to import for the specific patient
-    const result = await importService.importForPatient(selectedFile.value.content, selectedFile.value.fileInfo.filename, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, {
+    const result = await importService.importForPatient(content, selectedFile.value.fileInfo.filename, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, {
       createMissingConcepts: true,
       validateData: importOptions.value.includes('validateData'),
       duplicateHandling: importOptions.value.includes('updateExisting') ? 'update' : 'skip',
@@ -813,6 +857,21 @@ const goToPatientRecord = () => {
   if (selectedPatient.value) {
     router.push(`/patient/${selectedPatient.value.PATIENT_CD}`)
   }
+}
+
+const proceedWithImport = () => {
+  logger.info('User confirmed import from preview dialog', {
+    filename: selectedFile.value?.fileInfo?.filename,
+    patientId: selectedPatient.value?.PATIENT_CD,
+    visitId: selectedVisit.value?.ENCOUNTER_NUM,
+    strategy: fileAnalysis.value?.recommendedStrategy,
+  })
+
+  // Close the preview dialog
+  showPreviewDialog.value = false
+
+  // Start the actual import process
+  startImport()
 }
 
 // Check for existing patient/visit context on mount

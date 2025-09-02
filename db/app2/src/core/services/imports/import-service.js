@@ -770,6 +770,7 @@ export class ImportService {
         hasMultipleVisits: false,
         patients: [],
         visits: [],
+        observations: [], // Detailed observation data
         estimatedImportTime: 'Unknown',
         recommendedStrategy: 'single_patient', // 'single_patient', 'batch_import', 'interactive'
         warnings: [],
@@ -917,7 +918,16 @@ export class ImportService {
       }
 
       if (data.observations) {
-        analysis.observationsCount = Array.isArray(data.observations) ? data.observations.length : 1
+        const observations = Array.isArray(data.observations) ? data.observations : [data.observations]
+        analysis.observationsCount = observations.length
+        analysis.observations = observations.slice(0, 10).map((obs, index) => ({
+          id: obs.id || `obs_${index + 1}`,
+          concept: obs.concept || obs.code || `Observation ${index + 1}`,
+          valtype: obs.valtype || 'T', // Default to text if not specified
+          value: obs.value || obs.valueString || obs.valueQuantity?.value || 'N/A',
+          category: obs.category || 'Clinical',
+          description: obs.description || obs.display || `Clinical observation ${index + 1}`,
+        }))
       }
 
       analysis.hasMultiplePatients = analysis.patientsCount > 1
@@ -951,6 +961,16 @@ export class ImportService {
       if (data.section && Array.isArray(data.section)) {
         analysis.visitsCount = 1 // CDA typically represents one visit
         analysis.observationsCount = data.section.length
+
+        // Extract detailed observations for HL7 CDA
+        analysis.observations = data.section.slice(0, 10).map((section, index) => ({
+          id: `obs_${index + 1}`,
+          concept: section.title || section.code?.display || `HL7 Section ${index + 1}`,
+          valtype: 'Q', // HL7 CDA typically contains questionnaire-like data
+          value: section.title || section.code?.display || `HL7 CDA Section ${index + 1}`,
+          category: 'HL7 CDA',
+          description: section.text?.div || 'HL7 CDA clinical section',
+        }))
       }
 
       analysis.hasMultiplePatients = false
@@ -1010,7 +1030,19 @@ export class ImportService {
                 },
               ]
               analysis.visitsCount = 1
-              analysis.observationsCount = cdaData.cda.section?.length || 1
+
+              // Extract detailed observations for CDA
+              const sections = cdaData.cda.section || []
+              analysis.observationsCount = sections.length
+              analysis.observations = sections.slice(0, 10).map((section, index) => ({
+                id: `obs_${index + 1}`,
+                concept: section.title || `Section ${index + 1}`,
+                valtype: 'Q', // Questionnaire data
+                value: section.title || `CDA Section ${index + 1}`,
+                category: 'Questionnaire',
+                description: section.text || 'CDA clinical section',
+              }))
+
             } else if (cdaData.subject) {
               analysis.patientsCount = 1
               analysis.patients = [
@@ -1020,7 +1052,19 @@ export class ImportService {
                 },
               ]
               analysis.visitsCount = 1
-              analysis.observationsCount = cdaData.section?.length || 1
+
+              // Extract detailed observations for FHIR CDA
+              const sections = cdaData.section || []
+              analysis.observationsCount = sections.length
+              analysis.observations = sections.slice(0, 10).map((section, index) => ({
+                id: `obs_${index + 1}`,
+                concept: section.title || section.code?.display || `Section ${index + 1}`,
+                valtype: 'Q', // Questionnaire data
+                value: section.title || section.code?.display || `FHIR CDA Section ${index + 1}`,
+                category: 'Questionnaire',
+                description: section.text?.div || 'FHIR CDA clinical section',
+              }))
+
             } else {
               // Fallback - assume there's at least one patient and observation
               analysis.patientsCount = 1
@@ -1032,6 +1076,14 @@ export class ImportService {
               ]
               analysis.visitsCount = 1
               analysis.observationsCount = 1
+              analysis.observations = [{
+                id: 'obs_1',
+                concept: 'Unknown Questionnaire',
+                valtype: 'Q',
+                value: 'Questionnaire Response',
+                category: 'Questionnaire',
+                description: 'Imported questionnaire data',
+              }]
             }
           } catch {
             // Script content might not be pure JSON
