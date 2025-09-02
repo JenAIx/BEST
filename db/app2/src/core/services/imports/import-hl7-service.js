@@ -165,7 +165,7 @@ export class ImportHl7Service extends BaseImportService {
           visits.push(selectedVisit)
         } else if (createMultipleVisits) {
           // Multiple visits in HL7 → create new visits for the selected patient
-          hl7Data.visits.forEach((visitData, index) => {
+          hl7Data.visits.forEach((visitData) => {
             const visit = this.createVisitFromHl7({
               ...visitData,
               PATIENT_NUM: targetPatientNum,
