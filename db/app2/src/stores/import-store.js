@@ -4,6 +4,7 @@ import { useDatabaseStore } from './database-store.js'
 // import { useQuestionnaireStore } from './questionnaire-store.js'
 import { logger } from '../core/services/logging-service.js'
 import { ImportService } from '../core/services/imports/import-service.js'
+import { DatabaseImportService } from '../core/services/imports/database-import-service.js'
 
 /**
  * Import Management Store
@@ -25,8 +26,9 @@ export const useImportStore = defineStore('import', () => {
   const currentSelections = ref(null)
   const selectionHistory = ref([])
 
-  // Import service instance
+  // Import service instances
   const importService = ref(null)
+  const databaseImportService = ref(null)
 
   // Initialize import service
   const initializeImportService = () => {
@@ -36,6 +38,16 @@ export const useImportStore = defineStore('import', () => {
       importService.value = new ImportService(dbStore, conceptRepository, cqlRepository)
     }
     return importService.value
+  }
+
+  // Initialize database import service
+  const initializeDatabaseImportService = () => {
+    if (!databaseImportService.value) {
+      const conceptRepository = dbStore.getRepository('concept')
+      const cqlRepository = dbStore.getRepository('cql')
+      databaseImportService.value = new DatabaseImportService(dbStore, conceptRepository, cqlRepository)
+    }
+    return databaseImportService.value
   }
 
   // Computed
@@ -283,6 +295,179 @@ export const useImportStore = defineStore('import', () => {
   }
 
   /**
+   * Import file to database with optional selections
+   * @param {string} content - File content
+   * @param {string} filename - Original filename
+   * @param {Object} options - Import options
+   * @returns {Promise<Object>} Import result
+   */
+  const importFileToDatabase = async (content, filename, options = {}) => {
+    const dbImportService = initializeDatabaseImportService()
+
+    isImporting.value = true
+    importProgress.value = 'Starting database import...'
+    importProgressValue.value = 10
+
+    const importRecord = {
+      id: Date.now(),
+      filename,
+      timestamp: new Date().toISOString(),
+      success: false,
+      error: null,
+      metadata: {},
+    }
+
+    try {
+      logger.info('Starting database import via store', {
+        filename,
+        contentLength: content.length,
+        options,
+      })
+
+      importProgress.value = 'Parsing file content...'
+      importProgressValue.value = 20
+
+      // First, parse the file to get the import structure
+      const importService = initializeImportService()
+      const parseResult = await importService.importFile(content, filename)
+
+      if (!parseResult.success) {
+        throw new Error(parseResult.errors?.[0]?.message || 'File parsing failed')
+      }
+
+      const importStructure = parseResult.data
+
+      importProgress.value = 'Applying user selections...'
+      importProgressValue.value = 40
+
+      // Apply user selections if provided
+      const filteredStructure = options.selections
+        ? applySelectionsToStructure(importStructure, options.selections)
+        : importStructure
+
+      importProgress.value = 'Importing to database...'
+      importProgressValue.value = 60
+
+      // Import to database using the DatabaseImportService
+      const dbResult = await dbImportService.importToDatabase(filteredStructure, {
+        duplicateStrategy: options.duplicateStrategy || 'skip',
+        importToDatabase: true,
+      })
+
+      importProgress.value = 'Finalizing import...'
+      importProgressValue.value = 90
+
+      if (!dbResult.success) {
+        throw new Error(dbResult.errors?.[0]?.message || 'Database import failed')
+      }
+
+      importProgress.value = 'Import completed successfully!'
+      importProgressValue.value = 100
+
+      // Record the import
+      importRecord.success = true
+      importRecord.metadata = {
+        format: importStructure.metadata?.format || 'unknown',
+        patientCount: filteredStructure.data?.patients?.length || 0,
+        visitCount: filteredStructure.data?.visits?.length || 0,
+        observationCount: filteredStructure.data?.observations?.length || 0,
+        dbStats: dbResult.data?.statistics || {},
+        selectionsApplied: !!options.selections,
+        ...dbResult.metadata,
+      }
+
+      importHistory.value.push(importRecord)
+      lastImportResult.value = dbResult
+      currentImport.value = importRecord
+
+      logger.info('Database import completed successfully', {
+        filename,
+        patientCount: importRecord.metadata.patientCount,
+        visitCount: importRecord.metadata.visitCount,
+        observationCount: importRecord.metadata.observationCount,
+        dbStats: importRecord.metadata.dbStats,
+      })
+
+      return dbResult
+    } catch (error) {
+      logger.error('Database import failed via store', error)
+
+      importRecord.success = false
+      importRecord.error = error.message
+      importHistory.value.push(importRecord)
+      lastImportResult.value = { success: false, errors: [{ message: error.message }] }
+      currentImport.value = importRecord
+
+      importProgress.value = 'Import failed'
+      importProgressValue.value = 0
+
+      throw error
+    } finally {
+      isImporting.value = false
+    }
+  }
+
+  /**
+   * Apply user selections to filter the import structure
+   * @param {Object} importStructure - Original import structure
+   * @param {Object} selections - User selections
+   * @returns {Object} Filtered import structure
+   */
+  const applySelectionsToStructure = (importStructure, selections) => {
+    if (!importStructure?.data) return importStructure
+
+    const filtered = {
+      ...importStructure,
+      data: {
+        ...importStructure.data,
+      },
+    }
+
+    logger.info('Applying selections to import structure', {
+      selections,
+      originalCounts: {
+        patients: importStructure.data.patients?.length || 0,
+        visits: importStructure.data.visits?.length || 0,
+        observations: importStructure.data.observations?.length || 0,
+      },
+    })
+
+    // Filter patients if selections provided
+    if (selections.patients && Array.isArray(selections.patients) && selections.patients.length > 0) {
+      const selectedPatientIds = new Set(selections.patients.map(p => p.PATIENT_CD || p.patientId))
+      filtered.data.patients = importStructure.data.patients.filter(patient =>
+        selectedPatientIds.has(patient.PATIENT_CD || patient.patientId)
+      )
+    }
+
+    // Filter visits if selections provided
+    if (selections.visits && Array.isArray(selections.visits) && selections.visits.length > 0) {
+      const selectedVisitIds = new Set(selections.visits.map(v => v.ENCOUNTER_NUM || v.visitId))
+      filtered.data.visits = importStructure.data.visits.filter(visit =>
+        selectedVisitIds.has(visit.ENCOUNTER_NUM || visit.visitId)
+      )
+    }
+
+    // Filter observations if selections provided
+    if (selections.observations && Array.isArray(selections.observations) && selections.observations.length > 0) {
+      const selectedObservationIds = new Set(selections.observations.map(o => o.OBSERVATION_ID || o.observationId))
+      filtered.data.observations = importStructure.data.observations.filter(observation =>
+        selectedObservationIds.has(observation.OBSERVATION_ID || observation.observationId)
+      )
+    }
+
+    logger.info('Selections applied to import structure', {
+      filteredCounts: {
+        patients: filtered.data.patients?.length || 0,
+        visits: filtered.data.visits?.length || 0,
+        observations: filtered.data.observations?.length || 0,
+      },
+    })
+
+    return filtered
+  }
+
+  /**
    * Clear import history
    */
   const clearImportHistory = () => {
@@ -406,6 +591,7 @@ export const useImportStore = defineStore('import', () => {
     analyzeFileContent,
     importFile,
     importForPatient,
+    importFileToDatabase,
     clearImportHistory,
     resetImportState,
     getImportById,
@@ -416,6 +602,7 @@ export const useImportStore = defineStore('import', () => {
     getCurrentSelections,
     clearSelections,
     getSelectionHistory,
+    applySelectionsToStructure,
 
     // Utility methods
     getSupportedFormats,

@@ -30,6 +30,15 @@ export default class ElectronConnection {
       if (success) {
         this.isConnected = true
         this.databasePath = databasePath
+
+        // Enable foreign keys for data integrity
+        try {
+          await this.executeCommand('PRAGMA foreign_keys = ON')
+          this.logger.info('Foreign key constraints enabled')
+        } catch (error) {
+          this.logger.warn('Failed to enable foreign keys', error)
+        }
+
         this.logger.success('Successfully connected to database', { databasePath })
         return true
       } else {

@@ -149,8 +149,10 @@ class BaseRepository {
    * @returns {Promise<Object>} - Created entity with ID
    */
   async create(entity) {
-    // Filter out undefined values
-    const fields = Object.keys(entity).filter((key) => entity[key] !== undefined)
+    // Filter out undefined values and primary key fields (should be auto-generated)
+    const fields = Object.keys(entity).filter((key) => {
+      return entity[key] !== undefined && key !== this.primaryKey
+    })
 
     if (fields.length === 0) {
       throw new Error('Failed to create entity')

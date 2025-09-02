@@ -36,6 +36,25 @@
                 <FileUploadInput v-model="selectedFile" :max-size-m-b="50" accepted-types=".csv,.json,.xml,.txt,.xlsx,.xls,.hl7,.html" @file-selected="onFileSelected" @file-cleared="onFileCleared" />
               </div>
 
+              <!-- Debug Section -->
+              <div class="debug-section q-mt-lg">
+                <q-card flat bordered class="bg-orange-1">
+                  <q-card-section>
+                    <div class="text-subtitle1 q-mb-sm text-orange-9">🔧 Debug Tools</div>
+                    <div class="text-body2 text-orange-8 q-mb-md">Quick test with the REAL 02_json.json file</div>
+                    <q-btn
+                      color="orange"
+                      icon="bug_report"
+                      label="Load & Analyze REAL 02_json.json"
+                      @click="loadDebugFile"
+                      :loading="debugLoading"
+                      no-caps
+                      class="q-px-lg"
+                    />
+                  </q-card-section>
+                </q-card>
+              </div>
+
               <!-- File Info Display -->
               <div v-if="selectedFile" class="file-info q-mt-lg">
                 <q-card flat bordered class="bg-grey-1">
@@ -347,6 +366,7 @@ const selectedPatient = ref(null)
 const selectedVisit = ref(null)
 const showVisitDialog = ref(false)
 const showPreviewDialog = ref(false)
+const debugLoading = ref(false)
 
 // Patient search handled by PatientSelectionCard component
 
@@ -451,6 +471,7 @@ const handleSelectionUpdate = (selections) => {
       patients: fileAnalysis.value.patientsCount,
       visits: fileAnalysis.value.visitsCount,
       observations: fileAnalysis.value.observationsCount,
+      totalSelected: selections.totalSelected || 0,
     })
   }
 }
@@ -812,6 +833,69 @@ const onFileCleared = () => {
   currentStep.value = 'upload'
 }
 
+const loadDebugFile = async () => {
+  debugLoading.value = true
+
+  try {
+    logger.info('Loading real debug file 02_json.json')
+
+    // Load the actual 02_json.json file from the public directory
+    const response = await fetch('/debug-02_json.json')
+
+    if (!response.ok) {
+      throw new Error(`Failed to load debug file: ${response.status}`)
+    }
+
+    const jsonContent = await response.text()
+
+    // Convert string to Uint8Array (mimicking file upload)
+    const encoder = new TextEncoder()
+    const uint8Array = encoder.encode(jsonContent)
+
+    // Create a mock file data structure
+    const mockFileData = {
+      fileInfo: {
+        filename: '02_json.json',
+        size: uint8Array.length,
+        type: 'application/json'
+      },
+      blob: uint8Array
+    }
+
+    logger.info('Successfully loaded real 02_json.json file', {
+      size: uint8Array.length,
+      contentLength: jsonContent.length
+    })
+
+    // Set the selected file and proceed with analysis
+    selectedFile.value = mockFileData
+
+    // Clear any existing analysis
+    fileAnalysis.value = null
+    analyzingFile.value = true
+    currentStep.value = 'analyze'
+
+    // Use the existing file analysis logic
+    await onFileSelected(mockFileData)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Debug file loaded and analysis started',
+      timeout: 3000,
+    })
+
+  } catch (error) {
+    logger.error('Failed to load debug file', error)
+    $q.notify({
+      type: 'negative',
+      message: `Failed to load debug file: ${error.message}`,
+      timeout: 5000,
+    })
+  } finally {
+    debugLoading.value = false
+  }
+}
+
 const retryAnalysis = () => {
   logger.info('Retrying file analysis', {
     filename: selectedFile.value?.fileInfo?.filename,
@@ -862,11 +946,12 @@ const startImport = async () => {
       throw new Error('File appears to be empty or contains no readable content.')
     }
 
-    // Use the new import store for actual import
-    logger.info('Starting import', {
+    // Use the new database import functionality
+    logger.info('Starting database import', {
       mode: selectedMode.value,
       patientMode: patientMode.value,
       filename: selectedFile.value.fileInfo.filename,
+      hasSelections: !!importStore.getCurrentSelections(),
     })
 
     const importOptions = {
@@ -874,42 +959,49 @@ const startImport = async () => {
       patientMode: patientMode.value,
       selectedPatient: selectedPatient.value,
       selectedVisit: selectedVisit.value,
+      duplicateStrategy: 'skip', // Default strategy
+      // Pass user selections if they exist
+      selections: importStore.getCurrentSelections(),
     }
 
-    const result = await importStore.importFile(content, selectedFile.value.fileInfo.filename, importOptions)
+    // Use the new database import method
+    const result = await importStore.importFileToDatabase(content, selectedFile.value.fileInfo.filename, importOptions)
 
     if (result.success) {
       importComplete.value = true
       importSummary.value = {
-        totalRecords: result.data?.data?.observations?.length || 0,
+        totalRecords: result.data?.statistics?.patients + result.data?.statistics?.visits + result.data?.statistics?.observations || 0,
         successfulImports: 1,
         errors: 0,
-        visits: result.data?.data?.visits?.length || 0,
-        patients: result.data?.data?.patients?.length || 0,
+        visits: result.data?.statistics?.visits || 0,
+        patients: result.data?.statistics?.patients || 0,
+        observations: result.data?.statistics?.observations || 0,
+        duplicates: result.data?.statistics?.duplicates || 0,
         format: result.data?.metadata?.format || 'unknown',
       }
 
       $q.notify({
         type: 'positive',
-        message: 'Import completed successfully',
-        timeout: 3000,
+        message: `Import completed successfully! Imported ${importSummary.value.totalRecords} records.`,
+        timeout: 5000,
       })
 
-      logger.info('Import completed successfully', {
+      logger.info('Database import completed successfully', {
         mode: selectedMode.value,
         summary: importSummary.value,
+        dbStats: result.data?.statistics,
       })
     } else {
-      throw new Error(result.errors?.[0]?.message || 'Import failed')
+      throw new Error(result.errors?.[0]?.message || 'Database import failed')
     }
   } catch (error) {
-    logger.error('Import failed', error)
-    importError.value = error.message || 'An error occurred during import'
+    logger.error('Database import failed', error)
+    importError.value = error.message || 'An error occurred during database import'
 
     $q.notify({
       type: 'negative',
       message: `Import failed: ${error.message}`,
-      timeout: 5000,
+      timeout: 7000,
     })
   }
 }
@@ -1025,6 +1117,15 @@ onMounted(async () => {
 
 .import-options {
   max-width: 600px;
+}
+
+.debug-section {
+  max-width: 600px;
+}
+
+.debug-section .q-card {
+  border: 2px dashed #ff9800;
+  background: linear-gradient(135deg, #fff3e0 0%, #ffcc80 100%);
 }
 
 .import-summary {

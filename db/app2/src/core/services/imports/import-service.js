@@ -11,13 +11,14 @@ import { ImportCsvService } from './import-csv-service.js'
 import { ImportJsonService } from './import-json-service.js'
 import { ImportHl7Service } from './import-hl7-service.js'
 import { ImportSurveyService } from './import-survey-service.js'
+import { DatabaseImportService } from './database-import-service.js'
 import { createImportStructure, getImportStructure } from './import-structure.js'
 import { detectFormat, validateFileSize, SUPPORTED_FORMATS } from './import-filetype.js'
 import { logger } from '../logging-service.js'
 
 export class ImportService {
-  constructor(databaseStore, conceptRepository, cqlRepository) {
-    this.databaseStore = databaseStore
+  constructor(databaseService, conceptRepository, cqlRepository) {
+    this.databaseService = databaseService
     this.conceptRepository = conceptRepository
     this.cqlRepository = cqlRepository
 
@@ -29,10 +30,15 @@ export class ImportService {
       html: new ImportSurveyService(conceptRepository, cqlRepository),
     }
 
+    // Initialize database import service
+    this.databaseImportService = new DatabaseImportService(databaseService, conceptRepository, cqlRepository)
+
     // Configuration
     this.config = {
       maxFileSize: '50MB',
       supportedFormats: SUPPORTED_FORMATS,
+      defaultImportToDatabase: false,
+      duplicateStrategy: 'skip',
     }
   }
 
@@ -233,6 +239,93 @@ export class ImportService {
     if (fileSize <= 1024 * 1024) return '1-2 minutes'
     if (fileSize <= 10 * 1024 * 1024) return '2-5 minutes'
     return '5+ minutes'
+  }
+
+  /**
+   * Import file and optionally save to database
+   * @param {string} content - File content
+   * @param {string} filename - Original filename
+   * @param {Object} options - Import options
+   * @returns {Promise<Object>} Import result
+   */
+  async importFileToDatabase(content, filename, options = {}) {
+    const importOptions = {
+      importToDatabase: true,
+      duplicateStrategy: this.config.duplicateStrategy,
+      ...options,
+    }
+
+    // First parse the file to get importStructure
+    const parseResult = await this.importFile(content, filename, importOptions)
+
+    if (!parseResult.success) {
+      return parseResult
+    }
+
+    // Then import to database
+    const dbResult = await this.databaseImportService.importToDatabase(parseResult.data, importOptions)
+
+    return {
+      success: dbResult.success,
+      data: {
+        parseResult: parseResult.data,
+        dbResult: dbResult.data,
+      },
+      metadata: {
+        ...parseResult.metadata,
+        ...dbResult.metadata,
+        importType: 'full',
+      },
+      errors: [...(parseResult.errors || []), ...(dbResult.errors || [])],
+      warnings: [...(parseResult.warnings || []), ...(dbResult.warnings || [])],
+    }
+  }
+
+  /**
+   * Import existing importStructure to database
+   * @param {Object} importStructure - Standardized import structure
+   * @param {Object} options - Import options
+   * @returns {Promise<Object>} Database import result
+   */
+  async importStructureToDatabase(importStructure, options = {}) {
+    const importOptions = {
+      duplicateStrategy: this.config.duplicateStrategy,
+      ...options,
+    }
+
+    return await this.databaseImportService.importToDatabase(importStructure, importOptions)
+  }
+
+  /**
+   * Set duplicate handling strategy
+   * @param {string} strategy - 'skip', 'update', or 'error'
+   */
+  setDuplicateStrategy(strategy) {
+    if (!['skip', 'update', 'error'].includes(strategy)) {
+      throw new Error(`Invalid duplicate strategy: ${strategy}`)
+    }
+    this.config.duplicateStrategy = strategy
+    this.databaseImportService.setDuplicateStrategy(strategy)
+  }
+
+  /**
+   * Get database import statistics
+   * @param {string} sourceSystem - Optional source system filter
+   * @returns {Promise<Object>} Import statistics
+   */
+  async getDatabaseImportStatistics(sourceSystem = null) {
+    return await this.databaseImportService.getImportStatistics(sourceSystem)
+  }
+
+  /**
+   * Get database import service configuration
+   * @returns {Object} Configuration
+   */
+  getDatabaseImportConfig() {
+    return {
+      ...this.config,
+      ...this.databaseImportService.getConfig(),
+    }
   }
 
   /**
