@@ -502,6 +502,8 @@ const importConfig = {
 
 The single most critical issue is that **ImportPage.vue does not actually use the import services**. The import logic is currently simulated:
 
+**✅ RECENTLY COMPLETED**: Added HL7 (.hl7) and HTML (.html) file support to ImportPage.vue file selection dialog
+
 ```javascript
 // CURRENT: Simulated import (ImportPage.vue lines 442-467)
 importProgress.value = 'Reading file...'
@@ -722,6 +724,125 @@ async analyzeFileContent(content, filename) {
 3. **User Control**: Preview and confirmation steps
 4. **Scalable**: Handles both small files and bulk imports
 5. **Data Integrity**: Smart conflict resolution prevents duplicates
+
+### **🛡️ ENHANCED ERROR HANDLING** ✅ **RECENTLY COMPLETED**
+
+#### **Problem Solved**
+
+Fixed critical error handling issues where file analysis failures caused unhandled exceptions and poor user experience:
+
+- **TypeError: Cannot read properties of undefined (reading 'length')** in `ImportService.analyzeFileContent()`
+- **TypeError: Cannot read properties of undefined (reading 'toUpperCase')** in `ImportPage.vue` UI rendering
+- **Unhandled promise rejections** during file analysis failures
+
+#### **Solutions Implemented**
+
+##### **1. ImportService Error Handling**
+
+```javascript
+// Added comprehensive input validation
+async analyzeFileContent(content, filename) {
+  // Validate input parameters
+  if (!content) {
+    return this.createErrorResult('INVALID_CONTENT', 'File content is empty or undefined', filename)
+  }
+  if (!filename) {
+    return this.createErrorResult('INVALID_FILENAME', 'Filename is undefined', 'unknown')
+  }
+
+  // Enhanced error logging
+  logger.error('File content analysis failed', {
+    error: error.message,
+    stack: error.stack,
+    filename,
+    contentLength: content?.length,
+    contentType: typeof content,
+    errorType: error.constructor.name
+  })
+}
+```
+
+##### **2. ImportPage.vue UI Safeguards**
+
+```vue
+<!-- Added null-safe rendering -->
+<div class="text-body2 q-mb-sm">
+  <strong>Format:</strong> {{ fileAnalysis.format ? fileAnalysis.format.toUpperCase() : 'Unknown' }}
+</div>
+
+<!-- Added safe property access -->
+<div class="text-h6">{{ fileAnalysis.patientsCount || 0 }}</div>
+<div class="text-h6">{{ fileAnalysis.visitsCount || 0 }}</div>
+<div class="text-h6">{{ fileAnalysis.observationsCount || 0 }}</div>
+<div class="text-h6">{{ fileAnalysis.estimatedImportTime || 'Unknown' }}</div>
+```
+
+##### **3. Enhanced Error Display UI**
+
+```vue
+<!-- Added comprehensive error display -->
+<div v-else-if="fileAnalysis && !fileAnalysis.success" class="analysis-error">
+  <q-card flat bordered class="bg-negative-1">
+    <q-card-section>
+      <div class="text-subtitle1 q-mb-md text-negative-8">
+        <q-icon name="error" class="q-mr-sm" />
+        File Analysis Failed
+      </div>
+
+      <!-- Error Details with proper formatting -->
+      <div v-if="fileAnalysis.errors && fileAnalysis.errors.length > 0">
+        <q-banner class="bg-negative-2 text-negative-9" rounded>
+          <div v-for="(error, index) in fileAnalysis.errors" :key="index">
+            • {{ typeof error === 'string' ? error : error.message || error }}
+          </div>
+        </q-banner>
+      </div>
+
+      <!-- Action buttons for recovery -->
+      <div class="q-gutter-md">
+        <q-btn color="primary" icon="refresh" label="Try Again" @click="retryAnalysis" />
+        <q-btn flat color="grey-7" label="Upload Different File" @click="goBackToUpload" />
+      </div>
+    </q-card-section>
+  </q-card>
+</div>
+```
+
+##### **4. Retry Functionality**
+
+```javascript
+const retryAnalysis = () => {
+  if (selectedFile.value) {
+    // Reset analysis state and try again
+    fileAnalysis.value = null
+    analyzingFile.value = true
+    currentStep.value = 'analyze'
+    onFileSelected(selectedFile.value)
+  }
+}
+```
+
+##### **5. Comprehensive Logging**
+
+```javascript
+logger.info('File selected for import', {
+  filename: fileData?.fileInfo?.filename,
+  size: fileData?.fileInfo?.size,
+  hasContent: !!fileData?.content,
+  contentLength: fileData?.content?.length,
+  contentType: typeof fileData?.content,
+  fileDataKeys: fileData ? Object.keys(fileData) : 'undefined',
+})
+```
+
+#### **Benefits of Enhanced Error Handling**
+
+1. **🛡️ Crash Prevention**: No more unhandled exceptions during file analysis
+2. **👤 User-Friendly**: Clear error messages with actionable recovery options
+3. **🔍 Debug Information**: Comprehensive logging for troubleshooting
+4. **🔄 Recovery Options**: Retry functionality and graceful degradation
+5. **📊 Error Tracking**: Detailed error information for monitoring
+6. **🎨 UI Consistency**: Consistent error display across all failure scenarios
 
 #### **Example Use Cases**
 
@@ -1034,6 +1155,7 @@ const advancedOptions = {
 2. **Complete Integration Testing**: Verify end-to-end functionality (1 day)
 3. **Add Real Progress Tracking**: Connect UI to backend progress callbacks (2-3 days)
 4. **🆕 Add Multi-Patient Support**: Implement adaptive import flow for files with multiple patients/visits (3-5 days)
+5. **✅ Improve Error Handling**: Add graceful error handling for file analysis failures (COMPLETED)
 
 #### **Post-Integration Focus**
 

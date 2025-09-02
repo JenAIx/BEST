@@ -735,7 +735,22 @@ export class ImportService {
    */
   async analyzeFileContent(content, filename) {
     try {
-      logger.info('Starting file content analysis', { filename, contentLength: content.length })
+      // Validate input parameters
+      if (!content) {
+        logger.error('File content analysis failed: content is undefined', { filename })
+        return this.createErrorResult('INVALID_CONTENT', 'File content is empty or undefined', filename)
+      }
+
+      if (!filename) {
+        logger.error('File content analysis failed: filename is undefined')
+        return this.createErrorResult('INVALID_FILENAME', 'Filename is undefined', 'unknown')
+      }
+
+      logger.info('Starting file content analysis', {
+        filename,
+        contentLength: content.length,
+        contentType: typeof content,
+      })
 
       // Detect format first
       const format = this.detectFormat(content, filename)
@@ -797,9 +812,15 @@ export class ImportService {
       })
 
       return analysis
-
     } catch (error) {
-      logger.error('File content analysis failed', error)
+      logger.error('File content analysis failed', {
+        error: error.message,
+        stack: error.stack,
+        filename,
+        contentLength: content?.length,
+        contentType: typeof content,
+        errorType: error.constructor.name,
+      })
       return this.createErrorResult('ANALYSIS_FAILED', error.message, filename)
     }
   }
@@ -811,7 +832,7 @@ export class ImportService {
    */
   async analyzeCsvContent(content, analysis) {
     try {
-      const lines = content.split('\n').filter(line => line.trim())
+      const lines = content.split('\n').filter((line) => line.trim())
       if (lines.length < 2) {
         analysis.errors.push('CSV file appears to be empty or malformed')
         return
@@ -820,24 +841,16 @@ export class ImportService {
       // Parse header to understand structure
       const headerLine = lines[0]
       const delimiter = this.detectCsvDelimiter(headerLine)
-      const headers = headerLine.split(delimiter).map(h => h.trim())
+      const headers = headerLine.split(delimiter).map((h) => h.trim())
 
       // Look for patient identifiers in headers
-      const patientHeaders = headers.filter(h =>
-        h.toLowerCase().includes('patient') ||
-        h.toLowerCase().includes('pat_num') ||
-        h.toLowerCase().includes('pat_cd')
-      )
+      const patientHeaders = headers.filter((h) => h.toLowerCase().includes('patient') || h.toLowerCase().includes('pat_num') || h.toLowerCase().includes('pat_cd'))
 
       // Look for visit identifiers in headers
-      const visitHeaders = headers.filter(h =>
-        h.toLowerCase().includes('visit') ||
-        h.toLowerCase().includes('encounter') ||
-        h.toLowerCase().includes('enc_num')
-      )
+      const visitHeaders = headers.filter((h) => h.toLowerCase().includes('visit') || h.toLowerCase().includes('encounter') || h.toLowerCase().includes('enc_num'))
 
       // Analyze data rows (skip header)
-      const dataRows = lines.slice(1).filter(line => line.trim())
+      const dataRows = lines.slice(1).filter((line) => line.trim())
       analysis.observationsCount = dataRows.length
 
       // Extract unique patients and visits
@@ -871,12 +884,11 @@ export class ImportService {
 
       // Extract sample patient info
       const patientArray = Array.from(uniquePatients)
-      analysis.patients = patientArray.slice(0, 5).map(id => ({
+      analysis.patients = patientArray.slice(0, 5).map((id) => ({
         id,
         name: `Patient ${id}`,
-        visitsCount: Math.floor(Math.random() * 5) + 1 // Estimate
+        visitsCount: Math.floor(Math.random() * 5) + 1, // Estimate
       }))
-
     } catch (error) {
       analysis.errors.push(`CSV analysis failed: ${error.message}`)
     }
@@ -910,7 +922,6 @@ export class ImportService {
 
       analysis.hasMultiplePatients = analysis.patientsCount > 1
       analysis.hasMultipleVisits = analysis.visitsCount > 1
-
     } catch (error) {
       analysis.errors.push(`JSON analysis failed: ${error.message}`)
     }
@@ -928,10 +939,12 @@ export class ImportService {
       // HL7 CDA typically has patient and visit information
       if (data.subject && data.subject.display) {
         analysis.patientsCount = 1
-        analysis.patients = [{
-          id: data.subject.display,
-          name: data.subject.display,
-        }]
+        analysis.patients = [
+          {
+            id: data.subject.display,
+            name: data.subject.display,
+          },
+        ]
       }
 
       // Look for section data
@@ -942,7 +955,6 @@ export class ImportService {
 
       analysis.hasMultiplePatients = false
       analysis.hasMultipleVisits = false
-
     } catch (error) {
       analysis.errors.push(`HL7 analysis failed: ${error.message}`)
     }
@@ -991,27 +1003,33 @@ export class ImportService {
             // Extract patient and observation data
             if (cdaData.cda && cdaData.cda.subject) {
               analysis.patientsCount = 1
-              analysis.patients = [{
-                id: cdaData.cda.subject.display || 'Unknown',
-                name: cdaData.cda.subject.display || 'Unknown Patient',
-              }]
+              analysis.patients = [
+                {
+                  id: cdaData.cda.subject.display || 'Unknown',
+                  name: cdaData.cda.subject.display || 'Unknown Patient',
+                },
+              ]
               analysis.visitsCount = 1
               analysis.observationsCount = cdaData.cda.section?.length || 1
             } else if (cdaData.subject) {
               analysis.patientsCount = 1
-              analysis.patients = [{
-                id: cdaData.subject.display || 'Unknown',
-                name: cdaData.subject.display || 'Unknown Patient',
-              }]
+              analysis.patients = [
+                {
+                  id: cdaData.subject.display || 'Unknown',
+                  name: cdaData.subject.display || 'Unknown Patient',
+                },
+              ]
               analysis.visitsCount = 1
               analysis.observationsCount = cdaData.section?.length || 1
             } else {
               // Fallback - assume there's at least one patient and observation
               analysis.patientsCount = 1
-              analysis.patients = [{
-                id: 'Unknown',
-                name: 'Unknown Patient',
-              }]
+              analysis.patients = [
+                {
+                  id: 'Unknown',
+                  name: 'Unknown Patient',
+                },
+              ]
               analysis.visitsCount = 1
               analysis.observationsCount = 1
             }
@@ -1025,7 +1043,6 @@ export class ImportService {
 
       analysis.hasMultiplePatients = false
       analysis.hasMultipleVisits = false
-
     } catch (error) {
       analysis.errors = analysis.errors || []
       analysis.errors.push(`HTML analysis failed: ${error.message}`)
