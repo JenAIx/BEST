@@ -90,7 +90,7 @@
 
                 <!-- Import Button -->
                 <div class="q-mt-lg">
-                  <q-btn color="primary" icon="upload" label="Start Import" :loading="importing" :disable="!canImport" @click="startImport" class="full-width" />
+                  <q-btn color="primary" icon="upload" label="Start Import" :loading="importStore.isImporting" :disable="!canImport" @click="startImport" class="full-width" />
                 </div>
               </div>
             </q-card-section>
@@ -238,11 +238,11 @@
           <q-card flat bordered class="text-center">
             <q-card-section class="q-pa-xl">
               <!-- Importing State -->
-              <div v-if="importing" class="importing-state">
+              <div v-if="importStore.isImporting" class="importing-state">
                 <q-spinner-dots size="60px" color="primary" class="q-mb-md" />
                 <div class="text-h5 q-mb-sm">Importing Data...</div>
-                <div class="text-body1 text-grey-6 q-mb-lg">{{ importProgress }}</div>
-                <q-linear-progress :value="importProgressValue" color="primary" class="q-mt-md" />
+                <div class="text-body1 text-grey-6 q-mb-lg">{{ importStore.importProgress }}</div>
+                <q-linear-progress :value="importStore.importProgressValue / 100" color="primary" class="q-mt-md" />
               </div>
 
               <!-- Import Complete -->
@@ -307,7 +307,7 @@
       :file-analysis="fileAnalysis"
       :selected-patient="selectedPatient"
       :selected-visit="selectedVisit"
-      :importing="importing"
+      :importing="importStore.isImporting"
       @proceed="proceedWithImport"
       @cancel="showPreviewDialog = false"
     />
@@ -320,8 +320,8 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from '../stores/visit-observation-store.js'
 import { useDatabaseStore } from '../stores/database-store.js'
+import { useImportStore } from '../stores/import-store.js'
 import { logger } from '../core/services/logging-service.js'
-import { ImportService } from '../core/services/imports/import-service.js'
 import FileUploadInput from '../components/shared/FileUploadInput.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
 import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
@@ -332,11 +332,7 @@ const router = useRouter()
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
 const dbStore = useDatabaseStore()
-
-// Initialize Import Service with proper repositories
-const conceptRepository = dbStore.getRepository('concept')
-const cqlRepository = dbStore.getRepository('cql')
-const importService = new ImportService(dbStore, conceptRepository, cqlRepository)
+const importStore = useImportStore()
 
 // State
 const currentStep = ref('patient') // patient -> visit -> upload -> analyze -> import
@@ -350,11 +346,8 @@ const showPreviewDialog = ref(false)
 
 // Patient search handled by PatientSelectionCard component
 
-// Import state
-const importing = ref(false)
+// Import state (using import store)
 const importComplete = ref(false)
-const importProgress = ref('')
-const importProgressValue = ref(0)
 const importError = ref('')
 const importSummary = ref(null)
 
@@ -386,7 +379,7 @@ const currentStepNumber = computed(() => {
 })
 
 const canImport = computed(() => {
-  return selectedFile.value && !importing.value
+  return selectedFile.value && !importStore.isImporting
 })
 
 // Methods
@@ -599,7 +592,7 @@ const onFileSelected = async (fileData) => {
       throw new Error('File appears to be empty or contains no readable content.')
     }
 
-    const analysis = await importService.analyzeFileContent(content, fileData.fileInfo.filename)
+    const analysis = await importStore.analyzeFileContent(content, fileData.fileInfo.filename)
 
     // Ensure we have a valid analysis result
     if (!analysis) {
@@ -725,17 +718,11 @@ const startImport = async () => {
     return
   }
 
-  importing.value = true
   importComplete.value = false
   importError.value = ''
-  importProgress.value = 'Starting import...'
-  importProgressValue.value = 0
   currentStep.value = 'import'
 
   try {
-    importProgress.value = 'Reading file...'
-    importProgressValue.value = 20
-
     // Convert blob (Uint8Array) to string for import services
     let content
     try {
@@ -749,31 +736,28 @@ const startImport = async () => {
       throw new Error('File appears to be empty or contains no readable content.')
     }
 
-    importProgress.value = 'Parsing data...'
-    importProgressValue.value = 40
-
-    // Use the real ImportService to import for the specific patient
-    const result = await importService.importForPatient(content, selectedFile.value.fileInfo.filename, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, {
+    // Use the import store which handles survey imports properly
+    const result = await importStore.importForPatient(content, selectedFile.value.fileInfo.filename, selectedPatient.value.PATIENT_NUM, selectedVisit.value.ENCOUNTER_NUM, {
       createMissingConcepts: true,
       validateData: importOptions.value.includes('validateData'),
       duplicateHandling: importOptions.value.includes('updateExisting') ? 'update' : 'skip',
     })
 
     if (result.success) {
-      importProgress.value = 'Import completed successfully!'
-      importProgressValue.value = 100
       importComplete.value = true
 
       // Set import summary from the result
       importSummary.value = {
-        totalRecords: (result.data?.patients?.length || 0) + (result.data?.visits?.length || 0) + (result.data?.observations?.length || 0),
-        successfulImports: result.metadata?.savedObservations || 0,
+        totalRecords: result.metadata?.responseCount || 1,
+        successfulImports: 1,
         errors: result.errors?.length || 0,
+        questionnaire: result.metadata?.questionnaire,
+        title: result.metadata?.title,
       }
 
       $q.notify({
         type: 'positive',
-        message: 'Data imported successfully',
+        message: result.metadata?.format === 'HTML Survey' ? 'Survey imported successfully' : 'Data imported successfully',
         timeout: 3000,
       })
 
@@ -786,8 +770,6 @@ const startImport = async () => {
     } else {
       // Import failed
       importError.value = result.errors?.[0]?.message || 'Import failed'
-      importProgress.value = 'Import failed'
-      importProgressValue.value = 0
 
       $q.notify({
         type: 'negative',
@@ -804,16 +786,12 @@ const startImport = async () => {
   } catch (error) {
     logger.error('Import failed', error)
     importError.value = error.message || 'An error occurred during import'
-    importProgress.value = 'Import failed'
-    importProgressValue.value = 0
 
     $q.notify({
       type: 'negative',
       message: `Import failed: ${error.message}`,
       timeout: 5000,
     })
-  } finally {
-    importing.value = false
   }
 }
 
