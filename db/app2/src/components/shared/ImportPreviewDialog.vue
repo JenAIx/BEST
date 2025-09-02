@@ -57,210 +57,61 @@
         </div>
 
         <q-card flat bordered>
-          <q-card-section>
-            <div class="tree-container">
-              <!-- Patients -->
-              <div v-if="treeData.patients && treeData.patients.length > 0" class="tree-level">
-                <div class="tree-header" @click="togglePatientsCollapse">
-                  <q-checkbox v-model="patientsAllSelected" :indeterminate="patientsIndeterminate" @update:model-value="toggleAllPatients" @click.stop class="q-mr-sm" />
-                  <q-icon :name="patientsCollapsed ? 'expand_more' : 'expand_less'" class="q-mr-sm" />
-                  <q-icon name="people" color="green" class="q-mr-sm" />
-                  <span class="text-weight-medium">Patients ({{ selectedPatientsCount }}/{{ treeData.patients.length }})</span>
-                </div>
+          <q-card-section class="q-pa-md">
+            <q-tree :nodes="treeNodes" dense node-key="id" tick-strategy="leaf" v-model:selected="selectedNode" v-model:ticked="tickedNodes" default-expand-all no-selection-unset>
+              <!-- Custom node content -->
+              <template #default-header="{ node }">
+                <div class="tree-node-content">
+                  <!-- Icon based on node type -->
+                  <q-icon :name="getNodeIcon(node.type)" :color="getNodeColor(node.type)" size="sm" class="q-mr-sm" />
 
-                <div class="tree-children" :class="{ collapsed: patientsCollapsed }">
-                  <div v-for="patient in treeData.patients" :key="patient.id" class="tree-item">
-                    <div class="tree-item-content">
-                      <q-checkbox v-model="patient.selected" @update:model-value="updatePatientSelection" class="q-mr-sm" />
-                      <q-icon name="person" color="green" class="q-mr-sm" />
-                      <div class="tree-item-details">
-                        <div class="tree-item-name">{{ patient.name || patient.id || 'Unknown Patient' }}</div>
-                        <div class="tree-item-meta">
-                          <span v-if="patient.metadata?.age" class="q-mr-md"><strong>Age:</strong> {{ patient.metadata.age }}</span>
-                          <span v-if="patient.metadata?.sex" class="q-mr-md"><strong>Sex:</strong> {{ patient.metadata.sex }}</span>
-                          <span v-if="patient.metadata?.birthDate" class="q-mr-md"><strong>DOB:</strong> {{ formatDate(patient.metadata.birthDate) }}</span>
-                          <span><strong>ID:</strong> {{ patient.id }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Visits for this patient -->
-                    <div v-if="patient.visits && patient.visits.length > 0" class="tree-children">
-                      <div v-for="visit in patient.visits" :key="visit.id" class="tree-item">
-                        <div class="tree-item-content">
-                          <q-checkbox v-model="visit.selected" @update:model-value="updateVisitSelection" class="q-mr-sm" />
-                          <q-icon name="event" color="orange" class="q-mr-sm" />
-                          <div class="tree-item-details">
-                            <div class="tree-item-name">{{ visit.name || visit.id || 'Unknown Visit' }}</div>
-                            <div class="tree-item-meta">
-                              <span class="q-mr-md"><strong>Date:</strong> {{ formatDate(visit.startDate) }} - {{ formatDate(visit.endDate) }}</span>
-                              <span v-if="visit.metadata?.location" class="q-mr-md"><strong>Location:</strong> {{ visit.metadata.location }}</span>
-                              <span v-if="visit.metadata?.inout" class="q-mr-md"><strong>Type:</strong> {{ getInoutDescription(visit.metadata.inout) }}</span>
-                              <span v-if="visit.metadata?.providerId" class="q-mr-md"><strong>Provider:</strong> {{ visit.metadata.providerId }}</span>
-                              <span><strong>ID:</strong> {{ visit.id }}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- Observations for this visit -->
-                        <div v-if="visit.observations && visit.observations.length > 0" class="tree-level">
-                          <div class="tree-header" @click="toggleVisitObservationsCollapse(visit)">
-                            <q-checkbox
-                              v-model="visit.observationsAllSelected"
-                              :indeterminate="visit.observationsIndeterminate"
-                              @update:model-value="toggleAllObservations(visit)"
-                              @click.stop
-                              class="q-mr-sm"
-                            />
-                            <q-icon :name="visit.observationsCollapsed ? 'expand_more' : 'expand_less'" class="q-mr-sm" />
-                            <q-icon name="analytics" color="purple" class="q-mr-sm" />
-                            <span class="text-weight-medium">Observations ({{ getSelectedObservationsCount(visit) }}/{{ visit.observations.length }})</span>
-                          </div>
-
-                          <div class="tree-children" :class="{ collapsed: visit.observationsCollapsed }">
-                            <div v-for="observation in visit.observations" :key="observation.id" class="tree-item">
-                              <div class="tree-item-content">
-                                <q-checkbox v-model="observation.selected" @update:model-value="updateObservationSelection" class="q-mr-sm" />
-                                <q-chip :color="getValtypeColor(observation.valtype)" text-color="white" size="sm" class="q-mr-sm">
-                                  {{ observation.valtype }}
-                                </q-chip>
-                                <div class="tree-item-details">
-                                  <div class="tree-item-name">{{ observation.display || observation.name || observation.concept || 'Unknown Observation' }}</div>
-                                  <div class="tree-item-meta">
-                                    <span class="q-mr-md"><strong>Value:</strong> {{ observation.value || 'N/A' }}</span>
-                                    <span v-if="observation.concept" class="q-mr-md"><strong>Concept:</strong> {{ observation.concept }}</span>
-                                    <span class="q-mr-md"><strong>Type:</strong> {{ getValtypeDescription(observation.valtype) }}</span>
-                                    <span v-if="observation.metadata?.unit" class="q-mr-md"><strong>Unit:</strong> {{ observation.metadata.unit }}</span>
-                                    <span v-if="observation.metadata?.category" class="q-mr-md"><strong>Category:</strong> {{ observation.metadata.category }}</span>
-                                    <span v-if="observation.metadata?.providerId" class="q-mr-md"><strong>Provider:</strong> {{ observation.metadata.providerId }}</span>
-                                    <span v-if="observation.metadata?.startDate" class="q-mr-md"><strong>Date:</strong> {{ formatDate(observation.metadata.startDate) }}</span>
-                                    <span v-if="observation.metadata?.sourcesystemCd" class="q-mr-md"><strong>Source:</strong> {{ observation.metadata.sourcesystemCd }}</span>
-                                    <span v-if="observation.metadata?.isQuestionnaire" class="q-mr-md"><strong>Questionnaire:</strong> Yes</span>
-                                    <span v-if="observation.metadata?.responseCount" class="q-mr-md"><strong>Responses:</strong> {{ observation.metadata.responseCount }}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Standalone Visits (not linked to patients) -->
-              <div v-if="treeData.visits && treeData.visits.length > 0 && treeData.patients.length === 0" class="tree-level">
-                <div class="tree-children">
-                  <div v-for="visit in treeData.visits" :key="visit.id" class="tree-item">
-                    <div class="tree-item-content">
-                      <q-checkbox v-model="visit.selected" @update:model-value="updateVisitSelection" class="q-mr-sm" />
-                      <q-icon name="event" color="orange" class="q-mr-sm" />
-                      <div class="tree-item-details">
-                        <div class="tree-item-name">{{ visit.name || visit.id || 'Unknown Visit' }}</div>
-                        <div class="tree-item-meta">
-                          <span class="q-mr-md"><strong>Date:</strong> {{ formatDate(visit.startDate) }} - {{ formatDate(visit.endDate) }}</span>
-                          <span v-if="visit.metadata?.location" class="q-mr-md"><strong>Location:</strong> {{ visit.metadata.location }}</span>
-                          <span v-if="visit.metadata?.inout" class="q-mr-md"><strong>Type:</strong> {{ getInoutDescription(visit.metadata.inout) }}</span>
-                          <span v-if="visit.metadata?.providerId" class="q-mr-md"><strong>Provider:</strong> {{ visit.metadata.providerId }}</span>
-                          <span><strong>ID:</strong> {{ visit.id }}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- Observations for standalone visits -->
-                    <div v-if="visit.observations && visit.observations.length > 0" class="tree-level">
-                      <div class="tree-header">
-                        <q-checkbox v-model="visit.observationsAllSelected" :indeterminate="visit.observationsIndeterminate" @update:model-value="toggleAllObservations(visit)" class="q-mr-sm" />
-                        <q-icon name="analytics" color="purple" class="q-mr-sm" />
-                        <span class="text-weight-medium">Observations ({{ getSelectedObservationsCount(visit) }}/{{ visit.observations.length }})</span>
-                      </div>
-
-                      <div class="tree-children">
-                        <div v-for="observation in visit.observations" :key="observation.id" class="tree-item">
-                          <div class="tree-item-content">
-                            <q-checkbox v-model="observation.selected" @update:model-value="updateObservationSelection" class="q-mr-sm" />
-                            <q-chip :color="getValtypeColor(observation.valtype)" text-color="white" size="sm" class="q-mr-sm">
-                              {{ observation.valtype }}
-                            </q-chip>
-                            <div class="tree-item-details">
-                              <div class="tree-item-name">{{ observation.display || observation.name || observation.concept || 'Unknown Observation' }}</div>
-                              <div class="tree-item-meta">
-                                <span class="q-mr-md"><strong>Value:</strong> {{ observation.value || 'N/A' }}</span>
-                                <span v-if="observation.concept" class="q-mr-md"><strong>Concept:</strong> {{ observation.concept }}</span>
-                                <span class="q-mr-md"><strong>Type:</strong> {{ getValtypeDescription(observation.valtype) }}</span>
-                                <span v-if="observation.metadata?.unit" class="q-mr-md"><strong>Unit:</strong> {{ observation.metadata.unit }}</span>
-                                <span v-if="observation.metadata?.category" class="q-mr-md"><strong>Category:</strong> {{ observation.metadata.category }}</span>
-                                <span v-if="observation.metadata?.providerId" class="q-mr-md"><strong>Provider:</strong> {{ observation.metadata.providerId }}</span>
-                                <span v-if="observation.metadata?.startDate" class="q-mr-md"><strong>Date:</strong> {{ formatDate(observation.metadata.startDate) }}</span>
-                                <span v-if="observation.metadata?.sourcesystemCd" class="q-mr-md"><strong>Source:</strong> {{ observation.metadata.sourcesystemCd }}</span>
-                                <span v-if="observation.metadata?.isQuestionnaire" class="q-mr-md"><strong>Questionnaire:</strong> Yes</span>
-                                <span v-if="observation.metadata?.responseCount" class="q-mr-md"><strong>Responses:</strong> {{ observation.metadata.responseCount }}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Standalone Observations (not linked to visits) -->
-              <div v-if="treeData.observations && treeData.observations.length > 0 && treeData.visits.length === 0" class="tree-level">
-                <div class="tree-header" @click="toggleStandaloneObservationsCollapse">
-                  <q-checkbox v-model="observationsAllSelected" :indeterminate="observationsIndeterminate" @update:model-value="toggleAllStandaloneObservations" @click.stop class="q-mr-sm" />
-                  <q-icon :name="standaloneObservationsCollapsed ? 'expand_more' : 'expand_less'" class="q-mr-sm" />
-                  <q-icon name="analytics" color="purple" class="q-mr-sm" />
-                  <span class="text-weight-medium">Standalone Observations ({{ selectedObservationsCount }}/{{ treeData.observations.length }})</span>
-                </div>
-
-                <div class="tree-children" :class="{ collapsed: standaloneObservationsCollapsed }">
-                  <div v-for="observation in treeData.observations" :key="observation.id" class="tree-item">
-                    <div class="tree-item-content">
-                      <q-checkbox v-model="observation.selected" @update:model-value="updateObservationSelection" class="q-mr-sm" />
-                      <q-chip :color="getValtypeColor(observation.valtype)" text-color="white" size="sm" class="q-mr-sm">
-                        {{ observation.valtype }}
+                  <!-- Node label -->
+                  <div class="tree-node-details">
+                    <div class="tree-node-name">
+                      {{ node.label }}
+                      <!-- VALTYPE chip for observations - inline with name -->
+                      <q-chip v-if="node.type === 'observation'" :color="getValtypeColor(node.valtype)" text-color="white" size="sm" dense class="q-ml-sm">
+                        {{ node.valtype }}
                       </q-chip>
-                      <div class="tree-item-details">
-                        <div class="tree-item-name">{{ observation.display || observation.name || observation.concept || 'Unknown Observation' }}</div>
-                        <div class="tree-item-meta">
-                          <span class="q-mr-md"><strong>Value:</strong> {{ observation.value || 'N/A' }}</span>
-                          <span v-if="observation.concept" class="q-mr-md"><strong>Concept:</strong> {{ observation.concept }}</span>
-                          <span class="q-mr-md"><strong>Type:</strong> {{ getValtypeDescription(observation.valtype) }}</span>
-                          <span v-if="observation.metadata?.unit" class="q-mr-md"><strong>Unit:</strong> {{ observation.metadata.unit }}</span>
-                          <span v-if="observation.metadata?.category" class="q-mr-md"><strong>Category:</strong> {{ observation.metadata.category }}</span>
-                          <span v-if="observation.metadata?.providerId" class="q-mr-md"><strong>Provider:</strong> {{ observation.metadata.providerId }}</span>
-                          <span v-if="observation.metadata?.startDate" class="q-mr-md"><strong>Date:</strong> {{ formatDate(observation.metadata.startDate) }}</span>
-                          <span v-if="observation.metadata?.sourcesystemCd" class="q-mr-md"><strong>Source:</strong> {{ observation.metadata.sourcesystemCd }}</span>
-                          <span v-if="observation.metadata?.isQuestionnaire" class="q-mr-md"><strong>Questionnaire:</strong> Yes</span>
-                          <span v-if="observation.metadata?.responseCount" class="q-mr-md"><strong>Responses:</strong> {{ observation.metadata.responseCount }}</span>
-                        </div>
-                      </div>
+                    </div>
+                    <div class="tree-node-meta" v-if="node.metadata">
+                      <span v-if="node.metadata.age" class="q-mr-md"><strong>Age:</strong> {{ node.metadata.age }}</span>
+                      <span v-if="node.metadata.sex" class="q-mr-md"><strong>Sex:</strong> {{ node.metadata.sex }}</span>
+                      <span v-if="node.metadata.birthDate" class="q-mr-md"><strong>DOB:</strong> {{ formatDate(node.metadata.birthDate) }}</span>
+                      <span v-if="node.metadata.startDate" class="q-mr-md"><strong>Date:</strong> {{ formatDate(node.metadata.startDate) }} - {{ formatDate(node.metadata.endDate) }}</span>
+                      <span v-if="node.metadata.location" class="q-mr-md"><strong>Location:</strong> {{ node.metadata.location }}</span>
+                      <span v-if="node.metadata.inout" class="q-mr-md"><strong>Type:</strong> {{ getInoutDescription(node.metadata.inout) }}</span>
+                      <span v-if="node.metadata.providerId" class="q-mr-md"><strong>Provider:</strong> {{ node.metadata.providerId }}</span>
+                      <span v-if="node.metadata.value" class="q-mr-md"><strong>Value:</strong> {{ node.metadata.value }}</span>
+                      <span v-if="node.metadata.concept" class="q-mr-md"><strong>Concept:</strong> {{ node.metadata.concept }}</span>
+                      <span v-if="node.metadata.unit" class="q-mr-md"><strong>Unit:</strong> {{ node.metadata.unit }}</span>
+                      <span v-if="node.metadata.category" class="q-mr-md"><strong>Category:</strong> {{ node.metadata.category }}</span>
+                      <span v-if="node.metadata.sourcesystemCd" class="q-mr-md"><strong>Source:</strong> {{ node.metadata.sourcesystemCd }}</span>
+                      <span v-if="node.metadata.responseCount" class="q-mr-md"><strong>Responses:</strong> {{ node.metadata.responseCount }}</span>
                     </div>
                   </div>
                 </div>
-              </div>
+              </template>
+            </q-tree>
 
-              <!-- Fallback for files without structured data -->
-              <div v-if="treeData.patients.length === 0 && treeData.visits.length === 0 && treeData.observations.length === 0" class="text-center q-pa-lg text-grey-6">
-                <q-icon name="info" size="48px" class="q-mb-md" />
-                <div class="text-h6 q-mb-sm">No Structured Data Available</div>
-                <div class="text-body2">This file contains {{ fileAnalysis.observationsCount || 0 }} observations that will be imported as-is.</div>
-              </div>
+            <!-- Fallback for files without structured data -->
+            <div v-if="!treeNodes || treeNodes.length === 0" class="text-center q-pa-lg text-grey-6">
+              <q-icon name="info" size="48px" class="q-mb-md" />
+              <div class="text-h6 q-mb-sm">No Structured Data Available</div>
+              <div class="text-body2">This file contains {{ fileAnalysis.observationsCount || 0 }} observations that will be imported as-is.</div>
+            </div>
 
-              <!-- Legend for observation types -->
-              <div v-if="treeData.observations && treeData.observations.length > 0" class="q-mt-md">
-                <q-separator class="q-mb-md" />
-                <div class="text-caption text-grey-7 q-mb-sm text-center">VALTYPE_CD Types:</div>
-                <div class="row q-gutter-xs justify-center">
-                  <q-chip color="green" text-color="white" size="sm" class="q-pa-xs">Q</q-chip>
-                  <span class="text-caption text-grey-6">Questionnaire/Raw Data</span>
-                  <q-chip color="blue" text-color="white" size="sm" class="q-pa-xs">N</q-chip>
-                  <span class="text-caption text-grey-6">Numeric</span>
-                  <q-chip color="orange" text-color="white" size="sm" class="q-pa-xs">T</q-chip>
-                  <span class="text-caption text-grey-6">Text</span>
-                </div>
+            <!-- Legend for observation types -->
+            <div v-if="treeData.observations && treeData.observations.length > 0" class="q-mt-md">
+              <q-separator class="q-mb-md" />
+              <div class="text-caption text-grey-7 q-mb-sm text-center">VALTYPE_CD Types:</div>
+              <div class="row q-gutter-xs justify-center">
+                <q-chip color="green" text-color="white" size="sm" class="q-pa-xs">Q</q-chip>
+                <span class="text-caption text-grey-6">Questionnaire/Raw Data</span>
+                <q-chip color="blue" text-color="white" size="sm" class="q-pa-xs">N</q-chip>
+                <span class="text-caption text-grey-6">Numeric</span>
+                <q-chip color="orange" text-color="white" size="sm" class="q-pa-xs">T</q-chip>
+                <span class="text-caption text-grey-6">Text</span>
               </div>
             </div>
           </q-card-section>
@@ -354,9 +205,15 @@ const treeData = ref({
   observations: [],
 })
 
-// Collapse state
-const patientsCollapsed = ref(false)
-const standaloneObservationsCollapsed = ref(false)
+// Q-Tree reactive data
+const treeNodes = ref([])
+const selectedNode = ref(null)
+const tickedNodes = ref([])
+// const expandedNodes = ref([])
+
+// Collapse state (kept for backward compatibility)
+// const patientsCollapsed = ref(false)
+// const standaloneObservationsCollapsed = ref(false)
 
 // Initialize tree data from file analysis
 const initializeTreeData = () => {
@@ -452,6 +309,9 @@ const initializeTreeData = () => {
     })
 
     treeData.value = { patients, visits, observations }
+
+    // Convert to q-tree format
+    convertToTreeNodes()
     return
   }
 
@@ -507,92 +367,222 @@ const initializeTreeData = () => {
   }
 
   treeData.value = { patients, visits, observations }
+
+  // Convert to q-tree format
+  convertToTreeNodes()
 }
 
-// Computed properties for selection counts
-const selectedPatientsCount = computed(() => {
-  return treeData.value.patients?.filter((p) => p.selected).length || 0
-})
+// Convert internal data structure to q-tree format
+const convertToTreeNodes = () => {
+  const nodes = []
+  const ticked = []
 
-const selectedVisitsCount = computed(() => {
-  return treeData.value.visits?.filter((v) => v.selected).length || 0
-})
+  // Convert patients
+  if (treeData.value.patients && treeData.value.patients.length > 0) {
+    treeData.value.patients.forEach((patient) => {
+      const patientNode = {
+        id: patient.id,
+        label: patient.name || patient.id,
+        type: 'patient',
+        originalId: patient.id,
+        metadata: patient.metadata,
+        children: [],
+      }
 
-const selectedObservationsCount = computed(() => {
-  return treeData.value.observations?.filter((o) => o.selected).length || 0
-})
+      // Convert visits for this patient
+      if (patient.visits && patient.visits.length > 0) {
+        patient.visits.forEach((visit) => {
+          const visitNode = {
+            id: visit.id,
+            label: visit.name || visit.id,
+            type: 'visit',
+            originalId: visit.id,
+            metadata: visit.metadata,
+            children: [],
+          }
+
+          // Convert observations for this visit
+          if (visit.observations && visit.observations.length > 0) {
+            visit.observations.forEach((observation) => {
+              const obsNode = {
+                id: observation.id,
+                label: observation.display || observation.name || observation.concept || 'Unknown Observation',
+                type: 'observation',
+                originalId: observation.id,
+                valtype: observation.valtype,
+                metadata: observation.metadata,
+              }
+
+              if (observation.selected) {
+                ticked.push(obsNode.id)
+              }
+
+              visitNode.children.push(obsNode)
+            })
+          }
+
+          if (visit.selected) {
+            ticked.push(visitNode.id)
+          }
+
+          patientNode.children.push(visitNode)
+        })
+      }
+
+      if (patient.selected) {
+        ticked.push(patientNode.id)
+      }
+
+      nodes.push(patientNode)
+    })
+  }
+
+  // Handle standalone visits (no patients)
+  if (treeData.value.visits && treeData.value.visits.length > 0 && treeData.value.patients.length === 0) {
+    treeData.value.visits.forEach((visit) => {
+      const visitNode = {
+        id: visit.id,
+        label: visit.name || visit.id,
+        type: 'visit',
+        originalId: visit.id,
+        metadata: visit.metadata,
+        children: [],
+      }
+
+      // Convert observations for this visit
+      if (visit.observations && visit.observations.length > 0) {
+        visit.observations.forEach((observation) => {
+          const obsNode = {
+            id: observation.id,
+            label: observation.display || observation.name || observation.concept || 'Unknown Observation',
+            type: 'observation',
+            originalId: observation.id,
+            valtype: observation.valtype,
+            metadata: observation.metadata,
+          }
+
+          if (observation.selected) {
+            ticked.push(obsNode.id)
+          }
+
+          visitNode.children.push(obsNode)
+        })
+      }
+
+      if (visit.selected) {
+        ticked.push(visitNode.id)
+      }
+
+      nodes.push(visitNode)
+    })
+  }
+
+  // Handle standalone observations (no visits)
+  if (treeData.value.observations && treeData.value.observations.length > 0 && treeData.value.visits.length === 0) {
+    treeData.value.observations.forEach((observation) => {
+      const obsNode = {
+        id: observation.id,
+        label: observation.display || observation.name || observation.concept || 'Unknown Observation',
+        type: 'observation',
+        originalId: observation.id,
+        valtype: observation.valtype,
+        metadata: observation.metadata,
+      }
+
+      if (observation.selected) {
+        ticked.push(obsNode.id)
+      }
+
+      nodes.push(obsNode)
+    })
+  }
+
+  treeNodes.value = nodes
+  tickedNodes.value = ticked
+  // expandedNodes.value = nodes.map((node) => node.id) // Expand all by default
+}
+
+// Helper functions for q-tree
+const getNodeIcon = (type) => {
+  switch (type) {
+    case 'patient':
+      return 'person'
+    case 'visit':
+      return 'event'
+    case 'observation':
+      return 'analytics'
+    default:
+      return 'help'
+  }
+}
+
+const getNodeColor = (type) => {
+  switch (type) {
+    case 'patient':
+      return 'green'
+    case 'visit':
+      return 'orange'
+    case 'observation':
+      return 'purple'
+    default:
+      return 'grey'
+  }
+}
+
+// Helper function to count selected nodes by type
+const countSelectedNodesByType = (type) => {
+  const tickedIds = new Set(tickedNodes.value)
+  if (!treeNodes.value) return 0
+
+  let count = 0
+  const traverse = (nodeList) => {
+    nodeList.forEach((node) => {
+      if (node.type === type && tickedIds.has(node.id)) {
+        count++
+      }
+      if (node.children) {
+        traverse(node.children)
+      }
+    })
+  }
+  traverse(treeNodes.value)
+  return count
+}
+
+// Computed properties for selection counts based on actual q-tree selections
+const selectedPatientsCount = computed(() => countSelectedNodesByType('patient'))
+const selectedVisitsCount = computed(() => countSelectedNodesByType('visit'))
+const selectedObservationsCount = computed(() => countSelectedNodesByType('observation'))
 
 // Computed properties for "select all" checkboxes
-const patientsAllSelected = computed({
-  get: () => {
-    const patients = treeData.value.patients || []
-    return patients.length > 0 && patients.every((p) => p.selected)
-  },
-  set: (value) => {
-    treeData.value.patients?.forEach((patient) => {
-      patient.selected = value
-      // Also update visits and observations
-      patient.visits?.forEach((visit) => {
-        visit.selected = value
-        visit.observations?.forEach((obs) => (obs.selected = value))
-      })
-    })
-  },
-})
-
-const patientsIndeterminate = computed(() => {
-  const patients = treeData.value.patients || []
-  if (patients.length === 0) return false
-  const selectedCount = patients.filter((p) => p.selected).length
-  return selectedCount > 0 && selectedCount < patients.length
-})
-
-// Computed properties for standalone sections
-// const visitsAllSelected = computed({
+// const patientsAllSelected = computed({
 //   get: () => {
-//     const visits = treeData.value.visits || []
-//     return visits.length > 0 && visits.every((v) => v.selected)
+//     const patients = treeData.value.patients || []
+//     return patients.length > 0 && patients.every((p) => p.selected)
 //   },
 //   set: (value) => {
-//     treeData.value.visits?.forEach((visit) => {
-//       visit.selected = value
-//       visit.observations?.forEach((obs) => (obs.selected = value))
+//     treeData.value.patients?.forEach((patient) => {
+//       patient.selected = value
+//       // Also update visits and observations
+//       patient.visits?.forEach((visit) => {
+//         visit.selected = value
+//         visit.observations?.forEach((obs) => (obs.selected = value))
+//       })
 //     })
 //   },
 // })
 
-// const visitsIndeterminate = computed(() => {
-//   const visits = treeData.value.visits || []
-//   if (visits.length === 0) return false
-//   const selectedCount = visits.filter((v) => v.selected).length
-//   return selectedCount > 0 && selectedCount < visits.length
+// const patientsIndeterminate = computed(() => {
+//   const patients = treeData.value.patients || []
+//   if (patients.length === 0) return false
+//   const selectedCount = patients.filter((p) => p.selected).length
+//   return selectedCount > 0 && selectedCount < patients.length
 // })
 
-const observationsAllSelected = computed({
-  get: () => {
-    const observations = treeData.value.observations || []
-    return observations.length > 0 && observations.every((o) => o.selected)
-  },
-  set: (value) => {
-    treeData.value.observations?.forEach((obs) => (obs.selected = value))
-  },
-})
-
-const observationsIndeterminate = computed(() => {
-  const observations = treeData.value.observations || []
-  if (observations.length === 0) return false
-  const selectedCount = observations.filter((o) => o.selected).length
-  return selectedCount > 0 && selectedCount < observations.length
-})
-
 // Helper functions
-// const getSelectedVisitsCount = (patient) => {
-//   return patient.visits?.filter((v) => v.selected).length || 0
+// const getSelectedObservationsCount = (visit) => {
+//   return visit.observations?.filter((o) => o.selected).length || 0
 // }
-
-const getSelectedObservationsCount = (visit) => {
-  return visit.observations?.filter((o) => o.selected).length || 0
-}
 
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date'
@@ -612,18 +602,18 @@ const getValtypeColor = (valtype) => {
   }
 }
 
-const getValtypeDescription = (valtype) => {
-  switch (valtype) {
-    case 'Q':
-      return 'Questionnaire/Raw Data'
-    case 'N':
-      return 'Numeric'
-    case 'T':
-      return 'Text'
-    default:
-      return 'Unknown'
-  }
-}
+// const getValtypeDescription = (valtype) => {
+//   switch (valtype) {
+//     case 'Q':
+//       return 'Questionnaire/Raw Data'
+//     case 'N':
+//       return 'Numeric'
+//     case 'T':
+//       return 'Text'
+//     default:
+//       return 'Unknown'
+//   }
+// }
 
 const getInoutDescription = (inout) => {
   switch (inout) {
@@ -642,6 +632,21 @@ const getInoutDescription = (inout) => {
 
 // Selection methods
 const selectAll = () => {
+  const allNodeIds = []
+
+  const collectAllIds = (nodes) => {
+    nodes.forEach((node) => {
+      allNodeIds.push(node.id)
+      if (node.children) {
+        collectAllIds(node.children)
+      }
+    })
+  }
+
+  collectAllIds(treeNodes.value)
+  tickedNodes.value = allNodeIds
+
+  // Also update our internal data structure
   treeData.value.patients?.forEach((patient) => {
     patient.selected = true
     patient.visits?.forEach((visit) => {
@@ -652,6 +657,9 @@ const selectAll = () => {
 }
 
 const deselectAll = () => {
+  tickedNodes.value = []
+
+  // Also update our internal data structure
   treeData.value.patients?.forEach((patient) => {
     patient.selected = false
     patient.visits?.forEach((visit) => {
@@ -661,61 +669,48 @@ const deselectAll = () => {
   })
 }
 
-const toggleAllPatients = (value) => {
-  patientsAllSelected.value = value
-}
-
-// const toggleAllVisits = (patient) => {
-//   const allSelected = patient.visits?.every((v) => v.selected) || false
-//   patient.visits?.forEach((visit) => {
-//     visit.selected = !allSelected
-//     visit.observations?.forEach((obs) => (obs.selected = !allSelected))
-//   })
+// const toggleAllObservations = (visit) => {
+//   const allSelected = visit.observations?.every((o) => o.selected) || false
+//   visit.observations?.forEach((obs) => (obs.selected = !allSelected))
 // }
 
-const toggleAllObservations = (visit) => {
-  const allSelected = visit.observations?.every((o) => o.selected) || false
-  visit.observations?.forEach((obs) => (obs.selected = !allSelected))
-}
+// const updatePatientSelection = () => {
+//   // Update parent selection state when individual patients change
+// }
 
-const updatePatientSelection = () => {
-  // Update parent selection state when individual patients change
-}
+// const updateVisitSelection = () => {
+//   // Update parent selection state when individual visits change
+// }
 
-const updateVisitSelection = () => {
-  // Update parent selection state when individual visits change
-}
-
-const updateObservationSelection = () => {
-  // Update parent selection state when individual observations change
-}
+// const updateObservationSelection = () => {
+//   // Update parent selection state when individual observations change
+// }
 
 // Collapse toggle methods
-const togglePatientsCollapse = () => {
-  patientsCollapsed.value = !patientsCollapsed.value
-}
-
-const toggleVisitObservationsCollapse = (visit) => {
-  if (!visit.observationsCollapsed) {
-    visit.observationsCollapsed = false
-  }
-  visit.observationsCollapsed = !visit.observationsCollapsed
-}
-
-const toggleStandaloneObservationsCollapse = () => {
-  standaloneObservationsCollapsed.value = !standaloneObservationsCollapsed.value
-}
-
-// const toggleAllStandaloneVisits = () => {
-//   visitsAllSelected.value = !visitsAllSelected.value
+// const togglePatientsCollapse = () => {
+//   patientsCollapsed.value = !patientsCollapsed.value
 // }
 
-const toggleAllStandaloneObservations = () => {
-  observationsAllSelected.value = !observationsAllSelected.value
-}
+// const toggleVisitObservationsCollapse = (visit) => {
+//   if (!visit.observationsCollapsed) {
+//     visit.observationsCollapsed = false
+//   }
+//   visit.observationsCollapsed = !visit.observationsCollapsed
+// }
+
+// const toggleStandaloneObservationsCollapse = () => {
+//   standaloneObservationsCollapsed.value = !standaloneObservationsCollapsed.value
+// }
+
+// const toggleAllStandaloneObservations = () => {
+//   observationsAllSelected.value = !observationsAllSelected.value
+// }
 
 // Handle update and close
 const handleUpdate = () => {
+  // Update our internal data structure based on q-tree selections
+  updateInternalSelections()
+
   // Prepare selections data
   const selections = {
     patients: treeData.value.patients?.filter((p) => p.selected) || [],
@@ -729,6 +724,35 @@ const handleUpdate = () => {
   // Emit to parent component
   emit('update:selections', selections)
   emit('update:modelValue', false)
+}
+
+// Update internal data structure based on q-tree ticked nodes
+const updateInternalSelections = () => {
+  const tickedIds = new Set(tickedNodes.value)
+
+  // Update patients
+  treeData.value.patients?.forEach((patient) => {
+    patient.selected = tickedIds.has(patient.id)
+    patient.visits?.forEach((visit) => {
+      visit.selected = tickedIds.has(visit.id)
+      visit.observations?.forEach((obs) => {
+        obs.selected = tickedIds.has(obs.id)
+      })
+    })
+  })
+
+  // Update standalone visits
+  treeData.value.visits?.forEach((visit) => {
+    visit.selected = tickedIds.has(visit.id)
+    visit.observations?.forEach((obs) => {
+      obs.selected = tickedIds.has(obs.id)
+    })
+  })
+
+  // Update standalone observations
+  treeData.value.observations?.forEach((obs) => {
+    obs.selected = tickedIds.has(obs.id)
+  })
 }
 
 // Watch for file analysis changes
@@ -749,102 +773,29 @@ onMounted(() => {
 <style lang="scss" scoped>
 .import-preview {
   .preview-section {
-    .tree-container {
-      max-height: 600px;
-      overflow-y: auto;
+    .tree-node-content {
+      display: flex;
+      align-items: center;
+      width: 100%;
 
-      .tree-level {
-        margin-left: 0;
+      .tree-node-details {
+        flex: 1;
+        margin-left: 8px;
 
-        .tree-header {
-          display: flex;
-          align-items: center;
-          padding: 8px 12px;
-          background-color: rgba(0, 0, 0, 0.02);
-          border-radius: 4px;
-          margin-bottom: 4px;
+        .tree-node-name {
           font-weight: 500;
+          margin-bottom: 2px;
         }
 
-        .tree-children {
-          margin-left: 24px;
-          border-left: 2px solid rgba(0, 0, 0, 0.1);
-          padding-left: 16px;
-        }
-
-        .tree-item {
-          margin-bottom: 8px;
-
-          .tree-item-content {
-            display: flex;
-            align-items: center;
-            padding: 8px 12px;
-            background-color: rgba(0, 0, 0, 0.01);
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-            cursor: pointer;
-
-            &:hover {
-              background-color: rgba(0, 0, 0, 0.05);
-            }
-
-            .tree-item-details {
-              flex: 1;
-
-              .tree-item-name {
-                font-weight: 500;
-                margin-bottom: 2px;
-              }
-
-              .tree-item-meta {
-                font-size: 0.8em;
-                color: rgba(0, 0, 0, 0.6);
-                display: flex;
-                flex-wrap: wrap;
-                gap: 8px;
-              }
-            }
-          }
-        }
-
-        // Collapsible functionality
-        .tree-level {
-          &.collapsed {
-            .tree-children {
-              display: none;
-            }
-          }
-        }
-
-        .tree-header {
-          cursor: pointer;
-          user-select: none;
-
-          &:hover {
-            background-color: rgba(0, 0, 0, 0.03);
-          }
+        .tree-node-meta {
+          font-size: 0.8em;
+          color: rgba(0, 0, 0, 0.6);
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
         }
       }
     }
-  }
-}
-
-// Custom scrollbar
-.tree-container::-webkit-scrollbar {
-  width: 6px;
-}
-
-.tree-container::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 3px;
-}
-
-.tree-container::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 3px;
-
-  &:hover {
-    background: #a8a8a8;
   }
 }
 </style>

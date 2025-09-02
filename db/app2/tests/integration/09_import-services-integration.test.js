@@ -193,9 +193,9 @@ describe('Import Services Integration Tests', () => {
       const detectedFormat = detectFormat(content, 'PID_DEMO_quest_brain_tremor_UID_19079283-e025-40d8-a0f8-09f7f460f2da.html')
       expect(detectedFormat).toBe('html')
 
-      // Verify it contains CDA data (without space in this file)
-      expect(content).toContain('CDA=')
-      expect(content).toContain('"cda"')
+      // Verify it contains CDA data (with space in this file)
+      expect(content).toContain('CDA =')
+      expect(content).toContain('cda:')
 
       logger.info('Tremor scale HTML survey format detection verified')
     })

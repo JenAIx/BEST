@@ -71,20 +71,73 @@ export class ImportSurveyService extends BaseImportService {
    */
   extractCdaFromHtml(htmlContent) {
     // Look for CDA = {...} assignment in script tags
-    const cdaMatch = htmlContent.match(/CDA\s*=\s*({[\s\S]*?})\s*(?:<\/script>|$)/i)
-    if (cdaMatch) {
-      const jsonString = cdaMatch[1].trim()
-      try {
-        JSON.parse(jsonString) // Validate JSON
-        logger.info('CDA data extracted successfully')
-        return jsonString
-      } catch (error) {
-        logger.warn('Failed to parse extracted CDA JSON', { error: error.message })
+    const startMatch = htmlContent.match(/CDA\s*=\s*({)/i)
+    if (!startMatch) {
+      logger.warn('No CDA assignment found in HTML content')
+      return null
+    }
+
+    const startIndex = startMatch.index + startMatch[0].length - 1 // Position after opening brace
+    let braceCount = 1
+    let endIndex = startIndex
+
+    // Find the matching closing brace
+    for (let i = startIndex + 1; i < htmlContent.length; i++) {
+      if (htmlContent[i] === '{') {
+        braceCount++
+      } else if (htmlContent[i] === '}') {
+        braceCount--
+        if (braceCount === 0) {
+          endIndex = i + 1 // Include the closing brace
+          break
+        }
       }
     }
 
-    logger.warn('No CDA data found in HTML content')
-    return null
+    if (braceCount !== 0) {
+      logger.warn('Unmatched braces in CDA object')
+      return null
+    }
+
+    const rawContent = htmlContent.substring(startIndex, endIndex)
+
+    // Try to parse as JSON first
+    try {
+      JSON.parse(rawContent) // Validate JSON is parseable
+      logger.info('CDA data extracted successfully (JSON format)')
+      return rawContent
+    } catch (jsonError) {
+      // If JSON parsing fails, try to convert JavaScript object literal to JSON
+      try {
+        // Use eval in a safe way to parse JavaScript object literal
+        // Create a safe context for evaluation
+        const safeEval = (code) => {
+          // Remove any potential unsafe code
+          if (code.includes('function') || code.includes('=>') || code.includes('eval') || code.includes('require')) {
+            throw new Error('Unsafe code detected')
+          }
+
+          // Create a function that returns the object
+          const func = new Function(`return ${code}`)
+          return func()
+        }
+
+        const parsedObject = safeEval(rawContent)
+        const jsonString = JSON.stringify(parsedObject)
+
+        // Validate that the converted JSON is parseable
+        JSON.parse(jsonString)
+
+        logger.info('CDA data extracted successfully (JavaScript object converted to JSON)')
+        return jsonString
+      } catch (jsError) {
+        logger.warn('Failed to parse extracted CDA data', {
+          jsonError: jsonError.message,
+          jsError: jsError.message,
+        })
+        return null
+      }
+    }
   }
 
   /**
