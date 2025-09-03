@@ -48,10 +48,16 @@ export class DatabaseImportService extends BaseImportService {
       // Validate input data
       const validation = this.validateImportData(importStructure)
       if (validation.errors.length > 0) {
-        return this.createImportResult(false, null, {
-          importType: 'database',
-          duration: Date.now() - startTime,
-        }, validation.errors, validation.warnings)
+        return this.createImportResult(
+          false,
+          null,
+          {
+            importType: 'database',
+            duration: Date.now() - startTime,
+          },
+          validation.errors,
+          validation.warnings,
+        )
       }
 
       // Apply options
@@ -77,7 +83,6 @@ export class DatabaseImportService extends BaseImportService {
           config,
         },
       }
-
     } catch (error) {
       logger.error('Database import failed', {
         error: error.message,
@@ -108,7 +113,7 @@ export class DatabaseImportService extends BaseImportService {
       const patientIdMap = patientResults.idMap
 
       // Import visits
-      const visitResults = await this.importVisits(importStructure.data.visits, patientResults, config)
+      const visitResults = await this.importVisits(importStructure.data.visits, patientResults)
       statistics.visits = visitResults.imported
       statistics.duplicates += visitResults.duplicates
 
@@ -145,7 +150,6 @@ export class DatabaseImportService extends BaseImportService {
       }
 
       return importResult
-
     } catch (error) {
       logger.error('Import transaction failed', { error: error.message })
       throw error
@@ -200,15 +204,14 @@ export class DatabaseImportService extends BaseImportService {
         // Map original PATIENT_NUM from import data to new database PATIENT_NUM
         if (PATIENT_NUM) {
           results.originalIdMap[PATIENT_NUM] = createdPatient.PATIENT_NUM
-          logger.info('Mapped original PATIENT_NUM to new', { 
-            originalPatientNum: PATIENT_NUM, 
+          logger.info('Mapped original PATIENT_NUM to new', {
+            originalPatientNum: PATIENT_NUM,
             newPatientNum: createdPatient.PATIENT_NUM,
-            patientCd
+            patientCd,
           })
         }
 
         logger.debug('Patient imported', { patientCd, patientNum: createdPatient.PATIENT_NUM, originalPatientNum: patient.PATIENT_NUM })
-
       } catch (error) {
         logger.error('Failed to import patient', { patientCd: patient.PATIENT_CD, error: error.message })
         throw error
@@ -225,7 +228,7 @@ export class DatabaseImportService extends BaseImportService {
    * @param {Object} config - Import configuration
    * @returns {Promise<Object>} Import results with ID mapping
    */
-  async importVisits(visits, patientResults, config) { // eslint-disable-line no-unused-vars
+  async importVisits(visits, patientResults) {
     const results = { imported: 0, duplicates: 0, idMap: {} }
     const { idMap: patientCodeMap, originalIdMap } = patientResults
 
@@ -247,11 +250,22 @@ export class DatabaseImportService extends BaseImportService {
           // If we still can't find a mapping, this is an error
           const availablePatients = Object.keys(patientCodeMap).join(', ')
           const availableOriginals = originalIdMap ? Object.keys(originalIdMap).join(', ') : 'none'
-          throw new Error(`Cannot map visit to patient. Visit PATIENT_CD: ${patientCd}, PATIENT_NUM: ${visit.PATIENT_NUM}. Available patient codes: ${availablePatients}. Available original PATIENT_NUMs: ${availableOriginals}`)
+          throw new Error(
+            `Cannot map visit to patient. Visit PATIENT_CD: ${patientCd}, PATIENT_NUM: ${visit.PATIENT_NUM}. Available patient codes: ${availablePatients}. Available original PATIENT_NUMs: ${availableOriginals}`,
+          )
+        }
+
+        // Check if this is an existing visit that should be used directly
+        if (visit.ENCOUNTER_NUM && visit.PATIENT_NUM === patientNum) {
+          // This is an existing visit for an existing patient - use it directly
+          logger.info(`Using existing visit ENCOUNTER_NUM ${visit.ENCOUNTER_NUM} for patient ${patientNum}`)
+          results.idMap[visit.ENCOUNTER_NUM] = visit.ENCOUNTER_NUM
+          results.duplicates++ // Count as duplicate since we're not creating a new visit
+          continue // Skip creating a new visit
         }
 
         // Create visit with patient reference - remove ENCOUNTER_NUM to avoid conflicts
-        const { ENCOUNTER_NUM, ...visitDataWithoutId } = visit
+        const { ENCOUNTER_NUM: originalEncounterNum, ...visitDataWithoutId } = visit
         const visitData = {
           ...visitDataWithoutId,
           PATIENT_NUM: patientNum,
@@ -263,22 +277,21 @@ export class DatabaseImportService extends BaseImportService {
 
         results.imported++
         // Track the mapping from original ENCOUNTER_NUM to new database ENCOUNTER_NUM
-        if (ENCOUNTER_NUM) {
-          results.idMap[ENCOUNTER_NUM] = createdVisit.ENCOUNTER_NUM
-          logger.info(`Mapped original ENCOUNTER_NUM ${ENCOUNTER_NUM} to new ENCOUNTER_NUM ${createdVisit.ENCOUNTER_NUM}`)
+        if (originalEncounterNum) {
+          results.idMap[originalEncounterNum] = createdVisit.ENCOUNTER_NUM
+          logger.info(`Mapped original ENCOUNTER_NUM ${originalEncounterNum} to new ENCOUNTER_NUM ${createdVisit.ENCOUNTER_NUM}`)
         } else {
           results.idMap[results.imported] = createdVisit.ENCOUNTER_NUM
           logger.info(`Mapped visit index ${results.imported} to new ENCOUNTER_NUM ${createdVisit.ENCOUNTER_NUM}`)
         }
 
         logger.debug('Visit imported', {
-          originalEncounterNum: ENCOUNTER_NUM,
+          originalEncounterNum: originalEncounterNum,
           newEncounterNum: createdVisit.ENCOUNTER_NUM,
           patientNum,
           startDate: visit.START_DATE,
-          idMapKeys: Object.keys(results.idMap)
+          idMapKeys: Object.keys(results.idMap),
         })
-
       } catch (error) {
         logger.error('Failed to import visit', {
           patientCd: visit.PATIENT_CD,
@@ -310,7 +323,7 @@ export class DatabaseImportService extends BaseImportService {
       originalIdMap,
       visitIdMap,
       observationCount: observations.length,
-      visitIdMapKeys: Object.keys(visitIdMap || {})
+      visitIdMapKeys: Object.keys(visitIdMap || {}),
     })
 
     for (const observation of observations) {
@@ -323,7 +336,7 @@ export class DatabaseImportService extends BaseImportService {
           observationId: observation.OBSERVATION_ID,
           patientCd,
           observationPatientNum: observation.PATIENT_NUM,
-          conceptCd: observation.CONCEPT_CD
+          conceptCd: observation.CONCEPT_CD,
         })
 
         // First, try to find by PATIENT_CD if available
@@ -337,14 +350,14 @@ export class DatabaseImportService extends BaseImportService {
           logger.info(`Observation has PATIENT_NUM: ${observation.PATIENT_NUM}, checking originalIdMap`, {
             originalIdMapKeys: Object.keys(originalIdMap || {}),
             hasOriginalIdMap: !!originalIdMap,
-            patientCd
+            patientCd,
           })
-          
+
           // First check originalIdMap for imported data
           if (originalIdMap && originalIdMap[observation.PATIENT_NUM]) {
             patientNum = originalIdMap[observation.PATIENT_NUM]
             logger.info(`Mapped observation PATIENT_NUM ${observation.PATIENT_NUM} to new PATIENT_NUM ${patientNum}`)
-          } 
+          }
           // If not in originalIdMap, check if it's a valid existing patient in DB
           else {
             logger.warn(`No mapping found for observation PATIENT_NUM ${observation.PATIENT_NUM}, checking if it's a valid DB patient`)
@@ -356,7 +369,7 @@ export class DatabaseImportService extends BaseImportService {
               } else {
                 logger.error(`PATIENT_NUM ${observation.PATIENT_NUM} does not exist in database and no mapping found`, {
                   availableOriginalIds: Object.keys(originalIdMap || {}),
-                  availablePatientCodes: Object.keys(patientCodeMap || {})
+                  availablePatientCodes: Object.keys(patientCodeMap || {}),
                 })
                 // Don't use the invalid PATIENT_NUM
                 patientNum = null
@@ -364,7 +377,7 @@ export class DatabaseImportService extends BaseImportService {
             } catch (error) {
               logger.error(`Error checking if PATIENT_NUM exists in database`, {
                 patientNum: observation.PATIENT_NUM,
-                error: error.message
+                error: error.message,
               })
               patientNum = null
             }
@@ -375,7 +388,9 @@ export class DatabaseImportService extends BaseImportService {
           // If we still can't find a mapping, this is an error
           const availablePatients = Object.keys(patientCodeMap).join(', ')
           const availableOriginals = originalIdMap ? Object.keys(originalIdMap).join(', ') : 'none'
-          throw new Error(`Cannot map observation to patient. Observation PATIENT_CD: ${patientCd || 'undefined'}, PATIENT_NUM: ${observation.PATIENT_NUM}. Available patient codes: ${availablePatients}. Available original PATIENT_NUMs: ${availableOriginals}`)
+          throw new Error(
+            `Cannot map observation to patient. Observation PATIENT_CD: ${patientCd || 'undefined'}, PATIENT_NUM: ${observation.PATIENT_NUM}. Available patient codes: ${availablePatients}. Available original PATIENT_NUMs: ${availableOriginals}`,
+          )
         }
 
         // Resolve encounter number if visit reference exists
@@ -386,7 +401,7 @@ export class DatabaseImportService extends BaseImportService {
             logger.warn(`No visit mapping found for ENCOUNTER_NUM ${observation.ENCOUNTER_NUM}`, {
               availableVisitMappings: Object.keys(visitIdMap || {}),
               observationEncounterNum: observation.ENCOUNTER_NUM,
-              visitIdMap
+              visitIdMap,
             })
           } else {
             logger.debug(`Mapped observation ENCOUNTER_NUM ${observation.ENCOUNTER_NUM} to visit ${encounterNum}`)
@@ -399,9 +414,9 @@ export class DatabaseImportService extends BaseImportService {
             patientNum,
             originalEncounterNum: observation.ENCOUNTER_NUM,
             visitIdMapKeys: Object.keys(visitIdMap || {}),
-            visitIdMap
+            visitIdMap,
           })
-          
+
           try {
             const defaultVisitData = {
               PATIENT_NUM: patientNum,
@@ -425,7 +440,7 @@ export class DatabaseImportService extends BaseImportService {
             logger.info('Created default visit for observation', {
               patientNum,
               encounterNum: createdDefaultVisit.ENCOUNTER_NUM,
-              observationConcept: observation.CONCEPT_CD
+              observationConcept: observation.CONCEPT_CD,
             })
           } catch (error) {
             logger.warn('Failed to create default visit for observation', {
@@ -448,29 +463,29 @@ export class DatabaseImportService extends BaseImportService {
 
         // Create observation with resolved references - remove OBSERVATION_ID to avoid conflicts
         const { OBSERVATION_ID, ...observationDataWithoutId } = observation // eslint-disable-line no-unused-vars
-        
+
         // For now, skip observations with concept codes that don't exist
         // TODO: Auto-create concepts in the future
-                    if (observation.CONCEPT_CD && this.conceptRepo) {
-              try {
-                const conceptExists = await this.conceptRepo.findByConceptCode(observation.CONCEPT_CD)
-                if (!conceptExists) {
-                  logger.warn('Skipping observation - concept does not exist', {
-                    conceptCd: observation.CONCEPT_CD,
-                    patientNum,
-                    encounterNum
-                  })
-                  continue
-                }
-              } catch (error) {
-                logger.warn('Error checking concept existence, skipping observation', {
-                  conceptCd: observation.CONCEPT_CD,
-                  error: error.message
-                })
-                continue
-              }
+        if (observation.CONCEPT_CD && this.conceptRepo) {
+          try {
+            const conceptExists = await this.conceptRepo.findByConceptCode(observation.CONCEPT_CD)
+            if (!conceptExists) {
+              logger.warn('Skipping observation - concept does not exist', {
+                conceptCd: observation.CONCEPT_CD,
+                patientNum,
+                encounterNum,
+              })
+              continue
             }
-        
+          } catch (error) {
+            logger.warn('Error checking concept existence, skipping observation', {
+              conceptCd: observation.CONCEPT_CD,
+              error: error.message,
+            })
+            continue
+          }
+        }
+
         const observationData = {
           ...observationDataWithoutId,
           PATIENT_NUM: patientNum,
@@ -485,7 +500,7 @@ export class DatabaseImportService extends BaseImportService {
           encounterNum: observationData.ENCOUNTER_NUM,
           conceptCd: observationData.CONCEPT_CD,
           hasEncounterNum: encounterNum !== null && encounterNum !== undefined,
-          originalEncounterNum: observation.ENCOUNTER_NUM
+          originalEncounterNum: observation.ENCOUNTER_NUM,
         })
 
         const createdObservation = await this.observationRepo.createObservation(observationData)
@@ -498,7 +513,6 @@ export class DatabaseImportService extends BaseImportService {
           encounterNum,
           conceptCd: observation.CONCEPT_CD,
         })
-
       } catch (error) {
         logger.error('Failed to import observation', {
           patientCd: observation.PATIENT_CD || observation.patientId || 'undefined',
@@ -600,8 +614,8 @@ export class DatabaseImportService extends BaseImportService {
       } else {
         // Get basic counts from repositories
         patientStats = { length: await this.patientRepo.countByCriteriaFromView() }
-        visitStats = { length: await this.visitRepo.getVisitStatistics().then(s => s.totalVisits) }
-        observationStats = { length: await this.observationRepo.findWithBlobData().then(arr => arr.length) }
+        visitStats = { length: await this.visitRepo.getVisitStatistics().then((s) => s.totalVisits) }
+        observationStats = { length: await this.observationRepo.findWithBlobData().then((arr) => arr.length) }
       }
 
       return {

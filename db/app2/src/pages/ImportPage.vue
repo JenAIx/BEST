@@ -601,7 +601,6 @@ const createVisitForPatient = async () => {
 
 const onVisitSelected = (visit) => {
   selectedVisit.value = visit
-  currentStep.value = 'upload'
   showVisitDialog.value = false
   logger.info('Visit selected for import', {
     encounterNum: visit.ENCOUNTER_NUM,

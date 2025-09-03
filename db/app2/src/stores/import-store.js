@@ -337,15 +337,18 @@ export const useImportStore = defineStore('import', () => {
       importProgressValue.value = 40
 
       // Apply user selections if provided
-      const filteredStructure = options.selections
-        ? applySelectionsToStructure(importStructure, options.selections)
-        : importStructure
+      let processedStructure = options.selections ? applySelectionsToStructure(importStructure, options.selections) : importStructure
+
+      // Handle selected patient and visit for existing patient mode
+      if (options.patientMode === 'existing' && options.selectedPatient && options.selectedVisit) {
+        processedStructure = applyPatientVisitSelection(processedStructure, options.selectedPatient, options.selectedVisit)
+      }
 
       importProgress.value = 'Importing to database...'
       importProgressValue.value = 60
 
       // Import to database using the DatabaseImportService
-      const dbResult = await dbImportService.importToDatabase(filteredStructure, {
+      const dbResult = await dbImportService.importToDatabase(processedStructure, {
         duplicateStrategy: options.duplicateStrategy || 'skip',
         importToDatabase: true,
       })
@@ -364,9 +367,9 @@ export const useImportStore = defineStore('import', () => {
       importRecord.success = true
       importRecord.metadata = {
         format: importStructure.metadata?.format || 'unknown',
-        patientCount: filteredStructure.data?.patients?.length || 0,
-        visitCount: filteredStructure.data?.visits?.length || 0,
-        observationCount: filteredStructure.data?.observations?.length || 0,
+        patientCount: processedStructure.data?.patients?.length || 0,
+        visitCount: processedStructure.data?.visits?.length || 0,
+        observationCount: processedStructure.data?.observations?.length || 0,
         dbStats: dbResult.data?.statistics || {},
         selectionsApplied: !!options.selections,
         ...dbResult.metadata,
@@ -409,6 +412,86 @@ export const useImportStore = defineStore('import', () => {
    * @param {Object} selections - User selections
    * @returns {Object} Filtered import structure
    */
+  /**
+   * Apply selected patient and visit to import structure (for existing patient mode)
+   * @param {Object} importStructure - The parsed import structure
+   * @param {Object} selectedPatient - Selected patient object
+   * @param {Object} selectedVisit - Selected visit object
+   * @returns {Object} Modified import structure
+   */
+  const applyPatientVisitSelection = (importStructure, selectedPatient, selectedVisit) => {
+    if (!importStructure?.data) return importStructure
+
+    const modified = {
+      ...importStructure,
+      data: {
+        ...importStructure.data,
+      },
+    }
+
+    logger.info('Applying selected patient and visit to import structure', {
+      selectedPatientId: selectedPatient.PATIENT_NUM || selectedPatient.patientNum,
+      selectedVisitId: selectedVisit.ENCOUNTER_NUM || selectedVisit.encounterNum,
+      originalCounts: {
+        patients: importStructure.data.patients?.length || 0,
+        visits: importStructure.data.visits?.length || 0,
+        observations: importStructure.data.observations?.length || 0,
+      },
+    })
+
+    // Replace all patients with the selected patient
+    if (selectedPatient) {
+      const patientNum = selectedPatient.PATIENT_NUM || selectedPatient.patientNum
+      modified.data.patients = [
+        {
+          PATIENT_CD: selectedPatient.PATIENT_CD || selectedPatient.patientCd || `PATIENT_${patientNum}`,
+          PATIENT_NUM: patientNum,
+          ...selectedPatient, // Include all other patient fields
+        },
+      ]
+    }
+
+    // Replace all visits with the selected visit
+    if (selectedVisit) {
+      const encounterNum = selectedVisit.ENCOUNTER_NUM || selectedVisit.encounterNum
+      modified.data.visits = [
+        {
+          ENCOUNTER_NUM: encounterNum,
+          PATIENT_NUM: selectedPatient.PATIENT_NUM || selectedPatient.patientNum,
+          START_DATE: selectedVisit.START_DATE || selectedVisit.startDate,
+          END_DATE: selectedVisit.END_DATE || selectedVisit.endDate,
+          INOUT_CD: selectedVisit.INOUT_CD || selectedVisit.inoutCd || 'I',
+          LOCATION_CD: selectedVisit.LOCATION_CD || selectedVisit.locationCd || 'UNKNOWN',
+          ...selectedVisit, // Include all other visit fields
+        },
+      ]
+    }
+
+    // Update all observations to use the selected patient and visit
+    if (modified.data.observations && modified.data.observations.length > 0) {
+      const patientNum = selectedPatient.PATIENT_NUM || selectedPatient.patientNum
+      const encounterNum = selectedVisit.ENCOUNTER_NUM || selectedVisit.encounterNum
+
+      modified.data.observations = modified.data.observations.map((observation) => ({
+        ...observation,
+        PATIENT_NUM: patientNum,
+        ENCOUNTER_NUM: encounterNum,
+      }))
+    }
+
+    logger.info('Selected patient and visit applied to import structure', {
+      modifiedCounts: {
+        patients: modified.data.patients?.length || 0,
+        visits: modified.data.visits?.length || 0,
+        observations: modified.data.observations?.length || 0,
+      },
+      patientNum: selectedPatient.PATIENT_NUM || selectedPatient.patientNum,
+      encounterNum: selectedVisit.ENCOUNTER_NUM || selectedVisit.encounterNum,
+    })
+
+    return modified
+  }
+
   const applySelectionsToStructure = (importStructure, selections) => {
     if (!importStructure?.data) return importStructure
 
@@ -430,26 +513,20 @@ export const useImportStore = defineStore('import', () => {
 
     // Filter patients if selections provided
     if (selections.patients && Array.isArray(selections.patients) && selections.patients.length > 0) {
-      const selectedPatientIds = new Set(selections.patients.map(p => p.PATIENT_CD || p.patientId))
-      filtered.data.patients = importStructure.data.patients.filter(patient =>
-        selectedPatientIds.has(patient.PATIENT_CD || patient.patientId)
-      )
+      const selectedPatientIds = new Set(selections.patients.map((p) => p.PATIENT_CD || p.patientId))
+      filtered.data.patients = importStructure.data.patients.filter((patient) => selectedPatientIds.has(patient.PATIENT_CD || patient.patientId))
     }
 
     // Filter visits if selections provided
     if (selections.visits && Array.isArray(selections.visits) && selections.visits.length > 0) {
-      const selectedVisitIds = new Set(selections.visits.map(v => v.ENCOUNTER_NUM || v.visitId))
-      filtered.data.visits = importStructure.data.visits.filter(visit =>
-        selectedVisitIds.has(visit.ENCOUNTER_NUM || visit.visitId)
-      )
+      const selectedVisitIds = new Set(selections.visits.map((v) => v.ENCOUNTER_NUM || v.visitId))
+      filtered.data.visits = importStructure.data.visits.filter((visit) => selectedVisitIds.has(visit.ENCOUNTER_NUM || visit.visitId))
     }
 
     // Filter observations if selections provided
     if (selections.observations && Array.isArray(selections.observations) && selections.observations.length > 0) {
-      const selectedObservationIds = new Set(selections.observations.map(o => o.OBSERVATION_ID || o.observationId))
-      filtered.data.observations = importStructure.data.observations.filter(observation =>
-        selectedObservationIds.has(observation.OBSERVATION_ID || observation.observationId)
-      )
+      const selectedObservationIds = new Set(selections.observations.map((o) => o.OBSERVATION_ID || o.observationId))
+      filtered.data.observations = importStructure.data.observations.filter((observation) => selectedObservationIds.has(observation.OBSERVATION_ID || observation.observationId))
     }
 
     logger.info('Selections applied to import structure', {
@@ -599,6 +676,7 @@ export const useImportStore = defineStore('import', () => {
     clearSelections,
     getSelectionHistory,
     applySelectionsToStructure,
+    applyPatientVisitSelection,
 
     // Utility methods
     getSupportedFormats,
