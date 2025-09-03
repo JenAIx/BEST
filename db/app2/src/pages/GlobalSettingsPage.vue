@@ -25,6 +25,7 @@
       :edit-form="editForm"
       :column-title="getColumnTitle()"
       :is-questionnaire-column="isQuestionnaireColumn"
+      :is-field-set-column="isFieldSetColumn"
       @start-edit="startEdit"
       @save-edit="saveEdit"
       @cancel-edit="cancelEdit"
@@ -32,6 +33,7 @@
       @preview-questionnaire="showQuestionnairePreview"
       @view-json="showJsonDialog"
       @update-edit-form="editForm = $event"
+      @save-field-set="saveFieldSet"
     />
 
     <!-- Add Value Dialog -->
@@ -45,25 +47,13 @@
     />
 
     <!-- Import Questionnaire Dialog -->
-    <ImportQuestionnaireDialog
-      v-model="showImportDialog"
-      @import-success="importQuestionnaire"
-      @cancel="showImportDialog = false"
-    />
+    <ImportQuestionnaireDialog v-model="showImportDialog" @import-success="importQuestionnaire" @cancel="showImportDialog = false" />
 
     <!-- JSON Viewer Dialog -->
-    <JsonViewerDialog
-      v-model="showJsonViewDialog"
-      :json-content="jsonContent"
-      @close="showJsonViewDialog = false"
-    />
+    <JsonViewerDialog v-model="showJsonViewDialog" :json-content="jsonContent" @close="showJsonViewDialog = false" />
 
     <!-- Questionnaire Preview Dialog -->
-    <QuestionnairePreviewDialog
-      v-model="showPreviewDialog"
-      :json-content="previewJsonContent"
-      @close="showPreviewDialog = false"
-    />
+    <QuestionnairePreviewDialog v-model="showPreviewDialog" :json-content="previewJsonContent" @close="showPreviewDialog = false" />
   </q-page>
 </template>
 
@@ -112,6 +102,10 @@ const isQuestionnaireColumn = computed(() => {
   return selectedColumn.value === 'QUESTIONNAIRE'
 })
 
+const isFieldSetColumn = computed(() => {
+  return selectedColumn.value === 'FIELD_SET_CD'
+})
+
 // Methods
 const getColumnTitle = () => {
   const option = columnOptions.value.find((opt) => opt.value === selectedColumn.value)
@@ -132,10 +126,10 @@ const loadColumnOptions = async () => {
   loadingColumns.value = true
   try {
     const result = await globalSettingsStore.dbStore.executeQuery(
-      `SELECT DISTINCT COLUMN_CD, COUNT(*) as count 
-       FROM CODE_LOOKUP 
-       WHERE TABLE_CD = ? 
-       GROUP BY COLUMN_CD 
+      `SELECT DISTINCT COLUMN_CD, COUNT(*) as count
+       FROM CODE_LOOKUP
+       WHERE TABLE_CD = ?
+       GROUP BY COLUMN_CD
        ORDER BY COLUMN_CD`,
       [selectedTable.value],
     )
@@ -201,8 +195,8 @@ const loadLookupValues = async () => {
   loading.value = true
   try {
     const result = await globalSettingsStore.dbStore.executeQuery(
-      `SELECT * FROM CODE_LOOKUP 
-       WHERE TABLE_CD = ? AND COLUMN_CD = ? 
+      `SELECT * FROM CODE_LOOKUP
+       WHERE TABLE_CD = ? AND COLUMN_CD = ?
        ORDER BY NAME_CHAR`,
       [selectedTable.value, selectedColumn.value],
     )
@@ -260,6 +254,25 @@ const saveEdit = async () => {
   }
 }
 
+const saveFieldSet = async (data) => {
+  try {
+    await globalSettingsStore.updateLookupValue(data.code, data.description, data.jsonData)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Field set updated successfully',
+    })
+    await loadLookupValues()
+  } catch (error) {
+    console.error('Error updating field set:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to update field set',
+      caption: error.message,
+    })
+  }
+}
+
 const addValue = async (formData) => {
   try {
     const result = await globalSettingsStore.dbStore.executeCommand(
@@ -307,13 +320,13 @@ const importQuestionnaire = async (questionnaireData) => {
     const result = await globalSettingsStore.dbStore.executeCommand(
       `INSERT INTO CODE_LOOKUP (TABLE_CD, COLUMN_CD, CODE_CD, NAME_CHAR, LOOKUP_BLOB, UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD)
        VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'), 'IMPORT')`,
-      ['SURVEY_BEST', 'QUESTIONNAIRE', questionnaireData.CODE_CD, questionnaireData.NAME_CHAR, questionnaireData.LOOKUP_BLOB]
+      ['SURVEY_BEST', 'QUESTIONNAIRE', questionnaireData.CODE_CD, questionnaireData.NAME_CHAR, questionnaireData.LOOKUP_BLOB],
     )
 
     if (result.success) {
       // Clear cache and refresh questionnaire store
       globalSettingsStore.clearCache()
-      
+
       // Trigger questionnaire store refresh if available
       try {
         const { useQuestionnaireStore } = await import('src/stores/questionnaire-store.js')
@@ -322,13 +335,13 @@ const importQuestionnaire = async (questionnaireData) => {
       } catch {
         // Questionnaire store not available, that's fine
       }
-      
+
       $q.notify({
         type: 'positive',
         message: `Questionnaire "${questionnaireData.NAME_CHAR}" imported successfully`,
-        caption: `Code: ${questionnaireData.CODE_CD}`
+        caption: `Code: ${questionnaireData.CODE_CD}`,
       })
-      
+
       showImportDialog.value = false
       await loadLookupValues()
     } else {
@@ -339,7 +352,7 @@ const importQuestionnaire = async (questionnaireData) => {
     $q.notify({
       type: 'negative',
       message: 'Failed to import questionnaire',
-      caption: error.message
+      caption: error.message,
     })
   }
 }
