@@ -23,6 +23,16 @@ class BaseRepository {
   }
 
   /**
+   * Execute custom query (for advanced repository operations)
+   * @param {string} query - SQL query to execute
+   * @param {Array} params - Query parameters
+   * @returns {Promise<Object>} - Query result with success/data structure
+   */
+  async executeQuery(query, params = []) {
+    return this.connection.executeQuery(query, params)
+  }
+
+  /**
    * Find all entities
    * @param {Object} options - Query options (limit, offset, orderBy)
    * @returns {Promise<Array>} - Array of entities
@@ -72,11 +82,7 @@ class BaseRepository {
           params.push(...value)
         } else if (typeof value === 'object' && value.operator) {
           // Handle custom operators (>, <, LIKE, BETWEEN, etc.)
-          if (
-            value.operator === 'BETWEEN' &&
-            Array.isArray(value.value) &&
-            value.value.length === 2
-          ) {
+          if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
             sql += ` AND ${key} BETWEEN ? AND ?`
             params.push(value.value[0], value.value[1])
           } else {
@@ -129,11 +135,7 @@ class BaseRepository {
           params.push(...value)
         } else if (typeof value === 'object' && value.operator) {
           // Handle custom operators (>, <, LIKE, BETWEEN, etc.)
-          if (
-            value.operator === 'BETWEEN' &&
-            Array.isArray(value.value) &&
-            value.value.length === 2
-          ) {
+          if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
             sql += ` AND ${key} BETWEEN ? AND ?`
             params.push(value.value[0], value.value[1])
           } else {
@@ -157,8 +159,10 @@ class BaseRepository {
    * @returns {Promise<Object>} - Created entity with ID
    */
   async create(entity) {
-    // Filter out undefined values
-    const fields = Object.keys(entity).filter((key) => entity[key] !== undefined)
+    // Filter out undefined values and primary key fields (should be auto-generated)
+    const fields = Object.keys(entity).filter((key) => {
+      return entity[key] !== undefined && key !== this.primaryKey
+    })
 
     if (fields.length === 0) {
       throw new Error('Failed to create entity')
@@ -171,7 +175,9 @@ class BaseRepository {
     const result = await this.connection.executeCommand(sql, values)
 
     if (result.success) {
-      return { ...entity, [this.primaryKey]: result.lastID }
+      // Handle different connection types that may use different property names
+      const id = result.lastID || result.lastId
+      return { ...entity, [this.primaryKey]: id }
     }
     throw new Error('Failed to create entity')
   }
@@ -184,9 +190,7 @@ class BaseRepository {
    */
   async update(id, entity) {
     // Filter out undefined values and primary key field
-    const fields = Object.keys(entity).filter(
-      (key) => entity[key] !== undefined && key !== this.primaryKey,
-    )
+    const fields = Object.keys(entity).filter((key) => entity[key] !== undefined && key !== this.primaryKey)
 
     if (fields.length === 0) {
       throw new Error('No fields to update')
@@ -199,7 +203,7 @@ class BaseRepository {
     const result = await this.connection.executeCommand(sql, values)
 
     // Check if the update was successful by looking at the changes count
-    // The result from executeCommand returns { lastID, changes }
+    // The result from executeCommand returns { lastID/lastId, changes }
     return result && typeof result.changes === 'number' && result.changes > 0
   }
 
@@ -222,9 +226,7 @@ class BaseRepository {
    */
   async updateByCriteria(criteria, updateData) {
     // Filter out undefined values
-    const updateFields = Object.keys(updateData).filter(
-      (key) => updateData[key] !== undefined
-    )
+    const updateFields = Object.keys(updateData).filter((key) => updateData[key] !== undefined)
 
     if (updateFields.length === 0) {
       throw new Error('No fields to update')
@@ -234,11 +236,13 @@ class BaseRepository {
     const params = []
 
     // Build SET clause
-    const setClause = updateFields.map((field) => {
-      params.push(updateData[field])
-      return `${field} = ?`
-    }).join(', ')
-    
+    const setClause = updateFields
+      .map((field) => {
+        params.push(updateData[field])
+        return `${field} = ?`
+      })
+      .join(', ')
+
     sql += setClause + ` WHERE 1=1`
 
     // Build WHERE clause

@@ -79,6 +79,16 @@ class ConceptRepository extends BaseRepository {
   }
 
   /**
+   * Execute custom query for concept lookups (used by import services)
+   * @param {string} query - SQL query to execute
+   * @param {Array} params - Query parameters
+   * @returns {Promise<Object>} - Query result with success/data structure
+   */
+  async executeQuery(query, params = []) {
+    return this.connection.executeQuery(query, params)
+  }
+
+  /**
    * Search concepts by multiple criteria
    * @param {Object} criteria - Search criteria object
    * @returns {Promise<Array>} - Array of matching concepts
