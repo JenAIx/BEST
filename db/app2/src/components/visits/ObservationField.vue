@@ -460,7 +460,7 @@ const createObservation = async (value) => {
   const valueType = actualValueType.value
   const observationData = {
     ENCOUNTER_NUM: props.visit.id,
-    PATIENT_NUM: props.patient.PATIENT_NUM || props.patient.id,
+    // Don't pass PATIENT_NUM - let the store look it up from selectedPatient
     CONCEPT_CD: props.concept.code,
     VALTYPE_CD: valueType,
     START_DATE: new Date().toISOString().split('T')[0],
@@ -786,8 +786,6 @@ const getFileColor = () => {
   }
   return colorMap[ext] || 'grey'
 }
-
-
 
 // Initialize value from existing observation and resolve concept
 onMounted(async () => {

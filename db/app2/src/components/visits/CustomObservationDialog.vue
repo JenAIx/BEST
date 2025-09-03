@@ -503,7 +503,7 @@ const saveCustomObservation = async () => {
 
     const observationData = {
       ENCOUNTER_NUM: props.visit.id,
-      PATIENT_NUM: props.patient.PATIENT_NUM || props.patient.id,
+      // Don't pass PATIENT_NUM - let the store look it up from selectedPatient
       CONCEPT_CD: conceptCode,
       VALTYPE_CD: valueType,
       START_DATE: new Date().toISOString().split('T')[0],
