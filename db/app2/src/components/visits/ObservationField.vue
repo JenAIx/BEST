@@ -35,13 +35,13 @@
             <q-tooltip>Save</q-tooltip>
           </q-btn>
         </div>
-        <q-btn v-else-if="hasValue && !showRemoveConfirmation" flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = true">
+        <q-btn v-else-if="hasValue && !showRemoveConfirmation" flat round icon="clear" size="xs" color="grey-6" @click="showRemoveConfirmation = true">
           <q-tooltip>Remove</q-tooltip>
         </q-btn>
 
         <!-- Remove Confirmation Buttons -->
         <div v-else-if="hasValue && showRemoveConfirmation" class="remove-confirmation-buttons">
-          <q-btn flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = false" class="cancel-remove-btn">
+          <q-btn flat round icon="clear" size="xs" color="grey-6" @click="showRemoveConfirmation = false" class="cancel-remove-btn">
             <q-tooltip>Cancel</q-tooltip>
           </q-btn>
           <q-btn flat round icon="check" size="xs" color="negative" @click="confirmRemove" class="confirm-remove-btn">
@@ -148,7 +148,7 @@
 
         <!-- Show file preview if existing file -->
         <div v-else class="existing-file-display">
-          <div class="file-info-card">
+          <div class="file-info-card clickable-card" @click="showFilePreview = true">
             <div class="file-header">
               <q-icon :name="getFileIcon()" :color="getFileColor()" size="32px" />
               <div class="file-details">
@@ -156,17 +156,11 @@
                 <div class="file-meta">
                   <span class="file-size">{{ formatFileSize(existingFileInfo.size) }}</span>
                   <span class="file-type">{{ existingFileInfo.ext?.toUpperCase() }}</span>
+                  <span class="preview-note">Click to preview</span>
                 </div>
               </div>
             </div>
-            <div class="file-actions">
-              <q-btn flat round icon="visibility" size="sm" color="primary" @click="showFilePreview = true" class="preview-btn">
-                <q-tooltip>Preview file</q-tooltip>
-              </q-btn>
-              <q-btn flat round icon="download" size="sm" color="secondary" @click="downloadFile" :loading="downloading" class="download-btn">
-                <q-tooltip>Download file</q-tooltip>
-              </q-btn>
-            </div>
+            <q-tooltip>Click to preview file</q-tooltip>
           </div>
         </div>
       </div>
@@ -300,7 +294,7 @@ const hasPendingChanges = ref(false)
 const saveTimeout = ref(null)
 const fileData = ref(null)
 const showFilePreview = ref(false)
-const downloading = ref(false)
+
 const existingFileInfo = ref(null)
 
 // Questionnaire-related state for 'Q' type observations
@@ -433,7 +427,7 @@ const onValueChange = (newValue) => {
   // Check if the new value is different from the original/saved value
   if (newValue === originalValue) {
     loggingStore.debug('ObservationField', 'Value matches original, no pending changes', {
-      conceptCode: props.concept.code
+      conceptCode: props.concept.code,
     })
     hasPendingChanges.value = false
     return
@@ -793,54 +787,7 @@ const getFileColor = () => {
   return colorMap[ext] || 'grey'
 }
 
-const downloadFile = async () => {
-  if (!props.existingObservation?.observationId) return
 
-  try {
-    downloading.value = true
-    logger.info('Downloading file from observation', {
-      observationId: props.existingObservation.observationId,
-      filename: existingFileInfo.value?.filename,
-    })
-
-    const result = await dbStore.downloadRawData(props.existingObservation.observationId)
-
-    if (result.success) {
-      // Create blob and download
-      const blob = new Blob([result.blob], {
-        type: result.fileInfo.mimeType || 'application/octet-stream',
-      })
-
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = result.fileInfo.filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      $q.notify({
-        type: 'positive',
-        message: `File "${result.fileInfo.filename}" downloaded successfully`,
-        position: 'top',
-        timeout: 3000,
-      })
-    } else {
-      throw new Error('Download failed')
-    }
-  } catch (error) {
-    logger.error('File download failed', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to download file: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
-  } finally {
-    downloading.value = false
-  }
-}
 
 // Initialize value from existing observation and resolve concept
 onMounted(async () => {
@@ -1227,10 +1174,15 @@ onUnmounted(() => {
         padding: 0.75rem;
         background: $grey-1;
         transition: all 0.2s ease;
+        cursor: pointer;
 
-        &:hover {
-          border-color: $primary;
-          background: white;
+        &.clickable-card {
+          &:hover {
+            border-color: $primary;
+            background: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba($primary, 0.15);
+          }
         }
 
         .file-header {
@@ -1253,6 +1205,7 @@ onUnmounted(() => {
               display: flex;
               gap: 0.5rem;
               margin-top: 0.25rem;
+              align-items: center;
 
               .file-size,
               .file-type {
@@ -1263,21 +1216,13 @@ onUnmounted(() => {
               .file-type {
                 font-weight: 500;
               }
-            }
-          }
-        }
 
-        .file-actions {
-          display: flex;
-          gap: 0.25rem;
-          justify-content: flex-end;
-
-          .preview-btn,
-          .download-btn {
-            transition: all 0.2s ease;
-
-            &:hover {
-              transform: scale(1.05);
+              .preview-note {
+                font-size: 0.75rem;
+                color: $grey-6;
+                font-style: italic;
+                margin-left: auto;
+              }
             }
           }
         }
