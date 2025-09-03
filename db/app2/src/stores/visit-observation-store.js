@@ -38,10 +38,15 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
   })
 
   const visitOptions = computed(() => {
+    // Early return if no visits to prevent unnecessary processing
+    if (!visits.value || visits.value.length === 0) {
+      return []
+    }
+
     return visits.value.map((visit) => ({
       id: visit.id,
       label: formatVisitDate(visit.date),
-      summary: `${getVisitTypeLabel(visit.type)} • ${visit.observationCount || 0} observations`,
+      summary: `${getVisitTypeLabel(visit.type || visit.visitType)} • ${visit.observationCount || 0} observations`,
       value: visit,
     }))
   })
@@ -52,9 +57,15 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
   })
 
   const categorizedObservations = computed(() => {
-    // Group observations by category
+    // Early return if no observations to prevent unnecessary processing
+    if (!observations.value || observations.value.length === 0) {
+      return []
+    }
+
+    // Group observations by category using a Map for O(1) lookups
     const categories = new Map()
 
+    // Process observations in a single pass
     observations.value.forEach((obs) => {
       const categoryName = obs.category || 'Uncategorized'
       if (!categories.has(categoryName)) {
@@ -66,13 +77,22 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
       categories.get(categoryName).observations.push(obs)
     })
 
-    // Sort categories and observations
-    return Array.from(categories.values())
+    // Convert to array and sort (only sort categories, keep observations pre-sorted from query)
+    const result = Array.from(categories.values())
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((category) => ({
         ...category,
-        observations: category.observations.sort((a, b) => a.conceptName.localeCompare(b.conceptName)),
+        // Use slice() to avoid mutating original array during sort
+        observations: category.observations.slice().sort((a, b) => a.conceptName.localeCompare(b.conceptName)),
       }))
+
+    logger.debug('Categorized observations computed', {
+      totalObservations: observations.value.length,
+      categoriesCount: result.length,
+      categories: result.map(c => ({ name: c.name, count: c.observations.length })),
+    })
+
+    return result
   })
 
   const hasData = computed(() => {
@@ -115,12 +135,19 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
 
   // Actions - Patient Management
   const setSelectedPatient = async (patient) => {
-    logger.info('Setting selected patient', { patientId: patient?.id })
+    logger.info('Setting selected patient', { patientId: patient?.id, previousPatientId: selectedPatient.value?.id })
+
+    // If switching to the same patient, don't reload
+    if (selectedPatient.value?.id === patient?.id) {
+      logger.debug('Same patient selected, skipping reload')
+      return
+    }
+
+    // Clear previous patient data completely before setting new patient
+    // This prevents memory leaks when rapidly switching between patients
+    clearPatient()
+
     selectedPatient.value = patient
-    selectedVisit.value = null
-    visits.value = []
-    observations.value = []
-    error.value = null
 
     if (patient) {
       await loadVisitsForPatient(patient)
@@ -129,12 +156,25 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
 
   const clearPatient = () => {
     logger.info('Clearing selected patient')
+
+    // Clear all references to prevent memory leaks
     selectedPatient.value = null
     selectedVisit.value = null
+
+    // Clear arrays and force garbage collection hints
     visits.value = []
     observations.value = []
     allObservations.value = []
+
+    // Clear any error state
     error.value = null
+
+    // Clear loading states
+    loading.value = {
+      visits: false,
+      observations: false,
+      actions: false,
+    }
   }
 
   // Actions - Visit Management
@@ -288,11 +328,11 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
           CATEGORY_CHAR,
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
           TVAL_RESOLVED,
-          ENCOUNTER_NUM,
-          OBSERVATION_BLOB
+          ENCOUNTER_NUM
         FROM patient_observations
         WHERE ENCOUNTER_NUM = ?
         ORDER BY CATEGORY_CHAR, CONCEPT_NAME_CHAR
+        LIMIT 500
       `
 
       const result = await dbStore.executeQuery(query, [visit.id])
@@ -656,6 +696,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
         FROM patient_observations
         WHERE PATIENT_NUM = ?
         ORDER BY START_DATE DESC, CATEGORY_CHAR, CONCEPT_NAME_CHAR
+        LIMIT 1000
       `
 
       const result = await dbStore.executeQuery(query, [patientNum])
@@ -917,6 +958,56 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
     }
   }
 
+  // Lazy loading for observation details (e.g., OBSERVATION_BLOB for questionnaires)
+  const loadObservationDetails = async (observationId) => {
+    try {
+      logger.info('Loading observation details', { observationId })
+
+      const query = `
+        SELECT OBSERVATION_BLOB, VALTYPE_CD, TVAL_CHAR
+        FROM OBSERVATION_FACT
+        WHERE OBSERVATION_ID = ?
+      `
+
+      const result = await dbStore.executeQuery(query, [observationId])
+
+      if (result.success && result.data.length > 0) {
+        const obsData = result.data[0]
+        let parsedData = null
+
+        // Parse OBSERVATION_BLOB based on value type
+        if (obsData.OBSERVATION_BLOB) {
+          try {
+            if (obsData.VALTYPE_CD === 'Q' || obsData.VALTYPE_CD === 'B') {
+              // Questionnaire or Blob data - parse as JSON
+              parsedData = JSON.parse(obsData.OBSERVATION_BLOB)
+            } else {
+              // Other types - return as string
+              parsedData = obsData.OBSERVATION_BLOB
+            }
+          } catch (parseError) {
+            logger.warn('Failed to parse OBSERVATION_BLOB', parseError, { observationId })
+            parsedData = obsData.OBSERVATION_BLOB // Fallback to raw string
+          }
+        }
+
+        logger.success('Observation details loaded', { observationId, valType: obsData.VALTYPE_CD })
+        return {
+          observationBlob: parsedData,
+          rawBlob: obsData.OBSERVATION_BLOB,
+          valType: obsData.VALTYPE_CD,
+          tvalChar: obsData.TVAL_CHAR,
+        }
+      } else {
+        logger.warn('Observation not found', { observationId })
+        return null
+      }
+    } catch (err) {
+      logger.error('Failed to load observation details', err, { observationId })
+      throw err
+    }
+  }
+
   // Helper Functions
   const getObservationCount = async (encounterNum) => {
     try {
@@ -1050,6 +1141,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
     updateObservation,
     createObservation,
     deleteObservation,
+    loadObservationDetails, // Lazy loading for observation details
 
     // Helper Functions
     formatVisitDate,
