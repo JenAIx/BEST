@@ -37,20 +37,13 @@
               </div>
 
               <!-- Debug Section -->
-              <div class="debug-section q-mt-lg">
+              <div class="debug-section q-mt-sm">
                 <q-card flat bordered class="bg-orange-1">
                   <q-card-section>
                     <div class="text-subtitle1 q-mb-sm text-orange-9">🔧 Debug Tools</div>
                     <div class="text-body2 text-orange-8 q-mb-md">Quick test with the REAL 02_json.json file</div>
-                    <q-btn
-                      color="orange"
-                      icon="bug_report"
-                      label="Load & Analyze REAL 02_json.json"
-                      @click="loadDebugFile"
-                      :loading="debugLoading"
-                      no-caps
-                      class="q-px-lg"
-                    />
+                    <q-btn color="orange" icon="bug_report" label="Load & Analyze REAL 02_json.json" @click="loadDebugFile('02_json.json')" :loading="debugLoading" no-caps class="q-px-lg" />
+                    <q-btn color="orange" icon="bug_report" label="Load & Analyze 01_csv_data.csv" @click="loadDebugFile('01_csv_data.csv')" :loading="debugLoading" no-caps class="q-px-lg" />
                   </q-card-section>
                 </q-card>
               </div>
@@ -818,38 +811,45 @@ const onFileCleared = () => {
   currentStep.value = 'upload'
 }
 
-const loadDebugFile = async () => {
+const loadDebugFile = async (filename) => {
   debugLoading.value = true
 
   try {
-    logger.info('Loading real debug file 02_json.json')
+    logger.info('Loading real debug file', { filename })
 
-    // Load the actual 02_json.json file from the public directory
-    const response = await fetch('/debug-02_json.json')
+    // Load the debug files from the public directory
+    const response = await fetch(`/debug-${filename}`)
 
     if (!response.ok) {
       throw new Error(`Failed to load debug file: ${response.status}`)
     }
 
-    const jsonContent = await response.text()
+    const fileContent = await response.text()
 
     // Convert string to Uint8Array (mimicking file upload)
     const encoder = new TextEncoder()
-    const uint8Array = encoder.encode(jsonContent)
+    const uint8Array = encoder.encode(fileContent)
+
+    // Determine file type based on extension
+    const isJson = filename.toLowerCase().endsWith('.json')
+    const isCsv = filename.toLowerCase().endsWith('.csv')
+    const mimeType = isJson ? 'application/json' : isCsv ? 'text/csv' : 'text/plain'
 
     // Create a mock file data structure
     const mockFileData = {
       fileInfo: {
-        filename: '02_json.json',
+        filename: filename,
         size: uint8Array.length,
-        type: 'application/json'
+        type: mimeType,
       },
-      blob: uint8Array
+      blob: uint8Array,
     }
 
-    logger.info('Successfully loaded real 02_json.json file', {
+    logger.info('Successfully loaded debug file', {
+      filename: filename,
       size: uint8Array.length,
-      contentLength: jsonContent.length
+      contentLength: fileContent.length,
+      type: mimeType,
     })
 
     // Set the selected file and proceed with analysis
@@ -865,10 +865,9 @@ const loadDebugFile = async () => {
 
     $q.notify({
       type: 'positive',
-      message: 'Debug file loaded and analysis started',
+      message: `Debug file ${filename} loaded and analysis started`,
       timeout: 3000,
     })
-
   } catch (error) {
     logger.error('Failed to load debug file', error)
     $q.notify({

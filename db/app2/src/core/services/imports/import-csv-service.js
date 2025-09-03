@@ -12,6 +12,19 @@
 import { createImportStructure } from './import-structure.js'
 import { logger } from '../logging-service.js'
 
+/**
+ * VALTYPE_CD Types Available in CONCEPT_DIMENSION:
+ * - N: Numeric
+ * - T: Text
+ * - D: Date
+ * - F: Finding (yes, no, unknown)
+ * - S: Selection
+ * - A: Answer
+ * - Q: Questionnaire
+ * - M: Medication
+ * - R: Raw data/file
+ */
+
 export class ImportCsvService {
   constructor(conceptRepository, cqlRepository) {
     this.conceptRepository = conceptRepository
@@ -46,7 +59,7 @@ export class ImportCsvService {
       }
 
       // Transform to importStructure format
-      const importStructure = this.transformToImportStructure(parsedData, variant, filename)
+      const importStructure = await this.transformToImportStructure(parsedData, variant, filename)
 
       // Validate the transformed structure
       const structureValidation = this.validateImportStructure(importStructure)
@@ -394,9 +407,9 @@ export class ImportCsvService {
    * @param {Object} parsedData - Parsed CSV data
    * @param {string} variant - CSV variant
    * @param {string} filename - Original filename
-   * @returns {Object} Import structure
+   * @returns {Promise<Object>} Import structure
    */
-  transformToImportStructure(parsedData, variant, filename) {
+  async transformToImportStructure(parsedData, variant, filename) {
     const importStructure = createImportStructure({
       metadata: {
         title: parsedData.metadata.description || 'CSV Import',
@@ -415,7 +428,7 @@ export class ImportCsvService {
     })
 
     // Extract data from CSV
-    const { patients, visits, observations } = this.extractDataFromCsv(parsedData, variant)
+    const { patients, visits, observations } = await this.extractDataFromCsv(parsedData, variant)
 
     // Populate import structure
     importStructure.data.patients = patients
@@ -438,9 +451,9 @@ export class ImportCsvService {
    * Extract clinical data from CSV
    * @param {Object} parsedData - Parsed CSV data
    * @param {string} variant - CSV variant
-   * @returns {Object} Extracted clinical data
+   * @returns {Promise<Object>} Extracted clinical data
    */
-  extractDataFromCsv(parsedData, variant) {
+  async extractDataFromCsv(parsedData, variant) {
     const patients = []
     const visits = []
     const observations = []
@@ -455,17 +468,18 @@ export class ImportCsvService {
     // Group rows by patient
     const patientGroups = new Map()
 
-    parsedData.dataRows.forEach((row, rowIndex) => {
+    for (let rowIndex = 0; rowIndex < parsedData.dataRows.length; rowIndex++) {
+      const row = parsedData.dataRows[rowIndex]
       try {
         if (variant === 'variantA') {
-          this.processVariantARow(row, parsedData.headers, patientGroups, rowIndex)
+          await this.processVariantARow(row, parsedData.headers, patientGroups, rowIndex)
         } else {
-          this.processVariantBRow(row, parsedData.headers, patientGroups, rowIndex)
+          await this.processVariantBRow(row, parsedData.headers, patientGroups, rowIndex)
         }
       } catch (error) {
         logger.warn(`Failed to process row ${rowIndex + 1}:`, error.message)
       }
-    })
+    }
 
     // Convert grouped data to clinical objects
     for (const [, patientData] of patientGroups) {
@@ -510,7 +524,7 @@ export class ImportCsvService {
    * @param {Map} patientGroups - Patient grouping map
    * @param {number} rowIndex - Row index for error reporting
    */
-  processVariantARow(row, headers, patientGroups, rowIndex) {
+  async processVariantARow(row, headers, patientGroups, rowIndex) {
     const patientCdIndex = headers.conceptCodes.indexOf('PATIENT_CD')
     if (patientCdIndex === -1) return
 
@@ -527,18 +541,19 @@ export class ImportCsvService {
     const patientData = patientGroups.get(patientKey)
 
     // Extract patient information
-    headers.conceptCodes.forEach((conceptCode, colIndex) => {
+    for (let colIndex = 0; colIndex < headers.conceptCodes.length; colIndex++) {
+      const conceptCode = headers.conceptCodes[colIndex]
       const value = row[colIndex]?.trim()
-      if (!value) return
+      if (!value) continue
 
       if (this.isPatientField(conceptCode)) {
         patientData.patientInfo[conceptCode] = value
       } else if (this.isVisitField(conceptCode)) {
         this.addVisitData(patientData, conceptCode, value, row, headers)
       } else {
-        this.addObservationData(patientData, conceptCode, value, row, headers)
+        await this.addObservationData(patientData, conceptCode, value, row, headers)
       }
-    })
+    }
   }
 
   /**
@@ -548,7 +563,7 @@ export class ImportCsvService {
    * @param {Map} patientGroups - Patient grouping map
    * @param {number} rowIndex - Row index for error reporting
    */
-  processVariantBRow(row, headers, patientGroups, rowIndex) {
+  async processVariantBRow(row, headers, patientGroups, rowIndex) {
     const patientCdIndex = headers.fieldNames.indexOf('PATIENT_CD')
     if (patientCdIndex === -1) return
 
@@ -565,9 +580,10 @@ export class ImportCsvService {
     const patientData = patientGroups.get(patientKey)
 
     // Extract data based on field names
-    headers.fieldNames.forEach((fieldName, colIndex) => {
+    for (let colIndex = 0; colIndex < headers.fieldNames.length; colIndex++) {
+      const fieldName = headers.fieldNames[colIndex]
       const value = row[colIndex]?.trim()
-      if (!value) return
+      if (!value) continue
 
       const valtypeCd = headers.valtypeCodes[colIndex] || 'text'
       const unitCd = headers.unitCodes[colIndex] || null
@@ -577,9 +593,9 @@ export class ImportCsvService {
       } else if (this.isVisitFieldVariantB(fieldName)) {
         this.addVisitDataVariantB(patientData, fieldName, value, row, headers)
       } else {
-        this.addObservationDataVariantB(patientData, fieldName, value, valtypeCd, unitCd, row, headers)
+        await this.addObservationDataVariantB(patientData, fieldName, value, valtypeCd, unitCd, row, headers)
       }
-    })
+    }
   }
 
   /**
@@ -655,11 +671,13 @@ export class ImportCsvService {
    * @param {Array} row - Full row data
    * @param {Object} headers - Header information
    */
-  addObservationData(patientData, conceptCode, value, row, headers) {
+  async addObservationData(patientData, conceptCode, value, row, headers) {
+    const valtypeCd = await this.determineValtypeCd(conceptCode, value)
+
     const observation = {
       CONCEPT_CD: conceptCode,
       VALUE: value,
-      VALTYPE_CD: this.determineValtypeCd(value),
+      VALTYPE_CD: valtypeCd,
     }
 
     // Try to associate with a visit
@@ -706,15 +724,17 @@ export class ImportCsvService {
    * @param {Array} row - Full row data
    * @param {Object} headers - Header information
    */
-  addObservationDataVariantB(patientData, fieldName, value, valtypeCd, unitCd) {
+  async addObservationDataVariantB(patientData, fieldName, value, valtypeCd, unitCd) {
     if (this.isPatientFieldVariantB(fieldName) || this.isVisitFieldVariantB(fieldName)) {
       return
     }
 
+    const mappedValtypeCd = await this.mapValtypeCd(valtypeCd, fieldName)
+
     const observation = {
       CONCEPT_CD: fieldName,
       VALUE: value,
-      VALTYPE_CD: this.mapValtypeCd(valtypeCd),
+      VALTYPE_CD: mappedValtypeCd,
       UNIT_CD: unitCd,
     }
 
@@ -746,24 +766,103 @@ export class ImportCsvService {
   /**
    * Map Variant B value type codes to internal format
    * @param {string} valtypeCd - Variant B value type code
-   * @returns {string} Internal value type code
+   * @param {string} fieldName - Field name for database lookup
+   * @returns {Promise<string>} Internal value type code
    */
-  mapValtypeCd(valtypeCd) {
+  async mapValtypeCd(valtypeCd, fieldName = null) {
+    // First, try to map known external formats
     const mapping = {
       numeric: 'N',
       text: 'T',
       date: 'D',
-      finding: 'T',
+      finding: 'F', // Fixed: was incorrectly mapped to 'T'
+      selection: 'S',
+      answer: 'A',
+      questionnaire: 'Q',
+      medication: 'M',
+      raw: 'R',
     }
-    return mapping[valtypeCd] || 'T'
+
+    const mappedValtype = mapping[valtypeCd] || 'T'
+
+    // If we have a field name, try to get the proper VALTYPE_CD from database
+    if (fieldName) {
+      try {
+        const dbValtype = await this.determineValtypeCd(fieldName)
+        if (dbValtype && dbValtype !== 'T') {
+          // Only override if we got a specific type from DB
+          logger.debug('Using database VALTYPE_CD for Variant B field', {
+            fieldName,
+            csvValtype: valtypeCd,
+            mappedValtype,
+            dbValtype,
+          })
+          return dbValtype
+        }
+      } catch (error) {
+        logger.warn('Failed to get VALTYPE_CD from database for Variant B field', {
+          fieldName,
+          error: error.message,
+        })
+      }
+    }
+
+    return mappedValtype
   }
 
   /**
-   * Determine value type code from value
+   * Determine value type code from concept code (database-first approach)
+   * @param {string} conceptCode - Concept code to look up
+   * @param {string} fallbackValue - Value to use for fallback analysis
+   * @returns {Promise<string>} Value type code
+   */
+  async determineValtypeCd(conceptCode, fallbackValue = null) {
+    try {
+      // First, try to get VALTYPE_CD from CONCEPT_DIMENSION table
+      const conceptQuery = `
+        SELECT VALTYPE_CD, CONCEPT_CD, NAME_CHAR
+        FROM CONCEPT_DIMENSION
+        WHERE CONCEPT_CD = ?
+        LIMIT 1
+      `
+
+      const result = await this.conceptRepository.executeQuery(conceptQuery, [conceptCode])
+
+      if (result.success && result.data.length > 0) {
+        const valtypeCd = result.data[0].VALTYPE_CD
+        if (valtypeCd) {
+          logger.debug('Found VALTYPE_CD in database', {
+            conceptCode,
+            valtypeCd,
+            conceptName: result.data[0].NAME_CHAR,
+          })
+          return valtypeCd
+        }
+      }
+
+      // If not found in database, fall back to content analysis
+      logger.warn('VALTYPE_CD not found in database, using fallback analysis', {
+        conceptCode,
+        fallbackValue: fallbackValue?.substring(0, 50),
+      })
+
+      return this.determineValtypeCdFromValue(fallbackValue)
+    } catch (error) {
+      logger.error('Failed to determine VALTYPE_CD from database', {
+        conceptCode,
+        error: error.message,
+      })
+      // Fall back to content analysis on error
+      return this.determineValtypeCdFromValue(fallbackValue)
+    }
+  }
+
+  /**
+   * Determine value type code from value content (fallback method)
    * @param {string} value - Field value
    * @returns {string} Value type code
    */
-  determineValtypeCd(value) {
+  determineValtypeCdFromValue(value) {
     if (!value) return 'T'
 
     // Check if it's a number

@@ -45,10 +45,36 @@ describe('Import Services Integration Tests', () => {
 
   beforeAll(() => {
     // Initialize import service with minimal setup for testing
-    const mockConceptRepo = { findByConceptCode: () => null }
+    const mockConceptRepo = {
+      findByConceptCode: () => null,
+      executeQuery: () => Promise.resolve({ success: false, data: [] }),
+    }
     const mockCqlRepo = { getCqlRules: () => [] }
 
-    importService = new ImportService(null, mockConceptRepo, mockCqlRepo)
+    // Mock database service with required methods
+    const mockDatabaseService = {
+      getRepository: (name) => ({
+        findByPatientCode: () => null,
+        findByConceptCode: () => null,
+        executeQuery: () => Promise.resolve({ success: false, data: [] }),
+      }),
+      executeCommand: () => Promise.resolve({ success: true }),
+      getDatabaseStatistics: () =>
+        Promise.resolve({
+          PATIENT_DIMENSION: 0,
+          VISIT_DIMENSION: 0,
+          OBSERVATION_FACT: 0,
+        }),
+      isServiceInitialized: () => true,
+      isConnected: () => true,
+      getImportStatistics: () =>
+        Promise.resolve({
+          success: true,
+          data: { patients: 1, visits: 1, observations: 1 },
+        }),
+    }
+
+    importService = new ImportService(mockDatabaseService, mockConceptRepo, mockCqlRepo)
 
     // Ensure output directory exists
     if (!fs.existsSync(testOutputDir)) {
@@ -439,7 +465,7 @@ describe('Import Services Integration Tests', () => {
         expect(obs.CONCEPT_CD).toBeDefined()
         expect(obs.CONCEPT_CD).not.toBe('')
         expect(obs.VALTYPE_CD).toBeDefined()
-        expect(['T', 'N', 'D', 'Q']).toContain(obs.VALTYPE_CD)
+        expect(['T', 'N', 'D', 'Q', 'F', 'S', 'A', 'M', 'R']).toContain(obs.VALTYPE_CD)
       })
 
       // Save import structure for review
@@ -486,7 +512,7 @@ describe('Import Services Integration Tests', () => {
         expect(obs.CONCEPT_CD).toBeDefined()
         expect(obs.CONCEPT_CD).not.toBe('')
         expect(obs.VALTYPE_CD).toBeDefined()
-        expect(['T', 'N', 'D', 'Q']).toContain(obs.VALTYPE_CD)
+        expect(['T', 'N', 'D', 'Q', 'F', 'S', 'A', 'M', 'R']).toContain(obs.VALTYPE_CD)
       })
 
       // Save import structure for review
@@ -526,7 +552,7 @@ describe('Import Services Integration Tests', () => {
         expect(obs.CONCEPT_CD).toBeDefined()
         expect(obs.CONCEPT_CD).not.toBe('')
         expect(obs.VALTYPE_CD).toBeDefined()
-        expect(['T', 'N', 'D', 'Q']).toContain(obs.VALTYPE_CD)
+        expect(['T', 'N', 'D', 'Q', 'F', 'S', 'A', 'M', 'R']).toContain(obs.VALTYPE_CD)
         // Variant B should have more detailed unit information
         if (obs.VALTYPE_CD === 'N' && obs.UNIT_CD) {
           expect(obs.UNIT_CD).toBeDefined()

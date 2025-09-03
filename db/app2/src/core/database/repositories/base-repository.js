@@ -23,6 +23,16 @@ class BaseRepository {
   }
 
   /**
+   * Execute custom query (for advanced repository operations)
+   * @param {string} query - SQL query to execute
+   * @param {Array} params - Query parameters
+   * @returns {Promise<Object>} - Query result with success/data structure
+   */
+  async executeQuery(query, params = []) {
+    return this.connection.executeQuery(query, params)
+  }
+
+  /**
    * Find all entities
    * @param {Object} options - Query options (limit, offset, orderBy)
    * @returns {Promise<Array>} - Array of entities
