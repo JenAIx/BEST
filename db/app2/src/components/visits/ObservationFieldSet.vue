@@ -22,120 +22,22 @@
     <q-slide-transition>
       <div v-show="!collapsed" class="field-set-content">
         <!-- Observations Table -->
-        <q-table v-if="tableRows.length > 0" :rows="tableRows" :columns="tableColumns" row-key="id" flat dense :pagination="{ rowsPerPage: 0 }" class="observations-table" :loading="loading">
-          <!-- Custom Header with Resizer -->
-          <template v-slot:header="props">
-            <q-tr :props="props">
-              <q-th v-for="col in props.cols" :key="col.name" :props="props" :class="`header-cell ${col.name}-header`">
-                <div class="header-content">
-                  <span>{{ col.label }}</span>
-                  <!-- Column Resizer (only after observation column) -->
-                  <div v-if="col.name === 'observation'" class="column-resizer" @mousedown="startResize" :class="{ resizing: isResizing }">
-                    <div class="resizer-line"></div>
-                    <q-tooltip>Drag to resize observation column</q-tooltip>
-                  </div>
-                </div>
-              </q-th>
-            </q-tr>
-          </template>
-
-          <!-- Type Column -->
-          <template v-slot:body-cell-type="props">
-            <q-td :props="props" class="type-cell">
-              <ValueTypeIcon :value-type="props.row.valueType" size="28px" variant="chip" />
-            </q-td>
-          </template>
-
-          <!-- Observation Name Column -->
-          <template v-slot:body-cell-observation="props">
-            <q-td :props="props" class="observation-name-cell">
-              <div class="observation-info">
-                <div class="observation-label">
-                  {{ props.row.resolvedName || props.row.conceptName }}
-                  <q-icon v-if="props.row.conceptCode.includes('LOINC')" name="science" size="12px" color="blue" class="q-ml-xs">
-                    <q-tooltip>LOINC: {{ props.row.conceptCode }}</q-tooltip>
-                  </q-icon>
-                  <q-icon v-else-if="props.row.conceptCode.includes('SNOMED')" name="medical_services" size="12px" color="green" class="q-ml-xs">
-                    <q-tooltip>SNOMED: {{ props.row.conceptCode }}</q-tooltip>
-                  </q-icon>
-                  <q-icon v-else name="code" size="12px" color="grey-6" class="q-ml-xs">
-                    <q-tooltip>{{ props.row.conceptCode }}</q-tooltip>
-                  </q-icon>
-                </div>
-              </div>
-            </q-td>
-          </template>
-
-          <!-- Value Column -->
-          <template v-slot:body-cell-value="props">
-            <q-td :props="props" class="value-cell">
-              <!-- Medication Display -->
-              <MedicationFieldView
-                v-if="props.row.isMedication"
-                :medication-data="parseMedicationData(props.row)"
-                :existing-observation="props.row.rawObservation"
-                :frequency-options="frequencyOptions"
-                :route-options="routeOptions"
-                @delete="() => removeRow(props.row)"
-                @enter-edit-mode="() => enterMedicationEditMode(props.row)"
-              />
-
-              <!-- Regular Observation Editor -->
-              <ObservationValueEditor
-                v-else
-                :row-data="{
-                  ...props.row,
-                  // Map our origVal/currentVal to what the editor expects
-                  originalValue: props.row.origVal,
-                  currentValue: props.row.currentVal,
-                  value: props.row.currentVal,
-                }"
-                :concept="getConcept(props.row.conceptCode)"
-                :visit="visit"
-                :patient="patient"
-                :frequency-options="frequencyOptions"
-                :route-options="routeOptions"
-                @value-changed="onValueChanged"
-                @save-requested="onSaveRequested"
-              />
-            </q-td>
-          </template>
-
-          <!-- Action Column -->
-          <template v-slot:body-cell-actions="props">
-            <q-td :props="props" class="action-cell">
-              <div class="action-buttons">
-                <!-- For medications, actions are handled by MedicationFieldView -->
-                <div v-if="props.row.isMedication" class="medication-actions">
-                  <!-- Medication actions are handled within MedicationFieldView component -->
-                </div>
-
-                <!-- For regular observations -->
-                <template v-else>
-                  <!-- Save Button - only show if changed -->
-                  <q-btn v-if="props.row.hasChanges" flat round icon="save" size="sm" color="primary" :loading="props.row.saving" @click="saveRow(props.row)" class="save-btn">
-                    <q-tooltip>Save changes</q-tooltip>
-                  </q-btn>
-
-                  <!-- Cancel Button - only show if changed -->
-                  <q-btn v-if="props.row.hasChanges" flat round icon="close" size="sm" color="grey-6" :disabled="props.row.saving" @click="cancelChanges(props.row)" class="cancel-btn">
-                    <q-tooltip>Cancel changes</q-tooltip>
-                  </q-btn>
-
-                  <!-- Remove Button - show on hover -->
-                  <div v-if="!props.row.hasChanges" class="remove-button-container">
-                    <AppRemoveConfirmationButton :loading="props.row.saving" @remove-confirmed="removeRow(props.row)" @remove-cancelled="() => {}" />
-                  </div>
-
-                  <!-- Clone Button - show if previous value exists -->
-                  <q-btn v-if="props.row.previousValue" flat round icon="content_copy" size="sm" color="secondary" :disabled="props.row.saving" @click="cloneFromPrevious(props.row)" class="clone-btn">
-                    <q-tooltip>Clone from previous visit</q-tooltip>
-                  </q-btn>
-                </template>
-              </div>
-            </q-td>
-          </template>
-        </q-table>
+        <ObservationsTable
+          :table-rows="tableRows"
+          :loading="loading"
+          :visit="visit"
+          :patient="patient"
+          :frequency-options="frequencyOptions"
+          :route-options="routeOptions"
+          :field-set-concepts="fieldSetConcepts"
+          @enter-medication-edit-mode="enterMedicationEditMode"
+          @value-changed="onValueChanged"
+          @save-requested="onSaveRequested"
+          @save-row="saveRow"
+          @cancel-changes="cancelChanges"
+          @remove-row="removeRow"
+          @clone-from-previous="cloneFromPrevious"
+        />
 
         <!-- Empty State -->
         <div v-if="tableRows.length === 0" class="empty-observations">
@@ -145,34 +47,10 @@
         </div>
 
         <!-- Unfilled Observations - Compact Chips -->
-        <div v-if="unfilledConcepts.length > 0" class="unfilled-observations">
-          <div class="unfilled-section-header">
-            <q-icon name="add_circle_outline" size="16px" class="q-mr-xs" />
-            <span class="section-title">Available Observations</span>
-            <q-badge :label="unfilledConcepts.length" color="grey-5" class="q-ml-sm" />
-          </div>
-          <div class="unfilled-chips">
-            <q-chip
-              v-for="concept in unfilledConcepts"
-              :key="`unfilled-${concept.code}`"
-              clickable
-              outline
-              icon="add"
-              :label="concept.name"
-              color="grey-6"
-              text-color="grey-7"
-              class="unfilled-chip"
-              @click="createObservationFromChip(concept)"
-            >
-              <q-tooltip>Click to add {{ concept.name }}</q-tooltip>
-            </q-chip>
-          </div>
-        </div>
+        <UnfilledObservationsChips :unfilled-concepts="unfilledConcepts" @create-observation="createObservationFromChip" />
 
         <!-- Add medication button (only for medications fieldset) -->
-        <div v-if="props.fieldSet.id === 'medications'" class="add-medication">
-          <q-btn flat icon="add" label="Add Medication" @click="addEmptyMedication()" class="full-width" style="border: 2px dashed #ccc" />
-        </div>
+        <MedicationSection :field-set-id="fieldSet.id" @add-empty-medication="addEmptyMedication" />
       </div>
     </q-slide-transition>
 
@@ -189,15 +67,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
-import ObservationValueEditor from './ObservationValueEditor.vue'
-import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
-import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
-import MedicationFieldView from './MedicationFieldView.vue'
+import ObservationsTable from './ObservationsTable.vue'
+import UnfilledObservationsChips from './UnfilledObservationsChips.vue'
+import MedicationSection from './MedicationSection.vue'
 import MedicationEditDialog from './MedicationEditDialog.vue'
 
 const props = defineProps({
@@ -235,19 +112,12 @@ const logger = loggingStore.createLogger('ObservationFieldSet')
 const collapsed = ref(false)
 const loading = ref(false)
 const removedConcepts = ref(new Set()) // Track concepts removed by user
-const removedObservations = ref(new Set()) // Track observation IDs removed by user (for medications)
 const resolvedConceptData = ref(new Map()) // Cache for resolved concept data
 const pendingChanges = ref(new Map()) // Track pending changes per row
 
 // Medication editing state
 const showMedicationEditDialog = ref(false)
 const editingMedicationRow = ref(null)
-
-// Column resizing state
-const observationColumnWidth = ref(150) // Default width
-const isResizing = ref(false)
-const resizeStartX = ref(0)
-const resizeStartWidth = ref(150)
 
 // Frequency and route options for medications
 const frequencyOptions = [
@@ -276,94 +146,6 @@ const routeOptions = [
   { label: 'Rectal (PR)', value: 'PR' },
   { label: 'Sublingual (SL)', value: 'SL' },
 ]
-
-// Table columns (dynamic width for observation column)
-const tableColumns = computed(() => [
-  {
-    name: 'type',
-    label: '',
-    align: 'center',
-    field: 'valueType',
-    sortable: true,
-    style: 'width: 8%',
-  },
-  {
-    name: 'observation',
-    label: '',
-    align: 'left',
-    field: 'conceptName',
-    sortable: true,
-    style: `width: ${observationColumnWidth.value}px; max-width: ${observationColumnWidth.value}px;`,
-  },
-  {
-    name: 'value',
-    label: 'Observations',
-    align: 'left',
-    field: 'displayValue',
-    sortable: false,
-    style: 'width: auto;',
-  },
-  {
-    name: 'actions',
-    label: '',
-    align: 'center',
-    field: 'actions',
-    sortable: false,
-    style: 'width: 15%',
-  },
-])
-
-// Column resizing methods
-const startResize = (event) => {
-  event.preventDefault()
-  isResizing.value = true
-  resizeStartX.value = event.clientX
-  resizeStartWidth.value = observationColumnWidth.value
-
-  // Add global mouse event listeners
-  document.addEventListener('mousemove', handleResize)
-  document.addEventListener('mouseup', stopResize)
-
-  // Add visual feedback
-  document.body.style.cursor = 'col-resize'
-  document.body.style.userSelect = 'none'
-
-  logger.debug('Column resize started', {
-    startX: resizeStartX.value,
-    startWidth: resizeStartWidth.value,
-  })
-}
-
-const handleResize = (event) => {
-  if (!isResizing.value) return
-
-  const deltaX = event.clientX - resizeStartX.value
-  const newWidth = Math.max(100, Math.min(400, resizeStartWidth.value + deltaX)) // Min 100px, Max 400px
-
-  observationColumnWidth.value = newWidth
-
-  logger.debug('Column resizing', {
-    deltaX,
-    newWidth,
-    clientX: event.clientX,
-  })
-}
-
-const stopResize = () => {
-  isResizing.value = false
-
-  // Remove global mouse event listeners
-  document.removeEventListener('mousemove', handleResize)
-  document.removeEventListener('mouseup', stopResize)
-
-  // Remove visual feedback
-  document.body.style.cursor = ''
-  document.body.style.userSelect = ''
-
-  logger.debug('Column resize stopped', {
-    finalWidth: observationColumnWidth.value,
-  })
-}
 
 // Component mounted
 onMounted(async () => {
@@ -502,8 +284,7 @@ const tableRows = computed(() => {
     props.existingObservations?.filter((obs) => {
       const encounterMatch = obs.encounterNum === props.visit.id || obs.ENCOUNTER_NUM === props.visit.id
       const isMedication = obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))
-      const notRemoved = !removedObservations.value.has(obs.observationId)
-      return encounterMatch && isMedication && notRemoved
+      return encounterMatch && isMedication
     }) || []
 
   for (const medication of medicationObservations) {
@@ -587,10 +368,6 @@ const findBestMatchingConcept = (observation) => {
   // Prefer exact matches first, then numeric matches
   const exactMatch = matches.find((concept) => concept.code === obsConceptCode)
   return exactMatch || matches[0]
-}
-
-const getConcept = (conceptCode) => {
-  return fieldSetConcepts.value.find((concept) => concept.code === conceptCode)
 }
 
 const getConceptName = (conceptCode) => {
@@ -1003,11 +780,8 @@ const removeRow = async (row) => {
     row.saving = true
     logger.info('Removing row', { rowId: row.id, conceptCode: row.conceptCode })
 
-    if (row.isMedication) {
-      removedObservations.value.add(row.observationId)
-    } else {
-      await visitStore.deleteObservation(row.observationId)
-    }
+    // Delete observation from database (both medications and regular observations)
+    await visitStore.deleteObservation(row.observationId)
 
     emit('observation-updated', {
       conceptCode: row.conceptCode,
@@ -1146,17 +920,6 @@ const addEmptyMedication = async () => {
     })
   }
 }
-
-// Cleanup on component unmount
-onUnmounted(() => {
-  // Clean up event listeners if component is unmounted during resize
-  if (isResizing.value) {
-    document.removeEventListener('mousemove', handleResize)
-    document.removeEventListener('mouseup', stopResize)
-    document.body.style.cursor = ''
-    document.body.style.userSelect = ''
-  }
-})
 </script>
 
 <style lang="scss" scoped>
@@ -1223,210 +986,10 @@ onUnmounted(() => {
   padding: 1.5rem;
 }
 
-.observations-table {
-  :deep(.q-table__top) {
-    padding: 0;
-  }
-
-  :deep(.q-table__bottom) {
-    display: none;
-  }
-
-  :deep(.q-td) {
-    padding: 8px 12px;
-    vertical-align: middle;
-  }
-
-  :deep(.q-th) {
-    font-weight: 600;
-    color: $grey-8;
-    background: $grey-1;
-  }
-
-  .observation-name-cell {
-    position: relative;
-
-    .observation-info {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .observation-label {
-      font-weight: 500;
-      color: $grey-8;
-      display: flex;
-      align-items: center;
-      word-break: break-word;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-  }
-
-  // Custom header with resizer
-  .header-cell {
-    position: relative;
-
-    .header-content {
-      position: relative;
-      display: flex;
-      align-items: center;
-      width: 100%;
-    }
-
-    &.observation-header .header-content {
-      justify-content: space-between;
-    }
-
-    .column-resizer {
-      position: absolute;
-      top: 0;
-      right: -2px;
-      width: 4px;
-      height: 100%;
-      cursor: col-resize;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-
-      &:hover {
-        background: rgba($primary, 0.1);
-
-        .resizer-line {
-          background: $primary;
-          width: 2px;
-        }
-      }
-
-      &.resizing {
-        background: rgba($primary, 0.2);
-
-        .resizer-line {
-          background: $primary;
-          width: 2px;
-        }
-      }
-
-      .resizer-line {
-        width: 1px;
-        height: 20px;
-        background: $grey-5;
-        border-radius: 1px;
-        transition: all 0.2s ease;
-      }
-    }
-  }
-
-  .type-cell {
-    text-align: center;
-  }
-
-  .value-cell {
-    /* Value editor will handle its own styling */
-    min-width: 200px;
-  }
-
-  .action-cell {
-    .action-buttons {
-      display: flex;
-      gap: 4px;
-      align-items: center;
-      justify-content: center;
-
-      .save-btn {
-        background: rgba($primary, 0.1);
-        border: 1px solid $primary;
-
-        &:hover {
-          background: $primary;
-          color: white;
-        }
-      }
-
-      .cancel-btn:hover {
-        background: rgba($grey-6, 0.1);
-      }
-
-      .remove-button-container {
-        opacity: 0;
-        transition: opacity 0.2s ease;
-      }
-
-      .clone-btn {
-        background: rgba($secondary, 0.1);
-        border: 1px solid $secondary;
-
-        &:hover {
-          background: $secondary;
-          color: white;
-        }
-      }
-    }
-
-    &:hover .remove-button-container {
-      opacity: 1;
-    }
-  }
-}
-
 .empty-observations {
   text-align: center;
   padding: 3rem 2rem;
   color: $grey-6;
-}
-
-.unfilled-observations {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px dashed $grey-4;
-
-  .unfilled-section-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    color: $grey-6;
-
-    .section-title {
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-  }
-
-  .unfilled-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-
-    .unfilled-chip {
-      transition: all 0.2s ease;
-      cursor: pointer;
-      font-size: 0.75rem;
-
-      &:hover {
-        background-color: rgba($primary, 0.08);
-        border-color: $primary;
-        color: $primary;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba($primary, 0.15);
-      }
-    }
-  }
-}
-
-.add-medication {
-  margin-top: 1rem;
-
-  .q-btn {
-    color: $grey-6;
-    transition: all 0.3s ease;
-
-    &:hover {
-      color: $primary;
-      border-color: $primary;
-    }
-  }
 }
 
 .expand-icon.rotate-180 {

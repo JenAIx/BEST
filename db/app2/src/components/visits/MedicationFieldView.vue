@@ -24,17 +24,12 @@
           {{ fullMedicationData.instructions }}
         </q-item-label>
       </q-item-section>
-
-      <q-item-section side class="remove-actions">
-        <AppRemoveConfirmationButton @click.stop @remove-confirmed="handleRemoveConfirmed" @remove-cancelled="handleRemoveCancelled" />
-      </q-item-section>
     </q-item>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
 
 const props = defineProps({
   medicationData: {
@@ -55,7 +50,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['delete', 'enter-edit-mode'])
+const emit = defineEmits(['enter-edit-mode'])
 
 // State management
 const fullMedicationData = ref({ ...props.medicationData })
@@ -154,15 +149,6 @@ const getRouteAbbreviation = (route) => {
   return routeMap[route] || route?.toLowerCase() || ''
 }
 
-// Remove confirmation methods
-const handleRemoveConfirmed = () => {
-  emit('delete')
-}
-
-const handleRemoveCancelled = () => {
-  // No additional action needed for cancel
-}
-
 // Watch for changes to existingObservation to reload BLOB data
 watch(
   () => props.existingObservation,
@@ -250,15 +236,9 @@ watch(
     border-radius: 4px;
     margin: 0px 0;
 
-    &:hover {
-      .remove-actions {
-        opacity: 1;
-      }
-    }
-
     // Style the medication text
     .medication-text {
-      font-size: 1.1rem;
+      font-size: 0.9rem;
       font-weight: 500;
       color: $grey-8;
       font-family: 'Courier New', monospace; // Medical prescription font
@@ -275,12 +255,6 @@ watch(
       .q-icon {
         margin-top: 0.1rem;
       }
-    }
-
-    // Remove actions section - hidden by default, shown on hover
-    .remove-actions {
-      opacity: 0;
-      transition: opacity 0.2s ease;
     }
 
     // Override Quasar's default padding for a more compact look
