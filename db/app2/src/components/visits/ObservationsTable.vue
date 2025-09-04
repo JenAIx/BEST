@@ -66,7 +66,7 @@
             currentValue: props.row.currentVal,
             value: props.row.currentVal,
           }"
-          :concept="getConcept(props.row.conceptCode)"
+          :concept="getConcept(props.row.conceptCode, props.row)"
           :visit="visit"
           :patient="patient"
           :frequency-options="frequencyOptions"
@@ -230,8 +230,19 @@ const stopResize = () => {
   })
 }
 
-const getConcept = (conceptCode) => {
-  return props.fieldSetConcepts.find((concept) => concept.code === conceptCode)
+const getConcept = (conceptCode, row) => {
+  // First try to find in fieldSetConcepts if available
+  const fieldSetConcept = props.fieldSetConcepts.find((concept) => concept.code === conceptCode)
+  if (fieldSetConcept) {
+    return fieldSetConcept
+  }
+
+  // Create a minimal concept object from the row data
+  return {
+    code: conceptCode,
+    name: row.conceptName || row.resolvedName || 'Unknown Concept',
+    valueType: row.valueType || 'T',
+  }
 }
 
 // Parse medication data from observation row

@@ -22,71 +22,6 @@
               <div class="col-auto">
                 <q-select v-model="filterValueType" :options="valueTypeOptions" outlined dense clearable label="Value Type" emit-value map-options style="min-width: 120px" />
               </div>
-
-              <!-- Sort Control -->
-              <div class="col-auto">
-                <div class="sort-control">
-                  <q-btn flat icon="grid_view" size="md" class="sort-button">
-                    <q-tooltip>Sort observations within visits</q-tooltip>
-                    <q-menu anchor="bottom right" self="top right">
-                      <q-list style="min-width: 200px">
-                        <q-item-label header>Sort observations by:</q-item-label>
-                        <q-item clickable v-close-popup @click="setSortMode('date')" :class="{ 'bg-blue-1': sortMode === 'date' }">
-                          <q-item-section avatar>
-                            <q-icon name="schedule" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>Date (Default)</q-item-label>
-                            <q-item-label caption>Most recent first</q-item-label>
-                          </q-item-section>
-                          <q-item-section side v-if="sortMode === 'date'">
-                            <q-icon name="check" />
-                          </q-item-section>
-                        </q-item>
-                        <q-item clickable v-close-popup @click="setSortMode('category')" :class="{ 'bg-blue-1': sortMode === 'category' }">
-                          <q-item-section avatar>
-                            <q-icon name="category" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>Category</q-item-label>
-                            <q-item-label caption>Group by category</q-item-label>
-                          </q-item-section>
-                          <q-item-section side v-if="sortMode === 'category'">
-                            <q-icon name="check" />
-                          </q-item-section>
-                        </q-item>
-                        <q-item clickable v-close-popup @click="setSortMode('alphabetical')" :class="{ 'bg-blue-1': sortMode === 'alphabetical' }">
-                          <q-item-section avatar>
-                            <q-icon name="sort_by_alpha" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>Alphabetical</q-item-label>
-                            <q-item-label caption>By concept name A-Z</q-item-label>
-                          </q-item-section>
-                          <q-item-section side v-if="sortMode === 'alphabetical'">
-                            <q-icon name="check" />
-                          </q-item-section>
-                        </q-item>
-                        <q-item clickable v-close-popup @click="setSortMode('valtype')" :class="{ 'bg-blue-1': sortMode === 'valtype' }">
-                          <q-item-section avatar>
-                            <q-icon name="data_usage" />
-                          </q-item-section>
-                          <q-item-section>
-                            <q-item-label>Value Type</q-item-label>
-                            <q-item-label caption>Group by data type</q-item-label>
-                          </q-item-section>
-                          <q-item-section side v-if="sortMode === 'valtype'">
-                            <q-icon name="check" />
-                          </q-item-section>
-                        </q-item>
-                      </q-list>
-                    </q-menu>
-                  </q-btn>
-
-                  <!-- Sort Mode Indicator -->
-                  <q-icon :name="getSortIcon(sortMode)" size="12px" class="sort-indicator-icon" />
-                </div>
-              </div>
             </template>
 
             <q-space />
@@ -116,62 +51,135 @@
       </q-btn>
     </div>
 
-    <!-- Observations Display -->
+    <!-- Visits and Observations Display -->
     <div v-else-if="hasObservationsOrVisits">
-      <VisitItem
-        v-for="visitGroup in groupedObservations"
-        :key="visitGroup.encounterNum"
-        :visit-group="visitGroup"
-        :patient="patient"
-        :is-expanded="isVisitExpanded(visitGroup.encounterNum)"
-        @toggle-expansion="toggleVisitExpansion"
-        @observation-updated="onObservationUpdated"
-        @observation-deleted="onObservationDeleted"
-        @visit-updated="onVisitUpdated"
-      />
+      <div v-for="visitGroup in filteredVisitGroups" :key="visitGroup.encounterNum" class="visit-section q-mb-lg">
+        <!-- Visit Header -->
+        <VisitHeader :visit-group="visitGroup" :patient="patient" :is-expanded="isVisitExpanded(visitGroup.encounterNum)" @toggle-expansion="toggleVisitExpansion" @visit-updated="onVisitUpdated" />
+
+        <!-- Observations Table for this Visit -->
+        <q-slide-transition>
+          <div v-show="isVisitExpanded(visitGroup.encounterNum)" class="observations-container">
+            <div v-if="visitGroup.observations.length === 0" class="text-center q-py-lg">
+              <q-icon name="science_off" size="48px" color="grey-4" />
+              <div class="text-body2 text-grey-6 q-mt-sm">No observations recorded for this visit</div>
+              <div class="text-caption text-grey-5">
+                Visit from {{ formatDate(visitGroup.visitDate) }}
+                <span v-if="visitGroup.endDate"> to {{ formatDate(visitGroup.endDate) }}</span>
+              </div>
+            </div>
+
+            <ObservationsTable
+              v-else
+              :table-rows="getVisitTableRows(visitGroup)"
+              :loading="loading"
+              :visit="visitGroup.visit"
+              :patient="patient"
+              :frequency-options="frequencyOptions"
+              :route-options="routeOptions"
+              :field-set-concepts="allConcepts"
+              @enter-medication-edit-mode="enterMedicationEditMode"
+              @value-changed="onValueChanged"
+              @save-requested="onSaveRequested"
+              @save-row="saveRow"
+              @cancel-changes="cancelChanges"
+              @remove-row="removeRow"
+              @clone-from-previous="cloneFromPrevious"
+            />
+          </div>
+        </q-slide-transition>
+      </div>
     </div>
 
     <!-- Create Visit Dialog -->
     <NewVisitDialog v-model="showCreateVisitDialog" :patient="patient" @created="onVisitCreated" />
+
+    <!-- Medication Edit Dialog -->
+    <MedicationEditDialog
+      v-model="showMedicationEditDialog"
+      :medication-data="editingMedicationRow ? parseMedicationData(editingMedicationRow) : {}"
+      :frequency-options="frequencyOptions"
+      :route-options="routeOptions"
+      @save="onMedicationEditSave"
+      @cancel="onMedicationEditCancel"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useQuasar } from 'quasar'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import NewVisitDialog from '../visits/NewVisitDialog.vue'
-import VisitItem from './VisitItem.vue'
+import ObservationsTable from '../visits/ObservationsTable.vue'
+import MedicationEditDialog from '../visits/MedicationEditDialog.vue'
+import VisitHeader from './VisitHeader.vue'
 
 // Note: This component now relies on the patient being already selected in the visitObservationStore
 const emit = defineEmits(['updated'])
 
+const $q = useQuasar()
 const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const visitObservationStore = useVisitObservationStore()
 const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('PatientObservationsTab')
 
 // Reactive state
 const filterText = ref('')
 const filterCategory = ref(null)
 const filterValueType = ref(null)
 
-// Sort state - initialize from store
-const sortMode = ref('date')
-
-// Collapsible visits state
+// Visit expansion state
 const expandedVisits = ref(new Set())
 
-// Create visit dialog state
+// Dialog state
 const showCreateVisitDialog = ref(false)
+const showMedicationEditDialog = ref(false)
+const editingMedicationRow = ref(null)
+
+// Loading state
+const loading = ref(false)
+
+// Track pending changes per row
+const pendingChanges = ref(new Map())
+
+// Frequency and route options for medications
+const frequencyOptions = [
+  { label: 'Once daily (QD)', value: 'QD' },
+  { label: 'Twice daily (BID)', value: 'BID' },
+  { label: 'Three times daily (TID)', value: 'TID' },
+  { label: 'Four times daily (QID)', value: 'QID' },
+  { label: 'Every 4 hours (Q4H)', value: 'Q4H' },
+  { label: 'Every 6 hours (Q6H)', value: 'Q6H' },
+  { label: 'Every 8 hours (Q8H)', value: 'Q8H' },
+  { label: 'Every 12 hours (Q12H)', value: 'Q12H' },
+  { label: 'As needed (PRN)', value: 'PRN' },
+  { label: 'At bedtime (QHS)', value: 'QHS' },
+  { label: 'Before meals (AC)', value: 'AC' },
+  { label: 'After meals (PC)', value: 'PC' },
+]
+
+const routeOptions = [
+  { label: 'Oral (PO)', value: 'PO' },
+  { label: 'Intravenous (IV)', value: 'IV' },
+  { label: 'Intramuscular (IM)', value: 'IM' },
+  { label: 'Subcutaneous (SC)', value: 'SC' },
+  { label: 'Topical', value: 'TOP' },
+  { label: 'Inhalation (INH)', value: 'INH' },
+  { label: 'Nasal', value: 'NAS' },
+  { label: 'Rectal (PR)', value: 'PR' },
+  { label: 'Sublingual (SL)', value: 'SL' },
+]
 
 // Computed properties from store
 const patient = computed(() => visitObservationStore.selectedPatient)
-const observations = computed(() => visitObservationStore.allObservations) // Use all observations
+const observations = computed(() => visitObservationStore.allObservations)
 const visits = computed(() => visitObservationStore.visits)
 
 const hasObservationsOrVisits = computed(() => {
@@ -180,64 +188,7 @@ const hasObservationsOrVisits = computed(() => {
   return hasObservations || hasVisits
 })
 
-const filteredObservations = computed(() => {
-  // Map store observations to the expected format
-  const mappedObservations = observations.value.map((obs) => ({
-    OBSERVATION_ID: obs.observationId,
-    CONCEPT_CD: obs.conceptCode,
-    CONCEPT_NAME_CHAR: obs.conceptName,
-    VALTYPE_CD: obs.valueType,
-    TVAL_CHAR: obs.originalValue,
-    NVAL_NUM: obs.valueType === 'N' ? obs.originalValue : null,
-    TVAL_RESOLVED: obs.resolvedValue,
-    CATEGORY_CHAR: obs.category,
-    START_DATE: obs.date,
-    UNIT_CD: obs.unit,
-    ENCOUNTER_NUM: obs.encounterNum, // Use the actual encounter number from the observation
-    // OBSERVATION_BLOB removed - dialog fetches this data itself using observation ID for better memory efficiency
-  }))
-
-  let filtered = [...mappedObservations]
-
-  // Text filter
-  if (filterText.value) {
-    const searchTerm = filterText.value.toLowerCase()
-    filtered = filtered.filter(
-      (obs) =>
-        (obs.CONCEPT_NAME_CHAR && obs.CONCEPT_NAME_CHAR.toLowerCase().includes(searchTerm)) ||
-        (obs.CONCEPT_CD && obs.CONCEPT_CD.toLowerCase().includes(searchTerm)) ||
-        (obs.TVAL_CHAR && String(obs.TVAL_CHAR).toLowerCase().includes(searchTerm)) ||
-        (obs.CATEGORY_CHAR && obs.CATEGORY_CHAR.toLowerCase().includes(searchTerm)),
-    )
-  }
-
-  // Category filter
-  if (filterCategory.value) {
-    filtered = filtered.filter((obs) => obs.CATEGORY_CHAR === filterCategory.value)
-  }
-
-  // Value type filter
-  if (filterValueType.value) {
-    if (filterValueType.value === 'numeric') {
-      filtered = filtered.filter((obs) => obs.NVAL_NUM !== null && obs.NVAL_NUM !== undefined)
-    } else if (filterValueType.value === 'text') {
-      filtered = filtered.filter((obs) => obs.TVAL_CHAR)
-    } else if (filterValueType.value === 'empty') {
-      filtered = filtered.filter((obs) => !obs.NVAL_NUM && !obs.TVAL_CHAR)
-    } else {
-      // Filter by VALTYPE_CD (A, D, F, N, R, S, T)
-      filtered = filtered.filter((obs) => obs.VALTYPE_CD === filterValueType.value)
-    }
-  }
-
-  return filtered
-})
-
-const categoryOptions = computed(() => {
-  const categories = [...new Set(observations.value.map((obs) => obs.category).filter(Boolean))]
-  return categories.map((cat) => ({ label: cat, value: cat }))
-})
-
+// Group visits with their observations
 const groupedObservations = computed(() => {
   // Start with all visits as the base
   const groups = visits.value.map((visit) => ({
@@ -257,25 +208,106 @@ const groupedObservations = computed(() => {
       // Include parsed fields for EditVisitDialog
       visitType: visit.visitType,
       notes: visit.notes,
-    }, // Map to expected format
+      id: visit.id, // Add id for ObservationFieldSet
+    },
     observations: [],
   }))
 
   // Add observations to their respective visits
-  filteredObservations.value.forEach((obs) => {
-    const group = groups.find((g) => g.encounterNum === obs.ENCOUNTER_NUM)
+  observations.value.forEach((obs) => {
+    const group = groups.find((g) => g.encounterNum === obs.encounterNum)
     if (group) {
-      group.observations.push(obs)
+      // Map observation to expected format for ObservationFieldSet
+      group.observations.push({
+        observationId: obs.observationId,
+        conceptCode: obs.conceptCode,
+        conceptName: obs.conceptName,
+        valueType: obs.valueType,
+        valTypeCode: obs.valueType,
+        originalValue: obs.originalValue,
+        value: obs.originalValue,
+        tval_char: obs.originalValue,
+        TVAL_CHAR: obs.originalValue,
+        nval_num: obs.valueType === 'N' ? obs.originalValue : null,
+        NVAL_NUM: obs.valueType === 'N' ? obs.originalValue : null,
+        observation_blob: obs.rawData?.OBSERVATION_BLOB,
+        OBSERVATION_BLOB: obs.rawData?.OBSERVATION_BLOB,
+        resolvedValue: obs.resolvedValue,
+        unit: obs.unit,
+        category: obs.category,
+        CATEGORY_CHAR: obs.category,
+        date: obs.date,
+        START_DATE: obs.date,
+        encounterNum: obs.encounterNum,
+        ENCOUNTER_NUM: obs.encounterNum,
+      })
     }
   })
 
-  // Sort groups by visit start date (most recent first) and observations within each group by selected sort mode
-  return groups
-    .sort((a, b) => new Date(b.visitDate) - new Date(a.visitDate))
-    .map((group) => ({
-      ...group,
-      observations: sortObservations(group.observations, sortMode.value),
+  // Sort groups by visit start date (most recent first)
+  return groups.sort((a, b) => new Date(b.visitDate) - new Date(a.visitDate))
+})
+
+// Apply filters to visit groups
+const filteredVisitGroups = computed(() => {
+  let filtered = [...groupedObservations.value]
+
+  // Apply text filter across all observations in visits
+  if (filterText.value) {
+    const searchTerm = filterText.value.toLowerCase()
+    filtered = filtered.filter((visitGroup) => {
+      // Check visit-level data
+      const visitMatch =
+        (visitGroup.visit?.visitType && visitGroup.visit.visitType.toLowerCase().includes(searchTerm)) ||
+        (visitGroup.visit?.notes && visitGroup.visit.notes.toLowerCase().includes(searchTerm)) ||
+        (visitGroup.visit?.LOCATION_CD && visitGroup.visit.LOCATION_CD.toLowerCase().includes(searchTerm))
+
+      // Check observation-level data
+      const obsMatch = visitGroup.observations.some(
+        (obs) =>
+          (obs.conceptName && obs.conceptName.toLowerCase().includes(searchTerm)) ||
+          (obs.conceptCode && obs.conceptCode.toLowerCase().includes(searchTerm)) ||
+          (obs.originalValue && String(obs.originalValue).toLowerCase().includes(searchTerm)) ||
+          (obs.category && obs.category.toLowerCase().includes(searchTerm)),
+      )
+
+      return visitMatch || obsMatch
+    })
+  }
+
+  // Apply category filter
+  if (filterCategory.value) {
+    filtered = filtered.map((visitGroup) => ({
+      ...visitGroup,
+      observations: visitGroup.observations.filter((obs) => obs.category === filterCategory.value),
     }))
+  }
+
+  // Apply value type filter
+  if (filterValueType.value) {
+    filtered = filtered.map((visitGroup) => ({
+      ...visitGroup,
+      observations: visitGroup.observations.filter((obs) => {
+        if (filterValueType.value === 'numeric') {
+          return obs.nval_num !== null && obs.nval_num !== undefined
+        } else if (filterValueType.value === 'text') {
+          return obs.tval_char && obs.tval_char.trim() !== ''
+        } else if (filterValueType.value === 'empty') {
+          return !obs.nval_num && (!obs.tval_char || obs.tval_char.trim() === '')
+        } else {
+          return obs.valueType === filterValueType.value
+        }
+      }),
+    }))
+  }
+
+  return filtered
+})
+
+// Category filter options
+const categoryOptions = computed(() => {
+  const categories = [...new Set(observations.value.map((obs) => obs.category).filter(Boolean))]
+  return categories.map((cat) => ({ label: cat, value: cat }))
 })
 
 // Dynamic value type options from global settings store
@@ -296,9 +328,9 @@ const loadValueTypeOptions = async () => {
       { label: 'Empty Values', value: 'empty' },
     ]
   } catch (error) {
-    loggingStore.error('PatientObservationsTab', 'Failed to load value type options', error, {
+    logger.error('Failed to load value type options', error, {
       action: 'loadValueTypeOptions',
-      fallbackUsed: true
+      fallbackUsed: true,
     })
     // Fallback to basic options if store fails
     valueTypeOptions.value = [
@@ -318,18 +350,18 @@ const loadValueTypeOptions = async () => {
   }
 }
 
-// Initialize concept store and preload concepts when component mounts
+// All concepts for the table (empty array as we don't need field set concepts)
+const allConcepts = computed(() => [])
+
+// Initialize component
 onMounted(async () => {
   // Initialize stores
   await conceptStore.initialize()
   await localSettingsStore.initialize()
   await globalSettingsStore.initialize()
 
-  // Load value type options from global settings store
+  // Load value type options
   await loadValueTypeOptions()
-
-  // Load sort mode from settings store
-  sortMode.value = localSettingsStore.getPatientObservationsSortMode()
 
   // Preload concepts from current observations
   if (observations.value && observations.value.length > 0) {
@@ -371,74 +403,6 @@ const preloadObservationConcepts = async () => {
   }
 }
 
-// Sorting functions
-const sortObservations = (observations, mode) => {
-  const sorted = [...observations]
-
-  switch (mode) {
-    case 'date':
-      return sorted.sort((a, b) => new Date(b.START_DATE) - new Date(a.START_DATE))
-
-    case 'category':
-      return sorted.sort((a, b) => {
-        const catA = a.CATEGORY_CHAR || 'ZZZ' // Put empty categories at end
-        const catB = b.CATEGORY_CHAR || 'ZZZ'
-        if (catA === catB) {
-          // Secondary sort by date within same category
-          return new Date(b.START_DATE) - new Date(a.START_DATE)
-        }
-        return catA.localeCompare(catB)
-      })
-
-    case 'alphabetical':
-      return sorted.sort((a, b) => {
-        const nameA = a.CONCEPT_NAME_CHAR || a.CONCEPT_CD || 'ZZZ'
-        const nameB = b.CONCEPT_NAME_CHAR || b.CONCEPT_CD || 'ZZZ'
-        if (nameA === nameB) {
-          // Secondary sort by date within same name
-          return new Date(b.START_DATE) - new Date(a.START_DATE)
-        }
-        return nameA.localeCompare(nameB)
-      })
-
-    case 'valtype':
-      return sorted.sort((a, b) => {
-        const typeA = a.VALTYPE_CD || 'T' // Default to Text type
-        const typeB = b.VALTYPE_CD || 'T'
-        if (typeA === typeB) {
-          // Secondary sort by date within same type
-          return new Date(b.START_DATE) - new Date(a.START_DATE)
-        }
-        return typeA.localeCompare(typeB)
-      })
-
-    default:
-      return sorted.sort((a, b) => new Date(b.START_DATE) - new Date(a.START_DATE))
-  }
-}
-
-const setSortMode = (mode) => {
-  sortMode.value = mode
-  // Save to local settings store
-  localSettingsStore.setPatientObservationsSortMode(mode)
-}
-
-// Sort indicator helpers
-const getSortIcon = (mode) => {
-  switch (mode) {
-    case 'date':
-      return 'schedule'
-    case 'category':
-      return 'category'
-    case 'alphabetical':
-      return 'sort_by_alpha'
-    case 'valtype':
-      return 'data_usage'
-    default:
-      return 'schedule'
-  }
-}
-
 // Visit expansion methods
 const toggleVisitExpansion = (encounterNum) => {
   const newExpanded = new Set(expandedVisits.value)
@@ -456,7 +420,7 @@ const isVisitExpanded = (encounterNum) => {
 
 const expandAllVisits = () => {
   // Only expand visits that have observations
-  const encountersWithObservations = new Set(groupedObservations.value.filter((group) => group.observations.length > 0).map((group) => group.encounterNum))
+  const encountersWithObservations = new Set(filteredVisitGroups.value.filter((group) => group.observations.length > 0).map((group) => group.encounterNum))
   expandedVisits.value = encountersWithObservations
 }
 
@@ -485,22 +449,401 @@ const toggleAllVisits = () => {
   }
 }
 
-// Event handlers
-const onObservationUpdated = async () => {
-  // Reload observations from store
-  if (visitObservationStore.selectedVisit) {
-    await visitObservationStore.loadObservationsForVisit(visitObservationStore.selectedVisit)
-  }
-  emit('updated')
+// Table methods
+const getVisitTableRows = (visitGroup) => {
+  const rows = []
+
+  // Process all observations for this visit
+  visitGroup.observations.forEach((observation) => {
+    const rowId = `obs_${observation.observationId}`
+    const actualValue = extractObservationValue(observation)
+    const pendingValue = pendingChanges.value.get(rowId)
+
+    rows.push({
+      id: rowId,
+      observationId: observation.observationId,
+      conceptCode: observation.conceptCode,
+      conceptName: observation.conceptName,
+      resolvedName: observation.conceptName, // Already resolved in store
+      valueType: observation.valueType,
+      // Use consistent origVal/currentVal pattern
+      origVal: actualValue,
+      currentVal: pendingValue !== undefined ? pendingValue : actualValue,
+      unit: observation.unit,
+      category: observation.category,
+      hasChanges: pendingValue !== undefined && pendingValue !== actualValue,
+      saving: false,
+      previousValue: null, // Could implement previous value lookup
+      displayValue: formatDisplayValue(observation),
+      isMedication: observation.valueType === 'M' || observation.conceptCode?.includes('52418'),
+      // Store raw observation for complete data access
+      rawObservation: observation,
+    })
+  })
+
+  return rows.sort((a, b) => {
+    // Sort by category first, then by concept name
+    const categoryA = a.category || 'ZZZZZ'
+    const categoryB = b.category || 'ZZZZZ'
+    if (categoryA !== categoryB) {
+      return categoryA.localeCompare(categoryB)
+    }
+    return a.conceptName.localeCompare(b.conceptName)
+  })
 }
 
-const onObservationDeleted = async () => {
-  // Reload observations from store
-  if (visitObservationStore.selectedVisit) {
-    await visitObservationStore.loadObservationsForVisit(visitObservationStore.selectedVisit)
+// Extract the actual value from observation data
+const extractObservationValue = (observation) => {
+  const valType = observation.valueType || 'T'
+
+  switch (valType) {
+    case 'N': { // Numeric
+      const numericValue = observation.nval_num
+      if (numericValue !== null && numericValue !== undefined) {
+        return numericValue
+      }
+      return observation.tval_char || observation.originalValue || ''
+    }
+    case 'M': // Medication
+      return observation.observation_blob || observation.tval_char || observation.originalValue || ''
+    case 'R': // Raw data/File
+      return observation.observation_blob || observation.originalValue || ''
+    default: // Text and others
+      return observation.tval_char || observation.originalValue || ''
   }
-  emit('updated')
 }
+
+const formatDisplayValue = (observation) => {
+  switch (observation.valueType) {
+    case 'S': // Selection
+    case 'F': // Finding
+    case 'A': // Array/Multiple choice
+      return observation.resolvedValue || observation.originalValue || 'No value'
+    case 'Q': // Questionnaire
+      return observation.originalValue || 'Questionnaire'
+    case 'R': // Raw data/File
+      try {
+        if (observation.originalValue) {
+          const fileInfo = JSON.parse(observation.originalValue)
+          return fileInfo.filename || 'File attached'
+        }
+      } catch {
+        return 'Invalid file data'
+      }
+      break
+    case 'N': // Numeric
+      return observation.originalValue?.toString() || 'No value'
+    case 'M': // Medication
+      return observation.originalValue || 'No medication specified'
+    default: // Text and others
+      return observation.originalValue || 'No value'
+  }
+}
+
+
+// Utility methods
+const formatDate = (dateStr) => {
+  if (!dateStr) return 'Unknown'
+  return new Date(dateStr).toLocaleDateString()
+}
+
+// Table event handlers
+const enterMedicationEditMode = (row) => {
+  logger.debug('Enter medication edit mode', { rowId: row.id })
+  editingMedicationRow.value = row
+  showMedicationEditDialog.value = true
+}
+
+const onValueChanged = (rowData, newValue) => {
+  // Store the pending change in our map
+  pendingChanges.value.set(rowData.id, newValue)
+  logger.debug('Value changed for row', {
+    rowId: rowData.id,
+    conceptCode: rowData.conceptCode,
+    origVal: rowData.origVal,
+    newValue,
+    hasChanges: newValue !== rowData.origVal,
+  })
+}
+
+const onSaveRequested = async (rowData) => {
+  await saveRow(rowData)
+}
+
+const saveRow = async (row) => {
+  try {
+    row.saving = true
+    logger.info('Saving row', {
+      rowId: row.id,
+      conceptCode: row.conceptCode,
+      valueType: row.valueType,
+      origVal: row.origVal,
+      currentVal: row.currentVal,
+    })
+
+    if (row.isMedication) {
+      // Handle medication updates
+      const medicationData = parseMedicationData(row)
+      const updateData = {
+        TVAL_CHAR: medicationData.drugName,
+        NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+        OBSERVATION_BLOB: JSON.stringify(medicationData),
+      }
+      await visitObservationStore.updateObservation(row.observationId, updateData, { skipReload: true })
+    } else {
+      // Handle regular observation updates based on value type
+      const updateData = {}
+      switch (row.valueType) {
+        case 'N': // Numeric
+          updateData.NVAL_NUM = parseFloat(row.currentVal)
+          updateData.TVAL_CHAR = null
+          updateData.OBSERVATION_BLOB = null
+          break
+        case 'S': // Selection
+        case 'F': // Finding
+        case 'A': // Array/Multiple choice
+          updateData.TVAL_CHAR = String(row.currentVal)
+          updateData.NVAL_NUM = null
+          updateData.OBSERVATION_BLOB = null
+          break
+        case 'R': // Raw data/File
+          updateData.OBSERVATION_BLOB = row.currentVal
+          updateData.TVAL_CHAR = null
+          updateData.NVAL_NUM = null
+          break
+        case 'T': // Text
+        default:
+          updateData.TVAL_CHAR = String(row.currentVal)
+          updateData.NVAL_NUM = null
+          updateData.OBSERVATION_BLOB = null
+          break
+      }
+      await visitObservationStore.updateObservation(row.observationId, updateData, { skipReload: true })
+    }
+
+    // Update local state immediately - no need to wait for refresh
+    pendingChanges.value.delete(row.id)
+
+    // Update the store's observation data directly to reflect the save
+    // This prevents the computed properties from reverting to old values
+    const storeObservation = observations.value.find(obs => obs.observationId === row.observationId)
+    if (storeObservation) {
+      switch (row.valueType) {
+        case 'N': {
+          const numericValue = parseFloat(row.currentVal)
+          storeObservation.originalValue = numericValue
+          storeObservation.value = numericValue
+          // Update rawData if it exists
+          if (storeObservation.rawData) {
+            storeObservation.rawData.NVAL_NUM = numericValue
+            storeObservation.rawData.TVAL_CHAR = null
+            storeObservation.rawData.OBSERVATION_BLOB = null
+          }
+          break
+        }
+        case 'M': {
+          // For medications, update with drug name only
+          const medicationData = parseMedicationData(row)
+          storeObservation.originalValue = medicationData.drugName
+          storeObservation.value = medicationData.drugName
+          // Update rawData if it exists
+          if (storeObservation.rawData) {
+            storeObservation.rawData.TVAL_CHAR = medicationData.drugName
+            storeObservation.rawData.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+            storeObservation.rawData.OBSERVATION_BLOB = JSON.stringify(medicationData)
+          }
+          break
+        }
+        default:
+          storeObservation.originalValue = row.currentVal
+          storeObservation.value = row.currentVal
+          // Update rawData if it exists
+          if (storeObservation.rawData) {
+            storeObservation.rawData.TVAL_CHAR = String(row.currentVal)
+            storeObservation.rawData.NVAL_NUM = null
+            storeObservation.rawData.OBSERVATION_BLOB = null
+          }
+          break
+      }
+    }
+
+    // Also update the raw observation in the row for immediate UI feedback
+    if (row.rawObservation) {
+      switch (row.valueType) {
+        case 'N': {
+          const numericValue = parseFloat(row.currentVal)
+          row.rawObservation.originalValue = numericValue
+          row.rawObservation.value = numericValue
+          break
+        }
+        case 'M': {
+          const medicationData = parseMedicationData(row)
+          row.rawObservation.originalValue = medicationData.drugName
+          row.rawObservation.value = medicationData.drugName
+          break
+        }
+        default:
+          row.rawObservation.originalValue = row.currentVal
+          row.rawObservation.value = row.currentVal
+          break
+      }
+    }
+
+    $q.notify({
+      type: 'positive',
+      message: 'Observation saved successfully',
+      position: 'top',
+    })
+
+    logger.success('Row saved successfully', { rowId: row.id })
+    emit('updated')
+  } catch (error) {
+    logger.error('Failed to save row', error, { rowId: row.id })
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to save observation',
+      position: 'top',
+    })
+  } finally {
+    row.saving = false
+  }
+}
+
+const cancelChanges = (row) => {
+  logger.debug('Cancelling changes for row', {
+    rowId: row.id,
+    conceptCode: row.conceptCode,
+    origVal: row.origVal,
+    currentVal: row.currentVal,
+  })
+  pendingChanges.value.delete(row.id)
+}
+
+const removeRow = async (row) => {
+  try {
+    row.saving = true
+    logger.info('Removing row', { rowId: row.id, conceptCode: row.conceptCode })
+
+    await visitObservationStore.deleteObservation(row.observationId)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Observation removed successfully',
+      position: 'top',
+    })
+
+    logger.success('Row removed successfully', { rowId: row.id })
+    emit('updated')
+  } catch (error) {
+    logger.error('Failed to remove row', error, { rowId: row.id })
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to remove observation',
+      position: 'top',
+    })
+  } finally {
+    row.saving = false
+  }
+}
+
+const cloneFromPrevious = (row) => {
+  if (row.previousValue) {
+    pendingChanges.value.set(row.id, row.previousValue.value)
+    logger.info('Cloned value from previous visit', {
+      rowId: row.id,
+      conceptCode: row.conceptCode,
+      clonedValue: row.previousValue.value,
+    })
+  }
+}
+
+// Parse medication data from observation row
+const parseMedicationData = (row) => {
+  try {
+    // Try to parse OBSERVATION_BLOB first
+    if (row.rawObservation?.observation_blob) {
+      try {
+        const parsed = JSON.parse(row.rawObservation.observation_blob)
+        return {
+          drugName: parsed.drugName || '',
+          dosage: parsed.dosage || null,
+          dosageUnit: parsed.dosageUnit || 'mg',
+          frequency: parsed.frequency || '',
+          route: parsed.route || '',
+          instructions: parsed.instructions || '',
+        }
+      } catch (parseError) {
+        logger.warn('Failed to parse BLOB JSON', parseError)
+      }
+    }
+
+    // Fallback to basic data
+    const drugName = row.rawObservation?.tval_char || row.origVal || row.currentVal || ''
+    return {
+      drugName: drugName.trim(),
+      dosage: row.rawObservation?.nval_num || 100,
+      dosageUnit: 'mg',
+      frequency: 'BID',
+      route: 'PO',
+      instructions: '',
+    }
+  } catch (error) {
+    logger.error('Failed to parse medication data', error, { rowId: row.id })
+    return {
+      drugName: row.origVal || row.currentVal || '',
+      dosage: null,
+      dosageUnit: 'mg',
+      frequency: '',
+      route: '',
+      instructions: '',
+    }
+  }
+}
+
+// Medication dialog handlers
+const onMedicationEditSave = async (medicationData) => {
+  if (!editingMedicationRow.value) return
+
+  try {
+    const row = editingMedicationRow.value
+    logger.debug('Saving medication edit', { rowId: row.id, medicationData })
+
+    const normalizedMedicationData = {
+      drugName: medicationData.drugName || '',
+      dosage: medicationData.dosage || null,
+      dosageUnit: medicationData.dosageUnit || 'mg',
+      frequency: typeof medicationData.frequency === 'object' ? medicationData.frequency?.value : medicationData.frequency || '',
+      route: typeof medicationData.route === 'object' ? medicationData.route?.value : medicationData.route || '',
+      instructions: medicationData.instructions || '',
+    }
+
+    const updateData = {
+      TVAL_CHAR: normalizedMedicationData.drugName,
+      NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+      OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
+    }
+
+    await visitObservationStore.updateObservation(row.observationId, updateData, { skipReload: true })
+
+    // Clear pending changes
+    pendingChanges.value.delete(row.id)
+
+    emit('updated')
+    logger.success('Medication updated successfully', { rowId: row.id })
+  } catch (error) {
+    logger.error('Failed to save medication edit', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to save medication',
+      position: 'top',
+    })
+  }
+}
+
+const onMedicationEditCancel = () => {
+  editingMedicationRow.value = null
+}
+
 
 const onVisitUpdated = async () => {
   // Reload visits and observations from store
@@ -524,9 +867,6 @@ const onVisitCreated = async (createdVisit) => {
   emit('updated')
 }
 
-// Start with all visits collapsed by default
-// (Removed auto-expansion - users can manually expand visits as needed)
-
 // Watch for visits changes and resolve status codes
 watch(
   visits,
@@ -548,40 +888,43 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-.edit-mode-item {
-  transition: all 0.3s ease;
+.visit-section {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
 
-  &:hover {
-    background-color: rgba(25, 118, 210, 0.04);
-  }
+.observations-container {
+  padding: 1rem;
 }
 
 // Responsive adjustments
 @media (max-width: 768px) {
-  .observations-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
+  .visit-section {
+    border-radius: 8px;
+    margin-bottom: 1rem;
   }
 
-  .visit-header {
-    padding: 12px;
+  .observations-container {
+    padding: 0.75rem;
   }
 }
 
 @media (max-width: 480px) {
-  .observations-grid {
-    gap: 8px;
+  .visit-section {
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
   }
 
-  .observation-card {
-    .q-card-section {
-      padding: 8px !important;
-    }
+  .observations-container {
+    padding: 0.5rem;
   }
 }
 
-// Animation for new cards
-.observation-card {
+// Animation for new sections
+.visit-section {
   animation: fadeInUp 0.5s ease-out;
 }
 
@@ -597,7 +940,7 @@ watch(
   }
 }
 
-// Sort control styling
+// Sort control styling (keeping from original)
 .sort-control {
   display: flex;
   align-items: center;
@@ -629,33 +972,6 @@ watch(
     background-color: rgba(25, 118, 210, 0.08);
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(25, 118, 210, 0.2);
-  }
-}
-
-// Sort menu styling
-.q-menu {
-  .q-item {
-    transition: all 0.2s ease;
-
-    &:hover {
-      background-color: rgba(25, 118, 210, 0.08);
-    }
-
-    &.bg-blue-1 {
-      background-color: rgba(25, 118, 210, 0.12);
-
-      .q-item-label {
-        font-weight: 500;
-      }
-    }
-  }
-
-  .q-item-label[header] {
-    color: #1976d2;
-    font-weight: 600;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
   }
 }
 </style>
