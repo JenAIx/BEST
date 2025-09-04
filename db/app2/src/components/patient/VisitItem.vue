@@ -10,9 +10,7 @@
           <q-icon name="event" class="q-mr-xs" />
           {{ formatDate(visitGroup.visitDate) }}
           <span v-if="visitGroup.visit?.END_DATE"> - {{ formatDate(visitGroup.visit.END_DATE) }}</span>
-          <span v-if="visitGroup.visit?.last_changed" class="text-caption text-grey-3 q-ml-sm">
-            (updated: {{ formatDate(visitGroup.visit.last_changed) }})
-          </span>
+          <span v-if="visitGroup.visit?.last_changed" class="text-caption text-grey-3 q-ml-sm"> (updated: {{ formatDate(visitGroup.visit.last_changed) }}) </span>
         </div>
 
         <!-- Status -->
@@ -44,7 +42,7 @@
           <q-icon name="notes" class="q-mr-xs" />
           <div class="q-ml-xl">
             <div class="text-caption text-grey-3 q-mb-xs">Notes:</div>
-            <div class="text-white" style="word-wrap: break-word; max-width: 250px;">
+            <div class="text-white" style="word-wrap: break-word; max-width: 250px">
               {{ visitGroup.visit.notes.length > 100 ? visitGroup.visit.notes.substring(0, 100) + '...' : visitGroup.visit.notes }}
             </div>
           </div>
@@ -57,9 +55,7 @@
         </div>
 
         <!-- Technical ID -->
-        <div class="text-caption q-mt-sm text-grey-4">
-          ID: {{ visitGroup.encounterNum }}
-        </div>
+        <div class="text-caption q-mt-sm text-grey-4">ID: {{ visitGroup.encounterNum }}</div>
       </div>
     </q-tooltip>
 
@@ -81,21 +77,16 @@
           <div class="visit-type-status">
             <!-- Visit Type -->
             <div v-if="visitGroup.visit?.visitType" class="q-mb-xs">
-              <q-chip
-                size="sm"
-                :color="visitTypeColor"
-                text-color="white"
-                class="q-px-xs"
-              >
+              <q-chip size="sm" :color="visitTypeColor" text-color="white" class="q-px-xs">
                 {{ visitTypeLabel }}
               </q-chip>
             </div>
 
-        <!-- Status Chip -->
+            <!-- Status Chip -->
             <div v-if="visitGroup.visit?.ACTIVE_STATUS_CD">
               <q-chip :color="getStatusColor()" text-color="white" size="xs">
                 {{ getStatusLabel() }}
-          </q-chip>
+              </q-chip>
             </div>
           </div>
         </div>
@@ -303,9 +294,9 @@ const getStatusLabel = () => {
 
 const getInoutTypeLabel = (inoutCode) => {
   const labelMap = {
-    'I': 'Inpatient',
-    'O': 'Outpatient',
-    'E': 'Emergency',
+    I: 'Inpatient',
+    O: 'Outpatient',
+    E: 'Emergency',
   }
   return labelMap[inoutCode] || inoutCode || 'Unknown'
 }
@@ -670,8 +661,9 @@ const onObservationCreated = () => {
     &:hover {
       background: linear-gradient(145deg, #f0f4ff 0%, #e8f0ff 100%);
       transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
-                  0 2px 8px rgba(0, 0, 0, 0.06);
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.06);
       border-color: rgba(25, 118, 210, 0.3);
 
       .q-avatar {
@@ -680,7 +672,7 @@ const onObservationCreated = () => {
       }
 
       .visit-type-status .q-chip {
-      transform: translateY(-1px);
+        transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       }
     }
@@ -703,8 +695,9 @@ const onObservationCreated = () => {
 
   .q-avatar {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15),
-                0 1px 4px rgba(0, 0, 0, 0.1);
+    box-shadow:
+      0 3px 12px rgba(0, 0, 0, 0.15),
+      0 1px 4px rgba(0, 0, 0, 0.1);
     border: 2px solid rgba(255, 255, 255, 0.8);
 
     &:hover {
@@ -880,14 +873,30 @@ const onObservationCreated = () => {
 .timeline-item {
   animation: slideInFromBottom 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
-  &:nth-child(1) { animation-delay: 0.1s; }
-  &:nth-child(2) { animation-delay: 0.2s; }
-  &:nth-child(3) { animation-delay: 0.3s; }
-  &:nth-child(4) { animation-delay: 0.4s; }
-  &:nth-child(5) { animation-delay: 0.5s; }
-  &:nth-child(6) { animation-delay: 0.6s; }
-  &:nth-child(7) { animation-delay: 0.7s; }
-  &:nth-child(8) { animation-delay: 0.8s; }
+  &:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+  &:nth-child(2) {
+    animation-delay: 0.2s;
+  }
+  &:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  &:nth-child(4) {
+    animation-delay: 0.4s;
+  }
+  &:nth-child(5) {
+    animation-delay: 0.5s;
+  }
+  &:nth-child(6) {
+    animation-delay: 0.6s;
+  }
+  &:nth-child(7) {
+    animation-delay: 0.7s;
+  }
+  &:nth-child(8) {
+    animation-delay: 0.8s;
+  }
 }
 
 @keyframes slideInFromBottom {

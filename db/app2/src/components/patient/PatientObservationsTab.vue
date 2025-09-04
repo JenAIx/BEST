@@ -252,26 +252,31 @@ const groupedObservations = computed(() => {
 const filteredVisitGroups = computed(() => {
   let filtered = [...groupedObservations.value]
 
-  // Apply text filter across all observations in visits
+  // Apply text filter - filter observations within visit groups
   if (filterText.value) {
     const searchTerm = filterText.value.toLowerCase()
-    filtered = filtered.filter((visitGroup) => {
-      // Check visit-level data
+    filtered = filtered.map((visitGroup) => {
+      // Check if visit-level data matches
       const visitMatch =
         (visitGroup.visit?.visitType && visitGroup.visit.visitType.toLowerCase().includes(searchTerm)) ||
         (visitGroup.visit?.notes && visitGroup.visit.notes.toLowerCase().includes(searchTerm)) ||
         (visitGroup.visit?.LOCATION_CD && visitGroup.visit.LOCATION_CD.toLowerCase().includes(searchTerm))
 
-      // Check observation-level data
-      const obsMatch = visitGroup.observations.some(
-        (obs) =>
-          (obs.conceptName && obs.conceptName.toLowerCase().includes(searchTerm)) ||
-          (obs.conceptCode && obs.conceptCode.toLowerCase().includes(searchTerm)) ||
-          (obs.originalValue && String(obs.originalValue).toLowerCase().includes(searchTerm)) ||
-          (obs.category && obs.category.toLowerCase().includes(searchTerm)),
-      )
+      // If visit matches, include all observations; otherwise filter observations
+      const filteredObservations = visitMatch
+        ? visitGroup.observations
+        : visitGroup.observations.filter(
+            (obs) =>
+              (obs.conceptName && obs.conceptName.toLowerCase().includes(searchTerm)) ||
+              (obs.conceptCode && obs.conceptCode.toLowerCase().includes(searchTerm)) ||
+              (obs.originalValue && String(obs.originalValue).toLowerCase().includes(searchTerm)) ||
+              (obs.category && obs.category.toLowerCase().includes(searchTerm)),
+          )
 
-      return visitMatch || obsMatch
+      return {
+        ...visitGroup,
+        observations: filteredObservations,
+      }
     })
   }
 
@@ -497,7 +502,8 @@ const extractObservationValue = (observation) => {
   const valType = observation.valueType || 'T'
 
   switch (valType) {
-    case 'N': { // Numeric
+    case 'N': {
+      // Numeric
       const numericValue = observation.nval_num
       if (numericValue !== null && numericValue !== undefined) {
         return numericValue
@@ -539,7 +545,6 @@ const formatDisplayValue = (observation) => {
       return observation.originalValue || 'No value'
   }
 }
-
 
 // Utility methods
 const formatDate = (dateStr) => {
@@ -626,7 +631,7 @@ const saveRow = async (row) => {
 
     // Update the store's observation data directly to reflect the save
     // This prevents the computed properties from reverting to old values
-    const storeObservation = observations.value.find(obs => obs.observationId === row.observationId)
+    const storeObservation = observations.value.find((obs) => obs.observationId === row.observationId)
     if (storeObservation) {
       switch (row.valueType) {
         case 'N': {
@@ -843,7 +848,6 @@ const onMedicationEditSave = async (medicationData) => {
 const onMedicationEditCancel = () => {
   editingMedicationRow.value = null
 }
-
 
 const onVisitUpdated = async () => {
   // Reload visits and observations from store
