@@ -69,7 +69,20 @@
           <!-- Value Column -->
           <template v-slot:body-cell-value="props">
             <q-td :props="props" class="value-cell">
+              <!-- Medication Display -->
+              <MedicationFieldView
+                v-if="props.row.isMedication"
+                :medication-data="parseMedicationData(props.row)"
+                :existing-observation="props.row.rawObservation"
+                :frequency-options="frequencyOptions"
+                :route-options="routeOptions"
+                @delete="() => removeRow(props.row)"
+                @enter-edit-mode="() => enterMedicationEditMode(props.row)"
+              />
+
+              <!-- Regular Observation Editor -->
               <ObservationValueEditor
+                v-else
                 :row-data="{
                   ...props.row,
                   // Map our origVal/currentVal to what the editor expects
@@ -92,25 +105,33 @@
           <template v-slot:body-cell-actions="props">
             <q-td :props="props" class="action-cell">
               <div class="action-buttons">
-                <!-- Save Button - only show if changed -->
-                <q-btn v-if="props.row.hasChanges" flat round icon="save" size="sm" color="primary" :loading="props.row.saving" @click="saveRow(props.row)" class="save-btn">
-                  <q-tooltip>Save changes</q-tooltip>
-                </q-btn>
-
-                <!-- Cancel Button - only show if changed -->
-                <q-btn v-if="props.row.hasChanges" flat round icon="close" size="sm" color="grey-6" :disabled="props.row.saving" @click="cancelChanges(props.row)" class="cancel-btn">
-                  <q-tooltip>Cancel changes</q-tooltip>
-                </q-btn>
-
-                <!-- Remove Button - show on hover -->
-                <div v-if="!props.row.hasChanges" class="remove-button-container">
-                  <AppRemoveConfirmationButton :loading="props.row.saving" @remove-confirmed="removeRow(props.row)" @remove-cancelled="() => {}" />
+                <!-- For medications, actions are handled by MedicationFieldView -->
+                <div v-if="props.row.isMedication" class="medication-actions">
+                  <!-- Medication actions are handled within MedicationFieldView component -->
                 </div>
 
-                <!-- Clone Button - show if previous value exists -->
-                <q-btn v-if="props.row.previousValue" flat round icon="content_copy" size="sm" color="secondary" :disabled="props.row.saving" @click="cloneFromPrevious(props.row)" class="clone-btn">
-                  <q-tooltip>Clone from previous visit</q-tooltip>
-                </q-btn>
+                <!-- For regular observations -->
+                <template v-else>
+                  <!-- Save Button - only show if changed -->
+                  <q-btn v-if="props.row.hasChanges" flat round icon="save" size="sm" color="primary" :loading="props.row.saving" @click="saveRow(props.row)" class="save-btn">
+                    <q-tooltip>Save changes</q-tooltip>
+                  </q-btn>
+
+                  <!-- Cancel Button - only show if changed -->
+                  <q-btn v-if="props.row.hasChanges" flat round icon="close" size="sm" color="grey-6" :disabled="props.row.saving" @click="cancelChanges(props.row)" class="cancel-btn">
+                    <q-tooltip>Cancel changes</q-tooltip>
+                  </q-btn>
+
+                  <!-- Remove Button - show on hover -->
+                  <div v-if="!props.row.hasChanges" class="remove-button-container">
+                    <AppRemoveConfirmationButton :loading="props.row.saving" @remove-confirmed="removeRow(props.row)" @remove-cancelled="() => {}" />
+                  </div>
+
+                  <!-- Clone Button - show if previous value exists -->
+                  <q-btn v-if="props.row.previousValue" flat round icon="content_copy" size="sm" color="secondary" :disabled="props.row.saving" @click="cloneFromPrevious(props.row)" class="clone-btn">
+                    <q-tooltip>Clone from previous visit</q-tooltip>
+                  </q-btn>
+                </template>
               </div>
             </q-td>
           </template>
@@ -154,6 +175,16 @@
         </div>
       </div>
     </q-slide-transition>
+
+    <!-- Medication Edit Dialog -->
+    <MedicationEditDialog
+      v-model="showMedicationEditDialog"
+      :medication-data="editingMedicationRow ? parseMedicationData(editingMedicationRow) : {}"
+      :frequency-options="frequencyOptions"
+      :route-options="routeOptions"
+      @save="onMedicationEditSave"
+      @cancel="onMedicationEditCancel"
+    />
   </div>
 </template>
 
@@ -166,6 +197,8 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ObservationValueEditor from './ObservationValueEditor.vue'
 import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
+import MedicationFieldView from './MedicationFieldView.vue'
+import MedicationEditDialog from './MedicationEditDialog.vue'
 
 const props = defineProps({
   fieldSet: {
@@ -205,6 +238,10 @@ const removedConcepts = ref(new Set()) // Track concepts removed by user
 const removedObservations = ref(new Set()) // Track observation IDs removed by user (for medications)
 const resolvedConceptData = ref(new Map()) // Cache for resolved concept data
 const pendingChanges = ref(new Map()) // Track pending changes per row
+
+// Medication editing state
+const showMedicationEditDialog = ref(false)
+const editingMedicationRow = ref(null)
 
 // Column resizing state
 const observationColumnWidth = ref(150) // Default width
@@ -648,6 +685,193 @@ const formatMedicationDisplay = (medication) => {
   return medication.originalValue || medication.value || 'No medication specified'
 }
 
+// Parse medication data from observation row
+const parseMedicationData = (row) => {
+  try {
+    logger.debug('Parsing medication data for row', {
+      rowId: row.id,
+      rawObservation: row.rawObservation,
+      origVal: row.origVal,
+      currentVal: row.currentVal,
+    })
+
+    // Try to parse OBSERVATION_BLOB first
+    if (row.rawObservation?.observation_blob || row.rawObservation?.OBSERVATION_BLOB) {
+      const blobData = row.rawObservation.observation_blob || row.rawObservation.OBSERVATION_BLOB
+      if (typeof blobData === 'string') {
+        try {
+          const parsed = JSON.parse(blobData)
+          logger.debug('Successfully parsed BLOB data', { parsed })
+          return {
+            drugName: parsed.drugName || '',
+            dosage: parsed.dosage || null,
+            dosageUnit: parsed.dosageUnit || 'mg',
+            frequency: parsed.frequency || '',
+            route: parsed.route || '',
+            instructions: parsed.instructions || '',
+          }
+        } catch (parseError) {
+          logger.warn('Failed to parse BLOB JSON', parseError)
+        }
+      }
+    }
+
+    // For testing/demo purposes, if we have a basic medication without BLOB data,
+    // let's create some sample structured data
+    const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
+
+    if (drugName && drugName.trim()) {
+      // Create demo data for testing - this would normally come from proper medication entry
+      const medicationData = {
+        drugName: drugName.trim(),
+        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || 100, // Default demo dosage
+        dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
+        frequency: 'BID', // Default demo frequency
+        route: 'PO', // Default demo route
+        instructions: '',
+      }
+
+      logger.debug('Created demo medication data', { medicationData })
+      return medicationData
+    }
+
+    // Fallback to empty structure
+    return {
+      drugName: '',
+      dosage: null,
+      dosageUnit: 'mg',
+      frequency: '',
+      route: '',
+      instructions: '',
+    }
+  } catch (error) {
+    logger.error('Failed to parse medication data', error, { rowId: row.id })
+    return {
+      drugName: row.origVal || row.currentVal || '',
+      dosage: null,
+      dosageUnit: 'mg',
+      frequency: '',
+      route: '',
+      instructions: '',
+    }
+  }
+}
+
+// Enter medication edit mode
+const enterMedicationEditMode = (row) => {
+  logger.debug('Enter medication edit mode', { rowId: row.id })
+  editingMedicationRow.value = row
+  showMedicationEditDialog.value = true
+}
+
+// Handle medication edit save
+const onMedicationEditSave = async (medicationData) => {
+  if (!editingMedicationRow.value) return
+
+  try {
+    const row = editingMedicationRow.value
+    logger.debug('Saving medication edit', { rowId: row.id, medicationData })
+
+    // Create medication summary for display
+    const parts = [medicationData.drugName]
+    if (medicationData.dosage && medicationData.dosageUnit) {
+      parts.push(`${medicationData.dosage}${medicationData.dosageUnit}`)
+    }
+    if (medicationData.frequency) {
+      // Handle both string values and objects from q-select
+      const frequencyValue = typeof medicationData.frequency === 'object' ? medicationData.frequency?.value : medicationData.frequency
+      const freqMap = {
+        QD: '1-0-0',
+        BID: '1-0-1',
+        TID: '1-1-1',
+        QID: '1-1-1-1',
+        Q4H: 'q4h',
+        Q6H: 'q6h',
+        Q8H: 'q8h',
+        Q12H: 'q12h',
+        PRN: 'prn',
+        QHS: 'qhs',
+        AC: 'a.c.',
+        PC: 'p.c.',
+      }
+      if (frequencyValue) {
+        parts.push(freqMap[frequencyValue] || frequencyValue)
+      }
+    }
+    if (medicationData.route) {
+      // Handle both string values and objects from q-select
+      const routeValue = typeof medicationData.route === 'object' ? medicationData.route?.value : medicationData.route
+      const routeMap = {
+        PO: 'p.o.',
+        IV: 'i.v.',
+        IM: 'i.m.',
+        SC: 's.c.',
+        TOP: 'top.',
+        INH: 'inh.',
+        NAS: 'nas.',
+        PR: 'p.r.',
+        SL: 's.l.',
+      }
+      if (routeValue) {
+        parts.push(routeMap[routeValue] || (typeof routeValue === 'string' ? routeValue.toLowerCase() : String(routeValue).toLowerCase()))
+      }
+    }
+    const medicationSummary = parts.join(' ')
+
+    // Normalize medication data to ensure we store string values, not objects
+    const normalizedMedicationData = {
+      drugName: medicationData.drugName || '',
+      dosage: medicationData.dosage || null,
+      dosageUnit: medicationData.dosageUnit || 'mg',
+      frequency: typeof medicationData.frequency === 'object' ? medicationData.frequency?.value : medicationData.frequency || '',
+      route: typeof medicationData.route === 'object' ? medicationData.route?.value : medicationData.route || '',
+      instructions: medicationData.instructions || '',
+    }
+
+    // Update the observation with new medication data
+    const updateData = {
+      TVAL_CHAR: medicationSummary,
+      NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+      OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
+    }
+
+    await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
+
+    // Update local state
+    row.rawObservation.TVAL_CHAR = medicationSummary
+    row.rawObservation.tval_char = medicationSummary
+    row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+    row.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+    row.rawObservation.OBSERVATION_BLOB = JSON.stringify(normalizedMedicationData)
+    row.rawObservation.observation_blob = JSON.stringify(normalizedMedicationData)
+    row.rawObservation.originalValue = medicationSummary
+    row.rawObservation.value = medicationSummary
+
+    // Clear pending changes
+    pendingChanges.value.delete(row.id)
+
+    emit('observation-updated', {
+      conceptCode: row.conceptCode,
+      value: medicationSummary,
+      observationId: row.observationId,
+    })
+
+    logger.success('Medication updated successfully', { rowId: row.id })
+  } catch (error) {
+    logger.error('Failed to save medication edit', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to save medication',
+      position: 'top',
+    })
+  }
+}
+
+// Handle medication edit cancel
+const onMedicationEditCancel = () => {
+  editingMedicationRow.value = null
+}
+
 // Event handlers
 const onValueChanged = (rowData, newValue) => {
   // Store the pending change in our map
@@ -678,13 +902,17 @@ const saveRow = async (row) => {
     })
 
     if (row.isMedication) {
-      // Handle medication updates differently
-      // This would need to integrate with the medication store
-      logger.debug('Saving medication row - this needs medication store integration')
-      // For now, save as text in TVAL_CHAR
+      // Handle medication updates - save complex data in OBSERVATION_BLOB
+      logger.debug('Saving medication row with complex data')
+
+      // For medications, currentVal should be the medication summary string
+      // but we need to preserve the structured data in OBSERVATION_BLOB
+      const medicationData = parseMedicationData(row)
+
       const updateData = {
-        TVAL_CHAR: String(row.currentVal),
-        NVAL_NUM: null,
+        TVAL_CHAR: String(row.currentVal), // Summary for display
+        NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+        OBSERVATION_BLOB: JSON.stringify(medicationData), // Full structured data
       }
       await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
     } else {
@@ -743,6 +971,19 @@ const saveRow = async (row) => {
           row.rawObservation.tval_char = null
           row.rawObservation.originalValue = numericValue
           row.rawObservation.value = numericValue
+          break
+        }
+        case 'M': {
+          // For medications, update all relevant fields
+          const medicationData = parseMedicationData(row)
+          row.rawObservation.TVAL_CHAR = String(row.currentVal)
+          row.rawObservation.tval_char = String(row.currentVal)
+          row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+          row.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+          row.rawObservation.OBSERVATION_BLOB = JSON.stringify(medicationData)
+          row.rawObservation.observation_blob = JSON.stringify(medicationData)
+          row.rawObservation.originalValue = row.currentVal
+          row.rawObservation.value = row.currentVal
           break
         }
         default:
