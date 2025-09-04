@@ -71,7 +71,10 @@
 
     <!-- Medication Input (complex medication data) -->
     <div v-else-if="actualValueType === 'M'" class="medication-input">
-      <MedicationInlineEditor :medication-data="medicationData" :frequency-options="frequencyOptions" :route-options="routeOptions" :loading="loading" @medication-changed="onMedicationChange" />
+      <div class="medication-placeholder">
+        <q-icon name="medication" size="16px" color="grey-6" />
+        <span class="text-grey-6">Medications are handled by the table view</span>
+      </div>
     </div>
 
     <!-- Questionnaire Input (for questionnaire data) -->
@@ -122,7 +125,6 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
-import MedicationInlineEditor from './MedicationInlineEditor.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 
 const props = defineProps({
@@ -194,35 +196,6 @@ const onValueChange = (newValue) => {
     conceptCode: props.rowData.conceptCode,
     oldValue: props.rowData.currentValue,
     newValue,
-  })
-}
-
-const onMedicationChange = (newMedicationData) => {
-  medicationData.value = { ...newMedicationData }
-
-  // Format medication summary for display
-  const parts = [medicationData.value.drugName]
-  if (medicationData.value.dosage && medicationData.value.dosageUnit) {
-    parts.push(`${medicationData.value.dosage}${medicationData.value.dosageUnit}`)
-  }
-  if (medicationData.value.frequency) {
-    const freq = props.frequencyOptions.find((f) => f.value === medicationData.value.frequency)
-    parts.push(freq ? freq.label : medicationData.value.frequency)
-  }
-  if (medicationData.value.route) {
-    const route = props.routeOptions.find((r) => r.value === medicationData.value.route)
-    parts.push(route ? route.label : medicationData.value.route)
-  }
-
-  const summary = parts.join(' • ')
-  currentValue.value = summary
-
-  emit('value-changed', props.rowData, summary)
-
-  logger.debug('Medication changed in editor', {
-    rowId: props.rowData.id,
-    medicationData: medicationData.value,
-    summary,
   })
 }
 

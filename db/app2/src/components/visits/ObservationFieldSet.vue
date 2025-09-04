@@ -716,22 +716,21 @@ const parseMedicationData = (row) => {
       }
     }
 
-    // For testing/demo purposes, if we have a basic medication without BLOB data,
-    // let's create some sample structured data
+    // For basic medication data without BLOB, extract from TVAL_CHAR (drug name only)
     const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
 
     if (drugName && drugName.trim()) {
-      // Create demo data for testing - this would normally come from proper medication entry
+      // Create structured data with TVAL_CHAR as drug name and demo data for other fields
       const medicationData = {
-        drugName: drugName.trim(),
-        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || 100, // Default demo dosage
+        drugName: drugName.trim(), // TVAL_CHAR contains only the drug name
+        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || 100, // From NVAL_NUM or demo
         dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
-        frequency: 'BID', // Default demo frequency
-        route: 'PO', // Default demo route
+        frequency: 'BID', // Default demo frequency (would come from BLOB in real data)
+        route: 'PO', // Default demo route (would come from BLOB in real data)
         instructions: '',
       }
 
-      logger.debug('Created demo medication data', { medicationData })
+      logger.debug('Created medication data from TVAL_CHAR drug name', { medicationData })
       return medicationData
     }
 
@@ -772,51 +771,7 @@ const onMedicationEditSave = async (medicationData) => {
     const row = editingMedicationRow.value
     logger.debug('Saving medication edit', { rowId: row.id, medicationData })
 
-    // Create medication summary for display
-    const parts = [medicationData.drugName]
-    if (medicationData.dosage && medicationData.dosageUnit) {
-      parts.push(`${medicationData.dosage}${medicationData.dosageUnit}`)
-    }
-    if (medicationData.frequency) {
-      // Handle both string values and objects from q-select
-      const frequencyValue = typeof medicationData.frequency === 'object' ? medicationData.frequency?.value : medicationData.frequency
-      const freqMap = {
-        QD: '1-0-0',
-        BID: '1-0-1',
-        TID: '1-1-1',
-        QID: '1-1-1-1',
-        Q4H: 'q4h',
-        Q6H: 'q6h',
-        Q8H: 'q8h',
-        Q12H: 'q12h',
-        PRN: 'prn',
-        QHS: 'qhs',
-        AC: 'a.c.',
-        PC: 'p.c.',
-      }
-      if (frequencyValue) {
-        parts.push(freqMap[frequencyValue] || frequencyValue)
-      }
-    }
-    if (medicationData.route) {
-      // Handle both string values and objects from q-select
-      const routeValue = typeof medicationData.route === 'object' ? medicationData.route?.value : medicationData.route
-      const routeMap = {
-        PO: 'p.o.',
-        IV: 'i.v.',
-        IM: 'i.m.',
-        SC: 's.c.',
-        TOP: 'top.',
-        INH: 'inh.',
-        NAS: 'nas.',
-        PR: 'p.r.',
-        SL: 's.l.',
-      }
-      if (routeValue) {
-        parts.push(routeMap[routeValue] || (typeof routeValue === 'string' ? routeValue.toLowerCase() : String(routeValue).toLowerCase()))
-      }
-    }
-    const medicationSummary = parts.join(' ')
+    // We no longer create a summary - TVAL_CHAR will only contain the drug name
 
     // Normalize medication data to ensure we store string values, not objects
     const normalizedMedicationData = {
@@ -830,29 +785,29 @@ const onMedicationEditSave = async (medicationData) => {
 
     // Update the observation with new medication data
     const updateData = {
-      TVAL_CHAR: medicationSummary,
+      TVAL_CHAR: normalizedMedicationData.drugName, // Only store drug name in TVAL_CHAR
       NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
-      OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
+      OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData), // Full structured data in BLOB
     }
 
     await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
 
     // Update local state
-    row.rawObservation.TVAL_CHAR = medicationSummary
-    row.rawObservation.tval_char = medicationSummary
+    row.rawObservation.TVAL_CHAR = normalizedMedicationData.drugName // Only drug name in TVAL_CHAR
+    row.rawObservation.tval_char = normalizedMedicationData.drugName
     row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
     row.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
     row.rawObservation.OBSERVATION_BLOB = JSON.stringify(normalizedMedicationData)
     row.rawObservation.observation_blob = JSON.stringify(normalizedMedicationData)
-    row.rawObservation.originalValue = medicationSummary
-    row.rawObservation.value = medicationSummary
+    row.rawObservation.originalValue = normalizedMedicationData.drugName // Only drug name for consistency
+    row.rawObservation.value = normalizedMedicationData.drugName
 
     // Clear pending changes
     pendingChanges.value.delete(row.id)
 
     emit('observation-updated', {
       conceptCode: row.conceptCode,
-      value: medicationSummary,
+      value: normalizedMedicationData.drugName, // Only drug name for consistency
       observationId: row.observationId,
     })
 
@@ -905,12 +860,11 @@ const saveRow = async (row) => {
       // Handle medication updates - save complex data in OBSERVATION_BLOB
       logger.debug('Saving medication row with complex data')
 
-      // For medications, currentVal should be the medication summary string
-      // but we need to preserve the structured data in OBSERVATION_BLOB
+      // For medications, extract structured data and store drug name only in TVAL_CHAR
       const medicationData = parseMedicationData(row)
 
       const updateData = {
-        TVAL_CHAR: String(row.currentVal), // Summary for display
+        TVAL_CHAR: medicationData.drugName, // Only drug name in TVAL_CHAR
         NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
         OBSERVATION_BLOB: JSON.stringify(medicationData), // Full structured data
       }
@@ -974,16 +928,16 @@ const saveRow = async (row) => {
           break
         }
         case 'M': {
-          // For medications, update all relevant fields
+          // For medications, update all relevant fields - store only drug name in TVAL_CHAR
           const medicationData = parseMedicationData(row)
-          row.rawObservation.TVAL_CHAR = String(row.currentVal)
-          row.rawObservation.tval_char = String(row.currentVal)
+          row.rawObservation.TVAL_CHAR = medicationData.drugName
+          row.rawObservation.tval_char = medicationData.drugName
           row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
           row.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
           row.rawObservation.OBSERVATION_BLOB = JSON.stringify(medicationData)
           row.rawObservation.observation_blob = JSON.stringify(medicationData)
-          row.rawObservation.originalValue = row.currentVal
-          row.rawObservation.value = row.currentVal
+          row.rawObservation.originalValue = medicationData.drugName
+          row.rawObservation.value = medicationData.drugName
           break
         }
         default:
