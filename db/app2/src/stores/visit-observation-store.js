@@ -769,11 +769,12 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
   }
 
   // Actions - Observation Management
-  const updateObservation = async (observationId, updateData) => {
+  const updateObservation = async (observationId, updateData, options = {}) => {
     try {
       logger.info('Updating observation', {
         observationId,
         updateData,
+        options,
         selectedVisitId: selectedVisit.value?.id,
         selectedPatientId: selectedPatient.value?.id,
       })
@@ -802,20 +803,25 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
 
       logger.debug('Database update completed', { observationId, result })
 
-      // Reload observations for current visit
-      if (selectedVisit.value) {
-        logger.debug('Reloading observations for current visit', { visitId: selectedVisit.value.id })
-        await loadObservationsForVisit(selectedVisit.value)
-      }
-
-      // Also reload all observations for the patient
-      if (selectedPatient.value) {
-        const patientRepo = dbStore.getRepository('patient')
-        const patientData = await patientRepo.findByPatientCode(selectedPatient.value.id)
-        if (patientData) {
-          logger.debug('Reloading all observations for patient', { patientNum: patientData.PATIENT_NUM })
-          await loadAllObservationsForPatient(patientData.PATIENT_NUM)
+      // Skip automatic reload if requested (prevents race conditions during optimistic updates)
+      if (!options.skipReload) {
+        // Reload observations for current visit
+        if (selectedVisit.value) {
+          logger.debug('Reloading observations for current visit', { visitId: selectedVisit.value.id })
+          await loadObservationsForVisit(selectedVisit.value)
         }
+
+        // Also reload all observations for the patient
+        if (selectedPatient.value) {
+          const patientRepo = dbStore.getRepository('patient')
+          const patientData = await patientRepo.findByPatientCode(selectedPatient.value.id)
+          if (patientData) {
+            logger.debug('Reloading all observations for patient', { patientNum: patientData.PATIENT_NUM })
+            await loadAllObservationsForPatient(patientData.PATIENT_NUM)
+          }
+        }
+      } else {
+        logger.debug('Skipping automatic reload as requested', { observationId })
       }
 
       logger.success('Observation updated successfully', { observationId })

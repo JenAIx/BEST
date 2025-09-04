@@ -105,6 +105,16 @@
       <q-icon name="edit" size="14px" color="warning" />
       <q-tooltip>Unsaved changes</q-tooltip>
     </div>
+
+    <!-- File Preview Dialog -->
+    <FilePreviewDialog
+      v-if="actualValueType === 'R' && fileInfo"
+      v-model="showFileDialog"
+      :observation-id="rowData.observationId"
+      :file-info="fileInfo"
+      :concept-name="concept?.name || 'File Attachment'"
+      :upload-date="rowData.date"
+    />
   </div>
 </template>
 
@@ -113,6 +123,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import MedicationInlineEditor from './MedicationInlineEditor.vue'
+import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 
 const props = defineProps({
   rowData: {
@@ -246,13 +257,29 @@ const loadSelectionOptions = async () => {
 }
 
 const initializeFileInfo = () => {
-  if (actualValueType.value === 'R' && props.rowData.originalValue) {
-    try {
-      fileInfo.value = JSON.parse(props.rowData.originalValue)
-      logger.debug('File info initialized', { fileInfo: fileInfo.value })
-    } catch (error) {
-      logger.warn('Failed to parse file info', error)
-      fileInfo.value = null
+  if (actualValueType.value === 'R') {
+    // Try to parse file info from different sources
+    const valueToTry = props.rowData.originalValue || props.rowData.currentValue || props.rowData.displayValue
+    if (valueToTry) {
+      try {
+        if (typeof valueToTry === 'string') {
+          fileInfo.value = JSON.parse(valueToTry)
+        } else if (typeof valueToTry === 'object') {
+          fileInfo.value = valueToTry
+        }
+        logger.debug('File info initialized', {
+          fileInfo: fileInfo.value,
+          source: props.rowData.originalValue ? 'originalValue' : 'currentValue',
+        })
+      } catch (error) {
+        logger.warn('Failed to parse file info', error, {
+          value: valueToTry,
+          rowData: props.rowData,
+        })
+        fileInfo.value = null
+      }
+    } else {
+      logger.debug('No file value found to parse', { rowData: props.rowData })
     }
   }
 }
@@ -376,6 +403,11 @@ watch(
         resetMedicationData(newValue)
       }
 
+      // Also reinitialize file info if this is a file type
+      if (actualValueType.value === 'R') {
+        initializeFileInfo()
+      }
+
       logger.debug('Row data current value changed', {
         rowId: props.rowData.id,
         newValue,
@@ -403,6 +435,11 @@ watch(
       // Reset medication data if needed
       if (actualValueType.value === 'M') {
         resetMedicationData(props.rowData.currentValue)
+      }
+
+      // Reset file info if needed
+      if (actualValueType.value === 'R') {
+        initializeFileInfo()
       }
     }
   },

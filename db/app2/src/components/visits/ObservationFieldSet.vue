@@ -23,6 +23,22 @@
       <div v-show="!collapsed" class="field-set-content">
         <!-- Observations Table -->
         <q-table v-if="tableRows.length > 0" :rows="tableRows" :columns="tableColumns" row-key="id" flat dense :pagination="{ rowsPerPage: 0 }" class="observations-table" :loading="loading">
+          <!-- Custom Header with Resizer -->
+          <template v-slot:header="props">
+            <q-tr :props="props">
+              <q-th v-for="col in props.cols" :key="col.name" :props="props" :class="`header-cell ${col.name}-header`">
+                <div class="header-content">
+                  <span>{{ col.label }}</span>
+                  <!-- Column Resizer (only after observation column) -->
+                  <div v-if="col.name === 'observation'" class="column-resizer" @mousedown="startResize" :class="{ resizing: isResizing }">
+                    <div class="resizer-line"></div>
+                    <q-tooltip>Drag to resize observation column</q-tooltip>
+                  </div>
+                </div>
+              </q-th>
+            </q-tr>
+          </template>
+
           <!-- Type Column -->
           <template v-slot:body-cell-type="props">
             <q-td :props="props" class="type-cell">
@@ -54,7 +70,13 @@
           <template v-slot:body-cell-value="props">
             <q-td :props="props" class="value-cell">
               <ObservationValueEditor
-                :row-data="props.row"
+                :row-data="{
+                  ...props.row,
+                  // Map our origVal/currentVal to what the editor expects
+                  originalValue: props.row.origVal,
+                  currentValue: props.row.currentVal,
+                  value: props.row.currentVal,
+                }"
                 :concept="getConcept(props.row.conceptCode)"
                 :visit="visit"
                 :patient="patient"
@@ -136,7 +158,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -168,7 +190,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['observation-updated', 'clone-from-previous'])
+const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh-requested'])
 
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
@@ -183,6 +205,12 @@ const removedConcepts = ref(new Set()) // Track concepts removed by user
 const removedObservations = ref(new Set()) // Track observation IDs removed by user (for medications)
 const resolvedConceptData = ref(new Map()) // Cache for resolved concept data
 const pendingChanges = ref(new Map()) // Track pending changes per row
+
+// Column resizing state
+const observationColumnWidth = ref(150) // Default width
+const isResizing = ref(false)
+const resizeStartX = ref(0)
+const resizeStartWidth = ref(150)
 
 // Frequency and route options for medications
 const frequencyOptions = [
@@ -212,11 +240,11 @@ const routeOptions = [
   { label: 'Sublingual (SL)', value: 'SL' },
 ]
 
-// Table columns
-const tableColumns = [
+// Table columns (dynamic width for observation column)
+const tableColumns = computed(() => [
   {
     name: 'type',
-    label: 'Type',
+    label: '',
     align: 'center',
     field: 'valueType',
     sortable: true,
@@ -224,15 +252,15 @@ const tableColumns = [
   },
   {
     name: 'observation',
-    label: 'Observation',
+    label: '',
     align: 'left',
     field: 'conceptName',
     sortable: true,
-    style: 'width: 150px; max-width: 150px;',
+    style: `width: ${observationColumnWidth.value}px; max-width: ${observationColumnWidth.value}px;`,
   },
   {
     name: 'value',
-    label: 'Value',
+    label: 'Observations',
     align: 'left',
     field: 'displayValue',
     sortable: false,
@@ -240,13 +268,65 @@ const tableColumns = [
   },
   {
     name: 'actions',
-    label: 'Actions',
+    label: '',
     align: 'center',
     field: 'actions',
     sortable: false,
     style: 'width: 15%',
   },
-]
+])
+
+// Column resizing methods
+const startResize = (event) => {
+  event.preventDefault()
+  isResizing.value = true
+  resizeStartX.value = event.clientX
+  resizeStartWidth.value = observationColumnWidth.value
+
+  // Add global mouse event listeners
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+
+  // Add visual feedback
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+
+  logger.debug('Column resize started', {
+    startX: resizeStartX.value,
+    startWidth: resizeStartWidth.value,
+  })
+}
+
+const handleResize = (event) => {
+  if (!isResizing.value) return
+
+  const deltaX = event.clientX - resizeStartX.value
+  const newWidth = Math.max(100, Math.min(400, resizeStartWidth.value + deltaX)) // Min 100px, Max 400px
+
+  observationColumnWidth.value = newWidth
+
+  logger.debug('Column resizing', {
+    deltaX,
+    newWidth,
+    clientX: event.clientX,
+  })
+}
+
+const stopResize = () => {
+  isResizing.value = false
+
+  // Remove global mouse event listeners
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+
+  // Remove visual feedback
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+
+  logger.debug('Column resize stopped', {
+    finalWidth: observationColumnWidth.value,
+  })
+}
 
 // Component mounted
 onMounted(async () => {
@@ -329,7 +409,8 @@ const observationCount = computed(() => {
 const filledObservationCount = computed(() => {
   if (!props.existingObservations) return 0
   return props.existingObservations.filter((obs) => {
-    const value = obs.originalValue || obs.value || obs.tval_char || obs.nval_num
+    // Use extractObservationValue to get the actual value
+    const value = obs.tval_char || obs.TVAL_CHAR || obs.nval_num || obs.NVAL_NUM || obs.observation_blob || obs.OBSERVATION_BLOB || obs.originalValue || obs.value
     return value !== null && value !== undefined && value !== ''
   }).length
 })
@@ -354,6 +435,9 @@ const tableRows = computed(() => {
     const matchingConcept = findBestMatchingConcept(observation)
     if (matchingConcept) {
       const rowId = `obs_${observation.observationId}`
+      // Extract the actual value from observation
+      const actualValue = extractObservationValue(observation)
+      const pendingValue = pendingChanges.value.get(rowId)
       rows.push({
         id: rowId,
         observationId: observation.observationId,
@@ -361,14 +445,17 @@ const tableRows = computed(() => {
         conceptName: matchingConcept.name,
         resolvedName: resolvedConceptData.value.get(matchingConcept.code)?.label,
         valueType: observation.valueType || observation.valTypeCode,
-        originalValue: observation.originalValue || observation.value,
-        currentValue: observation.originalValue || observation.value,
+        // Use consistent origVal/currentVal pattern
+        origVal: actualValue,
+        currentVal: pendingValue !== undefined ? pendingValue : actualValue,
         unit: observation.unit,
         category: observation.category || observation.CATEGORY_CHAR,
-        hasChanges: pendingChanges.value.has(rowId),
+        hasChanges: pendingValue !== undefined && pendingValue !== actualValue,
         saving: false,
         previousValue: getPreviousValue(observation.conceptCode),
         displayValue: formatDisplayValue(observation),
+        // Store raw observation for complete data access
+        rawObservation: observation,
       })
     }
   }
@@ -384,6 +471,9 @@ const tableRows = computed(() => {
 
   for (const medication of medicationObservations) {
     const rowId = `med_${medication.observationId}`
+    // Extract the actual value from medication
+    const actualValue = extractObservationValue(medication)
+    const pendingValue = pendingChanges.value.get(rowId)
     rows.push({
       id: rowId,
       observationId: medication.observationId,
@@ -391,15 +481,18 @@ const tableRows = computed(() => {
       conceptName: 'Current Medication',
       resolvedName: 'Current Medication',
       valueType: 'M',
-      originalValue: medication.originalValue || medication.value,
-      currentValue: medication.originalValue || medication.value,
+      // Use consistent origVal/currentVal pattern
+      origVal: actualValue,
+      currentVal: pendingValue !== undefined ? pendingValue : actualValue,
       unit: medication.unit,
       category: medication.category || medication.CATEGORY_CHAR,
-      hasChanges: pendingChanges.value.has(rowId),
+      hasChanges: pendingValue !== undefined && pendingValue !== actualValue,
       saving: false,
       previousValue: getPreviousValue(medication.conceptCode),
       displayValue: formatMedicationDisplay(medication),
       isMedication: true,
+      // Store raw observation for complete data access
+      rawObservation: medication,
     })
   }
 
@@ -492,6 +585,31 @@ const getPreviousValue = (conceptCode) => {
   return null
 }
 
+// Extract the actual value from observation data
+const extractObservationValue = (observation) => {
+  // Handle different database field names and value types
+  const valType = observation.valueType || observation.valTypeCode || 'T'
+
+  switch (valType) {
+    case 'N': // Numeric
+      return observation.nval_num || observation.NVAL_NUM || null
+    case 'S': // Selection
+    case 'F': // Finding
+    case 'A': // Array/Multiple choice
+      // For coded values, return the code not the resolved display value
+      return observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+    case 'M': // Medication
+      // Medication data might be in OBSERVATION_BLOB or tval_char
+      return observation.observation_blob || observation.OBSERVATION_BLOB || observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+    case 'R': // Raw data/File
+      // File data is usually in OBSERVATION_BLOB
+      return observation.observation_blob || observation.OBSERVATION_BLOB || observation.originalValue || observation.value || ''
+    case 'T': // Text
+    default:
+      return observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+  }
+}
+
 const formatDisplayValue = (observation) => {
   switch (observation.valueType || observation.valTypeCode) {
     case 'S': // Selection
@@ -524,20 +642,16 @@ const formatMedicationDisplay = (medication) => {
 
 // Event handlers
 const onValueChanged = (rowData, newValue) => {
-  const row = tableRows.value.find((r) => r.id === rowData.id)
-  if (row) {
-    row.currentValue = newValue
-    row.hasChanges = row.currentValue !== row.originalValue
-    pendingChanges.value.set(row.id, row.hasChanges)
+  // Store the pending change in our map
+  pendingChanges.value.set(rowData.id, newValue)
 
-    logger.debug('Value changed for row', {
-      rowId: row.id,
-      conceptCode: row.conceptCode,
-      originalValue: row.originalValue,
-      newValue,
-      hasChanges: row.hasChanges,
-    })
-  }
+  logger.debug('Value changed for row', {
+    rowId: rowData.id,
+    conceptCode: rowData.conceptCode,
+    origVal: rowData.origVal,
+    newValue,
+    hasChanges: newValue !== rowData.origVal,
+  })
 }
 
 const onSaveRequested = async (rowData) => {
@@ -550,36 +664,84 @@ const saveRow = async (row) => {
     logger.info('Saving row', {
       rowId: row.id,
       conceptCode: row.conceptCode,
-      value: row.currentValue,
+      valueType: row.valueType,
+      origVal: row.origVal,
+      currentVal: row.currentVal,
     })
 
     if (row.isMedication) {
       // Handle medication updates differently
       // This would need to integrate with the medication store
       logger.debug('Saving medication row - this needs medication store integration')
+      // For now, save as text in TVAL_CHAR
+      const updateData = {
+        TVAL_CHAR: String(row.currentVal),
+        NVAL_NUM: null,
+      }
+      await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
     } else {
-      // Handle regular observation updates
+      // Handle regular observation updates based on value type
       const updateData = {}
 
-      if (row.valueType === 'N') {
-        updateData.NVAL_NUM = parseFloat(row.currentValue)
-        updateData.TVAL_CHAR = null
-      } else {
-        updateData.TVAL_CHAR = String(row.currentValue)
-        updateData.NVAL_NUM = null
+      switch (row.valueType) {
+        case 'N': // Numeric
+          updateData.NVAL_NUM = parseFloat(row.currentVal)
+          updateData.TVAL_CHAR = null
+          updateData.OBSERVATION_BLOB = null
+          break
+
+        case 'S': // Selection
+        case 'F': // Finding
+        case 'A': // Array/Multiple choice
+          // For coded values, store the code in TVAL_CHAR
+          updateData.TVAL_CHAR = String(row.currentVal)
+          updateData.NVAL_NUM = null
+          updateData.OBSERVATION_BLOB = null
+          break
+
+        case 'R': // Raw data/File
+        case 'M': // Medication (complex data)
+          // Store complex data in OBSERVATION_BLOB
+          updateData.OBSERVATION_BLOB = row.currentVal
+          updateData.TVAL_CHAR = null
+          updateData.NVAL_NUM = null
+          break
+
+        case 'T': // Text
+        default:
+          updateData.TVAL_CHAR = String(row.currentVal)
+          updateData.NVAL_NUM = null
+          updateData.OBSERVATION_BLOB = null
+          break
       }
 
-      await visitStore.updateObservation(row.observationId, updateData)
+      // Always skip reload to prevent bounce
+      await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
     }
 
-    // Update local state
-    row.originalValue = row.currentValue
-    row.hasChanges = false
+    // Update local state immediately - no need to wait for refresh
     pendingChanges.value.delete(row.id)
+
+    // Update the raw observation in our local data to reflect the save
+    // This prevents the need for a full refresh
+    if (row.rawObservation) {
+      switch (row.valueType) {
+        case 'N':
+          row.rawObservation.NVAL_NUM = parseFloat(row.currentVal)
+          row.rawObservation.nval_num = parseFloat(row.currentVal)
+          break
+        default:
+          row.rawObservation.TVAL_CHAR = String(row.currentVal)
+          row.rawObservation.tval_char = String(row.currentVal)
+          row.rawObservation.originalValue = row.currentVal
+          row.rawObservation.value = row.currentVal
+          break
+      }
+    }
 
     emit('observation-updated', {
       conceptCode: row.conceptCode,
-      value: row.currentValue,
+      value: row.currentVal,
       observationId: row.observationId,
     })
 
@@ -590,6 +752,9 @@ const saveRow = async (row) => {
     })
 
     logger.success('Row saved successfully', { rowId: row.id })
+
+    // No delayed refresh needed - the computed property will update automatically
+    // when pendingChanges is cleared
   } catch (error) {
     logger.error('Failed to save row', error, { rowId: row.id })
     $q.notify({
@@ -606,20 +771,17 @@ const cancelChanges = (row) => {
   logger.debug('Cancelling changes for row', {
     rowId: row.id,
     conceptCode: row.conceptCode,
-    originalValue: row.originalValue,
-    currentValue: row.currentValue,
+    origVal: row.origVal,
+    currentVal: row.currentVal,
   })
 
-  // Restore original value
-  row.currentValue = row.originalValue
-  row.hasChanges = false
+  // Remove pending change - computed property will restore original value
   pendingChanges.value.delete(row.id)
 
   logger.debug('Changes cancelled, row restored', {
     rowId: row.id,
     conceptCode: row.conceptCode,
-    restoredValue: row.currentValue,
-    hasChanges: row.hasChanges,
+    restoredValue: row.origVal,
   })
 }
 
@@ -771,6 +933,17 @@ const addEmptyMedication = async () => {
     })
   }
 }
+
+// Cleanup on component unmount
+onUnmounted(() => {
+  // Clean up event listeners if component is unmounted during resize
+  if (isResizing.value) {
+    document.removeEventListener('mousemove', handleResize)
+    document.removeEventListener('mouseup', stopResize)
+    document.body.style.cursor = ''
+    document.body.style.userSelect = ''
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -858,8 +1031,7 @@ const addEmptyMedication = async () => {
   }
 
   .observation-name-cell {
-    width: 150px;
-    max-width: 150px;
+    position: relative;
 
     .observation-info {
       display: flex;
@@ -875,6 +1047,62 @@ const addEmptyMedication = async () => {
       word-break: break-word;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+  }
+
+  // Custom header with resizer
+  .header-cell {
+    position: relative;
+
+    .header-content {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+    }
+
+    &.observation-header .header-content {
+      justify-content: space-between;
+    }
+
+    .column-resizer {
+      position: absolute;
+      top: 0;
+      right: -2px;
+      width: 4px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+
+      &:hover {
+        background: rgba($primary, 0.1);
+
+        .resizer-line {
+          background: $primary;
+          width: 2px;
+        }
+      }
+
+      &.resizing {
+        background: rgba($primary, 0.2);
+
+        .resizer-line {
+          background: $primary;
+          width: 2px;
+        }
+      }
+
+      .resizer-line {
+        width: 1px;
+        height: 20px;
+        background: $grey-5;
+        border-radius: 1px;
+        transition: all 0.2s ease;
+      }
     }
   }
 
