@@ -591,8 +591,16 @@ const extractObservationValue = (observation) => {
   const valType = observation.valueType || observation.valTypeCode || 'T'
 
   switch (valType) {
-    case 'N': // Numeric
-      return observation.nval_num || observation.NVAL_NUM || null
+    case 'N': {
+      // Numeric
+      // For numeric values, check all possible numeric fields
+      const numericValue = observation.nval_num || observation.NVAL_NUM
+      if (numericValue !== null && numericValue !== undefined) {
+        return numericValue
+      }
+      // Fallback to text fields that might contain numeric values
+      return observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+    }
     case 'S': // Selection
     case 'F': // Finding
     case 'A': // Array/Multiple choice
@@ -726,13 +734,23 @@ const saveRow = async (row) => {
     // This prevents the need for a full refresh
     if (row.rawObservation) {
       switch (row.valueType) {
-        case 'N':
-          row.rawObservation.NVAL_NUM = parseFloat(row.currentVal)
-          row.rawObservation.nval_num = parseFloat(row.currentVal)
+        case 'N': {
+          const numericValue = parseFloat(row.currentVal)
+          row.rawObservation.NVAL_NUM = numericValue
+          row.rawObservation.nval_num = numericValue
+          // Clear text fields for numeric values
+          row.rawObservation.TVAL_CHAR = null
+          row.rawObservation.tval_char = null
+          row.rawObservation.originalValue = numericValue
+          row.rawObservation.value = numericValue
           break
+        }
         default:
           row.rawObservation.TVAL_CHAR = String(row.currentVal)
           row.rawObservation.tval_char = String(row.currentVal)
+          // Clear numeric fields for text values
+          row.rawObservation.NVAL_NUM = null
+          row.rawObservation.nval_num = null
           row.rawObservation.originalValue = row.currentVal
           row.rawObservation.value = row.currentVal
           break
