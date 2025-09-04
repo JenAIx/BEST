@@ -89,7 +89,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
     logger.debug('Categorized observations computed', {
       totalObservations: observations.value.length,
       categoriesCount: result.length,
-      categories: result.map(c => ({ name: c.name, count: c.observations.length })),
+      categories: result.map((c) => ({ name: c.name, count: c.observations.length })),
     })
 
     return result
@@ -958,6 +958,39 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
     }
   }
 
+  // Get OBSERVATION_BLOB for a specific observation
+  const getBlob = async (observationId) => {
+    try {
+      logger.debug('Loading OBSERVATION_BLOB', { observationId })
+
+      const query = `
+        SELECT OBSERVATION_BLOB
+        FROM OBSERVATION_FACT
+        WHERE OBSERVATION_ID = ?
+      `
+
+      const result = await dbStore.executeQuery(query, [observationId])
+
+      if (result.success && result.data.length > 0) {
+        const blob = result.data[0].OBSERVATION_BLOB
+
+        logger.debug('OBSERVATION_BLOB loaded', {
+          observationId,
+          hasBlob: !!blob,
+          blobLength: blob?.length,
+        })
+
+        return blob
+      } else {
+        logger.debug('No OBSERVATION_BLOB found', { observationId })
+        return null
+      }
+    } catch (err) {
+      logger.error('Failed to load OBSERVATION_BLOB', err, { observationId })
+      throw err
+    }
+  }
+
   // Lazy loading for observation details (e.g., OBSERVATION_BLOB for questionnaires)
   const loadObservationDetails = async (observationId) => {
     try {
@@ -1141,6 +1174,7 @@ export const useVisitObservationStore = defineStore('visitObservation', () => {
     updateObservation,
     createObservation,
     deleteObservation,
+    getBlob, // Get OBSERVATION_BLOB for specific observation
     loadObservationDetails, // Lazy loading for observation details
 
     // Helper Functions

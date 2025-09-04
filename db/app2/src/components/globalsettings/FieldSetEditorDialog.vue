@@ -1,11 +1,17 @@
 <template>
-  <AppDialog v-model="localShow" title="Edit Field Set" subtitle="Configure observation concepts for visits" size="lg" persistent :show-ok="false" cancel-label="Close" @cancel="onCancel">
+  <AppDialog v-model="localShow" title="Edit Field Set" subtitle="Configure observation concepts for visits" size="lg" :show-ok="false" cancel-label="Close" @cancel="onCancel">
     <div class="fieldset-editor">
       <!-- Description Field -->
       <q-input v-model="localFieldSetData.description" label="Description" outlined dense class="q-mb-md" placeholder="Enter field set description..." />
 
       <!-- Icon Selection -->
-      <q-select v-model="localFieldSetData.icon" :options="iconOptions" label="Icon" outlined dense class="q-mb-md" clearable emit-value map-options />
+      <div class="icon-selection q-mb-md">
+        <div class="icon-preview">
+          <q-icon :name="localFieldSetData.icon || 'category'" size="24px" color="primary" class="q-mr-sm" />
+          <span class="text-caption text-grey-6">Selected Icon</span>
+        </div>
+        <q-select v-model="localFieldSetData.icon" :options="iconOptions" label="Icon" outlined dense clearable emit-value map-options class="icon-select" />
+      </div>
 
       <!-- Concepts Section -->
       <div class="concepts-section q-mb-md">
@@ -14,41 +20,53 @@
           <q-btn color="primary" icon="add" label="Add Concept" dense @click="showConceptSearch = true" />
         </div>
 
-        <!-- Concept Chips -->
-        <div class="concept-chips">
-          <q-chip
-            v-for="conceptCode in localFieldSetData.concepts"
-            :key="conceptCode"
-            removable
-            dense
-            @remove="removeConcept(conceptCode)"
-            color="grey-3"
-            text-color="grey-8"
-            class="q-mr-xs q-mb-xs concept-chip"
+        <!-- Concept List -->
+        <div class="concept-list">
+          <draggable
+            v-if="localFieldSetData.concepts.length > 0"
+            v-model="localFieldSetData.concepts"
+            item-key="conceptCode"
+            handle=".drag-handle"
+            :animation="200"
+            ghost-class="sortable-ghost"
+            chosen-class="sortable-chosen"
+            drag-class="sortable-drag"
+            :force-fallback="true"
+            fallback-class="sortable-fallback"
+            @start="onDragStart"
+            @end="onDragEnd"
+            @move="onDragMove"
           >
-            <q-item class="q-pa-none">
-              <q-item-section>
-                <q-item-label class="text-weight-medium concept-name">
-                  {{ getResolvedConceptName(conceptCode) }}
-                </q-item-label>
-                <q-item-label caption class="concept-details">
-                  <div class="row items-center q-gutter-xs">
-                    <span class="text-caption concept-code">{{ conceptCode }}</span>
-                    <ValueTypeIcon :value-type="getConceptValueType(conceptCode)" size="20px" variant="minimal" :show-tooltip="false" />
+            <template #item="{ element: conceptCode }">
+              <q-item :key="conceptCode" clickable @click="removeConcept(conceptCode)" class="concept-item">
+                <!-- Drag Handle -->
+                <q-item-section avatar>
+                  <div class="drag-handle-container">
+                    <q-icon name="drag_indicator" class="drag-handle" />
+                    <ValueTypeIcon :value-type="getConceptValueType(conceptCode)" size="24px" variant="minimal" :show-tooltip="false" />
                   </div>
-                </q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-chip>
+                </q-item-section>
 
-          <div v-if="localFieldSetData.concepts.length === 0" class="text-grey-5 text-center q-pa-md">No concepts added yet. Click "Add Concept" to get started.</div>
+                <q-item-section>
+                  <q-item-label class="text-weight-medium">
+                    {{ getResolvedConceptName(conceptCode) }}
+                  </q-item-label>
+                  <q-item-label caption class="text-grey-6">
+                    {{ conceptCode }}
+                  </q-item-label>
+                </q-item-section>
+
+                <q-item-section side>
+                  <q-btn flat round dense icon="delete" color="negative" @click.stop="removeConcept(conceptCode)" size="sm">
+                    <q-tooltip>Remove concept</q-tooltip>
+                  </q-btn>
+                </q-item-section>
+              </q-item>
+            </template>
+          </draggable>
+
+          <div v-else class="text-grey-5 text-center q-pa-md">No concepts added yet. Click "Add Concept" to get started.</div>
         </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="row justify-end q-gutter-sm">
-        <q-btn flat color="grey-7" label="Cancel" @click="onCancel" />
-        <q-btn color="primary" label="Save Field Set" @click="onSave" :loading="saving" />
       </div>
     </div>
 
@@ -99,6 +117,10 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <template #actions>
+      <q-btn color="primary" label="Save Field Set" @click="onSave" :loading="saving" />
+    </template>
   </AppDialog>
 </template>
 
@@ -106,6 +128,7 @@
 import { ref, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import draggable from 'vuedraggable'
 import AppDialog from '../shared/AppDialog.vue'
 import ValueTypeIcon from '../shared/ValueTypeIcon.vue'
 
@@ -365,51 +388,157 @@ const onCancel = () => {
   emit('cancel')
   localShow.value = false
 }
+
+const onDragStart = () => {
+  // Add visual feedback when drag starts
+  document.body.classList.add('dragging-concept')
+}
+
+const onDragEnd = () => {
+  // Clean up visual feedback when drag ends
+  document.body.classList.remove('dragging-concept')
+}
+
+const onDragMove = (evt) => {
+  // Enhanced drop zone feedback - allow all moves for now
+  const { relatedContext } = evt
+  if (relatedContext && relatedContext.element) {
+    // You can add custom logic here for move validation
+    return true
+  }
+  return true
+}
 </script>
 
 <style lang="scss" scoped>
 .fieldset-editor {
+  .icon-selection {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+
+    .icon-preview {
+      display: flex;
+      align-items: center;
+      min-width: 120px;
+      padding: 8px 12px;
+      background: rgba(25, 118, 210, 0.05);
+      border: 1px solid rgba(25, 118, 210, 0.2);
+      border-radius: 8px;
+      transition: all 0.2s ease;
+
+      .q-icon {
+        color: #1976d2;
+      }
+
+      &:hover {
+        background: rgba(25, 118, 210, 0.1);
+        border-color: rgba(25, 118, 210, 0.3);
+      }
+    }
+
+    .icon-select {
+      flex: 1;
+      min-width: 200px;
+    }
+  }
+
   .concepts-section {
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     padding: 16px;
     background-color: #fafafa;
 
-    .concept-chips {
+    .concept-list {
       min-height: 60px;
-      padding: 8px;
       border: 1px dashed #ccc;
       border-radius: 4px;
       background-color: white;
+      overflow: hidden;
 
-      .concept-chip {
-        min-width: 200px;
-        max-width: 280px;
+      .concept-item {
+        padding: 8px 16px;
+        min-height: 56px;
+        transition: all 0.2s ease;
+        cursor: grab;
 
-        .q-item {
-          min-height: auto;
-          padding: 8px 12px;
-
-          .q-item__section {
-            padding: 0;
-          }
-
-          .concept-name {
-            font-size: 0.9rem;
-            line-height: 1.2;
-            margin-bottom: 2px;
-          }
-
-          .concept-details {
-            font-size: 0.75rem;
-            line-height: 1.1;
-
-            .concept-code {
-              font-family: 'Courier New', monospace;
-              font-weight: 500;
-            }
-          }
+        &:hover {
+          background-color: #f5f5f5;
+          transform: translateY(-1px);
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
         }
+
+        .q-item__section--avatar {
+          min-width: 32px;
+          padding-right: 12px;
+          display: flex;
+          align-items: center;
+        }
+
+        .drag-handle-container {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          width: 100%;
+        }
+
+        .q-item__section--side {
+          padding-left: 8px;
+        }
+      }
+
+      /* Enhanced drag feedback styles */
+      .concept-item.sortable-ghost {
+        opacity: 0.3;
+        background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+        border: 2px dashed #2196f3;
+        border-radius: 8px;
+        transform: scale(0.98);
+        position: relative;
+      }
+
+      .concept-item.sortable-ghost::before {
+        content: 'Drop here';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #1976d2;
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        pointer-events: none;
+      }
+
+      .concept-item.sortable-chosen {
+        cursor: grabbing !important;
+        transform: rotate(3deg) scale(1.02);
+        box-shadow: 0 8px 25px rgba(33, 150, 243, 0.3);
+        background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+        border: 2px solid #2196f3;
+        border-radius: 8px;
+        z-index: 1000;
+        transition: all 0.2s ease;
+      }
+
+      .concept-item.sortable-drag {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f4f8 100%);
+        box-shadow: 0 12px 35px rgba(33, 150, 243, 0.4);
+        border: 2px solid #2196f3;
+        border-radius: 12px;
+        transform: rotate(8deg) scale(1.05);
+        z-index: 2000;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .sortable-fallback {
+        background: linear-gradient(135deg, #ffffff 0%, #e3f2fd 100%);
+        box-shadow: 0 15px 40px rgba(33, 150, 243, 0.5);
+        border: 3px solid #1976d2;
+        border-radius: 12px;
+        transform: rotate(5deg) scale(1.03);
+        opacity: 0.9;
       }
     }
   }
@@ -418,18 +547,167 @@ const onCancel = () => {
     max-height: 400px;
     overflow-y: auto;
   }
+
+  /* Global drag state styles */
+  body.dragging-concept .concept-item:not(.sortable-chosen):not(.sortable-ghost) {
+    transition: all 0.2s ease;
+    opacity: 0.7;
+  }
+
+  body.dragging-concept .concept-item:hover:not(.sortable-chosen) {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 50%);
+    border: 2px dashed #2196f3;
+    border-radius: 8px;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
+  }
+
+  body.dragging-concept .concept-item:hover:not(.sortable-chosen)::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #2196f3, #21cbf3);
+    border-radius: 2px;
+    box-shadow: 0 0 8px rgba(33, 150, 243, 0.6);
+  }
+
+  /* Enhanced drag handle styling */
+  .drag-handle {
+    color: #9e9e9e;
+    cursor: grab;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    position: relative;
+  }
+
+  .drag-handle:hover {
+    color: #2196f3;
+    background: rgba(33, 150, 243, 0.1);
+    padding: 4px;
+    transform: scale(1.1);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
+    color: #1976d2;
+    background: rgba(33, 150, 243, 0.2);
+    padding: 4px;
+    transform: scale(0.95);
+  }
+
+  body.dragging-concept .drag-handle {
+    color: #2196f3;
+    background: rgba(33, 150, 243, 0.15);
+    padding: 4px;
+  }
+
+  /* Pulse animation for drag handle when dragging */
+  @keyframes drag-pulse {
+    0%,
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+    50% {
+      transform: scale(1.05);
+      opacity: 0.8;
+    }
+  }
+
+  body.dragging-concept .concept-item:not(.sortable-chosen) .drag-handle {
+    animation: drag-pulse 1.5s ease-in-out infinite;
+  }
 }
 
 // Dark mode support
 .body--dark {
+  .icon-selection {
+    .icon-preview {
+      background: rgba(100, 181, 246, 0.05);
+      border-color: rgba(100, 181, 246, 0.2);
+
+      .q-icon {
+        color: #64b5f6;
+      }
+
+      &:hover {
+        background: rgba(100, 181, 246, 0.1);
+        border-color: rgba(100, 181, 246, 0.3);
+      }
+    }
+  }
+
   .concepts-section {
     border-color: #555;
     background-color: #2a2a2a;
 
-    .concept-chips {
+    .concept-list {
       border-color: #666;
       background-color: #1a1a1a;
+
+      .concept-item:hover {
+        background-color: #2a2a2a;
+      }
+
+      .concept-item.sortable-ghost {
+        background: linear-gradient(135deg, #1e3a5f 0%, #2a4a7a 100%);
+        border-color: #64b5f6;
+      }
+
+      .concept-item.sortable-ghost::before {
+        color: #90caf9;
+      }
+
+      .concept-item.sortable-chosen {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        border-color: #64b5f6;
+      }
+
+      .concept-item.sortable-drag {
+        background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+        border-color: #64b5f6;
+      }
+
+      .sortable-fallback {
+        background: linear-gradient(135deg, #1a1a1a 0%, #1e3a5f 100%);
+        border-color: #90caf9;
+      }
     }
+  }
+
+  body.dragging-concept .concept-item:hover:not(.sortable-chosen) {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2a4a7a 50%);
+    border-color: #64b5f6;
+  }
+
+  body.dragging-concept .concept-item:hover:not(.sortable-chosen)::after {
+    background: linear-gradient(90deg, #64b5f6, #90caf9);
+    box-shadow: 0 0 8px rgba(100, 181, 246, 0.6);
+  }
+
+  .drag-handle {
+    color: #bbb;
+  }
+
+  .drag-handle:hover {
+    color: #64b5f6;
+    background: rgba(100, 181, 246, 0.1);
+    padding: 4px;
+  }
+
+  .drag-handle:active {
+    color: #90caf9;
+    background: rgba(100, 181, 246, 0.2);
+    padding: 4px;
+  }
+
+  body.dragging-concept .drag-handle {
+    color: #64b5f6;
+    background: rgba(100, 181, 246, 0.15);
+    padding: 4px;
   }
 }
 </style>

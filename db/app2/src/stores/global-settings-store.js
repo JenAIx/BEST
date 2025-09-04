@@ -879,11 +879,11 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     }
 
     try {
-      // Try to load from database first
+      // Load from VISIT_DIMENSION DRUG_OPTIONS
       const result = await dbStore.executeQuery(
         `SELECT * FROM CODE_LOOKUP
-         WHERE TABLE_CD = 'MEDICATION_DIMENSION'
-         AND COLUMN_CD = 'DRUG_CD'
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'DRUG_OPTIONS'
          ORDER BY NAME_CHAR`,
       )
 
@@ -893,18 +893,22 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         // Parse database drugs
         drugOptions = result.data.map((drug) => {
           const metadata = parseMetadata(drug.LOOKUP_BLOB)
+          console.log('Drug:', drug.NAME_CHAR, 'LOOKUP_BLOB:', drug.LOOKUP_BLOB, 'Parsed metadata:', metadata)
           return {
             name: drug.NAME_CHAR || drug.CODE_CD,
             generic: metadata.generic || '',
-            strength: metadata.strength || '',
+            default_strength: metadata.default_strength || '',
+            default_route: metadata.default_route || '',
+            default_frequency: metadata.default_frequency || '',
             category: metadata.category || 'general',
+            code: drug.CODE_CD,
           }
         })
-        logger.success(`Loaded ${drugOptions.length} drugs from database`)
+        logger.success(`Loaded ${drugOptions.length} drugs from VISIT_DIMENSION DRUG_OPTIONS`)
       } else {
-        // Fallback to comprehensive drug list
-        drugOptions = getDefaultDrugOptions()
-        logger.info('Using fallback drug options')
+        // Fallback to comprehensive drug list from database
+        drugOptions = await getDefaultDrugOptions()
+        logger.info('Using fallback drug options from database')
       }
 
       // Cache the result
@@ -918,62 +922,53 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       return drugOptions
     } catch (error) {
       logger.error('Failed to get drug options', error)
-      return getDefaultDrugOptions().filter(
-        (drug) => !searchTerm || searchTerm.length < 2 || drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()),
-      )
+      try {
+        const fallbackDrugs = await getDefaultDrugOptions()
+        return fallbackDrugs.filter(
+          (drug) => !searchTerm || searchTerm.length < 2 || drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+      } catch (fallbackError) {
+        logger.error('Failed to get fallback drug options', fallbackError)
+        return []
+      }
     }
   }
 
   /**
-   * Get default drug options when database lookup fails
-   * @returns {Array} Comprehensive list of common medications
+   * Get default drug options from CODE_LOOKUP database
+   * @returns {Promise<Array>} Comprehensive list of medications from database
    */
-  const getDefaultDrugOptions = () => {
-    return [
-      // Cardiovascular
-      { name: 'Lisinopril', generic: 'ACE Inhibitor', strength: '10mg', category: 'cardiovascular' },
-      { name: 'Atorvastatin', generic: 'Statin', strength: '20mg', category: 'cardiovascular' },
-      { name: 'Metoprolol', generic: 'Beta Blocker', strength: '50mg', category: 'cardiovascular' },
-      { name: 'Amlodipine', generic: 'Calcium Channel Blocker', strength: '5mg', category: 'cardiovascular' },
-      { name: 'Warfarin', generic: 'Anticoagulant', strength: '5mg', category: 'cardiovascular' },
+  const getDefaultDrugOptions = async () => {
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'DRUG_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
 
-      // Diabetes
-      { name: 'Metformin', generic: 'Biguanide', strength: '500mg', category: 'diabetes' },
-      { name: 'Glipizide', generic: 'Sulfonylurea', strength: '5mg', category: 'diabetes' },
-      { name: 'Insulin Glargine', generic: 'Long-acting insulin', strength: '100U/mL', category: 'diabetes' },
+      if (result.success && result.data.length > 0) {
+        return result.data.map((drug) => {
+          const metadata = parseMetadata(drug.LOOKUP_BLOB)
+          return {
+            name: drug.NAME_CHAR || drug.CODE_CD,
+            generic: metadata.generic || '',
+            default_strength: metadata.default_strength || '',
+            default_route: metadata.default_route || '',
+            default_frequency: metadata.default_frequency || '',
+            category: metadata.category || 'general',
+            code: drug.CODE_CD,
+          }
+        })
+      }
 
-      // Pain & Inflammation
-      { name: 'Aspirin', generic: 'Acetylsalicylic acid', strength: '81mg', category: 'analgesic' },
-      { name: 'Acetaminophen', generic: 'Paracetamol', strength: '500mg', category: 'analgesic' },
-      { name: 'Ibuprofen', generic: 'NSAID', strength: '200mg', category: 'analgesic' },
-      { name: 'Naproxen', generic: 'NSAID', strength: '220mg', category: 'analgesic' },
-
-      // Gastrointestinal
-      { name: 'Omeprazole', generic: 'Proton pump inhibitor', strength: '20mg', category: 'gastrointestinal' },
-      { name: 'Ranitidine', generic: 'H2 antagonist', strength: '150mg', category: 'gastrointestinal' },
-      { name: 'Pantoprazole', generic: 'Proton pump inhibitor', strength: '40mg', category: 'gastrointestinal' },
-
-      // Antibiotics
-      { name: 'Amoxicillin', generic: 'Penicillin antibiotic', strength: '500mg', category: 'antibiotic' },
-      { name: 'Azithromycin', generic: 'Macrolide antibiotic', strength: '250mg', category: 'antibiotic' },
-      { name: 'Cephalexin', generic: 'Cephalosporin antibiotic', strength: '500mg', category: 'antibiotic' },
-      { name: 'Ciprofloxacin', generic: 'Fluoroquinolone antibiotic', strength: '500mg', category: 'antibiotic' },
-
-      // Respiratory
-      { name: 'Albuterol', generic: 'Bronchodilator', strength: '90mcg', category: 'respiratory' },
-      { name: 'Fluticasone', generic: 'Corticosteroid', strength: '50mcg', category: 'respiratory' },
-      { name: 'Montelukast', generic: 'Leukotriene antagonist', strength: '10mg', category: 'respiratory' },
-
-      // Mental Health
-      { name: 'Sertraline', generic: 'SSRI', strength: '50mg', category: 'psychiatric' },
-      { name: 'Lorazepam', generic: 'Benzodiazepine', strength: '1mg', category: 'psychiatric' },
-      { name: 'Zolpidem', generic: 'Sleep aid', strength: '10mg', category: 'psychiatric' },
-
-      // Neurological
-      { name: 'Gabapentin', generic: 'Anticonvulsant', strength: '300mg', category: 'neurological' },
-      { name: 'Phenytoin', generic: 'Anticonvulsant', strength: '100mg', category: 'neurological' },
-      { name: 'Carbidopa-Levodopa', generic: 'Parkinson medication', strength: '25-100mg', category: 'neurological' },
-    ]
+      // If no data found, return empty array
+      logger.warn('No drug options found in CODE_LOOKUP database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get default drug options from database', error)
+      return []
+    }
   }
 
   /**

@@ -27,16 +27,16 @@
             <q-tooltip>Click to edit medication</q-tooltip>
           </q-icon>
         </div>
-        <div class="view-actions">
-          <!-- Clear Button - on the far right -->
-          <q-btn v-if="!showClearConfirmation" flat round icon="clear" size="sm" color="grey-6" @click.stop="showClearConfirmation = true">
-            <q-tooltip>Clear medication</q-tooltip>
+        <div class="view-actions" :class="{ 'show-confirmation': showClearConfirmation }">
+          <!-- Remove Button - on the far right, only visible on hover -->
+          <q-btn v-if="!showClearConfirmation" flat round icon="close" size="sm" color="grey-6" @click.stop="showClearConfirmation = true">
+            <q-tooltip>Remove medication</q-tooltip>
           </q-btn>
 
-          <!-- Clear Confirmation Buttons -->
+          <!-- Remove Confirmation Buttons -->
           <div v-if="showClearConfirmation" class="clear-confirmation" @click.stop>
-            <q-btn flat round icon="check" size="sm" color="negative" @click="confirmClear" class="confirm-clear-btn">
-              <q-tooltip>Confirm clear medication</q-tooltip>
+            <q-btn flat round icon="check" size="sm" color="negative" @click="confirmRemove" class="confirm-clear-btn">
+              <q-tooltip>Confirm remove medication</q-tooltip>
             </q-btn>
             <q-btn flat round icon="close" size="sm" color="grey-6" @click="cancelClear" class="cancel-clear-btn">
               <q-tooltip>Cancel</q-tooltip>
@@ -44,21 +44,25 @@
           </div>
         </div>
       </div>
-      <div v-if="medicationData.instructions" class="instructions-view">
+      <div v-if="fullMedicationData.instructions" class="instructions-view">
         <q-icon name="info" size="14px" color="info" class="q-mr-xs" />
-        {{ medicationData.instructions }}
+        {{ fullMedicationData.instructions }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps({
   medicationData: {
     type: Object,
     required: true,
+  },
+  existingObservation: {
+    type: Object,
+    default: null,
   },
   frequencyOptions: {
     type: Array,
@@ -70,15 +74,39 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['delete', 'enter-edit-mode', 'clear-medication'])
+const emit = defineEmits(['delete', 'enter-edit-mode'])
 
 // State for clear confirmation
 const showClearConfirmation = ref(false)
+const fullMedicationData = ref({ ...props.medicationData })
+
+// Load BLOB data on mount if available
+onMounted(() => {
+  if (props.existingObservation?.observationBlob) {
+    try {
+      const parsedData = JSON.parse(props.existingObservation.observationBlob)
+
+      fullMedicationData.value = {
+        drugName: parsedData.drugName || props.existingObservation.value || '',
+        dosage: parsedData.dosage || props.existingObservation.numericValue || null,
+        dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
+        frequency: parsedData.frequency || '',
+        route: parsedData.route || '',
+        instructions: parsedData.instructions || '',
+      }
+    } catch (error) {
+      console.error('Failed to parse OBSERVATION_BLOB in view:', error)
+      fullMedicationData.value = { ...props.medicationData }
+    }
+  } else {
+    fullMedicationData.value = { ...props.medicationData }
+  }
+})
 
 // Computed
 const hasValue = computed(() => {
   // At minimum we need a drug name to display the medication
-  return !!(props.medicationData.drugName && props.medicationData.drugName.trim())
+  return !!(fullMedicationData.value.drugName && fullMedicationData.value.drugName.trim())
 })
 
 // Elegant view mode display: "DRUG mg 1-0-1 p.o."
@@ -88,24 +116,24 @@ const medicationViewDisplay = computed(() => {
   const parts = []
 
   // Drug name
-  if (props.medicationData.drugName) {
-    parts.push(props.medicationData.drugName)
+  if (fullMedicationData.value.drugName) {
+    parts.push(fullMedicationData.value.drugName)
   }
 
   // Dosage with unit: "100mg"
-  if (props.medicationData.dosage && props.medicationData.dosageUnit) {
-    parts.push(`${props.medicationData.dosage}${props.medicationData.dosageUnit}`)
+  if (fullMedicationData.value.dosage && fullMedicationData.value.dosageUnit) {
+    parts.push(`${fullMedicationData.value.dosage}${fullMedicationData.value.dosageUnit}`)
   }
 
   // Frequency in simplified format
-  if (props.medicationData.frequency) {
-    const freq = getSimplifiedFrequency(props.medicationData.frequency)
+  if (fullMedicationData.value.frequency) {
+    const freq = getSimplifiedFrequency(fullMedicationData.value.frequency)
     parts.push(freq)
   }
 
   // Route abbreviation
-  if (props.medicationData.route) {
-    const route = getRouteAbbreviation(props.medicationData.route)
+  if (fullMedicationData.value.route) {
+    const route = getRouteAbbreviation(fullMedicationData.value.route)
     parts.push(route)
   }
 
@@ -146,9 +174,9 @@ const getRouteAbbreviation = (route) => {
   return routeMap[route] || route?.toLowerCase() || ''
 }
 
-// Clear confirmation methods
-const confirmClear = () => {
-  emit('clear-medication')
+// Remove confirmation methods
+const confirmRemove = () => {
+  emit('delete')
   showClearConfirmation.value = false
 }
 
@@ -156,7 +184,7 @@ const cancelClear = () => {
   showClearConfirmation.value = false
 }
 
-// Auto-hide clear confirmation after 5 seconds for safety
+// Auto-hide remove confirmation after 5 seconds for safety
 watch(
   () => showClearConfirmation.value,
   (newValue) => {
@@ -168,6 +196,33 @@ watch(
       }, 5000) // 5 seconds timeout
     }
   },
+)
+
+// Watch for changes to existingObservation to reload BLOB data
+watch(
+  () => props.existingObservation,
+  (newObservation) => {
+    if (newObservation?.observationBlob) {
+      try {
+        const parsedData = JSON.parse(newObservation.observationBlob)
+
+        fullMedicationData.value = {
+          drugName: parsedData.drugName || newObservation.value || '',
+          dosage: parsedData.dosage || newObservation.numericValue || null,
+          dosageUnit: parsedData.dosageUnit || newObservation.unit || 'mg',
+          frequency: parsedData.frequency || '',
+          route: parsedData.route || '',
+          instructions: parsedData.instructions || '',
+        }
+      } catch (error) {
+        console.error('Failed to parse OBSERVATION_BLOB in watch:', error)
+        fullMedicationData.value = { ...props.medicationData }
+      }
+    } else {
+      fullMedicationData.value = { ...props.medicationData }
+    }
+  },
+  { deep: true },
 )
 
 // Hide clear confirmation when medication data changes
@@ -185,7 +240,7 @@ watch(
 <style lang="scss" scoped>
 // View Mode Styling
 .medication-view {
-  margin-bottom: 0.75rem;
+  margin-bottom: 0rem;
   position: relative;
 
   // Remove button for entire medication field
@@ -264,6 +319,10 @@ watch(
           opacity: 1;
         }
       }
+
+      .view-actions {
+        opacity: 1;
+      }
     }
 
     .view-display {
@@ -303,6 +362,26 @@ watch(
         align-items: center;
         gap: 0.25rem;
         flex-shrink: 0;
+        opacity: 0;
+        transition: opacity 0.2s ease;
+
+        // Always show when confirmation is active
+        &.show-confirmation {
+          opacity: 1;
+        }
+
+        // Make sure buttons are properly styled and visible
+        .q-btn {
+          background: rgba(white, 0.9);
+          border: 1px solid rgba($grey-4, 0.5);
+          box-shadow: 0 1px 3px rgba(black, 0.1);
+
+          &:hover {
+            background: rgba(white, 1);
+            border-color: $grey-5;
+            box-shadow: 0 2px 6px rgba(black, 0.15);
+          }
+        }
 
         .clear-confirmation {
           display: flex;
@@ -312,6 +391,7 @@ watch(
           border-radius: 20px;
           border: 1px solid rgba($negative, 0.2);
           animation: slideIn 0.3s ease;
+          opacity: 1; // Always visible when shown
 
           .confirm-clear-btn {
             background: rgba($negative, 0.1);

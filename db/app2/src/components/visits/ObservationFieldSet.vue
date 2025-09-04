@@ -127,6 +127,7 @@ const logger = loggingStore.createLogger('ObservationFieldSet')
 // State
 const collapsed = ref(false)
 const removedConcepts = ref(new Set()) // Track concepts removed by user
+const removedObservations = ref(new Set()) // Track observation IDs removed by user (for medications)
 const resolvedConceptData = ref(new Map()) // Cache for resolved concept data (names, valueType, unit)
 
 // Component mounted
@@ -240,7 +241,10 @@ const medicationObservations = computed(() => {
       // Must be a medication observation
       const isMedication = obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))
 
-      return encounterMatch && isMedication
+      // Must not be in the removed observations set
+      const notRemoved = !removedObservations.value.has(obs.observationId)
+
+      return encounterMatch && isMedication && notRemoved
     }) || []
 
   // Sort medications by category and then by creation date
@@ -469,8 +473,17 @@ const getPreviousValue = (conceptCode) => {
 }
 
 const onObservationUpdated = (data) => {
-  // Handle removal of empty medication fields
-  if (data.remove && data.conceptCode) {
+  // Handle removal of medication fields (by observation ID)
+  if (data.remove && data.observationId && props.fieldSet.id === 'medications') {
+    removedObservations.value.add(data.observationId)
+    logger.info('Medication observation removed from UI', {
+      observationId: data.observationId,
+      conceptCode: data.conceptCode,
+      fieldSetId: props.fieldSet.id,
+    })
+  }
+  // Handle removal of regular observation fields (by concept code)
+  else if (data.remove && data.conceptCode) {
     removedConcepts.value.add(data.conceptCode)
     logger.info('Concept removed from UI', {
       conceptCode: data.conceptCode,
