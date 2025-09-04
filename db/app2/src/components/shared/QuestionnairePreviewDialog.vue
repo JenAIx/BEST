@@ -33,8 +33,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import AppDialog from './AppDialog.vue'
 import PreviewSurveyTemplate from '../questionnaire/PreviewSurveyTemplate.vue'
 import CompletedQuestionnaireView from '../questionnaire/CompletedQuestionnaireView.vue'
@@ -73,6 +73,7 @@ const emit = defineEmits(['update:modelValue', 'close'])
 
 // Initialize stores
 const loggingStore = useLoggingStore()
+const visitStore = useVisitObservationStore()
 
 // Local state - initialize with modelValue
 const localShow = ref(props.modelValue || false)
@@ -110,7 +111,7 @@ const loadQuestionnaireData = async () => {
   loadError.value = 'No questionnaire data provided'
 }
 
-// Load questionnaire data from observation BLOB
+// Load questionnaire data from observation BLOB using lazy loading
 const loadQuestionnaireFromObservation = async () => {
   if (!props.observationId) return
 
@@ -118,18 +119,18 @@ const loadQuestionnaireFromObservation = async () => {
     loading.value = true
     loadError.value = null
 
-    const dbStore = useDatabaseStore()
-    const result = await dbStore.executeQuery('SELECT OBSERVATION_BLOB FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?', [props.observationId])
+    // Use the lazy loading approach from visit-observation-store
+    const observationDetails = await visitStore.loadObservationDetails(props.observationId)
 
-    if (result.success && result.data.length > 0 && result.data[0].OBSERVATION_BLOB) {
-      questionnaire.value = JSON.parse(result.data[0].OBSERVATION_BLOB)
+    if (observationDetails && observationDetails.observationBlob) {
+      questionnaire.value = observationDetails.observationBlob
     } else {
       loadError.value = 'No questionnaire data found for this observation'
     }
   } catch (error) {
     loggingStore.error('QuestionnairePreviewDialog', 'Failed to load questionnaire data', error, {
       observationId: props.observationId,
-      conceptName: props.conceptName
+      conceptName: props.conceptName,
     })
     loadError.value = 'Failed to load questionnaire data'
   } finally {
@@ -178,7 +179,7 @@ watch(
       await loadQuestionnaireData()
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 watch(localShow, (newValue) => {

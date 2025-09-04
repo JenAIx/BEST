@@ -251,6 +251,9 @@ export const useDatabaseStore = defineStore('database', () => {
     const loggingStore = useLoggingStore()
     const timer = loggingStore.startTimer('Raw Data Upload')
 
+    // Initialize enhancedObservationData outside try block so it's available in catch
+    let enhancedObservationData = { ...observationData }
+
     try {
       if (!canPerformOperations.value) {
         throw new Error('Database not ready for operations')
@@ -266,6 +269,34 @@ export const useDatabaseStore = defineStore('database', () => {
         ext: fileData.fileInfo.ext,
         conceptCode: observationData.CONCEPT_CD,
       })
+
+      // Ensure we have PATIENT_NUM - look it up if missing (similar to visit-observation-store logic)
+      if (!observationData.PATIENT_NUM && observationData.ENCOUNTER_NUM) {
+        try {
+          loggingStore.debug('DatabaseStore', 'PATIENT_NUM missing, looking up from encounter', {
+            encounterNum: observationData.ENCOUNTER_NUM,
+          })
+
+          // Get patient num from the encounter
+          const encounterQuery = `SELECT PATIENT_NUM FROM VISIT_DIMENSION WHERE ENCOUNTER_NUM = ?`
+          const encounterResult = await executeQuery(encounterQuery, [observationData.ENCOUNTER_NUM])
+
+          if (encounterResult.success && encounterResult.data.length > 0) {
+            enhancedObservationData.PATIENT_NUM = encounterResult.data[0].PATIENT_NUM
+            loggingStore.debug('DatabaseStore', 'Found PATIENT_NUM from encounter', {
+              encounterNum: observationData.ENCOUNTER_NUM,
+              patientNum: enhancedObservationData.PATIENT_NUM,
+            })
+          } else {
+            throw new Error('Could not find patient for the given encounter')
+          }
+        } catch (error) {
+          loggingStore.error('DatabaseStore', 'Failed to lookup PATIENT_NUM', error, {
+            encounterNum: observationData.ENCOUNTER_NUM,
+          })
+          throw new Error('PATIENT_NUM is required for raw data upload')
+        }
+      }
 
       // Validate file info
       const { filename, size, ext } = fileData.fileInfo
@@ -291,11 +322,11 @@ export const useDatabaseStore = defineStore('database', () => {
       loggingStore.debug('DatabaseStore', 'Preparing raw data observation', {
         fileInfoJson,
         blobSize: fileData.blob?.length || 0,
-        observationData,
+        observationData: enhancedObservationData,
       })
 
       const rawDataObservation = {
-        ...observationData,
+        ...enhancedObservationData,
         VALTYPE_CD: 'R',
         TVAL_CHAR: fileInfoJson,
         OBSERVATION_BLOB: fileData.blob,
@@ -370,7 +401,7 @@ export const useDatabaseStore = defineStore('database', () => {
       loggingStore.error('DatabaseStore', 'Raw data upload failed', error, {
         filename: fileData?.fileInfo?.filename,
         size: fileData?.fileInfo?.size,
-        conceptCode: observationData?.CONCEPT_CD,
+        conceptCode: enhancedObservationData?.CONCEPT_CD,
       })
       throw error
     }

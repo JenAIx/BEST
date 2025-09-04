@@ -125,6 +125,24 @@
         </div>
       </div>
 
+      <!-- Selection Type Options -->
+      <div v-if="selectedConcept.VALTYPE_CD === 'S'" class="selection-options q-mb-md">
+        <div class="text-caption text-grey-6 q-mb-sm">Select an option:</div>
+        <div class="selection-options-grid">
+          <q-btn
+            v-for="option in selectionOptions"
+            :key="option.value"
+            :label="option.label"
+            :color="option.color || 'primary'"
+            outline
+            size="sm"
+            class="selection-option-btn"
+            @click="selectSelectionOption(option)"
+            :class="{ selected: customObservation.value === option.value }"
+          />
+        </div>
+      </div>
+
       <!-- File Upload for Raw Data (R) type -->
       <div v-if="selectedConcept.VALTYPE_CD === 'R'" class="file-upload-section">
         <div class="text-subtitle2 q-mb-sm">
@@ -134,9 +152,9 @@
         <FileUploadInput v-model="fileData" :max-size-m-b="10" accepted-types=".txt,.png,.gif,.jpg,.jpeg,.pdf,.doc,.docx" @file-selected="onFileSelected" @file-cleared="onFileCleared" />
       </div>
 
-      <!-- Standard Input for non-Finding and non-Raw types -->
+      <!-- Standard Input for non-Finding, non-Selection and non-Raw types -->
       <q-input
-        v-if="selectedConcept.VALTYPE_CD !== 'F' && selectedConcept.VALTYPE_CD !== 'R'"
+        v-if="selectedConcept.VALTYPE_CD !== 'F' && selectedConcept.VALTYPE_CD !== 'S' && selectedConcept.VALTYPE_CD !== 'R'"
         v-model="customObservation.value"
         :label="`Value for ${selectedConcept.NAME_CHAR}`"
         :type="getValueInputType()"
@@ -158,8 +176,21 @@
         class="q-mb-md"
       />
 
+      <!-- Hidden input for Selection types to store the selected option -->
       <q-input
-        v-if="selectedConcept.VALTYPE_CD !== 'F'"
+        v-if="selectedConcept.VALTYPE_CD === 'S'"
+        v-model="customObservation.value"
+        :label="`Selected Option for ${selectedConcept.NAME_CHAR}`"
+        outlined
+        dense
+        readonly
+        :rules="[(val) => !!val || 'Please select an option']"
+        class="q-mb-md"
+      />
+
+      <!-- Unit input for non-Finding and non-Selection types -->
+      <q-input
+        v-if="selectedConcept.VALTYPE_CD !== 'F' && selectedConcept.VALTYPE_CD !== 'S'"
         v-model="customObservation.unit"
         label="Unit (optional)"
         outlined
@@ -233,6 +264,7 @@ const recentConcepts = ref([])
 const selectedConcept = ref(null)
 const saving = ref(false)
 const findingOptions = ref([])
+const selectionOptions = ref([])
 const fileData = ref(null)
 
 // Computed
@@ -404,8 +436,29 @@ const selectConcept = async (concept) => {
         { label: 'K.A.', value: 'K.A.', color: 'grey' },
       ]
     }
+    selectionOptions.value = []
+  }
+  // Load selection options if this is a Selection type concept
+  else if (concept.VALTYPE_CD === 'S') {
+    try {
+      selectionOptions.value = await conceptStore.getSelectionOptions(concept.CONCEPT_CD)
+      logger.info('Selection options loaded', {
+        conceptCode: concept.CONCEPT_CD,
+        optionsCount: selectionOptions.value.length,
+      })
+    } catch (error) {
+      logger.error('Failed to load selection options', error)
+      // Set fallback options for selection
+      selectionOptions.value = [
+        { label: 'Option 1', value: 'OPTION_1', color: 'primary' },
+        { label: 'Option 2', value: 'OPTION_2', color: 'secondary' },
+        { label: 'Option 3', value: 'OPTION_3', color: 'accent' },
+      ]
+    }
+    findingOptions.value = []
   } else {
     findingOptions.value = []
+    selectionOptions.value = []
   }
 
   // Hide search results
@@ -422,11 +475,20 @@ const clearSelectedConcept = () => {
   selectedConcept.value = null
   customObservation.value.unit = ''
   findingOptions.value = []
+  selectionOptions.value = []
 }
 
 const selectFindingOption = (option) => {
   customObservation.value.value = option.value
   logger.info('Finding option selected', {
+    option: option.label,
+    value: option.value,
+  })
+}
+
+const selectSelectionOption = (option) => {
+  customObservation.value.value = option.value
+  logger.info('Selection option selected', {
     option: option.label,
     value: option.value,
   })
@@ -503,7 +565,7 @@ const saveCustomObservation = async () => {
 
     const observationData = {
       ENCOUNTER_NUM: props.visit.id,
-      PATIENT_NUM: props.patient.PATIENT_NUM || props.patient.id,
+      // Don't pass PATIENT_NUM - let the store look it up from selectedPatient
       CONCEPT_CD: conceptCode,
       VALTYPE_CD: valueType,
       START_DATE: new Date().toISOString().split('T')[0],
@@ -769,13 +831,16 @@ const resetState = () => {
     }
   }
 
-  .finding-options {
-    .finding-options-grid {
+  .finding-options,
+  .selection-options {
+    .finding-options-grid,
+    .selection-options-grid {
       display: flex;
       gap: 0.5rem;
       flex-wrap: wrap;
 
-      .finding-option-btn {
+      .finding-option-btn,
+      .selection-option-btn {
         min-width: 80px;
         transition: all 0.2s ease;
 

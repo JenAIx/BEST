@@ -35,19 +35,7 @@
             <q-tooltip>Save</q-tooltip>
           </q-btn>
         </div>
-        <q-btn v-else-if="hasValue && !showRemoveConfirmation" flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = true">
-          <q-tooltip>Remove</q-tooltip>
-        </q-btn>
-
-        <!-- Remove Confirmation Buttons -->
-        <div v-else-if="hasValue && showRemoveConfirmation" class="remove-confirmation-buttons">
-          <q-btn flat round icon="close" size="xs" color="grey-6" @click="showRemoveConfirmation = false" class="cancel-remove-btn">
-            <q-tooltip>Cancel</q-tooltip>
-          </q-btn>
-          <q-btn flat round icon="check" size="xs" color="negative" @click="confirmRemove" class="confirm-remove-btn">
-            <q-tooltip>Confirm Remove</q-tooltip>
-          </q-btn>
-        </div>
+        <AppRemoveConfirmationButton v-else-if="hasValue" :loading="saving" @remove-confirmed="handleRemoveConfirmed" @remove-cancelled="handleRemoveCancelled" />
       </div>
     </div>
 
@@ -148,7 +136,7 @@
 
         <!-- Show file preview if existing file -->
         <div v-else class="existing-file-display">
-          <div class="file-info-card">
+          <div class="file-info-card clickable-card" @click="showFilePreview = true">
             <div class="file-header">
               <q-icon :name="getFileIcon()" :color="getFileColor()" size="32px" />
               <div class="file-details">
@@ -156,17 +144,11 @@
                 <div class="file-meta">
                   <span class="file-size">{{ formatFileSize(existingFileInfo.size) }}</span>
                   <span class="file-type">{{ existingFileInfo.ext?.toUpperCase() }}</span>
+                  <span class="preview-note">Click to preview</span>
                 </div>
               </div>
             </div>
-            <div class="file-actions">
-              <q-btn flat round icon="visibility" size="sm" color="primary" @click="showFilePreview = true" class="preview-btn">
-                <q-tooltip>Preview file</q-tooltip>
-              </q-btn>
-              <q-btn flat round icon="download" size="sm" color="secondary" @click="downloadFile" :loading="downloading" class="download-btn">
-                <q-tooltip>Download file</q-tooltip>
-              </q-btn>
-            </div>
+            <q-tooltip>Click to preview file</q-tooltip>
           </div>
         </div>
       </div>
@@ -252,6 +234,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import FileUploadInput from 'src/components/shared/FileUploadInput.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
+import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
 
 const props = defineProps({
   concept: {
@@ -293,14 +276,12 @@ const lastUpdated = ref(null)
 const resolvedConceptName = ref(null)
 const selectionOptions = ref([])
 const showClonePreview = ref(false)
-const showRemoveConfirmation = ref(false)
-const removeConfirmationTimeout = ref(null)
 
 const hasPendingChanges = ref(false)
 const saveTimeout = ref(null)
 const fileData = ref(null)
 const showFilePreview = ref(false)
-const downloading = ref(false)
+
 const existingFileInfo = ref(null)
 
 // Questionnaire-related state for 'Q' type observations
@@ -433,7 +414,7 @@ const onValueChange = (newValue) => {
   // Check if the new value is different from the original/saved value
   if (newValue === originalValue) {
     loggingStore.debug('ObservationField', 'Value matches original, no pending changes', {
-      conceptCode: props.concept.code
+      conceptCode: props.concept.code,
     })
     hasPendingChanges.value = false
     return
@@ -466,7 +447,7 @@ const createObservation = async (value) => {
   const valueType = actualValueType.value
   const observationData = {
     ENCOUNTER_NUM: props.visit.id,
-    PATIENT_NUM: props.patient.PATIENT_NUM || props.patient.id,
+    // Don't pass PATIENT_NUM - let the store look it up from selectedPatient
     CONCEPT_CD: props.concept.code,
     VALTYPE_CD: valueType,
     START_DATE: new Date().toISOString().split('T')[0],
@@ -573,7 +554,7 @@ const updateObservation = async (value) => {
   return result
 }
 
-const confirmRemove = async () => {
+const handleRemoveConfirmed = async () => {
   try {
     if (props.existingObservation) {
       // Use visit store to delete observation - it handles state updates
@@ -582,7 +563,6 @@ const confirmRemove = async () => {
 
     currentValue.value = ''
     lastUpdated.value = new Date()
-    showRemoveConfirmation.value = false
 
     emit('observation-updated', {
       conceptCode: props.concept.code,
@@ -595,6 +575,11 @@ const confirmRemove = async () => {
       message: 'Value removed successfully',
       position: 'top',
     })
+
+    logger.info('Observation removed successfully', {
+      conceptCode: props.concept.code,
+      observationId: props.existingObservation?.observationId,
+    })
   } catch (error) {
     logger.error('Failed to remove observation', error)
     $q.notify({
@@ -603,6 +588,12 @@ const confirmRemove = async () => {
       position: 'top',
     })
   }
+}
+
+const handleRemoveCancelled = () => {
+  logger.debug('Remove operation cancelled', {
+    conceptCode: props.concept.code,
+  })
 }
 
 // clearValue method removed - functionality now handled by confirmRemove with inline confirmation
@@ -793,55 +784,6 @@ const getFileColor = () => {
   return colorMap[ext] || 'grey'
 }
 
-const downloadFile = async () => {
-  if (!props.existingObservation?.observationId) return
-
-  try {
-    downloading.value = true
-    logger.info('Downloading file from observation', {
-      observationId: props.existingObservation.observationId,
-      filename: existingFileInfo.value?.filename,
-    })
-
-    const result = await dbStore.downloadRawData(props.existingObservation.observationId)
-
-    if (result.success) {
-      // Create blob and download
-      const blob = new Blob([result.blob], {
-        type: result.fileInfo.mimeType || 'application/octet-stream',
-      })
-
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = result.fileInfo.filename
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      URL.revokeObjectURL(url)
-
-      $q.notify({
-        type: 'positive',
-        message: `File "${result.fileInfo.filename}" downloaded successfully`,
-        position: 'top',
-        timeout: 3000,
-      })
-    } else {
-      throw new Error('Download failed')
-    }
-  } catch (error) {
-    logger.error('File download failed', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to download file: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
-  } finally {
-    downloading.value = false
-  }
-}
-
 // Initialize value from existing observation and resolve concept
 onMounted(async () => {
   loggingStore.debug('ObservationField', 'Component mounted', {
@@ -1001,9 +943,6 @@ onUnmounted(() => {
   if (saveTimeout.value) {
     clearTimeout(saveTimeout.value)
   }
-  if (removeConfirmationTimeout.value) {
-    clearTimeout(removeConfirmationTimeout.value)
-  }
 })
 </script>
 
@@ -1154,35 +1093,6 @@ onUnmounted(() => {
         background: rgba($grey-6, 0.1);
       }
     }
-
-    .remove-confirmation-buttons {
-      display: flex;
-      gap: 0.125rem;
-      padding: 1px;
-      background: rgba($negative, 0.08);
-      border-radius: 12px;
-      border: 1px solid rgba($negative, 0.15);
-      animation: slideIn 0.2s ease;
-
-      .confirm-remove-btn {
-        transition: all 0.15s ease;
-
-        &:hover {
-          background: $negative;
-          color: white;
-          transform: scale(1.05);
-        }
-      }
-
-      .cancel-remove-btn {
-        transition: all 0.15s ease;
-
-        &:hover {
-          background: rgba($grey-6, 0.1);
-          transform: scale(1.05);
-        }
-      }
-    }
   }
 }
 
@@ -1227,10 +1137,15 @@ onUnmounted(() => {
         padding: 0.75rem;
         background: $grey-1;
         transition: all 0.2s ease;
+        cursor: pointer;
 
-        &:hover {
-          border-color: $primary;
-          background: white;
+        &.clickable-card {
+          &:hover {
+            border-color: $primary;
+            background: white;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba($primary, 0.15);
+          }
         }
 
         .file-header {
@@ -1253,6 +1168,7 @@ onUnmounted(() => {
               display: flex;
               gap: 0.5rem;
               margin-top: 0.25rem;
+              align-items: center;
 
               .file-size,
               .file-type {
@@ -1263,21 +1179,13 @@ onUnmounted(() => {
               .file-type {
                 font-weight: 500;
               }
-            }
-          }
-        }
 
-        .file-actions {
-          display: flex;
-          gap: 0.25rem;
-          justify-content: flex-end;
-
-          .preview-btn,
-          .download-btn {
-            transition: all 0.2s ease;
-
-            &:hover {
-              transform: scale(1.05);
+              .preview-note {
+                font-size: 0.75rem;
+                color: $grey-6;
+                font-style: italic;
+                margin-left: auto;
+              }
             }
           }
         }

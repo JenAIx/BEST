@@ -38,6 +38,7 @@
     "quasar": "^2.16.0",
     "uuid": "^11.1.0",
     "vue": "^3.4.18",
+    "vue-draggable-next": "^2.3.0",
     "vue-router": "^4.0.0",
     "vuedraggable": "^4.1.0"
   },

@@ -15,11 +15,11 @@
     <MedicationFieldView
       v-if="viewMode"
       :medication-data="medicationData"
+      :existing-observation="observationWithBlob || existingObservation"
       :frequency-options="frequencyOptions"
       :route-options="routeOptions"
       @delete="deleteMedication"
       @enter-edit-mode="enterEditMode"
-      @clear-medication="clearMedication"
     />
 
     <!-- EDIT MODE -->
@@ -68,6 +68,7 @@ import { useQuasar } from 'quasar'
 import { useMedicationsStore } from 'src/stores/medications-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import MedicationFieldView from './MedicationFieldView.vue'
 import MedicationFieldEdit from './MedicationFieldEdit.vue'
 
@@ -100,6 +101,7 @@ const $q = useQuasar()
 const medicationsStore = useMedicationsStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
+const visitObservationStore = useVisitObservationStore()
 const logger = loggingStore.createLogger('MedicationField')
 
 // State
@@ -117,6 +119,7 @@ const lastUpdated = ref(null)
 const resolvedConceptName = ref(null)
 const showClonePreview = ref(false)
 const viewMode = ref(true) // Always start in view mode (default)
+const observationWithBlob = ref(null) // Store the observation with loaded BLOB data
 
 const frequencyOptions = [
   { label: 'Once daily (QD)', value: 'QD' },
@@ -188,7 +191,27 @@ const medicationSummary = computed(() => {
 })
 
 // Mode switching methods
-const enterEditMode = () => {
+const enterEditMode = async () => {
+  // Use BLOB data for editing if available
+  const observationToUse = observationWithBlob.value || props.existingObservation
+
+  if (observationToUse?.observationBlob) {
+    try {
+      const parsedData = JSON.parse(observationToUse.observationBlob)
+      medicationData.value = {
+        drugName: parsedData.drugName || observationToUse.value || '',
+        dosage: parsedData.dosage || observationToUse.numericValue || null,
+        dosageUnit: parsedData.dosageUnit || observationToUse.unit || 'mg',
+        frequency: parsedData.frequency || '',
+        route: parsedData.route || '',
+        instructions: parsedData.instructions || '',
+      }
+      logger.debug('Loaded BLOB data for editing', { parsedData, medicationData: medicationData.value })
+    } catch (error) {
+      logger.warn('Failed to parse BLOB for editing, using basic fields', error)
+    }
+  }
+
   viewMode.value = false
 }
 
@@ -279,6 +302,7 @@ const deleteMedication = async () => {
       value: null,
       deleted: true,
       remove: true, // Signal to remove this medication field entirely
+      observationId: props.existingObservation?.observationId, // Include observation ID for proper removal tracking
     })
 
     logger.info('Empty medication slot removed successfully', {
@@ -305,6 +329,46 @@ const deleteMedication = async () => {
 }
 
 // Methods
+
+const loadObservationBlob = async () => {
+  if (!props.existingObservation?.observationId) {
+    logger.debug('No existing observation to load BLOB for')
+    return
+  }
+
+  try {
+    logger.debug('Loading OBSERVATION_BLOB for medication', {
+      observationId: props.existingObservation.observationId,
+      conceptCode: props.concept.code,
+    })
+
+    const blob = await visitObservationStore.getBlob(props.existingObservation.observationId)
+
+    if (blob) {
+      // Create enhanced observation object with BLOB data
+      observationWithBlob.value = {
+        ...props.existingObservation,
+        observationBlob: blob,
+      }
+
+      logger.debug('OBSERVATION_BLOB loaded successfully', {
+        observationId: props.existingObservation.observationId,
+        blobLength: blob?.length,
+        blobPreview: blob?.substring(0, 100),
+      })
+    } else {
+      logger.debug('No OBSERVATION_BLOB found for observation', {
+        observationId: props.existingObservation.observationId,
+      })
+      observationWithBlob.value = props.existingObservation
+    }
+  } catch (error) {
+    logger.error('Failed to load OBSERVATION_BLOB', error, {
+      observationId: props.existingObservation.observationId,
+    })
+    observationWithBlob.value = props.existingObservation
+  }
+}
 
 const onMedicationChange = async () => {
   logger.debug('onMedicationChange called', {
@@ -364,52 +428,6 @@ const onMedicationChange = async () => {
     })
   } finally {
     saving.value = false
-  }
-}
-
-const clearMedication = async () => {
-  try {
-    // If there's an existing observation, clear it in the database
-    if (props.existingObservation) {
-      const success = await medicationsStore.clearMedication({
-        observationId: props.existingObservation.observationId,
-      })
-
-      if (!success) {
-        throw new Error('Failed to clear medication in database')
-      }
-    }
-
-    // Reset form data
-    medicationData.value = {
-      drugName: '',
-      dosage: null,
-      dosageUnit: 'mg',
-      frequency: '',
-      route: '',
-      instructions: '',
-    }
-
-    lastUpdated.value = new Date()
-
-    emit('observation-updated', {
-      conceptCode: props.concept.code,
-      value: null,
-      deleted: true,
-    })
-
-    $q.notify({
-      type: 'info',
-      message: 'Medication cleared',
-      position: 'top',
-    })
-  } catch (error) {
-    logger.error('Failed to clear medication', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to clear medication',
-      position: 'top',
-    })
   }
 }
 
@@ -478,68 +496,35 @@ onMounted(async () => {
     resolvedConceptName.value = props.concept.name || 'Unknown Medication'
   }
 
-  // Initialize from existing observation
+  // Initialize from existing observation and load BLOB data
   if (props.existingObservation) {
     try {
       logger.debug('Initializing from existing observation', {
         existingObservation: props.existingObservation,
         hasValue: !!props.existingObservation.value,
         hasNumericValue: !!props.existingObservation.numericValue,
-        hasObservationBlob: !!props.existingObservation.observationBlob,
       })
 
-      if (props.existingObservation.observationBlob) {
-        try {
-          const parsedData = JSON.parse(props.existingObservation.observationBlob)
-          medicationData.value = {
-            drugName: parsedData.drugName || props.existingObservation.value || '',
-            dosage: parsedData.dosage || props.existingObservation.numericValue || null,
-            dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
-            frequency: parsedData.frequency || '',
-            route: parsedData.route || '',
-            instructions: parsedData.instructions || '',
-          }
-
-          logger.debug('Initialized medication data from BLOB', {
-            parsedData,
-            medicationData: medicationData.value,
-          })
-        } catch (blobError) {
-          logger.warn('Failed to parse OBSERVATION_BLOB, falling back to basic fields', blobError)
-          // If BLOB parsing fails, use basic fields
-          medicationData.value = {
-            drugName: props.existingObservation.value || '',
-            dosage: props.existingObservation.numericValue || null,
-            dosageUnit: props.existingObservation.unit || 'mg',
-            frequency: '',
-            route: '',
-            instructions: '',
-          }
-        }
-      } else {
-        // Fallback for simple medication data (only TVAL_CHAR, NVAL_NUM, UNIT_CD set)
-        medicationData.value = {
-          drugName: props.existingObservation.value || '',
-          dosage: props.existingObservation.numericValue || null,
-          dosageUnit: props.existingObservation.unit || 'mg',
-          frequency: '',
-          route: '',
-          instructions: '',
-        }
-
-        logger.debug('Initialized medication data from fallback (basic fields only)', {
-          medicationData: medicationData.value,
-          originalObservation: {
-            value: props.existingObservation.value,
-            numericValue: props.existingObservation.numericValue,
-            unit: props.existingObservation.unit,
-          },
-        })
+      // Initialize basic fields first
+      medicationData.value = {
+        drugName: props.existingObservation.value || '',
+        dosage: props.existingObservation.numericValue || null,
+        dosageUnit: props.existingObservation.unit || 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
       }
+
+      logger.debug('Initialized medication data from basic fields', {
+        medicationData: medicationData.value,
+      })
+
+      // Load BLOB data for view mode
+      await loadObservationBlob()
 
       lastUpdated.value = new Date(props.existingObservation.date)
     } catch (error) {
-      logger.error('Failed to parse existing medication data', error)
+      logger.error('Failed to initialize medication data', error)
     }
   }
 
@@ -550,7 +535,7 @@ onMounted(async () => {
 // Watch for changes to existingObservation prop
 watch(
   () => props.existingObservation,
-  (newObservation, oldObservation) => {
+  async (newObservation, oldObservation) => {
     logger.debug('existingObservation prop changed', {
       newObservation,
       oldObservation,
@@ -561,44 +546,22 @@ watch(
     if (newObservation && (!oldObservation || newObservation.observationId !== oldObservation.observationId)) {
       logger.debug('Reinitializing medication data due to prop change')
 
-      if (newObservation.observationBlob) {
-        try {
-          const parsedData = JSON.parse(newObservation.observationBlob)
-          medicationData.value = {
-            drugName: parsedData.drugName || newObservation.value || '',
-            dosage: parsedData.dosage || newObservation.numericValue || null,
-            dosageUnit: parsedData.dosageUnit || newObservation.unit || 'mg',
-            frequency: parsedData.frequency || '',
-            route: parsedData.route || '',
-            instructions: parsedData.instructions || '',
-          }
-        } catch (error) {
-          logger.error('Failed to parse observation blob in watch', error)
-          // Fallback to basic fields if BLOB parsing fails
-          medicationData.value = {
-            drugName: newObservation.value || '',
-            dosage: newObservation.numericValue || null,
-            dosageUnit: newObservation.unit || 'mg',
-            frequency: '',
-            route: '',
-            instructions: '',
-          }
-        }
-      } else {
-        // Handle case where only basic fields are set (no BLOB)
-        medicationData.value = {
-          drugName: newObservation.value || '',
-          dosage: newObservation.numericValue || null,
-          dosageUnit: newObservation.unit || 'mg',
-          frequency: '',
-          route: '',
-          instructions: '',
-        }
-
-        logger.debug('Reinitialized medication data from basic fields only', {
-          medicationData: medicationData.value,
-        })
+      // Initialize basic fields first
+      medicationData.value = {
+        drugName: newObservation.value || '',
+        dosage: newObservation.numericValue || null,
+        dosageUnit: newObservation.unit || 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
       }
+
+      // Load BLOB data
+      await loadObservationBlob()
+
+      logger.debug('Reinitialized medication data with BLOB loading', {
+        medicationData: medicationData.value,
+      })
     }
   },
   { deep: true },
