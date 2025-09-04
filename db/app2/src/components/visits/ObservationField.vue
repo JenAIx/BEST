@@ -35,19 +35,7 @@
             <q-tooltip>Save</q-tooltip>
           </q-btn>
         </div>
-        <q-btn v-else-if="hasValue && !showRemoveConfirmation" flat round icon="clear" size="xs" color="grey-6" @click="showRemoveConfirmation = true">
-          <q-tooltip>Remove</q-tooltip>
-        </q-btn>
-
-        <!-- Remove Confirmation Buttons -->
-        <div v-else-if="hasValue && showRemoveConfirmation" class="remove-confirmation-buttons">
-          <q-btn flat round icon="clear" size="xs" color="grey-6" @click="showRemoveConfirmation = false" class="cancel-remove-btn">
-            <q-tooltip>Cancel</q-tooltip>
-          </q-btn>
-          <q-btn flat round icon="check" size="xs" color="negative" @click="confirmRemove" class="confirm-remove-btn">
-            <q-tooltip>Confirm Remove</q-tooltip>
-          </q-btn>
-        </div>
+        <AppRemoveConfirmationButton v-else-if="hasValue" :loading="saving" @remove-confirmed="handleRemoveConfirmed" @remove-cancelled="handleRemoveCancelled" />
       </div>
     </div>
 
@@ -246,6 +234,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import FileUploadInput from 'src/components/shared/FileUploadInput.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
+import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
 
 const props = defineProps({
   concept: {
@@ -287,8 +276,6 @@ const lastUpdated = ref(null)
 const resolvedConceptName = ref(null)
 const selectionOptions = ref([])
 const showClonePreview = ref(false)
-const showRemoveConfirmation = ref(false)
-const removeConfirmationTimeout = ref(null)
 
 const hasPendingChanges = ref(false)
 const saveTimeout = ref(null)
@@ -567,7 +554,7 @@ const updateObservation = async (value) => {
   return result
 }
 
-const confirmRemove = async () => {
+const handleRemoveConfirmed = async () => {
   try {
     if (props.existingObservation) {
       // Use visit store to delete observation - it handles state updates
@@ -576,7 +563,6 @@ const confirmRemove = async () => {
 
     currentValue.value = ''
     lastUpdated.value = new Date()
-    showRemoveConfirmation.value = false
 
     emit('observation-updated', {
       conceptCode: props.concept.code,
@@ -589,6 +575,11 @@ const confirmRemove = async () => {
       message: 'Value removed successfully',
       position: 'top',
     })
+
+    logger.info('Observation removed successfully', {
+      conceptCode: props.concept.code,
+      observationId: props.existingObservation?.observationId,
+    })
   } catch (error) {
     logger.error('Failed to remove observation', error)
     $q.notify({
@@ -597,6 +588,12 @@ const confirmRemove = async () => {
       position: 'top',
     })
   }
+}
+
+const handleRemoveCancelled = () => {
+  logger.debug('Remove operation cancelled', {
+    conceptCode: props.concept.code,
+  })
 }
 
 // clearValue method removed - functionality now handled by confirmRemove with inline confirmation
@@ -946,9 +943,6 @@ onUnmounted(() => {
   if (saveTimeout.value) {
     clearTimeout(saveTimeout.value)
   }
-  if (removeConfirmationTimeout.value) {
-    clearTimeout(removeConfirmationTimeout.value)
-  }
 })
 </script>
 
@@ -1097,35 +1091,6 @@ onUnmounted(() => {
 
       .cancel-btn:hover {
         background: rgba($grey-6, 0.1);
-      }
-    }
-
-    .remove-confirmation-buttons {
-      display: flex;
-      gap: 0.125rem;
-      padding: 1px;
-      background: rgba($negative, 0.08);
-      border-radius: 12px;
-      border: 1px solid rgba($negative, 0.15);
-      animation: slideIn 0.2s ease;
-
-      .confirm-remove-btn {
-        transition: all 0.15s ease;
-
-        &:hover {
-          background: $negative;
-          color: white;
-          transform: scale(1.05);
-        }
-      }
-
-      .cancel-remove-btn {
-        transition: all 0.15s ease;
-
-        &:hover {
-          background: rgba($grey-6, 0.1);
-          transform: scale(1.05);
-        }
       }
     }
   }
