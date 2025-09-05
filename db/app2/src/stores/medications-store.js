@@ -548,6 +548,50 @@ export const useMedicationsStore = defineStore('medications', () => {
   }
 
   /**
+   * Get frequency label from stored frequency code
+   * @param {string|Object} frequencyCode - Stored frequency code or option object
+   * @returns {Promise<string>} Frequency label (e.g., 'Once daily', 'Twice daily')
+   */
+  const getFrequencyLabel = async (frequencyCode) => {
+    if (!frequencyCode) return ''
+
+    // Handle both string values and objects from q-select
+    const codeValue = typeof frequencyCode === 'object' ? frequencyCode?.value : frequencyCode
+    if (!codeValue || typeof codeValue !== 'string') return ''
+
+    try {
+      const frequencyOptions = await getFrequencyOptions()
+      const freqOption = frequencyOptions.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+      return freqOption?.label || codeValue
+    } catch (error) {
+      logger.warn('Failed to get frequency label', { frequencyCode: codeValue, error })
+      return codeValue
+    }
+  }
+
+  /**
+   * Get route label from stored route code
+   * @param {string|Object} routeCode - Stored route code or option object
+   * @returns {Promise<string>} Route label (e.g., 'Oral', 'Intravenous')
+   */
+  const getRouteLabel = async (routeCode) => {
+    if (!routeCode) return ''
+
+    // Handle both string values and objects from q-select
+    const codeValue = typeof routeCode === 'object' ? routeCode?.value : routeCode
+    if (!codeValue || typeof codeValue !== 'string') return ''
+
+    try {
+      const routeOptions = await getRouteOptions()
+      const routeOption = routeOptions.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+      return routeOption?.label || codeValue
+    } catch (error) {
+      logger.warn('Failed to get route label', { routeCode: codeValue, error })
+      return codeValue
+    }
+  }
+
+  /**
    * Format medication for display
    * @param {Object} medication - Medication object
    * @returns {string} Formatted display string
@@ -600,5 +644,7 @@ export const useMedicationsStore = defineStore('medications', () => {
     normalizeMedicationData,
     getSimplifiedFrequency,
     getRouteAbbreviation,
+    getFrequencyLabel,
+    getRouteLabel,
   }
 })

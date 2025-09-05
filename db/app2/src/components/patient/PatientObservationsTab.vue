@@ -71,6 +71,7 @@
 
             <ObservationsTable
               v-else
+              :key="`${visitGroup.encounterNum}-${renderVersion}`"
               :table-rows="getVisitTableRows(visitGroup)"
               :loading="loading"
               :visit="visitGroup.visit"
@@ -115,7 +116,6 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
-import { useMedicationsStore } from 'src/stores/medications-store'
 import NewVisitDialog from '../visits/NewVisitDialog.vue'
 import ObservationsTable from '../visits/ObservationsTable.vue'
 import MedicationEditDialog from '../visits/MedicationEditDialog.vue'
@@ -129,7 +129,6 @@ const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const visitObservationStore = useVisitObservationStore()
-const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('PatientObservationsTab')
 
@@ -151,6 +150,9 @@ const loading = ref(false)
 
 // Track pending changes per row
 const pendingChanges = ref(new Map())
+
+// Force re-render counter
+const renderVersion = ref(0)
 
 // Frequency and route options for medications - loaded from store
 const frequencyOptions = ref([])
@@ -300,10 +302,10 @@ const valueTypeOptions = ref([])
 // Load medication options from store
 const loadMedicationOptions = async () => {
   try {
-    logger.debug('Loading medication options from store')
+    logger.debug('Loading medication options from concept resolution store')
 
     // Load frequency and route options in parallel
-    const [freqOptions, routeOpts] = await Promise.all([medicationsStore.getFrequencyOptions(), medicationsStore.getRouteOptions()])
+    const [freqOptions, routeOpts] = await Promise.all([conceptStore.getMedicationFrequencyOptions(), conceptStore.getMedicationRouteOptions()])
 
     frequencyOptions.value = freqOptions
     routeOptions.value = routeOpts
@@ -311,6 +313,8 @@ const loadMedicationOptions = async () => {
     logger.success('Medication options loaded successfully', {
       frequencyCount: freqOptions.length,
       routeCount: routeOpts.length,
+      frequencySample: freqOptions.slice(0, 2),
+      routeSample: routeOpts.slice(0, 2),
     })
   } catch (error) {
     logger.error('Failed to load medication options', error)
@@ -822,8 +826,8 @@ const onMedicationEditSave = async (medicationData) => {
       drugName: medicationData.drugName || '',
       dosage: medicationData.dosage || null,
       dosageUnit: medicationData.dosageUnit || 'mg',
-      frequency: typeof medicationData.frequency === 'object' ? medicationData.frequency?.value : medicationData.frequency || '',
-      route: typeof medicationData.route === 'object' ? medicationData.route?.value : medicationData.route || '',
+      frequency: (typeof medicationData.frequency === 'object' ? medicationData.frequency?.value || '' : medicationData.frequency || '').toLowerCase(),
+      route: (typeof medicationData.route === 'object' ? medicationData.route?.value || '' : medicationData.route || '').toLowerCase(),
       instructions: medicationData.instructions || '',
     }
 
@@ -835,8 +839,23 @@ const onMedicationEditSave = async (medicationData) => {
 
     await visitObservationStore.updateObservation(row.observationId, updateData, { skipReload: true })
 
+    // Update local state to reflect changes immediately
+    if (row.rawObservation) {
+      row.rawObservation.TVAL_CHAR = normalizedMedicationData.drugName
+      row.rawObservation.tval_char = normalizedMedicationData.drugName
+      row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+      row.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+      row.rawObservation.OBSERVATION_BLOB = JSON.stringify(normalizedMedicationData)
+      row.rawObservation.observation_blob = JSON.stringify(normalizedMedicationData)
+      row.rawObservation.originalValue = normalizedMedicationData.drugName
+      row.rawObservation.value = normalizedMedicationData.drugName
+    }
+
     // Clear pending changes
     pendingChanges.value.delete(row.id)
+
+    // Force re-render to update the medication display
+    renderVersion.value++
 
     emit('updated')
     logger.success('Medication updated successfully', { rowId: row.id })

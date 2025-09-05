@@ -71,7 +71,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
-import { useMedicationsStore } from 'src/stores/medications-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ObservationsTable from './ObservationsTable.vue'
@@ -106,7 +105,6 @@ const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh
 
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
-const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const conceptStore = useConceptResolutionStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
@@ -147,10 +145,10 @@ onMounted(async () => {
 // Load medication options from store
 const loadMedicationOptions = async () => {
   try {
-    logger.debug('Loading medication options from store')
+    logger.debug('Loading medication options from concept resolution store')
 
     // Load frequency and route options in parallel
-    const [freqOptions, routeOpts] = await Promise.all([medicationsStore.getFrequencyOptions(), medicationsStore.getRouteOptions()])
+    const [freqOptions, routeOpts] = await Promise.all([conceptStore.getMedicationFrequencyOptions(), conceptStore.getMedicationRouteOptions()])
 
     frequencyOptions.value = freqOptions
     routeOptions.value = routeOpts
@@ -560,8 +558,8 @@ const onMedicationEditSave = async (medicationData) => {
       drugName: medicationData.drugName || '',
       dosage: medicationData.dosage || null,
       dosageUnit: medicationData.dosageUnit || 'mg',
-      frequency: typeof medicationData.frequency === 'object' ? medicationData.frequency?.value : medicationData.frequency || '',
-      route: typeof medicationData.route === 'object' ? medicationData.route?.value : medicationData.route || '',
+      frequency: (typeof medicationData.frequency === 'object' ? medicationData.frequency?.value || '' : medicationData.frequency || '').toLowerCase(),
+      route: (typeof medicationData.route === 'object' ? medicationData.route?.value || '' : medicationData.route || '').toLowerCase(),
       instructions: medicationData.instructions || '',
     }
 

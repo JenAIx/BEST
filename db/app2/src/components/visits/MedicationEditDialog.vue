@@ -78,6 +78,9 @@
             <template v-slot:prepend>
               <q-icon name="route" />
             </template>
+            <template v-slot:selected>
+              {{ getSelectedRouteLabel() }}
+            </template>
           </q-select>
         </div>
 
@@ -96,6 +99,9 @@
           >
             <template v-slot:prepend>
               <q-icon name="schedule" />
+            </template>
+            <template v-slot:selected>
+              {{ getSelectedFrequencyLabel() }}
             </template>
           </q-select>
         </div>
@@ -381,9 +387,53 @@ const onDrugChange = (selectedDrug) => {
   onMedicationChange()
 }
 
-const onMedicationChange = () => {
+// Reactive labels for q-select display
+const selectedFrequencyLabel = ref('')
+const selectedRouteLabel = ref('')
+
+// Update labels when values change
+const updateSelectedLabels = async () => {
+  // Update frequency label
+  if (localMedicationData.value.frequency) {
+    try {
+      selectedFrequencyLabel.value = await medicationsStore.getFrequencyLabel(localMedicationData.value.frequency)
+    } catch (error) {
+      logger.warn('Failed to get frequency label', { frequency: localMedicationData.value.frequency, error })
+      selectedFrequencyLabel.value = localMedicationData.value.frequency
+    }
+  } else {
+    selectedFrequencyLabel.value = ''
+  }
+
+  // Update route label
+  if (localMedicationData.value.route) {
+    try {
+      selectedRouteLabel.value = await medicationsStore.getRouteLabel(localMedicationData.value.route)
+    } catch (error) {
+      logger.warn('Failed to get route label', { route: localMedicationData.value.route, error })
+      selectedRouteLabel.value = localMedicationData.value.route
+    }
+  } else {
+    selectedRouteLabel.value = ''
+  }
+}
+
+// Helper functions for q-select display (synchronous)
+const getSelectedFrequencyLabel = () => selectedFrequencyLabel.value
+const getSelectedRouteLabel = () => selectedRouteLabel.value
+
+const onMedicationChange = async () => {
+  // Normalize frequency and route values if they are objects
+  if (typeof localMedicationData.value.frequency === 'object' && localMedicationData.value.frequency?.value) {
+    localMedicationData.value.frequency = localMedicationData.value.frequency.value
+  }
+  if (typeof localMedicationData.value.route === 'object' && localMedicationData.value.route?.value) {
+    localMedicationData.value.route = localMedicationData.value.route.value
+  }
+
   logger.debug('Medication data changed', { localMedicationData: localMedicationData.value })
-  updateMedicationPreview()
+  await updateSelectedLabels()
+  await updateMedicationPreview()
 }
 
 const onSave = async () => {
@@ -440,7 +490,13 @@ const loadMedicationBlobData = async () => {
   }
 
   try {
-    logger.debug('Loading BLOB data for medication edit', { observationId: props.observationId })
+    logger.debug('Loading BLOB data for medication edit', {
+      observationId: props.observationId,
+      frequencyOptionsCount: props.frequencyOptions?.length || 0,
+      routeOptionsCount: props.routeOptions?.length || 0,
+      frequencyOptionsSample: props.frequencyOptions?.slice(0, 2),
+      routeOptionsSample: props.routeOptions?.slice(0, 2),
+    })
     const blobData = await visitStore.getBlob(props.observationId)
 
     if (blobData) {
@@ -459,8 +515,20 @@ const loadMedicationBlobData = async () => {
           instructions: parsedData.instructions || localMedicationData.value.instructions || '',
         }
 
+        logger.debug('Medication data after BLOB loading', {
+          frequency: localMedicationData.value.frequency,
+          route: localMedicationData.value.route,
+          frequencyOptionsAvailable: props.frequencyOptions?.length || 0,
+          routeOptionsAvailable: props.routeOptions?.length || 0,
+          frequencyMatch: props.frequencyOptions?.find((opt) => opt.value === localMedicationData.value.frequency),
+          routeMatch: props.routeOptions?.find((opt) => opt.value === localMedicationData.value.route),
+        })
+
         // Update original data as well
         originalMedicationData.value = { ...localMedicationData.value }
+
+        // Update the labels for display
+        await updateSelectedLabels()
 
         logger.debug('Updated medication data with BLOB values', {
           localMedicationData: localMedicationData.value,
@@ -485,10 +553,18 @@ watch(
       originalMedicationData.value = { ...props.medicationData }
       saving.value = false
 
+      logger.debug('Dialog opened - checking options availability', {
+        frequencyOptionsCount: props.frequencyOptions?.length || 0,
+        routeOptionsCount: props.routeOptions?.length || 0,
+        frequencyOptions: props.frequencyOptions?.map((opt) => ({ label: opt.label, value: opt.value })) || [],
+        routeOptions: props.routeOptions?.map((opt) => ({ label: opt.label, value: opt.value })) || [],
+      })
+
       // Load BLOB data to get complete medication information
       await loadMedicationBlobData()
 
-      // Update preview after loading BLOB data
+      // Update labels and preview after loading BLOB data
+      await updateSelectedLabels()
       await updateMedicationPreview()
     }
   },

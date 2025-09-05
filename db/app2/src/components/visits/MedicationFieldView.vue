@@ -187,10 +187,43 @@ const getRouteAbbreviation = async (route) => {
 // Watch for changes to existingObservation to reload BLOB data
 watch(
   () => props.existingObservation,
-  (newObservation) => {
-    if (newObservation?.observationBlob) {
+  async (newObservation) => {
+    // Load BLOB data if we have an observation ID
+    if (newObservation?.observationId) {
       try {
-        const parsedData = JSON.parse(newObservation.observationBlob)
+        // Use the visit observation store to load the BLOB data
+        const visitStore = useVisitObservationStore()
+        const blobData = await visitStore.getBlob(newObservation.observationId)
+
+        if (blobData) {
+          try {
+            const parsedData = JSON.parse(blobData)
+
+            fullMedicationData.value = {
+              drugName: parsedData.drugName || newObservation.value || '',
+              dosage: parsedData.dosage || newObservation.numericValue || null,
+              dosageUnit: parsedData.dosageUnit || newObservation.unit || 'mg',
+              frequency: parsedData.frequency || '',
+              route: parsedData.route || '',
+              instructions: parsedData.instructions || '',
+            }
+          } catch (parseError) {
+            console.error('Failed to parse OBSERVATION_BLOB:', parseError)
+            fullMedicationData.value = { ...props.medicationData }
+          }
+        } else {
+          // No BLOB data available, use basic data
+          fullMedicationData.value = { ...props.medicationData }
+        }
+      } catch (error) {
+        console.error('Failed to load OBSERVATION_BLOB:', error)
+        fullMedicationData.value = { ...props.medicationData }
+      }
+    } else if (newObservation?.observationBlob || newObservation?.OBSERVATION_BLOB) {
+      // Fallback: if BLOB is already available in props
+      const blobData = newObservation.observationBlob || newObservation.OBSERVATION_BLOB
+      try {
+        const parsedData = JSON.parse(blobData)
 
         fullMedicationData.value = {
           drugName: parsedData.drugName || newObservation.value || '',
@@ -209,7 +242,7 @@ watch(
     }
 
     // Update display after data change
-    updateMedicationDisplay()
+    await updateMedicationDisplay()
   },
   { deep: true },
 )
@@ -224,12 +257,64 @@ watch(
   { deep: true },
 )
 
+// Watch for changes to BLOB data properties
+watch(
+  () => props.existingObservation?.OBSERVATION_BLOB,
+  async (newBlob) => {
+    if (newBlob && props.existingObservation) {
+      try {
+        const parsedData = JSON.parse(newBlob)
+
+        fullMedicationData.value = {
+          drugName: parsedData.drugName || props.existingObservation.value || '',
+          dosage: parsedData.dosage || props.existingObservation.numericValue || null,
+          dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
+          frequency: parsedData.frequency || '',
+          route: parsedData.route || '',
+          instructions: parsedData.instructions || '',
+        }
+
+        // Update display after data change
+        await updateMedicationDisplay()
+      } catch (error) {
+        console.error('Failed to parse OBSERVATION_BLOB in BLOB watcher:', error)
+      }
+    }
+  },
+)
+
+// Watch for changes to observation_blob property
+watch(
+  () => props.existingObservation?.observation_blob,
+  async (newBlob) => {
+    if (newBlob && props.existingObservation) {
+      try {
+        const parsedData = JSON.parse(newBlob)
+
+        fullMedicationData.value = {
+          drugName: parsedData.drugName || props.existingObservation.value || '',
+          dosage: parsedData.dosage || props.existingObservation.numericValue || null,
+          dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
+          frequency: parsedData.frequency || '',
+          route: parsedData.route || '',
+          instructions: parsedData.instructions || '',
+        }
+
+        // Update display after data change
+        await updateMedicationDisplay()
+      } catch (error) {
+        console.error('Failed to parse observation_blob in BLOB watcher:', error)
+      }
+    }
+  },
+)
+
 // Watch for fullMedicationData changes
 watch(
   () => fullMedicationData.value,
-  () => {
+  async () => {
     // Update display when internal medication data changes
-    updateMedicationDisplay()
+    await updateMedicationDisplay()
   },
   { deep: true },
 )
