@@ -4,12 +4,14 @@ A modern research database for neuroscientific data built with Vue 3, Quasar, an
 
 ## Features
 
-- **Modern Architecture**: Clean separation of concerns with repository pattern
+- **MVC Architecture**: Clean Model-View-Controller pattern with separated concerns
 - **SQLite Database**: Local database with proper migrations and schema management
 - **Patient Management**: Full CRUD operations for patient data
 - **Visit Management**: Medical encounter tracking and lifecycle management
 - **Clinical Observations**: Multi-type value storage (Numeric, Text, BLOB) with analytics
 - **Data Validation**: Comprehensive validation layer with CQL rule integration
+- **Service Layer**: Business logic coordination between models and views
+- **Data Transformers**: Clean data mapping and formatting utilities
 - **Migration System**: Automated database schema management with seed data
 - **Type Safety**: Modern JavaScript with proper error handling and validation
 - **Responsive UI**: Beautiful Quasar-based interface
@@ -20,6 +22,7 @@ A modern research database for neuroscientific data built with Vue 3, Quasar, an
 The application uses a **star schema** design optimized for clinical research data:
 
 ### DB Design (Star Schema)
+
 ```
                     ┌─────────────────┐
                     │  CONCEPT_DIM    │
@@ -66,6 +69,7 @@ The application uses a **star schema** design optimized for clinical research da
 ```
 
 ### Core Tables
+
 - **PATIENT_DIMENSION**: Patient demographics and metadata
 - **VISIT_DIMENSION**: Patient encounters and visits with lifecycle management
 - **OBSERVATION_FACT**: Clinical observations and measurements (Central Fact Table)
@@ -76,9 +80,111 @@ The application uses a **star schema** design optimized for clinical research da
 - **CQL_FACT**: Clinical Quality Language rules with 8 seeded rules
 - **CONCEPT_CQL_LOOKUP**: Concept-rule relationships and mappings
 
+## MVC Architecture
+
+The application follows a clean **Model-View-Controller (MVC)** pattern that separates concerns and promotes maintainability:
+
+### MVC Pattern Implementation
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                           VIEW LAYER                            │
+├─────────────────────────────────────────────────────────────────┤
+│  Vue Components (Views)                                        │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
+│  │ PatientPage.vue │ │ VisitsPage.vue  │ │ DashboardPage   │   │
+│  │ • UI Logic      │ │ • UI Logic      │ │ • UI Logic      │   │
+│  │ • User Input    │ │ • User Input    │ │ • User Input    │   │
+│  │ • Event Handling│ │ • Event Handling│ │ • Event Handling│   │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                        CONTROLLER LAYER                         │
+├─────────────────────────────────────────────────────────────────┤
+│  Services (Controllers)                                        │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ visit-observation-service.js                           │   │
+│  │ • Coordinates business logic                           │   │
+│  │ • Orchestrates model interactions                     │   │
+│  │ • Handles complex workflows                           │   │
+│  │ • Manages data flow between models                    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                          MODEL LAYER                            │
+├─────────────────────────────────────────────────────────────────┤
+│  Pinia Stores (Models)          │  Data Transformers            │
+│  ┌─────────────────────────────┐ │ ┌─────────────────────────┐   │
+│  │ patient-store.js            │ │ │ observation-transformer │   │
+│  │ • Patient state management  │ │ │ • Data mapping          │   │
+│  │ • Patient CRUD operations  │ │ │ • Format conversion     │   │
+│  └─────────────────────────────┘ │ └─────────────────────────┘   │
+│  ┌─────────────────────────────┐ │ ┌─────────────────────────┐   │
+│  │ visit-store.js              │ │ │ visit-transformer       │   │
+│  │ • Visit state management    │ │ │ • Data mapping          │   │
+│  │ • Visit CRUD operations    │ │ │ • Format conversion     │   │
+│  └─────────────────────────────┘ │ └─────────────────────────┘   │
+│  ┌─────────────────────────────┐ │                               │
+│  │ observation-store.js        │ │                               │
+│  │ • Observation state mgmt    │ │                               │
+│  │ • Observation CRUD ops      │ │                               │
+│  └─────────────────────────────┘ │                               │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      DATA ACCESS LAYER                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Repositories & Database Service                               │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
+│  │ PatientRepo     │ │ VisitRepo       │ │ ObservationRepo │   │
+│  │ • Data access   │ │ • Data access   │ │ • Data access   │   │
+│  │ • Query logic   │ │ • Query logic   │ │ • Query logic   │   │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### MVC Benefits
+
+1. **Separation of Concerns**: Each layer has a single responsibility
+2. **Maintainability**: Changes in one layer don't affect others
+3. **Testability**: Each component can be tested independently
+4. **Reusability**: Models and services can be reused across views
+5. **Scalability**: Easy to add new features without affecting existing code
+
+### Key Components
+
+#### Models (Pinia Stores)
+
+- **`patient-store.js`**: Manages patient-specific state and operations
+- **`visit-store.js`**: Manages visit-specific state and operations
+- **`observation-store.js`**: Manages observation-specific state and operations
+- **`medications-store.js`**: Centralized medication parsing and formatting logic
+
+#### Controllers (Services)
+
+- **`visit-observation-service.js`**: Coordinates complex business logic between stores
+- **`database-service.js`**: Handles database operations and repository coordination
+
+#### Views (Vue Components)
+
+- **`PatientPage.vue`**: Patient management interface
+- **`VisitsPage.vue`**: Visit management interface
+- **`DashboardPage.vue`**: System overview and statistics
+
+#### Data Transformers
+
+- **`observation-transformer.js`**: Transforms raw observation data
+- **`visit-transformer.js`**: Transforms raw visit data
+
 ## Architecture
 
 ### Core Logic Flow
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                        PRESENTATION LAYER                       │
@@ -155,6 +261,7 @@ The application uses a **star schema** design optimized for clinical research da
 ```
 
 ### Directory Structure
+
 ```
 src/
 ├── core/                    # Core business logic
@@ -163,14 +270,32 @@ src/
 │   │   ├── repositories/  # Data access layer (7 repositories)
 │   │   ├── migrations/    # Schema management with seed data
 │   │   └── seeds/         # CSV-based data seeding
-│   ├── services/           # Business services
+│   ├── services/           # Business services (Controllers)
+│   │   └── visit-observation-service.js
 │   └── validators/         # Data validation
 ├── infrastructure/         # External integrations
-├── presentation/           # UI layer
+├── presentation/           # UI layer (Views)
 │   ├── components/        # Vue components
-│   ├── pages/             # Route pages
-│   ├── stores/            # Pinia stores
+│   │   ├── patient/       # Patient-related components
+│   │   ├── visits/        # Visit-related components
+│   │   ├── shared/        # Shared components
+│   │   └── datagrid/      # Data grid components
+│   ├── pages/             # Route pages (Views)
+│   │   ├── PatientPage.vue
+│   │   ├── VisitsPage.vue
+│   │   ├── DashboardPage.vue
+│   │   └── DataGridPage.vue
+│   ├── stores/            # Pinia stores (Models)
+│   │   ├── patient-store.js
+│   │   ├── visit-store.js
+│   │   ├── observation-store.js
+│   │   ├── medications-store.js
+│   │   ├── database-store.js
+│   │   └── concept-resolution-store.js
 │   └── layouts/           # App layouts
+├── utils/                  # Data transformers (Model helpers)
+│   ├── observation-transformer.js
+│   └── visit-transformer.js
 └── shared/                 # Shared utilities
 
 tests/                      # Comprehensive test suite
@@ -183,90 +308,103 @@ tests/                      # Comprehensive test suite
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18+ 
+
+- Node.js 18+
 - npm or yarn
 
 ### Installation
+
 ```bash
 npm install
 ```
 
 ### Development
+
 ```bash
 npm run dev
 ```
 
 ### Building
+
 ```bash
 npm run build
 ```
 
-## Vue Components → Database Flow
+## MVC Data Flow Architecture
 
-### Data Flow Architecture
+### Complete MVC Flow
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                      VUE COMPONENTS                             │
+│                           VIEW LAYER                            │
 ├─────────────────────────────────────────────────────────────────┤
-│  DatabaseTest.vue    │  PatientList.vue   │  ObservationEdit   │
-│  ┌─────────────────┐ │ ┌────────────────┐ │ ┌────────────────┐ │
-│  │ • initDatabase()│ │ │ • loadPatients │ │ │ • saveObserv() │ │
-│  │ • createPatient│ │ │ • searchPatient│ │ │ • updateObserv │ │
-│  │ • searchPatient│ │ │ • deletePatient│ │ │ • deleteObserv │ │
-│  │ • showStats()  │ │ │ • showDetails  │ │ │ • validateData │ │
-│  └─────────────────┘ │ └────────────────┘ │ └────────────────┘ │
+│  Vue Components (Views)                                        │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
+│  │ PatientPage.vue │ │ VisitsPage.vue  │ │ DashboardPage   │   │
+│  │ • UI Logic      │ │ • UI Logic      │ │ • UI Logic      │   │
+│  │ • User Input    │ │ • User Input    │ │ • User Input    │   │
+│  │ • Event Handling│ │ • Event Handling│ │ • Event Handling│   │
+│  │ • Data Display  │ │ • Data Display  │ │ • Data Display  │   │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
-           │                      │                      │
-           ▼                      ▼                      ▼
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                       PINIA STORES                              │
+│                        CONTROLLER LAYER                         │
 ├─────────────────────────────────────────────────────────────────┤
-│  useDatabaseStore()  │  usePatientStore() │  useObservStore()  │
-│  ┌─────────────────┐ │ ┌────────────────┐ │ ┌────────────────┐ │
-│  │ State:          │ │ │ State:         │ │ │ State:         │ │
-│  │ • isConnected   │ │ │ • patients[]   │ │ │ • observations│ │
-│  │ • isLoading     │ │ │ • currentPat   │ │ │ • currentObs   │ │
-│  │ • statistics    │ │ │ • searchTerm   │ │ │ • filters      │ │
-│  │                 │ │ │                │ │ │                │ │
-│  │ Actions:        │ │ │ Actions:       │ │ │ Actions:       │ │
-│  │ • initDatabase()│ │ │ • createPat()  │ │ │ • createObs()  │ │
-│  │ • closeDatabase│ │ │ • findPatients │ │ │ • findObservs  │ │
-│  │ • resetDatabase│ │ │ • updatePat()  │ │ │ • updateObs()  │ │
-│  └─────────────────┘ │ └────────────────┘ │ └────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-           │                      │                      │
-           ▼                      ▼                      ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                    DATABASE SERVICE                             │
-├─────────────────────────────────────────────────────────────────┤
-│                    databaseService                              │
+│  Services (Controllers)                                        │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ • getPatientRepository() ──────────────────────────────┐│   │
-│  │ • getVisitRepository()   ──────────────────────────────││   │
-│  │ • getObservationRepository() ──────────────────────────││   │
-│  │ • executeQuery(sql, params)                            ││   │
-│  │ • executeTransaction(commands[])                       ││   │
-│  │ • initializeDatabase(path)                             ││   │
-│  └─────────────────────────────────────────────────────────┘│   │
+│  │ visit-observation-service.js                           │   │
+│  │ • selectVisitAndLoadObservations()                     │   │
+│  │ • loadPatientWithData()                                │   │
+│  │ • createObservation()                                  │   │
+│  │ • updateObservation()                                  │   │
+│  │ • deleteObservation()                                  │   │
+│  │ • getPreviousVisits()                                  │   │
+│  └─────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
-           │                      │                      │
-           ▼                      ▼                      ▼
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     REPOSITORIES                                │
+│                          MODEL LAYER                            │
 ├─────────────────────────────────────────────────────────────────┤
-│  PatientRepository   │ VisitRepository    │ ObservationRepo     │
-│  ┌─────────────────┐ │ ┌────────────────┐ │ ┌────────────────┐ │
-│  │ • createPatient │ │ │ • createVisit  │ │ │ • createObserv │ │
-│  │ • findByCode()  │ │ │ • findByPatient│ │ │ • findByVisit  │ │
-│  │ • findByCriteria│ │ │ • findByDate   │ │ │ • findByConcept│ │
-│  │ • updatePatient │ │ │ • updateVisit  │ │ │ • updateObserv │ │
-│  │ • deletePatient │ │ │ • deleteVisit  │ │ │ • deleteObserv │ │
-│  │ • searchPatients│ │ │ • getStatistics│ │ │ • getStatistics│ │
-│  │ • getStatistics │ │ │                │ │ │                │ │
-│  └─────────────────┘ │ └────────────────┘ │ └────────────────┘ │
+│  Pinia Stores (Models)          │  Data Transformers            │
+│  ┌─────────────────────────────┐ │ ┌─────────────────────────┐   │
+│  │ patient-store.js            │ │ │ observation-transformer │   │
+│  │ • selectedPatient           │ │ │ • transformObservation()│   │
+│  │ • loadPatient()             │ │ │ • formatValue()         │   │
+│  │ • searchPatients()          │ │ │ • parseBlob()           │   │
+│  └─────────────────────────────┘ │ └─────────────────────────┘   │
+│  ┌─────────────────────────────┐ │ ┌─────────────────────────┐   │
+│  │ visit-store.js              │ │ │ visit-transformer       │   │
+│  │ • selectedVisit             │ │ │ • transformVisit()      │   │
+│  │ • visits                    │ │ │ • formatDate()          │   │
+│  │ • loadVisitsForPatient()    │ │ │ • parseVisitBlob()      │   │
+│  └─────────────────────────────┘ │ └─────────────────────────┘   │
+│  ┌─────────────────────────────┐ │                               │
+│  │ observation-store.js        │ │                               │
+│  │ • observations              │ │                               │
+│  │ • categorizedObservations   │ │                               │
+│  │ • loadObservationsForVisit()│ │                               │
+│  │ • getObservationBlob()      │ │                               │
+│  └─────────────────────────────┘ │                               │
 └─────────────────────────────────────────────────────────────────┘
-           │                      │                      │
-           ▼                      ▼                      ▼
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                      DATA ACCESS LAYER                          │
+├─────────────────────────────────────────────────────────────────┤
+│  Repositories & Database Service                               │
+│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐   │
+│  │ PatientRepo     │ │ VisitRepo       │ │ ObservationRepo │   │
+│  │ • createPatient │ │ • createVisit   │ │ • createObs     │   │
+│  │ • findByCode()  │ │ • findByPatient │ │ • findByVisit   │   │
+│  │ • updatePatient │ │ • updateVisit   │ │ • updateObs     │   │
+│  │ • deletePatient │ │ • deleteVisit   │ │ • deleteObs     │   │
+│  └─────────────────┘ └─────────────────┘ └─────────────────┘   │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                   SQLITE CONNECTION                             │
 ├─────────────────────────────────────────────────────────────────┤
@@ -284,25 +422,28 @@ npm run build
                     ┌─────────────────┐
                     │   SQLite File   │
                     │                 │
-                    │ patient.db      │
-                    │ research.db     │
-                    │ test.db         │
+                    │ production.db   │
+                    │ development.db  │ (not used)
+                    │ test.db         │ (not used)
                     │                 │
                     └─────────────────┘
 
-Error Handling Flow:
-Database Error ──► Repository ──► Service ──► Store ──► Component ──► User Notification
+MVC Error Handling Flow:
+Database Error ──► Repository ──► Store ──► Service ──► Component ──► User Notification
 ```
 
 ## Database Operations
 
 ### Connection
+
 The database service automatically handles:
+
 - SQLite file creation and connection
 - Schema migration execution
 - Repository initialization
 
 ### Patient Operations
+
 ```javascript
 import { useDatabaseStore } from './stores/database-store'
 
@@ -312,13 +453,13 @@ const dbStore = useDatabaseStore()
 const patient = await dbStore.createPatient({
   PATIENT_CD: 'P001',
   SEX_CD: 'M',
-  AGE_IN_YEARS: 25
+  AGE_IN_YEARS: 25,
 })
 
 // Find patients
 const patients = await dbStore.findPatients({
   SEX_CD: 'M',
-  ageRange: { min: 20, max: 30 }
+  ageRange: { min: 20, max: 30 },
 })
 
 // Search patients
@@ -326,13 +467,14 @@ const results = await dbStore.searchPatients('P001')
 ```
 
 ### Visit Operations
+
 ```javascript
 // Create a medical encounter
 const visit = await dbStore.createVisit({
   PATIENT_NUM: 1,
   START_DATE: '2024-01-15',
   LOCATION_CD: 'EMERGENCY',
-  INOUT_CD: 'I'
+  INOUT_CD: 'I',
 })
 
 // Find patient visits
@@ -341,6 +483,7 @@ const activeVisits = await dbStore.findActiveVisits()
 ```
 
 ### Clinical Observations
+
 ```javascript
 // Create numeric observation
 const observation = await dbStore.createObservation({
@@ -349,7 +492,7 @@ const observation = await dbStore.createObservation({
   CONCEPT_CD: 'LOINC:8302-2',
   VALTYPE_CD: 'N',
   NVAL_NUM: 120.5,
-  UNIT_CD: 'mmHg'
+  UNIT_CD: 'mmHg',
 })
 
 // Create survey observation
@@ -358,11 +501,12 @@ const survey = await dbStore.createObservation({
   ENCOUNTER_NUM: 1,
   CONCEPT_CD: 'SURVEY:SAMS',
   VALTYPE_CD: 'T',
-  TVAL_CHAR: '{"anxiety": 3, "depression": 2}'
+  TVAL_CHAR: '{"anxiety": 3, "depression": 2}',
 })
 ```
 
 ### Database Management
+
 ```javascript
 // Initialize database
 await dbStore.initializeDatabase('./my-database.db')
@@ -378,6 +522,7 @@ await dbStore.resetDatabase()
 ```
 
 ### Data Validation
+
 ```javascript
 import DataValidator from './src/core/validators/data-validator.js'
 
@@ -389,7 +534,7 @@ const result = await dataValidator.validateData({
   value: 120.5,
   type: 'numeric',
   conceptCode: 'LOINC:8302-2',
-  metadata: { field: 'BLOOD_PRESSURE' }
+  metadata: { field: 'BLOOD_PRESSURE' },
 })
 
 // Check validation results
@@ -404,13 +549,14 @@ if (!result.isValid) {
 dataValidator.setCustomRules('numeric', {
   min: 0,
   max: 300,
-  precision: 1
+  precision: 1,
 })
 ```
 
 ## Testing the Database
 
 ### Interactive Testing
+
 1. Navigate to `/database-test` in the application
 2. Enter a database path (e.g., `./test.db`)
 3. Click "Connect" to initialize the database
@@ -421,6 +567,7 @@ dataValidator.setCustomRules('numeric', {
    - Test seed data functionality
 
 ### Automated Testing
+
 ```bash
 # Run all tests (374 tests, optimized execution)
 npm test -- --run
@@ -438,6 +585,7 @@ node tests/scripts/run-seed-data-test.js
 ```
 
 ### Test Coverage
+
 - **Unit Tests**: 374 tests covering all repositories, services, and core functionality
 - **Integration Tests**: 53 tests with real SQLite database operations
 - **Test Scripts**: 29 utilities for manual testing and debugging
@@ -454,6 +602,7 @@ node tests/scripts/run-seed-data-test.js
 ## Current Status & Future Enhancements
 
 ### ✅ Completed Features
+
 - [x] **Core Repositories**: Patient, Visit, Observation, Note, Provider, Concept, CQL, User management
 - [x] **Database Schema**: Complete star schema with 12 tables and relationships
 - [x] **Migration System**: Automated schema management with seed data
@@ -463,14 +612,64 @@ node tests/scripts/run-seed-data-test.js
 - [x] **Seed Data**: 611 concepts, 8 CQL rules, 4 standard users
 - [x] **CSV Service**: Complete import/export with two-header row support (47 tests)
 - [x] **HL7 Service**: Complete CDA import/export with digital signatures (48 tests)
+- [x] **MVC Architecture Refactoring**: Complete separation of concerns with clean MVC pattern
+- [x] **Store Separation**: Split monolithic store into focused, single-responsibility stores
+- [x] **Service Layer**: Business logic coordination through dedicated services
+- [x] **Data Transformers**: Clean data mapping and formatting utilities
 
 ### 🎯 **Phase 1 & 2 Complete - Ready for UI Development**
+
 - [x] **All Core Repositories**: 100% implemented and tested
 - [x] **Business Services**: CSV and HL7 import/export complete
 - [x] **Data Validation**: Comprehensive validation with CQL integration
 - [x] **Testing Coverage**: 374 tests with 100% pass rate
 
+### 🏗️ **MVC Architecture Refactoring (Completed)**
+
+The application has been completely refactored to follow clean MVC principles:
+
+#### **Before Refactoring**
+
+- **Monolithic Store**: Single `visit-observation-store.js` with 1000+ lines
+- **Mixed Responsibilities**: Patient, visit, and observation logic combined
+- **Tight Coupling**: Components directly accessing database operations
+- **Code Duplication**: Repeated logic across components
+
+#### **After Refactoring**
+
+- **Separated Stores**:
+  - `patient-store.js` - Patient-specific state and operations
+  - `visit-store.js` - Visit-specific state and operations
+  - `observation-store.js` - Observation-specific state and operations
+  - `medications-store.js` - Centralized medication logic
+- **Service Layer**: `visit-observation-service.js` coordinates complex workflows
+- **Data Transformers**: Clean data mapping utilities
+- **Single Responsibility**: Each component has one clear purpose
+
+#### **Refactored Components**
+
+- **Views (Vue Components)**:
+  - `PatientPage.vue` - Patient management interface
+  - `VisitsPage.vue` - Visit management interface
+  - `DashboardPage.vue` - System overview
+  - `PatientObservationsTab.vue` - Observation management
+  - `VisitTimeline.vue` - Visit timeline display
+  - `VisitDataEntry.vue` - Visit data entry form
+  - `ObservationFieldSet.vue` - Observation field management
+  - `MedicationEditDialog.vue` - Medication editing
+  - `MedicationFieldView.vue` - Medication display
+  - And 10+ other components updated
+
+#### **Benefits Achieved**
+
+- **Maintainability**: Changes isolated to specific stores/services
+- **Testability**: Each component can be tested independently
+- **Reusability**: Stores and services can be reused across views
+- **Performance**: Reduced bundle size and improved loading
+- **Developer Experience**: Clear separation makes code easier to understand
+
 ### 📋 Planned Features (Phase 3 - UI Development)
+
 - [x] **HL7 Integration**: ✅ Complete CDA import/export with digital signatures
 - [x] **CSV Integration**: ✅ Complete import/export with two-header row support
 - [ ] **UI Components**: Patient management, visit tracking, and observation interfaces
@@ -493,6 +692,7 @@ node tests/scripts/run-seed-data-test.js
 7. **Clinical Data**: Follow healthcare data standards and validation requirements
 
 ### Development Workflow
+
 ```bash
 # 1. Create new repository (if needed)
 # 2. Implement comprehensive functionality
