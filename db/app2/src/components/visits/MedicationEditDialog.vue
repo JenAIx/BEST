@@ -214,7 +214,7 @@ const hasChanges = computed(() => {
 const medicationPreview = ref('')
 
 // Update preview when medication data changes
-const updateMedicationPreview = async () => {
+const updateMedicationPreview = () => {
   if (!hasValidData.value) {
     medicationPreview.value = ''
     return
@@ -234,46 +234,42 @@ const updateMedicationPreview = async () => {
 
   // Frequency in simplified format
   if (localMedicationData.value.frequency) {
-    const freq = await getSimplifiedFrequency(localMedicationData.value.frequency)
+    const freq = getSimplifiedFrequency(localMedicationData.value.frequency)
     parts.push(freq)
   }
 
   // Route abbreviation
   if (localMedicationData.value.route) {
-    const route = await getRouteAbbreviation(localMedicationData.value.route)
+    const route = getRouteAbbreviation(localMedicationData.value.route)
     parts.push(route)
   }
 
   medicationPreview.value = parts.join(' ')
 }
 
-// Helper methods for preview
-const getSimplifiedFrequency = async (frequency) => {
+// Helper methods for preview (using props options, no store calls)
+const getSimplifiedFrequency = (frequency) => {
   // Handle both string values and objects from q-select
   const frequencyValue = typeof frequency === 'object' ? frequency?.value : frequency
 
   if (!frequencyValue) return ''
 
-  try {
-    return await medicationsStore.getSimplifiedFrequency(frequencyValue)
-  } catch (error) {
-    logger.warn('Failed to get simplified frequency', { frequency: frequencyValue, error })
-    return frequencyValue
-  }
+  // Find the frequency option in props to get the application/abbreviation
+  const freqOption = props.frequencyOptions?.find((opt) => opt.value.toLowerCase() === frequencyValue.toLowerCase())
+
+  return freqOption?.application || freqOption?.abbreviation || frequencyValue
 }
 
-const getRouteAbbreviation = async (route) => {
+const getRouteAbbreviation = (route) => {
   // Handle both string values and objects from q-select
   const routeValue = typeof route === 'object' ? route?.value : route
 
   if (!routeValue) return ''
 
-  try {
-    return await medicationsStore.getRouteAbbreviation(routeValue)
-  } catch (error) {
-    logger.warn('Failed to get route abbreviation', { route: routeValue, error })
-    return typeof routeValue === 'string' ? routeValue.toLowerCase() : String(routeValue).toLowerCase()
-  }
+  // Find the route option in props to get the abbreviation
+  const routeOption = props.routeOptions?.find((opt) => opt.value.toLowerCase() === routeValue.toLowerCase())
+
+  return routeOption?.abbreviation || routeValue.toLowerCase()
 }
 
 // Methods
@@ -391,28 +387,20 @@ const onDrugChange = (selectedDrug) => {
 const selectedFrequencyLabel = ref('')
 const selectedRouteLabel = ref('')
 
-// Update labels when values change
-const updateSelectedLabels = async () => {
-  // Update frequency label
+// Update labels when values change (using already loaded options from props)
+const updateSelectedLabels = () => {
+  // Update frequency label using props options
   if (localMedicationData.value.frequency) {
-    try {
-      selectedFrequencyLabel.value = await medicationsStore.getFrequencyLabel(localMedicationData.value.frequency)
-    } catch (error) {
-      logger.warn('Failed to get frequency label', { frequency: localMedicationData.value.frequency, error })
-      selectedFrequencyLabel.value = localMedicationData.value.frequency
-    }
+    const freqOption = props.frequencyOptions?.find((opt) => opt.value.toLowerCase() === localMedicationData.value.frequency.toLowerCase())
+    selectedFrequencyLabel.value = freqOption?.label || localMedicationData.value.frequency
   } else {
     selectedFrequencyLabel.value = ''
   }
 
-  // Update route label
+  // Update route label using props options
   if (localMedicationData.value.route) {
-    try {
-      selectedRouteLabel.value = await medicationsStore.getRouteLabel(localMedicationData.value.route)
-    } catch (error) {
-      logger.warn('Failed to get route label', { route: localMedicationData.value.route, error })
-      selectedRouteLabel.value = localMedicationData.value.route
-    }
+    const routeOption = props.routeOptions?.find((opt) => opt.value.toLowerCase() === localMedicationData.value.route.toLowerCase())
+    selectedRouteLabel.value = routeOption?.label || localMedicationData.value.route
   } else {
     selectedRouteLabel.value = ''
   }
@@ -422,7 +410,7 @@ const updateSelectedLabels = async () => {
 const getSelectedFrequencyLabel = () => selectedFrequencyLabel.value
 const getSelectedRouteLabel = () => selectedRouteLabel.value
 
-const onMedicationChange = async () => {
+const onMedicationChange = () => {
   // Normalize frequency and route values if they are objects
   if (typeof localMedicationData.value.frequency === 'object' && localMedicationData.value.frequency?.value) {
     localMedicationData.value.frequency = localMedicationData.value.frequency.value
@@ -432,8 +420,8 @@ const onMedicationChange = async () => {
   }
 
   logger.debug('Medication data changed', { localMedicationData: localMedicationData.value })
-  await updateSelectedLabels()
-  await updateMedicationPreview()
+  updateSelectedLabels() // Now synchronous, no await needed
+  updateMedicationPreview() // Now synchronous, no await needed
 }
 
 const onSave = async () => {
@@ -528,7 +516,7 @@ const loadMedicationBlobData = async () => {
         originalMedicationData.value = { ...localMedicationData.value }
 
         // Update the labels for display
-        await updateSelectedLabels()
+        updateSelectedLabels()
 
         logger.debug('Updated medication data with BLOB values', {
           localMedicationData: localMedicationData.value,
@@ -564,8 +552,8 @@ watch(
       await loadMedicationBlobData()
 
       // Update labels and preview after loading BLOB data
-      await updateSelectedLabels()
-      await updateMedicationPreview()
+      updateSelectedLabels()
+      updateMedicationPreview()
     }
   },
 )
