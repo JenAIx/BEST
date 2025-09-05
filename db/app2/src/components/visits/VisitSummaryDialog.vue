@@ -5,10 +5,10 @@
       <div class="text-h6 q-mt-md">Loading visit summary...</div>
     </div>
 
-    <div v-else-if="visitStore.error" class="error-container">
+    <div v-else-if="observationStore.error" class="error-container">
       <q-icon name="error" size="48px" color="negative" />
       <div class="text-h6 text-negative q-mt-sm">Failed to load visit data</div>
-      <div class="text-body2 text-grey-6">{{ visitStore.error }}</div>
+      <div class="text-body2 text-grey-6">{{ observationStore.error }}</div>
     </div>
 
     <div v-else-if="!visit" class="no-visit-selected">
@@ -131,7 +131,9 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { useObservationStore } from 'src/stores/observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
@@ -150,7 +152,8 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const visitStore = useVisitObservationStore()
+const visitStore = useVisitStore()
+const observationStore = useObservationStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('VisitSummaryDialog')
 
@@ -193,16 +196,16 @@ const totalObservations = computed(() => {
 // Use store data when visit matches selected visit, otherwise load separately
 const observations = computed(() => {
   if (props.visit && visitStore.selectedVisit && props.visit.id === visitStore.selectedVisit.id) {
-    return visitStore.observations
+    return observationStore.observations
   }
   return [] // Could implement separate loading for non-selected visits if needed
 })
 
 const loading = computed(() => {
-  return visitStore.loading.observations
+  return observationStore.loading
 })
 
-const categorizedObservations = computed(() => visitStore.categorizedObservations)
+const categorizedObservations = computed(() => observationStore.categorizedObservations)
 
 // Methods
 // Observations are now loaded via the store
@@ -237,11 +240,11 @@ watch(dialogModel, async (newValue) => {
     if (visitStore.selectedVisit?.id !== props.visit.id) {
       const timer = logger.startTimer('visit_summary_data_load')
       try {
-        await visitStore.setSelectedVisit(props.visit)
+        await visitObservationService.selectVisitAndLoadObservations(props.visit)
         const duration = timer.end()
         logger.info('Visit summary data loaded', {
           visitId: props.visit.id,
-          observationsCount: visitStore.observations.length,
+          observationsCount: observationStore.observations.length,
           duration: `${duration.toFixed(2)}ms`,
         })
       } catch (error) {

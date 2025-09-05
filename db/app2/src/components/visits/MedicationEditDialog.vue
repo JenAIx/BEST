@@ -148,10 +148,9 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useMedicationsStore } from 'src/stores/medications-store'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 
@@ -182,7 +181,6 @@ const emit = defineEmits(['update:modelValue', 'save', 'cancel'])
 
 const $q = useQuasar()
 const medicationsStore = useMedicationsStore()
-const visitStore = useVisitObservationStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('MedicationEditDialog')
 
@@ -199,8 +197,12 @@ const drugOptions = ref([])
 const searchingDrugs = ref(false)
 const saving = ref(false)
 
-// Options
-const dosageUnits = ['mg', 'g', 'mcg', 'IU', 'ml', 'L', 'units', 'drops', 'sprays', 'patches']
+// Get dosage units from store
+const dosageUnits = ref([])
+onMounted(async () => {
+  const units = await medicationsStore.getUnitOptions()
+  dosageUnits.value = units.map((u) => u.value)
+})
 
 // Computed
 const hasValidData = computed(() => {
@@ -214,62 +216,14 @@ const hasChanges = computed(() => {
 const medicationPreview = ref('')
 
 // Update preview when medication data changes
-const updateMedicationPreview = () => {
+const updateMedicationPreview = async () => {
   if (!hasValidData.value) {
     medicationPreview.value = ''
     return
   }
 
-  const parts = []
-
-  // Drug name
-  if (localMedicationData.value.drugName) {
-    parts.push(localMedicationData.value.drugName)
-  }
-
-  // Dosage with unit: "100mg"
-  if (localMedicationData.value.dosage && localMedicationData.value.dosageUnit) {
-    parts.push(`${localMedicationData.value.dosage}${localMedicationData.value.dosageUnit}`)
-  }
-
-  // Frequency in simplified format
-  if (localMedicationData.value.frequency) {
-    const freq = getSimplifiedFrequency(localMedicationData.value.frequency)
-    parts.push(freq)
-  }
-
-  // Route abbreviation
-  if (localMedicationData.value.route) {
-    const route = getRouteAbbreviation(localMedicationData.value.route)
-    parts.push(route)
-  }
-
-  medicationPreview.value = parts.join(' ')
-}
-
-// Helper methods for preview (using props options, no store calls)
-const getSimplifiedFrequency = (frequency) => {
-  // Handle both string values and objects from q-select
-  const frequencyValue = typeof frequency === 'object' ? frequency?.value : frequency
-
-  if (!frequencyValue) return ''
-
-  // Find the frequency option in props to get the application/abbreviation
-  const freqOption = props.frequencyOptions?.find((opt) => opt.value.toLowerCase() === frequencyValue.toLowerCase())
-
-  return freqOption?.application || freqOption?.abbreviation || frequencyValue
-}
-
-const getRouteAbbreviation = (route) => {
-  // Handle both string values and objects from q-select
-  const routeValue = typeof route === 'object' ? route?.value : route
-
-  if (!routeValue) return ''
-
-  // Find the route option in props to get the abbreviation
-  const routeOption = props.routeOptions?.find((opt) => opt.value.toLowerCase() === routeValue.toLowerCase())
-
-  return routeOption?.abbreviation || routeValue.toLowerCase()
+  // Use centralized formatting from medications store
+  medicationPreview.value = await medicationsStore.formatMedicationDisplayElegant(localMedicationData.value)
 }
 
 // Methods
@@ -300,59 +254,6 @@ const filterDrugs = async (searchTerm, doneFn) => {
   }
 }
 
-const parseDosageFromStrength = (strength) => {
-  if (!strength || typeof strength !== 'string') {
-    return { dosage: null, unit: '' }
-  }
-
-  // Remove any spaces and convert to lowercase for consistent parsing
-  const cleanStrength = strength.replace(/\s+/g, '').toLowerCase()
-
-  // Handle special cases like "25-100mg" - take the first number
-  if (cleanStrength.includes('-')) {
-    const firstPart = cleanStrength.split('-')[0]
-    return parseDosageFromStrength(firstPart + cleanStrength.replace(/[\d.-]/g, ''))
-  }
-
-  // Regular expression to match dosage and unit
-  const dosageRegex = /^(\d+(?:\.\d+)?)([a-zA-Z]+(?:\/[a-zA-Z]+)?)$/
-  const match = cleanStrength.match(dosageRegex)
-
-  if (match) {
-    const dosage = parseFloat(match[1])
-    let unit = match[2]
-
-    // Normalize common unit variations
-    const unitMappings = {
-      iu: 'IU',
-      units: 'units',
-      mcg: 'mcg',
-      ug: 'mcg',
-      g: 'g',
-      mg: 'mg',
-      ml: 'ml',
-      l: 'L',
-      'u/ml': 'U/mL',
-      'units/ml': 'U/mL',
-      'iu/ml': 'IU/mL',
-    }
-
-    unit = unitMappings[unit] || unit
-    return { dosage, unit }
-  }
-
-  // If no match, try to extract just the numeric part
-  const numericRegex = /^(\d+(?:\.\d+)?)/
-  const numericMatch = cleanStrength.match(numericRegex)
-
-  if (numericMatch) {
-    const dosage = parseFloat(numericMatch[1])
-    return { dosage, unit: 'mg' }
-  }
-
-  return { dosage: null, unit: '' }
-}
-
 const onDrugChange = (selectedDrug) => {
   if (selectedDrug && typeof selectedDrug === 'object') {
     // Set drug name
@@ -370,7 +271,7 @@ const onDrugChange = (selectedDrug) => {
 
     // Set dosage and unit from strength
     if (selectedDrug.default_strength) {
-      const { dosage, unit } = parseDosageFromStrength(selectedDrug.default_strength)
+      const { dosage, unit } = medicationsStore.parseDosageFromStrength(selectedDrug.default_strength)
       if (dosage !== null) {
         localMedicationData.value.dosage = dosage
       }
@@ -387,20 +288,18 @@ const onDrugChange = (selectedDrug) => {
 const selectedFrequencyLabel = ref('')
 const selectedRouteLabel = ref('')
 
-// Update labels when values change (using already loaded options from props)
-const updateSelectedLabels = () => {
-  // Update frequency label using props options
+// Update labels when values change
+const updateSelectedLabels = async () => {
+  // Update frequency label using store methods
   if (localMedicationData.value.frequency) {
-    const freqOption = props.frequencyOptions?.find((opt) => opt.value.toLowerCase() === localMedicationData.value.frequency.toLowerCase())
-    selectedFrequencyLabel.value = freqOption?.label || localMedicationData.value.frequency
+    selectedFrequencyLabel.value = await medicationsStore.getFrequencyLabel(localMedicationData.value.frequency)
   } else {
     selectedFrequencyLabel.value = ''
   }
 
-  // Update route label using props options
+  // Update route label using store methods
   if (localMedicationData.value.route) {
-    const routeOption = props.routeOptions?.find((opt) => opt.value.toLowerCase() === localMedicationData.value.route.toLowerCase())
-    selectedRouteLabel.value = routeOption?.label || localMedicationData.value.route
+    selectedRouteLabel.value = await medicationsStore.getRouteLabel(localMedicationData.value.route)
   } else {
     selectedRouteLabel.value = ''
   }
@@ -410,7 +309,7 @@ const updateSelectedLabels = () => {
 const getSelectedFrequencyLabel = () => selectedFrequencyLabel.value
 const getSelectedRouteLabel = () => selectedRouteLabel.value
 
-const onMedicationChange = () => {
+const onMedicationChange = async () => {
   // Normalize frequency and route values if they are objects
   if (typeof localMedicationData.value.frequency === 'object' && localMedicationData.value.frequency?.value) {
     localMedicationData.value.frequency = localMedicationData.value.frequency.value
@@ -420,8 +319,8 @@ const onMedicationChange = () => {
   }
 
   logger.debug('Medication data changed', { localMedicationData: localMedicationData.value })
-  updateSelectedLabels() // Now synchronous, no await needed
-  updateMedicationPreview() // Now synchronous, no await needed
+  await updateSelectedLabels()
+  await updateMedicationPreview()
 }
 
 const onSave = async () => {
@@ -480,53 +379,33 @@ const loadMedicationBlobData = async () => {
   try {
     logger.debug('Loading BLOB data for medication edit', {
       observationId: props.observationId,
-      frequencyOptionsCount: props.frequencyOptions?.length || 0,
-      routeOptionsCount: props.routeOptions?.length || 0,
-      frequencyOptionsSample: props.frequencyOptions?.slice(0, 2),
-      routeOptionsSample: props.routeOptions?.slice(0, 2),
     })
-    const blobData = await visitStore.getBlob(props.observationId)
 
-    if (blobData) {
-      try {
-        const parsedData = JSON.parse(blobData)
-        logger.debug('Successfully parsed BLOB data for edit dialog', { parsedData })
-
-        // Update the medication data with BLOB values
-        localMedicationData.value = {
-          ...localMedicationData.value,
-          drugName: parsedData.drugName || localMedicationData.value.drugName || '',
-          dosage: parsedData.dosage || localMedicationData.value.dosage || null,
-          dosageUnit: parsedData.dosageUnit || localMedicationData.value.dosageUnit || 'mg',
-          frequency: parsedData.frequency || localMedicationData.value.frequency || '',
-          route: parsedData.route || localMedicationData.value.route || '',
-          instructions: parsedData.instructions || localMedicationData.value.instructions || '',
-        }
-
-        logger.debug('Medication data after BLOB loading', {
-          frequency: localMedicationData.value.frequency,
-          route: localMedicationData.value.route,
-          frequencyOptionsAvailable: props.frequencyOptions?.length || 0,
-          routeOptionsAvailable: props.routeOptions?.length || 0,
-          frequencyMatch: props.frequencyOptions?.find((opt) => opt.value === localMedicationData.value.frequency),
-          routeMatch: props.routeOptions?.find((opt) => opt.value === localMedicationData.value.route),
-        })
-
-        // Update original data as well
-        originalMedicationData.value = { ...localMedicationData.value }
-
-        // Update the labels for display
-        updateSelectedLabels()
-
-        logger.debug('Updated medication data with BLOB values', {
-          localMedicationData: localMedicationData.value,
-        })
-      } catch (parseError) {
-        logger.warn('Failed to parse BLOB data for edit dialog', parseError)
-      }
-    } else {
-      logger.debug('No BLOB data found for observation', { observationId: props.observationId })
+    // Use centralized parsing with BLOB loading
+    const observationData = {
+      observationId: props.observationId,
+      value: localMedicationData.value.drugName,
+      numericValue: localMedicationData.value.dosage,
+      unit: localMedicationData.value.dosageUnit,
     }
+
+    const parsedData = await medicationsStore.parseMedicationDataWithBlob(observationData, true)
+
+    // Update the medication data with parsed values
+    localMedicationData.value = {
+      ...localMedicationData.value,
+      ...parsedData,
+    }
+
+    logger.debug('Medication data after BLOB loading', {
+      localMedicationData: localMedicationData.value,
+    })
+
+    // Update original data as well
+    originalMedicationData.value = { ...localMedicationData.value }
+
+    // Update the labels for display
+    await updateSelectedLabels()
   } catch (error) {
     logger.error('Failed to load BLOB data for medication edit', error)
   }
@@ -552,8 +431,8 @@ watch(
       await loadMedicationBlobData()
 
       // Update labels and preview after loading BLOB data
-      updateSelectedLabels()
-      updateMedicationPreview()
+      await updateSelectedLabels()
+      await updateMedicationPreview()
     }
   },
 )

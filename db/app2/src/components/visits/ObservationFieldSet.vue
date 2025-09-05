@@ -70,7 +70,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useMedicationsStore } from 'src/stores/medications-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -106,7 +106,6 @@ const props = defineProps({
 const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh-requested'])
 
 const $q = useQuasar()
-const visitStore = useVisitObservationStore()
 const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const conceptStore = useConceptResolutionStore()
@@ -478,7 +477,7 @@ const onMedicationEditSave = async (medicationData) => {
       OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData), // Full structured data in BLOB
     }
 
-    await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
+    await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
 
     // Update local state
     row.rawObservation.TVAL_CHAR = normalizedMedicationData.drugName // Only drug name in TVAL_CHAR
@@ -556,7 +555,7 @@ const saveRow = async (row) => {
         NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
         OBSERVATION_BLOB: JSON.stringify(medicationData), // Full structured data
       }
-      await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
+      await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
     } else {
       // Handle regular observation updates based on value type
       const updateData = {}
@@ -594,7 +593,7 @@ const saveRow = async (row) => {
       }
 
       // Always skip reload to prevent bounce
-      await visitStore.updateObservation(row.observationId, updateData, { skipReload: true })
+      await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
     }
 
     // Update local state immediately - no need to wait for refresh
@@ -692,7 +691,7 @@ const removeRow = async (row) => {
     logger.info('Removing row', { rowId: row.id, conceptCode: row.conceptCode })
 
     // Delete observation from database (both medications and regular observations)
-    await visitStore.deleteObservation(row.observationId)
+    await visitObservationService.deleteObservation(row.observationId)
 
     emit('observation-updated', {
       conceptCode: row.conceptCode,
@@ -743,6 +742,7 @@ const createObservationFromChip = async (concept) => {
 
     // Get default values
     const observationData = {
+      PATIENT_NUM: props.patient.PATIENT_NUM,
       ENCOUNTER_NUM: props.visit.id,
       CONCEPT_CD: concept.code,
       VALTYPE_CD: concept.valueType,
@@ -756,8 +756,8 @@ const createObservationFromChip = async (concept) => {
       OBSERVATION_BLOB: null,
     }
 
-    // Use visit store to create observation
-    await visitStore.createObservation(observationData)
+    // Use service to create observation
+    await visitObservationService.createObservation(observationData)
 
     // Emit update to refresh the field set
     emit('observation-updated', {
@@ -794,6 +794,7 @@ const addEmptyMedication = async () => {
   try {
     // Create empty medication observation
     const observationData = {
+      PATIENT_NUM: props.patient.PATIENT_NUM,
       ENCOUNTER_NUM: props.visit.id,
       CONCEPT_CD: 'LID: 52418-1',
       VALTYPE_CD: 'M',
@@ -807,7 +808,7 @@ const addEmptyMedication = async () => {
       UPLOAD_ID: 1,
     }
 
-    await visitStore.createObservation(observationData)
+    await visitObservationService.createObservation(observationData)
 
     emit('observation-updated', {
       conceptCode: 'LID: 52418-1',

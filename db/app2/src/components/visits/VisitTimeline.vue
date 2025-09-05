@@ -48,7 +48,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLoggingStore } from 'src/stores/logging-store'
 import VisitTimelineItem from './VisitTimelineItem.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
@@ -69,7 +70,7 @@ const props = defineProps({
 const emit = defineEmits(['visit-selected', 'visit-edited'])
 
 const $q = useQuasar()
-const visitStore = useVisitObservationStore()
+const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('VisitTimeline')
 
@@ -202,7 +203,7 @@ const duplicateVisit = async (visit) => {
 
   $q.dialog({
     title: 'Clone Visit',
-    message: `This will create a new visit with all observations from ${visitStore.formatVisitDate(visit.date)}. Continue?`,
+    message: `This will create a new visit with all observations from ${new Date(visit.date).toLocaleDateString()}. Continue?`,
     cancel: true,
     persistent: true,
   })
@@ -213,7 +214,7 @@ const duplicateVisit = async (visit) => {
           originalVisitId: visit.id,
           observationCount: visit.observationCount || 0,
         })
-        await visitStore.duplicateVisit(visit)
+        await visitObservationService.duplicateVisit(visit)
         const duration = timer.end()
         logger.success('Visit cloned successfully', {
           originalVisitId: visit.id,
@@ -265,7 +266,7 @@ const deleteVisit = async (visit) => {
 
   $q.dialog({
     title: 'Delete Visit',
-    message: `Are you sure you want to delete the visit from ${visitStore.formatVisitDate(visit.date)}? This will also delete all ${visit.observationCount} observations. This action cannot be undone.`,
+    message: `Are you sure you want to delete the visit from ${new Date(visit.date).toLocaleDateString()}? This will also delete all ${visit.observationCount} observations. This action cannot be undone.`,
     cancel: true,
     persistent: true,
     ok: {
@@ -281,7 +282,7 @@ const deleteVisit = async (visit) => {
           observationCount: visit.observationCount || 0,
           severity: 'high',
         })
-        await visitStore.deleteVisit(visit)
+        await visitObservationService.deleteVisit(visit)
         const duration = timer.end()
         logger.success('Visit deleted successfully', {
           visitId: visit.id,

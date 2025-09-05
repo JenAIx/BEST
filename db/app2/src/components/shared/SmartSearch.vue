@@ -118,14 +118,13 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLoggingStore } from 'src/stores/logging-store'
 import PatientAvatar from './PatientAvatar.vue'
 
 const router = useRouter()
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
-const visitStore = useVisitObservationStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('SmartSearch')
 
@@ -235,8 +234,9 @@ const selectPatient = async (patient) => {
       PATIENT_NUM: patient.id, // This is the actual PATIENT_NUM from the database
     }
 
-    // Set the patient in the visit-observation-store
-    await visitStore.setSelectedPatient(visitPatient)
+    // Initialize service and load patient data
+    visitObservationService.initialize()
+    await visitObservationService.loadPatientWithData(patient.patientId)
 
     // Log the selection
     logger.logUserAction('patient_selected_from_search', {

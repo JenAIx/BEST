@@ -34,7 +34,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useLoggingStore } from 'src/stores/logging-store'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useObservationStore } from 'src/stores/observation-store'
 import AppDialog from './AppDialog.vue'
 import PreviewSurveyTemplate from '../questionnaire/PreviewSurveyTemplate.vue'
 import CompletedQuestionnaireView from '../questionnaire/CompletedQuestionnaireView.vue'
@@ -73,7 +73,7 @@ const emit = defineEmits(['update:modelValue', 'close'])
 
 // Initialize stores
 const loggingStore = useLoggingStore()
-const visitStore = useVisitObservationStore()
+const observationStore = useObservationStore()
 
 // Local state - initialize with modelValue
 const localShow = ref(props.modelValue || false)
@@ -120,7 +120,7 @@ const loadQuestionnaireFromObservation = async () => {
     loadError.value = null
 
     // Use the lazy loading approach from visit-observation-store
-    const observationDetails = await visitStore.loadObservationDetails(props.observationId)
+    const observationDetails = await observationStore.loadObservationDetails(props.observationId)
 
     if (observationDetails && observationDetails.observationBlob) {
       questionnaire.value = observationDetails.observationBlob

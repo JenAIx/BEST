@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store.js'
-import { useVisitObservationStore } from './visit-observation-store.js'
 import { useConceptResolutionStore } from './concept-resolution-store.js'
 import { logger } from '../core/services/logging-service.js'
 
@@ -19,7 +18,6 @@ export { calculateResults, saveQuestionnaireResponse, randomFill, testQuestionna
  */
 export const useQuestionnaireStore = defineStore('questionnaire', () => {
   const dbStore = useDatabaseStore()
-  const visitObservationStore = useVisitObservationStore()
   const conceptResolutionStore = useConceptResolutionStore()
 
   // State
@@ -156,7 +154,7 @@ export const useQuestionnaireStore = defineStore('questionnaire', () => {
    * Save questionnaire response to database (using new VALTYPE_CD='Q' approach)
    */
   const saveQuestionnaireResponseStore = async (patientNum, encounterNum, results) => {
-    return await saveQuestionnaireResponse(dbStore, patientNum, encounterNum, results, visitObservationStore, conceptResolutionStore)
+    return await saveQuestionnaireResponse(dbStore, patientNum, encounterNum, results, null, conceptResolutionStore)
   }
 
   /**
@@ -185,7 +183,7 @@ export const useQuestionnaireStore = defineStore('questionnaire', () => {
    * Test function to manually trigger observation extraction for existing questionnaires
    */
   const testQuestionnaireExtractionStore = async (questionnaireObservationId) => {
-    await testQuestionnaireExtraction(dbStore, visitObservationStore, conceptResolutionStore, questionnaireObservationId)
+    await testQuestionnaireExtraction(dbStore, null, conceptResolutionStore, questionnaireObservationId)
   }
 
   return {

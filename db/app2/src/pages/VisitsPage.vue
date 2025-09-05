@@ -51,22 +51,24 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { usePatientStore } from 'src/stores/patient-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
 import VisitTimeline from 'src/components/visits/VisitTimeline.vue'
 import VisitDataEntry from 'src/components/visits/VisitDataEntry.vue'
-import { useDatabaseStore } from 'src/stores/database-store'
 
 const route = useRoute()
 const router = useRouter()
-const visitStore = useVisitObservationStore()
+const patientStore = usePatientStore()
+const visitStore = useVisitStore()
 
 // Local state
 const viewMode = ref('timeline')
 
-// Computed properties from store
-const selectedPatient = computed(() => visitStore.selectedPatient)
+// Computed properties from stores
+const selectedPatient = computed(() => patientStore.selectedPatient)
 const selectedVisit = computed(() => visitStore.selectedVisit)
 const visits = computed(() => visitStore.visits)
 
@@ -74,20 +76,23 @@ const visits = computed(() => visitStore.visits)
 const onPatientSelected = async (patient) => {
   // PatientSelector already navigates, so we just need to ensure the patient is loaded
   if (patient.id !== selectedPatient.value?.id) {
-    await visitStore.setSelectedPatient(patient)
+    // Initialize service if needed
+    visitObservationService.initialize()
+    // Load patient with all data
+    await visitObservationService.loadPatientWithData(patient.id)
     viewMode.value = 'timeline'
   }
 }
 
 const deselectPatient = () => {
-  visitStore.clearPatient()
+  visitObservationService.clearAllData()
   viewMode.value = 'timeline'
   // Navigate back to visits list
   router.push('/visits')
 }
 
 const onVisitSelected = async (visit) => {
-  await visitStore.setSelectedVisit(visit)
+  await visitObservationService.selectVisitAndLoadObservations(visit)
   // Switch to data entry view when a visit is clicked
   viewMode.value = 'entry'
 }
@@ -95,16 +100,16 @@ const onVisitSelected = async (visit) => {
 const onVisitEdited = async (visit) => {
   // First reload visits to ensure we have the latest data with rawData
   if (selectedPatient.value) {
-    await visitStore.loadVisitsForPatient(selectedPatient.value)
+    await visitStore.loadVisitsForPatient(selectedPatient.value.PATIENT_NUM)
   }
 
   // Then find and select the visit from the store (which has complete data)
   const fullVisitData = visitStore.visits.find((v) => v.id === visit.id)
   if (fullVisitData) {
-    await visitStore.setSelectedVisit(fullVisitData)
+    await visitObservationService.selectVisitAndLoadObservations(fullVisitData)
   } else {
     // Fallback to the provided visit if not found in store
-    await visitStore.setSelectedVisit(visit)
+    await visitObservationService.selectVisitAndLoadObservations(visit)
   }
 
   viewMode.value = 'entry'
@@ -113,16 +118,16 @@ const onVisitEdited = async (visit) => {
 const onVisitCreated = async (newVisit) => {
   // First reload visits to ensure we have the latest data with rawData
   if (selectedPatient.value) {
-    await visitStore.loadVisitsForPatient(selectedPatient.value)
+    await visitStore.loadVisitsForPatient(selectedPatient.value.PATIENT_NUM)
   }
 
   // Then find and select the visit from the store (which has complete data)
   const fullVisitData = visitStore.visits.find((v) => v.id === newVisit.id)
   if (fullVisitData) {
-    await visitStore.setSelectedVisit(fullVisitData)
+    await visitObservationService.selectVisitAndLoadObservations(fullVisitData)
   } else {
     // Fallback to the provided visit if not found in store
-    await visitStore.setSelectedVisit(newVisit)
+    await visitObservationService.selectVisitAndLoadObservations(newVisit)
   }
 
   viewMode.value = 'entry'
@@ -133,48 +138,23 @@ const loadPatientFromRoute = async () => {
   const patientId = route.params.patientId
   if (patientId && !selectedPatient.value) {
     try {
-      // Load patient data from database
-      const dbStore = useDatabaseStore()
-      if (dbStore.canPerformOperations) {
-        const patientRepo = dbStore.getRepository('patient')
-        const patient = await patientRepo.findByPatientCode(patientId)
+      // Initialize service if needed
+      visitObservationService.initialize()
 
-        if (patient) {
-          const visitPatient = {
-            id: patient.PATIENT_CD,
-            name: getPatientName(patient),
-            age: patient.AGE_IN_YEARS,
-            gender: patient.SEX_RESOLVED || patient.SEX_CD,
-            PATIENT_NUM: patient.PATIENT_NUM,
-          }
-          await visitStore.setSelectedPatient(visitPatient)
-          viewMode.value = 'timeline'
-        } else {
-          // Patient not found, redirect to visits list
-          router.push('/visits')
-        }
+      // Load patient with all data using the service
+      const loadedPatient = await visitObservationService.loadPatientWithData(patientId)
+
+      if (loadedPatient) {
+        viewMode.value = 'timeline'
+      } else {
+        // Patient not found, redirect to visits list
+        router.push('/visits')
       }
     } catch (error) {
       console.error('Failed to load patient from route:', error)
       router.push('/visits')
     }
   }
-}
-
-// Helper method to get patient name
-const getPatientName = (patient) => {
-  if (!patient) return 'Unknown Patient'
-
-  if (patient.PATIENT_BLOB) {
-    try {
-      const blob = JSON.parse(patient.PATIENT_BLOB)
-      if (blob.name) return blob.name
-      if (blob.firstName && blob.lastName) return `${blob.firstName} ${blob.lastName}`
-    } catch {
-      // Fallback
-    }
-  }
-  return patient.PATIENT_CD || 'Unknown Patient'
 }
 
 // Watch for route changes
@@ -187,9 +167,8 @@ watch(
   },
 )
 
-// Initialize store and load patient if route has patientId
+// Initialize and load patient if route has patientId
 onMounted(async () => {
-  visitStore.initialize()
   await loadPatientFromRoute()
 })
 </script>

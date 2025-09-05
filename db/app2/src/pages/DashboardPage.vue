@@ -292,6 +292,7 @@ import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
 import AppDialog from '../components/shared/AppDialog.vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -882,6 +883,9 @@ const handleViewModeChange = async (event) => {
 
 onMounted(async () => {
   window.addEventListener('viewModeChanged', handleViewModeChange)
+
+  // Initialize service
+  visitObservationService.initialize()
 
   // Load initial view mode
   const savedMode = localStorage.getItem('viewMode')

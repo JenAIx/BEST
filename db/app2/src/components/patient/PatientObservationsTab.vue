@@ -115,9 +115,13 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { usePatientStore } from 'src/stores/patient-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { useObservationStore } from 'src/stores/observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useMedicationsStore } from 'src/stores/medications-store'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
+import { groupObservationsByVisit, createTableRow, getCategoryOptions, sortTableRows, prepareUpdateData } from 'src/utils/observation-transformer'
 import NewVisitDialog from '../visits/NewVisitDialog.vue'
 import ObservationsTable from '../visits/ObservationsTable.vue'
 import MedicationEditDialog from '../visits/MedicationEditDialog.vue'
@@ -130,7 +134,9 @@ const $q = useQuasar()
 const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
-const visitObservationStore = useVisitObservationStore()
+const patientStore = usePatientStore()
+const visitStore = useVisitStore()
+const observationStore = useObservationStore()
 const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('PatientObservationsTab')
@@ -160,10 +166,10 @@ const renderVersion = ref(0)
 // Use medication options composable
 const { frequencyOptions, routeOptions, loadMedicationOptions } = useMedicationOptions()
 
-// Computed properties from store
-const patient = computed(() => visitObservationStore.selectedPatient)
-const observations = computed(() => visitObservationStore.allObservations)
-const visits = computed(() => visitObservationStore.visits)
+// Computed properties from stores
+const patient = computed(() => patientStore.selectedPatient)
+const observations = computed(() => observationStore.allObservations)
+const visits = computed(() => visitStore.visits)
 
 const hasObservationsOrVisits = computed(() => {
   const hasObservations = observations.value && observations.value.length > 0
@@ -173,62 +179,7 @@ const hasObservationsOrVisits = computed(() => {
 
 // Group visits with their observations
 const groupedObservations = computed(() => {
-  // Start with all visits as the base
-  const groups = visits.value.map((visit) => ({
-    encounterNum: visit.id,
-    visitDate: visit.date,
-    endDate: visit.endDate,
-    visit: {
-      ENCOUNTER_NUM: visit.id,
-      START_DATE: visit.date,
-      END_DATE: visit.endDate,
-      UPDATE_DATE: visit.last_changed,
-      ACTIVE_STATUS_CD: visit.status,
-      LOCATION_CD: visit.location,
-      INOUT_CD: visit.inout || 'O',
-      SOURCESYSTEM_CD: visit.rawData?.SOURCESYSTEM_CD || 'SYSTEM',
-      VISIT_BLOB: visit.rawData?.VISIT_BLOB,
-      // Include parsed fields for EditVisitDialog
-      visitType: visit.visitType,
-      notes: visit.notes,
-      id: visit.id, // Add id for ObservationFieldSet
-    },
-    observations: [],
-  }))
-
-  // Add observations to their respective visits
-  observations.value.forEach((obs) => {
-    const group = groups.find((g) => g.encounterNum === obs.encounterNum)
-    if (group) {
-      // Map observation to expected format for ObservationFieldSet
-      group.observations.push({
-        observationId: obs.observationId,
-        conceptCode: obs.conceptCode,
-        conceptName: obs.conceptName,
-        valueType: obs.valueType,
-        valTypeCode: obs.valueType,
-        originalValue: obs.originalValue,
-        value: obs.originalValue,
-        tval_char: obs.originalValue,
-        TVAL_CHAR: obs.originalValue,
-        nval_num: obs.valueType === 'N' ? obs.originalValue : null,
-        NVAL_NUM: obs.valueType === 'N' ? obs.originalValue : null,
-        observation_blob: obs.rawData?.OBSERVATION_BLOB,
-        OBSERVATION_BLOB: obs.rawData?.OBSERVATION_BLOB,
-        resolvedValue: obs.resolvedValue,
-        unit: obs.unit,
-        category: obs.category,
-        CATEGORY_CHAR: obs.category,
-        date: obs.date,
-        START_DATE: obs.date,
-        encounterNum: obs.encounterNum,
-        ENCOUNTER_NUM: obs.encounterNum,
-      })
-    }
-  })
-
-  // Sort groups by visit start date (most recent first)
-  return groups.sort((a, b) => new Date(b.visitDate) - new Date(a.visitDate))
+  return groupObservationsByVisit(observations.value, visits.value)
 })
 
 // Apply filters to visit groups
@@ -294,8 +245,7 @@ const filteredVisitGroups = computed(() => {
 
 // Category filter options
 const categoryOptions = computed(() => {
-  const categories = [...new Set(observations.value.map((obs) => obs.category).filter(Boolean))]
-  return categories.map((cat) => ({ label: cat, value: cat }))
+  return getCategoryOptions(observations.value)
 })
 
 // Dynamic value type options from global settings store
@@ -442,94 +392,8 @@ const toggleAllVisits = () => {
 
 // Table methods
 const getVisitTableRows = (visitGroup) => {
-  const rows = []
-
-  // Process all observations for this visit
-  visitGroup.observations.forEach((observation) => {
-    const rowId = `obs_${observation.observationId}`
-    const actualValue = extractObservationValue(observation)
-    const pendingValue = pendingChanges.value.get(rowId)
-
-    rows.push({
-      id: rowId,
-      observationId: observation.observationId,
-      conceptCode: observation.conceptCode,
-      conceptName: observation.conceptName,
-      resolvedName: observation.conceptName, // Already resolved in store
-      valueType: observation.valueType,
-      // Use consistent origVal/currentVal pattern
-      origVal: actualValue,
-      currentVal: pendingValue !== undefined ? pendingValue : actualValue,
-      unit: observation.unit,
-      category: observation.category,
-      hasChanges: pendingValue !== undefined && pendingValue !== actualValue,
-      saving: false,
-      previousValue: null, // Could implement previous value lookup
-      displayValue: formatDisplayValue(observation),
-      isMedication: observation.valueType === 'M' || observation.conceptCode?.includes('52418'),
-      // Store raw observation for complete data access
-      rawObservation: observation,
-    })
-  })
-
-  return rows.sort((a, b) => {
-    // Sort by category first, then by concept name
-    const categoryA = a.category || 'ZZZZZ'
-    const categoryB = b.category || 'ZZZZZ'
-    if (categoryA !== categoryB) {
-      return categoryA.localeCompare(categoryB)
-    }
-    return a.conceptName.localeCompare(b.conceptName)
-  })
-}
-
-// Extract the actual value from observation data
-const extractObservationValue = (observation) => {
-  const valType = observation.valueType || 'T'
-
-  switch (valType) {
-    case 'N': {
-      // Numeric
-      const numericValue = observation.nval_num
-      if (numericValue !== null && numericValue !== undefined) {
-        return numericValue
-      }
-      return observation.tval_char || observation.originalValue || ''
-    }
-    case 'M': // Medication
-      return observation.observation_blob || observation.tval_char || observation.originalValue || ''
-    case 'R': // Raw data/File
-      return observation.observation_blob || observation.originalValue || ''
-    default: // Text and others
-      return observation.tval_char || observation.originalValue || ''
-  }
-}
-
-const formatDisplayValue = (observation) => {
-  switch (observation.valueType) {
-    case 'S': // Selection
-    case 'F': // Finding
-    case 'A': // Array/Multiple choice
-      return observation.resolvedValue || observation.originalValue || 'No value'
-    case 'Q': // Questionnaire
-      return observation.originalValue || 'Questionnaire'
-    case 'R': // Raw data/File
-      try {
-        if (observation.originalValue) {
-          const fileInfo = JSON.parse(observation.originalValue)
-          return fileInfo.filename || 'File attached'
-        }
-      } catch {
-        return 'Invalid file data'
-      }
-      break
-    case 'N': // Numeric
-      return observation.originalValue?.toString() || 'No value'
-    case 'M': // Medication
-      return observation.originalValue || 'No medication specified'
-    default: // Text and others
-      return observation.originalValue || 'No value'
-  }
+  const rows = visitGroup.observations.map((observation) => createTableRow(observation, pendingChanges.value))
+  return sortTableRows(rows)
 }
 
 // Utility methods
@@ -580,36 +444,11 @@ const saveRow = async (row) => {
         NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
         OBSERVATION_BLOB: JSON.stringify(medicationData),
       }
-      await visitObservationStore.updateObservation(row.observationId, updateData, { skipReload: true })
+      await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
     } else {
-      // Handle regular observation updates based on value type
-      const updateData = {}
-      switch (row.valueType) {
-        case 'N': // Numeric
-          updateData.NVAL_NUM = parseFloat(row.currentVal)
-          updateData.TVAL_CHAR = null
-          updateData.OBSERVATION_BLOB = null
-          break
-        case 'S': // Selection
-        case 'F': // Finding
-        case 'A': // Array/Multiple choice
-          updateData.TVAL_CHAR = String(row.currentVal)
-          updateData.NVAL_NUM = null
-          updateData.OBSERVATION_BLOB = null
-          break
-        case 'R': // Raw data/File
-          updateData.OBSERVATION_BLOB = row.currentVal
-          updateData.TVAL_CHAR = null
-          updateData.NVAL_NUM = null
-          break
-        case 'T': // Text
-        default:
-          updateData.TVAL_CHAR = String(row.currentVal)
-          updateData.NVAL_NUM = null
-          updateData.OBSERVATION_BLOB = null
-          break
-      }
-      await visitObservationStore.updateObservation(row.observationId, updateData, { skipReload: true })
+      // Handle regular observation updates using transformer
+      const updateData = prepareUpdateData(row.valueType, row.currentVal)
+      await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
     }
 
     // Update local state immediately - no need to wait for refresh
@@ -715,23 +554,12 @@ const removeRow = async (row) => {
     row.saving = true
     logger.info('Removing row', { rowId: row.id, conceptCode: row.conceptCode })
 
-    await visitObservationStore.deleteObservation(row.observationId)
-
-    $q.notify({
-      type: 'positive',
-      message: 'Observation removed successfully',
-      position: 'top',
-    })
+    await visitObservationService.deleteObservation(row.observationId)
 
     logger.success('Row removed successfully', { rowId: row.id })
     emit('updated')
   } catch (error) {
     logger.error('Failed to remove row', error, { rowId: row.id })
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to remove observation',
-      position: 'top',
-    })
   } finally {
     row.saving = false
   }
@@ -771,7 +599,7 @@ const onMedicationEditSave = async (medicationData) => {
       OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
     }
 
-    await visitObservationStore.updateObservation(row.observationId, updateData, { skipReload: true })
+    await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
 
     // Update local state to reflect changes immediately
     if (row.rawObservation) {
@@ -808,18 +636,18 @@ const onMedicationEditCancel = () => {
 }
 
 const onVisitUpdated = async () => {
-  // Reload visits and observations from store
+  // Reload visits and observations from service
   if (patient.value) {
-    await visitObservationStore.loadVisitsForPatient(patient.value)
+    await visitObservationService.loadPatientWithData(patient.value.id)
   }
   emit('updated')
 }
 
 // Event handler for visit creation
 const onVisitCreated = async (createdVisit) => {
-  // The store should handle the visit creation, but we may need to select it
+  // The service should handle the visit creation, select it for observations
   if (createdVisit && createdVisit.id) {
-    await visitObservationStore.setSelectedVisit(createdVisit)
+    await visitObservationService.selectVisitAndLoadObservations(createdVisit)
 
     // Expand the new visit
     const newExpanded = new Set(expandedVisits.value)

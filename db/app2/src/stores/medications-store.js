@@ -465,6 +465,64 @@ export const useMedicationsStore = defineStore('medications', () => {
   // Utility methods
 
   /**
+   * Parse dosage from strength string
+   * @param {string} strength - Strength string (e.g., "100mg", "25-100mg")
+   * @returns {Object} Parsed dosage and unit
+   */
+  const parseDosageFromStrength = (strength) => {
+    if (!strength || typeof strength !== 'string') {
+      return { dosage: null, unit: '' }
+    }
+
+    // Remove any spaces and convert to lowercase for consistent parsing
+    const cleanStrength = strength.replace(/\s+/g, '').toLowerCase()
+
+    // Handle special cases like "25-100mg" - take the first number
+    if (cleanStrength.includes('-')) {
+      const firstPart = cleanStrength.split('-')[0]
+      return parseDosageFromStrength(firstPart + cleanStrength.replace(/[\d.-]/g, ''))
+    }
+
+    // Regular expression to match dosage and unit
+    const dosageRegex = /^(\d+(?:\.\d+)?)([a-zA-Z]+(?:\/[a-zA-Z]+)?)$/
+    const match = cleanStrength.match(dosageRegex)
+
+    if (match) {
+      const dosage = parseFloat(match[1])
+      let unit = match[2]
+
+      // Normalize common unit variations
+      const unitMappings = {
+        iu: 'IU',
+        units: 'units',
+        mcg: 'mcg',
+        ug: 'mcg',
+        g: 'g',
+        mg: 'mg',
+        ml: 'ml',
+        l: 'L',
+        'u/ml': 'U/mL',
+        'units/ml': 'U/mL',
+        'iu/ml': 'IU/mL',
+      }
+
+      unit = unitMappings[unit] || unit
+      return { dosage, unit }
+    }
+
+    // If no match, try to extract just the numeric part
+    const numericRegex = /^(\d+(?:\.\d+)?)/
+    const numericMatch = cleanStrength.match(numericRegex)
+
+    if (numericMatch) {
+      const dosage = parseFloat(numericMatch[1])
+      return { dosage, unit: 'mg' }
+    }
+
+    return { dosage: null, unit: '' }
+  }
+
+  /**
    * Validate medication data
    * @param {Object} medicationData - Data to validate
    * @returns {Object} Validation result
@@ -680,6 +738,114 @@ export const useMedicationsStore = defineStore('medications', () => {
     return parts.join(' • ')
   }
 
+  /**
+   * Parse medication data from observation with optional BLOB loading
+   * @param {Object} observation - Observation data (can be row data or raw observation)
+   * @param {boolean} loadBlob - Whether to load BLOB data if not present
+   * @returns {Promise<Object>} Parsed medication data
+   */
+  const parseMedicationDataWithBlob = async (observation, loadBlob = true) => {
+    try {
+      // First check if BLOB data is already available
+      const blobData =
+        observation?.observationBlob || observation?.OBSERVATION_BLOB || observation?.observation_blob || observation?.rawObservation?.observation_blob || observation?.rawObservation?.OBSERVATION_BLOB
+
+      if (blobData && typeof blobData === 'string') {
+        try {
+          const parsed = JSON.parse(blobData)
+          return {
+            drugName: parsed.drugName || observation.value || '',
+            dosage: parsed.dosage || observation.numericValue || null,
+            dosageUnit: parsed.dosageUnit || observation.unit || 'mg',
+            frequency: parsed.frequency || '',
+            route: parsed.route || '',
+            instructions: parsed.instructions || '',
+          }
+        } catch (parseError) {
+          logger.warn('Failed to parse BLOB JSON', parseError)
+        }
+      }
+
+      // If no BLOB data and we should load it
+      if (loadBlob && observation?.observationId) {
+        try {
+          const { useObservationStore } = await import('./observation-store.js')
+          const observationStore = useObservationStore()
+          const loadedBlob = await observationStore.getObservationBlob(observation.observationId)
+
+          if (loadedBlob) {
+            const parsed = JSON.parse(loadedBlob)
+            return {
+              drugName: parsed.drugName || observation.value || '',
+              dosage: parsed.dosage || observation.numericValue || null,
+              dosageUnit: parsed.dosageUnit || observation.unit || 'mg',
+              frequency: parsed.frequency || '',
+              route: parsed.route || '',
+              instructions: parsed.instructions || '',
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed to load OBSERVATION_BLOB', { observationId: observation.observationId, error })
+        }
+      }
+
+      // Fallback to basic data
+      const drugName = observation?.value || observation?.TVAL_CHAR || observation?.tval_char || observation?.rawObservation?.tval_char || observation?.rawObservation?.TVAL_CHAR || ''
+
+      return {
+        drugName: drugName.trim(),
+        dosage: observation?.numericValue || observation?.NVAL_NUM || observation?.nval_num || null,
+        dosageUnit: observation?.unit || observation?.UNIT_CD || observation?.unit_cd || 'mg',
+        frequency: '', // Will need to be loaded from BLOB
+        route: '', // Will need to be loaded from BLOB
+        instructions: '',
+      }
+    } catch (error) {
+      logger.error('Failed to parse medication data with BLOB', error)
+      return {
+        drugName: '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    }
+  }
+
+  /**
+   * Format medication for elegant display
+   * @param {Object} medicationData - Parsed medication data
+   * @returns {Promise<string>} Formatted display string (e.g., "Aspirin 100mg 1-0-1 p.o.")
+   */
+  const formatMedicationDisplayElegant = async (medicationData) => {
+    if (!medicationData.drugName) return ''
+
+    const parts = []
+
+    // Drug name
+    parts.push(medicationData.drugName)
+
+    // Dosage with unit: "100mg"
+    if (medicationData.dosage && medicationData.dosageUnit) {
+      parts.push(`${medicationData.dosage}${medicationData.dosageUnit}`)
+    }
+
+    // Frequency in simplified format
+    if (medicationData.frequency) {
+      const freq = await getSimplifiedFrequency(medicationData.frequency)
+      parts.push(freq)
+    }
+
+    // Route abbreviation
+    if (medicationData.route) {
+      const route = await getRouteAbbreviation(medicationData.route)
+      parts.push(route)
+    }
+
+    return parts.join(' ')
+  }
+
   return {
     // State
     medications,
@@ -705,11 +871,14 @@ export const useMedicationsStore = defineStore('medications', () => {
     // Utilities
     validateMedicationData,
     formatMedicationDisplay,
+    formatMedicationDisplayElegant,
     normalizeMedicationData,
+    parseDosageFromStrength,
     getSimplifiedFrequency,
     getRouteAbbreviation,
     getFrequencyLabel,
     getRouteLabel,
     parseMedicationData,
+    parseMedicationDataWithBlob,
   }
 })

@@ -208,7 +208,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useObservationStore } from 'src/stores/observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -242,7 +243,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'observation-added'])
 
 const $q = useQuasar()
-const visitStore = useVisitObservationStore()
+const observationStore = useObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
 const dbStore = useDatabaseStore()
@@ -275,9 +276,9 @@ const showDialog = computed({
 
 // Helper to check if a concept already exists in the current visit
 const isConceptInCurrentVisit = (conceptCode) => {
-  if (!props.visit || !visitStore.observations) return false
+  if (!props.visit || !observationStore.observations) return false
 
-  return visitStore.observations.some((obs) => {
+  return observationStore.observations.some((obs) => {
     // Try multiple matching strategies:
     // 1. Exact match
     if (obs.conceptCode === conceptCode) return true
@@ -608,8 +609,11 @@ const saveCustomObservation = async () => {
         observationData.UNIT_CD = customObservation.value.unit
       }
 
-      // Use visit store to create observation
-      await visitStore.createObservation(observationData)
+      // Add PATIENT_NUM to observation data
+      observationData.PATIENT_NUM = props.patient.PATIENT_NUM
+
+      // Use service to create observation
+      await visitObservationService.createObservation(observationData)
     }
 
     emit('observation-added', {
