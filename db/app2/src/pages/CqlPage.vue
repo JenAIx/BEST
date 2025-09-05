@@ -1,251 +1,83 @@
 <template>
   <q-page class="q-pa-md">
+    <!-- Page Header -->
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h4">CQL Administration</div>
       <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">Showing {{ cqlRules.length }} of {{ totalRules }} CQL rules</div>
-        <q-btn color="primary" icon="add" label="Create CQL Rule" @click="onCreateRule" />
+        <div class="text-caption text-grey-6">
+          {{ getStatusText() }}
+        </div>
       </div>
     </div>
 
-    <!-- Search and Filters -->
+    <p class="text-subtitle1 text-grey-7 q-mb-lg">Manage CQL rules and their associations with concepts</p>
+
+    <!-- Tab Selection -->
     <div class="row q-gutter-md q-mb-md">
       <div class="col-12 col-md-6">
-        <q-input v-model="searchQuery" outlined dense placeholder="Search CQL rules (code, name, description)..." @update:model-value="onSearchChange" debounce="300">
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-          <template v-slot:append>
-            <q-icon v-if="searchQuery" name="close" @click="clearSearch" class="cursor-pointer" />
-          </template>
-        </q-input>
+        <q-select v-model="selectedTab" :options="tabOptions" outlined dense label="Management Type" emit-value map-options @update:model-value="onTabChange" />
       </div>
     </div>
 
-    <!-- CQL Rules Table -->
-    <q-table :rows="cqlRules" :columns="columns" row-key="CQL_ID" :loading="loading" :pagination="pagination" @request="onRequest" binary-state-sort :rows-per-page-options="[10, 25, 50]">
-      <!-- Code and Name Column -->
-      <template v-slot:body-cell-CODE_CD="props">
-        <q-td :props="props">
-          <div>
-            <div class="text-weight-medium">{{ props.row.CODE_CD }}</div>
-            <div class="text-caption text-grey-6">{{ props.row.NAME_CHAR }}</div>
-            <div v-if="props.row.CQL_BLOB" class="text-caption text-grey-6">
-              {{ truncateText(props.row.CQL_BLOB, 50) }}
-            </div>
-          </div>
-        </q-td>
-      </template>
+    <!-- Content Area -->
+    <div class="content-area">
+      <!-- CQL Rules Management -->
+      <CqlRulesManager v-if="selectedTab === 'rules'" ref="rulesManagerRef" class="tab-content" />
 
-      <!-- CQL Status Column -->
-      <template v-slot:body-cell-status="props">
-        <q-td :props="props">
-          <q-chip :color="getCqlStatusColor(props.row)" text-color="white" size="sm">
-            {{ getCqlStatusLabel(props.row) }}
-            <q-tooltip>{{ getCqlStatusTooltip(props.row) }}</q-tooltip>
-          </q-chip>
-        </q-td>
-      </template>
-
-      <!-- Actions Column -->
-      <template v-slot:body-cell-actions="props">
-        <q-td :props="props">
-          <q-btn flat round dense icon="edit" color="primary" @click="onEditRule(props.row)">
-            <q-tooltip>Edit CQL Rule</q-tooltip>
-          </q-btn>
-          <q-btn flat round dense icon="play_arrow" color="secondary" @click="onTestRule(props.row)">
-            <q-tooltip>Test CQL Rule</q-tooltip>
-          </q-btn>
-          <q-btn flat round dense icon="delete" color="negative" @click="onDeleteRule(props.row)">
-            <q-tooltip>Delete CQL Rule</q-tooltip>
-          </q-btn>
-        </q-td>
-      </template>
-    </q-table>
-
-    <!-- CQL Dialog (Create/Edit) -->
-    <CqlDialog v-model="showCqlDialog" :mode="cqlDialogMode" :cqlRule="selectedRule" @saved="onCqlSaved" @cancelled="onCqlCancelled" />
-
-    <!-- Test CQL Rule Dialog -->
-    <CqlTestDialog v-model="showTestDialog" :cqlRule="selectedRule" @cancel="onCancelTest" />
+      <!-- CQL-Concept Associations -->
+      <CqlConceptAssociations v-if="selectedTab === 'associations'" ref="associationsManagerRef" class="tab-content" />
+    </div>
   </q-page>
 </template>
 
 <script setup>
 import { ref, onMounted, computed } from 'vue'
-import { useQuasar } from 'quasar'
 import { useCqlStore } from 'src/stores/cql-store'
-import CqlTestDialog from 'components/CqlTestDialog.vue'
-import CqlDialog from 'components/CqlDialog.vue'
+import CqlRulesManager from 'src/components/cql/CqlRulesManager.vue'
+import CqlConceptAssociations from 'src/components/cql/CqlConceptAssociations.vue'
 
-const $q = useQuasar()
 const cqlStore = useCqlStore()
 
 // State
-const showCqlDialog = ref(false)
-const cqlDialogMode = ref('create')
-const showTestDialog = ref(false)
+const selectedTab = ref('rules')
+const rulesManagerRef = ref(null)
+const associationsManagerRef = ref(null)
 
-// Computed properties from store
-const cqlRules = computed(() => cqlStore.cqlRules)
-const totalRules = computed(() => cqlStore.totalRules)
-const loading = computed(() => cqlStore.loading)
-const selectedRule = computed(() => cqlStore.selectedRule)
-const searchQuery = computed({
-  get: () => cqlStore.searchQuery,
-  set: (value) => cqlStore.setSearchQuery(value),
-})
-
-// Table configuration
-const columns = [
+// Tab options
+const tabOptions = [
   {
-    name: 'CODE_CD',
-    label: 'Code and Name',
-    align: 'left',
-    field: 'CODE_CD',
-    sortable: true,
-    style: 'min-width: 300px',
+    label: 'CQL Rules',
+    value: 'rules',
+    description: 'Manage CQL rules (create, edit, test, delete)',
   },
   {
-    name: 'status',
-    label: 'Status',
-    align: 'center',
-    field: 'status',
-    sortable: false,
-    style: 'width: 120px',
-  },
-  {
-    name: 'UPDATE_DATE',
-    label: 'Last Updated',
-    align: 'center',
-    field: 'UPDATE_DATE',
-    sortable: true,
-    style: 'width: 150px',
-    format: (val) => (val ? new Date(val).toLocaleDateString() : 'Never'),
-  },
-  {
-    name: 'actions',
-    label: 'Actions',
-    align: 'center',
-    field: 'actions',
-    sortable: false,
-    style: 'width: 150px',
+    label: 'Concept Associations',
+    value: 'associations',
+    description: 'Manage associations between concepts and CQL rules',
   },
 ]
 
-const pagination = computed({
-  get: () => cqlStore.pagination,
-  set: (value) => cqlStore.setPagination(value),
-})
+// Computed properties
+const totalRules = computed(() => cqlStore.totalRules)
 
 // Methods
-const loadCqlRules = async () => {
-  try {
-    await cqlStore.loadCqlRules()
-  } catch {
-    $q.notify({
-      type: 'negative',
-      message: cqlStore.error || 'Failed to load CQL rules',
-      position: 'top',
-    })
+const getStatusText = () => {
+  if (selectedTab.value === 'rules') {
+    return `Showing ${cqlStore.cqlRules.length} of ${totalRules.value} CQL rules`
+  } else {
+    return 'Managing CQL-Concept associations'
   }
 }
 
-const onRequest = (props) => {
-  const { page, rowsPerPage, sortBy, descending } = props.pagination
+const onTabChange = (newTab) => {
+  selectedTab.value = newTab
 
-  // Update pagination
-  cqlStore.setPagination({
-    page,
-    rowsPerPage,
-    sortBy,
-    descending,
-  })
-
-  // Reload data with new pagination
-  loadCqlRules()
-}
-
-const onSearchChange = () => {
-  // Search query is already updated via computed property
-  // Store handles resetting to first page
-  loadCqlRules()
-}
-
-const clearSearch = () => {
-  cqlStore.clearSearch()
-  loadCqlRules()
-}
-
-// Use store methods for status
-const getCqlStatusColor = (rule) => cqlStore.getCqlStatusColor(rule)
-const getCqlStatusLabel = (rule) => cqlStore.getCqlStatusLabel(rule)
-const getCqlStatusTooltip = (rule) => cqlStore.getCqlStatusTooltip(rule)
-
-const truncateText = (text, maxLength) => {
-  if (!text) return ''
-  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
-}
-
-// CQL Rule actions
-const onCreateRule = () => {
-  cqlStore.clearSelectedRule()
-  cqlDialogMode.value = 'create'
-  showCqlDialog.value = true
-}
-
-const onEditRule = (rule) => {
-  cqlStore.setSelectedRule({ ...rule })
-  cqlDialogMode.value = 'edit'
-  showCqlDialog.value = true
-}
-
-const onTestRule = (rule) => {
-  cqlStore.setSelectedRule({ ...rule })
-  showTestDialog.value = true
-}
-
-const onDeleteRule = (rule) => {
-  $q.dialog({
-    title: 'Confirm Delete',
-    message: `Are you sure you want to delete CQL rule "${rule.CODE_CD}" (${rule.NAME_CHAR})? This action cannot be undone.`,
-    cancel: true,
-    persistent: true,
-    color: 'negative',
-  }).onOk(async () => {
-    try {
-      await cqlStore.deleteCqlRule(rule.CQL_ID)
-
-      $q.notify({
-        type: 'positive',
-        message: 'CQL rule deleted successfully',
-        position: 'top',
-      })
-    } catch {
-      $q.notify({
-        type: 'negative',
-        message: cqlStore.error || 'Failed to delete CQL rule',
-        position: 'top',
-      })
-    }
-  })
-}
-
-// Dialog handlers
-const onCqlSaved = async () => {
-  // Notification is handled by the dialog component
-  // Just refresh the list
-  await cqlStore.refreshRules()
-}
-
-const onCqlCancelled = () => {
-  // Dialog will close itself
-  cqlStore.clearSelectedRule()
-}
-
-const onCancelTest = () => {
-  showTestDialog.value = false
-  cqlStore.clearSelectedRule()
+  // Load data for the selected tab
+  if (newTab === 'rules' && rulesManagerRef.value) {
+    rulesManagerRef.value.loadCqlRules()
+  } else if (newTab === 'associations' && associationsManagerRef.value) {
+    associationsManagerRef.value.loadAssociations()
+  }
 }
 
 // Initialize
@@ -255,6 +87,23 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
+.content-area {
+  .tab-content {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .monospace {
   font-family: 'Courier New', monospace;
   font-size: 0.8em;
