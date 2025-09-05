@@ -3,9 +3,7 @@
     <div class="row items-center justify-between q-mb-md">
       <div class="text-h4">CQL Administration</div>
       <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">
-          Showing {{ cqlRules.length }} of {{ totalRules }} CQL rules
-        </div>
+        <div class="text-caption text-grey-6">Showing {{ cqlRules.length }} of {{ totalRules }} CQL rules</div>
         <q-btn color="primary" icon="add" label="Create CQL Rule" @click="onCreateRule" />
       </div>
     </div>
@@ -13,8 +11,7 @@
     <!-- Search and Filters -->
     <div class="row q-gutter-md q-mb-md">
       <div class="col-12 col-md-6">
-        <q-input v-model="searchQuery" outlined dense placeholder="Search CQL rules (code, name, description)..."
-          @update:model-value="onSearchChange" debounce="300">
+        <q-input v-model="searchQuery" outlined dense placeholder="Search CQL rules (code, name, description)..." @update:model-value="onSearchChange" debounce="300">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -26,9 +23,7 @@
     </div>
 
     <!-- CQL Rules Table -->
-    <q-table :rows="cqlRules" :columns="columns" row-key="CQL_ID" :loading="loading" :pagination="pagination"
-      @request="onRequest" binary-state-sort :rows-per-page-options="[10, 25, 50]">
-
+    <q-table :rows="cqlRules" :columns="columns" row-key="CQL_ID" :loading="loading" :pagination="pagination" @request="onRequest" binary-state-sort :rows-per-page-options="[10, 25, 50]">
       <!-- Code and Name Column -->
       <template v-slot:body-cell-CODE_CD="props">
         <q-td :props="props">
@@ -69,13 +64,7 @@
     </q-table>
 
     <!-- CQL Dialog (Create/Edit) -->
-    <CqlDialog 
-      v-model="showCqlDialog" 
-      :mode="cqlDialogMode"
-      :cqlRule="selectedRule" 
-      @saved="onCqlSaved" 
-      @cancelled="onCqlCancelled" 
-    />
+    <CqlDialog v-model="showCqlDialog" :mode="cqlDialogMode" :cqlRule="selectedRule" @saved="onCqlSaved" @cancelled="onCqlCancelled" />
 
     <!-- Test CQL Rule Dialog -->
     <CqlTestDialog v-model="showTestDialog" :cqlRule="selectedRule" @cancel="onCancelTest" />
@@ -83,24 +72,29 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
+import { useCqlStore } from 'src/stores/cql-store'
 import CqlTestDialog from 'components/CqlTestDialog.vue'
 import CqlDialog from 'components/CqlDialog.vue'
 
 const $q = useQuasar()
-const dbStore = useDatabaseStore()
+const cqlStore = useCqlStore()
 
 // State
-const cqlRules = ref([])
-const totalRules = ref(0)
-const loading = ref(false)
 const showCqlDialog = ref(false)
 const cqlDialogMode = ref('create')
 const showTestDialog = ref(false)
-const selectedRule = ref(null)
-const searchQuery = ref('')
+
+// Computed properties from store
+const cqlRules = computed(() => cqlStore.cqlRules)
+const totalRules = computed(() => cqlStore.totalRules)
+const loading = computed(() => cqlStore.loading)
+const selectedRule = computed(() => cqlStore.selectedRule)
+const searchQuery = computed({
+  get: () => cqlStore.searchQuery,
+  set: (value) => cqlStore.setSearchQuery(value),
+})
 
 // Table configuration
 const columns = [
@@ -110,7 +104,7 @@ const columns = [
     align: 'left',
     field: 'CODE_CD',
     sortable: true,
-    style: 'min-width: 300px'
+    style: 'min-width: 300px',
   },
   {
     name: 'status',
@@ -118,7 +112,7 @@ const columns = [
     align: 'center',
     field: 'status',
     sortable: false,
-    style: 'width: 120px'
+    style: 'width: 120px',
   },
   {
     name: 'UPDATE_DATE',
@@ -127,7 +121,7 @@ const columns = [
     field: 'UPDATE_DATE',
     sortable: true,
     style: 'width: 150px',
-    format: (val) => val ? new Date(val).toLocaleDateString() : 'Never'
+    format: (val) => (val ? new Date(val).toLocaleDateString() : 'Never'),
   },
   {
     name: 'actions',
@@ -135,53 +129,25 @@ const columns = [
     align: 'center',
     field: 'actions',
     sortable: false,
-    style: 'width: 150px'
-  }
+    style: 'width: 150px',
+  },
 ]
 
-const pagination = ref({
-  sortBy: 'CODE_CD',
-  descending: false,
-  page: 1,
-  rowsPerPage: 10,
-  rowsNumber: 0
+const pagination = computed({
+  get: () => cqlStore.pagination,
+  set: (value) => cqlStore.setPagination(value),
 })
 
 // Methods
 const loadCqlRules = async () => {
-  loading.value = true
   try {
-    const cqlRepo = dbStore.getRepository('cql')
-    if (!cqlRepo) {
-      throw new Error('CQL repository not available')
-    }
-
-    // Build search criteria
-    const criteria = {}
-    if (searchQuery.value) {
-      criteria.search = String(searchQuery.value)
-    }
-
-    // Get paginated results
-    const result = await cqlRepo.getCqlRulesPaginated(
-      pagination.value.page,
-      pagination.value.rowsPerPage,
-      criteria
-    )
-
-    cqlRules.value = result.rules || []
-    totalRules.value = result.pagination?.totalCount || 0
-    pagination.value.rowsNumber = totalRules.value
-
-  } catch (error) {
-    console.error('Failed to load CQL rules:', error)
+    await cqlStore.loadCqlRules()
+  } catch {
     $q.notify({
       type: 'negative',
-      message: 'Failed to load CQL rules',
-      position: 'top'
+      message: cqlStore.error || 'Failed to load CQL rules',
+      position: 'top',
     })
-  } finally {
-    loading.value = false
   }
 }
 
@@ -189,44 +155,32 @@ const onRequest = (props) => {
   const { page, rowsPerPage, sortBy, descending } = props.pagination
 
   // Update pagination
-  pagination.value.page = page
-  pagination.value.rowsPerPage = rowsPerPage
-  pagination.value.sortBy = sortBy
-  pagination.value.descending = descending
+  cqlStore.setPagination({
+    page,
+    rowsPerPage,
+    sortBy,
+    descending,
+  })
 
   // Reload data with new pagination
   loadCqlRules()
 }
 
 const onSearchChange = () => {
-  // Reset to first page when searching
-  pagination.value.page = 1
+  // Search query is already updated via computed property
+  // Store handles resetting to first page
   loadCqlRules()
 }
 
 const clearSearch = () => {
-  searchQuery.value = ''
-  pagination.value.page = 1
+  cqlStore.clearSearch()
   loadCqlRules()
 }
 
-const getCqlStatusColor = (rule) => {
-  if (rule.CQL_CHAR && rule.JSON_CHAR) return 'green'
-  if (rule.CQL_CHAR) return 'orange'
-  return 'grey'
-}
-
-const getCqlStatusLabel = (rule) => {
-  if (rule.CQL_CHAR && rule.JSON_CHAR) return 'Ready'
-  if (rule.CQL_CHAR) return 'Draft'
-  return 'Empty'
-}
-
-const getCqlStatusTooltip = (rule) => {
-  if (rule.CQL_CHAR && rule.JSON_CHAR) return 'CQL rule is complete and ready for execution'
-  if (rule.CQL_CHAR) return 'CQL rule has source code but no compiled JSON'
-  return 'CQL rule is empty and needs to be configured'
-}
+// Use store methods for status
+const getCqlStatusColor = (rule) => cqlStore.getCqlStatusColor(rule)
+const getCqlStatusLabel = (rule) => cqlStore.getCqlStatusLabel(rule)
+const getCqlStatusTooltip = (rule) => cqlStore.getCqlStatusTooltip(rule)
 
 const truncateText = (text, maxLength) => {
   if (!text) return ''
@@ -235,19 +189,19 @@ const truncateText = (text, maxLength) => {
 
 // CQL Rule actions
 const onCreateRule = () => {
-  selectedRule.value = null
+  cqlStore.clearSelectedRule()
   cqlDialogMode.value = 'create'
   showCqlDialog.value = true
 }
 
 const onEditRule = (rule) => {
-  selectedRule.value = { ...rule }
+  cqlStore.setSelectedRule({ ...rule })
   cqlDialogMode.value = 'edit'
   showCqlDialog.value = true
 }
 
 const onTestRule = (rule) => {
-  selectedRule.value = { ...rule }
+  cqlStore.setSelectedRule({ ...rule })
   showTestDialog.value = true
 }
 
@@ -257,25 +211,21 @@ const onDeleteRule = (rule) => {
     message: `Are you sure you want to delete CQL rule "${rule.CODE_CD}" (${rule.NAME_CHAR})? This action cannot be undone.`,
     cancel: true,
     persistent: true,
-    color: 'negative'
+    color: 'negative',
   }).onOk(async () => {
     try {
-      const cqlRepo = dbStore.getRepository('cql')
-      await cqlRepo.delete(rule.CQL_ID)
+      await cqlStore.deleteCqlRule(rule.CQL_ID)
 
       $q.notify({
         type: 'positive',
         message: 'CQL rule deleted successfully',
-        position: 'top'
+        position: 'top',
       })
-
-      await loadCqlRules()
-    } catch (error) {
-      console.error('Failed to delete CQL rule:', error)
+    } catch {
       $q.notify({
         type: 'negative',
-        message: 'Failed to delete CQL rule',
-        position: 'top'
+        message: cqlStore.error || 'Failed to delete CQL rule',
+        position: 'top',
       })
     }
   })
@@ -285,22 +235,22 @@ const onDeleteRule = (rule) => {
 const onCqlSaved = async () => {
   // Notification is handled by the dialog component
   // Just refresh the list
-  await loadCqlRules()
+  await cqlStore.refreshRules()
 }
 
 const onCqlCancelled = () => {
   // Dialog will close itself
-  selectedRule.value = null
+  cqlStore.clearSelectedRule()
 }
 
 const onCancelTest = () => {
   showTestDialog.value = false
-  selectedRule.value = null
+  cqlStore.clearSelectedRule()
 }
 
 // Initialize
-onMounted(() => {
-  loadCqlRules()
+onMounted(async () => {
+  await cqlStore.initialize()
 })
 </script>
 
