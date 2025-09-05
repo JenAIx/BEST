@@ -166,9 +166,9 @@ export const useMedicationsStore = defineStore('medications', () => {
 
       // Prepare update query
       const updateQuery = `
-        UPDATE OBSERVATION_FACT 
-        SET TVAL_CHAR = ?, 
-            NVAL_NUM = ?, 
+        UPDATE OBSERVATION_FACT
+        SET TVAL_CHAR = ?,
+            NVAL_NUM = ?,
             UNIT_CD = ?,
             OBSERVATION_BLOB = ?,
             UPDATE_DATE = datetime('now')
@@ -266,7 +266,7 @@ export const useMedicationsStore = defineStore('medications', () => {
       logger.debug('Loading medications for visit', { visitId })
 
       const query = `
-        SELECT 
+        SELECT
           OBSERVATION_ID as observationId,
           CONCEPT_CD as conceptCode,
           TVAL_CHAR as value,
@@ -276,8 +276,8 @@ export const useMedicationsStore = defineStore('medications', () => {
           START_DATE as date,
           VALTYPE_CD as valTypeCode,
           CATEGORY_CHAR as categoryCode
-        FROM OBSERVATION_FACT 
-        WHERE ENCOUNTER_NUM = ? 
+        FROM OBSERVATION_FACT
+        WHERE ENCOUNTER_NUM = ?
           AND (CONCEPT_CD = 'LID: 52418-1' OR VALTYPE_CD = 'M')
         ORDER BY OBSERVATION_ID
       `
@@ -371,9 +371,9 @@ export const useMedicationsStore = defineStore('medications', () => {
       }
 
       const updateQuery = `
-        UPDATE OBSERVATION_FACT 
-        SET TVAL_CHAR = NULL, 
-            NVAL_NUM = NULL, 
+        UPDATE OBSERVATION_FACT
+        SET TVAL_CHAR = NULL,
+            NVAL_NUM = NULL,
             UNIT_CD = 'mg',
             OBSERVATION_BLOB = ?,
             UPDATE_DATE = datetime('now')
@@ -403,7 +403,124 @@ export const useMedicationsStore = defineStore('medications', () => {
     }
   }
 
+  // Medication options methods
+
+  /**
+   * Get frequency options for medication dosing
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of frequency options
+   */
+  const getFrequencyOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getFrequencyOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get frequency options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get route options for medication administration
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of route options
+   */
+  const getRouteOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getRouteOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get route options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get unit options for medication dosages
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of unit options
+   */
+  const getUnitOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getUnitOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get unit options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get drug options for medication search
+   * @param {string} searchTerm - Search term to filter drugs
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of drug options
+   */
+  const getDrugOptions = async (searchTerm = '', forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getDrugOptions(searchTerm, forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get drug options', error)
+      return []
+    }
+  }
+
   // Utility methods
+
+  /**
+   * Parse dosage from strength string
+   * @param {string} strength - Strength string (e.g., "100mg", "25-100mg")
+   * @returns {Object} Parsed dosage and unit
+   */
+  const parseDosageFromStrength = (strength) => {
+    if (!strength || typeof strength !== 'string') {
+      return { dosage: null, unit: '' }
+    }
+
+    // Remove any spaces and convert to lowercase for consistent parsing
+    const cleanStrength = strength.replace(/\s+/g, '').toLowerCase()
+
+    // Handle special cases like "25-100mg" - take the first number
+    if (cleanStrength.includes('-')) {
+      const firstPart = cleanStrength.split('-')[0]
+      return parseDosageFromStrength(firstPart + cleanStrength.replace(/[\d.-]/g, ''))
+    }
+
+    // Regular expression to match dosage and unit
+    const dosageRegex = /^(\d+(?:\.\d+)?)([a-zA-Z]+(?:\/[a-zA-Z]+)?)$/
+    const match = cleanStrength.match(dosageRegex)
+
+    if (match) {
+      const dosage = parseFloat(match[1])
+      let unit = match[2]
+
+      // Normalize common unit variations
+      const unitMappings = {
+        iu: 'IU',
+        units: 'units',
+        mcg: 'mcg',
+        ug: 'mcg',
+        g: 'g',
+        mg: 'mg',
+        ml: 'ml',
+        l: 'L',
+        'u/ml': 'U/mL',
+        'units/ml': 'U/mL',
+        'iu/ml': 'IU/mL',
+      }
+
+      unit = unitMappings[unit] || unit
+      return { dosage, unit }
+    }
+
+    // If no match, try to extract just the numeric part
+    const numericRegex = /^(\d+(?:\.\d+)?)/
+    const numericMatch = cleanStrength.match(numericRegex)
+
+    if (numericMatch) {
+      const dosage = parseFloat(numericMatch[1])
+      return { dosage, unit: 'mg' }
+    }
+
+    return { dosage: null, unit: '' }
+  }
 
   /**
    * Validate medication data
@@ -426,6 +543,173 @@ export const useMedicationsStore = defineStore('medications', () => {
       isValid: errors.length === 0,
       errors,
       normalized,
+    }
+  }
+
+  /**
+   * Get simplified frequency display from database lookup
+   * @param {string} frequency - Frequency code (e.g., 'QD', 'BID')
+   * @returns {string} Simplified frequency display (e.g., '1-0-0', 'q4h')
+   */
+  const getSimplifiedFrequency = async (frequency) => {
+    if (!frequency) return ''
+
+    try {
+      // Get frequency options from database
+      const frequencyOptions = await getFrequencyOptions()
+
+      // Find the matching frequency option
+      const freqOption = frequencyOptions.find((opt) => opt.value === frequency)
+
+      if (freqOption?.application) {
+        return freqOption.application
+      }
+
+      // Fallback to abbreviation if application not available
+      if (freqOption?.abbreviation) {
+        return freqOption.abbreviation
+      }
+
+      // Final fallback to original value
+      return frequency
+    } catch (error) {
+      logger.warn('Failed to get simplified frequency from database', { frequency, error })
+      return frequency
+    }
+  }
+
+  /**
+   * Get route abbreviation from database lookup
+   * @param {string} route - Route code (e.g., 'PO', 'IV')
+   * @returns {string} Route abbreviation (e.g., 'p.o.', 'i.v.')
+   */
+  const getRouteAbbreviation = async (route) => {
+    if (!route) return ''
+
+    try {
+      // Get route options from database
+      const routeOptions = await getRouteOptions()
+
+      // Find the matching route option
+      const routeOption = routeOptions.find((opt) => opt.value === route)
+
+      if (routeOption?.abbreviation) {
+        return routeOption.abbreviation
+      }
+
+      // Fallback to lowercase version
+      return route.toLowerCase()
+    } catch (error) {
+      logger.warn('Failed to get route abbreviation from database', { route, error })
+      return route.toLowerCase()
+    }
+  }
+
+  /**
+   * Get frequency label from stored frequency code
+   * @param {string|Object} frequencyCode - Stored frequency code or option object
+   * @returns {Promise<string>} Frequency label (e.g., 'Once daily', 'Twice daily')
+   */
+  const getFrequencyLabel = async (frequencyCode) => {
+    if (!frequencyCode) return ''
+
+    // Handle both string values and objects from q-select
+    const codeValue = typeof frequencyCode === 'object' ? frequencyCode?.value : frequencyCode
+    if (!codeValue || typeof codeValue !== 'string') return ''
+
+    try {
+      const frequencyOptions = await getFrequencyOptions()
+      const freqOption = frequencyOptions.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+      return freqOption?.label || codeValue
+    } catch (error) {
+      logger.warn('Failed to get frequency label', { frequencyCode: codeValue, error })
+      return codeValue
+    }
+  }
+
+  /**
+   * Get route label from stored route code
+   * @param {string|Object} routeCode - Stored route code or option object
+   * @returns {Promise<string>} Route label (e.g., 'Oral', 'Intravenous')
+   */
+  const getRouteLabel = async (routeCode) => {
+    if (!routeCode) return ''
+
+    // Handle both string values and objects from q-select
+    const codeValue = typeof routeCode === 'object' ? routeCode?.value : routeCode
+    if (!codeValue || typeof codeValue !== 'string') return ''
+
+    try {
+      const routeOptions = await getRouteOptions()
+      const routeOption = routeOptions.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+      return routeOption?.label || codeValue
+    } catch (error) {
+      logger.warn('Failed to get route label', { routeCode: codeValue, error })
+      return codeValue
+    }
+  }
+
+  /**
+   * Parse medication data from observation row (centralized function)
+   * @param {Object} row - Observation row data
+   * @returns {Object} Parsed medication data
+   */
+  const parseMedicationData = (row) => {
+    try {
+      // Try to parse OBSERVATION_BLOB first
+      if (row.rawObservation?.observation_blob || row.rawObservation?.OBSERVATION_BLOB) {
+        const blobData = row.rawObservation.observation_blob || row.rawObservation.OBSERVATION_BLOB
+        if (typeof blobData === 'string') {
+          try {
+            const parsed = JSON.parse(blobData)
+            return {
+              drugName: parsed.drugName || '',
+              dosage: parsed.dosage || null,
+              dosageUnit: parsed.dosageUnit || 'mg',
+              frequency: parsed.frequency || '',
+              route: parsed.route || '',
+              instructions: parsed.instructions || '',
+            }
+          } catch (parseError) {
+            logger.warn('Failed to parse BLOB JSON', parseError)
+          }
+        }
+      }
+
+      // For basic medication data without BLOB, extract from TVAL_CHAR (drug name only)
+      const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
+
+      if (drugName && drugName.trim()) {
+        // Create basic medication data - BLOB will be loaded by the component
+        return {
+          drugName: drugName.trim(), // TVAL_CHAR contains only the drug name
+          dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || null,
+          dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
+          frequency: '', // Will be loaded from BLOB by component
+          route: '', // Will be loaded from BLOB by component
+          instructions: '',
+        }
+      }
+
+      // Fallback to empty structure
+      return {
+        drugName: '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    } catch (error) {
+      logger.error('Failed to parse medication data', error, { rowId: row.id })
+      return {
+        drugName: row.origVal || row.currentVal || '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
     }
   }
 
@@ -454,6 +738,114 @@ export const useMedicationsStore = defineStore('medications', () => {
     return parts.join(' • ')
   }
 
+  /**
+   * Parse medication data from observation with optional BLOB loading
+   * @param {Object} observation - Observation data (can be row data or raw observation)
+   * @param {boolean} loadBlob - Whether to load BLOB data if not present
+   * @returns {Promise<Object>} Parsed medication data
+   */
+  const parseMedicationDataWithBlob = async (observation, loadBlob = true) => {
+    try {
+      // First check if BLOB data is already available
+      const blobData =
+        observation?.observationBlob || observation?.OBSERVATION_BLOB || observation?.observation_blob || observation?.rawObservation?.observation_blob || observation?.rawObservation?.OBSERVATION_BLOB
+
+      if (blobData && typeof blobData === 'string') {
+        try {
+          const parsed = JSON.parse(blobData)
+          return {
+            drugName: parsed.drugName || observation.value || '',
+            dosage: parsed.dosage || observation.numericValue || null,
+            dosageUnit: parsed.dosageUnit || observation.unit || 'mg',
+            frequency: parsed.frequency || '',
+            route: parsed.route || '',
+            instructions: parsed.instructions || '',
+          }
+        } catch (parseError) {
+          logger.warn('Failed to parse BLOB JSON', parseError)
+        }
+      }
+
+      // If no BLOB data and we should load it
+      if (loadBlob && observation?.observationId) {
+        try {
+          const { useObservationStore } = await import('./observation-store.js')
+          const observationStore = useObservationStore()
+          const loadedBlob = await observationStore.getObservationBlob(observation.observationId)
+
+          if (loadedBlob) {
+            const parsed = JSON.parse(loadedBlob)
+            return {
+              drugName: parsed.drugName || observation.value || '',
+              dosage: parsed.dosage || observation.numericValue || null,
+              dosageUnit: parsed.dosageUnit || observation.unit || 'mg',
+              frequency: parsed.frequency || '',
+              route: parsed.route || '',
+              instructions: parsed.instructions || '',
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed to load OBSERVATION_BLOB', { observationId: observation.observationId, error })
+        }
+      }
+
+      // Fallback to basic data
+      const drugName = observation?.value || observation?.TVAL_CHAR || observation?.tval_char || observation?.rawObservation?.tval_char || observation?.rawObservation?.TVAL_CHAR || ''
+
+      return {
+        drugName: drugName.trim(),
+        dosage: observation?.numericValue || observation?.NVAL_NUM || observation?.nval_num || null,
+        dosageUnit: observation?.unit || observation?.UNIT_CD || observation?.unit_cd || 'mg',
+        frequency: '', // Will need to be loaded from BLOB
+        route: '', // Will need to be loaded from BLOB
+        instructions: '',
+      }
+    } catch (error) {
+      logger.error('Failed to parse medication data with BLOB', error)
+      return {
+        drugName: '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    }
+  }
+
+  /**
+   * Format medication for elegant display
+   * @param {Object} medicationData - Parsed medication data
+   * @returns {Promise<string>} Formatted display string (e.g., "Aspirin 100mg 1-0-1 p.o.")
+   */
+  const formatMedicationDisplayElegant = async (medicationData) => {
+    if (!medicationData.drugName) return ''
+
+    const parts = []
+
+    // Drug name
+    parts.push(medicationData.drugName)
+
+    // Dosage with unit: "100mg"
+    if (medicationData.dosage && medicationData.dosageUnit) {
+      parts.push(`${medicationData.dosage}${medicationData.dosageUnit}`)
+    }
+
+    // Frequency in simplified format
+    if (medicationData.frequency) {
+      const freq = await getSimplifiedFrequency(medicationData.frequency)
+      parts.push(freq)
+    }
+
+    // Route abbreviation
+    if (medicationData.route) {
+      const route = await getRouteAbbreviation(medicationData.route)
+      parts.push(route)
+    }
+
+    return parts.join(' ')
+  }
+
   return {
     // State
     medications,
@@ -470,9 +862,23 @@ export const useMedicationsStore = defineStore('medications', () => {
     getMedicationsForVisit,
     clearMedication,
 
+    // Medication options
+    getFrequencyOptions,
+    getRouteOptions,
+    getUnitOptions,
+    getDrugOptions,
+
     // Utilities
     validateMedicationData,
     formatMedicationDisplay,
+    formatMedicationDisplayElegant,
     normalizeMedicationData,
+    parseDosageFromStrength,
+    getSimplifiedFrequency,
+    getRouteAbbreviation,
+    getFrequencyLabel,
+    getRouteLabel,
+    parseMedicationData,
+    parseMedicationDataWithBlob,
   }
 })

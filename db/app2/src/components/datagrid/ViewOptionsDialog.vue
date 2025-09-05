@@ -9,149 +9,107 @@
     :content-padding="false"
   >
     <div class="column-management-content non-selectable">
-            <!-- Compact Header with Controls -->
-            <div class="compact-header">
-              <div class="header-left">
-                <q-icon name="view_column" size="18px" color="secondary" />
-                <span class="text-subtitle1 q-ml-xs">Column Management</span>
-              </div>
-              <div class="header-center">
-                <q-chip
-                  :label="`${visibleColumns}/${totalColumns}`"
-                  color="secondary"
-                  text-color="white"
-                  size="sm"
-                  dense
-                />
-              </div>
-              <div class="header-right">
-                <q-btn-group flat>
-                  <q-btn
-                    flat
-                    dense
-                    icon="visibility"
-                    size="sm"
-                    color="positive"
-                    @click="showAllColumns"
-                    :disable="visibleColumns === totalColumns"
-                  >
-                    <q-tooltip>Show All</q-tooltip>
-                  </q-btn>
-                  <q-btn
-                    flat
-                    dense
-                    icon="visibility_off"
-                    size="sm"
-                    color="negative"
-                    @click="hideAllColumns"
-                    :disable="visibleColumns === 0"
-                  >
-                    <q-tooltip>Hide All</q-tooltip>
-                  </q-btn>
-                  <q-btn
-                    flat
-                    dense
-                    icon="shuffle"
-                    size="sm"
-                    color="primary"
-                    @click="resetColumnOrder"
-                  >
-                    <q-tooltip>Reset Order</q-tooltip>
-                  </q-btn>
-                </q-btn-group>
-              </div>
-            </div>
+      <!-- Compact Header with Controls -->
+      <div class="compact-header">
+        <div class="header-left">
+          <q-icon name="view_column" size="18px" color="secondary" />
+          <span class="text-subtitle1 q-ml-xs">Column Management</span>
+        </div>
+        <div class="header-center">
+          <q-chip :label="`${visibleColumns}/${totalColumns}`" color="secondary" text-color="white" size="sm" dense />
+        </div>
+        <div class="header-right">
+          <q-btn-group flat>
+            <q-btn flat dense icon="visibility" size="sm" color="positive" @click="showAllColumns" :disable="visibleColumns === totalColumns">
+              <q-tooltip>Show All</q-tooltip>
+            </q-btn>
+            <q-btn flat dense icon="visibility_off" size="sm" color="negative" @click="hideAllColumns" :disable="visibleColumns === 0">
+              <q-tooltip>Hide All</q-tooltip>
+            </q-btn>
+            <q-btn flat dense icon="shuffle" size="sm" color="primary" @click="resetColumnOrder">
+              <q-tooltip>Reset Order</q-tooltip>
+            </q-btn>
+          </q-btn-group>
+        </div>
+      </div>
 
-            <!-- Column List -->
-            <div class="column-list">
-              <div v-if="localColumns.length === 0" class="empty-state">
-                <q-icon name="view_column" />
-                <div class="q-mt-md">
-                  <div class="text-h6 q-mb-sm">No columns available</div>
-                  <div class="text-body2 text-grey-6 q-mb-md">Add observations to your data grid to see columns here</div>
+      <!-- Column List -->
+      <div class="column-list">
+        <div v-if="localColumns.length === 0" class="empty-state">
+          <q-icon name="view_column" />
+          <div class="q-mt-md">
+            <div class="text-h6 q-mb-sm">No columns available</div>
+            <div class="text-body2 text-grey-6 q-mb-md">Add observations to your data grid to see columns here</div>
+          </div>
+        </div>
 
+        <draggable
+          v-else
+          v-model="localColumns"
+          item-key="code"
+          handle=".drag-handle"
+          :animation="200"
+          ghost-class="sortable-ghost"
+          chosen-class="sortable-chosen"
+          drag-class="sortable-drag"
+          :force-fallback="true"
+          fallback-class="sortable-fallback"
+          @start="onDragStart"
+          @end="onDragEnd"
+          @move="onDragMove"
+        >
+          <template #item="{ element: column }">
+            <div class="column-item" :class="{ 'column-hidden': !column.visible }">
+              <!-- Drag Handle -->
+              <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
+
+              <!-- Move Buttons -->
+              <div class="move-buttons">
+                <q-btn flat dense round icon="vertical_align_top" size="xs" class="move-btn" @click="moveColumnToTop(column.code)" :disable="isFirstColumn(column.code)" />
+                <q-btn flat dense round icon="vertical_align_bottom" size="xs" class="move-btn" @click="moveColumnToBottom(column.code)" :disable="isLastColumn(column.code)" />
+              </div>
+
+              <!-- Column Info -->
+              <div class="column-info">
+                <div class="column-name">{{ column.name }}</div>
+                <div class="column-meta">
+                  <span class="value-type-badge" :class="`value-type-${column.valueType}`">{{ column.valueType }}</span>
+                  <span class="text-grey-6">{{ column.code }}</span>
                 </div>
               </div>
 
-              <draggable
-                v-else
-                v-model="localColumns"
-                item-key="code"
-                handle=".drag-handle"
-                :animation="200"
-                ghost-class="sortable-ghost"
-                chosen-class="sortable-chosen"
-                drag-class="sortable-drag"
-                :force-fallback="true"
-                fallback-class="sortable-fallback"
-                @start="onDragStart"
-                @end="onDragEnd"
-                @move="onDragMove"
-              >
-                <template #item="{ element: column }">
-                  <div class="column-item" :class="{ 'column-hidden': !column.visible }">
-                    <!-- Drag Handle -->
-                    <q-icon name="drag_indicator" class="drag-handle q-mr-sm" />
-
-                    <!-- Move Buttons -->
-                    <div class="move-buttons">
-                      <q-btn flat dense round icon="vertical_align_top" size="xs" class="move-btn" @click="moveColumnToTop(column.code)" :disable="isFirstColumn(column.code)" />
-                      <q-btn flat dense round icon="vertical_align_bottom" size="xs" class="move-btn" @click="moveColumnToBottom(column.code)" :disable="isLastColumn(column.code)" />
-                    </div>
-
-                    <!-- Column Info -->
-                    <div class="column-info">
-                      <div class="column-name">{{ column.name }}</div>
-                      <div class="column-meta">
-                        <span class="value-type-badge" :class="`value-type-${column.valueType}`">{{ column.valueType }}</span>
-                        <span class="text-grey-6">{{ column.code }}</span>
-                      </div>
-                    </div>
-
-                    <!-- Visibility Toggle -->
-                    <q-btn
-                      flat
-                      dense
-                      round
-                      :icon="column.visible ? 'visibility' : 'visibility_off'"
-                      :class="['visibility-btn', column.visible ? 'visible' : 'hidden']"
-                      @click="toggleColumnVisibility(column.code)"
-                    />
-                  </div>
-                </template>
-              </draggable>
-
-              <!-- Add New Observation Button -->
-              <div v-if="localColumns.length > 0" class="q-pa-md text-center">
-                <div class="row justify-center">
-                  <q-btn
-                    flat
-                    icon="add"
-                    label="Add Observation"
-                    color="primary"
-                    @click="showAddObservationDialog = true"
-                    class="add-observation-btn"
-                  >
-                    <q-tooltip>Add a new observation column to the grid</q-tooltip>
-                  </q-btn>
-                </div>
-              </div>
+              <!-- Visibility Toggle -->
+              <q-btn
+                flat
+                dense
+                round
+                :icon="column.visible ? 'visibility' : 'visibility_off'"
+                :class="['visibility-btn', column.visible ? 'visible' : 'hidden']"
+                @click="toggleColumnVisibility(column.code)"
+              />
             </div>
+          </template>
+        </draggable>
+
+        <!-- Add New Observation Button -->
+        <div v-if="localColumns.length > 0" class="q-pa-md text-center">
+          <div class="row justify-center">
+            <q-btn flat icon="add" label="Add Observation" color="primary" @click="showAddObservationDialog = true" class="add-observation-btn">
+              <q-tooltip>Add a new observation column to the grid</q-tooltip>
+            </q-btn>
+          </div>
+        </div>
+      </div>
 
       <!-- Footer -->
       <div class="dialog-footer">
         <div class="text-caption text-grey-6">Changes are applied instantly • Drag to reorder columns</div>
-        
       </div>
     </div>
   </AppDialog>
 
   <!-- Add Observation Dialog -->
-  <AddObservationDialog
-    v-model="showAddObservationDialog"
-    :existing-concepts="localColumns"
-    @concept-added="onConceptAdded"
-  />
+  <AddObservationDialog v-model="showAddObservationDialog" :existing-concepts="localColumns" @concept-added="onConceptAdded" />
 </template>
 
 <script setup>
@@ -331,8 +289,6 @@ const onConceptAdded = (concept) => {
   })
 }
 
-
-
 // Watchers
 // Removed the watcher that emits full visibility object - individual column changes
 // are now handled by emitting individual updates in toggleColumnVisibility
@@ -445,7 +401,7 @@ onMounted(() => {
 }
 
 .column-item.sortable-ghost::before {
-  content: "Drop here";
+  content: 'Drop here';
   position: absolute;
   top: 50%;
   left: 50%;
@@ -503,7 +459,7 @@ body.dragging-column .column-item:hover:not(.sortable-chosen) {
 }
 
 body.dragging-column .column-item:hover:not(.sortable-chosen)::after {
-  content: "";
+  content: '';
   position: absolute;
   top: -3px;
   left: 0;
@@ -544,8 +500,15 @@ body.dragging-column .drag-handle {
 
 /* Pulse animation for drag handle when dragging */
 @keyframes drag-pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.05); opacity: 0.8; }
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
 }
 
 body.dragging-column .column-item:not(.sortable-chosen) .drag-handle {

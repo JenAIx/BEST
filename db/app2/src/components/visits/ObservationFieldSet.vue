@@ -21,77 +21,64 @@
 
     <q-slide-transition>
       <div v-show="!collapsed" class="field-set-content">
-        <!-- Filled Observations Grid -->
-        <div class="observation-grid">
-          <!-- Medication Fields - Render one field per observation, not per concept -->
-          <MedicationField
-            v-for="observation in medicationObservations"
-            :key="`medication-${observation.observationId || observation.tempId}`"
-            :concept="{ code: observation.conceptCode, name: 'Current Medication', valueType: 'M' }"
-            :visit="visit"
-            :patient="patient"
-            :existing-observation="observation"
-            :previous-value="getPreviousValue(observation.conceptCode)"
-            @observation-updated="onObservationUpdated"
-            @clone-requested="onCloneRequested"
-          />
+        <!-- Observations Table -->
+        <ObservationsTable
+          :table-rows="tableRows"
+          :loading="loading"
+          :visit="visit"
+          :patient="patient"
+          :frequency-options="frequencyOptions"
+          :route-options="routeOptions"
+          :field-set-concepts="fieldSetConcepts"
+          @enter-medication-edit-mode="enterMedicationEditMode"
+          @value-changed="onValueChanged"
+          @save-requested="onSaveRequested"
+          @save-row="saveRow"
+          @cancel-changes="cancelChanges"
+          @remove-row="removeRow"
+          @clone-from-previous="cloneFromPrevious"
+        />
 
-          <!-- Regular Observation Fields - Render each unique observation only once -->
-          <ObservationField
-            v-for="observationWithConcept in filledObservationsWithConcepts"
-            :key="`obs-${observationWithConcept.observation.observationId}`"
-            :concept="observationWithConcept.concept"
-            :visit="visit"
-            :patient="patient"
-            :existing-observation="observationWithConcept.observation"
-            :previous-value="getPreviousValue(observationWithConcept.concept.code)"
-            @observation-updated="onObservationUpdated"
-            @clone-requested="onCloneRequested"
-          />
+        <!-- Empty State -->
+        <div v-if="tableRows.length === 0" class="empty-observations">
+          <q-icon name="assignment" size="48px" color="grey-4" />
+          <div class="text-h6 text-grey-6 q-mt-sm">No observations yet</div>
+          <div class="text-body2 text-grey-5">Add observations from the available options below</div>
         </div>
 
         <!-- Unfilled Observations - Compact Chips -->
-        <div v-if="unfilledConcepts.length > 0" class="unfilled-observations">
-          <div class="unfilled-section-header">
-            <q-icon name="add_circle_outline" size="16px" class="q-mr-xs" />
-            <span class="section-title">Available Observations</span>
-            <q-badge :label="unfilledConcepts.length" color="grey-5" class="q-ml-sm" />
-          </div>
-          <div class="unfilled-chips">
-            <q-chip
-              v-for="concept in unfilledConcepts"
-              :key="`unfilled-${concept.code}`"
-              clickable
-              outline
-              icon="add"
-              :label="concept.name"
-              color="grey-6"
-              text-color="grey-7"
-              class="unfilled-chip"
-              @click="createObservationFromChip(concept)"
-            >
-              <q-tooltip>Click to add {{ concept.name }}</q-tooltip>
-            </q-chip>
-          </div>
-        </div>
+        <UnfilledObservationsChips :unfilled-concepts="unfilledConcepts" @create-observation="createObservationFromChip" />
 
         <!-- Add medication button (only for medications fieldset) -->
-        <div v-if="props.fieldSet.id === 'medications'" class="add-medication">
-          <q-btn flat icon="add" label="Add Medication" @click="addEmptyMedication()" class="full-width" style="border: 2px dashed #ccc" />
-        </div>
+        <MedicationSection :field-set-id="fieldSet.id" @add-empty-medication="addEmptyMedication" />
       </div>
     </q-slide-transition>
+
+    <!-- Medication Edit Dialog -->
+    <MedicationEditDialog
+      v-model="showMedicationEditDialog"
+      :medication-data="editingMedicationRow ? medicationsStore.parseMedicationData(editingMedicationRow) : {}"
+      :observation-id="editingMedicationRow?.observationId"
+      :frequency-options="frequencyOptions"
+      :route-options="routeOptions"
+      @save="onMedicationEditSave"
+      @cancel="onMedicationEditCancel"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
+import { useMedicationsStore } from 'src/stores/medications-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
-import ObservationField from './ObservationField.vue'
-import MedicationField from './MedicationField.vue'
+import { useMedicationOptions } from 'src/composables/useMedicationOptions'
+import ObservationsTable from './ObservationsTable.vue'
+import UnfilledObservationsChips from './UnfilledObservationsChips.vue'
+import MedicationSection from './MedicationSection.vue'
+import MedicationEditDialog from './MedicationEditDialog.vue'
 
 const props = defineProps({
   fieldSet: {
@@ -116,19 +103,27 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['observation-updated', 'clone-from-previous'])
+const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh-requested'])
 
 const $q = useQuasar()
-const visitStore = useVisitObservationStore()
+const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const conceptStore = useConceptResolutionStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
 
 // State
 const collapsed = ref(false)
+const loading = ref(false)
 const removedConcepts = ref(new Set()) // Track concepts removed by user
-const removedObservations = ref(new Set()) // Track observation IDs removed by user (for medications)
-const resolvedConceptData = ref(new Map()) // Cache for resolved concept data (names, valueType, unit)
+const resolvedConceptData = ref(new Map()) // Cache for resolved concept data
+const pendingChanges = ref(new Map()) // Track pending changes per row
+
+// Medication editing state
+const showMedicationEditDialog = ref(false)
+const editingMedicationRow = ref(null)
+
+// Use medication options composable
+const { frequencyOptions, routeOptions, loadMedicationOptions } = useMedicationOptions()
 
 // Component mounted
 onMounted(async () => {
@@ -139,8 +134,10 @@ onMounted(async () => {
     patientId: props.patient?.id,
     existingObservationsCount: props.existingObservations?.length || 0,
     fieldSetConceptsCount: props.fieldSet?.concepts?.length || 0,
-    fieldSetConcepts: props.fieldSet?.concepts,
   })
+
+  // Load medication options from store
+  await loadMedicationOptions()
 
   // Resolve concept names for all concepts in the field set
   await resolveFieldSetConceptNames()
@@ -189,7 +186,7 @@ const fieldSetConcepts = computed(() => {
   // Convert field set concepts to detailed concept objects, filtering out removed ones
   return (
     props.fieldSet.concepts
-      ?.filter((conceptCode) => !removedConcepts.value.has(conceptCode)) // Filter out removed concepts
+      ?.filter((conceptCode) => !removedConcepts.value.has(conceptCode))
       ?.map((conceptCode) => {
         const [system, code] = conceptCode.split(':')
         const resolvedData = resolvedConceptData.value.get(conceptCode)
@@ -209,11 +206,11 @@ const observationCount = computed(() => {
   return props.existingObservations?.length || 0
 })
 
-// Count filled vs unfilled observations
 const filledObservationCount = computed(() => {
   if (!props.existingObservations) return 0
   return props.existingObservations.filter((obs) => {
-    const value = obs.originalValue || obs.value || obs.tval_char || obs.nval_num
+    // Use extractObservationValue to get the actual value
+    const value = obs.tval_char || obs.TVAL_CHAR || obs.nval_num || obs.NVAL_NUM || obs.observation_blob || obs.OBSERVATION_BLOB || obs.originalValue || obs.value
     return value !== null && value !== undefined && value !== ''
   }).length
 })
@@ -222,153 +219,99 @@ const unfilledObservationCount = computed(() => {
   return observationCount.value - filledObservationCount.value
 })
 
-// Medication observations - for medications, we render one field per observation (not per concept)
-const medicationObservations = computed(() => {
-  if (props.fieldSet.id !== 'medications') return []
+// Create table rows from observations
+const tableRows = computed(() => {
+  const rows = []
 
-  logger.debug('Computing medication observations', {
-    fieldSetId: props.fieldSet.id,
-    visitId: props.visit.id,
-    existingObservationsCount: props.existingObservations?.length || 0,
-  })
-
-  // Get all medication observations for the current encounter only
-  const medObservations =
-    props.existingObservations?.filter((obs) => {
-      // Must match the current visit's encounter number
-      const encounterMatch = obs.encounterNum === props.visit.id || obs.ENCOUNTER_NUM === props.visit.id
-
-      // Must be a medication observation
-      const isMedication = obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))
-
-      // Must not be in the removed observations set
-      const notRemoved = !removedObservations.value.has(obs.observationId)
-
-      return encounterMatch && isMedication && notRemoved
-    }) || []
-
-  // Sort medications by category and then by creation date
-  medObservations.sort((a, b) => {
-    const categoryA = a.category || a.CATEGORY_CHAR || 'ZZZZZ'
-    const categoryB = b.category || b.CATEGORY_CHAR || 'ZZZZZ'
-
-    // Primary sort by category
-    if (categoryA !== categoryB) {
-      return categoryA.localeCompare(categoryB)
-    }
-
-    // Secondary sort by date (newest first for medications)
-    const dateA = new Date(a.startDate || a.START_DATE || a.date || 0)
-    const dateB = new Date(b.startDate || b.START_DATE || b.date || 0)
-    return dateB - dateA
-  })
-
-  logger.debug('Filtered medication observations', {
-    visitId: props.visit.id,
-    medicationObservationsCount: medObservations.length,
-    medicationObservations: medObservations.map((obs) => ({
-      id: obs.observationId,
-      encounterNum: obs.encounterNum || obs.ENCOUNTER_NUM,
-      conceptCode: obs.conceptCode,
-      category: obs.category || obs.CATEGORY_CHAR,
-      value: obs.originalValue || obs.value,
-    })),
-  })
-
-  return medObservations
-})
-
-// Create unique observation-concept pairs to avoid duplicates
-const filledObservationsWithConcepts = computed(() => {
-  const result = []
-  const processedObservationIds = new Set()
-
-  // Filter observations for the current encounter (visit) only
+  // Process regular observations
   const currentEncounterObservations =
     props.existingObservations?.filter((obs) => {
-      // Must match the current visit's encounter number
       const encounterMatch = obs.encounterNum === props.visit.id || obs.ENCOUNTER_NUM === props.visit.id
-
-      // Exclude medications (handled separately)
       const notMedication = obs.valTypeCode !== 'M' && !obs.conceptCode?.includes('52418')
-
       return encounterMatch && notMedication
     }) || []
 
-  logger.debug('Filtered observations for current encounter', {
-    visitId: props.visit.id,
-    totalObservations: props.existingObservations?.length || 0,
-    currentEncounterObservations: currentEncounterObservations.length,
-    encounterObservations: currentEncounterObservations.map((obs) => ({
-      id: obs.observationId,
-      encounterNum: obs.encounterNum || obs.ENCOUNTER_NUM,
-      conceptCode: obs.conceptCode,
-      category: obs.category || obs.CATEGORY_CHAR,
-    })),
-  })
-
-  // For each observation, find the best matching concept
   for (const observation of currentEncounterObservations) {
-    // Skip if we've already processed this observation
-    if (processedObservationIds.has(observation.observationId)) {
-      continue
-    }
-
-    // Find the best matching concept for this observation
     const matchingConcept = findBestMatchingConcept(observation)
-
     if (matchingConcept) {
-      result.push({
-        observation,
-        concept: matchingConcept,
-      })
-      processedObservationIds.add(observation.observationId)
-
-      logger.debug('Paired observation with concept', {
+      const rowId = `obs_${observation.observationId}`
+      // Extract the actual value from observation
+      const actualValue = extractObservationValue(observation)
+      const pendingValue = pendingChanges.value.get(rowId)
+      rows.push({
+        id: rowId,
         observationId: observation.observationId,
-        observationConceptCode: observation.conceptCode,
-        matchedConceptCode: matchingConcept.code,
-        value: observation.originalValue || observation.value,
+        conceptCode: observation.conceptCode,
+        conceptName: matchingConcept.name,
+        resolvedName: resolvedConceptData.value.get(matchingConcept.code)?.label,
+        valueType: observation.valueType || observation.valTypeCode,
+        // Use consistent origVal/currentVal pattern
+        origVal: actualValue,
+        currentVal: pendingValue !== undefined ? pendingValue : actualValue,
+        unit: observation.unit,
         category: observation.category || observation.CATEGORY_CHAR,
+        hasChanges: pendingValue !== undefined && pendingValue !== actualValue,
+        saving: false,
+        previousValue: getPreviousValue(observation.conceptCode),
+        displayValue: formatDisplayValue(observation),
+        // Store raw observation for complete data access
+        rawObservation: observation,
       })
     }
   }
 
-  // Sort by category for better organization
-  result.sort((a, b) => {
-    const categoryA = a.observation.category || a.observation.CATEGORY_CHAR || 'ZZZZZ' // Put unknown categories at the end
-    const categoryB = b.observation.category || b.observation.CATEGORY_CHAR || 'ZZZZZ'
+  // Process medication observations
+  const medicationObservations =
+    props.existingObservations?.filter((obs) => {
+      const encounterMatch = obs.encounterNum === props.visit.id || obs.ENCOUNTER_NUM === props.visit.id
+      const isMedication = obs.conceptCode === 'LID: 52418-1' || obs.valTypeCode === 'M' || (obs.conceptCode && obs.conceptCode.includes('52418'))
+      return encounterMatch && isMedication
+    }) || []
 
-    // Primary sort by category
+  for (const medication of medicationObservations) {
+    const rowId = `med_${medication.observationId}`
+    // Extract the actual value from medication
+    const actualValue = extractObservationValue(medication)
+    const pendingValue = pendingChanges.value.get(rowId)
+    rows.push({
+      id: rowId,
+      observationId: medication.observationId,
+      conceptCode: medication.conceptCode,
+      conceptName: 'Current Medication',
+      resolvedName: 'Current Medication',
+      valueType: 'M',
+      // Use consistent origVal/currentVal pattern
+      origVal: actualValue,
+      currentVal: pendingValue !== undefined ? pendingValue : actualValue,
+      unit: medication.unit,
+      category: medication.category || medication.CATEGORY_CHAR,
+      hasChanges: pendingValue !== undefined && pendingValue !== actualValue,
+      saving: false,
+      previousValue: getPreviousValue(medication.conceptCode),
+      displayValue: formatMedicationDisplay(medication),
+      isMedication: true,
+      // Store raw observation for complete data access
+      rawObservation: medication,
+    })
+  }
+
+  return rows.sort((a, b) => {
+    // Sort by category first, then by concept name
+    const categoryA = a.category || 'ZZZZZ'
+    const categoryB = b.category || 'ZZZZZ'
     if (categoryA !== categoryB) {
       return categoryA.localeCompare(categoryB)
     }
-
-    // Secondary sort by concept name for same category
-    const conceptNameA = a.concept.name || a.concept.code
-    const conceptNameB = b.concept.name || b.concept.code
-    return conceptNameA.localeCompare(conceptNameB)
+    return a.conceptName.localeCompare(b.conceptName)
   })
-
-  logger.debug('filledObservationsWithConcepts computed', {
-    visitId: props.visit.id,
-    totalObservations: currentEncounterObservations.length,
-    pairedObservations: result.length,
-    processedIds: Array.from(processedObservationIds),
-    categoriesFound: [...new Set(result.map((item) => item.observation.category || item.observation.CATEGORY_CHAR))],
-  })
-
-  return result
 })
 
 // Unfilled concepts - concepts that don't have any existing observations
 const unfilledConcepts = computed(() => {
-  const filledConceptCodes = new Set(filledObservationsWithConcepts.value.map((item) => item.concept.code))
-
+  const filledConceptCodes = new Set(tableRows.value.map((row) => row.conceptCode))
   return fieldSetConcepts.value.filter((concept) => {
     // Skip medications as they are handled differently
     if (concept.valueType === 'M') return false
-
     // Check if this concept is already paired with an observation
     return !filledConceptCodes.has(concept.code)
   })
@@ -386,7 +329,7 @@ const findBestMatchingConcept = (observation) => {
     // 1. Exact match (highest priority)
     if (concept.code === obsConceptCode) return true
 
-    // 2. Extract numeric codes and compare (e.g., "LOINC:8867-4" vs "LID: 8867-4")
+    // 2. Extract numeric codes and compare
     const conceptMatch = concept.code.match(/[:\s]([0-9-]+)$/)
     const obsMatch = obsConceptCode.match(/[:\s]([0-9-]+)$/)
     if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) return true
@@ -405,143 +348,475 @@ const findBestMatchingConcept = (observation) => {
 
   // Prefer exact matches first, then numeric matches
   const exactMatch = matches.find((concept) => concept.code === obsConceptCode)
-  if (exactMatch) {
-    return exactMatch
-  }
-
-  // Return the first numeric match
-  return matches[0]
+  return exactMatch || matches[0]
 }
 
 const getConceptName = (conceptCode) => {
-  // Fallback: extract the code part after the colon if no database name is available
-  // All concept names should come from CONCEPT_DIMENSION.NAME_CHAR via concept resolution
   const parts = conceptCode.split(':')
   return parts.length > 1 ? parts[1] : conceptCode
 }
 
 const getConceptValueType = (conceptCode) => {
-  // Fallback logic - all value types should come from CONCEPT_DIMENSION.VALTYPE_CD
-  // This is only used when database resolution fails
-
-  // Basic heuristics for common patterns
   if (conceptCode.includes('52418')) return 'M' // Medication concept
-  if (conceptCode.includes('8480') || conceptCode.includes('8462') || conceptCode.includes('8867') || conceptCode.includes('8310') || conceptCode.includes('9279') || conceptCode.includes('2708')) {
+  if (conceptCode.includes('8480') || conceptCode.includes('8462') || conceptCode.includes('8867')) {
     return 'N' // Common vital signs are numeric
   }
-
   return 'T' // Default to text
 }
 
 const getConceptUnit = (conceptCode) => {
-  // Fallback logic - all units should come from CONCEPT_DIMENSION.UNIT_CD
-  // This is only used when database resolution fails
-
-  // Basic heuristics for common vital signs
   if (conceptCode.includes('8480') || conceptCode.includes('8462')) return 'mmHg'
   if (conceptCode.includes('8867')) return 'bpm'
   if (conceptCode.includes('8310')) return '°C'
-  if (conceptCode.includes('9279')) return '/min'
-  if (conceptCode.includes('2708')) return '%'
-
   return '' // No unit by default
 }
-
-// Legacy function - replaced by filledObservationsWithConcepts approach
-// const getExistingObservations = (conceptCode) => {
-//   // This function has been replaced with a more precise matching approach
-//   // to prevent duplicate observations from being displayed
-// }
-
-// Note: getExistingObservation (singular) has been replaced with getExistingObservations (plural)
-// to properly handle multiple observations with the same concept code
 
 const getPreviousValue = (conceptCode) => {
   // Get the most recent value from previous visits
   if (!props.previousVisits.length) return null
-
-  // Look through previous visits for this concept
   // This is a placeholder implementation - in a real scenario, we would
   // need to load and cache observation data for previous visits
-
-  // For now, we acknowledge the conceptCode parameter to satisfy ESLint
-  // and return null since the actual previous value lookup is handled
-  // by the clone functionality in the parent components
   logger.debug('Looking for previous value for concept', { conceptCode })
-
   return null
 }
 
-const onObservationUpdated = (data) => {
-  // Handle removal of medication fields (by observation ID)
-  if (data.remove && data.observationId && props.fieldSet.id === 'medications') {
-    removedObservations.value.add(data.observationId)
-    logger.info('Medication observation removed from UI', {
-      observationId: data.observationId,
-      conceptCode: data.conceptCode,
-      fieldSetId: props.fieldSet.id,
-    })
-  }
-  // Handle removal of regular observation fields (by concept code)
-  else if (data.remove && data.conceptCode) {
-    removedConcepts.value.add(data.conceptCode)
-    logger.info('Concept removed from UI', {
-      conceptCode: data.conceptCode,
-      fieldSetId: props.fieldSet.id,
-    })
-  }
+// Extract the actual value from observation data
+const extractObservationValue = (observation) => {
+  // Handle different database field names and value types
+  const valType = observation.valueType || observation.valTypeCode || 'T'
 
-  emit('observation-updated', data)
+  switch (valType) {
+    case 'N': {
+      // Numeric
+      // For numeric values, check all possible numeric fields
+      const numericValue = observation.nval_num || observation.NVAL_NUM
+      if (numericValue !== null && numericValue !== undefined) {
+        return numericValue
+      }
+      // Fallback to text fields that might contain numeric values
+      return observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+    }
+    case 'S': // Selection
+    case 'F': // Finding
+    case 'A': // Array/Multiple choice
+      // For coded values, return the code not the resolved display value
+      return observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+    case 'M': // Medication
+      // Medication data might be in OBSERVATION_BLOB or tval_char
+      return observation.observation_blob || observation.OBSERVATION_BLOB || observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+    case 'R': // Raw data/File
+      // File data is usually in OBSERVATION_BLOB
+      return observation.observation_blob || observation.OBSERVATION_BLOB || observation.originalValue || observation.value || ''
+    case 'T': // Text
+    default:
+      return observation.tval_char || observation.TVAL_CHAR || observation.originalValue || observation.value || ''
+  }
 }
 
-const onCloneRequested = (data) => {
-  emit('clone-from-previous', data)
+const formatDisplayValue = (observation) => {
+  switch (observation.valueType || observation.valTypeCode) {
+    case 'S': // Selection
+    case 'F': // Finding
+    case 'A': // Array/Multiple choice
+      return observation.resolvedValue || observation.originalValue || observation.value || 'No value'
+    case 'Q': // Questionnaire
+      return observation.originalValue || observation.value || 'Questionnaire'
+    case 'R': // Raw data/File
+      try {
+        if (observation.originalValue || observation.value) {
+          const fileInfo = JSON.parse(observation.originalValue || observation.value)
+          return fileInfo.filename || 'File attached'
+        }
+      } catch {
+        return 'Invalid file data'
+      }
+      break
+    case 'N': // Numeric
+      return observation.originalValue?.toString() || observation.value?.toString() || 'No value'
+    default: // Text and others
+      return observation.originalValue || observation.value || 'No value'
+  }
 }
 
-// Method to restore a removed concept (if needed for "undo" functionality)
-// Currently unused - for future implementation
-// const restoreRemovedConcept = (conceptCode) => {
-//   removedConcepts.value.delete(conceptCode)
-//   logger.info('Concept restored to UI', {
-//     conceptCode,
-//     fieldSetId: props.fieldSet.id,
-//   })
-// }
+const formatMedicationDisplay = (medication) => {
+  // For medications, show a summary or just the drug name
+  return medication.originalValue || medication.value || 'No medication specified'
+}
 
-const addEmptyMedication = async () => {
+// Enter medication edit mode
+const enterMedicationEditMode = (row) => {
+  logger.debug('Enter medication edit mode', { rowId: row.id })
+  editingMedicationRow.value = row
+  showMedicationEditDialog.value = true
+}
+
+// Handle medication edit save
+const onMedicationEditSave = async (medicationData) => {
+  if (!editingMedicationRow.value) return
+
   try {
-    // Create empty medication observation with LID: 52418-1
-    // The visit store will automatically set PROVIDER_ID, SOURCESYSTEM_CD, and CATEGORY_CHAR from the concept
+    const row = editingMedicationRow.value
+    logger.debug('Saving medication edit', { rowId: row.id, medicationData })
+
+    // We no longer create a summary - TVAL_CHAR will only contain the drug name
+
+    // Normalize medication data to ensure we store string values, not objects
+    const normalizedMedicationData = {
+      drugName: medicationData.drugName || '',
+      dosage: medicationData.dosage || null,
+      dosageUnit: medicationData.dosageUnit || 'mg',
+      frequency: (typeof medicationData.frequency === 'object' ? medicationData.frequency?.value || '' : medicationData.frequency || '').toLowerCase(),
+      route: (typeof medicationData.route === 'object' ? medicationData.route?.value || '' : medicationData.route || '').toLowerCase(),
+      instructions: medicationData.instructions || '',
+    }
+
+    // Update the observation with new medication data
+    const updateData = {
+      TVAL_CHAR: normalizedMedicationData.drugName, // Only store drug name in TVAL_CHAR
+      NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+      OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData), // Full structured data in BLOB
+    }
+
+    await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
+
+    // Update local state
+    row.rawObservation.TVAL_CHAR = normalizedMedicationData.drugName // Only drug name in TVAL_CHAR
+    row.rawObservation.tval_char = normalizedMedicationData.drugName
+    row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+    row.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+    row.rawObservation.OBSERVATION_BLOB = JSON.stringify(normalizedMedicationData)
+    row.rawObservation.observation_blob = JSON.stringify(normalizedMedicationData)
+    row.rawObservation.originalValue = normalizedMedicationData.drugName // Only drug name for consistency
+    row.rawObservation.value = normalizedMedicationData.drugName
+
+    // Clear pending changes
+    pendingChanges.value.delete(row.id)
+
+    emit('observation-updated', {
+      conceptCode: row.conceptCode,
+      value: normalizedMedicationData.drugName, // Only drug name for consistency
+      observationId: row.observationId,
+    })
+
+    logger.success('Medication updated successfully', { rowId: row.id })
+  } catch (error) {
+    logger.error('Failed to save medication edit', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to save medication',
+      position: 'top',
+    })
+  }
+}
+
+// Handle medication edit cancel
+const onMedicationEditCancel = () => {
+  editingMedicationRow.value = null
+}
+
+// Event handlers
+const onValueChanged = (rowData, newValue) => {
+  // Store the pending change in our map
+  pendingChanges.value.set(rowData.id, newValue)
+
+  logger.debug('Value changed for row', {
+    rowId: rowData.id,
+    conceptCode: rowData.conceptCode,
+    origVal: rowData.origVal,
+    newValue,
+    hasChanges: newValue !== rowData.origVal,
+  })
+}
+
+const onSaveRequested = async (rowData) => {
+  await saveRow(rowData)
+}
+
+const saveRow = async (row) => {
+  try {
+    row.saving = true
+    logger.info('Saving row', {
+      rowId: row.id,
+      conceptCode: row.conceptCode,
+      valueType: row.valueType,
+      origVal: row.origVal,
+      currentVal: row.currentVal,
+    })
+
+    if (row.isMedication) {
+      // Handle medication updates - save complex data in OBSERVATION_BLOB
+      logger.debug('Saving medication row with complex data')
+
+      // For medications, extract structured data and store drug name only in TVAL_CHAR
+      const medicationData = medicationsStore.parseMedicationData(row)
+
+      const updateData = {
+        TVAL_CHAR: medicationData.drugName, // Only drug name in TVAL_CHAR
+        NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+        OBSERVATION_BLOB: JSON.stringify(medicationData), // Full structured data
+      }
+      await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
+    } else {
+      // Handle regular observation updates based on value type
+      const updateData = {}
+
+      switch (row.valueType) {
+        case 'N': // Numeric
+          updateData.NVAL_NUM = parseFloat(row.currentVal)
+          updateData.TVAL_CHAR = null
+          updateData.OBSERVATION_BLOB = null
+          break
+
+        case 'S': // Selection
+        case 'F': // Finding
+        case 'A': // Array/Multiple choice
+          // For coded values, store the code in TVAL_CHAR
+          updateData.TVAL_CHAR = String(row.currentVal)
+          updateData.NVAL_NUM = null
+          updateData.OBSERVATION_BLOB = null
+          break
+
+        case 'R': // Raw data/File
+        case 'M': // Medication (complex data)
+          // Store complex data in OBSERVATION_BLOB
+          updateData.OBSERVATION_BLOB = row.currentVal
+          updateData.TVAL_CHAR = null
+          updateData.NVAL_NUM = null
+          break
+
+        case 'T': // Text
+        default:
+          updateData.TVAL_CHAR = String(row.currentVal)
+          updateData.NVAL_NUM = null
+          updateData.OBSERVATION_BLOB = null
+          break
+      }
+
+      // Always skip reload to prevent bounce
+      await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
+    }
+
+    // Update local state immediately - no need to wait for refresh
+    pendingChanges.value.delete(row.id)
+
+    // Update the raw observation in our local data to reflect the save
+    // This prevents the need for a full refresh
+    if (row.rawObservation) {
+      switch (row.valueType) {
+        case 'N': {
+          const numericValue = parseFloat(row.currentVal)
+          row.rawObservation.NVAL_NUM = numericValue
+          row.rawObservation.nval_num = numericValue
+          // Clear text fields for numeric values
+          row.rawObservation.TVAL_CHAR = null
+          row.rawObservation.tval_char = null
+          row.rawObservation.originalValue = numericValue
+          row.rawObservation.value = numericValue
+          break
+        }
+        case 'M': {
+          // For medications, update all relevant fields - store only drug name in TVAL_CHAR
+          const medicationData = medicationsStore.parseMedicationData(row)
+          row.rawObservation.TVAL_CHAR = medicationData.drugName
+          row.rawObservation.tval_char = medicationData.drugName
+          row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+          row.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+          row.rawObservation.OBSERVATION_BLOB = JSON.stringify(medicationData)
+          row.rawObservation.observation_blob = JSON.stringify(medicationData)
+          row.rawObservation.originalValue = medicationData.drugName
+          row.rawObservation.value = medicationData.drugName
+          break
+        }
+        default:
+          row.rawObservation.TVAL_CHAR = String(row.currentVal)
+          row.rawObservation.tval_char = String(row.currentVal)
+          // Clear numeric fields for text values
+          row.rawObservation.NVAL_NUM = null
+          row.rawObservation.nval_num = null
+          row.rawObservation.originalValue = row.currentVal
+          row.rawObservation.value = row.currentVal
+          break
+      }
+    }
+
+    emit('observation-updated', {
+      conceptCode: row.conceptCode,
+      value: row.currentVal,
+      observationId: row.observationId,
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Observation saved successfully',
+      position: 'top',
+    })
+
+    logger.success('Row saved successfully', { rowId: row.id })
+
+    // No delayed refresh needed - the computed property will update automatically
+    // when pendingChanges is cleared
+  } catch (error) {
+    logger.error('Failed to save row', error, { rowId: row.id })
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to save observation',
+      position: 'top',
+    })
+  } finally {
+    row.saving = false
+  }
+}
+
+const cancelChanges = (row) => {
+  logger.debug('Cancelling changes for row', {
+    rowId: row.id,
+    conceptCode: row.conceptCode,
+    origVal: row.origVal,
+    currentVal: row.currentVal,
+  })
+
+  // Remove pending change - computed property will restore original value
+  pendingChanges.value.delete(row.id)
+
+  logger.debug('Changes cancelled, row restored', {
+    rowId: row.id,
+    conceptCode: row.conceptCode,
+    restoredValue: row.origVal,
+  })
+}
+
+const removeRow = async (row) => {
+  try {
+    row.saving = true
+    logger.info('Removing row', { rowId: row.id, conceptCode: row.conceptCode })
+
+    // Delete observation from database (both medications and regular observations)
+    await visitObservationService.deleteObservation(row.observationId)
+
+    emit('observation-updated', {
+      conceptCode: row.conceptCode,
+      value: null,
+      deleted: true,
+      observationId: row.observationId,
+    })
+
+    $q.notify({
+      type: 'positive',
+      message: 'Observation removed successfully',
+      position: 'top',
+    })
+
+    logger.success('Row removed successfully', { rowId: row.id })
+  } catch (error) {
+    logger.error('Failed to remove row', error, { rowId: row.id })
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to remove observation',
+      position: 'top',
+    })
+  } finally {
+    row.saving = false
+  }
+}
+
+const cloneFromPrevious = (row) => {
+  if (row.previousValue) {
+    row.currentValue = row.previousValue.value
+    row.hasChanges = true
+    pendingChanges.value.set(row.id, true)
+
+    logger.info('Cloned value from previous visit', {
+      rowId: row.id,
+      conceptCode: row.conceptCode,
+      clonedValue: row.previousValue.value,
+    })
+  }
+}
+
+const createObservationFromChip = async (concept) => {
+  try {
+    logger.info('Creating observation from chip', {
+      conceptCode: concept.code,
+      conceptName: concept.name,
+    })
+
+    // Get default values
     const observationData = {
+      PATIENT_NUM: props.patient.PATIENT_NUM,
       ENCOUNTER_NUM: props.visit.id,
-      CONCEPT_CD: 'LID: 52418-1', // Use the specific medication concept
-      VALTYPE_CD: 'M', // Medication type
-      TVAL_CHAR: '', // Empty drug name initially
-      NVAL_NUM: null, // No dosage initially
-      UNIT_CD: null, // No unit initially
-      OBSERVATION_BLOB: null, // No complex data initially
+      CONCEPT_CD: concept.code,
+      VALTYPE_CD: concept.valueType,
       START_DATE: new Date().toISOString().split('T')[0],
       LOCATION_CD: 'VISITS_PAGE',
       INSTANCE_NUM: 1,
       UPLOAD_ID: 1,
-      // Note: PROVIDER_ID, SOURCESYSTEM_CD, and CATEGORY_CHAR will be set automatically by the store
+      TVAL_CHAR: concept.valueType === 'N' ? null : '',
+      NVAL_NUM: concept.valueType === 'N' ? null : null,
+      UNIT_CD: concept.unit || null,
+      OBSERVATION_BLOB: null,
     }
 
-    // Use visit store to create observation - it handles patient lookup and state updates
-    await visitStore.createObservation(observationData)
+    // Use service to create observation
+    await visitObservationService.createObservation(observationData)
 
     // Emit update to refresh the field set
+    emit('observation-updated', {
+      conceptCode: concept.code,
+      value: concept.valueType === 'N' ? null : '',
+      added: true,
+    })
+
+    const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
+    $q.notify({
+      type: 'positive',
+      message: `${displayName} observation added`,
+      position: 'top',
+    })
+
+    logger.success('Observation created from chip successfully', {
+      conceptCode: concept.code,
+    })
+  } catch (error) {
+    logger.error('Failed to create observation from chip', error, {
+      conceptCode: concept.code,
+    })
+
+    const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
+    $q.notify({
+      type: 'negative',
+      message: `Failed to add ${displayName}`,
+      position: 'top',
+    })
+  }
+}
+
+const addEmptyMedication = async () => {
+  try {
+    // Create empty medication observation
+    const observationData = {
+      PATIENT_NUM: props.patient.PATIENT_NUM,
+      ENCOUNTER_NUM: props.visit.id,
+      CONCEPT_CD: 'LID: 52418-1',
+      VALTYPE_CD: 'M',
+      TVAL_CHAR: '',
+      NVAL_NUM: null,
+      UNIT_CD: null,
+      OBSERVATION_BLOB: null,
+      START_DATE: new Date().toISOString().split('T')[0],
+      LOCATION_CD: 'VISITS_PAGE',
+      INSTANCE_NUM: 1,
+      UPLOAD_ID: 1,
+    }
+
+    await visitObservationService.createObservation(observationData)
+
     emit('observation-updated', {
       conceptCode: 'LID: 52418-1',
       value: '',
       added: true,
     })
 
-    logger.info('Empty medication added successfully', {
-      conceptCode: 'LID: 52418-1',
-      patientId: props.patient.id,
-      visitId: props.visit.id,
-    })
+    logger.info('Empty medication added successfully')
 
     $q.notify({
       type: 'positive',
@@ -555,121 +830,6 @@ const addEmptyMedication = async () => {
       message: 'Failed to add medication',
       position: 'top',
     })
-  }
-}
-
-const createObservationFromChip = async (concept) => {
-  try {
-    logger.info('Creating observation from chip', {
-      conceptCode: concept.code,
-      conceptName: concept.name,
-      resolvedName: resolvedConceptData.value.get(concept.code)?.label,
-      fieldSetId: props.fieldSet.id,
-    })
-
-    // Get default values from global settings store if available
-    const observationData = {
-      ENCOUNTER_NUM: props.visit.id,
-      CONCEPT_CD: concept.code,
-      VALTYPE_CD: concept.valueType,
-      START_DATE: new Date().toISOString().split('T')[0],
-      LOCATION_CD: 'VISITS_PAGE',
-      INSTANCE_NUM: 1,
-      UPLOAD_ID: 1,
-      // Initialize with empty values based on type
-      TVAL_CHAR: concept.valueType === 'N' ? null : '',
-      NVAL_NUM: concept.valueType === 'N' ? null : null,
-      UNIT_CD: concept.unit || null,
-      OBSERVATION_BLOB: null,
-    }
-
-    // Use visit store to create observation - it handles patient lookup and state updates
-    await visitStore.createObservation(observationData)
-
-    // Emit update to refresh the field set
-    emit('observation-updated', {
-      conceptCode: concept.code,
-      value: concept.valueType === 'N' ? null : '',
-      added: true,
-    })
-
-    logger.success('Observation created from chip successfully', {
-      conceptCode: concept.code,
-      conceptName: concept.name,
-      patientId: props.patient.id,
-      visitId: props.visit.id,
-    })
-
-    const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
-    $q.notify({
-      type: 'positive',
-      message: `${displayName} observation added`,
-      position: 'top',
-    })
-  } catch (error) {
-    logger.error('Failed to create observation from chip', error, {
-      conceptCode: concept.code,
-      conceptName: concept.name,
-      errorMessage: error.message,
-      errorStack: error.stack,
-    })
-
-    // Check for specific error types and provide appropriate messages
-    const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
-    let errorMessage = `Failed to add ${displayName}`
-    let errorDetails = ''
-
-    if (error.message?.includes('FOREIGN KEY constraint failed') || error.message?.includes('Concept not found')) {
-      errorMessage = `Concept "${displayName}" not found in database`
-      errorDetails = `The concept code "${concept.code}" needs to be added to the CONCEPT_DIMENSION table before observations can be created.`
-
-      logger.warn('Concept missing from database', {
-        conceptCode: concept.code,
-        conceptName: concept.name,
-        suggestion: 'Add concept to CONCEPT_DIMENSION table or update field set configuration',
-      })
-    } else if (error.message?.includes('SQLITE_CONSTRAINT')) {
-      errorMessage = `Database constraint error`
-      errorDetails = `There was a database constraint violation when trying to create the observation. This may be due to missing reference data.`
-    } else if (error.message?.includes('Failed to create entity')) {
-      errorMessage = `Failed to create observation`
-      errorDetails = `The observation could not be saved to the database. Please check the database configuration.`
-    }
-
-    // Show user-friendly error notification
-    $q.notify({
-      type: 'negative',
-      message: errorMessage,
-      caption: errorDetails,
-      position: 'top',
-      timeout: 6000, // Show longer for error messages
-      actions: [
-        {
-          label: 'Dismiss',
-          color: 'white',
-          handler: () => {},
-        },
-      ],
-    })
-
-    // For missing concepts, also show a dialog with more information
-    if (error.message?.includes('FOREIGN KEY constraint failed') || error.message?.includes('Concept not found')) {
-      $q.dialog({
-        title: 'Concept Not Found',
-        message: `The concept "${displayName}" (${concept.code}) is not available in the database.`,
-        html: true,
-        ok: {
-          label: 'OK',
-          color: 'primary',
-        },
-      }).onOk(() => {
-        logger.info('User acknowledged missing concept dialog', {
-          conceptCode: concept.code,
-          conceptName: concept.name,
-          resolvedName: displayName,
-        })
-      })
-    }
   }
 }
 </script>
@@ -738,87 +898,10 @@ const createObservationFromChip = async (concept) => {
   padding: 1.5rem;
 }
 
-.observation-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-
-  // For medication fields with col-12 class, make them span full width
-  :deep(.medication-field.col-12) {
-    grid-column: 1 / -1;
-  }
-}
-
-.unfilled-observations {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px dashed $grey-4;
-
-  .unfilled-section-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.75rem;
-    color: $grey-6;
-
-    .section-title {
-      font-size: 0.875rem;
-      font-weight: 500;
-    }
-  }
-
-  .unfilled-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-
-    .unfilled-chip {
-      transition: all 0.2s ease;
-      cursor: pointer;
-      font-size: 0.75rem;
-
-      &:hover {
-        background-color: rgba($primary, 0.08);
-        border-color: $primary;
-        color: $primary;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 4px rgba($primary, 0.15);
-
-        :deep(.q-icon) {
-          color: $primary;
-        }
-      }
-
-      &:active {
-        transform: translateY(0);
-        box-shadow: 0 1px 2px rgba($primary, 0.1);
-      }
-
-      :deep(.q-chip__content) {
-        padding: 4px 8px;
-      }
-
-      :deep(.q-icon) {
-        font-size: 14px;
-        margin-right: 4px;
-        transition: color 0.2s ease;
-      }
-    }
-  }
-}
-
-.add-medication {
-  margin-top: 1rem;
-
-  .q-btn {
-    color: $grey-6;
-    transition: all 0.3s ease;
-
-    &:hover {
-      color: $primary;
-      border-color: $primary;
-    }
-  }
+.empty-observations {
+  text-align: center;
+  padding: 3rem 2rem;
+  color: $grey-6;
 }
 
 .expand-icon.rotate-180 {
@@ -832,9 +915,10 @@ const createObservationFromChip = async (concept) => {
     align-items: stretch;
   }
 
-  .observation-grid {
-    grid-template-columns: 1fr;
-    gap: 1rem;
+  :deep(.q-table__container) {
+    .q-table__middle {
+      overflow-x: auto;
+    }
   }
 }
 </style>

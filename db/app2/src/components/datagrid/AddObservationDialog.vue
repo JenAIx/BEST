@@ -1,20 +1,11 @@
 <template>
-  <AppDialog
-    v-model="showDialog"
-    title="Add Observation Column"
-    subtitle="Search and add a new observation column to the data grid"
-    size="lg"
-    persistent
-    @close="cancelAddObservation"
-  >
+  <AppDialog v-model="showDialog" title="Add Observation Column" subtitle="Search and add a new observation column to the data grid" size="lg" persistent @close="cancelAddObservation">
     <template #header>
       <div class="text-h6">
         <q-icon name="add" class="q-mr-sm" color="primary" />
         Add Observation Column
       </div>
-      <div class="text-caption text-grey-6 q-mt-xs">
-        Choose an existing concept from the database to add as a column
-      </div>
+      <div class="text-caption text-grey-6 q-mt-xs">Choose an existing concept from the database to add as a column</div>
     </template>
 
     <!-- Concept Search Section -->
@@ -25,15 +16,7 @@
       </div>
 
       <div class="search-row">
-        <q-input
-          v-model="searchTerm"
-          placeholder="Search concepts (min. 2 characters)"
-          outlined
-          dense
-          class="search-input"
-          @keyup="onSearchInput"
-          @focus="showSearchResults = true"
-        >
+        <q-input v-model="searchTerm" placeholder="Search concepts (min. 2 characters)" outlined dense class="search-input" @keyup="onSearchInput" @focus="showSearchResults = true">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -42,15 +25,7 @@
           </template>
         </q-input>
 
-        <q-btn
-          color="primary"
-          icon="search"
-          label="Search"
-          @click="searchConcepts"
-          :loading="searching"
-          :disable="!searchTerm || searchTerm.length < 2"
-          class="search-btn"
-        />
+        <q-btn color="primary" icon="search" label="Search" @click="searchConcepts" :loading="searching" :disable="!searchTerm || searchTerm.length < 2" class="search-btn" />
       </div>
 
       <!-- Recent Concepts -->
@@ -60,16 +35,7 @@
           Recently Used Concepts
         </div>
         <div class="recent-concepts-grid">
-          <q-chip
-            v-for="concept in recentConcepts"
-            :key="concept.CONCEPT_CD"
-            clickable
-            @click="selectConcept(concept)"
-            color="blue-1"
-            text-color="primary"
-            size="md"
-            class="recent-concept-chip"
-          >
+          <q-chip v-for="concept in recentConcepts" :key="concept.CONCEPT_CD" clickable @click="selectConcept(concept)" color="blue-1" text-color="primary" size="md" class="recent-concept-chip">
             <q-icon name="history" size="14px" class="q-mr-xs" />
             {{ concept.NAME_CHAR }}
             <q-tooltip>{{ concept.CONCEPT_CD }}</q-tooltip>
@@ -81,43 +47,23 @@
       <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
         <div class="text-caption text-grey-6 q-mb-xs">Found {{ searchResults.length }} concept{{ searchResults.length > 1 ? 's' : '' }}</div>
         <div class="concept-list">
-          <q-card
-            v-for="concept in searchResults"
-            :key="concept.CONCEPT_CD"
-            flat
-            bordered
-            class="concept-item cursor-pointer"
-            @click="selectConcept(concept)"
-          >
+          <q-card v-for="concept in searchResults" :key="concept.CONCEPT_CD" flat bordered class="concept-item cursor-pointer" @click="selectConcept(concept)">
             <q-card-section class="q-pa-sm">
               <div class="concept-header">
                 <div class="concept-name-container">
                   <div class="concept-name">{{ concept.NAME_CHAR }}</div>
-                  <q-icon
-                    v-if="isConceptAlreadyInGrid(concept.CONCEPT_CD)"
-                    name="warning"
-                    color="amber-7"
-                    size="18px"
-                    class="existing-column-icon"
-                  >
+                  <q-icon v-if="isConceptAlreadyInGrid(concept.CONCEPT_CD)" name="warning" color="amber-7" size="18px" class="existing-column-icon">
                     <q-tooltip class="bg-amber-7 text-black">This concept is already in the grid</q-tooltip>
                   </q-icon>
                 </div>
-                <q-chip
-                  size="xs"
-                  :color="getValueTypeColor(concept.VALTYPE_CD)"
-                  text-color="white"
-                  class="value-type-chip"
-                >
+                <q-chip size="xs" :color="getValueTypeColor(concept.VALTYPE_CD)" text-color="white" class="value-type-chip">
                   {{ concept.VALTYPE_CD }}
                 </q-chip>
               </div>
               <div class="concept-code text-caption text-grey-6">
                 {{ concept.CONCEPT_CD }}
               </div>
-              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">
-                Unit: {{ concept.UNIT_CD }}
-              </div>
+              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">Unit: {{ concept.UNIT_CD }}</div>
             </q-card-section>
           </q-card>
         </div>
@@ -138,44 +84,22 @@
         <div class="selected-concept-info">
           <q-icon name="check_circle" size="16px" color="positive" class="q-mr-sm" />
           <span class="text-weight-medium">{{ selectedConcept.NAME_CHAR }}</span>
-          <q-chip
-            size="xs"
-            :color="getValueTypeColor(selectedConcept.VALTYPE_CD)"
-            text-color="white"
-            class="q-ml-sm"
-          >
+          <q-chip size="xs" :color="getValueTypeColor(selectedConcept.VALTYPE_CD)" text-color="white" class="q-ml-sm">
             {{ selectedConcept.VALTYPE_CD }}
           </q-chip>
         </div>
         <div class="selected-concept-details">
           <span class="text-caption text-grey-6">{{ selectedConcept.CONCEPT_CD }}</span>
-          <span v-if="selectedConcept.UNIT_CD" class="text-caption text-grey-5 q-ml-md">
-            Unit: {{ selectedConcept.UNIT_CD }}
-          </span>
+          <span v-if="selectedConcept.UNIT_CD" class="text-caption text-grey-5 q-ml-md"> Unit: {{ selectedConcept.UNIT_CD }} </span>
         </div>
-        <q-btn
-          flat
-          size="sm"
-          color="negative"
-          icon="close"
-          @click="clearSelectedConcept"
-          class="remove-btn"
-        />
+        <q-btn flat size="sm" color="negative" icon="close" @click="clearSelectedConcept" class="remove-btn" />
       </div>
     </div>
 
     <template #actions>
-      <q-btn
-        color="primary"
-        label="Add Column"
-        @click="addConceptToGrid"
-        :disable="!selectedConcept || isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)"
-        :loading="adding"
-      >
+      <q-btn color="primary" label="Add Column" @click="addConceptToGrid" :disable="!selectedConcept || isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)" :loading="adding">
         <q-tooltip v-if="!selectedConcept">Please select a concept first</q-tooltip>
-        <q-tooltip v-else-if="isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)">
-          This concept is already in the grid
-        </q-tooltip>
+        <q-tooltip v-else-if="isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)"> This concept is already in the grid </q-tooltip>
         <q-tooltip v-else>Add this concept as a column</q-tooltip>
       </q-btn>
     </template>
@@ -460,7 +384,6 @@ const addConceptToGrid = async () => {
       conceptCode: selectedConcept.value.CONCEPT_CD,
       conceptName: selectedConcept.value.NAME_CHAR,
     })
-
   } catch (error) {
     logger.error('Failed to add concept to grid', error)
     $q.notify({

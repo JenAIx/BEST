@@ -72,7 +72,8 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLoggingStore } from 'src/stores/logging-store'
 
 defineProps({
@@ -84,7 +85,7 @@ defineProps({
 
 const emit = defineEmits(['visit-selected', 'create-new-visit', 'edit-visit'])
 
-const visitStore = useVisitObservationStore()
+const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('VisitSelector')
 
@@ -97,7 +98,7 @@ const selectedVisit = computed({
   },
   set: async (visit) => {
     if (visit) {
-      await visitStore.setSelectedVisit(visit)
+      await visitObservationService.selectVisitAndLoadObservations(visit)
     }
   },
 })

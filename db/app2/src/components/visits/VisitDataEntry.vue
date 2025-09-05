@@ -104,7 +104,10 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { usePatientStore } from 'src/stores/patient-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { useObservationStore } from 'src/stores/observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -133,7 +136,9 @@ const props = defineProps({
 const emit = defineEmits(['visit-created'])
 
 const $q = useQuasar()
-const visitStore = useVisitObservationStore()
+const patientStore = usePatientStore()
+const visitStore = useVisitStore()
+const observationStore = useObservationStore()
 const localSettings = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
@@ -195,7 +200,7 @@ const selectedVisitForEdit = computed(() => {
   return visitForEdit
 })
 
-const previousVisits = computed(() => visitStore.previousVisits)
+const previousVisits = computed(() => visitObservationService.getPreviousVisits())
 
 // Methods that need to be available for composables
 const getFieldSetObservations = (fieldSetId) => {
@@ -204,12 +209,12 @@ const getFieldSetObservations = (fieldSetId) => {
     return []
   }
 
-  const observations = visitStore.getFieldSetObservations(fieldSetId, availableFieldSets.value)
+  const observations = observationStore.getFieldSetObservations(fieldSetId, availableFieldSets.value)
   logger.debug(`getFieldSetObservations for ${fieldSetId}`, {
     fieldSetId,
     observationCount: observations.length,
     selectedVisitId: selectedVisit.value?.id,
-    storeObservationsCount: visitStore.observations.length,
+    storeObservationsCount: observationStore.observations.length,
     availableFieldSetsCount: availableFieldSets.value.length,
   })
   return observations
@@ -224,7 +229,7 @@ const getFieldSetObservationCount = (fieldSetId) => {
 }
 
 // Use uncategorized observations composable
-const { uncategorizedObservations, uncategorizedFieldSet } = useUncategorizedObservations(visitStore, availableFieldSets, selectedVisit)
+const { uncategorizedObservations, uncategorizedFieldSet } = useUncategorizedObservations(observationStore, availableFieldSets, selectedVisit)
 
 // Use field set statistics composable
 const { overallStats } = useFieldSetStatistics(availableFieldSets, activeFieldSets, getFieldSetObservationCount, uncategorizedObservations)
@@ -278,7 +283,7 @@ const onVisitSelected = async (visit) => {
   if (!visit) return
 
   try {
-    await visitStore.setSelectedVisit(visit)
+    await visitObservationService.selectVisitAndLoadObservations(visit)
   } catch (error) {
     logger.error('Failed to select visit', error)
     $q.notify({
@@ -341,7 +346,7 @@ const onVisitUpdated = async (updatedVisit) => {
   // Reload visits for the current patient to get the updated data
   if (props.patient) {
     try {
-      await visitStore.loadVisitsForPatient(props.patient)
+      await visitStore.loadVisitsForPatient(props.patient.PATIENT_NUM)
     } catch (error) {
       logger.error('Failed to reload visits after update', error)
     }
@@ -371,7 +376,7 @@ const onCloneFromPrevious = async (data) => {
 
     // Create observation data for the current visit
     const observationData = {
-      ENCOUNTER_NUM: visitStore.selectedVisit.id,
+      ENCOUNTER_NUM: selectedVisit.value.id,
       CONCEPT_CD: conceptCode,
       START_DATE: new Date().toISOString().split('T')[0],
       CATEGORY_CHAR: defaultCategory,
@@ -382,7 +387,7 @@ const onCloneFromPrevious = async (data) => {
       UPLOAD_ID: 1,
     }
 
-    await visitStore.createObservation(observationData)
+    await visitObservationService.createObservation(observationData)
 
     $q.notify({
       type: 'positive',
@@ -424,7 +429,7 @@ watch(
   () => props.initialVisit,
   async (newVisit) => {
     if (newVisit) {
-      await visitStore.setSelectedVisit(newVisit)
+      await visitObservationService.selectVisitAndLoadObservations(newVisit)
     }
   },
   { immediate: true },
@@ -461,7 +466,7 @@ onMounted(async () => {
   if (!selectedVisit.value && visitStore.visitOptions.length > 0) {
     logger.info('No visit selected, selecting the most recent visit')
     const mostRecentVisit = visitStore.visitOptions[0].value
-    await visitStore.setSelectedVisit(mostRecentVisit)
+    await visitObservationService.selectVisitAndLoadObservations(mostRecentVisit)
   }
 
   // Log final state for debugging
@@ -471,7 +476,7 @@ onMounted(async () => {
     activeFieldSetsCount: activeFieldSets.value.length,
     activeFieldSets: activeFieldSets.value,
     visitStoreSelectedVisit: visitStore.selectedVisit?.id,
-    visitStoreSelectedPatient: visitStore.selectedPatient?.id,
+    visitStoreSelectedPatient: patientStore.selectedPatient?.id,
   })
 })
 </script>

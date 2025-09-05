@@ -531,6 +531,135 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
     },
 
     /**
+     * Get medication frequency options from CODE_LOOKUP
+     * @param {boolean} forceRefresh - Force refresh from database
+     * @returns {Promise<Array>} Array of frequency options with label/value structure
+     */
+    async getMedicationFrequencyOptions(forceRefresh = false) {
+      this.logger.debug('ConceptResolutionStore: getMedicationFrequencyOptions called', { forceRefresh })
+
+      if (!this.cacheManager) {
+        await this.initialize()
+      }
+
+      const cacheKey = 'medication_frequency_options'
+
+      return await this.cacheManager.getOrSet(
+        cacheKey,
+        async () => {
+          try {
+            const dbStore = useDatabaseStore()
+            const result = await dbStore.executeQuery(
+              `SELECT * FROM CODE_LOOKUP
+               WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+               AND COLUMN_CD = 'FREQUENCY_OPTIONS'
+               ORDER BY NAME_CHAR`,
+            )
+
+            if (result.success && result.data.length > 0) {
+              const options = result.data.map((freq) => {
+                const metadata = this.parseMetadata(freq.LOOKUP_BLOB)
+                return {
+                  label: metadata.label || freq.NAME_CHAR,
+                  value: freq.CODE_CD.toLowerCase(), // Ensure lowercase for consistency
+                  icon: metadata.icon || 'schedule',
+                  category: metadata.category || 'frequency',
+                  abbreviation: metadata.abbreviation || freq.CODE_CD,
+                }
+              })
+
+              this.logger.info('Medication frequency options loaded', {
+                count: options.length,
+                sample: options.slice(0, 2),
+              })
+
+              return options
+            } else {
+              this.logger.warn('No medication frequency options found in database')
+              return []
+            }
+          } catch (error) {
+            this.logger.error('Failed to load medication frequency options', error)
+            return []
+          }
+        },
+        { tags: ['medication', 'frequency'], forceRefresh },
+      )
+    },
+
+    /**
+     * Get medication route options from CODE_LOOKUP
+     * @param {boolean} forceRefresh - Force refresh from database
+     * @returns {Promise<Array>} Array of route options with label/value structure
+     */
+    async getMedicationRouteOptions(forceRefresh = false) {
+      this.logger.debug('ConceptResolutionStore: getMedicationRouteOptions called', { forceRefresh })
+
+      if (!this.cacheManager) {
+        await this.initialize()
+      }
+
+      const cacheKey = 'medication_route_options'
+
+      return await this.cacheManager.getOrSet(
+        cacheKey,
+        async () => {
+          try {
+            const dbStore = useDatabaseStore()
+            const result = await dbStore.executeQuery(
+              `SELECT * FROM CODE_LOOKUP
+               WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+               AND COLUMN_CD = 'ROUTE_OPTIONS'
+               ORDER BY NAME_CHAR`,
+            )
+
+            if (result.success && result.data.length > 0) {
+              const options = result.data.map((route) => {
+                const metadata = this.parseMetadata(route.LOOKUP_BLOB)
+                return {
+                  label: metadata.label || route.NAME_CHAR,
+                  value: route.CODE_CD.toLowerCase(), // Ensure lowercase for consistency
+                  icon: metadata.icon || 'route',
+                  category: metadata.category || 'route',
+                  abbreviation: metadata.abbreviation || route.CODE_CD,
+                }
+              })
+
+              this.logger.info('Medication route options loaded', {
+                count: options.length,
+                sample: options.slice(0, 2),
+              })
+
+              return options
+            } else {
+              this.logger.warn('No medication route options found in database')
+              return []
+            }
+          } catch (error) {
+            this.logger.error('Failed to load medication route options', error)
+            return []
+          }
+        },
+        { tags: ['medication', 'route'], forceRefresh },
+      )
+    },
+
+    /**
+     * Parse metadata from LOOKUP_BLOB JSON string
+     * @param {string} lookupBlob - JSON string from LOOKUP_BLOB
+     * @returns {Object} Parsed metadata object
+     */
+    parseMetadata(lookupBlob) {
+      if (!lookupBlob) return {}
+      try {
+        return JSON.parse(lookupBlob)
+      } catch (error) {
+        this.logger.warn('Failed to parse lookup metadata JSON', { lookupBlob, error })
+        return {}
+      }
+    },
+
+    /**
      * Reverse lookup: get code from resolved label
      * @param {string} label - Resolved label
      * @param {string} category - Category context

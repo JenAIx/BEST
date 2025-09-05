@@ -1,6 +1,11 @@
 <template>
-  <div class="q-mb-lg">
-    <!-- Visit Header -->
+  <div
+    class="visit-header q-mb-md"
+    :class="{ 'cursor-pointer': hasObservations }"
+    @click="hasObservations ? toggleVisitExpansion() : null"
+    @mouseenter="hoveredVisit = true"
+    @mouseleave="hoveredVisit = false"
+  >
     <q-tooltip :delay="500" class="bg-grey-9 text-white shadow-4" max-width="350px">
       <div class="text-body2">
         <div class="text-weight-medium q-mb-sm">Visit Details</div>
@@ -10,9 +15,7 @@
           <q-icon name="event" class="q-mr-xs" />
           {{ formatDate(visitGroup.visitDate) }}
           <span v-if="visitGroup.visit?.END_DATE"> - {{ formatDate(visitGroup.visit.END_DATE) }}</span>
-          <span v-if="visitGroup.visit?.last_changed" class="text-caption text-grey-3 q-ml-sm">
-            (updated: {{ formatDate(visitGroup.visit.last_changed) }})
-          </span>
+          <span v-if="visitGroup.visit?.last_changed" class="text-caption text-grey-3 q-ml-sm"> (updated: {{ formatDate(visitGroup.visit.last_changed) }}) </span>
         </div>
 
         <!-- Status -->
@@ -44,7 +47,7 @@
           <q-icon name="notes" class="q-mr-xs" />
           <div class="q-ml-xl">
             <div class="text-caption text-grey-3 q-mb-xs">Notes:</div>
-            <div class="text-white" style="word-wrap: break-word; max-width: 250px;">
+            <div class="text-white" style="word-wrap: break-word; max-width: 250px">
               {{ visitGroup.visit.notes.length > 100 ? visitGroup.visit.notes.substring(0, 100) + '...' : visitGroup.visit.notes }}
             </div>
           </div>
@@ -57,135 +60,94 @@
         </div>
 
         <!-- Technical ID -->
-        <div class="text-caption q-mt-sm text-grey-4">
-          ID: {{ visitGroup.encounterNum }}
-        </div>
+        <div class="text-caption q-mt-sm text-grey-4">ID: {{ visitGroup.encounterNum }}</div>
       </div>
     </q-tooltip>
 
-    <div
-      class="visit-header q-mb-md"
-      :class="{ 'cursor-pointer': visitGroup.observations.length > 0 }"
-      @click="visitGroup.observations.length > 0 ? toggleVisitExpansion() : null"
-      @mouseenter="hoveredVisit = true"
-      @mouseleave="hoveredVisit = false"
-    >
-      <div class="row items-center q-gutter-md">
-        <!-- Visit Type Icon -->
-        <q-avatar :color="visitTypeColor" text-color="white" size="40px">
-          <q-icon :name="typeIcon" />
-        </q-avatar>
+    <div class="row items-center q-gutter-md">
+      <!-- Visit Type Icon -->
+      <q-avatar :color="visitTypeColor" text-color="white" size="40px">
+        <q-icon :name="typeIcon" />
+      </q-avatar>
 
-        <!-- Visit Type and Status -->
-        <div class="col-auto">
-          <div class="visit-type-status">
-            <!-- Visit Type -->
-            <div v-if="visitGroup.visit?.visitType" class="q-mb-xs">
-              <q-chip
-                size="sm"
-                :color="visitTypeColor"
-                text-color="white"
-                class="q-px-xs"
-              >
-                {{ visitTypeLabel }}
-              </q-chip>
-            </div>
+      <!-- Visit Type and Status -->
+      <div class="col-auto">
+        <div class="visit-type-status">
+          <!-- Visit Type -->
+          <div v-if="visitGroup.visit?.visitType" class="q-mb-xs">
+            <q-chip size="sm" :color="visitTypeColor" text-color="white" class="q-px-xs">
+              {{ visitTypeLabel }}
+            </q-chip>
+          </div>
 
-        <!-- Status Chip -->
-            <div v-if="visitGroup.visit?.ACTIVE_STATUS_CD">
-              <q-chip :color="getStatusColor()" text-color="white" size="xs">
-                {{ getStatusLabel() }}
-          </q-chip>
-            </div>
+          <!-- Status Chip -->
+          <div v-if="visitGroup.visit?.ACTIVE_STATUS_CD">
+            <q-chip :color="getStatusColor()" text-color="white" size="xs">
+              {{ getStatusLabel() }}
+            </q-chip>
           </div>
         </div>
+      </div>
 
-        <div class="col">
-          <div class="text-h6 text-primary">
-            {{ formatDate(visitGroup.visitDate) }}
-            <span v-if="visitGroup.visit?.END_DATE"> - {{ formatDate(visitGroup.visit.END_DATE) }}</span>
+      <div class="col">
+        <div class="text-h6 text-primary">
+          {{ formatDate(visitGroup.visitDate) }}
+          <span v-if="visitGroup.visit?.END_DATE"> - {{ formatDate(visitGroup.visit.END_DATE) }}</span>
 
-            <!-- Notes Preview -->
-            <span v-if="visitGroup.visit?.notes" class="visit-notes-inline q-ml-sm">
-              <q-icon name="notes" size="14px" class="q-mr-xs text-grey-6" />
-              <span class="text-body2 text-grey-7">
-                <span v-if="visitGroup.visit.notes.length <= 40">
-                  {{ visitGroup.visit.notes }}
+          <!-- Notes Preview -->
+          <span v-if="visitGroup.visit?.notes" class="visit-notes-inline q-ml-sm">
+            <q-icon name="notes" size="14px" class="q-mr-xs text-grey-6" />
+            <span class="text-body2 text-grey-7">
+              <span v-if="visitGroup.visit.notes.length <= 40">
+                {{ visitGroup.visit.notes }}
+              </span>
+              <span v-else>
+                <span v-if="!isNotesExpanded">
+                  {{ visitGroup.visit.notes.substring(0, 40) }}...
+                  <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs q-px-xs">more</q-btn>
                 </span>
                 <span v-else>
-                  <span v-if="!isNotesExpanded">
-                    {{ visitGroup.visit.notes.substring(0, 40) }}...
-                    <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs q-px-xs">more</q-btn>
-                  </span>
-                  <span v-else>
-                    {{ visitGroup.visit.notes }}
-                    <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs q-px-xs">less</q-btn>
-                  </span>
+                  {{ visitGroup.visit.notes }}
+                  <q-btn flat dense size="xs" color="primary" @click.stop="toggleNotesExpansion" class="q-ml-xs q-px-xs">less</q-btn>
                 </span>
               </span>
             </span>
-          </div>
-          <div class="text-caption text-grey-6">
-            {{ visitGroup.observations.length }} observations
-            <span v-if="visitGroup.visit?.LOCATION_CD"> • {{ visitGroup.visit.LOCATION_CD }}</span>
-          </div>
+          </span>
         </div>
-
-        <!-- Hover Action Buttons -->
-        <div v-if="hoveredVisit" class="visit-actions q-mr-md">
-          <q-btn flat round icon="add" size="md" color="positive" @click.stop="openCreateObservationDialog" class="q-mr-sm">
-            <q-tooltip>Add observation</q-tooltip>
-          </q-btn>
-          <q-btn flat round icon="edit" size="md" color="primary" @click.stop="openEditVisitDialog" class="q-mr-sm">
-            <q-tooltip>Edit visit</q-tooltip>
-          </q-btn>
-          <q-btn flat round icon="delete" size="md" color="negative" @click.stop="confirmDeleteVisit" class="q-mr-sm">
-            <q-tooltip>Delete visit</q-tooltip>
-          </q-btn>
+        <div class="text-caption text-grey-6">
+          {{ visitGroup.observations.length }} observations
+          <span v-if="visitGroup.visit?.LOCATION_CD"> • {{ visitGroup.visit.LOCATION_CD }}</span>
         </div>
+      </div>
 
-        <!-- Observations Count -->
-        <q-chip
-          :color="visitGroup.observations.length === 0 ? 'grey' : visitGroup.observations.length > 10 ? 'orange' : visitGroup.observations.length > 5 ? 'blue' : 'green'"
-          text-color="white"
-          size="sm"
-        >
-          {{ visitGroup.observations.length }}
-        </q-chip>
-
-        <q-btn v-if="visitGroup.observations.length > 0" flat round dense :icon="isExpanded ? 'expand_less' : 'expand_more'" color="primary" size="sm">
-          <q-tooltip> {{ isExpanded ? 'Collapse' : 'Expand' }} visit </q-tooltip>
+      <!-- Hover Action Buttons -->
+      <div v-if="hoveredVisit" class="visit-actions q-mr-md">
+        <q-btn flat round icon="add" size="md" color="positive" @click.stop="openCreateObservationDialog" class="q-mr-sm">
+          <q-tooltip>Add observation</q-tooltip>
         </q-btn>
-        <div v-else class="text-caption text-grey-5 q-ml-sm">No observations to expand</div>
+        <q-btn flat round icon="edit" size="md" color="primary" @click.stop="openEditVisitDialog" class="q-mr-sm">
+          <q-tooltip>Edit visit</q-tooltip>
+        </q-btn>
+        <q-btn flat round icon="delete" size="md" color="negative" @click.stop="confirmDeleteVisit" class="q-mr-sm">
+          <q-tooltip>Delete visit</q-tooltip>
+        </q-btn>
       </div>
-      <q-separator class="q-mt-md" />
+
+      <!-- Observations Count -->
+      <q-chip
+        :color="visitGroup.observations.length === 0 ? 'grey' : visitGroup.observations.length > 10 ? 'orange' : visitGroup.observations.length > 5 ? 'blue' : 'green'"
+        text-color="white"
+        size="sm"
+      >
+        {{ visitGroup.observations.length }}
+      </q-chip>
+
+      <q-btn v-if="hasObservations" flat round dense :icon="isExpanded ? 'expand_less' : 'expand_more'" color="primary" size="sm">
+        <q-tooltip> {{ isExpanded ? 'Collapse' : 'Expand' }} visit </q-tooltip>
+      </q-btn>
+      <div v-else class="text-caption text-grey-5 q-ml-sm">No observations to expand</div>
     </div>
-
-    <!-- Observations Grid -->
-    <q-slide-transition>
-      <div v-show="isExpanded">
-        <!-- No observations message -->
-        <div v-if="visitGroup.observations.length === 0" class="text-center q-py-lg">
-          <q-icon name="science_off" size="48px" color="grey-4" />
-          <div class="text-body2 text-grey-6 q-mt-sm">No observations recorded for this visit</div>
-          <div class="text-caption text-grey-5">
-            Visit from {{ formatDate(visitGroup.visitDate) }}
-            <span v-if="visitGroup.endDate"> to {{ formatDate(visitGroup.endDate) }}</span>
-          </div>
-        </div>
-
-        <!-- Observations Grid -->
-        <div v-else class="observations-grid">
-          <ObservationCard
-            v-for="observation in visitGroup.observations"
-            :key="observation.OBSERVATION_ID"
-            :observation="observation"
-            @updated="$emit('observationUpdated')"
-            @deleted="$emit('observationDeleted')"
-          />
-        </div>
-      </div>
-    </q-slide-transition>
+    <q-separator class="q-mt-md" />
 
     <!-- Edit Visit Dialog -->
     <EditVisitDialog v-model="showEditVisitDialog" :patient="patient" :visit="visitGroup" @visitUpdated="onVisitUpdated" />
@@ -229,7 +191,6 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
-import ObservationCard from './ObservationCard.vue'
 import EditVisitDialog from './EditVisitDialog.vue'
 import CreateObservationDialog from './CreateObservationDialog.vue'
 import AppDialog from '../shared/AppDialog.vue'
@@ -249,20 +210,20 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['toggleExpansion', 'observationUpdated', 'observationDeleted', 'visitUpdated'])
+const emit = defineEmits(['toggleExpansion', 'visitUpdated'])
 
 const $q = useQuasar()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
 const databaseStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
-const logger = loggingStore.createLogger('VisitItem')
+const logger = loggingStore.createLogger('VisitHeader')
 
 // Local state
 const hoveredVisit = ref(false)
 const isNotesExpanded = ref(false)
 
-// Reactive state for resolved data (same as VisitTimelineItem)
+// Reactive state for resolved data
 const visitTypeData = ref({ label: 'General Visit', icon: 'local_hospital', color: 'primary' })
 const statusData = ref({ label: 'Unknown', color: 'grey', class: 'status-default' })
 const visitTypeOptions = ref([])
@@ -277,6 +238,9 @@ const showDeleteWarningDialog = ref(false)
 const deleteDialogTitle = ref('')
 const deleteDialogMessage = ref('')
 const deleteWarningMessage = ref('')
+
+// Computed properties
+const hasObservations = computed(() => props.visitGroup.observations && props.visitGroup.observations.length > 0)
 
 // Methods
 const formatDate = (dateStr) => {
@@ -303,9 +267,9 @@ const getStatusLabel = () => {
 
 const getInoutTypeLabel = (inoutCode) => {
   const labelMap = {
-    'I': 'Inpatient',
-    'O': 'Outpatient',
-    'E': 'Emergency',
+    I: 'Inpatient',
+    O: 'Outpatient',
+    E: 'Emergency',
   }
   return labelMap[inoutCode] || inoutCode || 'Unknown'
 }
@@ -331,7 +295,7 @@ watch(
   { immediate: false },
 )
 
-// Resolve visit type using store (same as VisitTimelineItem)
+// Resolve visit type using store
 const resolveVisitType = async () => {
   // Extract visit type from VISIT_BLOB if available
   let visitType = props.visitGroup.visit?.visitType
@@ -465,7 +429,7 @@ const resolveVisitStatus = async () => {
   }
 }
 
-// Visit type helper methods (same as in VisitTimelineItem.vue)
+// Visit type helper methods
 const getVisitTypeLabel = (typeCode) => {
   const labelMap = {
     routine: 'Routine Check-up',
@@ -636,7 +600,7 @@ const onVisitUpdated = () => {
 }
 
 const onObservationCreated = () => {
-  emit('observationUpdated')
+  emit('visitUpdated')
 }
 </script>
 
@@ -646,7 +610,6 @@ const onObservationCreated = () => {
   border: 1px solid #e8ecf4;
   border-radius: 16px;
   padding: 20px;
-  margin-bottom: 20px;
   position: relative;
   transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
@@ -670,8 +633,9 @@ const onObservationCreated = () => {
     &:hover {
       background: linear-gradient(145deg, #f0f4ff 0%, #e8f0ff 100%);
       transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12),
-                  0 2px 8px rgba(0, 0, 0, 0.06);
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.12),
+        0 2px 8px rgba(0, 0, 0, 0.06);
       border-color: rgba(25, 118, 210, 0.3);
 
       .q-avatar {
@@ -680,7 +644,7 @@ const onObservationCreated = () => {
       }
 
       .visit-type-status .q-chip {
-      transform: translateY(-1px);
+        transform: translateY(-1px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
       }
     }
@@ -703,8 +667,9 @@ const onObservationCreated = () => {
 
   .q-avatar {
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.15),
-                0 1px 4px rgba(0, 0, 0, 0.1);
+    box-shadow:
+      0 3px 12px rgba(0, 0, 0, 0.15),
+      0 1px 4px rgba(0, 0, 0, 0.1);
     border: 2px solid rgba(255, 255, 255, 0.8);
 
     &:hover {
@@ -785,13 +750,6 @@ const onObservationCreated = () => {
   }
 }
 
-.observations-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
 // Visit actions styling
 .visit-actions {
   display: flex;
@@ -859,64 +817,15 @@ const onObservationCreated = () => {
   }
 }
 
-// Animation for new cards
-.observation-card {
-  animation: fadeInScale 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-@keyframes fadeInScale {
-  from {
-    opacity: 0;
-    transform: translateY(30px) scale(0.95);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-// Overall item animation
-.timeline-item {
-  animation: slideInFromBottom 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-
-  &:nth-child(1) { animation-delay: 0.1s; }
-  &:nth-child(2) { animation-delay: 0.2s; }
-  &:nth-child(3) { animation-delay: 0.3s; }
-  &:nth-child(4) { animation-delay: 0.4s; }
-  &:nth-child(5) { animation-delay: 0.5s; }
-  &:nth-child(6) { animation-delay: 0.6s; }
-  &:nth-child(7) { animation-delay: 0.7s; }
-  &:nth-child(8) { animation-delay: 0.8s; }
-}
-
-@keyframes slideInFromBottom {
-  from {
-    opacity: 0;
-    transform: translateY(40px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 // Responsive adjustments
 @media (max-width: 768px) {
   .visit-header {
     padding: 16px;
-    margin-bottom: 16px;
     border-radius: 12px;
 
     &::before {
       border-radius: 12px;
     }
-  }
-
-  .observations-grid {
-    grid-template-columns: 1fr;
-    gap: 12px;
   }
 
   .visit-actions {
@@ -939,16 +848,6 @@ const onObservationCreated = () => {
     }
   }
 
-  .observations-grid {
-    gap: 8px;
-  }
-
-  .observation-card {
-    .q-card-section {
-      padding: 8px !important;
-    }
-  }
-
   .visit-actions {
     gap: 4px;
 
@@ -964,54 +863,6 @@ const onObservationCreated = () => {
 
   .text-h6 {
     font-size: 1rem;
-  }
-}
-
-// Dark theme support
-@media (prefers-color-scheme: dark) {
-  .visit-header {
-    background: linear-gradient(145deg, #1e1e1e 0%, #2a2a2a 100%);
-    border-color: #404040;
-
-    &::before {
-      background: linear-gradient(145deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
-    }
-
-    &.cursor-pointer:hover {
-      background: linear-gradient(145deg, #2a2a2a 0%, #333333 100%);
-      border-color: rgba(25, 118, 210, 0.4);
-    }
-
-    &:not(.cursor-pointer) {
-      background: linear-gradient(145deg, #1a1a1a 0%, #202020 100%);
-      border-color: #303030;
-
-      .text-h6 {
-        color: #9e9e9e !important;
-      }
-    }
-
-    .text-h6 {
-      color: #2196f3;
-    }
-
-    .text-caption {
-      color: #b0b0b0;
-    }
-
-    .visit-notes-inline {
-      background: linear-gradient(135deg, rgba(25, 118, 210, 0.15) 0%, rgba(25, 118, 210, 0.08) 100%);
-      border-color: rgba(25, 118, 210, 0.25);
-
-      .text-body2 {
-        color: #e0e0e0;
-      }
-    }
-  }
-
-  .visit-actions .q-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.1);
   }
 }
 </style>

@@ -13,16 +13,16 @@ import { handleValueTypeCd } from './questionnaire-valtype.js'
  * @param {number} patientNum - Patient number
  * @param {number} encounterNum - Encounter number
  * @param {Object} results - Questionnaire results
- * @param {Object} visitObservationStore - Visit observation store
+ * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
  * @returns {Promise<Object>} Save result
  */
-export const saveQuestionnaireResponse = async (dbStore, patientNum, encounterNum, results, visitObservationStore, conceptResolutionStore) => {
+export const saveQuestionnaireResponse = async (dbStore, patientNum, encounterNum, results, visitObservationService, conceptResolutionStore) => {
   // Save the main questionnaire first
   const mainResult = await saveMainQuestionnaireResponse(dbStore, patientNum, encounterNum, results)
 
   // Extract and save individual results and answers as separate observations
-  await saveIndividualResultsAsObservations(dbStore, patientNum, encounterNum, results, mainResult.observationId, visitObservationStore, conceptResolutionStore)
+  await saveIndividualResultsAsObservations(dbStore, patientNum, encounterNum, results, mainResult.observationId, visitObservationService, conceptResolutionStore)
 
   return mainResult
 }
@@ -148,11 +148,11 @@ export const saveMainQuestionnaireResponse = async (dbStore, patientNum, encount
  * @param {number} encounterNum - Encounter number
  * @param {Object} results - Questionnaire results
  * @param {number} questionnaireObservationId - Main questionnaire observation ID
- * @param {Object} visitObservationStore - Visit observation store
+ * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
  * @returns {Promise<void>}
  */
-export const saveIndividualResultsAsObservations = async (dbStore, patientNum, encounterNum, results, questionnaireObservationId, visitObservationStore, conceptResolutionStore) => {
+export const saveIndividualResultsAsObservations = async (dbStore, patientNum, encounterNum, results, questionnaireObservationId, visitObservationService, conceptResolutionStore) => {
   logger.info('Saving individual results and answers as observations', {
     questionnaireCode: results.questionnaire_code,
     questionnaireObservationId,
@@ -160,12 +160,12 @@ export const saveIndividualResultsAsObservations = async (dbStore, patientNum, e
 
   // Process results first
   if (results.results && Array.isArray(results.results)) {
-    await saveResultsAsObservations(dbStore, patientNum, encounterNum, results.results, results, questionnaireObservationId, visitObservationStore, conceptResolutionStore)
+    await saveResultsAsObservations(dbStore, patientNum, encounterNum, results.results, results, questionnaireObservationId, visitObservationService, conceptResolutionStore)
   }
 
   // Process individual answers with coding
   if (results.items && Array.isArray(results.items)) {
-    await saveAnswersAsObservations(dbStore, patientNum, encounterNum, results.items, results, questionnaireObservationId, visitObservationStore, conceptResolutionStore)
+    await saveAnswersAsObservations(dbStore, patientNum, encounterNum, results.items, results, questionnaireObservationId, visitObservationService, conceptResolutionStore)
   }
 }
 
@@ -177,11 +177,11 @@ export const saveIndividualResultsAsObservations = async (dbStore, patientNum, e
  * @param {Array} results - Questionnaire results
  * @param {Object} fullResults - Full questionnaire results
  * @param {number} questionnaireObservationId - Main questionnaire observation ID
- * @param {Object} visitObservationStore - Visit observation store
+ * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
  * @returns {Promise<void>}
  */
-export const saveResultsAsObservations = async (dbStore, patientNum, encounterNum, results, fullResults, questionnaireObservationId, visitObservationStore, conceptResolutionStore) => {
+export const saveResultsAsObservations = async (dbStore, patientNum, encounterNum, results, fullResults, questionnaireObservationId, visitObservationService, conceptResolutionStore) => {
   logger.debug('Processing results', { resultCount: results.length })
 
   for (const result of results) {
@@ -204,7 +204,7 @@ export const saveResultsAsObservations = async (dbStore, patientNum, encounterNu
         fullResults,
         questionnaireObservationId,
         'result',
-        visitObservationStore,
+        visitObservationService,
         conceptResolutionStore,
       )
     } catch (error) {
@@ -224,11 +224,11 @@ export const saveResultsAsObservations = async (dbStore, patientNum, encounterNu
  * @param {Array} items - Questionnaire items
  * @param {Object} fullResults - Full questionnaire results
  * @param {number} questionnaireObservationId - Main questionnaire observation ID
- * @param {Object} visitObservationStore - Visit observation store
+ * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
  * @returns {Promise<void>}
  */
-export const saveAnswersAsObservations = async (dbStore, patientNum, encounterNum, items, fullResults, questionnaireObservationId, visitObservationStore, conceptResolutionStore) => {
+export const saveAnswersAsObservations = async (dbStore, patientNum, encounterNum, items, fullResults, questionnaireObservationId, visitObservationService, conceptResolutionStore) => {
   logger.info('Processing answers', { itemCount: items.length, questionnaireCode: fullResults.questionnaire_code })
 
   for (const item of items) {
@@ -278,7 +278,7 @@ export const saveAnswersAsObservations = async (dbStore, patientNum, encounterNu
         fullResults,
         questionnaireObservationId,
         'answer',
-        visitObservationStore,
+        visitObservationService,
         conceptResolutionStore,
       )
     } catch (error) {
@@ -356,7 +356,7 @@ export const findConceptInDatabase = async (dbStore, conceptCode) => {
  * @param {Object} fullResults - Full questionnaire results
  * @param {number} questionnaireObservationId - Main questionnaire observation ID
  * @param {string} type - Type ('result' or 'answer')
- * @param {Object} visitObservationStore - Visit observation store
+ * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
  * @returns {Promise<void>}
  */
@@ -370,7 +370,7 @@ export const createObservationFromQuestionnaireItem = async (
   fullResults,
   questionnaireObservationId,
   type,
-  visitObservationStore,
+  visitObservationService,
   conceptResolutionStore,
 ) => {
   // Prepare observation data
@@ -417,7 +417,7 @@ export const createObservationFromQuestionnaireItem = async (
   })
 
   // Create the observation
-  const newObservation = await visitObservationStore.createObservation(observationData)
+  const newObservation = await visitObservationService.createObservation(observationData)
 
   logger.success(`Created ${type} observation`, {
     conceptCode: concept.CONCEPT_CD,

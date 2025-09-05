@@ -24,17 +24,13 @@
           {{ fullMedicationData.instructions }}
         </q-item-label>
       </q-item-section>
-
-      <q-item-section side class="remove-actions">
-        <AppRemoveConfirmationButton @click.stop @remove-confirmed="handleRemoveConfirmed" @remove-cancelled="handleRemoveCancelled" />
-      </q-item-section>
     </q-item>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
+import { useMedicationsStore } from 'src/stores/medications-store'
 
 const props = defineProps({
   medicationData: {
@@ -55,32 +51,25 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['delete', 'enter-edit-mode'])
+const emit = defineEmits(['enter-edit-mode'])
+
+// Store
+const medicationsStore = useMedicationsStore()
 
 // State management
 const fullMedicationData = ref({ ...props.medicationData })
 
 // Load BLOB data on mount if available
-onMounted(() => {
-  if (props.existingObservation?.observationBlob) {
-    try {
-      const parsedData = JSON.parse(props.existingObservation.observationBlob)
-
-      fullMedicationData.value = {
-        drugName: parsedData.drugName || props.existingObservation.value || '',
-        dosage: parsedData.dosage || props.existingObservation.numericValue || null,
-        dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
-        frequency: parsedData.frequency || '',
-        route: parsedData.route || '',
-        instructions: parsedData.instructions || '',
-      }
-    } catch (error) {
-      console.error('Failed to parse OBSERVATION_BLOB in view:', error)
-      fullMedicationData.value = { ...props.medicationData }
-    }
+onMounted(async () => {
+  // Use centralized parsing logic from medications store
+  if (props.existingObservation) {
+    fullMedicationData.value = await medicationsStore.parseMedicationDataWithBlob(props.existingObservation, true)
   } else {
     fullMedicationData.value = { ...props.medicationData }
   }
+
+  // Update display after data is loaded
+  await updateMedicationDisplay()
 })
 
 // Computed
@@ -90,102 +79,32 @@ const hasValue = computed(() => {
 })
 
 // Elegant view mode display: "DRUG mg 1-0-1 p.o."
-const medicationViewDisplay = computed(() => {
-  if (!hasValue.value) return ''
+const medicationViewDisplay = ref('')
 
-  const parts = []
-
-  // Drug name
-  if (fullMedicationData.value.drugName) {
-    parts.push(fullMedicationData.value.drugName)
+// Update display when medication data changes
+const updateMedicationDisplay = async () => {
+  if (!hasValue.value) {
+    medicationViewDisplay.value = ''
+    return
   }
 
-  // Dosage with unit: "100mg"
-  if (fullMedicationData.value.dosage && fullMedicationData.value.dosageUnit) {
-    parts.push(`${fullMedicationData.value.dosage}${fullMedicationData.value.dosageUnit}`)
-  }
-
-  // Frequency in simplified format
-  if (fullMedicationData.value.frequency) {
-    const freq = getSimplifiedFrequency(fullMedicationData.value.frequency)
-    parts.push(freq)
-  }
-
-  // Route abbreviation
-  if (fullMedicationData.value.route) {
-    const route = getRouteAbbreviation(fullMedicationData.value.route)
-    parts.push(route)
-  }
-
-  return parts.join(' ')
-})
-
-// Helper methods for view mode
-const getSimplifiedFrequency = (frequency) => {
-  const freqMap = {
-    QD: '1-0-0',
-    BID: '1-0-1',
-    TID: '1-1-1',
-    QID: '1-1-1-1',
-    Q4H: 'q4h',
-    Q6H: 'q6h',
-    Q8H: 'q8h',
-    Q12H: 'q12h',
-    PRN: 'prn',
-    QHS: 'qhs',
-    AC: 'a.c.',
-    PC: 'p.c.',
-  }
-  return freqMap[frequency] || frequency
-}
-
-const getRouteAbbreviation = (route) => {
-  const routeMap = {
-    PO: 'p.o.',
-    IV: 'i.v.',
-    IM: 'i.m.',
-    SC: 's.c.',
-    TOP: 'top.',
-    INH: 'inh.',
-    NAS: 'nas.',
-    PR: 'p.r.',
-    SL: 's.l.',
-  }
-  return routeMap[route] || route?.toLowerCase() || ''
-}
-
-// Remove confirmation methods
-const handleRemoveConfirmed = () => {
-  emit('delete')
-}
-
-const handleRemoveCancelled = () => {
-  // No additional action needed for cancel
+  // Use centralized formatting from medications store
+  medicationViewDisplay.value = await medicationsStore.formatMedicationDisplayElegant(fullMedicationData.value)
 }
 
 // Watch for changes to existingObservation to reload BLOB data
 watch(
   () => props.existingObservation,
-  (newObservation) => {
-    if (newObservation?.observationBlob) {
-      try {
-        const parsedData = JSON.parse(newObservation.observationBlob)
-
-        fullMedicationData.value = {
-          drugName: parsedData.drugName || newObservation.value || '',
-          dosage: parsedData.dosage || newObservation.numericValue || null,
-          dosageUnit: parsedData.dosageUnit || newObservation.unit || 'mg',
-          frequency: parsedData.frequency || '',
-          route: parsedData.route || '',
-          instructions: parsedData.instructions || '',
-        }
-      } catch (error) {
-        console.error('Failed to parse OBSERVATION_BLOB in watch:', error)
-        fullMedicationData.value = { ...props.medicationData }
-      }
+  async (newObservation) => {
+    // Use centralized parsing logic from medications store
+    if (newObservation) {
+      fullMedicationData.value = await medicationsStore.parseMedicationDataWithBlob(newObservation, true)
     } else {
       fullMedicationData.value = { ...props.medicationData }
     }
+
+    // Update display after data change
+    await updateMedicationDisplay()
   },
   { deep: true },
 )
@@ -194,7 +113,18 @@ watch(
 watch(
   () => props.medicationData,
   () => {
-    // Medication data changed - component will handle any UI updates
+    // Update display when medication data changes
+    updateMedicationDisplay()
+  },
+  { deep: true },
+)
+
+// Watch for fullMedicationData changes
+watch(
+  () => fullMedicationData.value,
+  async () => {
+    // Update display when internal medication data changes
+    await updateMedicationDisplay()
   },
   { deep: true },
 )
@@ -250,15 +180,9 @@ watch(
     border-radius: 4px;
     margin: 0px 0;
 
-    &:hover {
-      .remove-actions {
-        opacity: 1;
-      }
-    }
-
     // Style the medication text
     .medication-text {
-      font-size: 1.1rem;
+      font-size: 0.9rem;
       font-weight: 500;
       color: $grey-8;
       font-family: 'Courier New', monospace; // Medical prescription font
@@ -275,12 +199,6 @@ watch(
       .q-icon {
         margin-top: 0.1rem;
       }
-    }
-
-    // Remove actions section - hidden by default, shown on hover
-    .remove-actions {
-      opacity: 0;
-      transition: opacity 0.2s ease;
     }
 
     // Override Quasar's default padding for a more compact look
