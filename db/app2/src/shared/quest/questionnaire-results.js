@@ -30,7 +30,33 @@ export const calculateResults = (activeQuestionnaire, currentResponses) => {
 
   // Process individual responses (QuestMan items format)
   activeQuestionnaire.items.forEach((item) => {
-    if (item.id && currentResponses.value[item.id] !== undefined) {
+    // Handle multiple_radio questions specially (like original QuestMan)
+    if (item.type === 'multiple_radio' && Array.isArray(item.id)) {
+      const arrayId = item.id[0] || item.id
+      const responseArray = currentResponses.value[arrayId]
+
+      if (Array.isArray(responseArray) && item.options && item.options.questions) {
+        // Create individual items for each question in the multiple_radio
+        for (let i = 0; i < responseArray.length; i++) {
+          if (responseArray[i] !== null && responseArray[i] !== undefined) {
+            const question = item.options.questions[i]
+            const questionId = item.id[i] || question.id
+
+            const itemResult = {
+              id: questionId,
+              label: question.label || question.tag,
+              tag: item.tag ? `${item.tag}_${question.tag}` : question.tag,
+              value: responseArray[i],
+              coding: question.coding,
+              ignore_for_result: item.ignore_for_result,
+            }
+
+            results.items.push(itemResult)
+          }
+        }
+      }
+    } else if (item.id && currentResponses.value[item.id] !== undefined) {
+      // Handle regular questions
       const itemResult = {
         id: item.id,
         label: item.label,

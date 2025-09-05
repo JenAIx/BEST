@@ -66,22 +66,11 @@
     </div>
 
     <!-- Date Input -->
-    <q-input
-      v-else-if="item.type === 'date'"
-      :model-value="modelValue"
-      @update:model-value="emit('update:model-value', $event)"
-      outlined
-      dense
-      :data-cy="`input-date-${item.id}`"
-    >
+    <q-input v-else-if="item.type === 'date'" :model-value="modelValue" @update:model-value="emit('update:model-value', $event)" outlined dense :data-cy="`input-date-${item.id}`">
       <template v-slot:prepend>
         <q-icon name="event" class="cursor-pointer">
           <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-            <q-date
-              :model-value="modelValue"
-              @update:model-value="emit('update:model-value', $event)"
-              mask="DD.MM.YYYY"
-            >
+            <q-date :model-value="modelValue" @update:model-value="emit('update:model-value', $event)" mask="DD.MM.YYYY">
               <div class="row items-center justify-end">
                 <q-btn v-close-popup label="Close" color="primary" flat />
               </div>
@@ -119,11 +108,7 @@
       <template v-slot:prepend>
         <q-icon name="access_time" class="cursor-pointer">
           <q-popup-proxy cover transition-show="scale" transition-hide="scale">
-            <q-time
-              :model-value="modelValue"
-              @update:model-value="emit('update:model-value', $event)"
-              format24h
-            >
+            <q-time :model-value="modelValue" @update:model-value="emit('update:model-value', $event)" format24h>
               <div class="row items-center justify-end">
                 <q-btn v-close-popup label="Close" color="primary" flat />
               </div>
@@ -136,23 +121,32 @@
     <!-- Multiple Radio (Matrix questions) -->
     <div v-else-if="item.type === 'multiple_radio'" class="multiple-radio-container">
       <div v-if="item.options && item.options.questions && item.options.answers" class="multiple-radio-matrix">
-        <div 
-          v-for="(question, qIndex) in item.options.questions" 
-          :key="`question-${qIndex}`"
-          class="matrix-row q-mb-md"
-        >
+        <div v-for="(question, qIndex) in item.options.questions" :key="`question-${qIndex}`" class="matrix-row q-mb-md">
           <div class="matrix-question q-mb-sm text-weight-medium">
             {{ question.label || question.tag }}
           </div>
-          <q-option-group
-            :model-value="(modelValue && modelValue[qIndex]) || null"
-            @update:model-value="updateMultipleRadio(qIndex, $event)"
-            :options="item.options.answers"
-            color="primary"
-            :data-cy="`input-matrix-${item.id}-${qIndex}`"
-            inline
-          />
+          <div class="radio-options">
+            <q-radio
+              v-for="(answer, aIndex) in item.options.answers"
+              :key="`answer-${aIndex}`"
+              :model-value="modelValue && modelValue[qIndex] !== undefined ? modelValue[qIndex] : null"
+              :val="answer.value"
+              :label="answer.label"
+              @update:model-value="updateMultipleRadio(qIndex, $event)"
+              color="primary"
+              :data-cy="`input-matrix-${item.id}-${qIndex}-${aIndex}`"
+              class="q-mr-md"
+            />
+          </div>
         </div>
+      </div>
+      <div v-else class="no-options">
+        <q-banner class="bg-orange-1 text-orange-8">
+          <template v-slot:avatar>
+            <q-icon name="warning" />
+          </template>
+          No options available for this question
+        </q-banner>
       </div>
     </div>
 
@@ -189,12 +183,8 @@
           <q-icon name="warning" />
         </template>
         Unsupported question type: {{ item.type }}
-        <div class="text-caption q-mt-xs">
-          Item ID: {{ item.id }}, Label: {{ item.label?.substring(0, 50) }}
-        </div>
-        <div class="text-caption">
-          Full item: {{ JSON.stringify(item, null, 2) }}
-        </div>
+        <div class="text-caption q-mt-xs">Item ID: {{ item.id }}, Label: {{ item.label?.substring(0, 50) }}</div>
+        <div class="text-caption">Full item: {{ JSON.stringify(item, null, 2) }}</div>
       </q-banner>
     </div>
   </div>
@@ -206,12 +196,12 @@ import { computed } from 'vue'
 const props = defineProps({
   item: {
     type: Object,
-    required: true
+    required: true,
   },
   modelValue: {
     type: [String, Number, Array, Boolean],
-    default: null
-  }
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update:model-value'])
@@ -219,19 +209,19 @@ const emit = defineEmits(['update:model-value'])
 // Computed properties for options
 const radioOptions = computed(() => {
   if (!props.item.options) return []
-  
-  return props.item.options.map(option => ({
+
+  return props.item.options.map((option) => ({
     label: option.label,
-    value: option.value
+    value: option.value,
   }))
 })
 
 const checkboxOptions = computed(() => {
   if (!props.item.options) return []
-  
-  return props.item.options.map(option => ({
+
+  return props.item.options.map((option) => ({
     label: option.label,
-    value: option.value
+    value: option.value,
   }))
 })
 
@@ -245,12 +235,12 @@ const getPlaceholder = () => {
 
 const updateMultipleRadio = (questionIndex, value) => {
   const currentValues = Array.isArray(props.modelValue) ? [...props.modelValue] : []
-  
+
   // Ensure array is large enough
   while (currentValues.length <= questionIndex) {
     currentValues.push(null)
   }
-  
+
   currentValues[questionIndex] = value
   emit('update:model-value', currentValues)
 }
@@ -299,7 +289,7 @@ const updateMultipleRadio = (questionIndex, value) => {
 .image-container img {
   display: block;
   border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .separator {
@@ -319,7 +309,7 @@ const updateMultipleRadio = (questionIndex, value) => {
   .multiple-radio-matrix {
     padding: 0.5rem;
   }
-  
+
   .slider-container {
     padding: 0 0.5rem;
   }

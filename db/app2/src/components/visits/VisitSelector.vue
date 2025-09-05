@@ -62,9 +62,13 @@
         </div>
       </div>
 
-      <div class="visit-actions">
+      <div class="visit-actions" style="position: relative; width: calc(100% - 300px)">
         <q-btn color="secondary" icon="edit" label="Edit Visit" @click="editSelectedVisit" :disable="!selectedVisit" class="q-mr-sm" />
         <q-btn color="primary" icon="add" label="New Visit" @click="createNewVisit" />
+
+        <q-btn color="info" icon="visibility" round @click="previewSelectedVisit" :disable="!selectedVisit" class="absolute-right">
+          <q-tooltip>Preview Visit Summary</q-tooltip>
+        </q-btn>
       </div>
     </div>
   </div>
@@ -83,7 +87,7 @@ defineProps({
   },
 })
 
-const emit = defineEmits(['visit-selected', 'create-new-visit', 'edit-visit'])
+const emit = defineEmits(['visit-selected', 'create-new-visit', 'edit-visit', 'preview-visit'])
 
 const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
@@ -173,6 +177,12 @@ const createNewVisit = () => {
 const editSelectedVisit = () => {
   if (selectedVisit.value) {
     emit('edit-visit', selectedVisit.value)
+  }
+}
+
+const previewSelectedVisit = () => {
+  if (selectedVisit.value) {
+    emit('preview-visit', selectedVisit.value)
   }
 }
 
@@ -308,6 +318,10 @@ const getVisitTypeColor = (typeCode) => {
 
         .q-btn {
           flex: 1;
+
+          &.q-btn--round {
+            flex: 0 0 auto;
+          }
         }
       }
     }

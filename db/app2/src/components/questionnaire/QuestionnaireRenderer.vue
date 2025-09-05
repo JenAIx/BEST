@@ -38,7 +38,7 @@
           hint="Enter patient identifier"
           outlined
           dense
-          :rules="[val => !!val || 'Patient ID is required']"
+          :rules="[(val) => !!val || 'Patient ID is required']"
           :disable="patientIdDisabled"
           data-cy="patient-id"
         />
@@ -47,19 +47,14 @@
       <!-- Questions -->
       <q-card-section class="questionnaire-items">
         <q-list bordered separator>
-          <q-item
-            v-for="(item, index) in questionnaire.items"
-            :key="`item-${item.id || index}`"
-            class="questionnaire-item"
-            :data-cy="`question-${item.id || index}`"
-          >
+          <q-item v-for="(item, index) in questionnaire.items" :key="`item-${item.id || index}`" class="questionnaire-item" :data-cy="`question-${item.id || index}`">
             <q-item-section>
               <!-- Question Label -->
               <q-item-label class="question-label">
                 <span v-html="item.label"></span>
                 <span v-if="item.force !== false" class="text-red">*</span>
               </q-item-label>
-              
+
               <!-- Question Caption -->
               <q-item-label v-if="item.caption" caption>
                 <span v-html="item.caption"></span>
@@ -67,20 +62,11 @@
 
               <!-- Question Input -->
               <q-item-label class="question-input q-mt-sm">
-                <QuestionInput
-                  :item="item"
-                  :model-value="getResponse(item.id)"
-                  @update:model-value="updateResponse(item.id, $event)"
-                />
+                <QuestionInput :item="item" :model-value="getResponse(getItemId(item))" @update:model-value="updateResponse(getItemId(item), $event)" />
               </q-item-label>
 
               <!-- Validation Error -->
-              <q-item-label
-                v-if="showValidation && !isItemValid(item)"
-                class="text-red text-caption q-mt-xs"
-              >
-                This field is required
-              </q-item-label>
+              <q-item-label v-if="showValidation && !isItemValid(item)" class="text-red text-caption q-mt-xs"> This field is required </q-item-label>
             </q-item-section>
           </q-item>
         </q-list>
@@ -88,15 +74,7 @@
 
       <!-- Submit Section -->
       <q-card-section v-if="showSubmitButton" class="questionnaire-actions text-center">
-        <q-btn
-          color="primary"
-          label="Submit Questionnaire"
-          @click="onSubmit"
-          :loading="submitting"
-          :disable="!isValid"
-          size="lg"
-          data-cy="submit-questionnaire"
-        />
+        <q-btn color="primary" label="Submit Questionnaire" @click="onSubmit" :loading="submitting" :disable="!isValid" size="lg" data-cy="submit-questionnaire" />
       </q-card-section>
 
       <!-- Validation Summary -->
@@ -121,28 +99,28 @@ import QuestionInput from './QuestionInput.vue'
 const props = defineProps({
   questionnaire: {
     type: Object,
-    required: true
+    required: true,
   },
   showPatientField: {
     type: Boolean,
-    default: true
+    default: true,
   },
   showSubmitButton: {
     type: Boolean,
-    default: true
+    default: true,
   },
   showDebugActions: {
     type: Boolean,
-    default: false
+    default: false,
   },
   patientIdDisabled: {
     type: Boolean,
-    default: false
+    default: false,
   },
   initialPatientId: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 })
 
 const emit = defineEmits(['submit', 'validation-change'])
@@ -159,18 +137,21 @@ const submitting = ref(false)
 // Computed
 const isValid = computed(() => {
   if (props.showPatientField && !patientId.value) return false
-  
-  const requiredItems = props.questionnaire.items.filter(item => 
-    item.force !== false && 
-    item.type !== 'separator' && 
-    item.type !== 'textbox' &&
-    item.id
-  )
-  
-  return requiredItems.every(item => isItemValid(item))
+
+  const requiredItems = props.questionnaire.items.filter((item) => item.force !== false && item.type !== 'separator' && item.type !== 'textbox' && item.id)
+
+  return requiredItems.every((item) => isItemValid(item))
 })
 
 // Methods
+const getItemId = (item) => {
+  // For multiple_radio questions, item.id is an array, use the first element
+  if (item.type === 'multiple_radio' && Array.isArray(item.id)) {
+    return item.id[0] || item.id
+  }
+  return item.id
+}
+
 const getResponse = (itemId) => {
   return questionnaireStore.getResponse(itemId)
 }
@@ -182,32 +163,41 @@ const updateResponse = (itemId, value) => {
 const isItemValid = (item) => {
   if (item.force === false) return true
   if (!item.id) return true
-  
-  const response = getResponse(item.id)
+
+  const itemId = getItemId(item)
+  const response = getResponse(itemId)
+
+  // For multiple_radio, check if array has at least one non-null/undefined value
+  // Note: 0 is a valid value (e.g., "Nein" = 0), so we only check for null/undefined
+  if (item.type === 'multiple_radio' && Array.isArray(response)) {
+    return response.some((value) => value !== null && value !== undefined)
+  }
+
+  // For other types, 0 is also a valid value, only exclude null, undefined, and empty string
   return response !== undefined && response !== null && response !== ''
 }
 
 const onSubmit = async () => {
   showValidation.value = true
-  
+
   if (!isValid.value) {
     return
   }
 
   submitting.value = true
-  
+
   try {
     const results = questionnaireStore.calculateResults()
-    
+
     emit('submit', {
       patientId: patientId.value,
-      results: results
+      results: results,
     })
   } catch (error) {
     loggingStore.error('QuestionnaireRenderer', 'Error during questionnaire submission', error, {
       patientId: patientId.value,
       questionnaireTitle: props.questionnaire?.title,
-      hasResults: !!questionnaireStore.calculateResults()
+      hasResults: !!questionnaireStore.calculateResults(),
     })
   } finally {
     submitting.value = false
@@ -223,9 +213,15 @@ const randomFill = () => {
 
 const clearAll = () => {
   if (props.questionnaire.items) {
-    props.questionnaire.items.forEach(item => {
+    props.questionnaire.items.forEach((item) => {
       if (item.id) {
-        questionnaireStore.updateResponse(item.id, null)
+        const itemId = getItemId(item)
+        if (item.type === 'multiple_radio' && Array.isArray(item.id)) {
+          // Reset to array of nulls for multiple_radio
+          questionnaireStore.updateResponse(itemId, new Array(item.id.length).fill(null))
+        } else {
+          questionnaireStore.updateResponse(itemId, null)
+        }
       }
     })
   }
@@ -236,14 +232,21 @@ const clearAll = () => {
 }
 
 // Watch for validation changes
-watch(isValid, (newValue) => {
-  emit('validation-change', newValue)
-}, { immediate: true })
+watch(
+  isValid,
+  (newValue) => {
+    emit('validation-change', newValue)
+  },
+  { immediate: true },
+)
 
 // Watch for patient ID changes
-watch(() => props.initialPatientId, (newValue) => {
-  patientId.value = newValue
-})
+watch(
+  () => props.initialPatientId,
+  (newValue) => {
+    patientId.value = newValue
+  },
+)
 </script>
 
 <style scoped>

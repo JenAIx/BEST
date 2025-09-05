@@ -2,7 +2,7 @@
   <div class="data-entry-view">
     <div class="entry-container">
       <!-- Visit Selector -->
-      <VisitSelector :patient="patient" @visit-selected="onVisitSelected" @create-new-visit="createNewVisit" @edit-visit="editSelectedVisit" />
+      <VisitSelector :patient="patient" @visit-selected="onVisitSelected" @create-new-visit="createNewVisit" @edit-visit="editSelectedVisit" @preview-visit="previewSelectedVisit" />
 
       <!-- Field Set Selector -->
       <FieldSetSelector
@@ -98,6 +98,9 @@
       :field-set-id="'custom'"
       @observation-added="onCustomObservationAdded"
     />
+
+    <!-- Visit Summary Dialog -->
+    <VisitSummaryDialog v-model="showVisitSummaryDialog" :visit="visitForPreview" />
   </div>
 </template>
 
@@ -121,6 +124,7 @@ import FieldSetConfigDialog from './FieldSetConfigDialog.vue'
 import EditVisitDialog from '../patient/EditVisitDialog.vue'
 import VisitSelector from './VisitSelector.vue'
 import CustomObservationDialog from './CustomObservationDialog.vue'
+import VisitSummaryDialog from './VisitSummaryDialog.vue'
 
 const props = defineProps({
   patient: {
@@ -149,6 +153,8 @@ const showFieldSetConfig = ref(false)
 const showNewVisitDialog = ref(false)
 const showEditVisitDialog = ref(false)
 const showAddCustomDialog = ref(false)
+const showVisitSummaryDialog = ref(false)
+const visitForPreview = ref(null)
 const loadingFieldSets = ref(false)
 
 // Field Sets Configuration - will be loaded from global settings
@@ -328,6 +334,19 @@ const createNewVisit = () => {
 const editSelectedVisit = (visit) => {
   if (visit || selectedVisit.value) {
     showEditVisitDialog.value = true
+  }
+}
+
+const previewSelectedVisit = (visit) => {
+  if (visit || selectedVisit.value) {
+    visitForPreview.value = visit || selectedVisit.value
+    showVisitSummaryDialog.value = true
+
+    logger.info('Opening visit summary dialog', {
+      visitId: visitForPreview.value?.id,
+      visitDate: visitForPreview.value?.date,
+      patientId: props.patient?.id,
+    })
   }
 }
 

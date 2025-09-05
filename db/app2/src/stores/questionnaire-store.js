@@ -44,7 +44,15 @@ export const useQuestionnaireStore = defineStore('questionnaire', () => {
     const requiredItems = activeQuestionnaire.value.items.filter((item) => item.force !== false && item.type !== 'separator' && item.type !== 'textbox')
 
     return requiredItems.every((item) => {
-      const response = currentResponses.value[item.id]
+      const itemId = item.type === 'multiple_radio' && Array.isArray(item.id) ? item.id[0] : item.id
+      const response = currentResponses.value[itemId]
+
+      // For multiple_radio, check if array has at least one non-null/undefined value
+      if (item.type === 'multiple_radio' && Array.isArray(response)) {
+        return response.some((value) => value !== null && value !== undefined)
+      }
+
+      // For other types, 0 is a valid value, only exclude null, undefined, and empty string
       return response !== undefined && response !== null && response !== ''
     })
   })
@@ -119,7 +127,15 @@ export const useQuestionnaireStore = defineStore('questionnaire', () => {
       currentResponses.value = {}
       questionnaire.items.forEach((item) => {
         if (item.id) {
-          currentResponses.value[item.id] = item.value || null
+          // Handle multiple_radio questions with array IDs
+          if (item.type === 'multiple_radio' && Array.isArray(item.id)) {
+            // For multiple_radio, item.id is an array of question IDs
+            // Initialize as an array with null values for each question
+            const arrayId = item.id[0] || item.id // Use first ID or the ID itself
+            currentResponses.value[arrayId] = new Array(item.id.length).fill(null)
+          } else {
+            currentResponses.value[item.id] = item.value || null
+          }
         }
       })
       return true
