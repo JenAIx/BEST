@@ -49,12 +49,12 @@ export const randomFill = (activeQuestionnaire, updateResponse) => {
 /**
  * Test function to manually trigger observation extraction for existing questionnaires
  * @param {Object} dbStore - Database store
- * @param {Object} visitObservationStore - Visit observation store
+ * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
  * @param {number} questionnaireObservationId - Questionnaire observation ID
  * @returns {Promise<void>}
  */
-export const testQuestionnaireExtraction = async (dbStore, visitObservationStore, conceptResolutionStore, questionnaireObservationId) => {
+export const testQuestionnaireExtraction = async (dbStore, visitObservationService, conceptResolutionStore, questionnaireObservationId) => {
   try {
     logger.info('Testing questionnaire extraction', { questionnaireObservationId })
 
@@ -89,7 +89,7 @@ export const testQuestionnaireExtraction = async (dbStore, visitObservationStore
     const { saveIndividualResultsAsObservations } = await import('./questionnaire-database.js')
 
     // Trigger the extraction
-    await saveIndividualResultsAsObservations(dbStore, PATIENT_NUM, ENCOUNTER_NUM, questionnaireData, questionnaireObservationId, visitObservationStore, conceptResolutionStore)
+    await saveIndividualResultsAsObservations(dbStore, PATIENT_NUM, ENCOUNTER_NUM, questionnaireData, questionnaireObservationId, visitObservationService, conceptResolutionStore)
 
     logger.success('Extraction test completed', { questionnaireObservationId })
   } catch (error) {

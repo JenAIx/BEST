@@ -118,6 +118,15 @@
       :concept-name="concept?.name || 'File Attachment'"
       :upload-date="rowData.date"
     />
+
+    <!-- Questionnaire Preview Dialog -->
+    <QuestionnairePreviewDialog
+      v-if="actualValueType === 'Q'"
+      v-model="showQuestionnaireDialog"
+      :observation-id="rowData.observationId"
+      :concept-name="concept?.name || 'Questionnaire'"
+      :completion-date="rowData.date"
+    />
   </div>
 </template>
 
@@ -126,6 +135,7 @@ import { ref, computed, watch, onMounted } from 'vue'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
+import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 
 const props = defineProps({
   rowData: {
