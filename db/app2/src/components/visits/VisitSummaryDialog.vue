@@ -870,13 +870,13 @@ watch(dialogModel, async (newValue) => {
     thead th {
       background: #f5f5f5 !important;
       -webkit-print-color-adjust: exact;
-      color-adjust: exact;
+      print-color-adjust: exact;
     }
 
     .observation-row:nth-child(even) {
       background: #fafafa !important;
       -webkit-print-color-adjust: exact;
-      color-adjust: exact;
+      print-color-adjust: exact;
     }
   }
 
