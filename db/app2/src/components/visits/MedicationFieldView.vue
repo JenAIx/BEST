@@ -30,6 +30,8 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useMedicationsStore } from 'src/stores/medications-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 
 const props = defineProps({
   medicationData: {
@@ -52,12 +54,47 @@ const props = defineProps({
 
 const emit = defineEmits(['enter-edit-mode'])
 
+// Store
+const medicationsStore = useMedicationsStore()
+
 // State management
 const fullMedicationData = ref({ ...props.medicationData })
 
 // Load BLOB data on mount if available
-onMounted(() => {
-  if (props.existingObservation?.observationBlob) {
+onMounted(async () => {
+  // Load OBSERVATION_BLOB if we have an observation ID
+  if (props.existingObservation?.observationId) {
+    try {
+      // Use the visit observation store to load the BLOB data
+      const visitStore = useVisitObservationStore()
+      const blobData = await visitStore.getBlob(props.existingObservation.observationId)
+
+      if (blobData) {
+        try {
+          const parsedData = JSON.parse(blobData)
+
+          fullMedicationData.value = {
+            drugName: parsedData.drugName || props.existingObservation.value || '',
+            dosage: parsedData.dosage || props.existingObservation.numericValue || null,
+            dosageUnit: parsedData.dosageUnit || props.existingObservation.unit || 'mg',
+            frequency: parsedData.frequency || '',
+            route: parsedData.route || '',
+            instructions: parsedData.instructions || '',
+          }
+        } catch (parseError) {
+          console.error('Failed to parse OBSERVATION_BLOB:', parseError)
+          fullMedicationData.value = { ...props.medicationData }
+        }
+      } else {
+        // No BLOB data available, use basic data
+        fullMedicationData.value = { ...props.medicationData }
+      }
+    } catch (error) {
+      console.error('Failed to load OBSERVATION_BLOB:', error)
+      fullMedicationData.value = { ...props.medicationData }
+    }
+  } else if (props.existingObservation?.observationBlob) {
+    // Fallback: if BLOB is already available in props
     try {
       const parsedData = JSON.parse(props.existingObservation.observationBlob)
 
@@ -76,6 +113,9 @@ onMounted(() => {
   } else {
     fullMedicationData.value = { ...props.medicationData }
   }
+
+  // Update display after data is loaded
+  await updateMedicationDisplay()
 })
 
 // Computed
@@ -85,8 +125,14 @@ const hasValue = computed(() => {
 })
 
 // Elegant view mode display: "DRUG mg 1-0-1 p.o."
-const medicationViewDisplay = computed(() => {
-  if (!hasValue.value) return ''
+const medicationViewDisplay = ref('')
+
+// Update display when medication data changes
+const updateMedicationDisplay = async () => {
+  if (!hasValue.value) {
+    medicationViewDisplay.value = ''
+    return
+  }
 
   const parts = []
 
@@ -102,51 +148,40 @@ const medicationViewDisplay = computed(() => {
 
   // Frequency in simplified format
   if (fullMedicationData.value.frequency) {
-    const freq = getSimplifiedFrequency(fullMedicationData.value.frequency)
+    const freq = await getSimplifiedFrequency(fullMedicationData.value.frequency)
     parts.push(freq)
   }
 
   // Route abbreviation
   if (fullMedicationData.value.route) {
-    const route = getRouteAbbreviation(fullMedicationData.value.route)
+    const route = await getRouteAbbreviation(fullMedicationData.value.route)
     parts.push(route)
   }
 
-  return parts.join(' ')
-})
-
-// Helper methods for view mode
-const getSimplifiedFrequency = (frequency) => {
-  const freqMap = {
-    QD: '1-0-0',
-    BID: '1-0-1',
-    TID: '1-1-1',
-    QID: '1-1-1-1',
-    Q4H: 'q4h',
-    Q6H: 'q6h',
-    Q8H: 'q8h',
-    Q12H: 'q12h',
-    PRN: 'prn',
-    QHS: 'qhs',
-    AC: 'a.c.',
-    PC: 'p.c.',
-  }
-  return freqMap[frequency] || frequency
+  medicationViewDisplay.value = parts.join(' ')
 }
 
-const getRouteAbbreviation = (route) => {
-  const routeMap = {
-    PO: 'p.o.',
-    IV: 'i.v.',
-    IM: 'i.m.',
-    SC: 's.c.',
-    TOP: 'top.',
-    INH: 'inh.',
-    NAS: 'nas.',
-    PR: 'p.r.',
-    SL: 's.l.',
+// Helper methods for view mode
+const getSimplifiedFrequency = async (frequency) => {
+  if (!frequency) return ''
+
+  try {
+    return await medicationsStore.getSimplifiedFrequency(frequency)
+  } catch (error) {
+    console.warn('Failed to get simplified frequency', { frequency, error })
+    return frequency
   }
-  return routeMap[route] || route?.toLowerCase() || ''
+}
+
+const getRouteAbbreviation = async (route) => {
+  if (!route) return ''
+
+  try {
+    return await medicationsStore.getRouteAbbreviation(route)
+  } catch (error) {
+    console.warn('Failed to get route abbreviation', { route, error })
+    return route?.toLowerCase() || ''
+  }
 }
 
 // Watch for changes to existingObservation to reload BLOB data
@@ -172,6 +207,9 @@ watch(
     } else {
       fullMedicationData.value = { ...props.medicationData }
     }
+
+    // Update display after data change
+    updateMedicationDisplay()
   },
   { deep: true },
 )
@@ -180,7 +218,18 @@ watch(
 watch(
   () => props.medicationData,
   () => {
-    // Medication data changed - component will handle any UI updates
+    // Update display when medication data changes
+    updateMedicationDisplay()
+  },
+  { deep: true },
+)
+
+// Watch for fullMedicationData changes
+watch(
+  () => fullMedicationData.value,
+  () => {
+    // Update display when internal medication data changes
+    updateMedicationDisplay()
   },
   { deep: true },
 )

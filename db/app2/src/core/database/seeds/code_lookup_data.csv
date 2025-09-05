@@ -86,3 +86,32 @@ VISIT_DIMENSION,DRUG_OPTIONS,zolpidem,Zolpidem,"{""generic"":""Sleep aid"",""def
 VISIT_DIMENSION,DRUG_OPTIONS,gabapentin,Gabapentin,"{""generic"":""Anticonvulsant"",""default_strength"":""300mg"",""default_route"":""PO"",""default_frequency"":""TID"",""category"":""neurological""}",2024-01-01,,2024-01-01,SYSTEM,1
 VISIT_DIMENSION,DRUG_OPTIONS,phenytoin,Phenytoin,"{""generic"":""Anticonvulsant"",""default_strength"":""100mg"",""default_route"":""PO"",""default_frequency"":""TID"",""category"":""neurological""}",2024-01-01,,2024-01-01,SYSTEM,1
 VISIT_DIMENSION,DRUG_OPTIONS,carbidopa_levodopa,Carbidopa-Levodopa,"{""generic"":""Parkinson medication"",""default_strength"":""25-100mg"",""default_route"":""PO"",""default_frequency"":""QID"",""category"":""neurological""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,iu,IU,"{""label"":""International Unit"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""iu""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,units,units,"{""label"":""Units"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""units""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,mcg,mcg,"{""label"":""Microgram"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""mcg"",""ug""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,g,g,"{""label"":""Gram"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""g""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,mg,mg,"{""label"":""Milligram"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""mg""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,ml,ml,"{""label"":""Milliliter"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""ml""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,L,L,"{""label"":""Liter"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""l""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,UNIT_OPTIONS,u_ml,U/mL,"{""label"":""Units per Milliliter"",""icon"":""straighten"",""category"":""measurement"",""aliases"":[""u/ml"",""units/ml"",""iu/ml""]}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,qd,QD,"{""label"":""Once daily"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""1-0-0"",""application"":""1-0-0""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,bid,BID,"{""label"":""Twice daily"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""1-0-1"",""application"":""1-0-1""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,tid,TID,"{""label"":""Three times daily"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""1-1-1"",""application"":""1-1-1""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,qid,QID,"{""label"":""Four times daily"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""1-1-1-1"",""application"":""1-1-1-1""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,q4h,Q4H,"{""label"":""Every 4 hours"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""q4h"",""application"":""q4h""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,q6h,Q6H,"{""label"":""Every 6 hours"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""q6h"",""application"":""q6h""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,q8h,Q8H,"{""label"":""Every 8 hours"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""q8h"",""application"":""q8h""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,q12h,Q12H,"{""label"":""Every 12 hours"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""q12h"",""application"":""q12h""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,prn,PRN,"{""label"":""As needed"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""prn"",""application"":""prn""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,qhs,QHS,"{""label"":""At bedtime"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""qhs"",""application"":""qhs""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,ac,AC,"{""label"":""Before meals"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""a.c."",""application"":""a.c.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,FREQUENCY_OPTIONS,pc,PC,"{""label"":""After meals"",""icon"":""schedule"",""category"":""frequency"",""abbreviation"":""p.c."",""application"":""p.c.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,po,PO,"{""label"":""Oral"",""icon"":""route"",""category"":""route"",""abbreviation"":""p.o.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,iv,IV,"{""label"":""Intravenous"",""icon"":""route"",""category"":""route"",""abbreviation"":""i.v.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,im,IM,"{""label"":""Intramuscular"",""icon"":""route"",""category"":""route"",""abbreviation"":""i.m.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,sc,SC,"{""label"":""Subcutaneous"",""icon"":""route"",""category"":""route"",""abbreviation"":""s.c.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,top,TOP,"{""label"":""Topical"",""icon"":""route"",""category"":""route"",""abbreviation"":""top.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,inh,INH,"{""label"":""Inhalation"",""icon"":""route"",""category"":""route"",""abbreviation"":""inh.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,nas,NAS,"{""label"":""Nasal"",""icon"":""route"",""category"":""route"",""abbreviation"":""nas.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,pr,PR,"{""label"":""Rectal"",""icon"":""route"",""category"":""route"",""abbreviation"":""p.r.""}",2024-01-01,,2024-01-01,SYSTEM,1
+CONCEPT_DIMENSION,ROUTE_OPTIONS,sl,SL,"{""label"":""Sublingual"",""icon"":""route"",""category"":""route"",""abbreviation"":""s.l.""}",2024-01-01,,2024-01-01,SYSTEM,1

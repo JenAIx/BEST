@@ -98,6 +98,7 @@
     <MedicationEditDialog
       v-model="showMedicationEditDialog"
       :medication-data="editingMedicationRow ? parseMedicationData(editingMedicationRow) : {}"
+      :observation-id="editingMedicationRow?.observationId"
       :frequency-options="frequencyOptions"
       :route-options="routeOptions"
       @save="onMedicationEditSave"
@@ -114,6 +115,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useMedicationsStore } from 'src/stores/medications-store'
 import NewVisitDialog from '../visits/NewVisitDialog.vue'
 import ObservationsTable from '../visits/ObservationsTable.vue'
 import MedicationEditDialog from '../visits/MedicationEditDialog.vue'
@@ -127,6 +129,7 @@ const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const visitObservationStore = useVisitObservationStore()
+const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('PatientObservationsTab')
 
@@ -149,33 +152,9 @@ const loading = ref(false)
 // Track pending changes per row
 const pendingChanges = ref(new Map())
 
-// Frequency and route options for medications
-const frequencyOptions = [
-  { label: 'Once daily (QD)', value: 'QD' },
-  { label: 'Twice daily (BID)', value: 'BID' },
-  { label: 'Three times daily (TID)', value: 'TID' },
-  { label: 'Four times daily (QID)', value: 'QID' },
-  { label: 'Every 4 hours (Q4H)', value: 'Q4H' },
-  { label: 'Every 6 hours (Q6H)', value: 'Q6H' },
-  { label: 'Every 8 hours (Q8H)', value: 'Q8H' },
-  { label: 'Every 12 hours (Q12H)', value: 'Q12H' },
-  { label: 'As needed (PRN)', value: 'PRN' },
-  { label: 'At bedtime (QHS)', value: 'QHS' },
-  { label: 'Before meals (AC)', value: 'AC' },
-  { label: 'After meals (PC)', value: 'PC' },
-]
-
-const routeOptions = [
-  { label: 'Oral (PO)', value: 'PO' },
-  { label: 'Intravenous (IV)', value: 'IV' },
-  { label: 'Intramuscular (IM)', value: 'IM' },
-  { label: 'Subcutaneous (SC)', value: 'SC' },
-  { label: 'Topical', value: 'TOP' },
-  { label: 'Inhalation (INH)', value: 'INH' },
-  { label: 'Nasal', value: 'NAS' },
-  { label: 'Rectal (PR)', value: 'PR' },
-  { label: 'Sublingual (SL)', value: 'SL' },
-]
+// Frequency and route options for medications - loaded from store
+const frequencyOptions = ref([])
+const routeOptions = ref([])
 
 // Computed properties from store
 const patient = computed(() => visitObservationStore.selectedPatient)
@@ -318,6 +297,29 @@ const categoryOptions = computed(() => {
 // Dynamic value type options from global settings store
 const valueTypeOptions = ref([])
 
+// Load medication options from store
+const loadMedicationOptions = async () => {
+  try {
+    logger.debug('Loading medication options from store')
+
+    // Load frequency and route options in parallel
+    const [freqOptions, routeOpts] = await Promise.all([medicationsStore.getFrequencyOptions(), medicationsStore.getRouteOptions()])
+
+    frequencyOptions.value = freqOptions
+    routeOptions.value = routeOpts
+
+    logger.success('Medication options loaded successfully', {
+      frequencyCount: freqOptions.length,
+      routeCount: routeOpts.length,
+    })
+  } catch (error) {
+    logger.error('Failed to load medication options', error)
+    // Set empty arrays as fallback
+    frequencyOptions.value = []
+    routeOptions.value = []
+  }
+}
+
 // Load value type options from store
 const loadValueTypeOptions = async () => {
   try {
@@ -364,6 +366,9 @@ onMounted(async () => {
   await conceptStore.initialize()
   await localSettingsStore.initialize()
   await globalSettingsStore.initialize()
+
+  // Load medication options
+  await loadMedicationOptions()
 
   // Load value type options
   await loadValueTypeOptions()

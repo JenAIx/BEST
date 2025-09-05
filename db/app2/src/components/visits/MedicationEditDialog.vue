@@ -144,7 +144,8 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
-import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useMedicationsStore } from 'src/stores/medications-store'
+import { useVisitObservationStore } from 'src/stores/visit-observation-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 
@@ -156,6 +157,10 @@ const props = defineProps({
   medicationData: {
     type: Object,
     required: true,
+  },
+  observationId: {
+    type: Number,
+    default: null,
   },
   frequencyOptions: {
     type: Array,
@@ -170,7 +175,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'save', 'cancel'])
 
 const $q = useQuasar()
-const globalSettingsStore = useGlobalSettingsStore()
+const medicationsStore = useMedicationsStore()
+const visitStore = useVisitObservationStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('MedicationEditDialog')
 
@@ -199,8 +205,14 @@ const hasChanges = computed(() => {
   return JSON.stringify(localMedicationData.value) !== JSON.stringify(originalMedicationData.value)
 })
 
-const medicationPreview = computed(() => {
-  if (!hasValidData.value) return ''
+const medicationPreview = ref('')
+
+// Update preview when medication data changes
+const updateMedicationPreview = async () => {
+  if (!hasValidData.value) {
+    medicationPreview.value = ''
+    return
+  }
 
   const parts = []
 
@@ -216,61 +228,46 @@ const medicationPreview = computed(() => {
 
   // Frequency in simplified format
   if (localMedicationData.value.frequency) {
-    const freq = getSimplifiedFrequency(localMedicationData.value.frequency)
+    const freq = await getSimplifiedFrequency(localMedicationData.value.frequency)
     parts.push(freq)
   }
 
   // Route abbreviation
   if (localMedicationData.value.route) {
-    const route = getRouteAbbreviation(localMedicationData.value.route)
+    const route = await getRouteAbbreviation(localMedicationData.value.route)
     parts.push(route)
   }
 
-  return parts.join(' ')
-})
+  medicationPreview.value = parts.join(' ')
+}
 
 // Helper methods for preview
-const getSimplifiedFrequency = (frequency) => {
+const getSimplifiedFrequency = async (frequency) => {
   // Handle both string values and objects from q-select
   const frequencyValue = typeof frequency === 'object' ? frequency?.value : frequency
 
-  const freqMap = {
-    QD: '1-0-0',
-    BID: '1-0-1',
-    TID: '1-1-1',
-    QID: '1-1-1-1',
-    Q4H: 'q4h',
-    Q6H: 'q6h',
-    Q8H: 'q8h',
-    Q12H: 'q12h',
-    PRN: 'prn',
-    QHS: 'qhs',
-    AC: 'a.c.',
-    PC: 'p.c.',
-  }
-
   if (!frequencyValue) return ''
-  return freqMap[frequencyValue] || frequencyValue
+
+  try {
+    return await medicationsStore.getSimplifiedFrequency(frequencyValue)
+  } catch (error) {
+    logger.warn('Failed to get simplified frequency', { frequency: frequencyValue, error })
+    return frequencyValue
+  }
 }
 
-const getRouteAbbreviation = (route) => {
+const getRouteAbbreviation = async (route) => {
   // Handle both string values and objects from q-select
   const routeValue = typeof route === 'object' ? route?.value : route
 
-  const routeMap = {
-    PO: 'p.o.',
-    IV: 'i.v.',
-    IM: 'i.m.',
-    SC: 's.c.',
-    TOP: 'top.',
-    INH: 'inh.',
-    NAS: 'nas.',
-    PR: 'p.r.',
-    SL: 's.l.',
-  }
-
   if (!routeValue) return ''
-  return routeMap[routeValue] || (typeof routeValue === 'string' ? routeValue.toLowerCase() : String(routeValue).toLowerCase())
+
+  try {
+    return await medicationsStore.getRouteAbbreviation(routeValue)
+  } catch (error) {
+    logger.warn('Failed to get route abbreviation', { route: routeValue, error })
+    return typeof routeValue === 'string' ? routeValue.toLowerCase() : String(routeValue).toLowerCase()
+  }
 }
 
 // Methods
@@ -285,8 +282,8 @@ const filterDrugs = async (searchTerm, doneFn) => {
   searchingDrugs.value = true
 
   try {
-    // Use global settings store for drug search
-    const drugs = await globalSettingsStore.getDrugOptions(searchTerm)
+    // Use medications store for drug search
+    const drugs = await medicationsStore.getDrugOptions(searchTerm)
 
     doneFn(() => {
       drugOptions.value = drugs
@@ -386,6 +383,7 @@ const onDrugChange = (selectedDrug) => {
 
 const onMedicationChange = () => {
   logger.debug('Medication data changed', { localMedicationData: localMedicationData.value })
+  updateMedicationPreview()
 }
 
 const onSave = async () => {
@@ -434,14 +432,64 @@ watch(
   { deep: true, immediate: true },
 )
 
+// Load BLOB data when dialog opens
+const loadMedicationBlobData = async () => {
+  if (!props.observationId) {
+    logger.debug('No observation ID provided, using basic medication data')
+    return
+  }
+
+  try {
+    logger.debug('Loading BLOB data for medication edit', { observationId: props.observationId })
+    const blobData = await visitStore.getBlob(props.observationId)
+
+    if (blobData) {
+      try {
+        const parsedData = JSON.parse(blobData)
+        logger.debug('Successfully parsed BLOB data for edit dialog', { parsedData })
+
+        // Update the medication data with BLOB values
+        localMedicationData.value = {
+          ...localMedicationData.value,
+          drugName: parsedData.drugName || localMedicationData.value.drugName || '',
+          dosage: parsedData.dosage || localMedicationData.value.dosage || null,
+          dosageUnit: parsedData.dosageUnit || localMedicationData.value.dosageUnit || 'mg',
+          frequency: parsedData.frequency || localMedicationData.value.frequency || '',
+          route: parsedData.route || localMedicationData.value.route || '',
+          instructions: parsedData.instructions || localMedicationData.value.instructions || '',
+        }
+
+        // Update original data as well
+        originalMedicationData.value = { ...localMedicationData.value }
+
+        logger.debug('Updated medication data with BLOB values', {
+          localMedicationData: localMedicationData.value,
+        })
+      } catch (parseError) {
+        logger.warn('Failed to parse BLOB data for edit dialog', parseError)
+      }
+    } else {
+      logger.debug('No BLOB data found for observation', { observationId: props.observationId })
+    }
+  } catch (error) {
+    logger.error('Failed to load BLOB data for medication edit', error)
+  }
+}
+
 // Reset data when dialog opens
 watch(
   () => props.modelValue,
-  (isOpen) => {
+  async (isOpen) => {
     if (isOpen) {
       localMedicationData.value = { ...props.medicationData }
       originalMedicationData.value = { ...props.medicationData }
       saving.value = false
+
+      // Load BLOB data to get complete medication information
+      await loadMedicationBlobData()
+
+      // Update preview after loading BLOB data
+      await updateMedicationPreview()
     }
   },
 )

@@ -972,6 +972,148 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   /**
+   * Get unit options for medication dosages
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of unit options
+   */
+  const getUnitOptions = async (forceRefresh = false) => {
+    const cacheKey = 'unit_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = 'UNIT_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((unit) => {
+          const metadata = parseMetadata(unit.LOOKUP_BLOB)
+          return {
+            label: metadata.label || unit.NAME_CHAR,
+            value: unit.CODE_CD,
+            icon: metadata.icon || 'straighten',
+            category: metadata.category || 'measurement',
+            aliases: metadata.aliases || [],
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} unit options`)
+        return options
+      }
+
+      logger.warn('No unit options found in database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get unit options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get frequency options for medication dosing
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of frequency options
+   */
+  const getFrequencyOptions = async (forceRefresh = false) => {
+    const cacheKey = 'frequency_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = 'FREQUENCY_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((freq) => {
+          const metadata = parseMetadata(freq.LOOKUP_BLOB)
+          return {
+            label: metadata.label || freq.NAME_CHAR,
+            value: freq.CODE_CD,
+            icon: metadata.icon || 'schedule',
+            category: metadata.category || 'frequency',
+            abbreviation: metadata.abbreviation || freq.CODE_CD,
+            application: metadata.application || freq.CODE_CD,
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} frequency options`)
+        return options
+      }
+
+      logger.warn('No frequency options found in database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get frequency options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get route options for medication administration
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of route options
+   */
+  const getRouteOptions = async (forceRefresh = false) => {
+    const cacheKey = 'route_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = 'ROUTE_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((route) => {
+          const metadata = parseMetadata(route.LOOKUP_BLOB)
+          return {
+            label: metadata.label || route.NAME_CHAR,
+            value: route.CODE_CD,
+            icon: metadata.icon || 'route',
+            category: metadata.category || 'route',
+            abbreviation: metadata.abbreviation || route.CODE_CD,
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} route options`)
+        return options
+      }
+
+      logger.warn('No route options found in database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get route options', error)
+      return []
+    }
+  }
+
+  /**
    * Get default visit templates when database lookup fails
    * @returns {Array} Default visit templates
    */
@@ -1097,5 +1239,10 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     // Drug methods
     getDrugOptions,
     getDefaultDrugOptions,
+
+    // Medication options methods
+    getUnitOptions,
+    getFrequencyOptions,
+    getRouteOptions,
   }
 })

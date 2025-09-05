@@ -58,6 +58,7 @@
     <MedicationEditDialog
       v-model="showMedicationEditDialog"
       :medication-data="editingMedicationRow ? parseMedicationData(editingMedicationRow) : {}"
+      :observation-id="editingMedicationRow?.observationId"
       :frequency-options="frequencyOptions"
       :route-options="routeOptions"
       @save="onMedicationEditSave"
@@ -70,6 +71,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useMedicationsStore } from 'src/stores/medications-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ObservationsTable from './ObservationsTable.vue'
@@ -104,6 +106,7 @@ const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh
 
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
+const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const conceptStore = useConceptResolutionStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
@@ -119,33 +122,9 @@ const pendingChanges = ref(new Map()) // Track pending changes per row
 const showMedicationEditDialog = ref(false)
 const editingMedicationRow = ref(null)
 
-// Frequency and route options for medications
-const frequencyOptions = [
-  { label: 'Once daily (QD)', value: 'QD' },
-  { label: 'Twice daily (BID)', value: 'BID' },
-  { label: 'Three times daily (TID)', value: 'TID' },
-  { label: 'Four times daily (QID)', value: 'QID' },
-  { label: 'Every 4 hours (Q4H)', value: 'Q4H' },
-  { label: 'Every 6 hours (Q6H)', value: 'Q6H' },
-  { label: 'Every 8 hours (Q8H)', value: 'Q8H' },
-  { label: 'Every 12 hours (Q12H)', value: 'Q12H' },
-  { label: 'As needed (PRN)', value: 'PRN' },
-  { label: 'At bedtime (QHS)', value: 'QHS' },
-  { label: 'Before meals (AC)', value: 'AC' },
-  { label: 'After meals (PC)', value: 'PC' },
-]
-
-const routeOptions = [
-  { label: 'Oral (PO)', value: 'PO' },
-  { label: 'Intravenous (IV)', value: 'IV' },
-  { label: 'Intramuscular (IM)', value: 'IM' },
-  { label: 'Subcutaneous (SC)', value: 'SC' },
-  { label: 'Topical', value: 'TOP' },
-  { label: 'Inhalation (INH)', value: 'INH' },
-  { label: 'Nasal', value: 'NAS' },
-  { label: 'Rectal (PR)', value: 'PR' },
-  { label: 'Sublingual (SL)', value: 'SL' },
-]
+// Frequency and route options for medications - loaded from store
+const frequencyOptions = ref([])
+const routeOptions = ref([])
 
 // Component mounted
 onMounted(async () => {
@@ -158,9 +137,35 @@ onMounted(async () => {
     fieldSetConceptsCount: props.fieldSet?.concepts?.length || 0,
   })
 
+  // Load medication options from store
+  await loadMedicationOptions()
+
   // Resolve concept names for all concepts in the field set
   await resolveFieldSetConceptNames()
 })
+
+// Load medication options from store
+const loadMedicationOptions = async () => {
+  try {
+    logger.debug('Loading medication options from store')
+
+    // Load frequency and route options in parallel
+    const [freqOptions, routeOpts] = await Promise.all([medicationsStore.getFrequencyOptions(), medicationsStore.getRouteOptions()])
+
+    frequencyOptions.value = freqOptions
+    routeOptions.value = routeOpts
+
+    logger.success('Medication options loaded successfully', {
+      frequencyCount: freqOptions.length,
+      routeCount: routeOpts.length,
+    })
+  } catch (error) {
+    logger.error('Failed to load medication options', error)
+    // Set empty arrays as fallback
+    frequencyOptions.value = []
+    routeOptions.value = []
+  }
+}
 
 // Resolve concept names using concept resolution store
 const resolveFieldSetConceptNames = async () => {
@@ -497,17 +502,17 @@ const parseMedicationData = (row) => {
     const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
 
     if (drugName && drugName.trim()) {
-      // Create structured data with TVAL_CHAR as drug name and demo data for other fields
+      // Create basic medication data - BLOB will be loaded by the component
       const medicationData = {
         drugName: drugName.trim(), // TVAL_CHAR contains only the drug name
-        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || 100, // From NVAL_NUM or demo
+        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || null,
         dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
-        frequency: 'BID', // Default demo frequency (would come from BLOB in real data)
-        route: 'PO', // Default demo route (would come from BLOB in real data)
+        frequency: '', // Will be loaded from BLOB by component
+        route: '', // Will be loaded from BLOB by component
         instructions: '',
       }
 
-      logger.debug('Created medication data from TVAL_CHAR drug name', { medicationData })
+      logger.debug('Created basic medication data from TVAL_CHAR - BLOB will be loaded by component', { medicationData })
       return medicationData
     }
 

@@ -166,9 +166,9 @@ export const useMedicationsStore = defineStore('medications', () => {
 
       // Prepare update query
       const updateQuery = `
-        UPDATE OBSERVATION_FACT 
-        SET TVAL_CHAR = ?, 
-            NVAL_NUM = ?, 
+        UPDATE OBSERVATION_FACT
+        SET TVAL_CHAR = ?,
+            NVAL_NUM = ?,
             UNIT_CD = ?,
             OBSERVATION_BLOB = ?,
             UPDATE_DATE = datetime('now')
@@ -266,7 +266,7 @@ export const useMedicationsStore = defineStore('medications', () => {
       logger.debug('Loading medications for visit', { visitId })
 
       const query = `
-        SELECT 
+        SELECT
           OBSERVATION_ID as observationId,
           CONCEPT_CD as conceptCode,
           TVAL_CHAR as value,
@@ -276,8 +276,8 @@ export const useMedicationsStore = defineStore('medications', () => {
           START_DATE as date,
           VALTYPE_CD as valTypeCode,
           CATEGORY_CHAR as categoryCode
-        FROM OBSERVATION_FACT 
-        WHERE ENCOUNTER_NUM = ? 
+        FROM OBSERVATION_FACT
+        WHERE ENCOUNTER_NUM = ?
           AND (CONCEPT_CD = 'LID: 52418-1' OR VALTYPE_CD = 'M')
         ORDER BY OBSERVATION_ID
       `
@@ -371,9 +371,9 @@ export const useMedicationsStore = defineStore('medications', () => {
       }
 
       const updateQuery = `
-        UPDATE OBSERVATION_FACT 
-        SET TVAL_CHAR = NULL, 
-            NVAL_NUM = NULL, 
+        UPDATE OBSERVATION_FACT
+        SET TVAL_CHAR = NULL,
+            NVAL_NUM = NULL,
             UNIT_CD = 'mg',
             OBSERVATION_BLOB = ?,
             UPDATE_DATE = datetime('now')
@@ -403,6 +403,65 @@ export const useMedicationsStore = defineStore('medications', () => {
     }
   }
 
+  // Medication options methods
+
+  /**
+   * Get frequency options for medication dosing
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of frequency options
+   */
+  const getFrequencyOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getFrequencyOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get frequency options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get route options for medication administration
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of route options
+   */
+  const getRouteOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getRouteOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get route options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get unit options for medication dosages
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of unit options
+   */
+  const getUnitOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getUnitOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get unit options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get drug options for medication search
+   * @param {string} searchTerm - Search term to filter drugs
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of drug options
+   */
+  const getDrugOptions = async (searchTerm = '', forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getDrugOptions(searchTerm, forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get drug options', error)
+      return []
+    }
+  }
+
   // Utility methods
 
   /**
@@ -426,6 +485,65 @@ export const useMedicationsStore = defineStore('medications', () => {
       isValid: errors.length === 0,
       errors,
       normalized,
+    }
+  }
+
+  /**
+   * Get simplified frequency display from database lookup
+   * @param {string} frequency - Frequency code (e.g., 'QD', 'BID')
+   * @returns {string} Simplified frequency display (e.g., '1-0-0', 'q4h')
+   */
+  const getSimplifiedFrequency = async (frequency) => {
+    if (!frequency) return ''
+
+    try {
+      // Get frequency options from database
+      const frequencyOptions = await getFrequencyOptions()
+
+      // Find the matching frequency option
+      const freqOption = frequencyOptions.find((opt) => opt.value === frequency)
+
+      if (freqOption?.application) {
+        return freqOption.application
+      }
+
+      // Fallback to abbreviation if application not available
+      if (freqOption?.abbreviation) {
+        return freqOption.abbreviation
+      }
+
+      // Final fallback to original value
+      return frequency
+    } catch (error) {
+      logger.warn('Failed to get simplified frequency from database', { frequency, error })
+      return frequency
+    }
+  }
+
+  /**
+   * Get route abbreviation from database lookup
+   * @param {string} route - Route code (e.g., 'PO', 'IV')
+   * @returns {string} Route abbreviation (e.g., 'p.o.', 'i.v.')
+   */
+  const getRouteAbbreviation = async (route) => {
+    if (!route) return ''
+
+    try {
+      // Get route options from database
+      const routeOptions = await getRouteOptions()
+
+      // Find the matching route option
+      const routeOption = routeOptions.find((opt) => opt.value === route)
+
+      if (routeOption?.abbreviation) {
+        return routeOption.abbreviation
+      }
+
+      // Fallback to lowercase version
+      return route.toLowerCase()
+    } catch (error) {
+      logger.warn('Failed to get route abbreviation from database', { route, error })
+      return route.toLowerCase()
     }
   }
 
@@ -470,9 +588,17 @@ export const useMedicationsStore = defineStore('medications', () => {
     getMedicationsForVisit,
     clearMedication,
 
+    // Medication options
+    getFrequencyOptions,
+    getRouteOptions,
+    getUnitOptions,
+    getDrugOptions,
+
     // Utilities
     validateMedicationData,
     formatMedicationDisplay,
     normalizeMedicationData,
+    getSimplifiedFrequency,
+    getRouteAbbreviation,
   }
 })

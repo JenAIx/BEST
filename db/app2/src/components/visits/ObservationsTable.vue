@@ -280,17 +280,17 @@ const parseMedicationData = (row) => {
     const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
 
     if (drugName && drugName.trim()) {
-      // Create structured data with TVAL_CHAR as drug name and demo data for other fields
+      // Create basic medication data - BLOB will be loaded by the component
       const medicationData = {
         drugName: drugName.trim(), // TVAL_CHAR contains only the drug name
-        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || 100, // From NVAL_NUM or demo
+        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || null,
         dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
-        frequency: 'BID', // Default demo frequency (would come from BLOB in real data)
-        route: 'PO', // Default demo route (would come from BLOB in real data)
+        frequency: '', // Will be loaded from BLOB by component
+        route: '', // Will be loaded from BLOB by component
         instructions: '',
       }
 
-      logger.debug('Created medication data from TVAL_CHAR drug name', { medicationData })
+      logger.debug('Created basic medication data from TVAL_CHAR - BLOB will be loaded by component', { medicationData })
       return medicationData
     }
 
