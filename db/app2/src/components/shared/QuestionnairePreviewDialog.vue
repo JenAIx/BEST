@@ -11,33 +11,32 @@
     :content-padding="false"
     @ok="exportToPDF"
   >
-    <div class="q-pa-md">
-      <!-- Loading State -->
-      <div v-if="loading" class="text-center q-py-xl">
-        <q-spinner color="primary" size="48px" />
-        <div class="text-grey-6 q-mt-md">Loading questionnaire data...</div>
-      </div>
+    <!-- Loading State -->
+    <div v-if="loading" class="loading-container">
+      <q-spinner-grid size="50px" color="primary" />
+      <div class="text-h6 q-mt-md">Loading questionnaire data...</div>
+    </div>
 
-      <!-- Error State -->
-      <div v-else-if="loadError" class="text-center q-py-xl">
-        <q-icon name="error" size="64px" color="negative" />
-        <div class="text-h6 text-negative q-mt-md">{{ loadError }}</div>
-        <div class="text-body2 text-grey-6">Please try again or contact support if the problem persists.</div>
-      </div>
+    <!-- Error State -->
+    <div v-else-if="loadError" class="error-container">
+      <q-icon name="error" size="48px" color="negative" />
+      <div class="text-h6 text-negative q-mt-sm">Failed to load questionnaire</div>
+      <div class="text-body2 text-grey-6">Please try again or contact support if the problem persists.</div>
+    </div>
 
-      <!-- Content -->
-      <div v-else-if="questionnaire">
-        <!-- Use CompletedQuestionnaireView for completed questionnaire results -->
-        <CompletedQuestionnaireView v-if="isCompletedQuestionnaire" :results="questionnaire" :completion-date="completionDate" />
-        <!-- Use PreviewSurveyTemplate for questionnaire templates -->
-        <PreviewSurveyTemplate v-else :questionnaire="questionnaire" />
-      </div>
+    <!-- Content -->
+    <div v-else-if="questionnaire" class="questionnaire-content q-pa-md">
+      <!-- Use CompletedQuestionnaireView for completed questionnaire results -->
+      <CompletedQuestionnaireView v-if="isCompletedQuestionnaire" :results="questionnaire" :completion-date="completionDate" />
+      <!-- Use PreviewSurveyTemplate for questionnaire templates -->
+      <PreviewSurveyTemplate v-else :questionnaire="questionnaire" />
+    </div>
 
-      <!-- No Data State -->
-      <div v-else class="text-center q-py-xl">
-        <q-icon name="quiz" size="64px" color="grey-4" />
-        <div class="text-h6 text-grey-6 q-mt-md">No questionnaire data available</div>
-      </div>
+    <!-- No Data State -->
+    <div v-else class="no-data-container">
+      <q-icon name="quiz" size="48px" color="grey-4" />
+      <div class="text-h6 text-grey-6 q-mt-sm">No questionnaire data available</div>
+      <div class="text-body2 text-grey-5">Please check the questionnaire configuration or try again.</div>
     </div>
   </AppDialog>
 </template>
@@ -448,3 +447,240 @@ watch(localShow, (newValue) => {
   }
 })
 </script>
+
+<style lang="scss" scoped>
+.loading-container,
+.error-container,
+.no-data-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem;
+  text-align: center;
+}
+
+.questionnaire-content {
+  max-height: none;
+  background: white;
+
+  // PDF-friendly styles
+  @media print {
+    background: white !important;
+    color: black !important;
+
+    .q-btn {
+      display: none !important;
+    }
+  }
+}
+
+// Enhanced styling for better visual hierarchy
+:deep(.q-card) {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  border: 1px solid $grey-3;
+}
+
+:deep(.q-card__section) {
+  padding: 16px;
+}
+
+// Style the questionnaire content areas
+:deep(.questionnaire-section) {
+  margin-bottom: 1.5rem;
+  padding: 16px;
+  background: $grey-1;
+  border-radius: 8px;
+  border-left: 4px solid $primary;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+:deep(.question-item) {
+  margin-bottom: 1rem;
+  padding: 12px 16px;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid $grey-3;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: $blue-1;
+    border-color: $primary;
+  }
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+:deep(.question-label) {
+  font-weight: 600;
+  color: $grey-8;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+  line-height: 1.3;
+}
+
+:deep(.question-value) {
+  font-weight: 500;
+  color: $grey-9;
+  padding: 8px 12px;
+  background: $primary;
+  color: white;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+:deep(.question-value--boolean) {
+  background: $green-6;
+}
+
+:deep(.question-value--array) {
+  background: $purple-6;
+}
+
+:deep(.question-value--empty) {
+  background: $grey-5;
+  color: $grey-7;
+}
+
+// Results section styling
+:deep(.results-section) {
+  background: $green-1;
+  border: 1px solid $green-3;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 1.5rem;
+  text-align: center;
+
+  .results-title {
+    color: $green-8;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+  }
+
+  .results-grid {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+  }
+
+  .result-item {
+    text-align: center;
+
+    .result-value {
+      font-size: 2.25rem;
+      font-weight: 700;
+      color: $green-8;
+      line-height: 1;
+    }
+
+    .result-label {
+      font-size: 1rem;
+      color: $grey-6;
+      margin-top: 4px;
+    }
+  }
+}
+
+// Template preview styling
+:deep(.template-preview) {
+  .template-title {
+    color: $primary;
+    font-weight: 600;
+    font-size: 1.1rem;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid $primary;
+  }
+
+  .template-description {
+    color: $grey-7;
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+
+  .template-questions {
+    .question-preview {
+      margin-bottom: 12px;
+      padding: 12px;
+      background: $grey-1;
+      border-radius: 6px;
+      border-left: 3px solid $primary;
+
+      .question-text {
+        font-weight: 500;
+        color: $grey-8;
+        margin-bottom: 4px;
+      }
+
+      .question-type {
+        font-size: 0.8rem;
+        color: $grey-6;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+    }
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .questionnaire-content {
+    padding: 12px !important;
+  }
+
+  :deep(.results-section) {
+    padding: 16px;
+
+    .results-grid {
+      gap: 20px;
+    }
+
+    .result-item {
+      .result-value {
+        font-size: 1.8rem;
+      }
+    }
+  }
+
+  :deep(.question-item) {
+    padding: 10px 12px;
+  }
+}
+
+// Print styles for PDF export
+@media print {
+  .questionnaire-content {
+    padding: 0 !important;
+  }
+
+  :deep(.question-item) {
+    page-break-inside: avoid;
+    border: 1px solid #000 !important;
+    margin-bottom: 8px !important;
+  }
+
+  :deep(.results-section) {
+    border: 1px solid #000 !important;
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  :deep(.question-value) {
+    background: #1976d2 !important;
+    color: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+</style>
