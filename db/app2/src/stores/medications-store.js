@@ -592,6 +592,70 @@ export const useMedicationsStore = defineStore('medications', () => {
   }
 
   /**
+   * Parse medication data from observation row (centralized function)
+   * @param {Object} row - Observation row data
+   * @returns {Object} Parsed medication data
+   */
+  const parseMedicationData = (row) => {
+    try {
+      // Try to parse OBSERVATION_BLOB first
+      if (row.rawObservation?.observation_blob || row.rawObservation?.OBSERVATION_BLOB) {
+        const blobData = row.rawObservation.observation_blob || row.rawObservation.OBSERVATION_BLOB
+        if (typeof blobData === 'string') {
+          try {
+            const parsed = JSON.parse(blobData)
+            return {
+              drugName: parsed.drugName || '',
+              dosage: parsed.dosage || null,
+              dosageUnit: parsed.dosageUnit || 'mg',
+              frequency: parsed.frequency || '',
+              route: parsed.route || '',
+              instructions: parsed.instructions || '',
+            }
+          } catch (parseError) {
+            logger.warn('Failed to parse BLOB JSON', parseError)
+          }
+        }
+      }
+
+      // For basic medication data without BLOB, extract from TVAL_CHAR (drug name only)
+      const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
+
+      if (drugName && drugName.trim()) {
+        // Create basic medication data - BLOB will be loaded by the component
+        return {
+          drugName: drugName.trim(), // TVAL_CHAR contains only the drug name
+          dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || null,
+          dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
+          frequency: '', // Will be loaded from BLOB by component
+          route: '', // Will be loaded from BLOB by component
+          instructions: '',
+        }
+      }
+
+      // Fallback to empty structure
+      return {
+        drugName: '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    } catch (error) {
+      logger.error('Failed to parse medication data', error, { rowId: row.id })
+      return {
+        drugName: row.origVal || row.currentVal || '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    }
+  }
+
+  /**
    * Format medication for display
    * @param {Object} medication - Medication object
    * @returns {string} Formatted display string
@@ -646,5 +710,6 @@ export const useMedicationsStore = defineStore('medications', () => {
     getRouteAbbreviation,
     getFrequencyLabel,
     getRouteLabel,
+    parseMedicationData,
   }
 })

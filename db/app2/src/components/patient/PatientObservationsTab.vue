@@ -98,7 +98,7 @@
     <!-- Medication Edit Dialog -->
     <MedicationEditDialog
       v-model="showMedicationEditDialog"
-      :medication-data="editingMedicationRow ? parseMedicationData(editingMedicationRow) : {}"
+      :medication-data="editingMedicationRow ? medicationsStore.parseMedicationData(editingMedicationRow) : {}"
       :observation-id="editingMedicationRow?.observationId"
       :frequency-options="frequencyOptions"
       :route-options="routeOptions"
@@ -116,6 +116,8 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useMedicationsStore } from 'src/stores/medications-store'
+import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 import NewVisitDialog from '../visits/NewVisitDialog.vue'
 import ObservationsTable from '../visits/ObservationsTable.vue'
 import MedicationEditDialog from '../visits/MedicationEditDialog.vue'
@@ -129,6 +131,7 @@ const conceptStore = useConceptResolutionStore()
 const localSettingsStore = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const visitObservationStore = useVisitObservationStore()
+const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('PatientObservationsTab')
 
@@ -154,9 +157,8 @@ const pendingChanges = ref(new Map())
 // Force re-render counter
 const renderVersion = ref(0)
 
-// Frequency and route options for medications - loaded from store
-const frequencyOptions = ref([])
-const routeOptions = ref([])
+// Use medication options composable
+const { frequencyOptions, routeOptions, loadMedicationOptions } = useMedicationOptions()
 
 // Computed properties from store
 const patient = computed(() => visitObservationStore.selectedPatient)
@@ -298,31 +300,6 @@ const categoryOptions = computed(() => {
 
 // Dynamic value type options from global settings store
 const valueTypeOptions = ref([])
-
-// Load medication options from store
-const loadMedicationOptions = async () => {
-  try {
-    logger.debug('Loading medication options from concept resolution store')
-
-    // Load frequency and route options in parallel
-    const [freqOptions, routeOpts] = await Promise.all([conceptStore.getMedicationFrequencyOptions(), conceptStore.getMedicationRouteOptions()])
-
-    frequencyOptions.value = freqOptions
-    routeOptions.value = routeOpts
-
-    logger.success('Medication options loaded successfully', {
-      frequencyCount: freqOptions.length,
-      routeCount: routeOpts.length,
-      frequencySample: freqOptions.slice(0, 2),
-      routeSample: routeOpts.slice(0, 2),
-    })
-  } catch (error) {
-    logger.error('Failed to load medication options', error)
-    // Set empty arrays as fallback
-    frequencyOptions.value = []
-    routeOptions.value = []
-  }
-}
 
 // Load value type options from store
 const loadValueTypeOptions = async () => {
@@ -597,7 +574,7 @@ const saveRow = async (row) => {
 
     if (row.isMedication) {
       // Handle medication updates
-      const medicationData = parseMedicationData(row)
+      const medicationData = medicationsStore.parseMedicationData(row)
       const updateData = {
         TVAL_CHAR: medicationData.drugName,
         NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
@@ -657,7 +634,7 @@ const saveRow = async (row) => {
         }
         case 'M': {
           // For medications, update with drug name only
-          const medicationData = parseMedicationData(row)
+          const medicationData = medicationsStore.parseMedicationData(row)
           storeObservation.originalValue = medicationData.drugName
           storeObservation.value = medicationData.drugName
           // Update rawData if it exists
@@ -691,7 +668,7 @@ const saveRow = async (row) => {
           break
         }
         case 'M': {
-          const medicationData = parseMedicationData(row)
+          const medicationData = medicationsStore.parseMedicationData(row)
           row.rawObservation.originalValue = medicationData.drugName
           row.rawObservation.value = medicationData.drugName
           break
@@ -768,49 +745,6 @@ const cloneFromPrevious = (row) => {
       conceptCode: row.conceptCode,
       clonedValue: row.previousValue.value,
     })
-  }
-}
-
-// Parse medication data from observation row
-const parseMedicationData = (row) => {
-  try {
-    // Try to parse OBSERVATION_BLOB first
-    if (row.rawObservation?.observation_blob) {
-      try {
-        const parsed = JSON.parse(row.rawObservation.observation_blob)
-        return {
-          drugName: parsed.drugName || '',
-          dosage: parsed.dosage || null,
-          dosageUnit: parsed.dosageUnit || 'mg',
-          frequency: parsed.frequency || '',
-          route: parsed.route || '',
-          instructions: parsed.instructions || '',
-        }
-      } catch (parseError) {
-        logger.warn('Failed to parse BLOB JSON', parseError)
-      }
-    }
-
-    // Fallback to basic data
-    const drugName = row.rawObservation?.tval_char || row.origVal || row.currentVal || ''
-    return {
-      drugName: drugName.trim(),
-      dosage: row.rawObservation?.nval_num || 100,
-      dosageUnit: 'mg',
-      frequency: 'BID',
-      route: 'PO',
-      instructions: '',
-    }
-  } catch (error) {
-    logger.error('Failed to parse medication data', error, { rowId: row.id })
-    return {
-      drugName: row.origVal || row.currentVal || '',
-      dosage: null,
-      dosageUnit: 'mg',
-      frequency: '',
-      route: '',
-      instructions: '',
-    }
   }
 }
 

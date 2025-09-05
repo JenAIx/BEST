@@ -57,7 +57,7 @@
     <!-- Medication Edit Dialog -->
     <MedicationEditDialog
       v-model="showMedicationEditDialog"
-      :medication-data="editingMedicationRow ? parseMedicationData(editingMedicationRow) : {}"
+      :medication-data="editingMedicationRow ? medicationsStore.parseMedicationData(editingMedicationRow) : {}"
       :observation-id="editingMedicationRow?.observationId"
       :frequency-options="frequencyOptions"
       :route-options="routeOptions"
@@ -71,8 +71,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useMedicationsStore } from 'src/stores/medications-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 import ObservationsTable from './ObservationsTable.vue'
 import UnfilledObservationsChips from './UnfilledObservationsChips.vue'
 import MedicationSection from './MedicationSection.vue'
@@ -105,6 +107,7 @@ const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh
 
 const $q = useQuasar()
 const visitStore = useVisitObservationStore()
+const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const conceptStore = useConceptResolutionStore()
 const logger = loggingStore.createLogger('ObservationFieldSet')
@@ -120,9 +123,8 @@ const pendingChanges = ref(new Map()) // Track pending changes per row
 const showMedicationEditDialog = ref(false)
 const editingMedicationRow = ref(null)
 
-// Frequency and route options for medications - loaded from store
-const frequencyOptions = ref([])
-const routeOptions = ref([])
+// Use medication options composable
+const { frequencyOptions, routeOptions, loadMedicationOptions } = useMedicationOptions()
 
 // Component mounted
 onMounted(async () => {
@@ -141,29 +143,6 @@ onMounted(async () => {
   // Resolve concept names for all concepts in the field set
   await resolveFieldSetConceptNames()
 })
-
-// Load medication options from store
-const loadMedicationOptions = async () => {
-  try {
-    logger.debug('Loading medication options from concept resolution store')
-
-    // Load frequency and route options in parallel
-    const [freqOptions, routeOpts] = await Promise.all([conceptStore.getMedicationFrequencyOptions(), conceptStore.getMedicationRouteOptions()])
-
-    frequencyOptions.value = freqOptions
-    routeOptions.value = routeOpts
-
-    logger.success('Medication options loaded successfully', {
-      frequencyCount: freqOptions.length,
-      routeCount: routeOpts.length,
-    })
-  } catch (error) {
-    logger.error('Failed to load medication options', error)
-    // Set empty arrays as fallback
-    frequencyOptions.value = []
-    routeOptions.value = []
-  }
-}
 
 // Resolve concept names using concept resolution store
 const resolveFieldSetConceptNames = async () => {
@@ -465,77 +444,6 @@ const formatMedicationDisplay = (medication) => {
   return medication.originalValue || medication.value || 'No medication specified'
 }
 
-// Parse medication data from observation row
-const parseMedicationData = (row) => {
-  try {
-    logger.debug('Parsing medication data for row', {
-      rowId: row.id,
-      rawObservation: row.rawObservation,
-      origVal: row.origVal,
-      currentVal: row.currentVal,
-    })
-
-    // Try to parse OBSERVATION_BLOB first
-    if (row.rawObservation?.observation_blob || row.rawObservation?.OBSERVATION_BLOB) {
-      const blobData = row.rawObservation.observation_blob || row.rawObservation.OBSERVATION_BLOB
-      if (typeof blobData === 'string') {
-        try {
-          const parsed = JSON.parse(blobData)
-          logger.debug('Successfully parsed BLOB data', { parsed })
-          return {
-            drugName: parsed.drugName || '',
-            dosage: parsed.dosage || null,
-            dosageUnit: parsed.dosageUnit || 'mg',
-            frequency: parsed.frequency || '',
-            route: parsed.route || '',
-            instructions: parsed.instructions || '',
-          }
-        } catch (parseError) {
-          logger.warn('Failed to parse BLOB JSON', parseError)
-        }
-      }
-    }
-
-    // For basic medication data without BLOB, extract from TVAL_CHAR (drug name only)
-    const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
-
-    if (drugName && drugName.trim()) {
-      // Create basic medication data - BLOB will be loaded by the component
-      const medicationData = {
-        drugName: drugName.trim(), // TVAL_CHAR contains only the drug name
-        dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || null,
-        dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
-        frequency: '', // Will be loaded from BLOB by component
-        route: '', // Will be loaded from BLOB by component
-        instructions: '',
-      }
-
-      logger.debug('Created basic medication data from TVAL_CHAR - BLOB will be loaded by component', { medicationData })
-      return medicationData
-    }
-
-    // Fallback to empty structure
-    return {
-      drugName: '',
-      dosage: null,
-      dosageUnit: 'mg',
-      frequency: '',
-      route: '',
-      instructions: '',
-    }
-  } catch (error) {
-    logger.error('Failed to parse medication data', error, { rowId: row.id })
-    return {
-      drugName: row.origVal || row.currentVal || '',
-      dosage: null,
-      dosageUnit: 'mg',
-      frequency: '',
-      route: '',
-      instructions: '',
-    }
-  }
-}
-
 // Enter medication edit mode
 const enterMedicationEditMode = (row) => {
   logger.debug('Enter medication edit mode', { rowId: row.id })
@@ -641,7 +549,7 @@ const saveRow = async (row) => {
       logger.debug('Saving medication row with complex data')
 
       // For medications, extract structured data and store drug name only in TVAL_CHAR
-      const medicationData = parseMedicationData(row)
+      const medicationData = medicationsStore.parseMedicationData(row)
 
       const updateData = {
         TVAL_CHAR: medicationData.drugName, // Only drug name in TVAL_CHAR
@@ -709,7 +617,7 @@ const saveRow = async (row) => {
         }
         case 'M': {
           // For medications, update all relevant fields - store only drug name in TVAL_CHAR
-          const medicationData = parseMedicationData(row)
+          const medicationData = medicationsStore.parseMedicationData(row)
           row.rawObservation.TVAL_CHAR = medicationData.drugName
           row.rawObservation.tval_char = medicationData.drugName
           row.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
