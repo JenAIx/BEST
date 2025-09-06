@@ -94,7 +94,7 @@
     <div v-if="!searchQuery && !hasActiveFilters" class="q-mb-lg">
       <div class="row q-col-gutter-md justify-center">
         <div class="col-12 col-sm-6 col-md-3">
-          <q-card flat bordered class="stat-card">
+          <q-card flat bordered class="stat-card cursor-pointer" @click="showAllStudies">
             <q-card-section class="text-center">
               <q-icon name="biotech" size="32px" color="primary" class="q-mb-sm" />
               <div class="text-h5 text-primary">{{ studyStore.researchStats.totalStudies }}</div>
@@ -139,7 +139,7 @@
         <div v-for="category in researchCategories" :key="category.value" class="col-12 col-sm-6 col-md-4 col-lg-3">
           <q-card flat bordered class="category-card cursor-pointer" @click="searchByCategory(category)">
             <q-card-section class="q-pa-md text-center">
-              <q-icon :name="getCategoryIcon(category.value)" size="24px" :color="category.color" class="q-mb-sm" />
+              <q-icon :name="studyStore.getCategoryIcon(category.label)" size="24px" :color="category.color" class="q-mb-sm" />
               <div class="text-weight-medium">{{ category.label }}</div>
               <div class="text-caption text-grey-6">{{ getCategoryCount(category.value) }} studies</div>
             </q-card-section>
@@ -303,14 +303,15 @@ const viewModeOptions = [
   { label: 'Table', value: 'table', icon: 'view_list' },
 ]
 
-const researchCategories = [
-  { label: 'Neurological Assessment', value: 'neurological', color: 'primary' },
-  { label: 'Clinical Scales', value: 'scales', color: 'secondary' },
-  { label: 'Stroke Research', value: 'stroke', color: 'positive' },
-  { label: 'Psychological Assessment', value: 'psychological', color: 'info' },
-  { label: 'Imaging Studies', value: 'imaging', color: 'warning' },
-  { label: 'Laboratory Research', value: 'laboratory', color: 'negative' },
-]
+// Computed research categories based on actual data
+const researchCategories = computed(() => {
+  const categories = Object.keys(studyStore.studiesByCategory)
+  return categories.map(category => ({
+    label: category,
+    value: category.toLowerCase().replace(/\s+/g, '-'),
+    color: getCategoryColor(category)
+  }))
+})
 
 const studyStatusOptions = [
   { label: 'Active', value: 'active' },
@@ -450,6 +451,28 @@ const clearSearch = () => {
   resetFilters()
 }
 
+const showAllStudies = async () => {
+  // Clear search and filters
+  searchQuery.value = ''
+  searchSuggestions.value = []
+  resetFilters()
+
+  // Set hasSearched to true to show the study list
+  hasSearched.value = true
+
+  // Load all studies
+  try {
+    await studyStore.searchStudies('', {})
+  } catch (error) {
+    console.error('Failed to load all studies:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to load studies',
+      position: 'top',
+    })
+  }
+}
+
 const resetFilters = () => {
   filters.value = {
     researchCategory: null,
@@ -466,9 +489,19 @@ const applyFilters = () => {
 }
 
 const searchByCategory = (category) => {
-  filters.value.researchCategory = category.value
-  searchQuery.value = category.label
-  applyFilters()
+  // Use the category label directly since it matches the database values
+  const categoryName = category.label
+
+  // Check if this category exists in our studies
+  const categories = studyStore.studiesByCategory
+  if (categories[categoryName] && categories[categoryName].length > 0) {
+    filters.value.researchCategory = categoryName.toLowerCase().replace(/\s+/g, '-')
+    // Don't set searchQuery when filtering by category - it causes name+category search
+    searchQuery.value = ''
+    applyFilters()
+  } else {
+    console.warn(`Category "${categoryName}" not found in studies`, categories)
+  }
 }
 
 const getCategoryIcon = (category) => {
@@ -506,16 +539,24 @@ const getStatusColor = (status) => {
 }
 
 const getCategoryCount = (categoryValue) => {
-  // Mock counts - replace with actual database queries
-  const counts = {
-    neurological: 12,
-    scales: 8,
-    stroke: 6,
-    psychological: 4,
-    imaging: 3,
-    laboratory: 2,
+  // Get real count from study store
+  const categories = studyStore.studiesByCategory
+
+  // Try to match by converting slug back to original category name
+  const matchingCategory = Object.keys(categories).find(category =>
+    category.toLowerCase().replace(/\s+/g, '-') === categoryValue
+  )
+
+  if (matchingCategory) {
+    return categories[matchingCategory].length
   }
-  return counts[categoryValue] || 0
+
+  // Fallback: try direct match with category names
+  if (categories[categoryValue]) {
+    return categories[categoryValue].length
+  }
+
+  return 0
 }
 
 // Action handlers

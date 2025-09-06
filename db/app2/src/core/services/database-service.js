@@ -15,6 +15,7 @@ import ConceptRepository from '../database/repositories/concept-repository.js'
 import CqlRepository from '../database/repositories/cql-repository.js'
 import VisitRepository from '../database/repositories/visit-repository.js'
 import ObservationRepository from '../database/repositories/observation-repository.js'
+import StudyRepository from '../database/repositories/study-repository.js'
 import { initialSchema } from '../database/migrations/001-initial-schema.js'
 import { currentSchema } from '../database/migrations/002-current-schema.js'
 import { addNoteFactColumns } from '../database/migrations/003-add-note-fact-columns.js'
@@ -22,6 +23,7 @@ import { addNoteFactColumns } from '../database/migrations/003-add-note-fact-col
 import { createPatientListView } from '../database/migrations/005-create-patient-list-view.js'
 import { createPatientObservationsView } from '../database/migrations/006-create-patient-observations-view.js'
 import { patientUpdateTriggers } from '../database/migrations/007-patient-update-triggers.js'
+import { studyTables } from '../database/migrations/008-study-tables.js'
 
 class DatabaseService {
   constructor() {
@@ -71,6 +73,7 @@ class DatabaseService {
       this.migrationManager.registerMigration(createPatientListView)
       this.migrationManager.registerMigration(createPatientObservationsView)
       this.migrationManager.registerMigration(patientUpdateTriggers)
+      this.migrationManager.registerMigration(studyTables)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()
@@ -136,6 +139,7 @@ class DatabaseService {
     this.repositories.cql = new CqlRepository(this.connection)
     this.repositories.visit = new VisitRepository(this.connection)
     this.repositories.observation = new ObservationRepository(this.connection)
+    this.repositories.study = new StudyRepository(this.connection)
 
     // TODO: Add other repositories as they are implemented
     // this.repositories.provider = new ProviderRepository(this.connection)
