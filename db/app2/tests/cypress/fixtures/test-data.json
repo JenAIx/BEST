@@ -19,7 +19,7 @@
       "email": "nurse@best.local"
     }
   },
-  
+
   "patients": {
     "testPatient1": {
       "firstName": "John",
@@ -46,7 +46,7 @@
       "phone": "+1-555-0125"
     }
   },
-  
+
   "visits": {
     "routine_checkup": {
       "type": "routine_checkup",
@@ -61,7 +61,7 @@
       "status": "scheduled"
     }
   },
-  
+
   "observations": {
     "blood_pressure": {
       "type": "vital_sign",
@@ -85,7 +85,7 @@
       "unit": "°F"
     }
   },
-  
+
   "concepts": {
     "diabetes": {
       "code": "73211009",
@@ -98,7 +98,7 @@
       "system": "SNOMED CT"
     }
   },
-  
+
   "settings": {
     "database": {
       "backup_frequency": "daily",

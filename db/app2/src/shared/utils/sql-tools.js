@@ -31,7 +31,7 @@ export function stringify_json(str) {
  */
 export function stringify_char(str) {
   if (str === null || str === undefined) return null
-  return str.replace(/\n/g, "\\n")
+  return str.replace(/\n/g, '\\n')
 }
 
 /**
@@ -41,5 +41,5 @@ export function stringify_char(str) {
  */
 export function unstringify_char(str) {
   if (str === null || str === undefined) return null
-  return str.replace(/\\n/g, "\n")
+  return str.replace(/\\n/g, '\n')
 }

@@ -1,6 +1,6 @@
 /**
  * Visit Template Utilities
- * 
+ *
  * Shared utilities for handling visit templates across different components
  */
 
@@ -11,7 +11,7 @@
  */
 export const getTemplateFieldSets = (template) => {
   if (!template) return ['vitals', 'symptoms']
-  
+
   // Map template IDs to specific field sets (highest priority)
   const templateFieldSetMap = {
     'annual-checkup': ['vitals', 'symptoms', 'physical', 'lab', 'assessment'],
@@ -20,18 +20,18 @@ export const getTemplateFieldSets = (template) => {
     'emergency-visit': ['vitals', 'symptoms', 'physical', 'assessment'],
     'procedure-visit': ['vitals', 'physical', 'assessment'],
   }
-  
+
   // Use template-specific mapping if available
   if (templateFieldSetMap[template.id]) {
     return templateFieldSetMap[template.id]
   }
-  
+
   // Fallback to type-based mapping
   switch (template.type) {
     case 'routine':
       return ['vitals', 'symptoms', 'physical', 'assessment']
     case 'followup':
-      return ['vitals', 'symptoms', 'assessment']  
+      return ['vitals', 'symptoms', 'assessment']
     case 'emergency':
       return ['vitals', 'symptoms', 'physical', 'assessment']
     case 'consultation':
@@ -50,15 +50,15 @@ export const getTemplateFieldSets = (template) => {
  */
 export const getTemplateDescription = (template) => {
   if (!template) return 'Standard visit template'
-  
+
   const descriptions = {
     'annual-checkup': 'Comprehensive yearly physical examination with full assessment',
-    'follow-up-labs': 'Review laboratory results and follow-up on previous findings', 
+    'follow-up-labs': 'Review laboratory results and follow-up on previous findings',
     'medication-review': 'Review current medications, adjust dosages, and assess compliance',
     'emergency-visit': 'Urgent care assessment with focus on immediate medical needs',
     'procedure-visit': 'Medical procedure or intervention with pre/post assessment',
   }
-  
+
   return descriptions[template.id] || template.notes || 'Visit template for streamlined workflow'
 }
 
@@ -78,11 +78,7 @@ export const getTemplateFieldSetSummary = (template) => {
  * @returns {boolean} True if valid template
  */
 export const isValidTemplate = (template) => {
-  return template && 
-         typeof template === 'object' && 
-         template.id && 
-         template.name && 
-         template.type
+  return template && typeof template === 'object' && template.id && template.name && template.type
 }
 
 /**
@@ -92,13 +88,13 @@ export const isValidTemplate = (template) => {
  */
 export const getDefaultTemplateForVisitType = (visitType) => {
   const typeTemplateMap = {
-    'routine': 'annual-checkup',
-    'followup': 'follow-up-labs',
-    'emergency': 'emergency-visit',
-    'consultation': 'medication-review',
-    'procedure': 'procedure-visit',
+    routine: 'annual-checkup',
+    followup: 'follow-up-labs',
+    emergency: 'emergency-visit',
+    consultation: 'medication-review',
+    procedure: 'procedure-visit',
   }
-  
+
   return typeTemplateMap[visitType] || null
 }
 
@@ -109,7 +105,7 @@ export const getDefaultTemplateForVisitType = (visitType) => {
  */
 export const enhanceTemplate = (template) => {
   if (!isValidTemplate(template)) return null
-  
+
   return {
     ...template,
     fieldSets: getTemplateFieldSets(template),

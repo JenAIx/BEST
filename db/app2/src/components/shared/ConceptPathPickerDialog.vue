@@ -21,9 +21,7 @@
         <q-icon name="account_tree" class="q-mr-sm" />
         Concept Path Picker
       </div>
-      <div class="text-caption text-grey-6">
-        Search and edit concept paths for your medical data
-      </div>
+      <div class="text-caption text-grey-6">Search and edit concept paths for your medical data</div>
     </template>
 
     <!-- Main content -->
@@ -63,16 +61,7 @@
               No path segments added yet
             </div>
             <div v-else class="path-chips q-mb-md">
-              <q-chip
-                v-for="(segment, index) in editablePath"
-                :key="index"
-                dense
-                color="primary"
-                text-color="white"
-                :removable="index > 0"
-                @remove="removePathSegment(index)"
-                class="q-mr-xs q-mb-xs"
-              >
+              <q-chip v-for="(segment, index) in editablePath" :key="index" dense color="primary" text-color="white" :removable="index > 0" @remove="removePathSegment(index)" class="q-mr-xs q-mb-xs">
                 <q-icon name="chevron_right" size="sm" v-if="index > 0" />
                 {{ segment }}
               </q-chip>
@@ -80,24 +69,9 @@
 
             <!-- Add New Segment -->
             <div class="add-segment-section">
-              <q-input
-                v-model="newSegment"
-                outlined
-                dense
-                placeholder="Enter path segment (e.g., LOINC, CHEM, VITALS)"
-                clearable
-                @keyup.enter="addPathSegment"
-                label="Add Path Segment"
-              >
+              <q-input v-model="newSegment" outlined dense placeholder="Enter path segment (e.g., LOINC, CHEM, VITALS)" clearable @keyup.enter="addPathSegment" label="Add Path Segment">
                 <template v-slot:append>
-                  <q-btn
-                    flat
-                    dense
-                    icon="add"
-                    @click="addPathSegment"
-                    color="primary"
-                    :disable="!newSegment"
-                  />
+                  <q-btn flat dense icon="add" @click="addPathSegment" color="primary" :disable="!newSegment" />
                 </template>
               </q-input>
             </div>
@@ -117,18 +91,7 @@
           <q-card-section class="q-pa-md">
             <div class="row q-gutter-sm">
               <div class="col-12 col-md-4">
-                <q-select
-                  v-model="searchType"
-                  :options="searchOptions"
-                  option-value="value"
-                  option-label="label"
-                  emit-value
-                  map-options
-                  outlined
-                  dense
-                  label="Search by"
-                  class="full-width"
-                />
+                <q-select v-model="searchType" :options="searchOptions" option-value="value" option-label="label" emit-value map-options outlined dense label="Search by" class="full-width" />
               </div>
               <div class="col-12 col-md">
                 <q-input
@@ -146,14 +109,7 @@
                     <q-icon name="search" />
                   </template>
                   <template v-slot:append>
-                    <q-btn
-                      flat
-                      dense
-                      icon="search"
-                      @click="performSearch"
-                      :loading="searching"
-                      color="primary"
-                    />
+                    <q-btn flat dense icon="search" @click="performSearch" :loading="searching" color="primary" />
                   </template>
                 </q-input>
               </div>
@@ -168,13 +124,7 @@
             Search Results ({{ searchResults.length }})
           </div>
           <q-list bordered class="rounded-borders">
-            <q-item
-              v-for="(result, index) in searchResults"
-              :key="index"
-              clickable
-              @click="selectFromResults(result)"
-              class="search-result-item"
-            >
+            <q-item v-for="(result, index) in searchResults" :key="index" clickable @click="selectFromResults(result)" class="search-result-item">
               <q-item-section avatar>
                 <q-icon name="folder" color="primary" />
               </q-item-section>
@@ -207,14 +157,7 @@
 
     <!-- Custom actions slot -->
     <template #actions>
-      <q-btn
-        color="primary"
-        label="Select Path"
-        @click="onSelect"
-        icon="check"
-        :disable="!selectedPath && (!editablePath || editablePath.length === 0)"
-        unelevated
-      />
+      <q-btn color="primary" label="Select Path" @click="onSelect" icon="check" :disable="!selectedPath && (!editablePath || editablePath.length === 0)" unelevated />
     </template>
   </AppDialog>
 </template>
@@ -228,12 +171,12 @@ import AppDialog from './AppDialog.vue'
 const props = defineProps({
   modelValue: {
     type: Boolean,
-    default: false
+    default: false,
   },
   currentPath: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'select'])
@@ -256,12 +199,12 @@ const originalConceptCode = ref('') // Store the last element of original path
 const searchOptions = [
   { label: 'Concept Name', value: 'NAME_CHAR' },
   { label: 'Concept Code', value: 'CONCEPT_CD' },
-  { label: 'Concept Path', value: 'CONCEPT_PATH' }
+  { label: 'Concept Path', value: 'CONCEPT_PATH' },
 ]
 // Computed properties
 const dialogVisible = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => emit('update:modelValue', value),
 })
 
 const fullPath = computed(() => {
@@ -281,9 +224,9 @@ const performSearch = async () => {
   try {
     // Validate search type against allowed columns
     const allowedColumns = {
-      'NAME_CHAR': 'NAME_CHAR',
-      'CONCEPT_CD': 'CONCEPT_CD',
-      'CONCEPT_PATH': 'CONCEPT_PATH'
+      NAME_CHAR: 'NAME_CHAR',
+      CONCEPT_CD: 'CONCEPT_CD',
+      CONCEPT_PATH: 'CONCEPT_PATH',
     }
 
     const column = allowedColumns[searchType.value]
@@ -300,19 +243,19 @@ const performSearch = async () => {
       loggingStore.debug('ConceptPathPickerDialog', 'Search completed', {
         searchType: searchType.value,
         query: searchQuery.value,
-        resultsCount: searchResults.value.length
+        resultsCount: searchResults.value.length,
       })
     } else {
       loggingStore.warn('ConceptPathPickerDialog', 'Search failed', {
         searchType: searchType.value,
         query: searchQuery.value,
-        error: result.error
+        error: result.error,
       })
     }
   } catch (error) {
     loggingStore.error('ConceptPathPickerDialog', 'Search error', error, {
       searchType: searchType.value,
-      query: searchQuery.value
+      query: searchQuery.value,
     })
   } finally {
     searching.value = false
@@ -322,7 +265,7 @@ const performSearch = async () => {
 const selectFromResults = (result) => {
   if (result.CONCEPT_PATH) {
     // Split the search result path
-    const searchPathParts = result.CONCEPT_PATH.split('\\').filter(part => part && part !== '')
+    const searchPathParts = result.CONCEPT_PATH.split('\\').filter((part) => part && part !== '')
 
     if (searchPathParts.length > 0) {
       // Use the search result path but replace the last element with the original concept code
@@ -341,7 +284,7 @@ const selectFromResults = (result) => {
         originalConceptCode: originalConceptCode.value,
         searchResultPath: result.CONCEPT_PATH,
         finalPath: selectedPath.value,
-        conceptName: result.NAME_CHAR
+        conceptName: result.NAME_CHAR,
       })
     }
   }
@@ -355,7 +298,7 @@ const addPathSegment = () => {
 
   loggingStore.debug('ConceptPathPickerDialog', 'Added path segment', {
     segment: newSegment.value,
-    currentPath: editablePath.value
+    currentPath: editablePath.value,
   })
 }
 
@@ -366,7 +309,7 @@ const removePathSegment = (index) => {
     loggingStore.debug('ConceptPathPickerDialog', 'Removed path segment', {
       removedSegment,
       index,
-      remainingPath: editablePath.value
+      remainingPath: editablePath.value,
     })
   }
 }
@@ -380,7 +323,7 @@ const onSelect = () => {
     loggingStore.info('ConceptPathPickerDialog', 'Path selected', {
       selectedPath: pathToSelect,
       editablePath: editablePath.value,
-      treeSelection: selectedPath.value
+      treeSelection: selectedPath.value,
     })
 
     dialogVisible.value = false
@@ -393,27 +336,31 @@ const onCancel = () => {
 }
 
 // Watchers
-watch(() => props.currentPath, (newPath) => {
-  selectedPath.value = newPath
-  if (newPath) {
-    // Split the path for editing
-    const pathParts = newPath.split('\\').filter(part => part && part !== '')
-    editablePath.value = pathParts
+watch(
+  () => props.currentPath,
+  (newPath) => {
+    selectedPath.value = newPath
+    if (newPath) {
+      // Split the path for editing
+      const pathParts = newPath.split('\\').filter((part) => part && part !== '')
+      editablePath.value = pathParts
 
-    // Store the last element (concept code) from original path
-    if (pathParts.length > 0) {
-      originalConceptCode.value = pathParts[pathParts.length - 1]
+      // Store the last element (concept code) from original path
+      if (pathParts.length > 0) {
+        originalConceptCode.value = pathParts[pathParts.length - 1]
+      }
+    } else {
+      editablePath.value = []
+      originalConceptCode.value = ''
     }
-  } else {
-    editablePath.value = []
-    originalConceptCode.value = ''
-  }
-}, { immediate: true })
+  },
+  { immediate: true },
+)
 
 watch(selectedPath, (newSelection) => {
   if (newSelection && !editablePath.value.length) {
     // If tree selection changes and we don't have an editable path, sync it
-    const pathParts = newSelection.split('\\').filter(part => part && part !== '')
+    const pathParts = newSelection.split('\\').filter((part) => part && part !== '')
     editablePath.value = pathParts
   }
 })

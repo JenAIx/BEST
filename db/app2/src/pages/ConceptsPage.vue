@@ -136,13 +136,7 @@
     </q-table>
 
     <!-- Concept Dialog (Create/Edit) -->
-    <ConceptDialog 
-      v-model="showConceptDialog" 
-      :mode="conceptDialogMode"
-      :concept="selectedConcept" 
-      @saved="onConceptSaved" 
-      @cancelled="onConceptCancelled" 
-    />
+    <ConceptDialog v-model="showConceptDialog" :mode="conceptDialogMode" :concept="selectedConcept" @saved="onConceptSaved" @cancelled="onConceptCancelled" />
   </q-page>
 </template>
 

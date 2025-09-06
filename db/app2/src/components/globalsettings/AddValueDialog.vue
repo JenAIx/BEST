@@ -17,11 +17,11 @@
         :rules="codeRules"
         :hint="isQuestionnaireColumn ? 'Unique identifier for the questionnaire (e.g., quest_moca)' : 'Unique code identifier'"
       />
-      <q-input 
-        v-model="form.NAME_CHAR" 
-        label="Name/Value" 
-        outlined 
-        class="q-mb-md" 
+      <q-input
+        v-model="form.NAME_CHAR"
+        label="Name/Value"
+        outlined
+        class="q-mb-md"
         :rules="nameRules"
         :hint="isQuestionnaireColumn ? 'Display name for the questionnaire (e.g., MoCA)' : 'Display name'"
       />
@@ -46,7 +46,7 @@ const props = defineProps({
   modelValue: Boolean,
   columnTitle: String,
   isQuestionnaireColumn: Boolean,
-  existingValues: Array
+  existingValues: Array,
 })
 
 const emit = defineEmits(['update:modelValue', 'submit', 'cancel'])
@@ -60,29 +60,24 @@ const form = ref({
 })
 
 // Computed
-const codeRules = computed(() => [
-  (val) => (val && val.length > 0) || 'Code is required',
-  (val) => !props.existingValues?.some((v) => v.CODE_CD === val) || 'Code already exists'
-])
+const codeRules = computed(() => [(val) => (val && val.length > 0) || 'Code is required', (val) => !props.existingValues?.some((v) => v.CODE_CD === val) || 'Code already exists'])
 
-const nameRules = [
-  (val) => (val && val.length > 0) || 'Name is required'
-]
+const nameRules = [(val) => (val && val.length > 0) || 'Name is required']
 
 // Methods
 const validateQuestionnaireJson = (val) => {
   if (!val || val.trim() === '') return 'Questionnaire JSON is required'
-  
+
   try {
     const questionnaire = JSON.parse(val)
-    
+
     if (!questionnaire.title) return 'Missing required field: title'
     if (!questionnaire.short_title) return 'Missing required field: short_title'
     if (!questionnaire.items || !Array.isArray(questionnaire.items)) {
       return 'Missing or invalid field: items (must be array)'
     }
     if (questionnaire.items.length === 0) return 'Questionnaire must have at least one item'
-    
+
     return true
   } catch (error) {
     return `Invalid JSON: ${error.message}`
@@ -107,12 +102,15 @@ const resetForm = () => {
 }
 
 // Watch for external model changes
-watch(() => props.modelValue, (newValue) => {
-  localShow.value = newValue
-  if (newValue) {
-    resetForm()
-  }
-})
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    localShow.value = newValue
+    if (newValue) {
+      resetForm()
+    }
+  },
+)
 
 watch(localShow, (newValue) => {
   if (!newValue) {

@@ -1,9 +1,9 @@
 /**
  * Note Repository
- * 
+ *
  * Manages clinical notes and documentation in the NOTE_FACT table.
  * Handles CRUD operations, search, filtering, and note-specific business logic.
- * 
+ *
  * Based on real-world data patterns from test_DB_v20231222.db:
  * - Notes have unique IDs and categories
  * - BLOB data contains detailed note content
@@ -36,7 +36,7 @@ class NoteRepository extends BaseRepository {
     // Set default values for optional fields
     const noteWithDefaults = {
       UPLOAD_ID: noteData.UPLOAD_ID || 1,
-      ...noteData
+      ...noteData,
     }
 
     return await this.create(noteWithDefaults)
@@ -118,40 +118,40 @@ class NoteRepository extends BaseRepository {
   async getNotesPaginated(page = 1, pageSize = 20, criteria = {}) {
     try {
       const offset = (page - 1) * pageSize
-      
+
       // Build WHERE clause for criteria
       let whereClause = 'WHERE 1=1'
       const params = []
-      
+
       if (criteria.category) {
         whereClause += ` AND CATEGORY_CHAR = ?`
         params.push(criteria.category)
       }
-      
+
       if (criteria.name) {
         whereClause += ` AND NAME_CHAR LIKE ?`
         params.push(`%${criteria.name}%`)
       }
-      
+
       if (criteria.hasBlobContent) {
         whereClause += ` AND NOTE_BLOB IS NOT NULL`
       }
-      
+
       if (criteria.startDate && criteria.endDate) {
         whereClause += ` AND IMPORT_DATE BETWEEN ? AND ?`
         params.push(criteria.startDate, criteria.endDate)
       }
-      
+
       // Get total count
       const countSql = `SELECT COUNT(*) as count FROM ${this.tableName} ${whereClause}`
       const countResult = await this.connection.executeQuery(countSql, params)
       const totalCount = countResult.success ? countResult.data[0].count : 0
-      
+
       // Get paginated data
       const dataSql = `SELECT * FROM ${this.tableName} ${whereClause} ORDER BY IMPORT_DATE DESC LIMIT ? OFFSET ?`
       const dataResult = await this.connection.executeQuery(dataSql, [...params, pageSize, offset])
       const notes = dataResult.success ? dataResult.data : []
-      
+
       return {
         notes,
         pagination: {
@@ -160,8 +160,8 @@ class NoteRepository extends BaseRepository {
           totalCount,
           totalPages: Math.ceil(totalCount / pageSize),
           hasNext: page < Math.ceil(totalCount / pageSize),
-          hasPrev: page > 1
-        }
+          hasPrev: page > 1,
+        },
       }
     } catch (error) {
       console.error('Error getting notes paginated:', error)
@@ -173,8 +173,8 @@ class NoteRepository extends BaseRepository {
           totalCount: 0,
           totalPages: 0,
           hasNext: false,
-          hasPrev: false
-        }
+          hasPrev: false,
+        },
       }
     }
   }
@@ -185,23 +185,18 @@ class NoteRepository extends BaseRepository {
    */
   async getNoteStatistics() {
     try {
-      const [
-        totalNotes,
-        byCategory,
-        withBlobContent,
-        byMonth
-      ] = await Promise.all([
+      const [totalNotes, byCategory, withBlobContent, byMonth] = await Promise.all([
         this.connection.executeQuery(`SELECT COUNT(*) as count FROM ${this.tableName}`),
         this.connection.executeQuery(`SELECT CATEGORY_CHAR, COUNT(*) as count FROM ${this.tableName} GROUP BY CATEGORY_CHAR`),
         this.connection.executeQuery(`SELECT COUNT(*) as count FROM ${this.tableName} WHERE NOTE_BLOB IS NOT NULL`),
-        this.connection.executeQuery(`SELECT strftime('%Y-%m', IMPORT_DATE) as month, COUNT(*) as count FROM ${this.tableName} GROUP BY month ORDER BY month DESC LIMIT 12`)
+        this.connection.executeQuery(`SELECT strftime('%Y-%m', IMPORT_DATE) as month, COUNT(*) as count FROM ${this.tableName} GROUP BY month ORDER BY month DESC LIMIT 12`),
       ])
 
       return {
         totalNotes: totalNotes.success ? totalNotes.data[0].count : 0,
         byCategory: byCategory.success ? byCategory.data : [],
         withBlobContent: withBlobContent.success ? withBlobContent.data[0].count : 0,
-        byMonth: byMonth.success ? byMonth.data : []
+        byMonth: byMonth.success ? byMonth.data : [],
       }
     } catch (error) {
       console.error('Error getting note statistics:', error)
@@ -209,7 +204,7 @@ class NoteRepository extends BaseRepository {
         totalNotes: 0,
         byCategory: [],
         withBlobContent: 0,
-        byMonth: []
+        byMonth: [],
       }
     }
   }
@@ -299,7 +294,7 @@ class NoteRepository extends BaseRepository {
   async getNoteCategories() {
     const sql = `SELECT DISTINCT CATEGORY_CHAR FROM ${this.tableName} ORDER BY CATEGORY_CHAR`
     const result = await this.connection.executeQuery(sql)
-    return result.success ? result.data.map(row => row.CATEGORY_CHAR) : []
+    return result.success ? result.data.map((row) => row.CATEGORY_CHAR) : []
   }
 
   /**
@@ -319,8 +314,8 @@ class NoteRepository extends BaseRepository {
       metadata: {
         hasBlobContent: !!note.NOTE_BLOB,
         blobSize: note.NOTE_BLOB ? note.NOTE_BLOB.length : 0,
-        isRecent: this.isRecentNote(note.IMPORT_DATE)
-      }
+        isRecent: this.isRecentNote(note.IMPORT_DATE),
+      },
     }
   }
 
@@ -331,11 +326,11 @@ class NoteRepository extends BaseRepository {
    */
   isRecentNote(importDate) {
     if (!importDate) return false
-    
+
     const noteDate = new Date(importDate)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    
+
     return noteDate >= thirtyDaysAgo
   }
 
@@ -375,19 +370,19 @@ class NoteRepository extends BaseRepository {
       throw new Error('No note IDs provided for export')
     }
 
-    const notes = await Promise.all(noteIds.map(id => this.findById(id)))
-    const validNotes = notes.filter(note => note !== null)
+    const notes = await Promise.all(noteIds.map((id) => this.findById(id)))
+    const validNotes = notes.filter((note) => note !== null)
 
     switch (format.toLowerCase()) {
       case 'json':
         return JSON.stringify(validNotes, null, 2)
-      
+
       case 'csv':
         return this.convertToCSV(validNotes)
-      
+
       case 'text':
         return this.convertToText(validNotes)
-      
+
       default:
         throw new Error(`Unsupported export format: ${format}`)
     }
@@ -400,18 +395,18 @@ class NoteRepository extends BaseRepository {
    */
   convertToCSV(notes) {
     if (notes.length === 0) return ''
-    
+
     const headers = Object.keys(notes[0])
     const csvRows = [headers.join(',')]
-    
-    notes.forEach(note => {
-      const values = headers.map(header => {
+
+    notes.forEach((note) => {
+      const values = headers.map((header) => {
         const value = note[header]
         return typeof value === 'string' && value.includes(',') ? `"${value}"` : value
       })
       csvRows.push(values.join(','))
     })
-    
+
     return csvRows.join('\n')
   }
 
@@ -422,15 +417,17 @@ class NoteRepository extends BaseRepository {
    */
   convertToText(notes) {
     if (notes.length === 0) return ''
-    
-    return notes.map(note => {
-      return `Note ID: ${note.NOTE_ID}
+
+    return notes
+      .map((note) => {
+        return `Note ID: ${note.NOTE_ID}
 Category: ${note.CATEGORY_CHAR}
 Name: ${note.NAME_CHAR}
 Import Date: ${note.IMPORT_DATE}
 Content: ${note.NOTE_BLOB || 'No content'}
 ---`
-    }).join('\n\n')
+      })
+      .join('\n\n')
   }
 }
 

@@ -331,10 +331,6 @@ const getVisitDetails = () => {
   return details.join(' • ')
 }
 
-
-
-
-
 const onQuestionnaireSelected = ({ questionnaire }) => {
   activeQuestionnaire.value = questionnaire
   currentStep.value = 'questionnaire'

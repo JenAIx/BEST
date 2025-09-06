@@ -22,7 +22,7 @@ class SQLiteConnection {
       }
 
       this.filePath = filePath
-      
+
       // In Electron environment, we'll use the preload script
       // For now, we'll create a mock connection for development
       this.database = {
@@ -37,15 +37,15 @@ class SQLiteConnection {
           // Create a mock context object with the expected properties
           const mockContext = {
             lastID: Math.floor(Math.random() * 1000) + 1,
-            changes: 1
+            changes: 1,
           }
           callback(null, mockContext)
         },
         close: (callback) => {
           callback(null)
-        }
+        },
       }
-      
+
       this.isConnected = true
       console.log(`Connected to database: ${filePath}`)
       return true
@@ -69,7 +69,7 @@ class SQLiteConnection {
             else resolve()
           })
         })
-        
+
         this.database = null
         this.isConnected = false
         this.filePath = null
@@ -102,10 +102,10 @@ class SQLiteConnection {
           console.error('Params:', params)
           reject(err)
         } else {
-          resolve({ 
-            success: true, 
+          resolve({
+            success: true,
             data: rows || [],
-            rowCount: rows ? rows.length : 0
+            rowCount: rows ? rows.length : 0,
           })
         }
       })
@@ -127,9 +127,9 @@ class SQLiteConnection {
       // Create a mock context object with the expected properties
       const mockContext = {
         lastID: Math.floor(Math.random() * 1000) + 1,
-        changes: 1
+        changes: 1,
       }
-      
+
       this.database.run(sql, params, (err) => {
         if (err) {
           console.error('Command execution failed:', err)
@@ -137,11 +137,11 @@ class SQLiteConnection {
           console.error('Params:', params)
           reject(err)
         } else {
-          resolve({ 
-            success: true, 
+          resolve({
+            success: true,
             lastId: mockContext.lastID,
             changes: mockContext.changes,
-            message: 'Command executed successfully'
+            message: 'Command executed successfully',
           })
         }
       })
@@ -161,20 +161,20 @@ class SQLiteConnection {
     try {
       // Start transaction
       await this.executeCommand('BEGIN TRANSACTION')
-      
+
       const results = []
       for (const command of commands) {
         const result = await this.executeCommand(command.sql, command.params)
         results.push(result)
       }
-      
+
       // Commit transaction
       await this.executeCommand('COMMIT')
-      
+
       return {
         success: true,
         results,
-        message: 'Transaction completed successfully'
+        message: 'Transaction completed successfully',
       }
     } catch (error) {
       // Rollback on error

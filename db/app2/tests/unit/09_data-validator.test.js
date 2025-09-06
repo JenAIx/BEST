@@ -1,6 +1,6 @@
 /**
  * Unit Tests for DataValidator
- * 
+ *
  * Tests comprehensive data validation functionality including:
  * - Standard data type validation (text, numeric, date, blob)
  * - Range and limit validation
@@ -20,13 +20,13 @@ describe('DataValidator', () => {
   beforeEach(() => {
     // Mock repositories
     mockConceptRepository = {
-      findByConceptCode: vi.fn()
+      findByConceptCode: vi.fn(),
     }
-    
+
     mockCqlRepository = {
-      findByConceptCode: vi.fn()
+      findByConceptCode: vi.fn(),
     }
-    
+
     dataValidator = new DataValidator(mockConceptRepository, mockCqlRepository)
   })
 
@@ -37,9 +37,9 @@ describe('DataValidator', () => {
         text: 'T',
         date: 'D',
         blob: 'B',
-        boolean: 'BOOL'
+        boolean: 'BOOL',
       })
-      
+
       expect(dataValidator.standardRules.numeric).toBeDefined()
       expect(dataValidator.standardRules.text).toBeDefined()
       expect(dataValidator.standardRules.date).toBeDefined()
@@ -56,7 +56,7 @@ describe('DataValidator', () => {
     it('should validate numeric data successfully', async () => {
       const result = await dataValidator.validateData({
         value: 42,
-        type: 'numeric'
+        type: 'numeric',
       })
 
       expect(result.isValid).toBe(true)
@@ -68,7 +68,7 @@ describe('DataValidator', () => {
     it('should validate text data successfully', async () => {
       const result = await dataValidator.validateData({
         value: 'Hello World',
-        type: 'text'
+        type: 'text',
       })
 
       expect(result.isValid).toBe(true)
@@ -79,7 +79,7 @@ describe('DataValidator', () => {
     it('should validate date data successfully', async () => {
       const result = await dataValidator.validateData({
         value: '2024-01-15',
-        type: 'date'
+        type: 'date',
       })
 
       expect(result.isValid).toBe(true)
@@ -90,7 +90,7 @@ describe('DataValidator', () => {
     it('should validate blob data successfully', async () => {
       const result = await dataValidator.validateData({
         value: '{"key": "value"}',
-        type: 'blob'
+        type: 'blob',
       })
 
       expect(result.isValid).toBe(true)
@@ -101,7 +101,7 @@ describe('DataValidator', () => {
     it('should reject invalid data type', async () => {
       const result = await dataValidator.validateData({
         value: 'test',
-        type: 'invalid_type'
+        type: 'invalid_type',
       })
 
       expect(result.isValid).toBe(false)
@@ -113,18 +113,18 @@ describe('DataValidator', () => {
     it('should reject numeric value with string type', async () => {
       const result = await dataValidator.validateData({
         value: 123,
-        type: 'text'
+        type: 'text',
       })
 
       expect(result.isValid).toBe(false)
       expect(result.errors.length).toBeGreaterThan(0)
-      expect(result.errors.some(e => e.code === 'INVALID_TEXT_VALUE')).toBe(true)
+      expect(result.errors.some((e) => e.code === 'INVALID_TEXT_VALUE')).toBe(true)
     })
 
     it('should reject invalid date format', async () => {
       const result = await dataValidator.validateData({
         value: '15-01-2024',
-        type: 'date'
+        type: 'date',
       })
 
       expect(result.isValid).toBe(false)
@@ -136,10 +136,10 @@ describe('DataValidator', () => {
   describe('validateData - Standard Rules Validation', () => {
     it('should reject numeric value below minimum', async () => {
       dataValidator.setCustomRules('numeric', { min: 10 })
-      
+
       const result = await dataValidator.validateData({
         value: 5,
-        type: 'numeric'
+        type: 'numeric',
       })
 
       expect(result.isValid).toBe(false)
@@ -150,10 +150,10 @@ describe('DataValidator', () => {
 
     it('should reject numeric value above maximum', async () => {
       dataValidator.setCustomRules('numeric', { max: 100 })
-      
+
       const result = await dataValidator.validateData({
         value: 150,
-        type: 'numeric'
+        type: 'numeric',
       })
 
       expect(result.isValid).toBe(false)
@@ -164,10 +164,10 @@ describe('DataValidator', () => {
 
     it('should reject negative values when not allowed', async () => {
       dataValidator.setCustomRules('numeric', { allowNegative: false })
-      
+
       const result = await dataValidator.validateData({
         value: -5,
-        type: 'numeric'
+        type: 'numeric',
       })
 
       expect(result.isValid).toBe(false)
@@ -177,10 +177,10 @@ describe('DataValidator', () => {
 
     it('should reject zero values when not allowed', async () => {
       dataValidator.setCustomRules('numeric', { allowZero: false })
-      
+
       const result = await dataValidator.validateData({
         value: 0,
-        type: 'numeric'
+        type: 'numeric',
       })
 
       expect(result.isValid).toBe(false)
@@ -190,10 +190,10 @@ describe('DataValidator', () => {
 
     it('should reject text that is too short', async () => {
       dataValidator.setCustomRules('text', { minLength: 5 })
-      
+
       const result = await dataValidator.validateData({
         value: 'Hi',
-        type: 'text'
+        type: 'text',
       })
 
       expect(result.isValid).toBe(false)
@@ -204,10 +204,10 @@ describe('DataValidator', () => {
 
     it('should reject text that is too long', async () => {
       dataValidator.setCustomRules('text', { maxLength: 10 })
-      
+
       const result = await dataValidator.validateData({
         value: 'This is a very long text that exceeds the limit',
-        type: 'text'
+        type: 'text',
       })
 
       expect(result.isValid).toBe(false)
@@ -217,10 +217,10 @@ describe('DataValidator', () => {
 
     it('should reject empty text when not allowed', async () => {
       dataValidator.setCustomRules('text', { allowEmpty: false })
-      
+
       const result = await dataValidator.validateData({
         value: '',
-        type: 'text'
+        type: 'text',
       })
 
       expect(result.isValid).toBe(false)
@@ -230,10 +230,10 @@ describe('DataValidator', () => {
 
     it('should reject date that is too early', async () => {
       dataValidator.setCustomRules('date', { minDate: '2000-01-01' })
-      
+
       const result = await dataValidator.validateData({
         value: '1990-01-01',
-        type: 'date'
+        type: 'date',
       })
 
       expect(result.isValid).toBe(false)
@@ -243,10 +243,10 @@ describe('DataValidator', () => {
 
     it('should reject date that is too late', async () => {
       dataValidator.setCustomRules('date', { maxDate: '2020-12-31' })
-      
+
       const result = await dataValidator.validateData({
         value: '2024-01-01',
-        type: 'date'
+        type: 'date',
       })
 
       expect(result.isValid).toBe(false)
@@ -256,13 +256,13 @@ describe('DataValidator', () => {
 
     it('should reject future dates when not allowed', async () => {
       dataValidator.setCustomRules('date', { allowFuture: false })
-      
+
       const futureDate = new Date()
       futureDate.setFullYear(futureDate.getFullYear() + 1)
-      
+
       const result = await dataValidator.validateData({
         value: futureDate.toISOString().split('T')[0],
-        type: 'date'
+        type: 'date',
       })
 
       expect(result.isValid).toBe(false)
@@ -272,13 +272,13 @@ describe('DataValidator', () => {
 
     it('should reject past dates when not allowed', async () => {
       dataValidator.setCustomRules('date', { allowPast: false })
-      
+
       const pastDate = new Date()
       pastDate.setFullYear(pastDate.getFullYear() - 1)
-      
+
       const result = await dataValidator.validateData({
         value: pastDate.toISOString().split('T')[0],
-        type: 'date'
+        type: 'date',
       })
 
       expect(result.isValid).toBe(false)
@@ -288,12 +288,12 @@ describe('DataValidator', () => {
 
     it('should reject BLOB that is too large', async () => {
       dataValidator.setCustomRules('blob', { maxSize: 100 })
-      
+
       const largeText = 'A'.repeat(200)
-      
+
       const result = await dataValidator.validateData({
         value: largeText,
-        type: 'blob'
+        type: 'blob',
       })
 
       expect(result.isValid).toBe(false)
@@ -304,22 +304,22 @@ describe('DataValidator', () => {
 
   describe('validateData - Multiple Validation Issues', () => {
     it('should collect multiple validation errors', async () => {
-      dataValidator.setCustomRules('numeric', { 
-        min: 10, 
-        max: 100, 
+      dataValidator.setCustomRules('numeric', {
+        min: 10,
+        max: 100,
         allowNegative: false,
-        precision: 0
+        precision: 0,
       })
-      
+
       const result = await dataValidator.validateData({
         value: -5.5,
-        type: 'numeric'
+        type: 'numeric',
       })
 
       expect(result.isValid).toBe(false)
       expect(result.errors).toHaveLength(3)
-      
-      const errorCodes = result.errors.map(e => e.code)
+
+      const errorCodes = result.errors.map((e) => e.code)
       expect(errorCodes).toContain('VALUE_BELOW_MINIMUM')
       expect(errorCodes).toContain('NEGATIVE_VALUE_NOT_ALLOWED')
       expect(errorCodes).toContain('PRECISION_EXCEEDED')
@@ -327,11 +327,11 @@ describe('DataValidator', () => {
 
     it('should handle both errors and warnings', async () => {
       mockCqlRepository.findByConceptCode.mockResolvedValue([])
-      
+
       const result = await dataValidator.validateData({
         value: 'test',
         type: 'text',
-        conceptCode: 'TEST:123'
+        conceptCode: 'TEST:123',
       })
 
       expect(result.isValid).toBe(true)
@@ -346,15 +346,15 @@ describe('DataValidator', () => {
       const mockRule = {
         CQL_ID: 1,
         NAME_CHAR: 'Test Rule',
-        JSON_CHAR: JSON.stringify({ type: 'range', min: 10, max: 100 })
+        JSON_CHAR: JSON.stringify({ type: 'range', min: 10, max: 100 }),
       }
-      
+
       mockCqlRepository.findByConceptCode.mockResolvedValue([mockRule])
-      
+
       const result = await dataValidator.validateData({
         value: 5,
         type: 'numeric',
-        conceptCode: 'TEST:123'
+        conceptCode: 'TEST:123',
       })
 
       expect(result.isValid).toBe(false)
@@ -368,15 +368,15 @@ describe('DataValidator', () => {
       const mockRule = {
         CQL_ID: 1,
         NAME_CHAR: 'Broken Rule',
-        JSON_CHAR: 'invalid json'
+        JSON_CHAR: 'invalid json',
       }
-      
+
       mockCqlRepository.findByConceptCode.mockResolvedValue([mockRule])
-      
+
       const result = await dataValidator.validateData({
         value: 50,
         type: 'numeric',
-        conceptCode: 'TEST:123'
+        conceptCode: 'TEST:123',
       })
 
       expect(result.isValid).toBe(false)
@@ -387,11 +387,11 @@ describe('DataValidator', () => {
 
     it('should warn when no concept rules found', async () => {
       mockCqlRepository.findByConceptCode.mockResolvedValue([])
-      
+
       const result = await dataValidator.validateData({
         value: 50,
         type: 'numeric',
-        conceptCode: 'TEST:123'
+        conceptCode: 'TEST:123',
       })
 
       expect(result.isValid).toBe(true)
@@ -405,7 +405,7 @@ describe('DataValidator', () => {
       const result = await dataValidator.validateData({
         value: 200,
         type: 'numeric',
-        metadata: { field: 'AGE_IN_YEARS' }
+        metadata: { field: 'AGE_IN_YEARS' },
       })
 
       expect(result.isValid).toBe(false)
@@ -418,7 +418,7 @@ describe('DataValidator', () => {
       const result = await dataValidator.validateData({
         value: 400,
         type: 'numeric',
-        metadata: { field: 'BLOOD_PRESSURE' }
+        metadata: { field: 'BLOOD_PRESSURE' },
       })
 
       expect(result.isValid).toBe(false)
@@ -431,7 +431,7 @@ describe('DataValidator', () => {
       const result = await dataValidator.validateData({
         value: 300,
         type: 'numeric',
-        metadata: { field: 'HEART_RATE' }
+        metadata: { field: 'HEART_RATE' },
       })
 
       expect(result.isValid).toBe(false)
@@ -450,7 +450,7 @@ describe('DataValidator', () => {
 
       const result = await dataValidator.validateData({
         value: 'test',
-        type: 'text'
+        type: 'text',
       })
 
       expect(result.isValid).toBe(false)
@@ -482,7 +482,7 @@ describe('DataValidator', () => {
       it('should update validation rules for a data type', () => {
         const customRules = { min: 50, max: 150 }
         dataValidator.setCustomRules('numeric', customRules)
-        
+
         expect(dataValidator.standardRules.numeric.min).toBe(50)
         expect(dataValidator.standardRules.numeric.max).toBe(150)
       })
@@ -490,7 +490,7 @@ describe('DataValidator', () => {
       it('should preserve existing rules when updating', () => {
         const originalPrecision = dataValidator.standardRules.numeric.precision
         dataValidator.setCustomRules('numeric', { min: 100 })
-        
+
         expect(dataValidator.standardRules.numeric.min).toBe(100)
         expect(dataValidator.standardRules.numeric.precision).toBe(originalPrecision)
       })
@@ -515,10 +515,10 @@ describe('DataValidator', () => {
         // Modify some rules
         dataValidator.setCustomRules('numeric', { min: 100, max: 200 })
         dataValidator.setCustomRules('text', { maxLength: 500 })
-        
+
         // Reset to defaults
         dataValidator.resetToDefaults()
-        
+
         expect(dataValidator.standardRules.numeric.min).toBe(-Infinity)
         expect(dataValidator.standardRules.numeric.max).toBe(Infinity)
         expect(dataValidator.standardRules.text.maxLength).toBe(1000)
@@ -529,7 +529,7 @@ describe('DataValidator', () => {
   describe('executeBasicRule', () => {
     it('should validate range rules', () => {
       const ruleData = { type: 'range', min: 10, max: 100 }
-      
+
       expect(dataValidator.executeBasicRule(ruleData, 50).isValid).toBe(true)
       expect(dataValidator.executeBasicRule(ruleData, 5).isValid).toBe(false)
       expect(dataValidator.executeBasicRule(ruleData, 150).isValid).toBe(false)
@@ -537,14 +537,14 @@ describe('DataValidator', () => {
 
     it('should validate enum rules', () => {
       const ruleData = { type: 'enum', values: ['red', 'green', 'blue'] }
-      
+
       expect(dataValidator.executeBasicRule(ruleData, 'red').isValid).toBe(true)
       expect(dataValidator.executeBasicRule(ruleData, 'yellow').isValid).toBe(false)
     })
 
     it('should handle unknown rule types', () => {
       const ruleData = { type: 'unknown', someProperty: 'value' }
-      
+
       expect(dataValidator.executeBasicRule(ruleData, 'test').isValid).toBe(true)
     })
   })
@@ -552,39 +552,39 @@ describe('DataValidator', () => {
   describe('Integration Scenarios', () => {
     it('should handle complex validation scenario with multiple issues', async () => {
       // Set strict rules
-      dataValidator.setCustomRules('numeric', { 
-        min: 20, 
-        max: 80, 
+      dataValidator.setCustomRules('numeric', {
+        min: 20,
+        max: 80,
         allowNegative: false,
-        precision: 1
+        precision: 1,
       })
-      
-      dataValidator.setCustomRules('text', { 
-        minLength: 5, 
+
+      dataValidator.setCustomRules('text', {
+        minLength: 5,
         maxLength: 20,
-        allowEmpty: false
+        allowEmpty: false,
       })
-      
+
       // Mock concept rules
       const mockRule = {
         CQL_ID: 1,
         NAME_CHAR: 'Strict Range Rule',
-        JSON_CHAR: JSON.stringify({ type: 'range', min: 30, max: 70 })
+        JSON_CHAR: JSON.stringify({ type: 'range', min: 30, max: 70 }),
       }
       mockCqlRepository.findByConceptCode.mockResolvedValue([mockRule])
-      
+
       const result = await dataValidator.validateData({
         value: 15.55,
         type: 'numeric',
         conceptCode: 'TEST:123',
-        metadata: { field: 'HEART_RATE' }
+        metadata: { field: 'HEART_RATE' },
       })
 
       expect(result.isValid).toBe(false)
       expect(result.errors.length).toBeGreaterThan(1)
-      
+
       // Should have multiple validation errors
-      const errorCodes = result.errors.map(e => e.code)
+      const errorCodes = result.errors.map((e) => e.code)
       expect(errorCodes).toContain('VALUE_BELOW_MINIMUM')
       expect(errorCodes).toContain('PRECISION_EXCEEDED')
       expect(errorCodes).toContain('CONCEPT_RULE_VIOLATION')
@@ -593,23 +593,23 @@ describe('DataValidator', () => {
 
     it('should provide comprehensive error details for debugging', async () => {
       dataValidator.setCustomRules('numeric', { min: 100 })
-      
+
       const result = await dataValidator.validateData({
         value: 50,
         type: 'numeric',
-        conceptCode: 'TEST:123'
+        conceptCode: 'TEST:123',
       })
 
       expect(result.isValid).toBe(false)
       expect(result.errors).toHaveLength(1)
-      
+
       const error = result.errors[0]
       expect(error.code).toBe('VALUE_BELOW_MINIMUM')
       expect(error.field).toBe('value')
       expect(error.message).toContain('Value 50 is below minimum 100')
       expect(error.details).toContain('Numeric values must be >= 100')
       expect(error.severity).toBe('error')
-      
+
       // Check metadata
       expect(result.metadata.validatedAt).toBeDefined()
       expect(result.metadata.dataType).toBe('numeric')

@@ -87,14 +87,14 @@ const onSaveProfile = async (userData) => {
     $q.notify({
       type: 'positive',
       message: 'Profile updated successfully',
-      position: 'top'
+      position: 'top',
     })
   } catch (error) {
     console.error('Profile update error:', error)
     $q.notify({
       type: 'negative',
       message: `Failed to update profile: ${error.message || 'Unknown error'}`,
-      position: 'top'
+      position: 'top',
     })
   }
 }
@@ -109,7 +109,7 @@ const onPasswordSave = async (passwordData) => {
     $q.notify({
       type: 'positive',
       message: 'Password updated successfully',
-      position: 'top'
+      position: 'top',
     })
     showPasswordDialog.value = false
   } catch (error) {
@@ -117,7 +117,7 @@ const onPasswordSave = async (passwordData) => {
     $q.notify({
       type: 'negative',
       message: `Failed to update password: ${error.message || 'Unknown error'}`,
-      position: 'top'
+      position: 'top',
     })
   }
 }

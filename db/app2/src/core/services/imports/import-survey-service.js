@@ -373,16 +373,16 @@ export class ImportSurveyService extends BaseImportService {
     const results = []
 
     // Extract items from CDA sections
-    cda.section?.forEach(section => {
+    cda.section?.forEach((section) => {
       if (section.entry && Array.isArray(section.entry)) {
-        section.entry.forEach(entry => {
+        section.entry.forEach((entry) => {
           // Create item from CDA entry
           const item = {
             id: items.length + 1,
             label: entry.title || 'Unknown Question',
             type: typeof entry.value === 'number' ? 'number' : 'text',
             value: entry.value,
-            coding: entry.code?.[0]?.coding?.[0] || null
+            coding: entry.code?.[0]?.coding?.[0] || null,
           }
           items.push(item)
         })
@@ -390,15 +390,13 @@ export class ImportSurveyService extends BaseImportService {
     })
 
     // Extract results from Results Section
-    const resultsSection = cda.section?.find(s =>
-      s.title?.toLowerCase().includes('result')
-    )
+    const resultsSection = cda.section?.find((s) => s.title?.toLowerCase().includes('result'))
     if (resultsSection?.entry) {
-      resultsSection.entry.forEach(entry => {
+      resultsSection.entry.forEach((entry) => {
         results.push({
           label: entry.title || 'Result',
           value: entry.value,
-          coding: entry.code?.[0]?.coding?.[0] || null
+          coding: entry.code?.[0]?.coding?.[0] || null,
         })
       })
     }
@@ -415,8 +413,8 @@ export class ImportSurveyService extends BaseImportService {
       coding: {
         system: 'LOINC', // Default to LOINC
         code: '72133-2', // Default MoCA code, can be overridden
-        display: info.title || cda.title || 'Imported Questionnaire'
-      }
+        display: info.title || cda.title || 'Imported Questionnaire',
+      },
     }
   }
 

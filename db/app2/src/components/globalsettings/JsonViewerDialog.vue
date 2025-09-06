@@ -1,14 +1,5 @@
 <template>
-  <AppDialog
-    v-model="localShow"
-    title="JSON Metadata"
-    subtitle="Raw JSON structure"
-    size="lg"
-    persistent
-    :show-ok="false"
-    cancel-label="Close"
-    @cancel="onClose"
-  >
+  <AppDialog v-model="localShow" title="JSON Metadata" subtitle="Raw JSON structure" size="lg" persistent :show-ok="false" cancel-label="Close" @cancel="onClose">
     <pre class="json-viewer">{{ formattedJson }}</pre>
   </AppDialog>
 </template>
@@ -19,7 +10,7 @@ import AppDialog from '../shared/AppDialog.vue'
 
 const props = defineProps({
   modelValue: Boolean,
-  jsonContent: String
+  jsonContent: String,
 })
 
 const emit = defineEmits(['update:modelValue', 'close'])
@@ -30,7 +21,7 @@ const localShow = ref(false)
 // Computed
 const formattedJson = computed(() => {
   if (!props.jsonContent) return ''
-  
+
   try {
     return JSON.stringify(JSON.parse(props.jsonContent), null, 2)
   } catch {
@@ -45,9 +36,12 @@ const onClose = () => {
 }
 
 // Watch for external model changes
-watch(() => props.modelValue, (newValue) => {
-  localShow.value = newValue
-})
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    localShow.value = newValue
+  },
+)
 
 watch(localShow, (newValue) => {
   if (!newValue) {

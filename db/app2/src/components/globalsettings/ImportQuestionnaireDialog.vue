@@ -11,19 +11,12 @@
     @ok="onImport"
     @cancel="onCancel"
   >
-    <q-file
-      v-model="importFile"
-      label="Select questionnaire JSON file"
-      outlined
-      accept=".json"
-      @update:model-value="onFileSelected"
-      :rules="[(val) => !!val || 'Please select a file']"
-    >
+    <q-file v-model="importFile" label="Select questionnaire JSON file" outlined accept=".json" @update:model-value="onFileSelected" :rules="[(val) => !!val || 'Please select a file']">
       <template v-slot:prepend>
         <q-icon name="attach_file" />
       </template>
     </q-file>
-    
+
     <div v-if="importPreview" class="q-mt-md">
       <div class="text-subtitle2 q-mb-sm">Preview:</div>
       <q-card flat bordered class="bg-grey-1">
@@ -44,7 +37,7 @@ import { useQuasar } from 'quasar'
 import AppDialog from '../shared/AppDialog.vue'
 
 const props = defineProps({
-  modelValue: Boolean
+  modelValue: Boolean,
 })
 
 const emit = defineEmits(['update:modelValue', 'import-success', 'cancel'])
@@ -72,7 +65,7 @@ const onFileSelected = async (file) => {
     $q.notify({
       type: 'negative',
       message: 'Invalid JSON file',
-      caption: error.message
+      caption: error.message,
     })
     importPreview.value = null
   }
@@ -82,7 +75,7 @@ const onImport = () => {
   if (!importPreview.value) return
 
   importing.value = true
-  
+
   try {
     const questionnaire = importPreview.value
     const codeCD = questionnaire.short_title || `quest_${Date.now()}`
@@ -92,7 +85,7 @@ const onImport = () => {
     emit('import-success', {
       CODE_CD: codeCD,
       NAME_CHAR: nameChar,
-      LOOKUP_BLOB: lookupBlob
+      LOOKUP_BLOB: lookupBlob,
     })
 
     // Reset state
@@ -101,7 +94,7 @@ const onImport = () => {
     $q.notify({
       type: 'negative',
       message: 'Failed to import questionnaire',
-      caption: error.message
+      caption: error.message,
     })
   } finally {
     importing.value = false
@@ -120,14 +113,17 @@ const cancelImport = () => {
 }
 
 // Watch for external model changes
-watch(() => props.modelValue, (newValue) => {
-  localShow.value = newValue
-  if (newValue) {
-    importFile.value = null
-    importPreview.value = null
-    importing.value = false
-  }
-})
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    localShow.value = newValue
+    if (newValue) {
+      importFile.value = null
+      importPreview.value = null
+      importing.value = false
+    }
+  },
+)
 
 watch(localShow, (newValue) => {
   if (!newValue) {

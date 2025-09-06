@@ -91,9 +91,7 @@ describe('ObservationRepository', () => {
         CONCEPT_CD: 'SCTID: 273249006',
       }
 
-      await expect(observationRepository.createObservation(observationData)).rejects.toThrow(
-        'ENCOUNTER_NUM is required for observation creation',
-      )
+      await expect(observationRepository.createObservation(observationData)).rejects.toThrow('ENCOUNTER_NUM is required for observation creation')
     })
 
     it('should throw error if PATIENT_NUM is missing', async () => {
@@ -102,9 +100,7 @@ describe('ObservationRepository', () => {
         CONCEPT_CD: 'SCTID: 273249006',
       }
 
-      await expect(observationRepository.createObservation(observationData)).rejects.toThrow(
-        'PATIENT_NUM is required for observation creation',
-      )
+      await expect(observationRepository.createObservation(observationData)).rejects.toThrow('PATIENT_NUM is required for observation creation')
     })
 
     it('should throw error if CONCEPT_CD is missing', async () => {
@@ -113,9 +109,7 @@ describe('ObservationRepository', () => {
         PATIENT_NUM: 72,
       }
 
-      await expect(observationRepository.createObservation(observationData)).rejects.toThrow(
-        'CONCEPT_CD is required for observation creation',
-      )
+      await expect(observationRepository.createObservation(observationData)).rejects.toThrow('CONCEPT_CD is required for observation creation')
     })
   })
 
@@ -134,18 +128,13 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.findByPatientNum(72)
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE PATIENT_NUM = ?'),
-        [72],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE PATIENT_NUM = ?'), [72])
     })
   })
 
   describe('findByVisitNum', () => {
     it('should find observations by encounter number', async () => {
-      const mockObservations = [
-        { OBSERVATION_ID: 9397, ENCOUNTER_NUM: 244, CONCEPT_CD: 'SCTID: 273249006' },
-      ]
+      const mockObservations = [{ OBSERVATION_ID: 9397, ENCOUNTER_NUM: 244, CONCEPT_CD: 'SCTID: 273249006' }]
 
       mockConnection.executeQuery.mockResolvedValue({
         success: true,
@@ -155,10 +144,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.findByVisitNum(244)
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE ENCOUNTER_NUM = ?'),
-        [244],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE ENCOUNTER_NUM = ?'), [244])
     })
   })
 
@@ -174,10 +160,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.findByConceptCode('SCTID: 273249006')
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE CONCEPT_CD = ?'),
-        ['SCTID: 273249006'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE CONCEPT_CD = ?'), ['SCTID: 273249006'])
     })
   })
 
@@ -193,10 +176,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.findByCategory('surveyBEST')
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE CATEGORY_CHAR = ?'),
-        ['surveyBEST'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE CATEGORY_CHAR = ?'), ['surveyBEST'])
     })
   })
 
@@ -212,10 +192,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.findByValueType('N')
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE VALTYPE_CD = ?'),
-        ['N'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM OBSERVATION_FACT WHERE VALTYPE_CD = ?'), ['N'])
     })
   })
 
@@ -231,10 +208,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.findByNumericValueRange(30, 40)
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining("WHERE VALTYPE_CD = 'N' AND NVAL_NUM BETWEEN ? AND ?"),
-        [30, 40],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining("WHERE VALTYPE_CD = 'N' AND NVAL_NUM BETWEEN ? AND ?"), [30, 40])
     })
   })
 
@@ -250,10 +224,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.findByTextValue('SAMS')
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining("WHERE VALTYPE_CD = 'T' AND TVAL_CHAR LIKE ?"),
-        ['%SAMS%'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining("WHERE VALTYPE_CD = 'T' AND TVAL_CHAR LIKE ?"), ['%SAMS%'])
     })
   })
 
@@ -361,10 +332,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.getSurveyObservations('sams_1')
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining("WHERE CATEGORY_CHAR = 'surveyBEST'"),
-        ['%sams_1%'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining("WHERE CATEGORY_CHAR = 'surveyBEST'"), ['%sams_1%'])
     })
   })
 
@@ -389,10 +357,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.getPatientNumericSummary(72)
 
       expect(result).toEqual(mockSummary)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining("WHERE PATIENT_NUM = ? AND VALTYPE_CD = 'N'"),
-        [72],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining("WHERE PATIENT_NUM = ? AND VALTYPE_CD = 'N'"), [72])
     })
   })
 
@@ -413,9 +378,7 @@ describe('ObservationRepository', () => {
     it('should throw error for non-existent observation', async () => {
       vi.spyOn(observationRepository, 'findById').mockResolvedValue(null)
 
-      await expect(
-        observationRepository.updateObservation(999, { TVAL_CHAR: 'New' }),
-      ).rejects.toThrow('Observation with OBSERVATION_ID 999 not found')
+      await expect(observationRepository.updateObservation(999, { TVAL_CHAR: 'New' })).rejects.toThrow('Observation with OBSERVATION_ID 999 not found')
     })
   })
 
@@ -431,10 +394,7 @@ describe('ObservationRepository', () => {
       const result = await observationRepository.searchObservations('survey')
 
       expect(result).toEqual(mockObservations)
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE CATEGORY_CHAR LIKE ?'),
-        ['%survey%', '%survey%', '%survey%', '%survey%', '%survey%'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE CATEGORY_CHAR LIKE ?'), ['%survey%', '%survey%', '%survey%', '%survey%', '%survey%'])
     })
 
     it('should return empty array for empty search term', async () => {

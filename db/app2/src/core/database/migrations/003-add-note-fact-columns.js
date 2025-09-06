@@ -12,9 +12,9 @@ export const addNoteFactColumns = {
       try {
         const result = await connection.executeQuery(`PRAGMA table_info(${tableName})`)
         console.log(`PRAGMA table_info result:`, result)
-        
+
         if (result.success && result.data && Array.isArray(result.data)) {
-          const columns = result.data.map(col => col.name)
+          const columns = result.data.map((col) => col.name)
           console.log(`Found columns in ${tableName}:`, columns)
           const exists = columns.includes(columnName)
           console.log(`Checking if column '${columnName}' exists:`, exists)
@@ -33,7 +33,7 @@ export const addNoteFactColumns = {
       { name: 'SOURCESYSTEM_CD', type: 'TEXT' },
       { name: 'NOTE_TEXT', type: 'TEXT' },
       { name: 'PATIENT_NUM', type: 'INTEGER' },
-      { name: 'ENCOUNTER_NUM', type: 'INTEGER' }
+      { name: 'ENCOUNTER_NUM', type: 'INTEGER' },
     ]
 
     console.log('Starting NOTE_FACT column migration...')
@@ -64,7 +64,7 @@ export const addNoteFactColumns = {
       'CREATE INDEX IF NOT EXISTS idx_note_fact_patient_num ON NOTE_FACT(PATIENT_NUM)',
       'CREATE INDEX IF NOT EXISTS idx_note_fact_encounter_num ON NOTE_FACT(ENCOUNTER_NUM)',
       'CREATE INDEX IF NOT EXISTS idx_note_fact_sourcesystem_cd ON NOTE_FACT(SOURCESYSTEM_CD)',
-      'CREATE INDEX IF NOT EXISTS idx_note_fact_note_text ON NOTE_FACT(NOTE_TEXT)'
+      'CREATE INDEX IF NOT EXISTS idx_note_fact_note_text ON NOTE_FACT(NOTE_TEXT)',
     ]
 
     for (const indexSql of indexes) {
@@ -77,5 +77,5 @@ export const addNoteFactColumns = {
     }
 
     console.log('NOTE_FACT migration completed successfully!')
-  }
+  },
 }

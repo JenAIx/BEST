@@ -7,10 +7,7 @@
     "version": "1.0",
     "author": "System Export",
     "patientCount": 2,
-    "patientIds": [
-      "DEMO_PATIENT_01",
-      "DEMO_PATIENT_02"
-    ],
+    "patientIds": ["DEMO_PATIENT_01", "DEMO_PATIENT_02"],
     "options": {
       "includeVisits": true,
       "includeObservations": true,

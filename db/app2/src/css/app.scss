@@ -12,7 +12,9 @@ html {
 }
 
 // Ensure full height for app
-html, body, #q-app {
+html,
+body,
+#q-app {
   height: 100%;
 }
 
@@ -29,7 +31,7 @@ html, body, #q-app {
 ::-webkit-scrollbar-thumb {
   background: var(--color-secondary-light);
   border-radius: 4px;
-  
+
   &:hover {
     background: var(--color-secondary);
   }
@@ -62,7 +64,7 @@ html, body, #q-app {
 // Card hover effects
 .hover-card {
   transition: all 0.3s ease;
-  
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);

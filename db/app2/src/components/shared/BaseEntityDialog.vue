@@ -19,30 +19,14 @@
       <!-- Form Content -->
       <q-card-section class="q-pa-md" :style="contentStyle">
         <q-form ref="formRef" @submit.prevent="handleSubmit" class="q-gutter-md">
-          <slot 
-            :formData="localFormData" 
-            :isEditMode="isEditMode"
-            :hasChanges="hasChanges"
-            :isValid="isFormValid"
-            :validate="validateForm"
-          />
+          <slot :formData="localFormData" :isEditMode="isEditMode" :hasChanges="hasChanges" :isValid="isFormValid" :validate="validateForm" />
         </q-form>
       </q-card-section>
 
       <!-- Actions -->
       <q-card-actions align="right" class="q-pa-md">
-        <q-btn 
-          flat 
-          :label="cancelLabel" 
-          @click="handleCancel" 
-        />
-        <q-btn 
-          color="primary" 
-          :label="submitLabel" 
-          :loading="loading"
-          :disable="!canSubmit"
-          @click="handleSubmit" 
-        />
+        <q-btn flat :label="cancelLabel" @click="handleCancel" />
+        <q-btn color="primary" :label="submitLabel" :loading="loading" :disable="!canSubmit" @click="handleSubmit" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -56,71 +40,71 @@ import _ from 'lodash'
 const props = defineProps({
   modelValue: {
     type: Boolean,
-    default: false
+    default: false,
   },
   mode: {
     type: String,
     default: 'create',
-    validator: (value) => ['create', 'edit'].includes(value)
+    validator: (value) => ['create', 'edit'].includes(value),
   },
   entity: {
     type: Object,
-    default: () => ({})
+    default: () => ({}),
   },
   entityName: {
     type: String,
-    required: true
+    required: true,
   },
   icon: {
     type: String,
-    default: null
+    default: null,
   },
   size: {
     type: String,
     default: 'md',
-    validator: (value) => ['sm', 'md', 'lg', 'xl'].includes(value)
+    validator: (value) => ['sm', 'md', 'lg', 'xl'].includes(value),
   },
   loading: {
     type: Boolean,
-    default: false
+    default: false,
   },
   validationRules: {
     type: Object,
-    default: () => ({})
+    default: () => ({}),
   },
   customValidator: {
     type: Function,
-    default: null
+    default: null,
   },
   trackChanges: {
     type: Boolean,
-    default: true
+    default: true,
   },
   confirmCancel: {
     type: Boolean,
-    default: true
+    default: true,
   },
   // Allow parent to override labels
   createLabel: {
     type: String,
-    default: null
+    default: null,
   },
   editLabel: {
     type: String,
-    default: null
+    default: null,
   },
   createSubmitLabel: {
     type: String,
-    default: null
+    default: null,
   },
   editSubmitLabel: {
     type: String,
-    default: null
+    default: null,
   },
   cancelLabel: {
     type: String,
-    default: 'Cancel'
-  }
+    default: 'Cancel',
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'submit', 'cancel', 'change'])
@@ -138,13 +122,13 @@ const sizeStyles = {
   sm: 'min-width: 400px; max-width: 500px',
   md: 'min-width: 500px; max-width: 700px',
   lg: 'min-width: 700px; max-width: 900px',
-  xl: 'min-width: 900px; max-width: 1200px; width: 90vw'
+  xl: 'min-width: 900px; max-width: 1200px; width: 90vw',
 }
 
 // Computed properties
 const dialogVisible = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => emit('update:modelValue', value),
 })
 
 const isEditMode = computed(() => props.mode === 'edit')
@@ -189,28 +173,28 @@ const isFormValid = computed(() => {
   if (props.customValidator) {
     return props.customValidator(localFormData.value, isEditMode.value)
   }
-  
+
   // Check required fields from validation rules
   for (const [field, rules] of Object.entries(props.validationRules)) {
     const value = _.get(localFormData.value, field)
-    
+
     if (rules.required && !value) {
       return false
     }
-    
+
     if (rules.minLength && value && value.length < rules.minLength) {
       return false
     }
-    
+
     if (rules.pattern && value && !rules.pattern.test(value)) {
       return false
     }
-    
+
     if (rules.validator && !rules.validator(value)) {
       return false
     }
   }
-  
+
   return true
 })
 
@@ -246,19 +230,19 @@ const validateForm = async () => {
 
 const handleSubmit = async () => {
   if (!canSubmit.value) return
-  
+
   // Validate form if ref is available
   if (formRef.value) {
     const valid = await formRef.value.validate()
     if (!valid) return
   }
-  
+
   // Prepare submission data
   const submitData = {
     mode: props.mode,
-    data: _.cloneDeep(localFormData.value)
+    data: _.cloneDeep(localFormData.value),
   }
-  
+
   if (isEditMode.value) {
     // Include only changed fields for edit mode
     const changes = {}
@@ -270,7 +254,7 @@ const handleSubmit = async () => {
     submitData.changes = changes
     submitData.original = originalFormData.value
   }
-  
+
   emit('submit', submitData)
 }
 
@@ -280,7 +264,7 @@ const handleCancel = () => {
       title: 'Discard Changes?',
       message: 'You have unsaved changes. Are you sure you want to cancel?',
       cancel: true,
-      persistent: true
+      persistent: true,
     }).onOk(() => {
       dialogVisible.value = false
       emit('cancel')
@@ -292,24 +276,35 @@ const handleCancel = () => {
 }
 
 // Watchers
-watch(() => props.modelValue, (newValue) => {
-  if (newValue) {
-    initializeFormData()
-  }
-})
+watch(
+  () => props.modelValue,
+  (newValue) => {
+    if (newValue) {
+      initializeFormData()
+    }
+  },
+)
 
-watch(() => props.entity, () => {
-  if (props.modelValue) {
-    initializeFormData()
-  }
-}, { deep: true })
+watch(
+  () => props.entity,
+  () => {
+    if (props.modelValue) {
+      initializeFormData()
+    }
+  },
+  { deep: true },
+)
 
-watch(localFormData, (newValue, oldValue) => {
-  if (!_.isEqual(newValue, oldValue)) {
-    isDirty.value = true
-    emit('change', { data: newValue, hasChanges: hasChanges.value })
-  }
-}, { deep: true })
+watch(
+  localFormData,
+  (newValue, oldValue) => {
+    if (!_.isEqual(newValue, oldValue)) {
+      isDirty.value = true
+      emit('change', { data: newValue, hasChanges: hasChanges.value })
+    }
+  },
+  { deep: true },
+)
 
 // Initialize on mount if dialog is already open
 if (props.modelValue) {
@@ -321,7 +316,7 @@ defineExpose({
   validateForm,
   resetForm: initializeFormData,
   getFormData: () => localFormData.value,
-  hasChanges
+  hasChanges,
 })
 </script>
 

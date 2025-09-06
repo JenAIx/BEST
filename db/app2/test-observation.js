@@ -205,7 +205,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
 }
 
 // Test the function
-console.log('Testing generateObservationData function:');
-console.log('Generated observation 1:', JSON.stringify(generateObservationData(1, 1001, 1, '2024-01-15'), null, 2));
-console.log('\nGenerated observation 2:', JSON.stringify(generateObservationData(2, 1002, 2, '2024-01-16'), null, 2));
-console.log('\nGenerated observation 3:', JSON.stringify(generateObservationData(3, 1003, 3, '2024-01-17'), null, 2));
+console.log('Testing generateObservationData function:')
+console.log('Generated observation 1:', JSON.stringify(generateObservationData(1, 1001, 1, '2024-01-15'), null, 2))
+console.log('\nGenerated observation 2:', JSON.stringify(generateObservationData(2, 1002, 2, '2024-01-16'), null, 2))
+console.log('\nGenerated observation 3:', JSON.stringify(generateObservationData(3, 1003, 3, '2024-01-17'), null, 2))

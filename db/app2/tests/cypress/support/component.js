@@ -18,18 +18,15 @@ Cypress.Commands.add('mount', (component, options = {}) => {
     plugins: [Notify, Dialog],
     config: {
       notify: {},
-      dialog: {}
-    }
+      dialog: {},
+    },
   }
 
   return mount(component, {
     global: {
-      plugins: [
-        [Quasar, quasarConfig],
-        ...plugins
-      ]
+      plugins: [[Quasar, quasarConfig], ...plugins],
     },
-    ...mountingOptions
+    ...mountingOptions,
   })
 })
 

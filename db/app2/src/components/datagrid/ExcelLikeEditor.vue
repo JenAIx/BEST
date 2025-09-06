@@ -81,17 +81,13 @@
                   <!-- Filled questionnaire -->
                   <div v-if="getCellValue(row, concept)" class="questionnaire-content" @click="openQuestionnairePreview(row, concept)">
                     {{ getCellValue(row, concept) }}
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
-                      Click to view questionnaire data
-                    </q-tooltip>
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]"> Click to view questionnaire data </q-tooltip>
                   </div>
                   <!-- Empty questionnaire - clickable to fill -->
                   <div v-else class="questionnaire-empty" @click="openQuestionnaireFillDialog(row, concept)">
                     <q-icon name="add" size="16px" color="grey-5" />
                     <div class="empty-label">Add</div>
-                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]">
-                      Click to complete questionnaire
-                    </q-tooltip>
+                    <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]"> Click to complete questionnaire </q-tooltip>
                   </div>
                 </div>
                 <!-- Regular editable cell for other types -->
@@ -197,7 +193,6 @@ const selectedQuestionnaireData = ref(null)
 const showQuestionnaireFillDialog = ref(false)
 const selectedQuestionnaireFillData = ref(null)
 
-
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
 const observationConcepts = computed(() => dataGridStore?.observationConcepts || [])
@@ -269,7 +264,6 @@ const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
 const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
 
-
 // Batch operations (using store functions) - with defensive checks
 const refreshData = () => {
   if (dataGridStore?.refreshData) {
@@ -287,8 +281,6 @@ const handleColumnVisibilityUpdate = (...args) => {
     // Individual column update: (columnCode, visible)
     const [columnCode, visible] = args
     dataGridStore.updateColumnVisibility(columnCode, visible)
-
-
   } else if (args.length === 1 && typeof args[0] === 'object') {
     // Batch update: (visibilityObject)
     const visibilityObject = args[0]
@@ -370,7 +362,7 @@ const openVisitEditDialog = async (row) => {
       PATIENT_CD: row.patientId,
       patientId: row.patientId,
       patientName: row.patientName,
-      
+
       // Visit data structure that EditVisitDialog expects
       visit: {
         // Raw database fields that EditVisitDialog directly accesses
@@ -383,12 +375,12 @@ const openVisitEditDialog = async (row) => {
         INOUT_CD: visitData.INOUT_CD,
         SOURCESYSTEM_CD: visitData.SOURCESYSTEM_CD,
         VISIT_BLOB: visitData.VISIT_BLOB, // Raw JSON blob for EditVisitDialog to parse
-        
+
         // Additional fields for compatibility
         encounterNum: visitData.ENCOUNTER_NUM,
         visitType: visitType,
         notes: visitNotes,
-      }
+      },
     }
 
     showVisitEditDialog.value = true
@@ -409,9 +401,8 @@ const openVisitEditDialog = async (row) => {
         hasVisitProperty: !!selectedVisitData.value.visit,
         visitKeys: selectedVisitData.value.visit ? Object.keys(selectedVisitData.value.visit) : null,
         patientKeys: Object.keys(selectedVisitData.value),
-      }
+      },
     })
-
   } catch (error) {
     logger.error('Failed to load visit data for edit dialog', error, {
       patientId: row.patientId,
@@ -466,7 +457,7 @@ const findQuestionnaireNameInColumn = (conceptCode) => {
   try {
     // Look through all table rows to find a filled questionnaire for this concept
     const rows = tableRows.value || []
-    
+
     for (const row of rows) {
       const cellValue = getCellValue(row, { code: conceptCode })
       if (cellValue && cellValue.trim() !== '') {
@@ -474,12 +465,12 @@ const findQuestionnaireNameInColumn = (conceptCode) => {
           conceptCode,
           questionnaireName: cellValue,
           patientId: row.patientId,
-          encounterNum: row.encounterNum
+          encounterNum: row.encounterNum,
         })
         return cellValue.trim()
       }
     }
-    
+
     logger.info('No filled questionnaire found in column', { conceptCode })
     return null
   } catch (error) {
@@ -497,14 +488,14 @@ const getAvailableQuestionnaires = async () => {
        AND COLUMN_CD = 'QUESTIONNAIRE'
        AND LOOKUP_BLOB IS NOT NULL
        ORDER BY NAME_CHAR`,
-      []
+      [],
     )
 
     if (templateResult.success) {
-      return templateResult.data.map(t => ({
+      return templateResult.data.map((t) => ({
         name: t.NAME_CHAR,
         code: t.CODE_CD,
-        blob: t.LOOKUP_BLOB
+        blob: t.LOOKUP_BLOB,
       }))
     }
 
@@ -528,12 +519,12 @@ const getQuestionnaireTemplateByName = async (questionnaireName) => {
        AND (NAME_CHAR = ? OR NAME_CHAR LIKE ?)
        AND LOOKUP_BLOB IS NOT NULL
        LIMIT 1`,
-      [questionnaireName, `%${questionnaireName}%`]
+      [questionnaireName, `%${questionnaireName}%`],
     )
 
     if (templateResult.success && templateResult.data.length > 0) {
       const template = templateResult.data[0]
-      
+
       try {
         const parsed = JSON.parse(template.LOOKUP_BLOB)
         logger.info('Found matching questionnaire template', {
@@ -542,7 +533,7 @@ const getQuestionnaireTemplateByName = async (questionnaireName) => {
           code: template.CODE_CD,
           title: parsed.title,
           itemCount: parsed.items?.length || 0,
-          firstItemType: parsed.items?.[0]?.type
+          firstItemType: parsed.items?.[0]?.type,
         })
         return template.LOOKUP_BLOB
       } catch (parseError) {
@@ -553,7 +544,6 @@ const getQuestionnaireTemplateByName = async (questionnaireName) => {
 
     logger.warn('No template found for questionnaire name', { questionnaireName })
     return null
-
   } catch (error) {
     logger.error('Failed to get questionnaire template by name', error, { questionnaireName })
     return null
@@ -577,16 +567,16 @@ const createNewQuestionnaireColumn = async (questionnaireName, baseConceptCode) 
       [
         newConceptCode,
         `${questionnaireName} - Instance`,
-        JSON.stringify({ 
+        JSON.stringify({
           questionnaireName: questionnaireName,
           baseConceptCode: baseConceptCode,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
         }),
         'SYSTEM',
         1,
         'Q',
-        'CAT_ASSESSMENT'
-      ]
+        'CAT_ASSESSMENT',
+      ],
     )
 
     if (!conceptResult.success) {
@@ -597,11 +587,11 @@ const createNewQuestionnaireColumn = async (questionnaireName, baseConceptCode) 
     const newConcept = {
       CONCEPT_CD: newConceptCode,
       NAME_CHAR: `${questionnaireName} - Instance`,
-      VALTYPE_CD: 'Q'
+      VALTYPE_CD: 'Q',
     }
 
     const addResult = dataGridStore.addConceptToGrid(newConcept)
-    
+
     if (!addResult.success) {
       throw new Error('Failed to add concept to grid')
     }
@@ -609,15 +599,14 @@ const createNewQuestionnaireColumn = async (questionnaireName, baseConceptCode) 
     logger.info('New questionnaire column created successfully', {
       newConceptCode,
       questionnaireName,
-      addResult
+      addResult,
     })
 
     return newConceptCode
-
   } catch (error) {
     logger.error('Failed to create new questionnaire column', error, {
       questionnaireName,
-      baseConceptCode
+      baseConceptCode,
     })
     throw error
   }
@@ -635,11 +624,11 @@ const openQuestionnaireFillDialog = async (row, concept) => {
     // Step 1: Find what questionnaire name is used in this column
     let questionnaireName = findQuestionnaireNameInColumn(concept.code)
     let targetConceptCode = concept.code
-    
+
     if (!questionnaireName) {
       // No existing questionnaire found - show selection dialog
       const availableQuestionnaires = await getAvailableQuestionnaires()
-      
+
       if (availableQuestionnaires.length === 0) {
         $q.notify({
           type: 'warning',
@@ -652,20 +641,20 @@ const openQuestionnaireFillDialog = async (row, concept) => {
       // For now, use the first available questionnaire
       // TODO: In future, show selection dialog for user to choose
       questionnaireName = availableQuestionnaires[0].name
-      
+
       // Create new column for this questionnaire type
       targetConceptCode = await createNewQuestionnaireColumn(questionnaireName, concept.code)
-      
+
       logger.info('Created new questionnaire column', {
         questionnaireName,
         originalConceptCode: concept.code,
-        newConceptCode: targetConceptCode
+        newConceptCode: targetConceptCode,
       })
     }
 
     // Step 2: Get clean template for this questionnaire name from CODE_LOOKUP
     const questionnaireBlob = await getQuestionnaireTemplateByName(questionnaireName)
-    
+
     if (!questionnaireBlob) {
       $q.notify({
         type: 'warning',
@@ -698,7 +687,6 @@ const openQuestionnaireFillDialog = async (row, concept) => {
       hasBlobData: !!questionnaireBlob,
       blobLength: questionnaireBlob?.length || 0,
     })
-
   } catch (error) {
     logger.error('Failed to open questionnaire fill dialog', error, {
       patientId: row.patientId,
@@ -758,7 +746,6 @@ const openQuestionnairePreview = async (row, concept) => {
       conceptName: concept.name,
       hasValue: !!cellValue,
     })
-
   } catch (error) {
     logger.error('Failed to open questionnaire preview', error, {
       patientId: row.patientId,
@@ -784,8 +771,6 @@ watch(
   { deep: true },
 )
 
-
-
 // Lifecycle
 onMounted(async () => {
   // Initialize stores
@@ -798,8 +783,6 @@ onMounted(async () => {
 
   await loadPatientData()
 })
-
-
 </script>
 
 <style lang="scss" scoped>
@@ -948,26 +931,26 @@ onMounted(async () => {
         // Override EditableCell alignment for all value types
         :deep(.editable-cell) {
           text-align: center !important;
-          
+
           &.value-type-n {
             text-align: center !important; // Override right alignment for numeric values
           }
-          
+
           .cell-display {
             justify-content: center;
             text-align: center;
-            
+
             .cell-value {
               text-align: center;
             }
           }
-          
+
           .cell-edit {
             .cell-input {
               :deep(.q-field__native) {
                 text-align: center !important;
               }
-              
+
               :deep(input) {
                 text-align: center !important;
               }

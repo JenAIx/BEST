@@ -1,7 +1,7 @@
 /**
  * SNOMED CT API Service
  * Provides search functionality against SNOMED CT terminology servers
- * 
+ *
  * Supports multiple SNOMED CT API endpoints:
  * - Snowstorm (open source SNOMED CT terminology server)
  * - NHS Digital SNOMED CT Browser API
@@ -18,17 +18,17 @@ class SnomedApiService {
       // CSIRO OntoServer - Working FHIR endpoint with full SNOMED CT access
       fhirBase: 'https://r4.ontoserver.csiro.au/fhir',
       // Alternative: SNOMED tools dev server
-      fhirAlt: 'https://dev-fhir.snomedtools.org/fhir'
+      fhirAlt: 'https://dev-fhir.snomedtools.org/fhir',
     }
-    
+
     this.defaultConfig = {
       timeout: 10000,
       headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+      },
     }
-    
+
     // Alternative endpoints (uncomment and configure as needed)
     this.alternativeEndpoints = {
       // NHS Digital SNOMED CT Browser (UK focused)
@@ -36,14 +36,12 @@ class SnomedApiService {
       //   baseURL: 'https://ontology.nhs.uk/authoring/fhir',
       //   apiKey: process.env.NHS_SNOMED_API_KEY
       // },
-      
       // Custom Snowstorm instance
       // custom: {
       //   baseURL: process.env.CUSTOM_SNOMED_ENDPOINT || 'https://your-snowstorm-server.com',
       //   apiKey: process.env.CUSTOM_SNOMED_API_KEY
       // }
     }
-    
   }
 
   /**
@@ -57,7 +55,7 @@ class SnomedApiService {
    */
   async searchConcepts(searchTerm, options = {}) {
     loggingService.debug('SnomedApiService', 'searchConcepts called', { searchTerm })
-    
+
     if (!searchTerm || typeof searchTerm !== 'string' || searchTerm.length < 3) {
       return {
         success: false,
@@ -65,32 +63,29 @@ class SnomedApiService {
         data: [],
         total: 0,
         searchTerm,
-        options
+        options,
       }
     }
 
     try {
-      const {
-        limit = 50,
-        skipTo = 0
-      } = options
+      const { limit = 50, skipTo = 0 } = options
 
       // Use FHIR ValueSet $expand operation with filter (new working approach)
       const url = `${this.endpoints.fhirBase}/ValueSet/$expand`
       const params = {
-        'url': 'http://snomed.info/sct?fhir_vs',
-        'filter': searchTerm,
-        'count': limit,
-        'offset': skipTo,
-        'includeDesignations': 'true'
+        url: 'http://snomed.info/sct?fhir_vs',
+        filter: searchTerm,
+        count: limit,
+        offset: skipTo,
+        includeDesignations: 'true',
       }
-      
+
       loggingService.debug('SnomedApiService', 'Making FHIR Search request', { url, params })
 
       // Direct axios call (webSecurity disabled in Electron allows external requests)
-      const response = await axios.get(url, { 
+      const response = await axios.get(url, {
         ...this.defaultConfig,
-        params
+        params,
       })
 
       if (response && response.data && response.data.expansion) {
@@ -100,7 +95,7 @@ class SnomedApiService {
           data: concepts,
           total: response.data.expansion.total || concepts.length,
           searchTerm,
-          options
+          options,
         }
       } else {
         return {
@@ -109,7 +104,7 @@ class SnomedApiService {
           data: [],
           total: 0,
           searchTerm,
-          options
+          options,
         }
       }
     } catch (error) {
@@ -120,7 +115,7 @@ class SnomedApiService {
         data: [],
         total: 0,
         searchTerm,
-        options
+        options,
       }
     }
   }
@@ -132,12 +127,12 @@ class SnomedApiService {
    */
   async query(snomedId) {
     loggingService.debug('SnomedApiService', 'query called', { snomedId })
-    
+
     if (!snomedId) {
       return {
         success: false,
         error: 'SNOMED ID is required',
-        data: null
+        data: null,
       }
     }
 
@@ -145,27 +140,27 @@ class SnomedApiService {
       // Use FHIR CodeSystem $lookup operation
       const url = `${this.endpoints.fhirBase}/CodeSystem/$lookup`
       const params = {
-        'system': 'http://snomed.info/sct',
-        'code': snomedId.toString()
+        system: 'http://snomed.info/sct',
+        code: snomedId.toString(),
       }
-      
-      const response = await axios.get(url, { 
+
+      const response = await axios.get(url, {
         ...this.defaultConfig,
-        params
+        params,
       })
 
       if (response && response.data && response.data.parameter) {
         return {
           success: true,
           data: this.transformFhirLookupResult(response.data),
-          conceptId: snomedId
+          conceptId: snomedId,
         }
       } else {
         return {
           success: false,
           error: 'No data returned',
           data: null,
-          conceptId: snomedId
+          conceptId: snomedId,
         }
       }
     } catch (error) {
@@ -174,7 +169,7 @@ class SnomedApiService {
         success: false,
         error: this.handleApiError(error).message,
         data: null,
-        conceptId: snomedId
+        conceptId: snomedId,
       }
     }
   }
@@ -188,19 +183,19 @@ class SnomedApiService {
     if (!snomedId) return null
 
     try {
-      // Use FHIR CodeSystem $lookup with property request for parent relationships  
+      // Use FHIR CodeSystem $lookup with property request for parent relationships
       const url = `${this.endpoints.fhirBase}/CodeSystem/$lookup`
       const params = {
-        'system': 'http://snomed.info/sct',
-        'code': snomedId.toString(),
-        'property': 'parent' // Get parent relationships
+        system: 'http://snomed.info/sct',
+        code: snomedId.toString(),
+        property: 'parent', // Get parent relationships
       }
-      
-      const response = await axios.get(url, { 
+
+      const response = await axios.get(url, {
         ...this.defaultConfig,
-        params
+        params,
       })
-      
+
       if (response && response.data && response.data.parameter) {
         return this.transformFhirLookupToOldFormat(response.data)
       } else {
@@ -219,7 +214,7 @@ class SnomedApiService {
    */
   async resolve(snomedId) {
     loggingService.debug('SnomedApiService', 'resolve called', { snomedId })
-    
+
     if (!snomedId || (typeof snomedId !== 'number' && typeof snomedId !== 'string')) {
       return null
     }
@@ -234,12 +229,12 @@ class SnomedApiService {
       let url = `${conceptId}`
       let parentId = this._getParent(res)
       let cc = 0
-      
+
       // Build path by traversing up the hierarchy (like original implementation)
       while (parentId !== undefined && cc < 10) {
         cc++ // safety break
         url = `${parentId}\\${url}`
-        
+
         let parentRes = await this._queryFull(parentId)
         if (parentRes) {
           parentId = this._getParent(parentRes)
@@ -263,7 +258,7 @@ class SnomedApiService {
    */
   _getParent(conceptData) {
     if (!conceptData || !conceptData.relationships) return undefined
-    
+
     const relationships = conceptData.relationships
     if (relationships.length > 0) {
       // Get the first parent's destination ID (like original implementation)
@@ -276,7 +271,7 @@ class SnomedApiService {
   }
 
   /**
-   * Get concept descriptions (synonyms) 
+   * Get concept descriptions (synonyms)
    * @param {string} conceptId - SNOMED CT concept ID
    * @returns {Promise<Array>} Array of descriptions
    */
@@ -285,14 +280,14 @@ class SnomedApiService {
       // Use FHIR CodeSystem $lookup with includeDesignations
       const url = `${this.endpoints.fhirBase}/CodeSystem/$lookup`
       const params = {
-        'system': 'http://snomed.info/sct',
-        'code': conceptId.toString(),
-        'includeDesignations': 'true'
+        system: 'http://snomed.info/sct',
+        code: conceptId.toString(),
+        includeDesignations: 'true',
       }
-      
-      const response = await axios.get(url, { 
+
+      const response = await axios.get(url, {
         ...this.defaultConfig,
-        params
+        params,
       })
 
       if (response && response.data && response.data.parameter) {
@@ -300,13 +295,13 @@ class SnomedApiService {
         return {
           success: true,
           data: result.designations || [],
-          conceptId
+          conceptId,
         }
       } else {
         return {
           success: true,
           data: [],
-          conceptId
+          conceptId,
         }
       }
     } catch (error) {
@@ -315,7 +310,7 @@ class SnomedApiService {
         success: false,
         error: this.handleApiError(error).message,
         data: [],
-        conceptId
+        conceptId,
       }
     }
   }
@@ -327,14 +322,14 @@ class SnomedApiService {
    * @returns {Array} Transformed concept results
    */
   transformFhirResults(concepts) {
-    return concepts.map(concept => ({
+    return concepts.map((concept) => ({
       code: concept.code,
       display: concept.display,
       preferredTerm: concept.display,
       fsn: concept.display, // FHIR doesn't separate FSN in expansion
       active: true, // FHIR expansion only returns active concepts by default
       sourceSystem: 'SNOMED-CT',
-      system: concept.system
+      system: concept.system,
     }))
   }
 
@@ -352,12 +347,12 @@ class SnomedApiService {
       fsn: null,
       active: true,
       sourceSystem: 'SNOMED-CT',
-      designations: []
+      designations: [],
     }
 
     // Extract parameters from FHIR response
     if (lookupResult.parameter) {
-      lookupResult.parameter.forEach(param => {
+      lookupResult.parameter.forEach((param) => {
         switch (param.name) {
           case 'code':
             result.code = param.valueCode
@@ -369,12 +364,12 @@ class SnomedApiService {
           case 'designation':
             if (param.part) {
               const designation = {}
-              param.part.forEach(part => {
+              param.part.forEach((part) => {
                 if (part.name === 'value') designation.value = part.valueString
                 if (part.name === 'use') designation.use = part.valueCoding
               })
               result.designations.push(designation)
-              
+
               // Check if this is FSN
               if (designation.use?.code === '900000000000003001') {
                 result.fsn = designation.value
@@ -397,24 +392,24 @@ class SnomedApiService {
   transformFhirLookupToOldFormat(fhirResult) {
     const result = {
       conceptId: null,
-      relationships: []
+      relationships: [],
     }
 
     if (fhirResult.parameter) {
-      fhirResult.parameter.forEach(param => {
+      fhirResult.parameter.forEach((param) => {
         if (param.name === 'code') {
           result.conceptId = param.valueCode
         }
         if (param.name === 'property' && param.part) {
           // Handle property parameters that contain parent relationships
-          const propCode = param.part.find(p => p.name === 'code')?.valueCode
-          const propValue = param.part.find(p => p.name === 'value')?.valueCode
-          
+          const propCode = param.part.find((p) => p.name === 'code')?.valueCode
+          const propValue = param.part.find((p) => p.name === 'value')?.valueCode
+
           if (propCode === 'parent' && propValue) {
             // Create relationship in old format (use string like FHIR returns)
             result.relationships.push({
               destinationId: propValue, // Keep as string initially
-              type: 'IS-A'
+              type: 'IS-A',
             })
           }
         }
@@ -433,11 +428,11 @@ class SnomedApiService {
   transformDescriptionResults(descriptions) {
     // Group descriptions by concept to avoid duplicates
     const conceptMap = new Map()
-    
-    descriptions.forEach(desc => {
+
+    descriptions.forEach((desc) => {
       const conceptId = desc.concept?.conceptId || desc.conceptId
       if (!conceptId) return
-      
+
       if (!conceptMap.has(conceptId)) {
         conceptMap.set(conceptId, {
           code: conceptId,
@@ -450,18 +445,18 @@ class SnomedApiService {
           sourceSystem: 'SNOMED-CT',
           effectiveTime: desc.concept?.effectiveTime,
           released: desc.concept?.released,
-          descriptions: [desc]
+          descriptions: [desc],
         })
       } else {
         // Add additional descriptions for the same concept
         const existing = conceptMap.get(conceptId)
         existing.descriptions.push(desc)
-        
+
         // Use FSN if this description is FSN
         if (desc.type?.conceptId === '900000000000003001') {
           existing.fsn = desc.term
         }
-        
+
         // Use preferred term if this is PT
         if (desc.type?.conceptId === '900000000000013009') {
           existing.preferredTerm = desc.term
@@ -469,7 +464,7 @@ class SnomedApiService {
         }
       }
     })
-    
+
     return Array.from(conceptMap.values())
   }
 
@@ -478,7 +473,7 @@ class SnomedApiService {
    * @private
    */
   transformConceptResults(concepts) {
-    return concepts.map(concept => ({
+    return concepts.map((concept) => ({
       code: concept.conceptId || concept.id,
       display: concept.pt?.term || concept.preferredTerm || concept.fsn?.term || concept.name,
       fsn: concept.fsn?.term || concept.fullySpecifiedName,
@@ -490,7 +485,7 @@ class SnomedApiService {
       // Additional metadata
       effectiveTime: concept.effectiveTime,
       released: concept.released,
-      releasedEffectiveTime: concept.releasedEffectiveTime
+      releasedEffectiveTime: concept.releasedEffectiveTime,
     }))
   }
 
@@ -508,7 +503,7 @@ class SnomedApiService {
       definitionStatus: concept.definitionStatus?.conceptId || concept.definitionStatusId,
       descriptions: concept.descriptions?.items || concept.descriptions || [],
       relationships: concept.relationships?.items || concept.relationships || [],
-      sourceSystem: 'SNOMED-CT'
+      sourceSystem: 'SNOMED-CT',
     }
   }
 
@@ -520,7 +515,7 @@ class SnomedApiService {
     if (error.response) {
       const status = error.response.status
       const statusText = error.response.statusText
-      
+
       switch (status) {
         case 400:
           return new Error('Invalid search parameters provided to SNOMED CT API')
@@ -547,7 +542,7 @@ class SnomedApiService {
   /**
    * Alias for searchConcepts to match original API structure
    * @param {string} searchTerm - Search term
-   * @param {Object} options - Search options  
+   * @param {Object} options - Search options
    * @returns {Promise<Object>} Search results
    */
   async queryby_string(searchTerm, options = {}) {
@@ -565,13 +560,13 @@ class SnomedApiService {
       return {
         success: result.success,
         message: result.success ? 'SNOMED CT API connection successful' : 'SNOMED CT API connection failed',
-        endpoint: this.endpoints.fhirBase
+        endpoint: this.endpoints.fhirBase,
       }
     } catch (error) {
       return {
         success: false,
         message: `SNOMED CT API connection failed: ${error.message}`,
-        endpoint: this.endpoints.fhirBase
+        endpoint: this.endpoints.fhirBase,
       }
     }
   }
@@ -589,15 +584,15 @@ class SnomedApiService {
         data: {
           message: testResult.message,
           endpoints: this.endpoints,
-          version: 'SNOMED CT International Edition via FHIR R4'
+          version: 'SNOMED CT International Edition via FHIR R4',
         },
-        endpoint: this.endpoints.fhirBase
+        endpoint: this.endpoints.fhirBase,
       }
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        endpoint: this.endpoints.fhirBase
+        endpoint: this.endpoints.fhirBase,
       }
     }
   }
@@ -608,7 +603,7 @@ const snomedApiService = new SnomedApiService()
 
 // Export convenience functions that match original API structure
 export const resolve = (snomedId) => snomedApiService.resolve(snomedId)
-export const query = (snomedId) => snomedApiService.query(snomedId) 
+export const query = (snomedId) => snomedApiService.query(snomedId)
 export const queryby_string = (searchTerm) => snomedApiService.searchConcepts(searchTerm)
 
 export default snomedApiService

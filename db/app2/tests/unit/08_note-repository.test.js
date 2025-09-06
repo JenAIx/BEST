@@ -82,10 +82,7 @@ describe('NoteRepository', () => {
 
       await noteRepository.createNote(noteData)
 
-      expect(mockConnection.executeCommand).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO NOTE_FACT'),
-        expect.arrayContaining([5]),
-      )
+      expect(mockConnection.executeCommand).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO NOTE_FACT'), expect.arrayContaining([5]))
     })
   })
 
@@ -103,10 +100,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.findByCategory('Clinical')
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE CATEGORY_CHAR = ?'),
-        ['Clinical'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE CATEGORY_CHAR = ?'), ['Clinical'])
       expect(result).toEqual(mockNotes)
     })
 
@@ -132,10 +126,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.findByName('Progress')
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE NAME_CHAR LIKE ?'),
-        ['%Progress%'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE NAME_CHAR LIKE ?'), ['%Progress%'])
       expect(result).toEqual(mockNotes)
     })
   })
@@ -151,10 +142,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.findByDateRange('2024-01-01', '2024-01-31')
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE IMPORT_DATE BETWEEN ? AND ?'),
-        ['2024-01-01', '2024-01-31'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE IMPORT_DATE BETWEEN ? AND ?'), ['2024-01-01', '2024-01-31'])
       expect(result).toEqual(mockNotes)
     })
   })
@@ -170,9 +158,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.findWithBlobContent()
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE NOTE_BLOB IS NOT NULL'),
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE NOTE_BLOB IS NOT NULL'))
       expect(result).toEqual(mockNotes)
     })
   })
@@ -188,10 +174,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.searchNotes('Progress')
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE CATEGORY_CHAR LIKE ?'),
-        ['%Progress%', '%Progress%', '%Progress%'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE CATEGORY_CHAR LIKE ?'), ['%Progress%', '%Progress%', '%Progress%'])
       expect(result).toEqual(mockNotes)
     })
 
@@ -241,16 +224,11 @@ describe('NoteRepository', () => {
         endDate: '2024-01-31',
       }
 
-      mockConnection.executeQuery
-        .mockResolvedValueOnce({ success: true, data: [{ count: 5 }] })
-        .mockResolvedValueOnce({ success: true, data: [] })
+      mockConnection.executeQuery.mockResolvedValueOnce({ success: true, data: [{ count: 5 }] }).mockResolvedValueOnce({ success: true, data: [] })
 
       await noteRepository.getNotesPaginated(1, 10, criteria)
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('AND CATEGORY_CHAR = ?'),
-        expect.arrayContaining(['Clinical', '%Progress%', '2024-01-01', '2024-01-31']),
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('AND CATEGORY_CHAR = ?'), expect.arrayContaining(['Clinical', '%Progress%', '2024-01-01', '2024-01-31']))
     })
 
     it('should handle database errors gracefully', async () => {
@@ -320,10 +298,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.updateNote(1, updateData)
 
-      expect(mockConnection.executeCommand).toHaveBeenCalledWith(
-        expect.stringContaining('UPDATE NOTE_FACT SET'),
-        expect.arrayContaining(['Updated Note', 1]),
-      )
+      expect(mockConnection.executeCommand).toHaveBeenCalledWith(expect.stringContaining('UPDATE NOTE_FACT SET'), expect.arrayContaining(['Updated Note', 1]))
       expect(result).toBe(true)
     })
 
@@ -333,9 +308,7 @@ describe('NoteRepository', () => {
         data: [],
       })
 
-      await expect(noteRepository.updateNote(999, {})).rejects.toThrow(
-        'Note with NOTE_ID 999 not found',
-      )
+      await expect(noteRepository.updateNote(999, {})).rejects.toThrow('Note with NOTE_ID 999 not found')
     })
   })
 
@@ -386,10 +359,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.findByUploadId(5)
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE UPLOAD_ID = ?'),
-        [5],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE UPLOAD_ID = ?'), [5])
       expect(result).toEqual(mockNotes)
     })
   })
@@ -405,10 +375,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.findBySourceSystem('EMR')
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE SOURCESYSTEM_CD = ?'),
-        ['EMR'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE SOURCESYSTEM_CD = ?'), ['EMR'])
       expect(result).toEqual(mockNotes)
     })
   })
@@ -424,10 +391,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.getRecentNotes()
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('ORDER BY IMPORT_DATE DESC LIMIT ?'),
-        [10],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('ORDER BY IMPORT_DATE DESC LIMIT ?'), [10])
       expect(result).toEqual(mockNotes)
     })
 
@@ -439,9 +403,7 @@ describe('NoteRepository', () => {
 
       await noteRepository.getRecentNotes(5)
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('LIMIT ?'), [
-        5,
-      ])
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('LIMIT ?'), [5])
     })
   })
 
@@ -456,10 +418,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.findByImportDate('2024-01-15')
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('WHERE DATE(IMPORT_DATE) = ?'),
-        ['2024-01-15'],
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('WHERE DATE(IMPORT_DATE) = ?'), ['2024-01-15'])
       expect(result).toEqual(mockNotes)
     })
   })
@@ -468,18 +427,12 @@ describe('NoteRepository', () => {
     it('should get unique note categories', async () => {
       mockConnection.executeQuery.mockResolvedValue({
         success: true,
-        data: [
-          { CATEGORY_CHAR: 'Clinical' },
-          { CATEGORY_CHAR: 'Administrative' },
-          { CATEGORY_CHAR: 'Research' },
-        ],
+        data: [{ CATEGORY_CHAR: 'Clinical' }, { CATEGORY_CHAR: 'Administrative' }, { CATEGORY_CHAR: 'Research' }],
       })
 
       const result = await noteRepository.getNoteCategories()
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT DISTINCT CATEGORY_CHAR'),
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT DISTINCT CATEGORY_CHAR'))
       expect(result).toEqual(['Clinical', 'Administrative', 'Research'])
     })
 
@@ -574,9 +527,7 @@ describe('NoteRepository', () => {
 
       const result = await noteRepository.getNotesSummaryByCategory()
 
-      expect(mockConnection.executeQuery).toHaveBeenCalledWith(
-        expect.stringContaining('GROUP BY CATEGORY_CHAR'),
-      )
+      expect(mockConnection.executeQuery).toHaveBeenCalledWith(expect.stringContaining('GROUP BY CATEGORY_CHAR'))
       expect(result).toEqual(mockSummary)
     })
 
@@ -645,9 +596,7 @@ describe('NoteRepository', () => {
     })
 
     it('should throw error for unsupported format', async () => {
-      await expect(noteRepository.exportNotes([1], 'xml')).rejects.toThrow(
-        'Unsupported export format: xml',
-      )
+      await expect(noteRepository.exportNotes([1], 'xml')).rejects.toThrow('Unsupported export format: xml')
     })
   })
 

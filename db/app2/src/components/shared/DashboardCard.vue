@@ -1,31 +1,22 @@
 <template>
-  <q-card 
-    class="dashboard-card" 
-    :class="{ 'clickable': clickable }"
-    @click="handleClick"
-  >
+  <q-card class="dashboard-card" :class="{ clickable: clickable }" @click="handleClick">
     <q-card-section class="text-center card-content">
       <!-- Icon -->
-      <q-icon 
-        :name="icon" 
-        :size="iconSize" 
-        :color="iconColor" 
-        class="card-icon"
-      />
-      
+      <q-icon :name="icon" :size="iconSize" :color="iconColor" class="card-icon" />
+
       <!-- Title -->
       <div class="text-h6 q-mt-sm card-title">{{ title }}</div>
-      
+
       <!-- Subtitle/Description -->
       <div class="text-caption text-grey-6 q-mt-xs card-subtitle">
         {{ subtitle }}
       </div>
-      
+
       <!-- Optional Value Display (for stats cards) -->
       <div v-if="value !== undefined" class="text-h3 q-mt-sm" :class="valueColor">
         {{ value }}
       </div>
-      
+
       <!-- Optional Value Label -->
       <div v-if="valueLabel" class="text-caption text-grey-6 q-mt-xs">
         {{ valueLabel }}
@@ -41,44 +32,44 @@ import { computed } from 'vue'
 const props = defineProps({
   icon: {
     type: String,
-    required: true
+    required: true,
   },
   iconSize: {
     type: String,
-    default: '48px'
+    default: '48px',
   },
   iconColor: {
     type: String,
-    default: 'primary'
+    default: 'primary',
   },
   title: {
     type: String,
-    required: true
+    required: true,
   },
   subtitle: {
     type: String,
-    default: ''
+    default: '',
   },
   value: {
     type: [String, Number],
-    default: undefined
+    default: undefined,
   },
   valueLabel: {
     type: String,
-    default: ''
+    default: '',
   },
   clickable: {
     type: Boolean,
-    default: false
+    default: false,
   },
   route: {
     type: String,
-    default: ''
+    default: '',
   },
   action: {
     type: Function,
-    default: null
-  }
+    default: null,
+  },
 })
 
 // Emits
@@ -98,9 +89,9 @@ const valueColor = computed(() => {
 // Methods
 const handleClick = () => {
   if (!props.clickable) return
-  
+
   emit('click')
-  
+
   if (props.action) {
     props.action()
   }
@@ -116,10 +107,10 @@ const handleClick = () => {
   transition: all 0.3s ease;
   border-radius: 12px;
   overflow: hidden;
-  
+
   &.clickable {
     cursor: pointer;
-    
+
     &:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);

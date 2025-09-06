@@ -150,20 +150,19 @@ export class ImportService {
           filename,
           patients: result.data?.data?.patients?.length || 0,
           visits: result.data?.data?.visits?.length || 0,
-          observations: result.data?.data?.observations?.length || 0
+          observations: result.data?.data?.observations?.length || 0,
         })
       } else {
         logger.warn('File import failed', { format, filename, errors: result.errors })
       }
 
       return result
-
     } catch (error) {
       logger.error('File import failed with exception', {
         error: error.message,
         stack: error.stack,
         filename,
-        contentLength: content?.length
+        contentLength: content?.length,
       })
       return this.createErrorResult('IMPORT_FAILED', `Import failed: ${error.message}`)
     }
@@ -203,7 +202,7 @@ export class ImportService {
         estimatedImportTime: this.estimateImportTime(content.length),
         isSupported: this.config.supportedFormats.includes(format),
         validFileSize: this.validateFileSize(content),
-        maxFileSize: this.config.maxFileSize
+        maxFileSize: this.config.maxFileSize,
       }
 
       logger.info('File analysis completed', { format, filename, fileSize: analysis.fileSize })
@@ -212,15 +211,14 @@ export class ImportService {
         success: true,
         data: analysis,
         errors: [],
-        warnings: []
+        warnings: [],
       }
-
     } catch (error) {
       logger.error('File analysis failed', {
         error: error.message,
         stack: error.stack,
         filename,
-        contentLength: content?.length
+        contentLength: content?.length,
       })
       return this.createErrorResult('ANALYSIS_FAILED', `Analysis failed: ${error.message}`)
     }

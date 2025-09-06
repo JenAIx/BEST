@@ -1,16 +1,7 @@
 <template>
   <div class="row q-col-gutter-md q-mb-lg">
     <div class="col-md-4">
-      <q-select 
-        :model-value="selectedTable" 
-        :options="tableOptions" 
-        label="Select Data Category" 
-        outlined 
-        emit-value 
-        map-options 
-        @update:model-value="onTableChange" 
-        :loading="loadingTables"
-      >
+      <q-select :model-value="selectedTable" :options="tableOptions" label="Select Data Category" outlined emit-value map-options @update:model-value="onTableChange" :loading="loadingTables">
         <template v-slot:prepend>
           <q-icon name="table_chart" />
         </template>
@@ -35,20 +26,8 @@
     </div>
     <div class="col-md-4">
       <div class="q-gutter-sm">
-        <q-btn 
-          color="primary" 
-          icon="add" 
-          label="Add New Value" 
-          @click="$emit('add-value')"
-          :disable="!selectedColumn" 
-        />
-        <q-btn 
-          v-if="isQuestionnaireColumn"
-          color="secondary" 
-          icon="upload" 
-          label="Import Questionnaire" 
-          @click="$emit('import-questionnaire')"
-        />
+        <q-btn color="primary" icon="add" label="Add New Value" @click="$emit('add-value')" :disable="!selectedColumn" />
+        <q-btn v-if="isQuestionnaireColumn" color="secondary" icon="upload" label="Import Questionnaire" @click="$emit('import-questionnaire')" />
       </div>
     </div>
   </div>
@@ -62,17 +41,10 @@ const props = defineProps({
   selectedColumn: String,
   loadingTables: Boolean,
   loadingColumns: Boolean,
-  columnOptions: Array
+  columnOptions: Array,
 })
 
-const emit = defineEmits([
-  'update:selectedTable',
-  'update:selectedColumn', 
-  'table-changed',
-  'column-changed',
-  'add-value',
-  'import-questionnaire'
-])
+const emit = defineEmits(['update:selectedTable', 'update:selectedColumn', 'table-changed', 'column-changed', 'add-value', 'import-questionnaire'])
 
 // Table options - different categories of lookup data
 const tableOptions = [

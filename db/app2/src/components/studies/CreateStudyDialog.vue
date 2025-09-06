@@ -9,14 +9,7 @@
 
       <q-card-section>
         <q-form @submit="onSubmit" class="q-gutter-md">
-          <q-input
-            v-model="studyData.name"
-            label="Study Name"
-            outlined
-            dense
-            required
-            :rules="[val => val && val.length > 0 || 'Study name is required']"
-          />
+          <q-input v-model="studyData.name" label="Study Name" outlined dense required :rules="[(val) => (val && val.length > 0) || 'Study name is required']" />
 
           <q-select
             v-model="studyData.category"
@@ -27,48 +20,16 @@
             required
             emit-value
             map-options
-            :rules="[val => val || 'Category is required']"
+            :rules="[(val) => val || 'Category is required']"
           />
 
-          <q-input
-            v-model="studyData.description"
-            label="Description"
-            outlined
-            dense
-            type="textarea"
-            rows="3"
-            placeholder="Brief description of the research study"
-          />
+          <q-input v-model="studyData.description" label="Description" outlined dense type="textarea" rows="3" placeholder="Brief description of the research study" />
 
-          <q-select
-            v-model="studyData.status"
-            :options="statusOptions"
-            label="Status"
-            outlined
-            dense
-            required
-            emit-value
-            map-options
-            :rules="[val => val || 'Status is required']"
-          />
+          <q-select v-model="studyData.status" :options="statusOptions" label="Status" outlined dense required emit-value map-options :rules="[(val) => val || 'Status is required']" />
 
-          <q-input
-            v-model="studyData.principalInvestigator"
-            label="Principal Investigator"
-            outlined
-            dense
-            placeholder="Lead researcher name"
-          />
+          <q-input v-model="studyData.principalInvestigator" label="Principal Investigator" outlined dense placeholder="Lead researcher name" />
 
-          <q-input
-            v-model="studyData.targetPatientCount"
-            label="Target Patient Count"
-            outlined
-            dense
-            type="number"
-            min="1"
-            placeholder="Expected number of patients"
-          />
+          <q-input v-model="studyData.targetPatientCount" label="Target Patient Count" outlined dense type="number" min="1" placeholder="Expected number of patients" />
 
           <q-select
             v-model="studyData.concepts"
@@ -86,13 +47,7 @@
 
       <q-card-actions align="right" class="text-primary">
         <q-btn flat label="Cancel" v-close-popup />
-        <q-btn
-          flat
-          label="Create Study"
-          @click="onSubmit"
-          :loading="loading"
-          :disable="!isFormValid"
-        />
+        <q-btn flat label="Create Study" @click="onSubmit" :loading="loading" :disable="!isFormValid" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -105,8 +60,8 @@ import { useQuasar } from 'quasar'
 const props = defineProps({
   modelValue: {
     type: Boolean,
-    default: false
-  }
+    default: false,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'study-created'])
@@ -121,13 +76,13 @@ const studyData = ref({
   status: 'planning',
   principalInvestigator: '',
   targetPatientCount: null,
-  concepts: []
+  concepts: [],
 })
 
 const loading = ref(false)
 const isVisible = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => emit('update:modelValue', value),
 })
 
 // Options
@@ -137,14 +92,14 @@ const categoryOptions = [
   { label: 'Stroke Research', value: 'stroke' },
   { label: 'Psychological Assessment', value: 'psychological' },
   { label: 'Imaging Studies', value: 'imaging' },
-  { label: 'Laboratory Research', value: 'laboratory' }
+  { label: 'Laboratory Research', value: 'laboratory' },
 ]
 
 const statusOptions = [
   { label: 'Planning', value: 'planning' },
   { label: 'Active', value: 'active' },
   { label: 'On Hold', value: 'on-hold' },
-  { label: 'Completed', value: 'completed' }
+  { label: 'Completed', value: 'completed' },
 ]
 
 // Mock concept options - replace with actual database query
@@ -155,14 +110,12 @@ const conceptOptions = ref([
   { label: 'Mini-Mental State Exam', value: 'mmse' },
   { label: 'DNMSQuest', value: 'dnms' },
   { label: 'Stroke Date', value: 'stroke_date' },
-  { label: 'Stroke Diagnosis', value: 'stroke_diagnosis' }
+  { label: 'Stroke Diagnosis', value: 'stroke_diagnosis' },
 ])
 
 // Computed
 const isFormValid = computed(() => {
-  return studyData.value.name.trim() &&
-         studyData.value.category &&
-         studyData.value.status
+  return studyData.value.name.trim() && studyData.value.category && studyData.value.status
 })
 
 // Methods
@@ -177,12 +130,12 @@ const onSubmit = async () => {
 
     const newStudy = await studyStore.createStudy({
       name: studyData.value.name,
-      category: categoryOptions.find(c => c.value === studyData.value.category)?.label || studyData.value.category,
+      category: categoryOptions.find((c) => c.value === studyData.value.category)?.label || studyData.value.category,
       description: studyData.value.description,
       status: studyData.value.status,
       principalInvestigator: studyData.value.principalInvestigator,
       targetPatientCount: parseInt(studyData.value.targetPatientCount) || 0,
-      concepts: studyData.value.concepts
+      concepts: studyData.value.concepts,
     })
 
     emit('study-created', newStudy)
@@ -196,15 +149,14 @@ const onSubmit = async () => {
     $q.notify({
       type: 'positive',
       message: `Study "${newStudy.name}" created successfully!`,
-      position: 'top'
+      position: 'top',
     })
-
   } catch (error) {
     console.error('Failed to create study:', error)
     $q.notify({
       type: 'negative',
       message: 'Failed to create study',
-      position: 'top'
+      position: 'top',
     })
   } finally {
     loading.value = false
@@ -219,7 +171,7 @@ const resetForm = () => {
     status: 'planning',
     principalInvestigator: '',
     targetPatientCount: null,
-    concepts: []
+    concepts: [],
   }
 }
 

@@ -360,10 +360,7 @@ export const useAuthStore = defineStore('auth', {
         loggingStore.debug('AuthStore', 'Transaction result:', { transactionResult })
 
         // Verify the change was actually made by querying the database
-        const verifyResult = await dbStore.executeQuery(
-          'SELECT NAME_CHAR, UPDATE_DATE FROM USER_MANAGEMENT WHERE USER_ID = ?',
-          [userId],
-        )
+        const verifyResult = await dbStore.executeQuery('SELECT NAME_CHAR, UPDATE_DATE FROM USER_MANAGEMENT WHERE USER_ID = ?', [userId])
         loggingStore.debug('AuthStore', 'Verification query result:', { verifyResult })
 
         // Check if transaction was successful

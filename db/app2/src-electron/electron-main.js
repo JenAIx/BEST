@@ -33,8 +33,8 @@ function createWindow() {
       sandbox: false,
       // Allow external HTTP requests like in the original working app
       webSecurity: false,
-      allowRunningInsecureContent: true
-    }
+      allowRunningInsecureContent: true,
+    },
   })
 
   const appURL = process.env.APP_URL || 'http://localhost:9000'

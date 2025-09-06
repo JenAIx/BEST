@@ -3,7 +3,7 @@
     <q-card flat bordered>
       <q-card-section>
         <div class="text-h6 q-mb-md">Select Questionnaire</div>
-        
+
         <!-- Loading State -->
         <div v-if="loading" class="text-center q-pa-lg">
           <q-spinner-dots size="50px" color="primary" />
@@ -48,9 +48,7 @@
               <q-item-label caption class="text-grey-6">
                 {{ questionnaire.description }}
               </q-item-label>
-              <q-item-label caption class="text-grey-5">
-                Code: {{ questionnaire.code }}
-              </q-item-label>
+              <q-item-label caption class="text-grey-5"> Code: {{ questionnaire.code }} </q-item-label>
             </q-item-section>
 
             <q-item-section side>
@@ -61,14 +59,7 @@
 
         <!-- Refresh Button -->
         <div v-if="questionnaires && questionnaires.length > 0" class="text-center q-mt-md">
-          <q-btn
-            flat
-            color="primary"
-            icon="refresh"
-            label="Refresh List"
-            @click="loadQuestionnaires"
-            :loading="loading"
-          />
+          <q-btn flat color="primary" icon="refresh" label="Refresh List" @click="loadQuestionnaires" :loading="loading" />
         </div>
       </q-card-section>
     </q-card>
@@ -96,7 +87,7 @@ const questionnaires = ref([])
 const loadQuestionnaires = async () => {
   loading.value = true
   error.value = null
-  
+
   try {
     await questionnaireStore.loadQuestionnaires()
     questionnaires.value = questionnaireStore.questionnaireList
@@ -114,7 +105,7 @@ const selectQuestionnaire = (code) => {
   if (success) {
     emit('questionnaire-selected', {
       code,
-      questionnaire: questionnaireStore.activeQuestionnaire
+      questionnaire: questionnaireStore.activeQuestionnaire,
     })
     logger.info(`Selected questionnaire: ${code}`)
   } else {
@@ -151,7 +142,7 @@ onMounted(() => {
   .questionnaire-selector {
     margin: 0;
   }
-  
+
   .q-card {
     border-radius: 0;
     border-left: none;

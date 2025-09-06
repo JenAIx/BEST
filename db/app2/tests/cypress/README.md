@@ -5,8 +5,9 @@ This directory contains Cypress end-to-end tests for the Electron application, i
 ## Test Organization
 
 The Cypress tests complement your existing test suite:
+
 - **Unit tests** (`tests/unit/`) - Individual component and service testing with Vitest
-- **Integration tests** (`tests/integration/`) - Database and API integration tests with Vitest  
+- **Integration tests** (`tests/integration/`) - Database and API integration tests with Vitest
 - **E2E tests** (`tests/cypress/e2e/`) - Full user workflow testing with Cypress
 
 ## Setup
@@ -59,6 +60,7 @@ npm run cypress:run
 ### Headless Mode (`cypress-headless.sh`)
 
 For automated testing:
+
 - Virtual display on `:99`
 - No visual interface
 - Test execution with video recording
@@ -67,6 +69,7 @@ For automated testing:
 ### VNC Interactive Mode (`cypress-vnc.sh`)
 
 For visual debugging and test development:
+
 - Virtual display on `:98` (separate from main app VNC on `:99`)
 - VNC access on `localhost:5901` (main app uses `localhost:5900`)
 - Interactive Cypress Test Runner interface
@@ -85,6 +88,7 @@ For visual debugging and test development:
 #### Headless Mode Debugging
 
 If tests fail in headless mode:
+
 1. **Check videos**: Videos are saved in `tests/cypress/videos/`
 2. **View screenshots**: Screenshots on failure are in `tests/cypress/screenshots/`
 3. **Check logs**: Console output shows test execution details

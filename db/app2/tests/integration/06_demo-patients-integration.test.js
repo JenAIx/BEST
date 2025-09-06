@@ -24,11 +24,7 @@ import { currentSchema } from '../../src/core/database/migrations/002-current-sc
 import { addNoteFactColumns } from '../../src/core/database/migrations/003-add-note-fact-columns.js'
 // import { addCascadeTriggers } from '../../src/core/database/migrations/004-add-cascade-triggers.js'
 import { createDemoPatients } from '../../src/core/services/demo-patient-service.js'
-import {
-  deleteDemoPatients,
-  deleteDemoPatientsByCode,
-  countDemoData,
-} from '../../src/core/services/delete-demo-patients-service.js'
+import { deleteDemoPatients, deleteDemoPatientsByCode, countDemoData } from '../../src/core/services/delete-demo-patients-service.js'
 
 describe('Demo Patient Creation Integration Tests', () => {
   let connection
@@ -372,10 +368,7 @@ describe('Demo Patient Creation Integration Tests', () => {
       expect(initialCount.patients).toBe(3)
 
       // Delete specific patients
-      const deleteResults = await deleteDemoPatientsByCode(repositories, [
-        'DEMO_PATIENT_01',
-        'DEMO_PATIENT_02',
-      ])
+      const deleteResults = await deleteDemoPatientsByCode(repositories, ['DEMO_PATIENT_01', 'DEMO_PATIENT_02'])
 
       expect(deleteResults.deletedPatients).toBe(2)
       expect(deleteResults.deletedVisits).toBeGreaterThan(0)
@@ -399,10 +392,7 @@ describe('Demo Patient Creation Integration Tests', () => {
         conceptRepository,
       }
 
-      const deleteResults = await deleteDemoPatientsByCode(repositories, [
-        'NONEXISTENT_PATIENT_01',
-        'NONEXISTENT_PATIENT_02',
-      ])
+      const deleteResults = await deleteDemoPatientsByCode(repositories, ['NONEXISTENT_PATIENT_01', 'NONEXISTENT_PATIENT_02'])
 
       expect(deleteResults.deletedPatients).toBe(0)
       expect(deleteResults.errors.length).toBe(2)
@@ -546,9 +536,7 @@ describe('Demo Patient Creation Integration Tests', () => {
       expect(remainingVisits).toHaveLength(0)
 
       // Verify observations were cascade deleted
-      const remainingObservations = await observationRepository.findByPatientNum(
-        patient.PATIENT_NUM,
-      )
+      const remainingObservations = await observationRepository.findByPatientNum(patient.PATIENT_NUM)
       expect(remainingObservations).toHaveLength(0)
 
       // Verify patient was deleted
@@ -573,13 +561,9 @@ describe('Demo Patient Creation Integration Tests', () => {
 
       // Get initial counts
       const initialVisits1 = await visitRepository.findByPatientNum(patient1.PATIENT_NUM)
-      const initialObservations1 = await observationRepository.findByPatientNum(
-        patient1.PATIENT_NUM,
-      )
+      const initialObservations1 = await observationRepository.findByPatientNum(patient1.PATIENT_NUM)
       const initialVisits2 = await visitRepository.findByPatientNum(patient2.PATIENT_NUM)
-      const initialObservations2 = await observationRepository.findByPatientNum(
-        patient2.PATIENT_NUM,
-      )
+      const initialObservations2 = await observationRepository.findByPatientNum(patient2.PATIENT_NUM)
 
       expect(initialVisits1.length).toBeGreaterThan(0)
       expect(initialObservations1.length).toBeGreaterThan(0)
@@ -591,17 +575,13 @@ describe('Demo Patient Creation Integration Tests', () => {
 
       // Verify patient1's data was cascade deleted
       const remainingVisits1 = await visitRepository.findByPatientNum(patient1.PATIENT_NUM)
-      const remainingObservations1 = await observationRepository.findByPatientNum(
-        patient1.PATIENT_NUM,
-      )
+      const remainingObservations1 = await observationRepository.findByPatientNum(patient1.PATIENT_NUM)
       expect(remainingVisits1).toHaveLength(0)
       expect(remainingObservations1).toHaveLength(0)
 
       // Verify patient2's data is still intact
       const remainingVisits2 = await visitRepository.findByPatientNum(patient2.PATIENT_NUM)
-      const remainingObservations2 = await observationRepository.findByPatientNum(
-        patient2.PATIENT_NUM,
-      )
+      const remainingObservations2 = await observationRepository.findByPatientNum(patient2.PATIENT_NUM)
       expect(remainingVisits2).toHaveLength(initialVisits2.length)
       expect(remainingObservations2).toHaveLength(initialObservations2.length)
 

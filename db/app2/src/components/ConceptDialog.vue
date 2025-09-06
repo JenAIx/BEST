@@ -15,8 +15,8 @@
   >
     <template #default="{ formData, isEditMode }">
       <!-- Initialize our form data references -->
-      <div style="display: none;">{{ initFormDataRefs(formData) }}</div>
-      
+      <div style="display: none">{{ initFormDataRefs(formData) }}</div>
+
       <!-- Source System Field (at top for create mode) -->
       <q-select
         v-if="!isEditMode"
@@ -38,11 +38,7 @@
         label="Concept Path"
         outlined
         dense
-        :rules="[
-          (val) => !!val || 'Concept path is required',
-          (val) => val.startsWith('\\') || 'Concept path must start with \\',
-          (val) => !val.endsWith('\\') || 'Concept path must not end with \\'
-        ]"
+        :rules="[(val) => !!val || 'Concept path is required', (val) => val.startsWith('\\') || 'Concept path must start with \\', (val) => !val.endsWith('\\') || 'Concept path must not end with \\']"
         hint="Hierarchical path (e.g., \\LOINC\\CHEM\\Bld\\2947-0)"
       >
         <template v-slot:append>
@@ -56,7 +52,8 @@
           <span class="text-caption">
             <span v-if="formData.sourceSystem === 'SNOMED-CT'">SCTID</span>
             <span v-else-if="formData.sourceSystem === 'LOINC'">LID</span>
-            <span v-else>{{ formData.sourceSystem || 'CODE' }}</span>:
+            <span v-else>{{ formData.sourceSystem || 'CODE' }}</span
+            >:
           </span>
         </div>
         <div class="col">
@@ -67,10 +64,7 @@
             dense
             :readonly="isEditMode"
             :hint="isEditMode ? 'Concept code cannot be changed' : 'Unique identifier'"
-            :rules="[
-              (val) => !!val || 'Concept code is required',
-              (val) => isEditMode || val.length >= 3 || 'Concept code must be at least 3 characters'
-            ]"
+            :rules="[(val) => !!val || 'Concept code is required', (val) => isEditMode || val.length >= 3 || 'Concept code must be at least 3 characters']"
           >
             <template v-slot:append v-if="!isEditMode && formData.sourceSystem === 'SNOMED-CT'">
               <q-icon name="search" @click="handleConceptCodeSearch" class="cursor-pointer">
@@ -82,14 +76,7 @@
       </div>
 
       <!-- Name Field -->
-      <q-input
-        v-model="formData.name"
-        label="Concept Name"
-        outlined
-        dense
-        :rules="[(val) => !!val || 'Concept name is required']"
-        hint="Human-readable name for the concept"
-      >
+      <q-input v-model="formData.name" label="Concept Name" outlined dense :rules="[(val) => !!val || 'Concept name is required']" hint="Human-readable name for the concept">
         <template v-slot:append v-if="!isEditMode && formData.sourceSystem === 'SNOMED-CT'">
           <q-icon name="search" @click="handleConceptNameSearch" class="cursor-pointer">
             <q-tooltip>Search SNOMED CT API</q-tooltip>
@@ -131,13 +118,7 @@
 
         <!-- Unit Code Field -->
         <div class="col-12 col-md">
-          <q-input
-            v-model="formData.unitCode"
-            label="Unit Code"
-            outlined
-            dense
-            hint="Unit of measurement (optional, e.g., mg/dL, mmHg)"
-          />
+          <q-input v-model="formData.unitCode" label="Unit Code" outlined dense hint="Unit of measurement (optional, e.g., mg/dL, mmHg)" />
         </div>
       </div>
 
@@ -154,30 +135,11 @@
               {{ answersCount }} items
               <q-icon name="edit" size="sm" class="cursor-pointer q-ml-sm" @click="showEditAnswers = true" />
             </span>
-            <span v-else>
-              No answers defined
-            </span>
+            <span v-else> No answers defined </span>
           </div>
           <div class="col-auto">
-            <q-btn
-              v-if="!selectionAnswers || !selectionAnswers.includes('link:')"
-              flat
-              dense
-              size="sm"
-              icon="add"
-              label="Add Answers"
-              @click="showEditAnswers = true"
-            />
-            <q-btn
-              v-if="!selectionAnswers || answersCount === 0"
-              flat
-              dense
-              size="sm"
-              icon="link"
-              label="Link to Existing"
-              @click="linkAnswer"
-              class="q-ml-sm"
-            />
+            <q-btn v-if="!selectionAnswers || !selectionAnswers.includes('link:')" flat dense size="sm" icon="add" label="Add Answers" @click="showEditAnswers = true" />
+            <q-btn v-if="!selectionAnswers || answersCount === 0" flat dense size="sm" icon="link" label="Link to Existing" @click="linkAnswer" class="q-ml-sm" />
           </div>
         </div>
       </div>
@@ -196,13 +158,7 @@
       />
 
       <!-- Related Concept Field -->
-      <q-input
-        v-model="formData.relatedConcept"
-        label="Related Concept"
-        outlined
-        dense
-        hint="Related concept code (optional)"
-      />
+      <q-input v-model="formData.relatedConcept" label="Related Concept" outlined dense hint="Related concept code (optional)" />
 
       <!-- Description Field (stored in CONCEPT_BLOB) -->
       <q-input
@@ -219,26 +175,13 @@
   </BaseEntityDialog>
 
   <!-- Path Picker Dialog -->
-  <ConceptPathPickerDialog
-    v-if="showPathPicker"
-    v-model="showPathPicker"
-    :current-path="formDataRef?.conceptPath || ''"
-    @select="onPathSelected"
-  />
+  <ConceptPathPickerDialog v-if="showPathPicker" v-model="showPathPicker" :current-path="formDataRef?.conceptPath || ''" @select="onPathSelected" />
 
   <!-- Edit Answers Dialog -->
-  <EditConceptAnswersDialog
-    v-model="showEditAnswers"
-    :concept="conceptForDialog"
-    @save="onAnswersSaved"
-  />
+  <EditConceptAnswersDialog v-model="showEditAnswers" :concept="conceptForDialog" @save="onAnswersSaved" />
 
   <!-- SNOMED Search Dialog -->
-  <SNOMEDSearchDialog
-    v-model="showSNOMEDSearch"
-    :search-query="snomedSearchQuery"
-    @select="onSNOMEDSelected"
-  />
+  <SNOMEDSearchDialog v-model="showSNOMEDSearch" :search-query="snomedSearchQuery" @select="onSNOMEDSelected" />
 </template>
 
 <script setup>
@@ -255,17 +198,17 @@ import { useLoggingStore } from 'src/stores/logging-store'
 const props = defineProps({
   modelValue: {
     type: Boolean,
-    default: false
+    default: false,
   },
   mode: {
     type: String,
     default: 'create',
-    validator: (value) => ['create', 'edit'].includes(value)
+    validator: (value) => ['create', 'edit'].includes(value),
   },
   concept: {
     type: Object,
-    default: () => ({})
-  }
+    default: () => ({}),
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'saved', 'cancelled'])
@@ -295,7 +238,7 @@ const sourceSystemOptions = ref([])
 // Computed
 const dialogVisible = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => emit('update:modelValue', value),
 })
 
 // Helper to parse concept blob
@@ -317,19 +260,19 @@ const parseConceptBlob = () => {
 
 const selectionAnswers = computed(() => {
   if (formDataRef.value?.valueType !== 'S') return null
-  
+
   const blob = parseConceptBlob()
   if (!blob) return null
-  
+
   // Check if it's linked to another concept
   if (blob.linkedAnswersConceptCode) {
     return `link:${blob.linkedAnswersConceptCode}`
   }
-  
+
   if (blob.answers && Array.isArray(blob.answers)) {
     return blob.answers.length > 0
   }
-  
+
   return null
 })
 
@@ -337,13 +280,13 @@ const selectionAnswers = computed(() => {
 const conceptForDialog = computed(() => ({
   conceptCode: formDataRef.value?.conceptCode || '',
   name: formDataRef.value?.name || '',
-  conceptPath: formDataRef.value?.conceptPath || ''
+  conceptPath: formDataRef.value?.conceptPath || '',
 }))
 
 // Watch for BaseEntityDialog initialization to get formData reference
 const baseDialogRef = ref(null)
 
-// Initialize form data references (called from template) 
+// Initialize form data references (called from template)
 const initFormDataRefs = (formData) => {
   try {
     if (formData && typeof formData === 'object') {
@@ -373,7 +316,7 @@ const validateForm = (formData, isEditMode) => {
   if (!formData.category) return false
   if (!formData.valueType) return false
   if (!formData.sourceSystem) return false
-  
+
   return true
 }
 
@@ -382,22 +325,22 @@ const loadOptions = async () => {
     const [categories, valueTypes, sourceSystems] = await Promise.all([
       globalSettingsStore.getCategoryOptions(),
       globalSettingsStore.getValueTypeOptions(),
-      globalSettingsStore.getSourceSystemOptions()
+      globalSettingsStore.getSourceSystemOptions(),
     ])
-    
-    categoryOptions.value = categories.map(c => ({
+
+    categoryOptions.value = categories.map((c) => ({
       label: c.label || c.value,
-      value: c.value
+      value: c.value,
     }))
-    
-    valueTypeOptions.value = valueTypes.map(v => ({
+
+    valueTypeOptions.value = valueTypes.map((v) => ({
       label: v.label || v.value,
-      value: v.value
+      value: v.value,
     }))
-    
-    sourceSystemOptions.value = sourceSystems.map(s => ({
+
+    sourceSystemOptions.value = sourceSystems.map((s) => ({
       label: s.label || s.value,
-      value: s.value
+      value: s.value,
     }))
   } catch (error) {
     logger.error('Failed to load options', error)
@@ -406,21 +349,21 @@ const loadOptions = async () => {
       { label: 'Laboratory', value: 'LAB' },
       { label: 'Vital Signs', value: 'VITAL' },
       { label: 'Medication', value: 'MED' },
-      { label: 'Diagnosis', value: 'DIAG' }
+      { label: 'Diagnosis', value: 'DIAG' },
     ]
-    
+
     valueTypeOptions.value = [
       { label: 'Numeric', value: 'N' },
       { label: 'Text', value: 'T' },
       { label: 'Selection', value: 'S' },
-      { label: 'Date', value: 'D' }
+      { label: 'Date', value: 'D' },
     ]
-    
+
     sourceSystemOptions.value = [
       { label: 'LOINC', value: 'LOINC' },
       { label: 'SNOMED-CT', value: 'SNOMED-CT' },
       { label: 'ICD-10', value: 'ICD10' },
-      { label: 'Custom', value: 'CUSTOM' }
+      { label: 'Custom', value: 'CUSTOM' },
     ]
   }
 }
@@ -444,7 +387,7 @@ const onValueTypeChange = (value) => {
 
 const updateConceptBlob = (description) => {
   if (!formDataRef.value) return
-  
+
   // Merge description into concept blob as JSON
   let blob = {}
   try {
@@ -452,13 +395,13 @@ const updateConceptBlob = (description) => {
   } catch {
     blob = {}
   }
-  
+
   if (description && description.trim()) {
     blob.description = description.trim()
   } else {
     delete blob.description
   }
-  
+
   formDataRef.value.conceptBlob = Object.keys(blob).length > 0 ? JSON.stringify(blob) : null
 }
 
@@ -472,33 +415,33 @@ const onPathSelected = (path) => {
 const onAnswersSaved = (answers) => {
   currentAnswers.value = answers
   answersCount.value = answers.length
-  
+
   if (!formDataRef.value) return
-  
+
   // Update concept blob
   const blob = formDataRef.value.conceptBlob ? JSON.parse(formDataRef.value.conceptBlob) : {}
   blob.answers = answers
   delete blob.linkedAnswersConceptCode
   formDataRef.value.conceptBlob = JSON.stringify(blob)
-  
+
   showEditAnswers.value = false
 }
 
 const linkAnswer = async () => {
   if (!formDataRef.value) return
-  
+
   // Show dialog to select concept to link answers from
   const result = await $q.dialog({
     title: 'Link to Existing Answers',
     message: 'Enter the concept code to link answers from:',
     prompt: {
       model: '',
-      type: 'text'
+      type: 'text',
     },
     cancel: true,
-    persistent: true
+    persistent: true,
   })
-  
+
   if (result) {
     const blob = formDataRef.value.conceptBlob ? JSON.parse(formDataRef.value.conceptBlob) : {}
     blob.linkedAnswersConceptCode = result
@@ -509,7 +452,7 @@ const linkAnswer = async () => {
 
 const unlinkAnswer = () => {
   if (!formDataRef.value) return
-  
+
   const blob = formDataRef.value.conceptBlob ? JSON.parse(formDataRef.value.conceptBlob) : {}
   delete blob.linkedAnswersConceptCode
   formDataRef.value.conceptBlob = JSON.stringify(blob)
@@ -535,31 +478,31 @@ const handleConceptNameSearch = () => {
 
 const onSNOMEDSelected = async (concept) => {
   if (!formDataRef.value) return
-  
+
   // Fill in the basic concept information directly in BaseEntityDialog's formData
   formDataRef.value.conceptCode = concept.code
   formDataRef.value.name = concept.display || concept.preferredTerm
   showSNOMEDSearch.value = false
-  
+
   // Auto-resolve the hierarchical path using SNOMED CT API
   try {
     const snomedApiService = (await import('src/core/services/snomed-api-service')).default
     const conceptPath = await snomedApiService.resolve(concept.code)
-    
+
     if (conceptPath) {
       formDataRef.value.conceptPath = conceptPath
-      
+
       // Also auto-set source system if not already set
       if (!formDataRef.value.sourceSystem) {
         formDataRef.value.sourceSystem = 'SNOMED-CT'
       }
-      
+
       $q.notify({
         type: 'positive',
         message: 'SNOMED CT concept selected and path resolved',
         caption: `Path: ${conceptPath}`,
         position: 'top',
-        timeout: 3000
+        timeout: 3000,
       })
     } else {
       // Fallback to basic path if resolution fails
@@ -568,13 +511,13 @@ const onSNOMEDSelected = async (concept) => {
         type: 'warning',
         message: 'SNOMED CT concept selected, but path resolution failed',
         caption: 'Using basic path format',
-        position: 'top'
+        position: 'top',
       })
     }
   } catch (error) {
     loggingStore.error('ConceptDialog', 'Failed to resolve SNOMED CT path', error, {
       conceptCode: concept.code,
-      conceptDisplay: concept.display
+      conceptDisplay: concept.display,
     })
     // Fallback to basic path
     if (formDataRef.value) {
@@ -585,16 +528,16 @@ const onSNOMEDSelected = async (concept) => {
 
 const handleSubmit = async ({ mode, data, changes }) => {
   isSaving.value = true
-  
+
   try {
     const conceptRepo = dbStore.getRepository('concept')
-    
+
     if (mode === 'create') {
       // Prepare concept blob with description and other data
       let conceptBlob = null
       if (data.conceptBlob || data.description) {
         const blob = {}
-        
+
         // Include existing blob data
         if (data.conceptBlob) {
           try {
@@ -603,15 +546,15 @@ const handleSubmit = async ({ mode, data, changes }) => {
             // Invalid JSON, ignore
           }
         }
-        
+
         // Include description if provided
         if (data.description && data.description.trim()) {
           blob.description = data.description.trim()
         }
-        
+
         conceptBlob = Object.keys(blob).length > 0 ? JSON.stringify(blob) : null
       }
-      
+
       // Prepare create data (match database schema exactly)
       const conceptData = {
         CONCEPT_CD: data.conceptCode,
@@ -622,31 +565,30 @@ const handleSubmit = async ({ mode, data, changes }) => {
         VALTYPE_CD: data.valueType,
         SOURCESYSTEM_CD: data.sourceSystem,
         UNIT_CD: data.unitCode || null,
-        RELATED_CONCEPT: data.relatedConcept || null
+        RELATED_CONCEPT: data.relatedConcept || null,
       }
-      
+
       // Check if concept already exists
       const existingConcept = await conceptRepo.findByConceptCode(conceptData.CONCEPT_CD)
       if (existingConcept) {
         throw new Error('Concept code already exists')
       }
-      
+
       // Create concept
       const newConcept = await conceptRepo.createConcept(conceptData)
-      
+
       $q.notify({
         type: 'positive',
         message: 'Concept created successfully',
-        position: 'top'
+        position: 'top',
       })
-      
+
       emit('saved', { mode: 'create', concept: newConcept })
       dialogVisible.value = false
-      
     } else {
       // Edit mode - prepare update data
       const updateData = {}
-      
+
       if (changes.name) updateData.NAME_CHAR = data.name
       if (changes.conceptPath) updateData.CONCEPT_PATH = data.conceptPath
       if (changes.category) updateData.CATEGORY_CHAR = data.category
@@ -654,11 +596,11 @@ const handleSubmit = async ({ mode, data, changes }) => {
       if (changes.sourceSystem) updateData.SOURCESYSTEM_CD = data.sourceSystem
       if (changes.unitCode !== undefined) updateData.UNIT_CD = data.unitCode
       if (changes.relatedConcept !== undefined) updateData.RELATED_CONCEPT = data.relatedConcept
-      
+
       // Handle concept blob and description changes
       if (changes.conceptBlob !== undefined || changes.description !== undefined) {
         let blob = {}
-        
+
         // Start with existing blob data
         if (data.conceptBlob) {
           try {
@@ -667,7 +609,7 @@ const handleSubmit = async ({ mode, data, changes }) => {
             // Invalid JSON, ignore
           }
         }
-        
+
         // Update description if changed
         if (changes.description !== undefined) {
           if (data.description && data.description.trim()) {
@@ -676,19 +618,19 @@ const handleSubmit = async ({ mode, data, changes }) => {
             delete blob.description
           }
         }
-        
+
         updateData.CONCEPT_BLOB = Object.keys(blob).length > 0 ? JSON.stringify(blob) : null
       }
-      
+
       // Update concept
       const updatedConcept = await conceptRepo.updateConcept(props.concept.CONCEPT_CD, updateData)
-      
+
       $q.notify({
         type: 'positive',
         message: 'Concept updated successfully',
-        position: 'top'
+        position: 'top',
       })
-      
+
       emit('saved', { mode: 'edit', concept: updatedConcept })
       dialogVisible.value = false
     }
@@ -697,7 +639,7 @@ const handleSubmit = async ({ mode, data, changes }) => {
     $q.notify({
       type: 'negative',
       message: error.message || `Failed to ${mode} concept`,
-      position: 'top'
+      position: 'top',
     })
   } finally {
     isSaving.value = false
@@ -721,7 +663,7 @@ const transformedConcept = computed(() => {
         // Invalid JSON, ignore
       }
     }
-    
+
     // Transform database fields to form fields
     return {
       conceptCode: props.concept.CONCEPT_CD || '',
@@ -733,7 +675,7 @@ const transformedConcept = computed(() => {
       sourceSystem: props.concept.SOURCESYSTEM_CD || '',
       relatedConcept: props.concept.RELATED_CONCEPT || '',
       description: description,
-      conceptBlob: props.concept.CONCEPT_BLOB || ''
+      conceptBlob: props.concept.CONCEPT_BLOB || '',
     }
   } else if (props.mode === 'create') {
     // Default values for create mode
@@ -747,20 +689,23 @@ const transformedConcept = computed(() => {
       sourceSystem: 'SNOMED-CT', // Default to SNOMED-CT for new concepts
       relatedConcept: '',
       description: '',
-      conceptBlob: ''
+      conceptBlob: '',
     }
   }
   return null
 })
 
 // Clear form data when dialog closes
-watch(() => props.modelValue, (isOpen) => {
-  if (!isOpen) {
-    // Clear when dialog closes
-    currentFormData.value = {}
-    formDataRef.value = null
-  }
-})
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (!isOpen) {
+      // Clear when dialog closes
+      currentFormData.value = {}
+      formDataRef.value = null
+    }
+  },
+)
 
 // Load options on mount
 onMounted(() => {

@@ -6,8 +6,7 @@
 
 export const createPatientListView = {
   name: '005-create-patient-list-view',
-  description:
-    'Create patient_list view with resolved concept names for SEX_CD, VITAL_STATUS_CD, LANGUAGE_CD, RACE_CD, MARITAL_STATUS_CD, RELIGION_CD',
+  description: 'Create patient_list view with resolved concept names for SEX_CD, VITAL_STATUS_CD, LANGUAGE_CD, RACE_CD, MARITAL_STATUS_CD, RELIGION_CD',
   execute: async (connection) => {
     const statements = [
       // Drop view if it exists (for idempotency)

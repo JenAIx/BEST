@@ -208,9 +208,7 @@ describe('MigrationManager', () => {
       await migrationManager.markMigrationAsExecuted(migration)
 
       const lastCommand = mockConnection.getLastCommand()
-      expect(lastCommand.sql).toContain(
-        'INSERT OR IGNORE INTO migrations (name, checksum, description)',
-      )
+      expect(lastCommand.sql).toContain('INSERT OR IGNORE INTO migrations (name, checksum, description)')
       expect(lastCommand.params[0]).toBe('001-test')
       expect(lastCommand.params[1]).toBe(migrationManager.calculateChecksum(migration.sql))
       expect(lastCommand.params[2]).toBe('Test migration')
@@ -275,9 +273,7 @@ describe('MigrationManager', () => {
 
       const errorSpy = vi.spyOn(migrationManager.logger, 'error').mockImplementation(() => {})
 
-      await expect(migrationManager.executeMigration(migration)).rejects.toThrow(
-        'Migration 001-test failed: SQL syntax error',
-      )
+      await expect(migrationManager.executeMigration(migration)).rejects.toThrow('Migration 001-test failed: SQL syntax error')
 
       expect(errorSpy).toHaveBeenCalledWith(null, 'Migration failed: 001-test', expect.any(Error))
 
@@ -347,10 +343,7 @@ describe('MigrationManager', () => {
 
       expect(result).toBe(true)
       expect(infoSpy).toHaveBeenCalledWith(null, 'Initializing database')
-      expect(successSpy).toHaveBeenCalledWith(
-        null,
-        'Database initialization completed successfully',
-      )
+      expect(successSpy).toHaveBeenCalledWith(null, 'Database initialization completed successfully')
 
       infoSpy.mockRestore()
       successSpy.mockRestore()
@@ -363,11 +356,7 @@ describe('MigrationManager', () => {
 
       await expect(migrationManager.initializeDatabase()).rejects.toThrow('Database error')
 
-      expect(errorSpy).toHaveBeenCalledWith(
-        null,
-        'Database initialization failed',
-        expect.any(Error),
-      )
+      expect(errorSpy).toHaveBeenCalledWith(null, 'Database initialization failed', expect.any(Error))
 
       errorSpy.mockRestore()
     })

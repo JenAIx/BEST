@@ -1,6 +1,6 @@
 /**
  * Test Setup File
- * 
+ *
  * This file runs before all tests and ensures:
  * - Test output directory exists
  * - Global test configuration is set

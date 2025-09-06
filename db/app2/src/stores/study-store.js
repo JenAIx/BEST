@@ -25,7 +25,7 @@ export const useStudyStore = defineStore('study', () => {
     totalStudies: 0,
     neurologicalStudies: 0,
     strokeStudies: 0,
-    activeStudies: 0
+    activeStudies: 0,
   })
 
   // Mock data - replace with database queries later
@@ -47,7 +47,7 @@ export const useStudyStore = defineStore('study', () => {
       endDate: null,
       funding: 'NIH Grant #12345',
       collaborators: ['Dr. Michael Chen', 'Dr. Lisa Wong'],
-      notes: 'Phase 2 clinical trial focusing on rehabilitation outcomes'
+      notes: 'Phase 2 clinical trial focusing on rehabilitation outcomes',
     },
     {
       id: 2,
@@ -66,7 +66,7 @@ export const useStudyStore = defineStore('study', () => {
       endDate: null,
       funding: 'Internal Research Fund',
       collaborators: ['Dr. Emily Davis'],
-      notes: 'Multi-center study with standardized assessment protocols'
+      notes: 'Multi-center study with standardized assessment protocols',
     },
     {
       id: 3,
@@ -85,7 +85,7 @@ export const useStudyStore = defineStore('study', () => {
       endDate: null,
       funding: 'Pending approval',
       collaborators: [],
-      notes: 'Pilot study to validate new assessment tools'
+      notes: 'Pilot study to validate new assessment tools',
     },
     {
       id: 4,
@@ -104,7 +104,7 @@ export const useStudyStore = defineStore('study', () => {
       endDate: null,
       funding: 'NSF Grant #67890',
       collaborators: ['Dr. Maria Rodriguez', 'Dr. James Wilson'],
-      notes: 'Advanced neuroimaging techniques for rehabilitation research'
+      notes: 'Advanced neuroimaging techniques for rehabilitation research',
     },
     {
       id: 5,
@@ -123,8 +123,8 @@ export const useStudyStore = defineStore('study', () => {
       endDate: '2024-01-15',
       funding: 'Multiple grants',
       collaborators: ['Dr. Christopher Brown', 'Dr. Rachel Green'],
-      notes: 'Completed biomarker discovery phase, moving to validation studies'
-    }
+      notes: 'Completed biomarker discovery phase, moving to validation studies',
+    },
   ]
 
   // Getters
@@ -137,16 +137,16 @@ export const useStudyStore = defineStore('study', () => {
   })
 
   const activeStudies = computed(() => {
-    return studies.value.filter(study => study.status === 'active')
+    return studies.value.filter((study) => study.status === 'active')
   })
 
   const completedStudies = computed(() => {
-    return studies.value.filter(study => study.status === 'completed')
+    return studies.value.filter((study) => study.status === 'completed')
   })
 
   const studiesByCategory = computed(() => {
     const categories = {}
-    studies.value.forEach(study => {
+    studies.value.forEach((study) => {
       if (!categories[study.category]) {
         categories[study.category] = []
       }
@@ -156,12 +156,12 @@ export const useStudyStore = defineStore('study', () => {
   })
 
   const studyOptions = computed(() => {
-    return studies.value.map(study => ({
+    return studies.value.map((study) => ({
       label: study.name,
       value: study.id,
       subtitle: `${study.category} • ${study.patientCount}/${study.targetPatientCount || 'N/A'} patients`,
       icon: getCategoryIcon(study.category),
-      color: getCategoryColor(study.category)
+      color: getCategoryColor(study.category),
     }))
   })
 
@@ -176,26 +176,27 @@ export const useStudyStore = defineStore('study', () => {
       // Apply text search
       if (query) {
         const searchTerm = query.toLowerCase()
-        results = results.filter(study =>
-          study.name.toLowerCase().includes(searchTerm) ||
-          study.category.toLowerCase().includes(searchTerm) ||
-          study.description.toLowerCase().includes(searchTerm) ||
-          study.principalInvestigator?.toLowerCase().includes(searchTerm) ||
-          study.concepts?.some(concept => concept.toLowerCase().includes(searchTerm))
+        results = results.filter(
+          (study) =>
+            study.name.toLowerCase().includes(searchTerm) ||
+            study.category.toLowerCase().includes(searchTerm) ||
+            study.description.toLowerCase().includes(searchTerm) ||
+            study.principalInvestigator?.toLowerCase().includes(searchTerm) ||
+            study.concepts?.some((concept) => concept.toLowerCase().includes(searchTerm)),
         )
       }
 
       // Apply filters
       if (filters.category) {
-        results = results.filter(study => study.category === filters.category)
+        results = results.filter((study) => study.category === filters.category)
       }
 
       if (filters.status) {
-        results = results.filter(study => study.status === filters.status)
+        results = results.filter((study) => study.status === filters.status)
       }
 
       if (filters.patientCountMin !== undefined || filters.patientCountMax !== undefined) {
-        results = results.filter(study => {
+        results = results.filter((study) => {
           const min = filters.patientCountMin || 0
           const max = filters.patientCountMax || Infinity
           return study.patientCount >= min && study.patientCount <= max
@@ -214,7 +215,7 @@ export const useStudyStore = defineStore('study', () => {
       'Stroke Research': 'healing',
       'Psychological Assessment': 'sentiment_satisfied',
       'Imaging Studies': 'image',
-      'Laboratory Research': 'science'
+      'Laboratory Research': 'science',
     }
     return icons[category] || 'biotech'
   }
@@ -226,7 +227,7 @@ export const useStudyStore = defineStore('study', () => {
       'Stroke Research': 'positive',
       'Psychological Assessment': 'info',
       'Imaging Studies': 'warning',
-      'Laboratory Research': 'negative'
+      'Laboratory Research': 'negative',
     }
     return colors[category] || 'grey'
   }
@@ -236,7 +237,7 @@ export const useStudyStore = defineStore('study', () => {
       active: 'positive',
       completed: 'info',
       planning: 'warning',
-      'on-hold': 'negative'
+      'on-hold': 'negative',
     }
     return colors[status] || 'grey'
   }
@@ -305,14 +306,14 @@ export const useStudyStore = defineStore('study', () => {
       logger.info('Loading study by ID', { studyId })
 
       // For now, use mock data - replace with database query later
-      const study = mockStudies.find(s => s.id === studyId)
+      const study = mockStudies.find((s) => s.id === studyId)
 
       if (!study) {
         throw new Error(`Study with ID ${studyId} not found`)
       }
 
       // Ensure study is in our store
-      const existingIndex = studies.value.findIndex(s => s.id === studyId)
+      const existingIndex = studies.value.findIndex((s) => s.id === studyId)
       if (existingIndex >= 0) {
         studies.value[existingIndex] = study
       } else {
@@ -348,7 +349,7 @@ export const useStudyStore = defineStore('study', () => {
         updated: new Date().toISOString().split('T')[0],
         patientCount: 0,
         progress: 0,
-        status: studyData.status || 'planning'
+        status: studyData.status || 'planning',
       }
 
       // Add to store
@@ -377,7 +378,7 @@ export const useStudyStore = defineStore('study', () => {
 
       logger.info('Updating study', { studyId, updateData })
 
-      const studyIndex = studies.value.findIndex(s => s.id === studyId)
+      const studyIndex = studies.value.findIndex((s) => s.id === studyId)
       if (studyIndex === -1) {
         throw new Error(`Study with ID ${studyId} not found`)
       }
@@ -386,7 +387,7 @@ export const useStudyStore = defineStore('study', () => {
       const updatedStudy = {
         ...studies.value[studyIndex],
         ...updateData,
-        updated: new Date().toISOString().split('T')[0]
+        updated: new Date().toISOString().split('T')[0],
       }
 
       studies.value[studyIndex] = updatedStudy
@@ -415,7 +416,7 @@ export const useStudyStore = defineStore('study', () => {
 
       logger.info('Deleting study', { studyId })
 
-      const studyIndex = studies.value.findIndex(s => s.id === studyId)
+      const studyIndex = studies.value.findIndex((s) => s.id === studyId)
       if (studyIndex === -1) {
         throw new Error(`Study with ID ${studyId} not found`)
       }
@@ -469,15 +470,15 @@ export const useStudyStore = defineStore('study', () => {
 
   const updateResearchStats = () => {
     const total = studies.value.length
-    const neurological = studies.value.filter(s => s.category === 'Neurological Assessment').length
-    const stroke = studies.value.filter(s => s.category.includes('Stroke')).length
-    const active = studies.value.filter(s => s.status === 'active').length
+    const neurological = studies.value.filter((s) => s.category === 'Neurological Assessment').length
+    const stroke = studies.value.filter((s) => s.category.includes('Stroke')).length
+    const active = studies.value.filter((s) => s.status === 'active').length
 
     researchStats.value = {
       totalStudies: total,
       neurologicalStudies: neurological,
       strokeStudies: stroke,
-      activeStudies: active
+      activeStudies: active,
     }
 
     logger.debug('Research stats updated', researchStats.value)
@@ -485,7 +486,7 @@ export const useStudyStore = defineStore('study', () => {
 
   const getStudyAnalytics = async (studyId) => {
     try {
-      const study = studies.value.find(s => s.id === studyId)
+      const study = studies.value.find((s) => s.id === studyId)
       if (!study) {
         throw new Error(`Study with ID ${studyId} not found`)
       }
@@ -499,8 +500,8 @@ export const useStudyStore = defineStore('study', () => {
           startDate: study.startDate,
           endDate: study.endDate,
           daysElapsed: study.startDate ? Math.floor((new Date() - new Date(study.startDate)) / (1000 * 60 * 60 * 24)) : 0,
-          daysRemaining: study.endDate ? Math.floor((new Date(study.endDate) - new Date()) / (1000 * 60 * 60 * 24)) : null
-        }
+          daysRemaining: study.endDate ? Math.floor((new Date(study.endDate) - new Date()) / (1000 * 60 * 60 * 24)) : null,
+        },
       }
 
       logger.info('Study analytics generated', { studyId, analytics })
@@ -561,6 +562,6 @@ export const useStudyStore = defineStore('study', () => {
     // Helpers
     getCategoryIcon,
     getCategoryColor,
-    getStatusColor
+    getStatusColor,
   }
 })

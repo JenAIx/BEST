@@ -94,22 +94,22 @@ export function isHl7Content(content) {
  */
 export function isHtmlContent(content) {
   const trimmed = content.trim().toLowerCase()
-  
+
   // Check for basic HTML structure
   if (trimmed.includes('<html') || trimmed.includes('<!doctype html')) {
     return true
   }
-  
+
   // Check for HTML with embedded CDA data (survey files)
   if (trimmed.includes('<script') && (trimmed.includes('cda') || trimmed.includes('"cda"'))) {
     return true
   }
-  
+
   // Check for other HTML indicators
   if (trimmed.includes('<head>') && trimmed.includes('<body>')) {
     return true
   }
-  
+
   return false
 }
 

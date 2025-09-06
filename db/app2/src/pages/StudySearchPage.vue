@@ -59,16 +59,7 @@
               <div class="text-subtitle2 q-mb-md">Advanced Research Filters</div>
               <div class="row q-gutter-md justify-center">
                 <div class="col-12 col-md-4">
-                  <q-select
-                    v-model="filters.researchCategory"
-                    :options="researchCategories"
-                    label="Research Category"
-                    outlined
-                    dense
-                    clearable
-                    emit-value
-                    map-options
-                  />
+                  <q-select v-model="filters.researchCategory" :options="researchCategories" label="Research Category" outlined dense clearable emit-value map-options />
                 </div>
                 <div class="col-12 col-md-4">
                   <q-select
@@ -86,16 +77,7 @@
                   />
                 </div>
                 <div class="col-12 col-md-4">
-                  <q-select
-                    v-model="filters.studyStatus"
-                    :options="studyStatusOptions"
-                    label="Study Status"
-                    outlined
-                    dense
-                    clearable
-                    emit-value
-                    map-options
-                  />
+                  <q-select v-model="filters.studyStatus" :options="studyStatusOptions" label="Study Status" outlined dense clearable emit-value map-options />
                 </div>
               </div>
               <div class="row justify-end q-mt-md">
@@ -255,9 +237,7 @@
         <div class="text-h6 text-grey-6 q-mt-md">
           {{ hasSearched ? 'No studies found' : 'Search for research studies' }}
         </div>
-        <div class="text-body2 text-grey-6 q-mt-sm">
-          Try searching by research category, clinical scale, or specific concepts
-        </div>
+        <div class="text-body2 text-grey-6 q-mt-sm">Try searching by research category, clinical scale, or specific concepts</div>
         <q-btn v-if="hasSearched" color="primary" label="Clear Search" @click="clearSearch" class="q-mt-md" />
         <q-btn v-else color="primary" label="Browse Categories" @click="showAdvancedSearch = true" class="q-mt-md" />
       </div>
@@ -386,13 +366,7 @@ const tableColumns = [
 
 // Computed
 const hasActiveFilters = computed(() => {
-  return (
-    filters.value.researchCategory ||
-    filters.value.clinicalScale ||
-    filters.value.studyStatus ||
-    filters.value.patientCount.min > 1 ||
-    filters.value.patientCount.max < 1000
-  )
+  return filters.value.researchCategory || filters.value.clinicalScale || filters.value.studyStatus || filters.value.patientCount.min > 1 || filters.value.patientCount.max < 1000
 })
 
 // Methods
@@ -418,7 +392,7 @@ const analyzeSearchQuery = (query) => {
     neurological: /\b(neurological|neurology|neuro)\b/i,
     scales: /\b(scale|assessment|clinical|test)\b/i,
     stroke: /\b(stroke|ischemic|hemorrhagic)\b/i,
-    psychological: /\b(psychological|psychology|mental|depression|anxiety)\b/i
+    psychological: /\b(psychological|psychology|mental|depression|anxiety)\b/i,
   }
 
   for (const [category, regex] of Object.entries(categories)) {
@@ -427,7 +401,7 @@ const analyzeSearchQuery = (query) => {
         neurological: 'Neurological Assessment',
         scales: 'Clinical Scales',
         stroke: 'Stroke Research',
-        psychological: 'Psychological Assessment'
+        psychological: 'Psychological Assessment',
       }
       suggestions.push({
         type: 'category',
@@ -504,7 +478,7 @@ const getCategoryIcon = (category) => {
     'Stroke Research': 'healing',
     'Psychological Assessment': 'sentiment_satisfied',
     'Imaging Studies': 'image',
-    'Laboratory Research': 'science'
+    'Laboratory Research': 'science',
   }
   return icons[category] || 'biotech'
 }
@@ -516,7 +490,7 @@ const getCategoryColor = (category) => {
     'Stroke Research': 'positive',
     'Psychological Assessment': 'info',
     'Imaging Studies': 'warning',
-    'Laboratory Research': 'negative'
+    'Laboratory Research': 'negative',
   }
   return colors[category] || 'grey'
 }
@@ -526,7 +500,7 @@ const getStatusColor = (status) => {
     active: 'positive',
     completed: 'info',
     planning: 'warning',
-    'on-hold': 'negative'
+    'on-hold': 'negative',
   }
   return colors[status] || 'grey'
 }
@@ -539,7 +513,7 @@ const getCategoryCount = (categoryValue) => {
     stroke: 6,
     psychological: 4,
     imaging: 3,
-    laboratory: 2
+    laboratory: 2,
   }
   return counts[categoryValue] || 0
 }

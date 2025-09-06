@@ -51,12 +51,7 @@
                 <div class="text-center">
                   <div class="text-h4 text-primary q-mb-xs">{{ study.patientCount }}</div>
                   <div class="text-caption text-grey-6">Enrolled Patients</div>
-                  <q-linear-progress
-                    :value="study.targetPatientCount ? study.patientCount / study.targetPatientCount : 0"
-                    color="primary"
-                    class="q-mt-sm"
-                    size="8px"
-                  />
+                  <q-linear-progress :value="study.targetPatientCount ? study.patientCount / study.targetPatientCount : 0" color="primary" class="q-mt-sm" size="8px" />
                 </div>
               </q-card-section>
             </q-card>
@@ -67,14 +62,7 @@
         <div class="q-mt-md" v-if="study.concepts && study.concepts.length > 0">
           <div class="text-subtitle2 q-mb-sm">Associated Concepts</div>
           <div class="row q-gutter-xs">
-            <q-chip
-              v-for="concept in study.concepts"
-              :key="concept"
-              color="secondary"
-              text-color="white"
-              size="sm"
-              icon="biotech"
-            >
+            <q-chip v-for="concept in study.concepts" :key="concept" color="secondary" text-color="white" size="sm" icon="biotech">
               {{ getConceptLabel(concept) }}
             </q-chip>
           </div>
@@ -84,12 +72,7 @@
         <div class="q-mt-md">
           <div class="text-subtitle2 q-mb-sm">Recent Activity</div>
           <q-timeline color="primary">
-            <q-timeline-entry
-              title="Study Created"
-              subtitle="Research protocol initialized"
-              :caption="formatDate(study.created)"
-              icon="flag"
-            />
+            <q-timeline-entry title="Study Created" subtitle="Research protocol initialized" :caption="formatDate(study.created)" icon="flag" />
             <q-timeline-entry
               v-if="study.patientCount > 0"
               :title="`${study.patientCount} Patients Enrolled`"
@@ -103,18 +86,8 @@
 
       <q-card-actions align="right" class="text-primary">
         <q-btn flat label="Close" v-close-popup />
-        <q-btn
-          flat
-          label="Edit Study"
-          @click="onEdit"
-          color="primary"
-        />
-        <q-btn
-          flat
-          label="View Analytics"
-          @click="onViewAnalytics"
-          color="secondary"
-        />
+        <q-btn flat label="Edit Study" @click="onEdit" color="primary" />
+        <q-btn flat label="View Analytics" @click="onViewAnalytics" color="secondary" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -126,19 +99,19 @@ import { computed } from 'vue'
 const props = defineProps({
   modelValue: {
     type: Boolean,
-    default: false
+    default: false,
   },
   study: {
     type: Object,
-    default: null
-  }
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'edit'])
 
 const isVisible = computed({
   get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
+  set: (value) => emit('update:modelValue', value),
 })
 
 // Methods
@@ -149,7 +122,7 @@ const getCategoryIcon = (category) => {
     'Stroke Research': 'healing',
     'Psychological Assessment': 'sentiment_satisfied',
     'Imaging Studies': 'image',
-    'Laboratory Research': 'science'
+    'Laboratory Research': 'science',
   }
   return icons[category] || 'biotech'
 }
@@ -161,7 +134,7 @@ const getCategoryColor = (category) => {
     'Stroke Research': 'positive',
     'Psychological Assessment': 'info',
     'Imaging Studies': 'warning',
-    'Laboratory Research': 'negative'
+    'Laboratory Research': 'negative',
   }
   return colors[category] || 'grey'
 }
@@ -171,7 +144,7 @@ const getStatusColor = (status) => {
     active: 'positive',
     completed: 'info',
     planning: 'warning',
-    'on-hold': 'negative'
+    'on-hold': 'negative',
   }
   return colors[status] || 'grey'
 }
@@ -190,7 +163,7 @@ const getConceptLabel = (concept) => {
     mmse: 'Mini-Mental State Exam',
     dnms: 'DNMSQuest',
     stroke_date: 'Stroke Date',
-    stroke_diagnosis: 'Stroke Diagnosis'
+    stroke_diagnosis: 'Stroke Diagnosis',
   }
   return conceptLabels[concept] || concept
 }

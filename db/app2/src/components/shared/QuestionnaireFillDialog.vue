@@ -87,32 +87,32 @@ const props = defineProps({
   modelValue: Boolean,
   encounterNum: {
     type: [Number, String],
-    required: true
+    required: true,
   },
   patientId: {
     type: String,
-    required: true
+    required: true,
   },
   questionnaireBlob: {
     type: String,
-    required: true
+    required: true,
   },
   conceptCode: {
     type: String,
-    default: 'CUSTOM: QUESTIONNAIRE'
+    default: 'CUSTOM: QUESTIONNAIRE',
   },
   conceptName: {
     type: String,
-    default: 'Questionnaire'
+    default: 'Questionnaire',
   },
   patientName: {
     type: String,
-    default: ''
+    default: '',
   },
   visitDate: {
     type: String,
-    default: ''
-  }
+    default: '',
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'questionnaire-completed', 'close'])
@@ -144,7 +144,7 @@ const loadQuestionnaire = async () => {
       encounterNum: props.encounterNum,
       patientId: props.patientId,
       conceptName: props.conceptName,
-      blobLength: props.questionnaireBlob.length
+      blobLength: props.questionnaireBlob.length,
     })
 
     // Parse the questionnaire BLOB directly
@@ -158,7 +158,7 @@ const loadQuestionnaire = async () => {
       firstItemType: questionnaireData.items?.[0]?.type,
       firstItemStructure: questionnaireData.items?.[0] ? Object.keys(questionnaireData.items[0]) : null,
       firstItemFull: questionnaireData.items?.[0] || null,
-      rawBlobSample: props.questionnaireBlob.substring(0, 500)
+      rawBlobSample: props.questionnaireBlob.substring(0, 500),
     })
 
     // Fix missing type fields and clear pre-filled values (ensure clean template)
@@ -166,7 +166,7 @@ const loadQuestionnaire = async () => {
       questionnaireData.items.forEach((item, index) => {
         // Clear any pre-filled values to ensure clean template
         item.value = null
-        
+
         // If type is missing, infer it from the item structure
         if (!item.type) {
           if (item.options && item.options.length > 0) {
@@ -183,14 +183,14 @@ const loadQuestionnaire = async () => {
             // Default to text for unknown items
             item.type = 'text'
           }
-          
+
           logger.debug(`Fixed missing type for item ${index + 1}`, {
             id: item.id,
             label: item.label?.substring(0, 30),
             inferredType: item.type,
             hasOptions: !!item.options,
             optionsCount: item.options?.length || 0,
-            clearedValue: item.value
+            clearedValue: item.value,
           })
         } else {
           // Type exists, just clear the value
@@ -199,7 +199,7 @@ const loadQuestionnaire = async () => {
             type: item.type,
             label: item.label?.substring(0, 30),
             previousValue: item.value,
-            clearedValue: null
+            clearedValue: null,
           })
           item.value = null
         }
@@ -210,7 +210,7 @@ const loadQuestionnaire = async () => {
     const tempCode = `TEMP_${Date.now()}`
     questionnaireStore.questionnaires[tempCode] = questionnaireData
     questionnaireStore.setActiveQuestionnaire(tempCode)
-    
+
     questionnaire.value = questionnaireData
 
     logger.info('Questionnaire loaded and set active in store', {
@@ -218,23 +218,23 @@ const loadQuestionnaire = async () => {
       itemCount: questionnaireData.items?.length || 0,
       storeActiveQuestionnaire: !!questionnaireStore.activeQuestionnaire,
       storeActiveTitle: questionnaireStore.activeQuestionnaire?.title,
-      allItemDetails: questionnaireData.items?.map((item, index) => ({
-        index,
-        id: item.id,
-        type: item.type,
-        label: item.label?.substring(0, 30),
-        hasOptions: !!item.options,
-        optionsCount: item.options?.length || 0,
-        force: item.force,
-        fullItem: item
-      })) || []
+      allItemDetails:
+        questionnaireData.items?.map((item, index) => ({
+          index,
+          id: item.id,
+          type: item.type,
+          label: item.label?.substring(0, 30),
+          hasOptions: !!item.options,
+          optionsCount: item.options?.length || 0,
+          force: item.force,
+          fullItem: item,
+        })) || [],
     })
-
   } catch (error) {
     logger.error('Failed to load questionnaire from BLOB', error, {
       encounterNum: props.encounterNum,
       patientId: props.patientId,
-      blobLength: props.questionnaireBlob?.length || 0
+      blobLength: props.questionnaireBlob?.length || 0,
     })
     loadError.value = error.message || 'Failed to parse questionnaire data'
   } finally {
@@ -254,7 +254,7 @@ watch(
       loadQuestionnaire()
     }
   },
-  { immediate: true }
+  { immediate: true },
 )
 
 watch(localShow, (newValue) => {
@@ -275,10 +275,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
     })
 
     // Get PATIENT_NUM from PATIENT_DIMENSION table using PATIENT_CD
-    const patientResult = await databaseStore.executeQuery(
-      'SELECT PATIENT_NUM FROM PATIENT_DIMENSION WHERE PATIENT_CD = ?',
-      [props.patientId]
-    )
+    const patientResult = await databaseStore.executeQuery('SELECT PATIENT_NUM FROM PATIENT_DIMENSION WHERE PATIENT_CD = ?', [props.patientId])
 
     if (!patientResult.success || patientResult.data.length === 0) {
       throw new Error(`Patient not found: ${props.patientId}`)
@@ -289,19 +286,19 @@ const onQuestionnaireSubmit = async ({ results }) => {
     logger.debug('Resolved patient number', {
       patientId: props.patientId,
       patientNum: patientNum,
-      encounterNum: props.encounterNum
+      encounterNum: props.encounterNum,
     })
 
     // Save questionnaire response using the questionnaire store with correct patientNum
     // Use the specific concept code for this questionnaire instance
     const conceptCode = props.conceptCode || 'CUSTOM: QUESTIONNAIRE'
-    
+
     // Override the concept code in results to use the specific column's concept code
     const modifiedResults = {
       ...results,
-      conceptCode: conceptCode
+      conceptCode: conceptCode,
     }
-    
+
     await questionnaireStore.saveQuestionnaireResponse(patientNum, props.encounterNum, modifiedResults)
 
     // Emit completion event
@@ -320,7 +317,6 @@ const onQuestionnaireSubmit = async ({ results }) => {
       patientId: props.patientId,
       encounterNum: props.encounterNum,
     })
-
   } catch (error) {
     logger.error('Failed to submit questionnaire', error, {
       patientId: props.patientId,

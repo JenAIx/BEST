@@ -15,29 +15,27 @@ Cypress.Commands.add('setupElectronAPIs', () => {
     // Access Node.js modules through Cypress's top-level window/global context
     // Since we confirmed Node.js APIs work in basic tests
     const path = require('path')
-    const fs = require('fs') 
+    const fs = require('fs')
     const os = require('os')
     const sqlite3 = require('sqlite3')
 
     // Create database manager (similar to preload script)
     const dbman = {
       database: null,
-      
+
       status() {
         return !!this.database
       },
-      
+
       connect(filename) {
-        const absolutePath = path.isAbsolute(filename) 
-          ? filename 
-          : path.join(process.cwd(), filename)
-        
+        const absolutePath = path.isAbsolute(filename) ? filename : path.join(process.cwd(), filename)
+
         console.log('Cypress: Connecting to database:', absolutePath)
-        
+
         if (this.database) {
           this.database.close()
         }
-        
+
         // Create database file if it doesn't exist
         if (!fs.existsSync(absolutePath)) {
           console.log('Cypress: Creating database file:', absolutePath)
@@ -53,7 +51,7 @@ Cypress.Commands.add('setupElectronAPIs', () => {
             return false
           }
         }
-        
+
         try {
           this.database = new sqlite3.Database(absolutePath, sqlite3.OPEN_READWRITE, (err) => {
             if (err) {
@@ -62,21 +60,21 @@ Cypress.Commands.add('setupElectronAPIs', () => {
             }
             console.log('Cypress: Connected to SQLite database:', absolutePath)
           })
-          
+
           // Configure SQLite (similar to preload script)
           this.database.serialize(() => {
             this.database.run('PRAGMA journal_mode = DELETE')
-            this.database.run('PRAGMA synchronous = FULL') 
+            this.database.run('PRAGMA synchronous = FULL')
             this.database.run('PRAGMA foreign_keys = ON')
           })
-          
+
           return true
         } catch (error) {
           console.error('Cypress: Database connection failed:', error)
           return false
         }
       },
-      
+
       close() {
         if (this.database) {
           this.database.close()
@@ -85,7 +83,7 @@ Cypress.Commands.add('setupElectronAPIs', () => {
         }
         return false
       },
-      
+
       // Execute query and return results
       query(sql, params = []) {
         return new Promise((resolve, reject) => {
@@ -93,7 +91,7 @@ Cypress.Commands.add('setupElectronAPIs', () => {
             reject(new Error('Database not connected'))
             return
           }
-          
+
           this.database.all(sql, params, (err, rows) => {
             if (err) {
               console.error('Cypress: Query error:', err.message)
@@ -104,7 +102,7 @@ Cypress.Commands.add('setupElectronAPIs', () => {
           })
         })
       },
-      
+
       // Execute command (INSERT, UPDATE, DELETE)
       run(sql, params = []) {
         return new Promise((resolve, reject) => {
@@ -112,51 +110,51 @@ Cypress.Commands.add('setupElectronAPIs', () => {
             reject(new Error('Database not connected'))
             return
           }
-          
+
           this.database.serialize(() => {
-            this.database.run(sql, params, function(err) {
+            this.database.run(sql, params, function (err) {
               if (err) {
                 console.error('Cypress: Run error:', err.message)
                 reject(err)
               } else {
                 resolve({
                   lastID: this.lastID,
-                  changes: this.changes
+                  changes: this.changes,
                 })
               }
             })
           })
         })
-      }
+      },
     }
 
     // Set up window.electron with the same structure as the preload script
     win.electron = {
       // Database manager
       dbman: dbman,
-      
+
       // File system operations
       fs: {
         existsSync: fs.existsSync,
         readFileSync: fs.readFileSync,
         writeFileSync: fs.writeFileSync,
         readdirSync: fs.readdirSync,
-        statSync: fs.statSync
+        statSync: fs.statSync,
       },
-      
-      // Path operations  
+
+      // Path operations
       path: {
         resolve: path.resolve,
         join: path.join,
         dirname: path.dirname,
         basename: path.basename,
-        extname: path.extname
+        extname: path.extname,
       },
-      
+
       // System info
       homedir: os.homedir(),
       platform: os.platform(),
-      publicFolder: path.resolve(process.cwd(), 'public')
+      publicFolder: path.resolve(process.cwd(), 'public'),
     }
 
     cy.log('✅ window.electron APIs set up successfully!')
