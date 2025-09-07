@@ -12,7 +12,6 @@ import { useObservationStore } from 'src/stores/observation-store'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useAuthStore } from 'src/stores/auth-store'
-import { useQuasar } from 'quasar'
 import { prepareVisitClone } from 'src/utils/visit-transformer'
 
 class VisitObservationService {
@@ -23,9 +22,10 @@ class VisitObservationService {
 
   /**
    * Initialize the service with Quasar instance
+   * @param {Object} quasarInstance - Quasar instance from component
    */
-  initialize() {
-    this.$q = useQuasar()
+  initialize(quasarInstance = null) {
+    this.$q = quasarInstance
   }
 
   /**

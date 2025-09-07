@@ -3,11 +3,11 @@
     <!-- Custom Header for Data Grid -->
     <q-header elevated class="bg-white text-dark">
       <q-toolbar class="q-py-sm">
-                <!-- Back to Selection Button -->
-                <q-btn flat icon="arrow_back"  @click="exitDataGrid" class="q-mr-lg">
+        <!-- Back to Selection Button -->
+        <q-btn flat icon="arrow_back" @click="exitDataGrid" class="q-mr-lg">
           <q-tooltip>Back to Patient Selection</q-tooltip>
         </q-btn>
-        
+
         <!-- Data Grid Editor Title and Info -->
         <div class="header-content">
           <div class="text-h6 flex items-center">
@@ -17,8 +17,6 @@
             <div class="text-caption text-grey-6 q-ml-sm">Click any cell to edit • Changes auto-save • Use Tab/Enter to navigate</div>
           </div>
         </div>
-
-
       </q-toolbar>
     </q-header>
 

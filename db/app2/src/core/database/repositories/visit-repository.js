@@ -290,7 +290,7 @@ class VisitRepository extends BaseRepository {
    * Update visit information
    * @param {number} encounterNum - Encounter number to update
    * @param {Object} updateData - Data to update
-   * @returns {Promise<boolean>} - Success status
+   * @returns {Promise<Object>} - Updated visit data
    */
   async updateVisit(encounterNum, updateData) {
     // Validate encounter exists
@@ -299,7 +299,14 @@ class VisitRepository extends BaseRepository {
       throw new Error(`Visit with ENCOUNTER_NUM ${encounterNum} not found`)
     }
 
-    return await this.update(encounterNum, updateData)
+    // Perform the update
+    const updateSuccess = await this.update(encounterNum, updateData)
+    if (!updateSuccess) {
+      throw new Error(`Failed to update visit with ENCOUNTER_NUM ${encounterNum}`)
+    }
+
+    // Return the updated visit data
+    return await this.findById(encounterNum)
   }
 
   /**

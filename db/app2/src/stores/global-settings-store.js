@@ -87,33 +87,36 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   /**
    * Load lookup values for a specific COLUMN_CD
    */
-  const loadLookupValues = async (columnCd, forceRefresh = false) => {
+  const loadLookupValues = async (columnCd, tableCd = 'CONCEPT_DIMENSION', forceRefresh = false) => {
     if (!columnCd) return []
 
+    // Create cache key that includes both table and column
+    const cacheKey = `${tableCd}_${columnCd}`
+
     // Check cache first
-    if (!forceRefresh && lookupData.value[columnCd] && isCacheValid.value) {
-      return lookupData.value[columnCd]
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
     }
 
     loading.value = true
     try {
       const result = await dbStore.executeQuery(
         `SELECT * FROM CODE_LOOKUP
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         WHERE TABLE_CD = ?
          AND COLUMN_CD = ?
          ORDER BY NAME_CHAR`,
-        [columnCd],
+        [tableCd, columnCd],
       )
 
       if (result.success) {
-        lookupData.value[columnCd] = result.data
-        logger.success(`Loaded ${result.data.length} lookup values for ${columnCd}`)
+        lookupData.value[cacheKey] = result.data
+        logger.success(`Loaded ${result.data.length} lookup values for ${tableCd}.${columnCd}`)
         return result.data
       } else {
         throw new Error(result.error)
       }
     } catch (error) {
-      logger.error(`Failed to load lookup values for ${columnCd}`, error)
+      logger.error(`Failed to load lookup values for ${tableCd}.${columnCd}`, error)
       throw error
     } finally {
       loading.value = false
@@ -123,12 +126,15 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   /**
    * Get lookup value by CODE_CD
    */
-  const getLookupValue = async (columnCd, codeCd) => {
+  const getLookupValue = async (columnCd, codeCd, tableCd = 'CONCEPT_DIMENSION') => {
     if (!columnCd || !codeCd) return null
 
+    // Create cache key that includes both table and column
+    const cacheKey = `${tableCd}_${columnCd}`
+
     // Try cache first
-    if (lookupData.value[columnCd]) {
-      const cached = lookupData.value[columnCd].find((item) => item.CODE_CD === codeCd)
+    if (lookupData.value[cacheKey]) {
+      const cached = lookupData.value[cacheKey].find((item) => item.CODE_CD === codeCd)
       if (cached) return cached
     }
 
@@ -136,10 +142,10 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       const result = await dbStore.executeQuery(
         `SELECT * FROM CODE_LOOKUP
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         WHERE TABLE_CD = ?
          AND COLUMN_CD = ?
          AND CODE_CD = ?`,
-        [columnCd, codeCd],
+        [tableCd, columnCd, codeCd],
       )
 
       if (result.success && result.data.length > 0) {
@@ -147,7 +153,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       }
       return null
     } catch (error) {
-      logger.error(`Failed to get lookup value ${codeCd} for ${columnCd}`, error)
+      logger.error(`Failed to get lookup value ${codeCd} for ${tableCd}.${columnCd}`, error)
       return null
     }
   }
@@ -1145,6 +1151,15 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         notes: 'Review current medications and adjust dosages as needed',
         icon: 'medication',
         color: 'info',
+      },
+      {
+        id: 'parkinson-assessment',
+        name: 'Parkinson Assessment',
+        type: 'parkinson',
+        location: 'Neurology Clinic',
+        notes: 'Parkinson disease assessment including motor function evaluation, UPDRS scoring, medication review, and symptom monitoring',
+        icon: 'psychology',
+        color: 'deep-purple',
       },
       {
         id: 'emergency-visit',

@@ -30,14 +30,13 @@ export const useStudyStore = defineStore('study', () => {
     activeStudies: 0,
   })
 
-
   // Getters
   const hasStudies = computed(() => studies.value.length > 0)
 
   const selectedStudyId = computed(() => selectedStudy.value?.id)
 
   const sortedStudies = computed(() => {
-    return [...studies.value].filter(s => s).sort((a, b) => new Date(b.updated || b.created) - new Date(a.updated || a.created))
+    return [...studies.value].filter((s) => s).sort((a, b) => new Date(b.updated || b.created) - new Date(a.updated || a.created))
   })
 
   const activeStudies = computed(() => {
@@ -62,13 +61,15 @@ export const useStudyStore = defineStore('study', () => {
   })
 
   const studyOptions = computed(() => {
-    return studies.value.filter(s => s).map((study) => ({
-      label: study.name,
-      value: study.id,
-      subtitle: `${study.category} • ${study.patientCount}/${study.targetPatientCount || 'N/A'} patients`,
-      icon: getCategoryIcon(study.category),
-      color: getCategoryColor(study.category),
-    }))
+    return studies.value
+      .filter((s) => s)
+      .map((study) => ({
+        label: study.name,
+        value: study.id,
+        subtitle: `${study.category} • ${study.patientCount}/${study.targetPatientCount || 'N/A'} patients`,
+        icon: getCategoryIcon(study.category),
+        color: getCategoryColor(study.category),
+      }))
   })
 
   const searchResults = computed(() => {
@@ -77,7 +78,7 @@ export const useStudyStore = defineStore('study', () => {
         return sortedStudies.value
       }
 
-      let results = [...studies.value].filter(s => s)
+      let results = [...studies.value].filter((s) => s)
 
       // Apply text search
       if (query) {
@@ -382,17 +383,17 @@ export const useStudyStore = defineStore('study', () => {
 
       if (filters.researchCategory) {
         // Try to find the actual category name from the slug
-        const categories = Object.keys(studies.value.reduce((acc, study) => {
-          if (study && study.category) acc[study.category] = true
-          return acc
-        }, {}))
+        const categories = Object.keys(
+          studies.value.reduce((acc, study) => {
+            if (study && study.category) acc[study.category] = true
+            return acc
+          }, {}),
+        )
 
         let categoryName = filters.researchCategory
 
         // If it's a slug, try to convert it back to the original name
-        const matchingCategory = categories.find(category =>
-          category.toLowerCase().replace(/\s+/g, '-') === filters.researchCategory
-        )
+        const matchingCategory = categories.find((category) => category.toLowerCase().replace(/\s+/g, '-') === filters.researchCategory)
 
         if (matchingCategory) {
           categoryName = matchingCategory
@@ -402,11 +403,11 @@ export const useStudyStore = defineStore('study', () => {
         }
 
         searchCriteria.category = categoryName
-        logger.info('Filtering by category', { 
-          original: filters.researchCategory, 
+        logger.info('Filtering by category', {
+          original: filters.researchCategory,
           matched: categoryName,
           query: query,
-          searchCriteria: searchCriteria
+          searchCriteria: searchCriteria,
         })
       }
 
@@ -458,9 +459,9 @@ export const useStudyStore = defineStore('study', () => {
 
       researchStats.value = {
         totalStudies: stats.totalStudies || 0,
-        neurologicalStudies: stats.studiesByCategory?.find(c => c.CATEGORY_CHAR === 'Neurological Assessment')?.count || 0,
-        strokeStudies: stats.studiesByCategory?.find(c => c.CATEGORY_CHAR?.includes('Stroke'))?.count || 0,
-        activeStudies: stats.studiesByStatus?.find(s => s.STATUS_CD === 'active')?.count || 0
+        neurologicalStudies: stats.studiesByCategory?.find((c) => c.CATEGORY_CHAR === 'Neurological Assessment')?.count || 0,
+        strokeStudies: stats.studiesByCategory?.find((c) => c.CATEGORY_CHAR?.includes('Stroke'))?.count || 0,
+        activeStudies: stats.studiesByStatus?.find((s) => s.STATUS_CD === 'active')?.count || 0,
       }
 
       logger.debug('Research stats loaded from database', researchStats.value)

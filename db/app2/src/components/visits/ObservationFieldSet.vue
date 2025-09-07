@@ -300,26 +300,26 @@ const tableRows = computed(() => {
     const fieldSetConceptOrder = getFieldSetConceptOrder()
     const orderA = fieldSetConceptOrder.get(a.conceptCode) ?? Number.MAX_SAFE_INTEGER
     const orderB = fieldSetConceptOrder.get(b.conceptCode) ?? Number.MAX_SAFE_INTEGER
-    
+
     if (orderA !== orderB) {
       return orderA - orderB
     }
-    
+
     // Secondary sort: Creation date (newer first for same field set position)
     const createdAtA = a.rawObservation?.CREATED_AT || a.rawObservation?.created_at || '1970-01-01'
     const createdAtB = b.rawObservation?.CREATED_AT || b.rawObservation?.created_at || '1970-01-01'
-    
+
     if (createdAtA !== createdAtB) {
       return new Date(createdAtB) - new Date(createdAtA) // Newer first
     }
-    
+
     // Tertiary sort: Category
     const categoryA = a.category || 'ZZZZZ'
     const categoryB = b.category || 'ZZZZZ'
     if (categoryA !== categoryB) {
       return categoryA.localeCompare(categoryB)
     }
-    
+
     // Final fallback: Concept name
     return a.conceptName.localeCompare(b.conceptName)
   })
@@ -340,13 +340,13 @@ const unfilledConcepts = computed(() => {
 const getFieldSetConceptOrder = () => {
   // Create a Map with concept codes and their order within the field set
   const orderMap = new Map()
-  
+
   if (props.fieldSet?.concepts && Array.isArray(props.fieldSet.concepts)) {
     props.fieldSet.concepts.forEach((conceptCode, index) => {
       orderMap.set(conceptCode, index)
     })
   }
-  
+
   return orderMap
 }
 

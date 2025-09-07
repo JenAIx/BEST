@@ -64,7 +64,11 @@
             dense
             :readonly="isEditMode"
             :hint="isEditMode ? 'Concept code cannot be changed' : 'Unique identifier'"
-            :rules="[(val) => !!val || 'Concept code is required', (val) => isEditMode || val.length >= 3 || 'Concept code must be at least 3 characters', (val) => isEditMode || validateConceptCodeUnique(val)]"
+            :rules="[
+              (val) => !!val || 'Concept code is required',
+              (val) => isEditMode || val.length >= 3 || 'Concept code must be at least 3 characters',
+              (val) => isEditMode || validateConceptCodeUnique(val),
+            ]"
           >
             <template v-slot:append v-if="!isEditMode && formData.sourceSystem === 'SNOMED-CT'">
               <q-icon name="search" @click="handleConceptCodeSearch" class="cursor-pointer">
@@ -323,10 +327,10 @@ const validateForm = (formData, isEditMode) => {
 // Format concept code based on source system
 const formatConceptCode = (code, sourceSystem) => {
   if (!code || !sourceSystem) return code
-  
+
   // Don't double-format if already has prefix
   if (code.includes(':')) return code
-  
+
   switch (sourceSystem) {
     case 'SNOMED-CT':
       return `SCTID: ${code}`
@@ -347,7 +351,7 @@ const formatConceptCode = (code, sourceSystem) => {
 const validateConceptCodeUnique = (val) => {
   // Return true immediately for valid input, handle async validation separately
   if (!val || val.length < 3) return true
-  
+
   // For now, return true - we'll handle the actual check during form submission
   // This could be enhanced with debounced async validation in the future
   return true
@@ -404,7 +408,7 @@ const loadOptions = async () => {
 const onSourceSystemChange = (value) => {
   if (formDataRef.value) {
     formDataRef.value.sourceSystem = value
-    
+
     // Auto-format concept code when source system changes (only if code exists and doesn't already have a prefix)
     if (formDataRef.value.conceptCode && !formDataRef.value.conceptCode.includes(':')) {
       formDataRef.value.conceptCode = formatConceptCode(formDataRef.value.conceptCode, value)
@@ -677,31 +681,34 @@ const handleSubmit = async ({ mode, data, changes }) => {
     }
   } catch (error) {
     logger.error(`Failed to ${mode} concept`, error)
-    
+
     // Provide more specific error messages
     let errorMessage = error.message || `Failed to ${mode} concept`
-    
+
     if (error.message && error.message.includes('already exists')) {
       errorMessage = `Concept code '${data.conceptCode}' already exists. Please use a different concept code or edit the existing concept.`
     } else if (error.message && error.message.includes('UNIQUE constraint')) {
       errorMessage = `This concept code already exists in the database. Please choose a different code.`
     }
-    
+
     $q.notify({
       type: 'negative',
       message: errorMessage,
       position: 'top',
       timeout: 5000,
-      actions: error.message && error.message.includes('already exists') ? [
-        { 
-          label: 'Find Existing', 
-          color: 'white', 
-          handler: () => {
-            // Could emit an event to search for the existing concept
-            emit('find-existing', data.conceptCode)
-          }
-        }
-      ] : undefined
+      actions:
+        error.message && error.message.includes('already exists')
+          ? [
+              {
+                label: 'Find Existing',
+                color: 'white',
+                handler: () => {
+                  // Could emit an event to search for the existing concept
+                  emit('find-existing', data.conceptCode)
+                },
+              },
+            ]
+          : undefined,
     })
   } finally {
     isSaving.value = false

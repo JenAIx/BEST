@@ -306,10 +306,10 @@ const viewModeOptions = [
 // Computed research categories based on actual data
 const researchCategories = computed(() => {
   const categories = Object.keys(studyStore.studiesByCategory)
-  return categories.map(category => ({
+  return categories.map((category) => ({
     label: category,
     value: category.toLowerCase().replace(/\s+/g, '-'),
-    color: getCategoryColor(category)
+    color: getCategoryColor(category),
   }))
 })
 
@@ -543,9 +543,7 @@ const getCategoryCount = (categoryValue) => {
   const categories = studyStore.studiesByCategory
 
   // Try to match by converting slug back to original category name
-  const matchingCategory = Object.keys(categories).find(category =>
-    category.toLowerCase().replace(/\s+/g, '-') === categoryValue
-  )
+  const matchingCategory = Object.keys(categories).find((category) => category.toLowerCase().replace(/\s+/g, '-') === categoryValue)
 
   if (matchingCategory) {
     return categories[matchingCategory].length

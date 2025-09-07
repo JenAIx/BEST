@@ -190,6 +190,7 @@ import { useQuasar } from 'quasar'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitStore } from 'src/stores/visit-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import EditVisitDialog from './EditVisitDialog.vue'
 import CreateObservationDialog from './CreateObservationDialog.vue'
@@ -216,6 +217,7 @@ const $q = useQuasar()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
 const databaseStore = useDatabaseStore()
+const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('VisitHeader')
 
@@ -538,8 +540,8 @@ const performDeleteVisit = async () => {
       throw new Error('Visit repository not available')
     }
 
-    // Delete the visit (cascade delete will handle observations)
-    await visitRepository.delete(visitData.ENCOUNTER_NUM)
+    // Delete the visit using visit store (cascade delete will handle observations)
+    await visitStore.deleteVisit(visitData.ENCOUNTER_NUM)
 
     loadingDialog.hide()
 

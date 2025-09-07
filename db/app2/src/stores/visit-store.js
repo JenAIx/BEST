@@ -9,12 +9,10 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useLoggingStore } from './logging-store'
-import { useAuthStore } from './auth-store'
 import { formatDate, getVisitTypeLabel } from 'src/shared/utils/medical-utils'
 
 export const useVisitStore = defineStore('visit', () => {
   const dbStore = useDatabaseStore()
-  const authStore = useAuthStore()
   const logger = useLoggingStore().createLogger('VisitStore')
 
   // State
@@ -120,42 +118,24 @@ export const useVisitStore = defineStore('visit', () => {
     }
   }
 
-  const createVisit = async (patientNum, visitData) => {
+  const createVisit = async (visitData) => {
     try {
       loading.value = true
       error.value = null
 
-      logger.info('Creating new visit', { patientNum })
+      logger.info('Creating new visit', { patientNum: visitData.PATIENT_NUM })
 
       const visitRepo = dbStore.getRepository('visit')
-      const currentTimestamp = new Date().toISOString()
-
-      const newVisitData = {
-        PATIENT_NUM: patientNum,
-        START_DATE: visitData.date || new Date().toISOString().split('T')[0],
-        END_DATE: visitData.endDate || null,
-        UPDATE_DATE: currentTimestamp,
-        INOUT_CD: visitData.inout || (visitData.type === 'emergency' ? 'E' : 'O'),
-        ACTIVE_STATUS_CD: visitData.status || 'SCTID: 55561003', // Active (SNOMED-CT)
-        LOCATION_CD: visitData.location || 'CLINIC',
-        SOURCESYSTEM_CD: 'SYSTEM',
-        VISIT_BLOB: JSON.stringify({
-          notes: visitData.notes || '',
-          visitType: visitData.visitType || visitData.type || 'routine',
-          createdBy: authStore.currentUser?.USER_CD || 'SYSTEM',
-          createdAt: currentTimestamp,
-          updatedAt: currentTimestamp,
-        }),
-      }
-
-      const createdVisit = await visitRepo.createVisit(newVisitData)
+      
+      // Use the provided visit data directly since NewVisitDialog already formats it correctly
+      const createdVisit = await visitRepo.createVisit(visitData)
       const newVisit = transformVisit(createdVisit, 0)
 
       // Add to store
       visits.value.unshift(newVisit)
 
       logger.success('Visit created successfully', { visitId: newVisit.id })
-      return newVisit
+      return createdVisit // Return the raw database result for compatibility
     } catch (err) {
       logger.error('Failed to create visit', err)
       error.value = err.message

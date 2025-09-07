@@ -526,7 +526,7 @@ const saveRow = async (row) => {
     })
 
     logger.success('Row saved successfully', { rowId: row.id })
-    emit('updated')
+    emit('updated', 'observation')
   } catch (error) {
     logger.error('Failed to save row', error, { rowId: row.id })
     $q.notify({
@@ -557,7 +557,7 @@ const removeRow = async (row) => {
     await visitObservationService.deleteObservation(row.observationId)
 
     logger.success('Row removed successfully', { rowId: row.id })
-    emit('updated')
+    emit('updated', 'observation')
   } catch (error) {
     logger.error('Failed to remove row', error, { rowId: row.id })
   } finally {
@@ -619,7 +619,7 @@ const onMedicationEditSave = async (medicationData) => {
     // Force re-render to update the medication display
     renderVersion.value++
 
-    emit('updated')
+    emit('updated', 'observation')
     logger.success('Medication updated successfully', { rowId: row.id })
   } catch (error) {
     logger.error('Failed to save medication edit', error)
@@ -640,7 +640,7 @@ const onVisitUpdated = async () => {
   if (patient.value) {
     await visitObservationService.loadPatientWithData(patient.value.id)
   }
-  emit('updated')
+  emit('updated', 'visit')
 }
 
 // Event handler for visit creation
@@ -654,7 +654,7 @@ const onVisitCreated = async (createdVisit) => {
     newExpanded.add(createdVisit.id)
     expandedVisits.value = newExpanded
   }
-  emit('updated')
+  emit('updated', 'visit')
 }
 
 // Watch for visits changes and resolve status codes

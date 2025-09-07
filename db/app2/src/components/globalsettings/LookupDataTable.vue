@@ -152,7 +152,19 @@ defineProps({
   isVisitTypeColumn: Boolean,
 })
 
-const emit = defineEmits(['start-edit', 'save-edit', 'cancel-edit', 'delete-value', 'preview-questionnaire', 'view-json', 'update-edit-form', 'edit-field-set', 'save-field-set', 'edit-visit-type', 'save-visit-type'])
+const emit = defineEmits([
+  'start-edit',
+  'save-edit',
+  'cancel-edit',
+  'delete-value',
+  'preview-questionnaire',
+  'view-json',
+  'update-edit-form',
+  'edit-field-set',
+  'save-field-set',
+  'edit-visit-type',
+  'save-visit-type',
+])
 
 // Local state
 const filter = ref('')
@@ -301,9 +313,7 @@ const getVisitTypeInfo = (jsonString) => {
   try {
     const visitType = JSON.parse(jsonString)
     const fieldSetCount = Array.isArray(visitType.fieldSets) ? visitType.fieldSets.length : 0
-    const activeFieldSets = Array.isArray(visitType.fieldSets) 
-      ? visitType.fieldSets.filter(fs => fs.active).length 
-      : 0
+    const activeFieldSets = Array.isArray(visitType.fieldSets) ? visitType.fieldSets.filter((fs) => fs.active).length : 0
     const icon = visitType.icon ? `Icon: ${visitType.icon}` : 'No icon'
     const color = visitType.color ? `Color: ${visitType.color}` : 'Default color'
     return `${fieldSetCount} field sets (${activeFieldSets} active) • ${icon} • ${color}`

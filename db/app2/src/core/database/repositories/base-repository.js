@@ -204,7 +204,13 @@ class BaseRepository {
 
     // Check if the update was successful by looking at the changes count
     // The result from executeCommand returns { lastID/lastId, changes }
-    return result && typeof result.changes === 'number' && result.changes > 0
+    // Handle cases where changes might be undefined by checking success flag as fallback
+    if (result && typeof result.changes === 'number') {
+      return result.changes > 0
+    }
+    // Fallback: if changes is undefined but we have a success flag, trust it
+    // This handles cases where the database driver doesn't properly return changes count
+    return result && result.success !== false
   }
 
   /**

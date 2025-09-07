@@ -75,6 +75,22 @@
                 <template v-slot:prepend>
                   <q-icon name="event_note" />
                 </template>
+                <template v-slot:option="scope">
+                  <q-item v-bind="scope.itemProps">
+                    <q-item-section avatar v-if="scope.opt.icon">
+                      <q-icon :name="scope.opt.icon" :color="scope.opt.color || 'primary'" />
+                    </q-item-section>
+                    <q-item-section>
+                      <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    </q-item-section>
+                  </q-item>
+                </template>
+                <template v-slot:selected-item="scope">
+                  <div class="row items-center q-gutter-xs">
+                    <q-icon v-if="getSelectedVisitTypeIcon()" :name="getSelectedVisitTypeIcon()" :color="getSelectedVisitTypeColor() || 'primary'" size="16px" />
+                    <span>{{ scope.opt.label }}</span>
+                  </div>
+                </template>
               </q-select>
             </div>
             <div class="col">
@@ -135,7 +151,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
-import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitStore } from 'src/stores/visit-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -158,7 +174,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'visitUpdated'])
 
 const $q = useQuasar()
-const databaseStore = useDatabaseStore()
+const visitStore = useVisitStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
@@ -213,6 +229,17 @@ const formatDateForInput = (dateStr) => {
   return date.toISOString().split('T')[0]
 }
 
+// Helper functions for visit type display
+const getSelectedVisitTypeIcon = () => {
+  const selectedOption = visitTypeOptions.value.find((opt) => opt.value === formData.value.VISIT_TYPE_CD)
+  return selectedOption?.icon
+}
+
+const getSelectedVisitTypeColor = () => {
+  const selectedOption = visitTypeOptions.value.find((opt) => opt.value === formData.value.VISIT_TYPE_CD)
+  return selectedOption?.color
+}
+
 // Methods
 const loadOptions = async () => {
   try {
@@ -260,36 +287,66 @@ const loadOptions = async () => {
       ]
     }
 
-    // Load visit type options from concept resolution store
+    // Load visit type options from global settings store (CODE_LOOKUP table)
     try {
-      const visitTypeData = await conceptStore.getConceptOptions('visit_type', 'VISIT_DIMENSION', 'VISIT_TYPE_CD')
+      const visitTypeData = await globalSettingsStore.loadLookupValues('VISIT_TYPE_CD', 'VISIT_DIMENSION')
 
       if (visitTypeData && visitTypeData.length > 0) {
-        visitTypeOptions.value = visitTypeData
-        logger.debug('Loaded visit type options from concept store', {
-          optionsCount: visitTypeData.length,
-          options: visitTypeData.map((opt) => ({ label: opt.label, value: opt.value })),
+        visitTypeOptions.value = visitTypeData.map((visitType) => {
+          // Parse the LOOKUP_BLOB to get the display label and icon
+          let label = visitType.NAME_CHAR
+          let icon = null
+          let color = null
+
+          if (visitType.LOOKUP_BLOB) {
+            try {
+              const parsed = JSON.parse(visitType.LOOKUP_BLOB)
+              label = parsed.label || visitType.NAME_CHAR
+              icon = parsed.icon
+              color = parsed.color
+            } catch {
+              // If parsing fails, use NAME_CHAR as label
+              label = visitType.NAME_CHAR
+            }
+          }
+
+          return {
+            label: label || visitType.CODE_CD,
+            value: visitType.CODE_CD,
+            icon,
+            color,
+          }
+        })
+
+        logger.debug('Loaded visit type options from global settings', {
+          optionsCount: visitTypeOptions.value.length,
+          options: visitTypeOptions.value.map((opt) => ({
+            label: opt.label,
+            value: opt.value,
+            icon: opt.icon,
+            color: opt.color,
+          })),
         })
       } else {
         // Fallback to hardcoded options
         visitTypeOptions.value = [
-          { label: 'Routine Check-up', value: 'routine' },
-          { label: 'Follow-up', value: 'followup' },
-          { label: 'Emergency', value: 'emergency' },
-          { label: 'Consultation', value: 'consultation' },
-          { label: 'Procedure', value: 'procedure' },
+          { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', color: 'primary' },
+          { label: 'Follow-up', value: 'followup', icon: 'follow_the_signs', color: 'secondary' },
+          { label: 'Emergency', value: 'emergency', icon: 'emergency', color: 'negative' },
+          { label: 'Consultation', value: 'consultation', icon: 'psychology', color: 'info' },
+          { label: 'Procedure', value: 'procedure', icon: 'medical_services', color: 'warning' },
         ]
         logger.debug('Using hardcoded fallback visit type options')
       }
     } catch (error) {
-      logger.error('Failed to load visit type options from concept store', error)
+      logger.error('Failed to load visit type options from global settings', error)
       // Use minimal fallback options
       visitTypeOptions.value = [
-        { label: 'Routine Check-up', value: 'routine' },
-        { label: 'Follow-up', value: 'followup' },
-        { label: 'Emergency', value: 'emergency' },
-        { label: 'Consultation', value: 'consultation' },
-        { label: 'Procedure', value: 'procedure' },
+        { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', color: 'primary' },
+        { label: 'Follow-up', value: 'followup', icon: 'follow_the_signs', color: 'secondary' },
+        { label: 'Emergency', value: 'emergency', icon: 'emergency', color: 'negative' },
+        { label: 'Consultation', value: 'consultation', icon: 'psychology', color: 'info' },
+        { label: 'Procedure', value: 'procedure', icon: 'medical_services', color: 'warning' },
       ]
     }
 
@@ -458,12 +515,6 @@ const handleSubmit = async () => {
   loading.value = true
 
   try {
-    // Get visit repository
-    const visitRepository = databaseStore.getRepository('visit')
-    if (!visitRepository) {
-      throw new Error('Visit repository not available')
-    }
-
     // Prepare update data (only changed fields)
     const updateData = {}
 
@@ -517,9 +568,9 @@ const handleSubmit = async () => {
     // Always update the UPDATE_DATE when saving
     updateData.UPDATE_DATE = new Date().toISOString()
 
-    // Update the visit
+    // Update the visit using the visit store (this will update local state automatically)
     const visitData = props.visit.visit || props.visit
-    await visitRepository.update(visitData.ENCOUNTER_NUM, updateData)
+    await visitStore.updateVisit(visitData.ENCOUNTER_NUM, updateData)
 
     $q.notify({
       type: 'positive',

@@ -294,12 +294,12 @@ class ConceptRepository extends BaseRepository {
     if (result.success) {
       return conceptWithAudit // Return the original data since CONCEPT_CD is the primary key
     }
-    
+
     // Handle specific constraint errors more gracefully
     if (result.error && result.error.includes('UNIQUE constraint failed')) {
       throw new Error(`Concept code '${conceptData.CONCEPT_CD}' already exists`)
     }
-    
+
     throw new Error('Failed to create concept')
   }
 

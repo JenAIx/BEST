@@ -60,4 +60,4 @@ export const studyTables = {
     CREATE INDEX IF NOT EXISTS idx_study_patient_patient_num ON STUDY_PATIENT_LOOKUP(PATIENT_NUM);
     CREATE INDEX IF NOT EXISTS idx_study_patient_status ON STUDY_PATIENT_LOOKUP(ENROLLMENT_STATUS_CD);
   `,
-};
+}

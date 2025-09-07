@@ -102,8 +102,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useVisitStore } from 'src/stores/visit-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
-import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { getTemplateDescription, isValidTemplate } from 'src/shared/utils/template-utils'
 
@@ -122,8 +122,8 @@ const emit = defineEmits(['update:modelValue', 'created'])
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
+const visitStore = useVisitStore()
 const globalSettingsStore = useGlobalSettingsStore()
-const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('NewVisitDialog')
 
@@ -165,34 +165,34 @@ const loadOptions = async () => {
   try {
     loadingOptions.value = true
 
-    // Load visit types from concept resolution store (from CODE_LOOKUP)
+    // Load visit types from global settings store (from CODE_LOOKUP)
     try {
-      const visitTypeOptions = await conceptStore.getConceptOptions('visit_type', 'VISIT_DIMENSION', 'VISIT_TYPE_CD')
+      const visitTypeOptions = await globalSettingsStore.getVisitTypeOptions()
 
       if (visitTypeOptions && visitTypeOptions.length > 0) {
-        visitTypes.value = visitTypeOptions.map((vt) => ({
-          label: vt.label,
-          value: vt.value,
-          icon: getVisitTypeIcon(vt.value),
-          description: getVisitTypeDescription(vt.value),
-        }))
-        logger.debug('Loaded visit type options from concept store', {
-          optionsCount: visitTypeOptions.length,
-          options: visitTypeOptions.map((opt) => ({ label: opt.label, value: opt.value })),
-        })
-      } else {
-        // Fallback to global settings if concept store fails
-        const visitTypeOptions = await globalSettingsStore.getVisitTypeOptions()
         visitTypes.value = visitTypeOptions.map((vt) => ({
           label: vt.label,
           value: vt.value,
           icon: vt.icon || 'local_hospital',
           description: vt.description || '',
         }))
-        logger.debug('Loaded visit type options from global settings fallback')
+        logger.debug('Loaded visit type options from global settings store', {
+          optionsCount: visitTypeOptions.length,
+          options: visitTypeOptions.map((opt) => ({ label: opt.label, value: opt.value })),
+        })
+      } else {
+        // Use hardcoded fallback options if no database data
+        visitTypes.value = [
+          { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', description: 'Regular scheduled appointment' },
+          { label: 'Follow-up', value: 'followup', icon: 'follow_the_signs', description: 'Follow-up from previous visit' },
+          { label: 'Emergency', value: 'emergency', icon: 'emergency', description: 'Urgent medical attention' },
+          { label: 'Consultation', value: 'consultation', icon: 'psychology', description: 'Specialist consultation' },
+          { label: 'Procedure', value: 'procedure', icon: 'medical_services', description: 'Medical procedure or treatment' },
+        ]
+        logger.debug('Using hardcoded fallback visit type options')
       }
     } catch (error) {
-      logger.error('Failed to load visit type options from concept store', error)
+      logger.error('Failed to load visit type options from global settings store', error)
       // Use hardcoded fallback options
       visitTypes.value = [
         { label: 'Routine Check-up', value: 'routine', icon: 'health_and_safety', description: 'Regular scheduled appointment' },
@@ -312,29 +312,6 @@ const getTypeIcon = (type) => {
   return typeObj?.icon || 'local_hospital'
 }
 
-// Helper function to get visit type icon based on type code
-const getVisitTypeIcon = (typeCode) => {
-  const iconMap = {
-    routine: 'health_and_safety',
-    followup: 'follow_the_signs',
-    emergency: 'emergency',
-    consultation: 'psychology',
-    procedure: 'medical_services',
-  }
-  return iconMap[typeCode] || 'local_hospital'
-}
-
-// Helper function to get visit type description based on type code
-const getVisitTypeDescription = (typeCode) => {
-  const descriptionMap = {
-    routine: 'Regular scheduled appointment',
-    followup: 'Follow-up from previous visit',
-    emergency: 'Urgent medical attention',
-    consultation: 'Specialist consultation',
-    procedure: 'Medical procedure or treatment',
-  }
-  return descriptionMap[typeCode] || ''
-}
 
 const filterLocations = (val, update) => {
   update(() => {
@@ -397,7 +374,6 @@ const saveVisit = async () => {
     creating.value = true
 
     const patientRepo = dbStore.getRepository('patient')
-    const visitRepo = dbStore.getRepository('visit')
 
     const patient = await patientRepo.findByPatientCode(props.patient.id)
     if (!patient) {
@@ -424,7 +400,7 @@ const saveVisit = async () => {
       }),
     }
 
-    const createdVisit = await visitRepo.createVisit(newVisitData)
+    const createdVisit = await visitStore.createVisit(newVisitData)
 
     const newVisit = {
       id: createdVisit.ENCOUNTER_NUM,

@@ -285,8 +285,8 @@ const loadPatient = async () => {
   try {
     if (!dbStore.canPerformOperations) return
 
-    // Initialize service
-    visitObservationService.initialize()
+    // Initialize service with Quasar instance
+    visitObservationService.initialize($q)
 
     // Load patient with all data using the service
     const loadedPatient = await visitObservationService.loadPatientWithData(patientId)
@@ -399,9 +399,12 @@ const onPatientUpdated = () => {
 }
 
 // Handle observation updates from observations tab
-const onObservationsUpdated = async () => {
-  // Reload patient data and observations
-  await loadPatient()
+const onObservationsUpdated = async (eventType = 'observation') => {
+  // Only reload if it's an observation change, not just a visit update
+  // Visit updates are handled by the visit store and don't require full patient reload
+  if (eventType === 'observation') {
+    await loadPatient()
+  }
 }
 
 // Computed properties for tab labels

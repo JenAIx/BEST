@@ -184,7 +184,7 @@ export default class ElectronConnection {
       return {
         success: true,
         lastID: rawResult.lastID,
-        changes: rawResult.changes,
+        changes: typeof rawResult.changes === 'number' ? rawResult.changes : 1, // Default to 1 if undefined
       }
     } catch (error) {
       this.logger.error('ExecuteCommand failed', error, { sql, params })

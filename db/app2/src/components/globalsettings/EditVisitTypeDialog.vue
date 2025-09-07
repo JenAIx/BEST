@@ -1,65 +1,32 @@
 <template>
-  <AppDialog 
-    v-model="localShow" 
-    title="Edit Visit Type" 
-    subtitle="Configure visit type metadata and associated field sets" 
-    size="lg" 
-    :show-ok="false" 
-    cancel-label="Close" 
-    @cancel="onCancel"
-  >
+  <AppDialog v-model="localShow" title="Edit Visit Type" subtitle="Configure visit type metadata and associated field sets" size="lg" :show-ok="false" cancel-label="Close" @cancel="onCancel">
     <div class="visit-type-editor">
       <!-- Basic Information -->
       <div class="basic-info-section q-mb-lg">
         <div class="text-subtitle1 q-mb-md">Basic Information</div>
-        
+
         <!-- Name Field -->
-        <q-input 
-          v-model="localVisitTypeData.label" 
-          label="Display Name" 
-          outlined 
-          dense 
-          class="q-mb-md" 
+        <q-input
+          v-model="localVisitTypeData.label"
+          label="Display Name"
+          outlined
+          dense
+          class="q-mb-md"
           placeholder="Enter visit type display name..."
-          :rules="[val => !!val || 'Display name is required']"
+          :rules="[(val) => !!val || 'Display name is required']"
         />
 
         <!-- Icon and Color Selection -->
         <div class="icon-color-selection q-mb-md">
           <div class="icon-preview">
-            <q-icon 
-              :name="localVisitTypeData.icon || 'event'" 
-              size="24px" 
-              :color="localVisitTypeData.color || 'primary'" 
-              class="q-mr-sm" 
-            />
+            <q-icon :name="localVisitTypeData.icon || 'event'" size="24px" :color="localVisitTypeData.color || 'primary'" class="q-mr-sm" />
             <span class="text-caption">{{ localVisitTypeData.label || 'Preview' }}</span>
           </div>
-          
+
           <div class="selection-controls">
-            <q-select 
-              v-model="localVisitTypeData.icon" 
-              :options="iconOptions" 
-              label="Icon" 
-              outlined 
-              dense 
-              clearable 
-              emit-value 
-              map-options 
-              class="icon-select"
-            />
-            
-            <q-select 
-              v-model="localVisitTypeData.color" 
-              :options="colorOptions" 
-              label="Color" 
-              outlined 
-              dense 
-              clearable 
-              emit-value 
-              map-options 
-              class="color-select"
-            />
+            <q-select v-model="localVisitTypeData.icon" :options="iconOptions" label="Icon" outlined dense clearable emit-value map-options class="icon-select" />
+
+            <q-select v-model="localVisitTypeData.color" :options="colorOptions" label="Color" outlined dense clearable emit-value map-options class="color-select" />
           </div>
         </div>
       </div>
@@ -68,18 +35,10 @@
       <div class="fieldsets-section q-mb-md">
         <div class="row items-center justify-between q-mb-sm">
           <div class="text-subtitle1">Associated Field Sets</div>
-          <q-btn 
-            color="primary" 
-            icon="add" 
-            label="Add Field Set" 
-            dense 
-            @click="showFieldSetSearch = true" 
-          />
+          <q-btn color="primary" icon="add" label="Add Field Set" dense @click="showFieldSetSearch = true" />
         </div>
 
-        <div class="text-caption text-grey-6 q-mb-md">
-          Configure which field sets are available and active by default for this visit type
-        </div>
+        <div class="text-caption text-grey-6 q-mb-md">Configure which field sets are available and active by default for this visit type</div>
 
         <!-- Field Set List -->
         <div class="fieldset-list">
@@ -118,21 +77,8 @@
 
                 <q-item-section side>
                   <div class="fieldset-controls">
-                    <q-toggle
-                      v-model="fieldSet.active"
-                      color="primary"
-                      size="sm"
-                      @update:model-value="onFieldSetActiveToggle(fieldSet)"
-                    />
-                    <q-btn
-                      flat
-                      round
-                      dense
-                      size="sm"
-                      icon="delete"
-                      color="negative"
-                      @click="removeFieldSet(fieldSet.id)"
-                    >
+                    <q-toggle v-model="fieldSet.active" color="primary" size="sm" @update:model-value="onFieldSetActiveToggle(fieldSet)" />
+                    <q-btn flat round dense size="sm" icon="delete" color="negative" @click="removeFieldSet(fieldSet.id)">
                       <q-tooltip>Remove field set</q-tooltip>
                     </q-btn>
                   </div>
@@ -152,9 +98,7 @@
             </template>
           </draggable>
 
-          <div v-else class="text-grey-5 text-center q-pa-md">
-            No field sets associated yet. Click "Add Field Set" to get started.
-          </div>
+          <div v-else class="text-grey-5 text-center q-pa-md">No field sets associated yet. Click "Add Field Set" to get started.</div>
         </div>
       </div>
     </div>
@@ -164,20 +108,12 @@
       <q-card style="min-width: 600px">
         <q-card-section>
           <div class="text-h6">Add Field Sets</div>
-          <div class="text-caption text-grey-6 q-mb-md">
-            Select field sets to associate with this visit type
-          </div>
+          <div class="text-caption text-grey-6 q-mb-md">Select field sets to associate with this visit type</div>
 
           <!-- Available Field Sets -->
           <div v-if="availableFieldSets.length > 0" class="available-fieldsets">
             <q-list>
-              <q-item 
-                v-for="fieldSet in availableFieldSets" 
-                :key="fieldSet.id" 
-                clickable 
-                @click="addFieldSet(fieldSet)"
-                :class="{ 'bg-grey-1': isFieldSetSelected(fieldSet.id) }"
-              >
+              <q-item v-for="fieldSet in availableFieldSets" :key="fieldSet.id" clickable @click="addFieldSet(fieldSet)" :class="{ 'bg-grey-1': isFieldSetSelected(fieldSet.id) }">
                 <q-item-section avatar>
                   <q-icon :name="fieldSet.icon || 'category'" color="primary" />
                 </q-item-section>
@@ -190,20 +126,14 @@
                 </q-item-section>
 
                 <q-item-section side>
-                  <q-icon 
-                    v-if="isFieldSetSelected(fieldSet.id)" 
-                    name="check_circle" 
-                    color="positive" 
-                  />
+                  <q-icon v-if="isFieldSetSelected(fieldSet.id)" name="check_circle" color="positive" />
                   <q-icon v-else name="add" color="primary" />
                 </q-item-section>
               </q-item>
             </q-list>
           </div>
 
-          <div v-else class="text-grey-5 text-center q-pa-md">
-            No field sets available to add
-          </div>
+          <div v-else class="text-grey-5 text-center q-pa-md">No field sets available to add</div>
         </q-card-section>
 
         <q-card-actions align="right">
@@ -213,13 +143,7 @@
     </q-dialog>
 
     <template #actions>
-      <q-btn 
-        color="primary" 
-        label="Save Visit Type" 
-        @click="onSave" 
-        :loading="saving" 
-        :disable="!isFormValid"
-      />
+      <q-btn color="primary" label="Save Visit Type" @click="onSave" :loading="saving" :disable="!isFormValid" />
     </template>
   </AppDialog>
 </template>
@@ -303,8 +227,8 @@ const isFormValid = computed(() => {
 })
 
 const availableFieldSets = computed(() => {
-  const selectedIds = new Set(localVisitTypeData.value.fieldSets.map(fs => fs.id))
-  return allFieldSets.value.filter(fs => !selectedIds.has(fs.id))
+  const selectedIds = new Set(localVisitTypeData.value.fieldSets.map((fs) => fs.id))
+  return allFieldSets.value.filter((fs) => !selectedIds.has(fs.id))
 })
 
 // Watch for external model changes
@@ -320,7 +244,7 @@ watch(
         color: props.visitTypeData.color || null,
         fieldSets: props.visitTypeData.fieldSets || [],
       }
-      
+
       // Load available field sets
       await loadFieldSets()
     }
@@ -349,7 +273,7 @@ const loadFieldSets = async () => {
 }
 
 const isFieldSetSelected = (fieldSetId) => {
-  return localVisitTypeData.value.fieldSets.some(fs => fs.id === fieldSetId)
+  return localVisitTypeData.value.fieldSets.some((fs) => fs.id === fieldSetId)
 }
 
 const addFieldSet = (fieldSet) => {
@@ -377,11 +301,11 @@ const addFieldSet = (fieldSet) => {
 }
 
 const removeFieldSet = (fieldSetId) => {
-  const index = localVisitTypeData.value.fieldSets.findIndex(fs => fs.id === fieldSetId)
+  const index = localVisitTypeData.value.fieldSets.findIndex((fs) => fs.id === fieldSetId)
   if (index > -1) {
     const removedFieldSet = localVisitTypeData.value.fieldSets[index]
     localVisitTypeData.value.fieldSets.splice(index, 1)
-    
+
     $q.notify({
       type: 'info',
       message: `Removed "${removedFieldSet.name}" from visit type`,

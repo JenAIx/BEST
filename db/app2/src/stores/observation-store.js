@@ -242,7 +242,56 @@ export const useObservationStore = defineStore('observation', () => {
       const observationRepo = dbStore.getRepository('observation')
       const result = await observationRepo.updateObservation(observationId, enhancedUpdateData)
 
-      logger.success('Observation updated successfully', { observationId })
+      // Update local state immediately to reflect changes
+      const updateLocalObservation = (obsArray) => {
+        const index = obsArray.findIndex((obs) => obs.observationId === observationId)
+        if (index !== -1) {
+          const updatedObs = { ...obsArray[index] }
+
+          // Update the relevant fields based on what was changed
+          Object.keys(enhancedUpdateData).forEach((key) => {
+            switch (key) {
+              case 'TVAL_CHAR':
+                updatedObs.tval_char = enhancedUpdateData[key]
+                updatedObs.TVAL_CHAR = enhancedUpdateData[key]
+                updatedObs.originalValue = enhancedUpdateData[key]
+                updatedObs.value = enhancedUpdateData[key]
+                break
+              case 'NVAL_NUM':
+                updatedObs.nval_num = enhancedUpdateData[key]
+                updatedObs.NVAL_NUM = enhancedUpdateData[key]
+                updatedObs.originalValue = enhancedUpdateData[key]
+                updatedObs.value = enhancedUpdateData[key]
+                break
+              case 'OBSERVATION_BLOB':
+                updatedObs.observation_blob = enhancedUpdateData[key]
+                updatedObs.OBSERVATION_BLOB = enhancedUpdateData[key]
+                break
+              case 'UNIT_CD':
+                updatedObs.unit = enhancedUpdateData[key]
+                updatedObs.UNIT_CD = enhancedUpdateData[key]
+                break
+              case 'CATEGORY_CHAR':
+                updatedObs.category = enhancedUpdateData[key]
+                updatedObs.CATEGORY_CHAR = enhancedUpdateData[key]
+                break
+              default:
+                // Handle other fields generically
+                updatedObs[key] = enhancedUpdateData[key]
+                break
+            }
+          })
+
+          // Replace the observation in the array
+          obsArray[index] = updatedObs
+        }
+      }
+
+      // Update both observation arrays
+      updateLocalObservation(observations.value)
+      updateLocalObservation(allObservations.value)
+
+      logger.success('Observation updated successfully (local state updated)', { observationId })
       return result
     } catch (err) {
       logger.error('Failed to update observation', err, { observationId })
@@ -263,7 +312,19 @@ export const useObservationStore = defineStore('observation', () => {
       const observationRepo = dbStore.getRepository('observation')
       await observationRepo.delete(observationId)
 
-      logger.success('Observation deleted successfully', { observationId })
+      // Remove from local state immediately
+      const removeFromLocalState = (obsArray) => {
+        const index = obsArray.findIndex((obs) => obs.observationId === observationId)
+        if (index !== -1) {
+          obsArray.splice(index, 1)
+        }
+      }
+
+      // Remove from both observation arrays
+      removeFromLocalState(observations.value)
+      removeFromLocalState(allObservations.value)
+
+      logger.success('Observation deleted successfully (removed from local state)', { observationId })
     } catch (err) {
       logger.error('Failed to delete observation', err)
       error.value = err.message

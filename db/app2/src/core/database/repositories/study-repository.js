@@ -47,7 +47,7 @@ class StudyRepository extends BaseRepository {
         studyData.funding,
         studyData.startDate,
         studyData.endDate,
-        studyData.notes ? JSON.stringify({ notes: studyData.notes }) : null
+        studyData.notes ? JSON.stringify({ notes: studyData.notes }) : null,
       ]
 
       // Execute the insert and get the last inserted ID using SQLite's last_insert_rowid()
@@ -63,10 +63,7 @@ class StudyRepository extends BaseRepository {
       if (!studyId) {
         this.logger.warn('Could not get study ID, trying fallback query...')
         try {
-          const fallbackResult = await this.connection.executeQuery(
-            'SELECT STUDY_NUM FROM STUDY_DIMENSION WHERE NAME_CHAR = ? ORDER BY CREATED_AT DESC LIMIT 1',
-            [studyData.name]
-          )
+          const fallbackResult = await this.connection.executeQuery('SELECT STUDY_NUM FROM STUDY_DIMENSION WHERE NAME_CHAR = ? ORDER BY CREATED_AT DESC LIMIT 1', [studyData.name])
           if (fallbackResult.success && fallbackResult.data.length > 0) {
             studyId = fallbackResult.data[0].STUDY_NUM
             this.logger.info('Retrieved study ID from fallback query', { studyId })
@@ -106,7 +103,7 @@ class StudyRepository extends BaseRepository {
       const params = []
 
       // Build dynamic update query
-      Object.keys(updateData).forEach(key => {
+      Object.keys(updateData).forEach((key) => {
         if (key !== 'STUDY_NUM' && key !== 'CREATED_AT') {
           updateFields.push(`${key} = ?`)
           params.push(updateData[key])
@@ -251,13 +248,13 @@ class StudyRepository extends BaseRepository {
       this.logger.info('Executing search query', { sql, params, criteria })
 
       const result = await this.connection.executeQuery(sql, params)
-      const transformedResults = result.success ? result.data.map(study => this.transformStudyData(study)) : []
-      
-      this.logger.info('Search query completed', { 
+      const transformedResults = result.success ? result.data.map((study) => this.transformStudyData(study)) : []
+
+      this.logger.info('Search query completed', {
         rawResultCount: result.success ? result.data.length : 0,
         transformedResultCount: transformedResults.length,
-        sql, 
-        params 
+        sql,
+        params,
       })
 
       return transformedResults
@@ -334,7 +331,7 @@ class StudyRepository extends BaseRepository {
         enrollmentData.UPDATE_DATE,
         enrollmentData.DOWNLOAD_DATE,
         enrollmentData.IMPORT_DATE,
-        enrollmentData.UPLOAD_ID
+        enrollmentData.UPLOAD_ID,
       ]
 
       await this.connection.executeCommand(sql, params)
@@ -428,7 +425,6 @@ class StudyRepository extends BaseRepository {
       throw error
     }
   }
-
 
   /**
    * Get study statistics
