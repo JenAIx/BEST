@@ -57,9 +57,7 @@
                 </q-item-section>
 
                 <q-item-section side>
-                  <q-btn flat round dense icon="delete" color="negative" @click.stop="removeConcept(conceptCode)" size="sm">
-                    <q-tooltip>Remove concept</q-tooltip>
-                  </q-btn>
+                  <AppRemoveConfirmationButton @remove-confirmed="removeConcept(conceptCode)" />
                 </q-item-section>
 
                 <!-- TOOLTIP CONCEPT INFO -->
@@ -142,6 +140,7 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import draggable from 'vuedraggable'
 import AppDialog from '../shared/AppDialog.vue'
 import ValueTypeIcon from '../shared/ValueTypeIcon.vue'
+import AppRemoveConfirmationButton from '../shared/AppRemoveConfirmationButton.vue'
 
 const $q = useQuasar()
 const conceptStore = useConceptResolutionStore()
