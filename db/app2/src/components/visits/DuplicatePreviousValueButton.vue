@@ -81,7 +81,7 @@ const buttonIcon = computed(() => {
 
 const buttonColor = computed(() => {
   if (loadingPreviousValue.value) return 'grey-6'
-  return previousValue.value ? 'secondary' : 'info'
+  return previousValue.value ? 'secondary' : 'grey-6'
 })
 
 const buttonDisabled = computed(() => {

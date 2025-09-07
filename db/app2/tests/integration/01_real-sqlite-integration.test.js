@@ -9,9 +9,9 @@ import path from 'path'
 import RealSQLiteConnection from '../../src/core/database/sqlite/real-connection.js'
 import MigrationManager from '../../src/core/database/migrations/migration-manager.js'
 import PatientRepository from '../../src/core/database/repositories/patient-repository.js'
-import { currentSchema } from '../../src/core/database/migrations/002-current-schema.js'
-import { addNoteFactColumns } from '../../src/core/database/migrations/003-add-note-fact-columns.js'
-import { createPatientListView } from '../../src/core/database/migrations/005-create-patient-list-view.js'
+import { coreSchema } from '../../src/core/database/migrations/001-core-schema.js'
+import { databaseViews } from '../../src/core/database/migrations/002-views.js'
+import { studyTables } from '../../src/core/database/migrations/004-study-tables.js'
 
 describe('Real SQLite Integration Tests', () => {
   let connection
@@ -40,9 +40,9 @@ describe('Real SQLite Integration Tests', () => {
 
     // Connect and initialize database once for all tests
     await connection.connect(testDbPath)
-    migrationManager.registerMigration(currentSchema)
-    migrationManager.registerMigration(addNoteFactColumns)
-    migrationManager.registerMigration(createPatientListView)
+    migrationManager.registerMigration(coreSchema)
+    migrationManager.registerMigration(databaseViews)
+    migrationManager.registerMigration(studyTables)
     await migrationManager.initializeDatabase()
   })
 
@@ -174,8 +174,8 @@ describe('Real SQLite Integration Tests', () => {
   describe('Patient CRUD Operations', () => {
     beforeEach(async () => {
       await connection.connect(testDbPath)
-      migrationManager.registerMigration(currentSchema)
-      migrationManager.registerMigration(addNoteFactColumns)
+      migrationManager.registerMigration(coreSchema)
+      migrationManager.registerMigration(databaseViews)
       await migrationManager.initializeDatabase()
     })
 
@@ -512,8 +512,8 @@ describe('Real SQLite Integration Tests', () => {
   describe('Database Integrity', () => {
     beforeEach(async () => {
       await connection.connect(testDbPath)
-      migrationManager.registerMigration(currentSchema)
-      migrationManager.registerMigration(addNoteFactColumns)
+      migrationManager.registerMigration(coreSchema)
+      migrationManager.registerMigration(databaseViews)
       await migrationManager.initializeDatabase()
     })
 
@@ -623,8 +623,8 @@ describe('Real SQLite Integration Tests', () => {
   describe('Performance and Scalability', () => {
     beforeEach(async () => {
       await connection.connect(testDbPath)
-      migrationManager.registerMigration(currentSchema)
-      migrationManager.registerMigration(addNoteFactColumns)
+      migrationManager.registerMigration(coreSchema)
+      migrationManager.registerMigration(databaseViews)
       await migrationManager.initializeDatabase()
     })
 

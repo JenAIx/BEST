@@ -92,6 +92,7 @@ export const useObservationStore = defineStore('observation', () => {
           START_DATE,
           CATEGORY_CHAR,
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
+          CONCEPT_DESCRIPTION,
           TVAL_RESOLVED,
           ENCOUNTER_NUM
         FROM patient_observations
@@ -147,6 +148,7 @@ export const useObservationStore = defineStore('observation', () => {
           START_DATE,
           CATEGORY_CHAR,
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
+          CONCEPT_DESCRIPTION,
           TVAL_RESOLVED,
           ENCOUNTER_NUM
         FROM patient_observations
@@ -507,6 +509,7 @@ export const useObservationStore = defineStore('observation', () => {
       observationId: obs.OBSERVATION_ID,
       conceptCode: obs.CONCEPT_CD,
       conceptName: obs.CONCEPT_NAME || obs.CONCEPT_CD,
+      conceptDescription: obs.CONCEPT_DESCRIPTION,
       valueType: obs.VALTYPE_CD,
       originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
       resolvedValue: obs.TVAL_RESOLVED,

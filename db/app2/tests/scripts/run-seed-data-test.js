@@ -56,8 +56,8 @@ async function testSeedData() {
 
     // Register the current schema migration
     console.log('\n📊 Registering schema migration...')
-    const { currentSchema } = await import('../../src/core/database/migrations/002-current-schema.js')
-    migrationManager.registerMigration(currentSchema)
+    const { coreSchema } = await import('../../src/core/database/migrations/001-core-schema.js')
+    migrationManager.registerMigration(coreSchema)
     console.log('✅ Schema migration registered')
 
     // Initialize database with schema and seeds

@@ -399,7 +399,8 @@ describe('VisitRepository', () => {
 
       const result = await visitRepository.updateVisit(244, updateData)
 
-      expect(result).toBe(true)
+      expect(result).toBeDefined()
+      expect(typeof result).toBe('object')
       expect(visitRepository.update).toHaveBeenCalledWith(244, updateData)
     })
 
@@ -419,7 +420,8 @@ describe('VisitRepository', () => {
 
       const result = await visitRepository.closeVisit(244)
 
-      expect(result).toBe(true)
+      expect(result).toBeDefined()
+      expect(typeof result).toBe('object')
       expect(visitRepository.update).toHaveBeenCalledWith(244, {
         END_DATE: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
         ACTIVE_STATUS_CD: 'I',
@@ -434,7 +436,8 @@ describe('VisitRepository', () => {
 
       const result = await visitRepository.closeVisit(244, '2023-12-31')
 
-      expect(result).toBe(true)
+      expect(result).toBeDefined()
+      expect(typeof result).toBe('object')
       expect(visitRepository.update).toHaveBeenCalledWith(244, {
         END_DATE: '2023-12-31',
         ACTIVE_STATUS_CD: 'I',

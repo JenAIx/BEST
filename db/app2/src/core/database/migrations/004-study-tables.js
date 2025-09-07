@@ -1,12 +1,12 @@
 /**
- * Migration: 008 - Study Tables
- *
- * Adds study management tables to support research project tracking.
- * Includes STUDY_DIMENSION and STUDY_PATIENT_LOOKUP for patient enrollment.
+ * Study Management Tables Migration
+ * Adds study management tables to support research project tracking
+ * Includes STUDY_DIMENSION and STUDY_PATIENT_LOOKUP for patient enrollment
+ * Moved from 008-study-tables.js for cleaner numbering
  */
 
 export const studyTables = {
-  name: '008-study-tables',
+  name: '004-study-tables',
   description: 'Add study management tables: STUDY_DIMENSION and STUDY_PATIENT_LOOKUP for patient enrollment',
   sql: `
     -- STUDY_DIMENSION - Main study table

@@ -15,8 +15,8 @@ import path from 'path'
 import RealSQLiteConnection from '../../src/core/database/sqlite/real-connection.js'
 import MigrationManager from '../../src/core/database/migrations/migration-manager.js'
 import SeedManager from '../../src/core/database/seeds/seed-manager.js'
-import { currentSchema } from '../../src/core/database/migrations/002-current-schema.js'
-import { addNoteFactColumns } from '../../src/core/database/migrations/003-add-note-fact-columns.js'
+import { coreSchema } from '../../src/core/database/migrations/001-core-schema.js'
+import { databaseViews } from '../../src/core/database/migrations/002-views.js'
 import ConceptRepository from '../../src/core/database/repositories/concept-repository.js'
 import CqlRepository from '../../src/core/database/repositories/cql-repository.js'
 import UserRepository from '../../src/core/database/repositories/user-repository.js'
@@ -45,9 +45,9 @@ describe('Seed Data Integration Tests', () => {
     cqlRepo = new CqlRepository(connection)
     userRepo = new UserRepository(connection)
 
-    // Register the current schema migration for all tests
-    migrationManager.registerMigration(currentSchema)
-    migrationManager.registerMigration(addNoteFactColumns)
+    // Register the consolidated schema migrations for all tests
+    migrationManager.registerMigration(coreSchema)
+    migrationManager.registerMigration(databaseViews)
 
     // Connect and initialize database once for all tests
     await connection.connect(testDbPath)

@@ -23,8 +23,8 @@ import ObservationRepository from '../../src/core/database/repositories/observat
 import NoteRepository from '../../src/core/database/repositories/note-repository.js'
 import ProviderRepository from '../../src/core/database/repositories/provider-repository.js'
 import ConceptRepository from '../../src/core/database/repositories/concept-repository.js'
-import { currentSchema } from '../../src/core/database/migrations/002-current-schema.js'
-import { addNoteFactColumns } from '../../src/core/database/migrations/003-add-note-fact-columns.js'
+import { coreSchema } from '../../src/core/database/migrations/001-core-schema.js'
+import { databaseViews } from '../../src/core/database/migrations/002-views.js'
 import path from 'path'
 import fs from 'fs/promises'
 

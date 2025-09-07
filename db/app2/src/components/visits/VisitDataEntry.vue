@@ -341,7 +341,7 @@ const activateFieldSetsForVisitType = async (visit) => {
     })
     
     if (visitTypeFieldSets.length === 0) {
-      logger.info(`No active field sets configured for visit type: ${visitType}`)
+      logger.debug(`No active field sets configured for visit type: ${visitType}`)
       return
     }
 

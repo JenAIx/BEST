@@ -286,7 +286,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    * Get all categories (convenience method)
    */
   const getCategories = async (forceRefresh = false) => {
-    return await loadLookupValues('CATEGORY_CHAR', forceRefresh)
+    return await loadLookupValues('CATEGORY_CHAR', 'CONCEPT_DIMENSION', forceRefresh)
   }
 
   /**
@@ -296,7 +296,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getCategoryOptions = async (forceRefresh = false) => {
     try {
-      const categories = await loadLookupValues('CATEGORY_CHAR', forceRefresh)
+      const categories = await loadLookupValues('CATEGORY_CHAR', 'CONCEPT_DIMENSION', forceRefresh)
 
       return categories.map((cat) => ({
         label: formatCategoryLabel(cat.NAME_CHAR || cat.CODE_CD),
@@ -350,7 +350,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    * Get all value types (convenience method)
    */
   const getValueTypes = async (forceRefresh = false) => {
-    return await loadLookupValues('VALTYPE_CD', forceRefresh)
+    return await loadLookupValues('VALTYPE_CD', 'CONCEPT_DIMENSION', forceRefresh)
   }
 
   /**
@@ -360,7 +360,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getValueTypeOptions = async (forceRefresh = false) => {
     try {
-      const valueTypes = await loadLookupValues('VALTYPE_CD', forceRefresh)
+      const valueTypes = await loadLookupValues('VALTYPE_CD', 'CONCEPT_DIMENSION', forceRefresh)
 
       // If we have data from the database, use it
       if (valueTypes.length > 0) {
@@ -431,7 +431,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    * Get all source systems (convenience method)
    */
   const getSourceSystems = async (forceRefresh = false) => {
-    return await loadLookupValues('SOURCESYSTEM_CD', forceRefresh)
+    return await loadLookupValues('SOURCESYSTEM_CD', 'CONCEPT_DIMENSION', forceRefresh)
   }
 
   /**
@@ -441,7 +441,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getSourceSystemOptions = async (forceRefresh = false) => {
     try {
-      const sourceSystems = await loadLookupValues('SOURCESYSTEM_CD', forceRefresh)
+      const sourceSystems = await loadLookupValues('SOURCESYSTEM_CD', 'CONCEPT_DIMENSION', forceRefresh)
 
       // If we have data from the database, use it
       if (sourceSystems.length > 0) {
@@ -514,7 +514,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getCategoryMetadata = async (forceRefresh = false) => {
     try {
-      const metadata = await loadLookupValues('CATEGORY_METADATA', forceRefresh)
+      const metadata = await loadLookupValues('CATEGORY_METADATA', 'CODE_LOOKUP', forceRefresh)
       return metadata.map((item) => ({
         code: item.CODE_CD,
         name: item.NAME_CHAR,
@@ -1144,7 +1144,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       const metadata = parseMetadata(visitType.LOOKUP_BLOB)
       
       if (!Array.isArray(metadata.fieldSets)) {
-        logger.warn(`Visit type ${visitTypeCode} has no field sets configured`)
+        logger.debug(`Visit type ${visitTypeCode} has no field sets configured`)
         return []
       }
 

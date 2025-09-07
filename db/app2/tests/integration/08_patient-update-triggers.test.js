@@ -14,11 +14,9 @@ import MigrationManager from '../../src/core/database/migrations/migration-manag
 import PatientRepository from '../../src/core/database/repositories/patient-repository.js'
 import VisitRepository from '../../src/core/database/repositories/visit-repository.js'
 import ObservationRepository from '../../src/core/database/repositories/observation-repository.js'
-import { currentSchema } from '../../src/core/database/migrations/002-current-schema.js'
-import { addNoteFactColumns } from '../../src/core/database/migrations/003-add-note-fact-columns.js'
-import { createPatientListView } from '../../src/core/database/migrations/005-create-patient-list-view.js'
-import { createPatientObservationsView } from '../../src/core/database/migrations/006-create-patient-observations-view.js'
-import { patientUpdateTriggers } from '../../src/core/database/migrations/007-patient-update-triggers.js'
+import { coreSchema } from '../../src/core/database/migrations/001-core-schema.js'
+import { databaseViews } from '../../src/core/database/migrations/002-views.js'
+// Triggers are now consolidated in 003-triggers.js but disabled for now
 
 describe('Patient UPDATE_DATE Triggers Integration', () => {
   let connection

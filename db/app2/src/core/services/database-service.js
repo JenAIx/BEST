@@ -16,14 +16,10 @@ import CqlRepository from '../database/repositories/cql-repository.js'
 import VisitRepository from '../database/repositories/visit-repository.js'
 import ObservationRepository from '../database/repositories/observation-repository.js'
 import StudyRepository from '../database/repositories/study-repository.js'
-import { initialSchema } from '../database/migrations/001-initial-schema.js'
-import { currentSchema } from '../database/migrations/002-current-schema.js'
-import { addNoteFactColumns } from '../database/migrations/003-add-note-fact-columns.js'
-// import { addCascadeTriggers } from '../database/migrations/004-add-cascade-triggers.js'
-import { createPatientListView } from '../database/migrations/005-create-patient-list-view.js'
-import { createPatientObservationsView } from '../database/migrations/006-create-patient-observations-view.js'
-import { patientUpdateTriggers } from '../database/migrations/007-patient-update-triggers.js'
-import { studyTables } from '../database/migrations/008-study-tables.js'
+import { coreSchema } from '../database/migrations/001-core-schema.js'
+import { databaseViews } from '../database/migrations/002-views.js'
+// import { databaseTriggers } from '../database/migrations/003-triggers.js'
+import { studyTables } from '../database/migrations/004-study-tables.js'
 
 class DatabaseService {
   constructor() {
@@ -64,15 +60,11 @@ class DatabaseService {
       // Initialize migration manager
       this.migrationManager = new MigrationManager(this.connection)
 
-      // Register migrations
-      this.migrationManager.registerMigration(initialSchema)
-      this.migrationManager.registerMigration(currentSchema)
-      this.migrationManager.registerMigration(addNoteFactColumns)
-      // TODO: Re-enable cascade triggers once SQL parsing issues are resolved
-      // this.migrationManager.registerMigration(addCascadeTriggers)
-      this.migrationManager.registerMigration(createPatientListView)
-      this.migrationManager.registerMigration(createPatientObservationsView)
-      this.migrationManager.registerMigration(patientUpdateTriggers)
+      // Register consolidated migrations
+      this.migrationManager.registerMigration(coreSchema)
+      this.migrationManager.registerMigration(databaseViews)
+      // TODO: Fix trigger SQL syntax and re-enable
+      // this.migrationManager.registerMigration(databaseTriggers)
       this.migrationManager.registerMigration(studyTables)
 
       // Run migrations to create/update schema

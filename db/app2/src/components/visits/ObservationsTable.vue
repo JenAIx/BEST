@@ -29,15 +29,16 @@
         <div class="observation-info">
           <div class="observation-label">
             {{ props.row.resolvedName || props.row.conceptName }}
-            <q-icon v-if="props.row.conceptCode.includes('LOINC')" name="science" size="12px" color="blue" class="q-ml-xs">
-              <q-tooltip>LOINC: {{ props.row.conceptCode }}</q-tooltip>
-            </q-icon>
-            <q-icon v-else-if="props.row.conceptCode.includes('SNOMED')" name="medical_services" size="12px" color="green" class="q-ml-xs">
-              <q-tooltip>SNOMED: {{ props.row.conceptCode }}</q-tooltip>
-            </q-icon>
-            <q-icon v-else name="code" size="12px" color="grey-6" class="q-ml-xs">
-              <q-tooltip>{{ props.row.conceptCode }}</q-tooltip>
-            </q-icon>
+           <q-tooltip>
+            <div style="max-width: 300px;">
+              <div><strong>Code:</strong> {{ props.row.conceptCode }}</div>
+              <div><strong>Name:</strong> {{ props.row.conceptName }}</div>
+              <div v-if="props.row.conceptDescription" style="margin-top: 8px;">
+                <strong>Description:</strong><br/>
+                {{ props.row.conceptDescription }}
+              </div>
+            </div>
+           </q-tooltip>
           </div>
         </div>
       </q-td>
