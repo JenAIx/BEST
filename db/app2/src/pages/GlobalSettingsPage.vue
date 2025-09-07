@@ -26,6 +26,7 @@
       :column-title="getColumnTitle()"
       :is-questionnaire-column="isQuestionnaireColumn"
       :is-field-set-column="isFieldSetColumn"
+      :is-visit-type-column="isVisitTypeColumn"
       @start-edit="startEdit"
       @save-edit="saveEdit"
       @cancel-edit="cancelEdit"
@@ -34,6 +35,7 @@
       @view-json="showJsonDialog"
       @update-edit-form="editForm = $event"
       @save-field-set="saveFieldSet"
+      @save-visit-type="saveVisitType"
     />
 
     <!-- Add Value Dialog -->
@@ -104,6 +106,10 @@ const isQuestionnaireColumn = computed(() => {
 
 const isFieldSetColumn = computed(() => {
   return selectedColumn.value === 'FIELD_SET_CD'
+})
+
+const isVisitTypeColumn = computed(() => {
+  return selectedColumn.value === 'VISIT_TYPE_CD'
 })
 
 // Methods
@@ -268,6 +274,25 @@ const saveFieldSet = async (data) => {
     $q.notify({
       type: 'negative',
       message: 'Failed to update field set',
+      caption: error.message,
+    })
+  }
+}
+
+const saveVisitType = async (data) => {
+  try {
+    await globalSettingsStore.updateLookupValue(data.code, data.label, data.jsonData)
+
+    $q.notify({
+      type: 'positive',
+      message: 'Visit type updated successfully',
+    })
+    await loadLookupValues()
+  } catch (error) {
+    console.error('Error updating visit type:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to update visit type',
       caption: error.message,
     })
   }

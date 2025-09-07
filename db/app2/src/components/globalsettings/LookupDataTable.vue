@@ -69,6 +69,15 @@
                 {{ getFieldSetInfo(props.row.LOOKUP_BLOB) }}
               </div>
             </div>
+            <div v-else-if="isVisitTypeColumn">
+              <q-chip dense color="teal" text-color="white" icon="event" clickable @click="onEditVisitType(props.row)">
+                Edit Visit Type
+                <q-tooltip>Click to edit this visit type configuration</q-tooltip>
+              </q-chip>
+              <div class="text-caption text-grey-6 q-mt-xs">
+                {{ getVisitTypeInfo(props.row.LOOKUP_BLOB) }}
+              </div>
+            </div>
             <div v-else>
               <q-chip v-if="isValidJson(props.row.LOOKUP_BLOB)" dense color="blue" text-color="white" icon="code" clickable @click="emit('view-json', props.row.LOOKUP_BLOB)"> JSON Metadata </q-chip>
               <span v-else class="text-body2">{{ props.row.LOOKUP_BLOB }}</span>
@@ -114,11 +123,22 @@
     @save="onFieldSetSaved"
     @cancel="onFieldSetCancelled"
   />
+
+  <!-- Visit Type Editor Dialog -->
+  <EditVisitTypeDialog
+    v-if="isVisitTypeColumn"
+    v-model="showVisitTypeDialog"
+    :visit-type-data="parsedVisitTypeData"
+    :visit-type-code="selectedVisitTypeCode"
+    @save="onVisitTypeSaved"
+    @cancel="onVisitTypeCancelled"
+  />
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import FieldSetEditorDialog from './FieldSetEditorDialog.vue'
+import EditVisitTypeDialog from './EditVisitTypeDialog.vue'
 
 defineProps({
   selectedColumn: String,
@@ -129,9 +149,10 @@ defineProps({
   columnTitle: String,
   isQuestionnaireColumn: Boolean,
   isFieldSetColumn: Boolean,
+  isVisitTypeColumn: Boolean,
 })
 
-const emit = defineEmits(['start-edit', 'save-edit', 'cancel-edit', 'delete-value', 'preview-questionnaire', 'view-json', 'update-edit-form', 'edit-field-set', 'save-field-set'])
+const emit = defineEmits(['start-edit', 'save-edit', 'cancel-edit', 'delete-value', 'preview-questionnaire', 'view-json', 'update-edit-form', 'edit-field-set', 'save-field-set', 'edit-visit-type', 'save-visit-type'])
 
 // Local state
 const filter = ref('')
@@ -141,6 +162,14 @@ const fieldSetData = ref({
   description: '',
   icon: null,
   concepts: [],
+})
+const showVisitTypeDialog = ref(false)
+const selectedVisitTypeCode = ref('')
+const visitTypeData = ref({
+  label: '',
+  icon: null,
+  color: null,
+  fieldSets: [],
 })
 
 // Table configuration
@@ -201,6 +230,33 @@ const parsedFieldSetData = computed(() => {
   }
 })
 
+const parsedVisitTypeData = computed(() => {
+  try {
+    if (visitTypeData.value && typeof visitTypeData.value === 'string') {
+      const parsed = JSON.parse(visitTypeData.value)
+      return {
+        label: parsed.label || '',
+        icon: parsed.icon || null,
+        color: parsed.color || null,
+        fieldSets: Array.isArray(parsed.fieldSets) ? parsed.fieldSets : [],
+      }
+    }
+    return {
+      label: visitTypeData.value?.label || '',
+      icon: visitTypeData.value?.icon || null,
+      color: visitTypeData.value?.color || null,
+      fieldSets: Array.isArray(visitTypeData.value?.fieldSets) ? visitTypeData.value.fieldSets : [],
+    }
+  } catch {
+    return {
+      label: '',
+      icon: null,
+      color: null,
+      fieldSets: [],
+    }
+  }
+})
+
 // Methods
 const filterMethod = (rows, terms) => {
   const lowerTerms = terms ? terms.toLowerCase() : ''
@@ -241,6 +297,21 @@ const getFieldSetInfo = (jsonString) => {
   }
 }
 
+const getVisitTypeInfo = (jsonString) => {
+  try {
+    const visitType = JSON.parse(jsonString)
+    const fieldSetCount = Array.isArray(visitType.fieldSets) ? visitType.fieldSets.length : 0
+    const activeFieldSets = Array.isArray(visitType.fieldSets) 
+      ? visitType.fieldSets.filter(fs => fs.active).length 
+      : 0
+    const icon = visitType.icon ? `Icon: ${visitType.icon}` : 'No icon'
+    const color = visitType.color ? `Color: ${visitType.color}` : 'Default color'
+    return `${fieldSetCount} field sets (${activeFieldSets} active) • ${icon} • ${color}`
+  } catch {
+    return 'Invalid visit type JSON'
+  }
+}
+
 const isSystemValue = () => {
   // This would typically come from a store or prop
   // For now, return false to allow editing
@@ -270,6 +341,33 @@ const onFieldSetCancelled = () => {
     description: '',
     icon: null,
     concepts: [],
+  }
+}
+
+// Visit Type Methods
+const onEditVisitType = (row) => {
+  selectedVisitTypeCode.value = row.CODE_CD
+  visitTypeData.value = row.LOOKUP_BLOB || '{}'
+  showVisitTypeDialog.value = true
+}
+
+const onVisitTypeSaved = (data) => {
+  emit('save-visit-type', {
+    code: selectedVisitTypeCode.value,
+    label: data.label,
+    jsonData: data.jsonData,
+  })
+  showVisitTypeDialog.value = false
+}
+
+const onVisitTypeCancelled = () => {
+  showVisitTypeDialog.value = false
+  selectedVisitTypeCode.value = ''
+  visitTypeData.value = {
+    label: '',
+    icon: null,
+    color: null,
+    fieldSets: [],
   }
 }
 </script>
