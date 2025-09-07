@@ -1,18 +1,8 @@
 <template>
-  <div class="visit-selector">
-    <div class="visit-selector-main">
-      <q-select
-        v-model="selectedVisit"
-        :options="visitOptions"
-        option-label="label"
-        label="Select Visit"
-        outlined
-        dense
-        class="visit-select"
-        emit-value
-        map-options
-        @update:model-value="onVisitSelected"
-      >
+  <div class="row">
+    <div class="col-3">
+      <q-select v-model="selectedVisit" :options="visitOptions" option-label="label" label="Select Visit" outlined dense
+        emit-value map-options @update:model-value="onVisitSelected">
         <template v-slot:selected-item="scope">
           <div class="selected-visit">
             <q-icon name="event" class="q-mr-xs" />
@@ -31,44 +21,48 @@
           </q-item>
         </template>
       </q-select>
+    </div>
 
-      <!-- Inline Visit Info Preview -->
-      <div v-if="selectedVisit && visitPreviewInfo && (visitPreviewInfo.visitType || visitPreviewInfo.notes)" class="visit-info-inline">
-        <q-chip
-          v-if="visitPreviewInfo.visitType"
-          :color="getVisitTypeColor(visitPreviewInfo.visitType)"
-          text-color="white"
-          size="sm"
-          :icon="getVisitTypeIcon(visitPreviewInfo.visitType)"
-          class="q-mr-xs cursor-pointer"
-        >
-          {{ getVisitTypeLabel(visitPreviewInfo.visitType) }}
-          <q-tooltip class="bg-dark text-white" :delay="500">
-            <div class="text-body2">
-              <div class="text-weight-medium">Visit Type</div>
-              <div>{{ getVisitTypeLabel(visitPreviewInfo.visitType) }}</div>
-            </div>
-          </q-tooltip>
-        </q-chip>
-        <div v-if="visitPreviewInfo.notes" class="visit-notes-inline cursor-pointer">
-          <q-icon name="notes" size="12px" class="text-grey-6 q-mr-xs" />
-          <span class="text-caption text-grey-7">{{ visitPreviewInfo.notes }}</span>
-          <q-tooltip class="bg-dark text-white" :delay="500" max-width="400px">
-            <div class="text-body2">
-              <div class="text-weight-medium q-mb-xs">Visit Notes</div>
-              <div style="white-space: pre-wrap; word-break: break-word">{{ visitPreviewInfo.notes }}</div>
-            </div>
-          </q-tooltip>
-        </div>
+    <!-- Inline Visit Info Preview -->
+    <div v-if="selectedVisit && visitPreviewInfo && (visitPreviewInfo.visitType || visitPreviewInfo.notes)"
+      class="col-4" style="line-height: 1em">
+      <div class="q-ml-xs">
+      <q-chip v-if="visitPreviewInfo.visitType" :color="getVisitTypeColor(visitPreviewInfo.visitType)"
+        text-color="white" size="sm" :icon="getVisitTypeIcon(visitPreviewInfo.visitType)"
+        class="q-mr-xs cursor-pointer">
+        {{ getVisitTypeLabel(visitPreviewInfo.visitType) }}
+        <q-tooltip class="bg-dark text-white" :delay="500">
+          <div class="text-body2">
+            <div class="text-weight-medium">Visit Type</div>
+            <div>{{ getVisitTypeLabel(visitPreviewInfo.visitType) }}</div>
+          </div>
+        </q-tooltip>
+      </q-chip>
+      <div v-if="visitPreviewInfo.notes" class="cursor-pointer">
+        <q-icon name="notes" size="12px" class="text-grey-6 q-mr-xs" />
+        <span class="text-caption text-grey-7 overflow-hidden text-ellipsis">{{ visitPreviewInfo.notes }}</span>
+        <q-tooltip class="bg-dark text-white" :delay="500" max-width="400px">
+          <div class="text-body2">
+            <div class="text-weight-medium q-mb-xs">Visit Notes</div>
+            <div style="white-space: pre-wrap; word-break: break-word">{{ visitPreviewInfo.notes }}</div>
+          </div>
+        </q-tooltip>
       </div>
+    </div>
+    </div>
 
-      <div class="visit-actions" style="position: relative; width: calc(100% - 300px)">
-        <q-btn color="secondary" icon="edit" label="Edit Visit" @click="editSelectedVisit" :disable="!selectedVisit" class="q-mr-sm" />
-        <q-btn color="primary" icon="add" label="New Visit" @click="createNewVisit" />
-
-        <q-btn color="info" icon="visibility" round @click="previewSelectedVisit" :disable="!selectedVisit" class="absolute-right">
-          <q-tooltip>Preview Visit Summary</q-tooltip>
-        </q-btn>
+    <!-- Visit Actions -->
+    <div class="col-5 row" style="position: relative">
+      <div class="col-10">
+      <q-btn color="secondary" icon="edit" label="Edit Visit" @click="editSelectedVisit" :disable="!selectedVisit"
+        class="q-mr-sm" />
+      <q-btn color="primary" icon="add" label="New Visit" @click="createNewVisit" />
+    </div>
+      <div class="col-2 text-right">
+      <q-btn color="info" icon="visibility" round @click="previewSelectedVisit" :disable="!selectedVisit"
+        >
+        <q-tooltip>Preview Visit Summary</q-tooltip>
+      </q-btn>
       </div>
     </div>
   </div>
@@ -222,75 +216,6 @@ const getVisitTypeColor = (typeCode) => {
 </script>
 
 <style lang="scss" scoped>
-.visit-selector {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-bottom: 2rem;
-
-  .visit-selector-main {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-
-    .visit-select {
-      flex: 1;
-      max-width: 400px;
-      min-width: 250px;
-    }
-
-    .selected-visit {
-      display: flex;
-      align-items: center;
-    }
-
-    .visit-info-inline {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      padding: 0.25rem 0.5rem;
-      background: rgba(0, 0, 0, 0.02);
-      border-radius: 4px;
-      border: 1px solid $grey-4;
-
-      .q-chip {
-        transition: transform 0.15s ease;
-
-        &:hover {
-          transform: scale(1.05);
-        }
-      }
-
-      .visit-notes-inline {
-        display: flex;
-        align-items: center;
-        max-width: 300px;
-        padding: 0.125rem 0.25rem;
-        border-radius: 3px;
-        transition: background-color 0.15s ease;
-
-        &:hover {
-          background: rgba(0, 0, 0, 0.05);
-        }
-
-        span {
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-      }
-    }
-
-    .visit-actions {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-shrink: 0;
-    }
-  }
-}
 
 @media (max-width: 768px) {
   .visit-selector {
