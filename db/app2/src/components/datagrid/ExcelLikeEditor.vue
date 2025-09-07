@@ -556,7 +556,7 @@ const createNewQuestionnaireColumn = async (questionnaireName, baseConceptCode) 
 
     // Generate unique concept code for this questionnaire instance
     const timestamp = Date.now()
-    const newConceptCode = `${baseConceptCode}_${questionnaireName.toUpperCase().replace(/\s+/g, '_')}_${timestamp}`
+    const newConceptCode = `CUSTOM: ${baseConceptCode}_${questionnaireName.toUpperCase().replace(/\s+/g, '_')}_${timestamp}`
 
     // Create concept in CONCEPT_DIMENSION
     const conceptResult = await databaseStore.executeQuery(

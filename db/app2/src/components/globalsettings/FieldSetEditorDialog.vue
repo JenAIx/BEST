@@ -6,9 +6,8 @@
 
       <!-- Icon Selection -->
       <div class="icon-selection q-mb-md">
-        <div class="icon-preview">
+        <div class="icon-preview justify-center">
           <q-icon :name="localFieldSetData.icon || 'category'" size="24px" color="primary" class="q-mr-sm" />
-          <span class="text-caption text-grey-6">Selected Icon</span>
         </div>
         <q-select v-model="localFieldSetData.icon" :options="iconOptions" label="Icon" outlined dense clearable emit-value map-options class="icon-select" />
       </div>
