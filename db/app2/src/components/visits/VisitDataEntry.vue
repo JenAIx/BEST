@@ -159,7 +159,7 @@ const loadingFieldSets = ref(false)
 
 // Field Sets Configuration - will be loaded from global settings
 const availableFieldSets = ref([])
-const activeFieldSets = ref(['vitals', 'symptoms'])
+const activeFieldSets = ref([]) // Start with empty array, let visit type determine active sets
 
 // Computed from store
 const selectedVisit = computed(() => visitStore.selectedVisit)
@@ -285,11 +285,131 @@ const loadFieldSets = async () => {
   }
 }
 
+const activateFieldSetsForVisitType = async (visit) => {
+  if (!visit) {
+    logger.warn('activateFieldSetsForVisitType called with null visit')
+    return
+  }
+
+  logger.debug('activateFieldSetsForVisitType called', {
+    visitId: visit.id,
+    visitType: visit.visitType,
+    visitRawData: !!visit.rawData,
+    visitBlobExists: !!visit.rawData?.VISIT_BLOB
+  })
+
+  try {
+    // Extract visit type from visit data
+    let visitType = null
+    
+    // Try to get visit type from different possible sources
+    if (visit.visitType) {
+      visitType = visit.visitType
+      logger.debug('Visit type found directly on visit object', { visitType })
+    } else if (visit.rawData?.VISIT_BLOB) {
+      // Parse VISIT_BLOB to get visit type
+      try {
+        const blobData = JSON.parse(visit.rawData.VISIT_BLOB)
+        visitType = blobData.visitType
+        logger.debug('Visit type extracted from VISIT_BLOB', { visitType, blobData })
+      } catch (error) {
+        logger.warn('Failed to parse VISIT_BLOB for visit type', { visitId: visit.id, error })
+      }
+    }
+
+    if (!visitType) {
+      logger.warn('No visit type found for visit', { 
+        visitId: visit.id,
+        visitKeys: Object.keys(visit),
+        rawDataKeys: visit.rawData ? Object.keys(visit.rawData) : []
+      })
+      return
+    }
+
+    // Get field sets associated with this visit type (only active ones)
+    logger.debug('Getting field sets for visit type', { visitType })
+    
+    // Clear cache to ensure we get fresh data
+    globalSettingsStore.clearCache()
+    
+    const visitTypeFieldSets = await globalSettingsStore.getFieldSetsForVisitType(visitType, true)
+    
+    logger.debug('Field sets retrieved from global settings', {
+      visitType,
+      fieldSetCount: visitTypeFieldSets.length,
+      fieldSets: visitTypeFieldSets
+    })
+    
+    if (visitTypeFieldSets.length === 0) {
+      logger.info(`No active field sets configured for visit type: ${visitType}`)
+      return
+    }
+
+    // Filter to only include field sets that actually exist in availableFieldSets
+    const validFieldSets = visitTypeFieldSets.filter(fsId => 
+      availableFieldSets.value.some(fs => fs.id === fsId)
+    )
+
+    logger.debug('Field sets after validation', {
+      visitTypeFieldSets,
+      availableFieldSetIds: availableFieldSets.value.map(fs => fs.id),
+      validFieldSets
+    })
+
+    if (validFieldSets.length > 0) {
+      // Clear existing field sets first
+      logger.debug('Clearing existing field sets before activation', {
+        previousFieldSets: activeFieldSets.value
+      })
+      
+      // Activate the field sets for this visit type
+      activeFieldSets.value = [...validFieldSets] // Create new array to ensure reactivity
+      
+      // Save to local settings
+      localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
+      
+      logger.info(`Activated ${validFieldSets.length} field sets for visit type: ${visitType}`, {
+        visitId: visit.id,
+        visitType,
+        activatedFieldSets: validFieldSets,
+        activeFieldSetsAfterUpdate: activeFieldSets.value
+      })
+
+      // Special logging for Parkinson visits
+      if (visitType === 'parkinson') {
+        logger.info('PARKINSON VISIT FIELD SETS', {
+          requestedFieldSets: visitTypeFieldSets,
+          validatedFieldSets: validFieldSets,
+          finalActiveFieldSets: activeFieldSets.value,
+          availableFieldSets: availableFieldSets.value.map(fs => ({ id: fs.id, name: fs.name }))
+        })
+      }
+
+      $q.notify({
+        type: 'info',
+        message: `Activated ${validFieldSets.length} field sets for ${visitType} visit`,
+        position: 'top',
+        timeout: 2000
+      })
+    } else {
+      logger.warn(`No valid field sets found for visit type: ${visitType}`, {
+        visitTypeFieldSets,
+        availableFieldSetIds: availableFieldSets.value.map(fs => fs.id)
+      })
+    }
+  } catch (error) {
+    logger.error('Failed to activate field sets for visit type', error)
+  }
+}
+
 const onVisitSelected = async (visit) => {
   if (!visit) return
 
   try {
     await visitObservationService.selectVisitAndLoadObservations(visit)
+    
+    // Automatically activate field sets based on visit type
+    await activateFieldSetsForVisitType(visit)
   } catch (error) {
     logger.error('Failed to select visit', error)
     $q.notify({
@@ -350,9 +470,15 @@ const previewSelectedVisit = (visit) => {
   }
 }
 
-const onVisitCreated = (newVisit) => {
+const onVisitCreated = async (newVisit) => {
   emit('visit-created', newVisit)
-  selectedVisit.value = newVisit
+  
+  // The visit will be selected by the service, but we need to activate field sets
+  // Wait a bit for the visit to be properly selected
+  await new Promise(resolve => setTimeout(resolve, 100))
+  
+  // Activate field sets for the new visit type
+  await activateFieldSetsForVisitType(newVisit)
 }
 
 const onVisitUpdated = async (updatedVisit) => {
@@ -448,7 +574,13 @@ watch(
   () => props.initialVisit,
   async (newVisit) => {
     if (newVisit) {
+      logger.debug('Initial visit changed', { 
+        visitId: newVisit.id, 
+        visitType: newVisit.visitType 
+      })
       await visitObservationService.selectVisitAndLoadObservations(newVisit)
+      // Activate field sets for the initial visit
+      await activateFieldSetsForVisitType(newVisit)
     }
   },
   { immediate: true },
@@ -465,15 +597,9 @@ onMounted(async () => {
   // Load field sets from global settings
   await loadFieldSets()
 
-  // Load saved field set settings
-  const savedActiveFieldSets = localSettings.getSetting('visits.activeFieldSets')
-  if (savedActiveFieldSets) {
-    logger.debug('Loading saved active field sets', { savedActiveFieldSets })
-    activeFieldSets.value = savedActiveFieldSets
-  }
-
+  // Don't load saved field sets yet - let the visit type determine them first
+  
   logger.info('Field sets configuration loaded', {
-    finalActiveFieldSets: activeFieldSets.value,
     availableFieldSets: availableFieldSets.value.map((fs) => fs.id),
     selectedVisitId: selectedVisit.value?.id,
     visitOptionsCount: visitStore.visitOptions.length,
@@ -486,12 +612,30 @@ onMounted(async () => {
     logger.info('No visit selected, selecting the most recent visit')
     const mostRecentVisit = visitStore.visitOptions[0].value
     await visitObservationService.selectVisitAndLoadObservations(mostRecentVisit)
+    
+    // Activate field sets for the auto-selected visit
+    await activateFieldSetsForVisitType(mostRecentVisit)
+  } else if (selectedVisit.value) {
+    // If a visit is already selected, activate its field sets
+    logger.info('Visit already selected, activating field sets', {
+      visitId: selectedVisit.value.id,
+      visitType: selectedVisit.value.visitType
+    })
+    await activateFieldSetsForVisitType(selectedVisit.value)
+  } else {
+    // No visit selected, load saved field set settings as fallback
+    const savedActiveFieldSets = localSettings.getSetting('visits.activeFieldSets')
+    if (savedActiveFieldSets) {
+      logger.debug('Loading saved active field sets as fallback', { savedActiveFieldSets })
+      activeFieldSets.value = savedActiveFieldSets
+    }
   }
 
   // Log final state for debugging
   logger.info('VisitDataEntry initialization complete', {
     hasSelectedVisit: !!selectedVisit.value,
     selectedVisitId: selectedVisit.value?.id,
+    selectedVisitType: selectedVisit.value?.visitType,
     activeFieldSetsCount: activeFieldSets.value.length,
     activeFieldSets: activeFieldSets.value,
     visitStoreSelectedVisit: visitStore.selectedVisit?.id,

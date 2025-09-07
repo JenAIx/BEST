@@ -1120,6 +1120,58 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   /**
+   * Get field sets associated with a specific visit type
+   * @param {string} visitTypeCode - Visit type code to get field sets for
+   * @param {boolean} activeOnly - Only return active field sets (default: false)
+   * @returns {Promise<Array>} Array of field set IDs associated with the visit type
+   */
+  const getFieldSetsForVisitType = async (visitTypeCode, activeOnly = false) => {
+    if (!visitTypeCode) {
+      logger.warn('getFieldSetsForVisitType called with empty visitTypeCode')
+      return []
+    }
+
+    try {
+      // Get the visit type data from CODE_LOOKUP
+      const visitType = await getLookupValue('VISIT_TYPE_CD', visitTypeCode, 'VISIT_DIMENSION')
+      
+      if (!visitType || !visitType.LOOKUP_BLOB) {
+        logger.warn(`No visit type data found for ${visitTypeCode}`)
+        return []
+      }
+
+      // Parse the visit type metadata
+      const metadata = parseMetadata(visitType.LOOKUP_BLOB)
+      
+      if (!Array.isArray(metadata.fieldSets)) {
+        logger.warn(`Visit type ${visitTypeCode} has no field sets configured`)
+        return []
+      }
+
+      // Filter field sets based on activeOnly parameter
+      let fieldSets = metadata.fieldSets
+      if (activeOnly) {
+        fieldSets = fieldSets.filter(fs => fs.active === true)
+      }
+
+      // Return array of field set IDs
+      const fieldSetIds = fieldSets.map(fs => fs.id)
+      
+      logger.debug(`Found ${fieldSetIds.length} field sets for visit type ${visitTypeCode}`, {
+        visitTypeCode,
+        activeOnly,
+        fieldSetIds,
+        totalFieldSets: metadata.fieldSets.length
+      })
+
+      return fieldSetIds
+    } catch (error) {
+      logger.error(`Failed to get field sets for visit type ${visitTypeCode}`, error)
+      return []
+    }
+  }
+
+  /**
    * Get default visit templates when database lookup fails
    * @returns {Array} Default visit templates
    */
@@ -1259,5 +1311,8 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     getUnitOptions,
     getFrequencyOptions,
     getRouteOptions,
+
+    // Visit type field set methods
+    getFieldSetsForVisitType,
   }
 })
