@@ -38,7 +38,7 @@
             @move="onDragMove"
           >
             <template #item="{ element: conceptCode }">
-              <q-item :key="conceptCode" clickable @click="removeConcept(conceptCode)" class="concept-item">
+              <q-item :key="conceptCode" clickable class="concept-item">
                 <!-- Drag Handle -->
                 <q-item-section avatar>
                   <div class="drag-handle-container">
@@ -61,6 +61,17 @@
                     <q-tooltip>Remove concept</q-tooltip>
                   </q-btn>
                 </q-item-section>
+
+                <!-- TOOLTIP CONCEPT INFO -->
+                <q-tooltip>
+                  <div class="concept-tooltip-content">
+                    <div class="tooltip-body">
+                      <div class="tooltip-name">{{ getResolvedConceptName(conceptCode) }}</div>
+                      <div class="tooltip-code">{{ conceptCode }}</div>
+                      <div class="tooltip-value-type">Value Type: {{ getConceptValueType(conceptCode) }}</div>
+                    </div>
+                  </div>
+                </q-tooltip>
               </q-item>
             </template>
           </draggable>
