@@ -238,7 +238,7 @@ const getFieldSetObservationCount = (fieldSetId) => {
 const { uncategorizedObservations, uncategorizedFieldSet } = useUncategorizedObservations(observationStore, availableFieldSets, selectedVisit)
 
 // Use field set statistics composable
-const { overallStats } = useFieldSetStatistics(availableFieldSets, activeFieldSets, getFieldSetObservationCount, uncategorizedObservations)
+const { overallStats } = useFieldSetStatistics(availableFieldSets, activeFieldSets, getFieldSetObservationCount, uncategorizedObservations, getFieldSetObservations)
 
 // Field set organization for better UX
 const activeFieldSetsList = computed(() => {
