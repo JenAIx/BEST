@@ -25,7 +25,18 @@
         <AppRemoveConfirmationButton :loading="row.saving" @remove-confirmed="$emit('remove-row', row)" @remove-cancelled="() => {}" />
       </div>
 
-      <!-- Clone Button - show if previous value exists -->
+      <!-- Duplicate Previous Value Button - show for empty observations -->
+      <DuplicatePreviousValueButton
+        :concept-code="row.conceptCode"
+        :patient-num="patient.PATIENT_NUM"
+        :current-start-date="row.rawObservation?.START_DATE || new Date().toISOString().split('T')[0]"
+        :current-value="row.origVal"
+        :loading="row.saving"
+        :disabled="row.saving"
+        @duplicate-value="$emit('duplicate-value', $event)"
+      />
+
+      <!-- Clone Button - show if previous value exists (existing functionality) -->
       <q-btn v-if="row.previousValue" flat round icon="content_copy" size="sm" color="secondary" :disabled="row.saving" @click="$emit('clone-from-previous', row)" class="clone-btn">
         <q-tooltip>Clone from previous visit</q-tooltip>
       </q-btn>
@@ -35,15 +46,24 @@
 
 <script setup>
 import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
+import DuplicatePreviousValueButton from './DuplicatePreviousValueButton.vue'
 
 defineProps({
   row: {
     type: Object,
     required: true,
   },
+  patient: {
+    type: Object,
+    required: true,
+  },
+  previousVisits: {
+    type: Array,
+    default: () => [],
+  },
 })
 
-defineEmits(['save-row', 'cancel-changes', 'remove-row', 'clone-from-previous'])
+defineEmits(['save-row', 'cancel-changes', 'remove-row', 'clone-from-previous', 'duplicate-value'])
 </script>
 
 <style lang="scss" scoped>

@@ -30,6 +30,7 @@
           :frequency-options="frequencyOptions"
           :route-options="routeOptions"
           :field-set-concepts="fieldSetConcepts"
+          :previous-visits="previousVisits"
           @enter-medication-edit-mode="enterMedicationEditMode"
           @value-changed="onValueChanged"
           @save-requested="onSaveRequested"
@@ -37,6 +38,7 @@
           @cancel-changes="cancelChanges"
           @remove-row="removeRow"
           @clone-from-previous="cloneFromPrevious"
+          @duplicate-value="onDuplicateValue"
         />
 
         <!-- Empty State -->
@@ -761,6 +763,51 @@ const cloneFromPrevious = (row) => {
       rowId: row.id,
       conceptCode: row.conceptCode,
       clonedValue: row.previousValue.value,
+    })
+  }
+}
+
+const onDuplicateValue = async (data) => {
+  try {
+    logger.info('Duplicating previous value', {
+      conceptCode: data.conceptCode,
+      value: data.value,
+      fromVisit: data.fromVisit,
+    })
+
+    // Find the row for this concept code to update it
+    const rowIndex = tableRows.value.findIndex(row => row.conceptCode === data.conceptCode)
+    
+    if (rowIndex !== -1) {
+      const row = tableRows.value[rowIndex]
+      
+      // Update the current value and mark as changed
+      row.currentVal = data.value
+      row.hasChanges = true
+      pendingChanges.value.set(row.id, data.value)
+      
+      logger.success('Value duplicated successfully', {
+        conceptCode: data.conceptCode,
+        newValue: data.value,
+        rowId: row.id,
+      })
+      
+      $q.notify({
+        type: 'positive',
+        message: `Value duplicated from previous visit (${new Date(data.fromVisit.date).toLocaleDateString()})`,
+        position: 'top',
+      })
+    } else {
+      logger.warn('Could not find row to update with duplicated value', {
+        conceptCode: data.conceptCode,
+      })
+    }
+  } catch (error) {
+    logger.error('Failed to duplicate previous value', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to duplicate previous value',
+      position: 'top',
     })
   }
 }

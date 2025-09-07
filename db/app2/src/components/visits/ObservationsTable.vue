@@ -82,10 +82,13 @@
       <q-td :props="props" class="action-cell">
         <ObservationRowActions
           :row="props.row"
+          :patient="patient"
+          :previous-visits="previousVisits"
           @save-row="(row) => $emit('save-row', row)"
           @cancel-changes="(row) => $emit('cancel-changes', row)"
           @remove-row="(row) => $emit('remove-row', row)"
           @clone-from-previous="(row) => $emit('clone-from-previous', row)"
+          @duplicate-value="(data) => $emit('duplicate-value', data)"
         />
       </q-td>
     </template>
@@ -130,9 +133,13 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  previousVisits: {
+    type: Array,
+    default: () => [],
+  },
 })
 
-defineEmits(['enter-medication-edit-mode', 'value-changed', 'save-requested', 'save-row', 'cancel-changes', 'remove-row', 'clone-from-previous'])
+defineEmits(['enter-medication-edit-mode', 'value-changed', 'save-requested', 'save-row', 'cancel-changes', 'remove-row', 'clone-from-previous', 'duplicate-value'])
 
 const loggingStore = useLoggingStore()
 const medicationsStore = useMedicationsStore()

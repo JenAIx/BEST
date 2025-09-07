@@ -179,6 +179,105 @@ export const useObservationStore = defineStore('observation', () => {
     }
   }
 
+  /**
+   * Find the most recent previous observation for a given concept and patient
+   * @param {Object} params - Query parameters
+   * @param {string} params.conceptCode - The concept code to search for
+   * @param {number|string} params.patientNum - The patient number
+   * @param {string} params.beforeDate - Only find observations from visits before this date
+   * @returns {Promise<Object|null>} Previous observation data or null if not found
+   */
+  const findPreviousObservation = async ({ conceptCode, patientNum, beforeDate }) => {
+    try {
+      logger.debug('Searching for previous observation', {
+        conceptCode,
+        patientNum,
+        beforeVisitDate: beforeDate,
+      })
+
+      // Query database for most recent observation of this concept for this patient
+      // Join with VISIT_DIMENSION to use the visit's START_DATE for proper chronological ordering
+      const query = `
+        SELECT 
+          OF.TVAL_CHAR,
+          OF.NVAL_NUM,
+          OF.UNIT_CD,
+          OF.VALTYPE_CD,
+          OF.START_DATE,
+          OF.ENCOUNTER_NUM,
+          OF.OBSERVATION_ID,
+          VD.START_DATE as VISIT_START_DATE
+        FROM OBSERVATION_FACT OF
+        JOIN VISIT_DIMENSION VD ON OF.ENCOUNTER_NUM = VD.ENCOUNTER_NUM
+        WHERE OF.CONCEPT_CD = ?
+          AND OF.PATIENT_NUM = ?
+          AND VD.START_DATE < ?
+          AND (
+            (OF.TVAL_CHAR IS NOT NULL AND OF.TVAL_CHAR != '') OR
+            (OF.NVAL_NUM IS NOT NULL)
+          )
+        ORDER BY VD.START_DATE DESC
+        LIMIT 1
+      `
+      
+      const result = await dbStore.executeQuery(query, [
+        conceptCode,
+        patientNum,
+        beforeDate
+      ])
+      
+      if (result.success && result.data.length > 0) {
+        const obs = result.data[0]
+        
+        // Extract the value based on type
+        let value = null
+        if (obs.NVAL_NUM !== null && obs.NVAL_NUM !== undefined) {
+          value = obs.NVAL_NUM
+        } else if (obs.TVAL_CHAR !== null && obs.TVAL_CHAR !== undefined && obs.TVAL_CHAR.trim() !== '') {
+          value = obs.TVAL_CHAR
+        }
+        
+        if (value !== null) {
+          const previousObservation = {
+            value: value,
+            visitDate: obs.VISIT_START_DATE, // Use the visit's start date, not observation's
+            encounterNum: obs.ENCOUNTER_NUM,
+            unit: obs.UNIT_CD,
+            valueType: obs.VALTYPE_CD,
+            observationId: obs.OBSERVATION_ID,
+          }
+          
+          logger.success('Found previous observation', {
+            conceptCode,
+            value: value,
+            visitDate: obs.VISIT_START_DATE, // Use the visit's start date for logging
+            observationId: obs.OBSERVATION_ID,
+          })
+          
+          return previousObservation
+        } else {
+          logger.info('Found observation but no valid value')
+          return null
+        }
+      } else {
+        logger.info('No previous observation found', {
+          conceptCode,
+          patientNum,
+          beforeVisitDate: beforeDate,
+        })
+        return null
+      }
+      
+    } catch (error) {
+      logger.error('Failed to query for previous observation', error, {
+        conceptCode,
+        patientNum,
+        beforeVisitDate: beforeDate,
+      })
+      return null
+    }
+  }
+
   const createObservation = async (observationData) => {
     try {
       loading.value = true
@@ -538,6 +637,7 @@ export const useObservationStore = defineStore('observation', () => {
     clearAllObservations,
     loadObservationsForVisit,
     loadAllObservationsForPatient,
+    findPreviousObservation,
     createObservation,
     updateObservation,
     deleteObservation,
