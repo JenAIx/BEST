@@ -221,24 +221,30 @@
 
       <!-- Router View -->
       <router-view :class="{ 'search-active': isSearchActive }" />
+
+      <!-- Smart Button - Only available for authenticated users -->
+      <SmartButton />
     </q-page-container>
   </q-layout>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import NotificationButton from 'src/components/shared/NotificationButton.vue'
 import SmartSearch from 'src/components/shared/SmartSearch.vue'
+import { SmartButton } from 'src/components/smartbtn'
 
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const dbStore = useDatabaseStore()
+const localSettingsStore = useLocalSettingsStore()
 
 // UI State
 const leftDrawerOpen = ref(false)
@@ -347,6 +353,11 @@ const savedMode = localStorage.getItem('viewMode')
 if (savedMode) {
   viewMode.value = savedMode
 }
+
+// Initialize local settings store on app mount
+onMounted(() => {
+  localSettingsStore.initialize()
+})
 </script>
 
 <style lang="scss" scoped>

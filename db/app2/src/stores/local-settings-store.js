@@ -24,6 +24,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
       },
       lastUpdated: null, // Timestamp of last database path update
     },
+    apiKeys: {
+      openai: null, // OpenAI API key (stored in localStorage - not encrypted)
+      lastUpdated: null, // Timestamp of last API key update
+    },
   }
 
   // Reactive settings state
@@ -54,6 +58,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
               ...defaultSettings.databases.customPaths,
               ...(parsedSettings.databases?.customPaths || {}),
             },
+          },
+          apiKeys: {
+            ...defaultSettings.apiKeys,
+            ...(parsedSettings.apiKeys || {}),
           },
         }
       }
@@ -197,6 +205,34 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     settings.value.databases = { ...defaultSettings.databases }
   }
 
+  // API Keys specific getters and setters
+  const getOpenAIApiKey = () => {
+    return settings.value.apiKeys.openai
+  }
+
+  const setOpenAIApiKey = (apiKey) => {
+    settings.value.apiKeys.openai = apiKey
+    settings.value.apiKeys.lastUpdated = new Date().toISOString()
+  }
+
+  const clearOpenAIApiKey = () => {
+    settings.value.apiKeys.openai = null
+    settings.value.apiKeys.lastUpdated = new Date().toISOString()
+  }
+
+  const hasOpenAIApiKey = () => {
+    return settings.value.apiKeys.openai !== null && settings.value.apiKeys.openai !== undefined
+  }
+
+  const getApiKeyLastUpdated = () => {
+    return settings.value.apiKeys.lastUpdated
+  }
+
+  // Reset API Keys settings
+  const resetApiKeysSettings = () => {
+    settings.value.apiKeys = { ...defaultSettings.apiKeys }
+  }
+
   // Initialize store
   const initialize = () => {
     loadSettings()
@@ -234,5 +270,13 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     hasDatabaseCustomPaths,
     buildDatabasePath,
     resetDatabaseSettings,
+
+    // API Keys specific methods
+    getOpenAIApiKey,
+    setOpenAIApiKey,
+    clearOpenAIApiKey,
+    hasOpenAIApiKey,
+    getApiKeyLastUpdated,
+    resetApiKeysSettings,
   }
 })

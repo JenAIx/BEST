@@ -8,15 +8,15 @@
       :disable="draggingFab"
       v-touch-pan.prevent.mouse="moveFab"
     >
-      <q-fab-action 
+      <q-fab-action
         v-for="plugin in registeredPlugins"
         :key="plugin.id"
-        @click="openPlugin(plugin.id)" 
-        :color="plugin.color" 
-        :icon="plugin.icon" 
-        :disable="draggingFab"
+        @click="plugin.isDisabled ? null : openPlugin(plugin.id)"
+        :color="plugin.isDisabled ? 'grey' : plugin.color"
+        :icon="plugin.icon"
+        :disable="draggingFab || plugin.isDisabled"
       >
-        <q-tooltip>{{ plugin.tooltip }}</q-tooltip>
+        <q-tooltip>{{ plugin.isDisabled ? plugin.disabledReason : plugin.tooltip }}</q-tooltip>
       </q-fab-action>
     </q-fab>
   </q-page-sticky>
@@ -89,11 +89,13 @@
 <script setup>
 import { ref, computed, onBeforeUnmount } from 'vue'
 import { pluginManager } from './plugins'
+import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 
 defineOptions({
   name: 'SmartButton'
 })
 
+const localSettingsStore = useLocalSettingsStore()
 const fabPos = ref([18, 18])
 const draggingFab = ref(false)
 const pluginDialog = ref(false)
@@ -102,8 +104,26 @@ const activePluginConfig = ref(null)
 const loadingPlugin = ref(false)
 const miniPlugins = ref([]) // Array of minimized plugins
 
-// Get registered plugins
-const registeredPlugins = computed(() => pluginManager.getPlugins())
+// Get registered plugins with disabled state
+const registeredPlugins = computed(() => {
+  return pluginManager.getPlugins().map(plugin => {
+    let tooltip = plugin.tooltip
+
+    // Handle dynamic tooltip for Ask AI plugin
+    if (plugin.id === 'ask-ai') {
+      tooltip = localSettingsStore.hasOpenAIApiKey()
+        ? 'Ask AI Assistant'
+        : 'AI Assistant (API Key Required)'
+    }
+
+    return {
+      ...plugin,
+      isDisabled: plugin.isDisabled ? plugin.isDisabled() : false,
+      disabledReason: plugin.disabledReason ? plugin.disabledReason() : null,
+      tooltip: typeof tooltip === 'function' ? tooltip() : tooltip
+    }
+  })
+})
 
 // Dynamic FAB direction based on screen position
 const fabDirection = computed(() => {

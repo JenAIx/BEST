@@ -54,9 +54,23 @@ pluginManager.register({
   }
 })
 
+pluginManager.register({
+  id: 'ask-ai',
+  name: 'Ask AI',
+  icon: 'smart_toy',
+  color: 'accent',
+  tooltip: 'Ask AI Assistant',
+  component: () => import('./AskAIPlugin.js').then(module => module.default.component),
+  config: {
+    minWidth: '500px',
+    maxWidth: '600px'
+  }
+})
+
 export { pluginManager }
 export { default as CalcPlugin } from './CalcPlugin.js'
 export { default as NotesPlugin } from './NotesPlugin.js'
 export { default as UnitConverterPlugin } from './UnitConverterPlugin.js'
 export { default as BmiCalculatorPlugin } from './BmiCalculatorPlugin.js'
 export { default as LevodopaCalculatorPlugin } from './LevodopaCalculatorPlugin.js'
+export { default as AskAIPlugin } from './AskAIPlugin.js'

@@ -58,6 +58,21 @@
       </div>
     </div>
 
+    <!-- Local Settings -->
+    <div class="row q-mt-md">
+      <div class="col-12">
+        <q-card>
+          <q-card-section>
+            <div class="text-h6">Local Settings</div>
+          </q-card-section>
+
+          <q-card-section>
+            <LocalSettingsForm />
+          </q-card-section>
+        </q-card>
+      </div>
+    </div>
+
     <!-- Password Reset Dialog -->
     <PasswordResetDialog v-model="showPasswordDialog" @save="onPasswordSave" @cancel="onPasswordCancel" />
   </q-page>
@@ -69,6 +84,7 @@ import { useQuasar } from 'quasar'
 import { useAuthStore } from 'src/stores/auth-store'
 import SettingsForm from 'components/SettingsForm.vue'
 import PasswordResetDialog from 'components/PasswordResetDialog.vue'
+import LocalSettingsForm from 'components/LocalSettingsForm.vue'
 
 const $q = useQuasar()
 const authStore = useAuthStore()

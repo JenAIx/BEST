@@ -34,6 +34,7 @@
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
     "cql-execution": "^2.4.0",
+    "openai": "^5.20.0",
     "pinia": "^3.0.1",
     "quasar": "^2.16.0",
     "uuid": "^11.1.0",
