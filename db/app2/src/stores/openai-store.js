@@ -40,21 +40,15 @@ export const useOpenAIStore = defineStore('openai', () => {
     error.value = null
 
     try {
-      const stream = await client.value.responses.stream({
+      const response = await client.value.responses.create({
         model: 'gpt-5-mini',
         input: prompt,
         max_output_tokens: 256,
         ...options,
       })
-
-      let text = ''
-      for await (const event of stream) {
-        if (event.type === 'response.output_text.delta') {
-          text += event.delta
-          lastResponse.value = text // live update UI
-        }
-      }
-      return text || 'No response received'
+      const outputText = response.output_text || 'No response received'
+      lastResponse.value = outputText
+      return outputText
     } catch (err) {
       console.error('OpenAI API error:', err)
       error.value = err.message || 'Failed to get response from OpenAI'
@@ -74,29 +68,23 @@ export const useOpenAIStore = defineStore('openai', () => {
     isLoading.value = true
     error.value = null
 
-    try {
-      const formattedInput = compactMessages(
-        conversationMessages.map(msg => ({
-          role: msg.role || 'user',
-          content: msg.content || ''
-        }))
-      )
+    const formattedInput = compactMessages(
+      conversationMessages.map(msg => ({
+        role: msg.role || 'user',
+        content: msg.content || ''
+      }))
+    )
 
-      const stream = await client.value.responses.stream({
+    try {
+      const response = await client.value.responses.create({
         model: 'gpt-5-mini',
         input: formattedInput,
         max_output_tokens: 256,
         ...options,
       })
-
-      let text = ''
-      for await (const event of stream) {
-        if (event.type === 'response.output_text.delta') {
-          text += event.delta
-          lastResponse.value = text
-        }
-      }
-      return text || 'No response received'
+      const outputText = response.output_text || 'No response received'
+      lastResponse.value = outputText
+      return outputText
     } catch (err) {
       console.error('OpenAI API error with history:', err)
       error.value = err.message || 'Failed to get response from OpenAI'
