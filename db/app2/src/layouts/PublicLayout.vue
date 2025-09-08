@@ -2,11 +2,14 @@
   <q-layout view="hHh lpR fFf">
     <q-page-container>
       <router-view />
+      <SmartButton />
     </q-page-container>
   </q-layout>
 </template>
 
 <script setup>
+import { SmartButton } from 'src/components/smartbtn'
+
 /**
  * PublicLayout
  * 

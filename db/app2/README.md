@@ -15,6 +15,7 @@ A modern research database for neuroscientific data built with Vue 3, Quasar, an
 - **Migration System**: Automated database schema management with seed data
 - **Type Safety**: Modern JavaScript with proper error handling and validation
 - **Responsive UI**: Beautiful Quasar-based interface
+- **SmartButton Plugin System**: Extensible movable FAB with medical utility plugins
 - **Comprehensive Testing**: 326 tests with 100% pass rate
 
 ## Database Schema
