@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import OpenAI from 'openai'
 import { useLocalSettingsStore } from './local-settings-store'
+import OpenAI from 'openai'
 
+// Optimized OpenAI Pinia store
 export const useOpenAIStore = defineStore('openai', () => {
   const localSettingsStore = useLocalSettingsStore()
 
@@ -10,52 +11,50 @@ export const useOpenAIStore = defineStore('openai', () => {
   const isLoading = ref(false)
   const lastResponse = ref(null)
   const error = ref(null)
+  const chatMessages = ref([])
+  const systemSummary = ref('') // rolling conversation summary
 
   // Computed properties
   const hasApiKey = computed(() => localSettingsStore.hasOpenAIApiKey())
   const apiKey = computed(() => localSettingsStore.getOpenAIApiKey())
+  const client = computed(() => {
+    if (!hasApiKey.value) throw new Error('OpenAI API key not configured.')
+    return new OpenAI({ apiKey: apiKey.value, dangerouslyAllowBrowser: true })
+  })
 
-  // Get OpenAI client instance
-  const getClient = () => {
-    if (!hasApiKey.value) {
-      throw new Error('OpenAI API key not configured. Please set it in Settings.')
-    }
-
-    return new OpenAI({
-      apiKey: apiKey.value,
-      dangerouslyAllowBrowser: true // Allow browser usage (for development)
-    })
+  // Utility to compact history
+  const MAX_TURNS = 6
+  const compactMessages = (messages) => {
+    const recent = messages.slice(-MAX_TURNS)
+    const system = systemSummary.value
+      ? [{ role: 'system', content: `Conversation summary:\n${systemSummary.value}` }]
+      : []
+    return [...system, ...recent]
   }
 
-  // Send a prompt to GPT-3.5-turbo
+  // Send a single prompt (streaming for faster UX)
   const sendPrompt = async (prompt, options = {}) => {
-    if (!hasApiKey.value) {
-      throw new Error('OpenAI API key not configured. Please set it in Settings.')
-    }
+    if (!hasApiKey.value) throw new Error('OpenAI API key not configured.')
 
     isLoading.value = true
     error.value = null
 
     try {
-      const client = getClient()
-
-      const completion = await client.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: options.maxTokens || 500,
-        temperature: options.temperature || 0.7,
-        ...options
+      const stream = await client.value.responses.stream({
+        model: 'gpt-5-mini',
+        input: prompt,
+        max_output_tokens: 256,
+        ...options,
       })
 
-      const response = completion.choices[0]?.message?.content || 'No response received'
-      lastResponse.value = response
-
-      return response
+      let text = ''
+      for await (const event of stream) {
+        if (event.type === 'response.output_text.delta') {
+          text += event.delta
+          lastResponse.value = text // live update UI
+        }
+      }
+      return text || 'No response received'
     } catch (err) {
       console.error('OpenAI API error:', err)
       error.value = err.message || 'Failed to get response from OpenAI'
@@ -65,37 +64,92 @@ export const useOpenAIStore = defineStore('openai', () => {
     }
   }
 
-  // Clear last response and error
+  // Send a prompt with conversation history (uses compact history)
+  const sendPromptWithHistory = async (conversationMessages, options = {}) => {
+    if (!hasApiKey.value) throw new Error('OpenAI API key not configured.')
+    if (!Array.isArray(conversationMessages) || conversationMessages.length === 0) {
+      throw new Error('Messages array is required and cannot be empty')
+    }
+
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const formattedInput = compactMessages(
+        conversationMessages.map(msg => ({
+          role: msg.role || 'user',
+          content: msg.content || ''
+        }))
+      )
+
+      const response = await client.value.responses.create({
+        model: 'gpt-5-mini',
+        input: formattedInput,
+        max_output_tokens: 512,
+        ...options,
+      })
+
+      const outputText = response.output_text || 'No response received'
+      lastResponse.value = outputText
+      return outputText
+    } catch (err) {
+      console.error('OpenAI API error with history:', err)
+      error.value = err.message || 'Failed to get response from OpenAI'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  // Clear response and error
   const clearResponse = () => {
     lastResponse.value = null
     error.value = null
   }
 
-  // Get status information
-  const getStatus = () => {
-    return {
-      hasApiKey: hasApiKey.value,
-      isLoading: isLoading.value,
-      hasError: !!error.value,
-      lastResponse: lastResponse.value,
-      error: error.value
-    }
+  // Chat message management
+  const addMessage = (message) => {
+    chatMessages.value.push({
+      ...message,
+      timestamp: message.timestamp || new Date()
+    })
   }
+
+  const clearChatMessages = () => {
+    chatMessages.value = []
+  }
+
+  const getChatMessages = () => chatMessages.value
+
+  // Get status information
+  const getStatus = () => ({
+    hasApiKey: hasApiKey.value,
+    isLoading: isLoading.value,
+    hasError: !!error.value,
+    lastResponse: lastResponse.value,
+    error: error.value
+  })
 
   return {
     // State
     isLoading,
     lastResponse,
     error,
+    chatMessages,
+    systemSummary,
 
     // Computed
     hasApiKey,
     apiKey,
+    client,
 
     // Methods
     sendPrompt,
+    sendPromptWithHistory,
     clearResponse,
     getStatus,
-    getClient
+    addMessage,
+    clearChatMessages,
+    getChatMessages,
   }
 })

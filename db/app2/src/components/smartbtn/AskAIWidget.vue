@@ -24,8 +24,8 @@
     <!-- Chat Interface -->
     <div v-if="hasApiKey" class="chat-container">
       <!-- Messages -->
-      <q-scroll-area class="messages-container" :style="{ height: '300px' }">
-        <div class="messages">
+      <q-scroll-area ref="messagesScrollArea" class="messages-container" :style="{ height: '300px' }">
+        <div ref="messagesContainer" class="messages">
           <div
             v-for="(message, index) in messages"
             :key="index"
@@ -73,6 +73,19 @@
           :max-rows="3"
         >
           <template v-slot:append>
+            <q-btn
+              v-if="messages.length > 0"
+              icon="clear_all"
+              color="grey-7"
+              flat
+              round
+              dense
+              :disable="isLoading"
+              @click="clearChat"
+              class="q-mr-xs"
+            >
+              <q-tooltip>Clear chat</q-tooltip>
+            </q-btn>
             <q-btn
               icon="send"
               color="primary"
@@ -129,7 +142,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useOpenAIStore } from 'src/stores/openai-store'
@@ -145,8 +158,12 @@ const emit = defineEmits(['close'])
 
 // Reactive state
 const currentPrompt = ref('')
-const messages = ref([])
 const lastPrompt = ref('')
+const messagesScrollArea = ref(null)
+const messagesContainer = ref(null)
+
+// Use persistent messages from store
+const messages = computed(() => openAIStore.getChatMessages())
 
 // Computed properties
 const hasApiKey = computed(() => localSettingsStore.hasOpenAIApiKey())
@@ -169,6 +186,26 @@ const formatTime = (timestamp) => {
   })
 }
 
+const scrollToBottom = () => {
+  nextTick(() => {
+    setTimeout(() => {
+      if (messagesScrollArea.value) {
+        // Try multiple methods to ensure scrolling works
+        try {
+          // Method 1: Quasar's setScrollPosition
+          messagesScrollArea.value.setScrollPosition('vertical', 999999, 100)
+        } catch {
+          // Method 2: Direct DOM manipulation
+          const scrollTarget = messagesScrollArea.value.$el?.querySelector('.scroll')
+          if (scrollTarget) {
+            scrollTarget.scrollTop = scrollTarget.scrollHeight
+          }
+        }
+      }
+    }, 50)
+  })
+}
+
 const goToSettings = () => {
   router.push('/settings')
   emit('close')
@@ -181,25 +218,37 @@ const sendPrompt = async () => {
   lastPrompt.value = prompt
 
   // Add user message
-  messages.value.push({
+  openAIStore.addMessage({
     role: 'user',
     content: prompt,
     timestamp: new Date()
   })
 
+  // Scroll to bottom after adding user message
+  scrollToBottom()
+
   // Clear input
   currentPrompt.value = ''
 
   try {
-    // Send to AI
-    const response = await openAIStore.sendPrompt(prompt)
+    // Prepare conversation history for context using the new API format
+    const conversationHistory = openAIStore.getChatMessages().map(msg => ({
+      role: msg.role,
+      content: msg.content
+    }))
+
+    // Send to AI with full conversation history
+    const response = await openAIStore.sendPromptWithHistory(conversationHistory)
 
     // Add AI response
-    messages.value.push({
+    openAIStore.addMessage({
       role: 'assistant',
       content: response,
       timestamp: new Date()
     })
+
+    // Scroll to bottom after adding AI response
+    scrollToBottom()
 
     // Clear any previous errors
     openAIStore.clearResponse()
@@ -218,6 +267,20 @@ const retryLastPrompt = async () => {
 
 const useQuickPrompt = (prompt) => {
   currentPrompt.value = prompt
+}
+
+const clearChat = () => {
+  $q.dialog({
+    title: 'Clear Chat',
+    message: 'Are you sure you want to clear all messages? This action cannot be undone.',
+    cancel: true,
+    persistent: false
+  }).onOk(() => {
+    openAIStore.clearChatMessages()
+    currentPrompt.value = ''
+    lastPrompt.value = ''
+    openAIStore.clearResponse()
+  })
 }
 
 // Initialize on mount
