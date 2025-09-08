@@ -161,32 +161,15 @@ class PatientRepository extends BaseRepository {
       if (Object.keys(searchCriteria).length > 0) {
         return searchResults.filter((patient) => {
           // Apply filters to search results
-          if (
-            searchCriteria.VITAL_STATUS_CD &&
-            patient.VITAL_STATUS_CD !== searchCriteria.VITAL_STATUS_CD
-          )
-            return false
+          if (searchCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== searchCriteria.VITAL_STATUS_CD) return false
           if (searchCriteria.SEX_CD && patient.SEX_CD !== searchCriteria.SEX_CD) return false
           if (searchCriteria.AGE_IN_YEARS) {
             const age = patient.AGE_IN_YEARS
-            if (
-              age < searchCriteria.AGE_IN_YEARS.value[0] ||
-              age > searchCriteria.AGE_IN_YEARS.value[1]
-            )
-              return false
+            if (age < searchCriteria.AGE_IN_YEARS.value[0] || age > searchCriteria.AGE_IN_YEARS.value[1]) return false
           }
-          if (
-            searchCriteria.STATECITYZIP_PATH &&
-            !patient.STATECITYZIP_PATH?.includes(searchCriteria.STATECITYZIP_PATH)
-          )
-            return false
-          if (
-            searchCriteria.SOURCESYSTEM_CD &&
-            patient.SOURCESYSTEM_CD !== searchCriteria.SOURCESYSTEM_CD
-          )
-            return false
-          if (searchCriteria.UPLOAD_ID && patient.UPLOAD_ID !== searchCriteria.UPLOAD_ID)
-            return false
+          if (searchCriteria.STATECITYZIP_PATH && !patient.STATECITYZIP_PATH?.includes(searchCriteria.STATECITYZIP_PATH)) return false
+          if (searchCriteria.SOURCESYSTEM_CD && patient.SOURCESYSTEM_CD !== searchCriteria.SOURCESYSTEM_CD) return false
+          if (searchCriteria.UPLOAD_ID && patient.UPLOAD_ID !== searchCriteria.UPLOAD_ID) return false
           return true
         })
       }
@@ -261,25 +244,13 @@ class PatientRepository extends BaseRepository {
       if (Object.keys(searchCriteria).length > 0) {
         return searchResults.filter((patient) => {
           // Apply filters to search results
-          if (
-            searchCriteria.VITAL_STATUS_CD &&
-            patient.VITAL_STATUS_CD !== searchCriteria.VITAL_STATUS_CD
-          )
-            return false
+          if (searchCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== searchCriteria.VITAL_STATUS_CD) return false
           if (searchCriteria.SEX_CD && patient.SEX_CD !== searchCriteria.SEX_CD) return false
           if (searchCriteria.AGE_IN_YEARS) {
             const age = patient.AGE_IN_YEARS
-            if (
-              age < searchCriteria.AGE_IN_YEARS.value[0] ||
-              age > searchCriteria.AGE_IN_YEARS.value[1]
-            )
-              return false
+            if (age < searchCriteria.AGE_IN_YEARS.value[0] || age > searchCriteria.AGE_IN_YEARS.value[1]) return false
           }
-          if (
-            searchCriteria.STATECITYZIP_PATH &&
-            !patient.STATECITYZIP_PATH?.includes(searchCriteria.STATECITYZIP_PATH)
-          )
-            return false
+          if (searchCriteria.STATECITYZIP_PATH && !patient.STATECITYZIP_PATH?.includes(searchCriteria.STATECITYZIP_PATH)) return false
           return true
         })
       }
@@ -297,9 +268,9 @@ class PatientRepository extends BaseRepository {
    */
   async searchPatientsWithConcepts(searchTerm) {
     const sql = `
-      SELECT * FROM ${this.viewName} 
-      WHERE PATIENT_CD LIKE ? 
-         OR PATIENT_BLOB LIKE ? 
+      SELECT * FROM ${this.viewName}
+      WHERE PATIENT_CD LIKE ?
+         OR PATIENT_BLOB LIKE ?
          OR STATECITYZIP_PATH LIKE ?
          OR SEX_RESOLVED LIKE ?
          OR VITAL_STATUS_RESOLVED LIKE ?
@@ -310,17 +281,7 @@ class PatientRepository extends BaseRepository {
       ORDER BY PATIENT_CD
     `
     const searchPattern = `%${searchTerm}%`
-    const result = await this.connection.executeQuery(sql, [
-      searchPattern,
-      searchPattern,
-      searchPattern,
-      searchPattern,
-      searchPattern,
-      searchPattern,
-      searchPattern,
-      searchPattern,
-      searchPattern,
-    ])
+    const result = await this.connection.executeQuery(sql, [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern])
 
     return result.success ? result.data : []
   }
@@ -340,11 +301,7 @@ class PatientRepository extends BaseRepository {
       if (value !== undefined && value !== null) {
         if (typeof value === 'object' && value.operator) {
           // Handle special operators like BETWEEN, IN, etc.
-          if (
-            value.operator === 'BETWEEN' &&
-            Array.isArray(value.value) &&
-            value.value.length === 2
-          ) {
+          if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
             conditions.push(`${field} BETWEEN ? AND ?`)
             params.push(value.value[0], value.value[1])
           } else if (value.operator === 'IN' && Array.isArray(value.value)) {
@@ -371,9 +328,15 @@ class PatientRepository extends BaseRepository {
       sql += ` WHERE ${conditions.join(' AND ')}`
     }
 
-    // Add ORDER BY
-    const orderBy = options.orderBy || 'PATIENT_CD'
+    // Add ORDER BY with special handling for UPDATE_DATE_WITH_FALLBACK
+    let orderBy = options.orderBy || 'PATIENT_CD'
     const orderDirection = options.orderDirection || 'ASC'
+
+    if (orderBy === 'UPDATE_DATE_WITH_FALLBACK') {
+      // Use UPDATE_DATE as default, IMPORT_DATE as fallback
+      orderBy = 'COALESCE(UPDATE_DATE, IMPORT_DATE)'
+    }
+
     sql += ` ORDER BY ${orderBy} ${orderDirection}`
 
     // Add LIMIT and OFFSET
@@ -457,33 +420,20 @@ class PatientRepository extends BaseRepository {
     const stats = {}
 
     // Total patient count
-    const totalResult = await this.connection.executeQuery(
-      `SELECT COUNT(*) as total FROM ${this.tableName}`,
-    )
+    const totalResult = await this.connection.executeQuery(`SELECT COUNT(*) as total FROM ${this.tableName}`)
     stats.totalPatients = totalResult.success ? totalResult.data[0].total : 0
 
     // Count by vital status
-    const vitalStatusResult = await this.connection.executeQuery(
-      `SELECT VITAL_STATUS_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY VITAL_STATUS_CD`,
-    )
+    const vitalStatusResult = await this.connection.executeQuery(`SELECT VITAL_STATUS_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY VITAL_STATUS_CD`)
     stats.byVitalStatus = vitalStatusResult.success ? vitalStatusResult.data : []
 
     // Count by sex
-    const sexResult = await this.connection.executeQuery(
-      `SELECT SEX_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY SEX_CD`,
-    )
+    const sexResult = await this.connection.executeQuery(`SELECT SEX_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY SEX_CD`)
     stats.bySex = sexResult.success ? sexResult.data : []
 
     // Average age
-    const ageResult = await this.connection.executeQuery(
-      `SELECT AVG(AGE_IN_YEARS) as averageAge FROM ${this.tableName} WHERE AGE_IN_YEARS IS NOT NULL`,
-    )
-    stats.averageAge =
-      ageResult.success &&
-      ageResult.data[0].averageAge !== null &&
-      ageResult.data[0].averageAge !== undefined
-        ? Math.round(ageResult.data[0].averageAge)
-        : null
+    const ageResult = await this.connection.executeQuery(`SELECT AVG(AGE_IN_YEARS) as averageAge FROM ${this.tableName} WHERE AGE_IN_YEARS IS NOT NULL`)
+    stats.averageAge = ageResult.success && ageResult.data[0].averageAge !== null && ageResult.data[0].averageAge !== undefined ? Math.round(ageResult.data[0].averageAge) : null
 
     return stats
   }
@@ -495,18 +445,14 @@ class PatientRepository extends BaseRepository {
    */
   async searchPatients(searchTerm) {
     const sql = `
-      SELECT * FROM ${this.tableName} 
-      WHERE PATIENT_CD LIKE ? 
-         OR PATIENT_BLOB LIKE ? 
+      SELECT * FROM ${this.tableName}
+      WHERE PATIENT_CD LIKE ?
+         OR PATIENT_BLOB LIKE ?
          OR STATECITYZIP_PATH LIKE ?
       ORDER BY PATIENT_CD
     `
     const searchPattern = `%${searchTerm}%`
-    const result = await this.connection.executeQuery(sql, [
-      searchPattern,
-      searchPattern,
-      searchPattern,
-    ])
+    const result = await this.connection.executeQuery(sql, [searchPattern, searchPattern, searchPattern])
 
     return result.success ? result.data : []
   }
@@ -564,9 +510,9 @@ class PatientRepository extends BaseRepository {
     if (criteria.searchTerm) {
       const searchPattern = `%${criteria.searchTerm}%`
       const searchSql = `
-        SELECT COUNT(*) as count FROM ${this.viewName} 
-        WHERE PATIENT_CD LIKE ? 
-           OR PATIENT_BLOB LIKE ? 
+        SELECT COUNT(*) as count FROM ${this.viewName}
+        WHERE PATIENT_CD LIKE ?
+           OR PATIENT_BLOB LIKE ?
            OR STATECITYZIP_PATH LIKE ?
            OR SEX_RESOLVED LIKE ?
            OR VITAL_STATUS_RESOLVED LIKE ?
@@ -589,11 +535,7 @@ class PatientRepository extends BaseRepository {
         // Apply additional filters to search results
         const filteredResults = searchResults.filter((patient) => {
           if (otherCriteria.SEX_CD && patient.SEX_CD !== otherCriteria.SEX_CD) return false
-          if (
-            otherCriteria.VITAL_STATUS_CD &&
-            patient.VITAL_STATUS_CD !== otherCriteria.VITAL_STATUS_CD
-          )
-            return false
+          if (otherCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== otherCriteria.VITAL_STATUS_CD) return false
           return true
         })
 
@@ -614,11 +556,7 @@ class PatientRepository extends BaseRepository {
       if (value !== undefined && value !== null && value !== '') {
         if (typeof value === 'object' && value.operator) {
           // Handle special operators like BETWEEN, IN, etc.
-          if (
-            value.operator === 'BETWEEN' &&
-            Array.isArray(value.value) &&
-            value.value.length === 2
-          ) {
+          if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
             conditions.push(`${field} BETWEEN ? AND ?`)
             params.push(value.value[0], value.value[1])
           } else if (value.operator === 'IN' && Array.isArray(value.value)) {

@@ -17,10 +17,18 @@
           </div>
         </div>
 
-        <!-- Delete Patient Button -->
-        <q-btn color="negative" icon="delete" round outline @click="showDeleteConfirmation" :loading="deleteLoading">
-          <q-tooltip>Delete this patient and all associated data</q-tooltip>
-        </q-btn>
+        <!-- Action Buttons -->
+        <div class="row q-gutter-sm">
+          <!-- View Visits Button -->
+          <q-btn color="primary" icon="event" round outline @click="goToVisitsPage" :loading="loading">
+            <q-tooltip>View patient visits and timeline</q-tooltip>
+          </q-btn>
+
+          <!-- Delete Patient Button -->
+          <q-btn color="negative" icon="delete" round outline @click="showDeleteConfirmation" :loading="deleteLoading">
+            <q-tooltip>Delete this patient and all associated data</q-tooltip>
+          </q-btn>
+        </div>
       </div>
 
       <!-- Patient Info Cards -->
@@ -112,7 +120,10 @@ import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { useObservationStore } from 'src/stores/observation-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
+import { useLoggingStore } from 'src/stores/logging-store'
 import PatientAvatar from '../components/shared/PatientAvatar.vue'
 import PatientDemographicsCard from '../components/patient/PatientDemographicsCard.vue'
 import PatientAdditionalInfoCard from '../components/patient/PatientAdditionalInfoCard.vue'
@@ -123,15 +134,18 @@ const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
-const visitObservationStore = useVisitObservationStore()
+const visitStore = useVisitStore()
+const observationStore = useObservationStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('PatientPage')
 
 // State
 const loading = ref(true)
 const patient = ref(null)
 
-// Computed properties from visit-observation-store
-const visits = computed(() => visitObservationStore.visits)
-const observations = computed(() => visitObservationStore.allObservations) // Use all observations for statistics
+// Computed properties from stores
+const visits = computed(() => visitStore.visits)
+const observations = computed(() => observationStore.allObservations) // Use all observations for statistics
 
 // Delete functionality state
 const deleteLoading = ref(false)
@@ -271,26 +285,17 @@ const loadPatient = async () => {
   try {
     if (!dbStore.canPerformOperations) return
 
-    // Try to find patient by code using the view method for resolved concepts
-    const result = await dbStore.executeQuery('SELECT * FROM patient_list WHERE PATIENT_CD = ?', [patientId])
+    // Initialize service with Quasar instance
+    visitObservationService.initialize($q)
 
-    if (result.success && result.data.length > 0) {
-      patient.value = result.data[0]
+    // Load patient with all data using the service
+    const loadedPatient = await visitObservationService.loadPatientWithData(patientId)
 
-      // Transform patient data to match store expectations
-      const storePatient = {
-        id: patient.value.PATIENT_CD,
-        name: getPatientName(patient.value),
-        age: patient.value.AGE_IN_YEARS || calculateAge(patient.value.BIRTH_DATE),
-        gender: patient.value.SEX_RESOLVED || patient.value.SEX_CD,
-        PATIENT_NUM: patient.value.PATIENT_NUM,
-      }
-
-      // Set patient in store which will also load visits
-      await visitObservationStore.setSelectedPatient(storePatient)
+    if (loadedPatient) {
+      // Get the raw patient data for the UI
+      patient.value = loadedPatient.rawData || loadedPatient
     } else {
       patient.value = null
-      await visitObservationStore.clearPatient()
     }
   } catch (error) {
     console.error('Failed to load patient:', error)
@@ -302,14 +307,6 @@ const loadPatient = async () => {
   } finally {
     loading.value = false
   }
-}
-
-// Helper function to calculate age from birth date
-const calculateAge = (birthDate) => {
-  if (!birthDate) return null
-  const birthYear = new Date(birthDate).getFullYear()
-  const currentYear = new Date().getFullYear()
-  return currentYear - birthYear
 }
 
 // Helper methods for header display
@@ -355,15 +352,59 @@ const goToPatientSearch = () => {
   })
 }
 
+const goToVisitsPage = async () => {
+  if (!patient.value) {
+    logger.error('Cannot navigate to visits page - no patient loaded')
+    return
+  }
+
+  try {
+    // Log the navigation action
+    logger.logUserAction('navigate_to_visits_from_patient_page', {
+      patientId: patient.value.PATIENT_CD,
+      patientName: getPatientName(patient.value),
+      currentPage: 'patient_details',
+      visitCount: visits.value?.length || 0,
+      observationCount: observations.value?.length || 0,
+    })
+
+    // Navigate to visits page - patient data is already loaded in stores
+    router.push(`/visits/${patient.value.PATIENT_CD}`)
+
+    $q.notify({
+      type: 'positive',
+      message: `Viewing visits for ${getPatientName(patient.value)}`,
+      position: 'top',
+      icon: 'event',
+      timeout: 2000,
+    })
+  } catch (error) {
+    logger.error('Failed to navigate to visits page', error, {
+      patientId: patient.value?.PATIENT_CD,
+      patientName: getPatientName(patient.value),
+    })
+
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to load patient visits. Please try again.',
+      position: 'top',
+      timeout: 3000,
+    })
+  }
+}
+
 // Handle patient updates from child components
 const onPatientUpdated = () => {
   loadPatient()
 }
 
 // Handle observation updates from observations tab
-const onObservationsUpdated = async () => {
-  // The store handles reloading, we just need to ensure patient data is fresh
-  await loadPatient()
+const onObservationsUpdated = async (eventType = 'observation') => {
+  // Only reload if it's an observation change, not just a visit update
+  // Visit updates are handled by the visit store and don't require full patient reload
+  if (eventType === 'observation') {
+    await loadPatient()
+  }
 }
 
 // Computed properties for tab labels

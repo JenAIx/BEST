@@ -1,6 +1,6 @@
 /**
  * User Repository
- * 
+ *
  * This repository handles all operations related to user management
  * stored in the USER_MANAGEMENT table.
  */
@@ -64,29 +64,29 @@ class UserRepository extends BaseRepository {
   async findUsersByCriteria(criteria) {
     let sql = `SELECT * FROM ${this.tableName} WHERE 1=1`
     const params = []
-    
+
     if (criteria.userCode) {
       sql += ` AND USER_CD = ?`
       params.push(criteria.userCode)
     }
-    
+
     if (criteria.columnCode) {
       sql += ` AND COLUMN_CD = ?`
       params.push(criteria.columnCode)
     }
-    
+
     if (criteria.name) {
       sql += ` AND NAME_CHAR LIKE ?`
       params.push(`%${criteria.name}%`)
     }
-    
+
     if (criteria.uploadId) {
       sql += ` AND UPLOAD_ID = ?`
       params.push(criteria.uploadId)
     }
-    
+
     sql += ` ORDER BY COLUMN_CD, USER_CD`
-    
+
     const result = await this.connection.executeQuery(sql, params)
     return result.success ? result.data : []
   }
@@ -100,20 +100,20 @@ class UserRepository extends BaseRepository {
       const [totalUsers, byColumnCode, byUploadId] = await Promise.all([
         this.connection.executeQuery(`SELECT COUNT(*) as count FROM ${this.tableName}`),
         this.connection.executeQuery(`SELECT COLUMN_CD, COUNT(*) as count FROM ${this.tableName} GROUP BY COLUMN_CD`),
-        this.connection.executeQuery(`SELECT UPLOAD_ID, COUNT(*) as count FROM ${this.tableName} GROUP BY UPLOAD_ID`)
+        this.connection.executeQuery(`SELECT UPLOAD_ID, COUNT(*) as count FROM ${this.tableName} GROUP BY UPLOAD_ID`),
       ])
 
       return {
         totalUsers: totalUsers.success ? totalUsers.data[0].count : 0,
         byColumnCode: byColumnCode.success ? byColumnCode.data : [],
-        byUploadId: byUploadId.success ? byUploadId.data : []
+        byUploadId: byUploadId.success ? byUploadId.data : [],
       }
     } catch (error) {
       console.error('Error getting user statistics:', error)
       return {
         totalUsers: 0,
         byColumnCode: [],
-        byUploadId: []
+        byUploadId: [],
       }
     }
   }
@@ -128,41 +128,41 @@ class UserRepository extends BaseRepository {
   async getUsersPaginated(page = 1, pageSize = 20, criteria = {}) {
     try {
       const offset = (page - 1) * pageSize
-      
+
       // Build WHERE clause for criteria
       let whereClause = 'WHERE 1=1'
       const params = []
-      
+
       if (criteria.userCode) {
         whereClause += ` AND USER_CD = ?`
         params.push(criteria.userCode)
       }
-      
+
       if (criteria.columnCode) {
         whereClause += ` AND COLUMN_CD = ?`
         params.push(criteria.columnCode)
       }
-      
+
       if (criteria.name) {
         whereClause += ` AND NAME_CHAR LIKE ?`
         params.push(`%${criteria.name}%`)
       }
-      
+
       if (criteria.uploadId) {
         whereClause += ` AND UPLOAD_ID = ?`
         params.push(criteria.uploadId)
       }
-      
+
       // Get total count
       const countSql = `SELECT COUNT(*) as count FROM ${this.tableName} ${whereClause}`
       const countResult = await this.connection.executeQuery(countSql, params)
       const totalCount = countResult.success ? countResult.data[0].count : 0
-      
+
       // Get paginated data
       const dataSql = `SELECT * FROM ${this.tableName} ${whereClause} ORDER BY COLUMN_CD, USER_CD LIMIT ? OFFSET ?`
       const dataResult = await this.connection.executeQuery(dataSql, [...params, pageSize, offset])
       const users = dataResult.success ? dataResult.data : []
-      
+
       return {
         users,
         pagination: {
@@ -171,8 +171,8 @@ class UserRepository extends BaseRepository {
           totalCount,
           totalPages: Math.ceil(totalCount / pageSize),
           hasNext: page < Math.ceil(totalCount / pageSize),
-          hasPrev: page > 1
-        }
+          hasPrev: page > 1,
+        },
       }
     } catch (error) {
       console.error('Error getting users paginated:', error)
@@ -184,8 +184,8 @@ class UserRepository extends BaseRepository {
           totalCount: 0,
           totalPages: 0,
           hasNext: false,
-          hasPrev: false
-        }
+          hasPrev: false,
+        },
       }
     }
   }
@@ -199,20 +199,20 @@ class UserRepository extends BaseRepository {
     if (!userData.USER_CD) {
       throw new Error('USER_CD is required for user creation')
     }
-    
+
     if (!userData.COLUMN_CD) {
       throw new Error('COLUMN_CD is required for user creation')
     }
-    
+
     // Add audit fields
     const now = new Date().toISOString()
     const userWithAudit = {
       ...userData,
       UPDATE_DATE: userData.UPDATE_DATE || now,
       IMPORT_DATE: userData.IMPORT_DATE || now,
-      UPLOAD_ID: userData.UPLOAD_ID || 1
+      UPLOAD_ID: userData.UPLOAD_ID || 1,
     }
-    
+
     return await this.create(userWithAudit)
   }
 
@@ -226,13 +226,13 @@ class UserRepository extends BaseRepository {
     if (!userId) {
       throw new Error('User ID is required for update')
     }
-    
+
     // Add audit fields
     const updateWithAudit = {
       ...updateData,
-      UPDATE_DATE: new Date().toISOString()
+      UPDATE_DATE: new Date().toISOString(),
     }
-    
+
     return await this.update(userId, updateWithAudit)
   }
 
@@ -245,7 +245,7 @@ class UserRepository extends BaseRepository {
     if (!userId) {
       throw new Error('User ID is required for deletion')
     }
-    
+
     return await this.delete(userId)
   }
 
@@ -261,7 +261,7 @@ class UserRepository extends BaseRepository {
       if (!user) {
         return null
       }
-      
+
       // Get patient access
       const accessSql = `
         SELECT upl.*, pd.PATIENT_CD, pd.NAME_CHAR as PATIENT_NAME
@@ -271,10 +271,10 @@ class UserRepository extends BaseRepository {
       `
       const accessResult = await this.connection.executeQuery(accessSql, [userId])
       const patientAccess = accessResult.success ? accessResult.data : []
-      
+
       return {
         ...user,
-        patientAccess
+        patientAccess,
       }
     } catch (error) {
       console.error('Error getting user with patient access:', error)
@@ -294,12 +294,12 @@ class UserRepository extends BaseRepository {
       if (!user) {
         return null
       }
-      
+
       // Simple password comparison (in production, use proper hashing)
       if (user.PASSWORD_CHAR === password) {
         return user
       }
-      
+
       return null
     } catch (error) {
       console.error('Error authenticating user:', error)

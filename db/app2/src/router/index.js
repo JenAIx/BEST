@@ -1,10 +1,5 @@
 import { defineRouter } from '#q-app/wrappers'
-import {
-  createRouter,
-  createMemoryHistory,
-  createWebHistory,
-  createWebHashHistory,
-} from 'vue-router'
+import { createRouter, createMemoryHistory, createWebHistory, createWebHashHistory } from 'vue-router'
 import routes from './routes'
 import loggingService from '../core/services/logging-service.js'
 
@@ -18,11 +13,7 @@ import loggingService from '../core/services/logging-service.js'
  */
 
 export default defineRouter(function (/* { store, ssrContext } */) {
-  const createHistory = process.env.SERVER
-    ? createMemoryHistory
-    : process.env.VUE_ROUTER_MODE === 'history'
-      ? createWebHistory
-      : createWebHashHistory
+  const createHistory = process.env.SERVER ? createMemoryHistory : process.env.VUE_ROUTER_MODE === 'history' ? createWebHistory : createWebHashHistory
 
   const Router = createRouter({
     scrollBehavior: () => ({ left: 0, top: 0 }),
@@ -37,19 +28,19 @@ export default defineRouter(function (/* { store, ssrContext } */) {
   // Add navigation logging
   Router.beforeEach((to, from, next) => {
     const timer = loggingService.startTimer('Route Navigation')
-    
+
     loggingService.logNavigation(from.path || 'initial', to.path, 'router')
     loggingService.debug('Router', `Navigating from ${from.path || 'initial'} to ${to.path}`, {
       from: from.path,
       to: to.path,
       params: to.params,
-      query: to.query
+      query: to.query,
     })
-    
+
     // Store timer in route meta for afterEach hook
     to.meta = to.meta || {}
     to.meta._navigationTimer = timer
-    
+
     next()
   })
 
@@ -60,14 +51,14 @@ export default defineRouter(function (/* { store, ssrContext } */) {
       loggingService.info('Router', `Navigation completed: ${to.path}`, {
         from: from.path,
         to: to.path,
-        duration: `${duration.toFixed(2)}ms`
+        duration: `${duration.toFixed(2)}ms`,
       })
     }
   })
 
   Router.onError((error) => {
     loggingService.error('Router', 'Navigation error', error, {
-      currentRoute: Router.currentRoute.value.path
+      currentRoute: Router.currentRoute.value.path,
     })
   })
 

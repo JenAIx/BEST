@@ -1,6 +1,6 @@
 /**
  * Authentication Route Guard
- * 
+ *
  * Protects routes that require authentication and specific roles.
  * Redirects unauthenticated users to login page.
  * Checks role-based permissions for admin-only routes.
@@ -16,57 +16,53 @@ import { useAuthStore } from 'src/stores/auth-store'
  */
 export const requireAuth = (to, from, next) => {
   const authStore = useAuthStore()
-  
+
   // Check if user is authenticated
   if (!authStore.isAuthenticated) {
     // Redirect to login with return URL
     next({
       path: '/login',
-      query: { redirect: to.fullPath }
+      query: { redirect: to.fullPath },
     })
     return
   }
-  
+
   // Check session expiry
   if (authStore.sessionExpired) {
     authStore.logout()
     next({
       path: '/login',
-      query: { redirect: to.fullPath, expired: 'true' }
+      query: { redirect: to.fullPath, expired: 'true' },
     })
     return
   }
-  
+
   // Update activity timestamp
   authStore.updateActivity()
-  
+
   // Check route-specific permissions
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next({
       path: '/403',
-      query: { message: 'Admin access required' }
+      query: { message: 'Admin access required' },
     })
     return
   }
-  
+
   if (to.meta.requiresRole) {
-    const requiredRoles = Array.isArray(to.meta.requiresRole) 
-      ? to.meta.requiresRole 
-      : [to.meta.requiresRole]
-    
-    const hasRequiredRole = requiredRoles.some(role => 
-      authStore.hasRole(role) || authStore.isAdmin
-    )
-    
+    const requiredRoles = Array.isArray(to.meta.requiresRole) ? to.meta.requiresRole : [to.meta.requiresRole]
+
+    const hasRequiredRole = requiredRoles.some((role) => authStore.hasRole(role) || authStore.isAdmin)
+
     if (!hasRequiredRole) {
       next({
         path: '/403',
-        query: { message: 'Insufficient permissions' }
+        query: { message: 'Insufficient permissions' },
       })
       return
     }
   }
-  
+
   // All checks passed
   next()
 }
@@ -79,7 +75,7 @@ export const requireAuth = (to, from, next) => {
  */
 export const redirectIfAuthenticated = (to, from, next) => {
   const authStore = useAuthStore()
-  
+
   if (authStore.isAuthenticated && !authStore.sessionExpired) {
     // Redirect to dashboard or intended destination
     const redirect = to.query.redirect || '/dashboard'
@@ -96,25 +92,25 @@ export const redirectIfAuthenticated = (to, from, next) => {
 export const setupAuthGuard = (router) => {
   router.beforeEach((to, from, next) => {
     const authStore = useAuthStore()
-    
+
     // Public routes that don't require authentication
     // const publicRoutes = ['/login', '/about', '/403', '/404']
     // const isPublicRoute = publicRoutes.includes(to.path)
-    
+
     // If route requires auth and user is not authenticated
     if (to.meta.requiresAuth && !authStore.isAuthenticated) {
       next({
         path: '/login',
-        query: { redirect: to.fullPath }
+        query: { redirect: to.fullPath },
       })
       return
     }
-    
+
     // Update activity for authenticated users
     if (authStore.isAuthenticated) {
       authStore.updateActivity()
     }
-    
+
     next()
   })
 }

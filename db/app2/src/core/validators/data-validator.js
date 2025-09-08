@@ -1,12 +1,12 @@
 /**
  * Data Validation Layer
- * 
+ *
  * Comprehensive validation system for clinical data including:
  * - Standard data type validation (text, numeric, date, blob)
  * - Range and limit validation
  * - Concept-specific validation rules
  * - Structured error reporting with multiple validation issues
- * 
+ *
  * Based on the previous CQL implementation but modernized for the new architecture
  */
 
@@ -16,16 +16,16 @@ export class DataValidator {
   constructor(conceptRepository, cqlRepository) {
     this.conceptRepository = conceptRepository
     this.cqlRepository = cqlRepository
-    
+
     // Standard data type definitions
     this.dataTypes = {
       numeric: 'N',
-      text: 'T', 
+      text: 'T',
       date: 'D',
       blob: 'B',
-      boolean: 'BOOL'
+      boolean: 'BOOL',
     }
-    
+
     // Standard validation rules
     this.standardRules = {
       numeric: {
@@ -33,27 +33,27 @@ export class DataValidator {
         max: Infinity,
         precision: 2,
         allowNegative: true,
-        allowZero: true
+        allowZero: true,
       },
       text: {
         minLength: 0,
         maxLength: 1000,
         allowEmpty: false,
         pattern: null, // regex pattern if needed
-        trim: true
+        trim: true,
       },
       date: {
         minDate: '1900-01-01',
         maxDate: '2100-12-31',
         format: 'YYYY-MM-DD',
         allowFuture: true,
-        allowPast: true
+        allowPast: true,
       },
       blob: {
         maxSize: 1024 * 1024, // 1MB
         allowedTypes: ['json', 'xml', 'text', 'binary'],
-        validateContent: false
-      }
+        validateContent: false,
+      },
     }
   }
 
@@ -75,8 +75,8 @@ export class DataValidator {
         validatedAt: new Date().toISOString(),
         dataType: data.type,
         conceptCode: data.conceptCode,
-        value: data.value
-      }
+        value: data.value,
+      },
     }
 
     try {
@@ -112,14 +112,13 @@ export class DataValidator {
         validationResult.errors.push(...businessValidation.errors)
         validationResult.isValid = false
       }
-
     } catch (error) {
       validationResult.errors.push({
         code: 'VALIDATION_ERROR',
         field: 'system',
         message: 'Validation system error',
         details: error.message,
-        severity: 'critical'
+        severity: 'critical',
       })
       validationResult.isValid = false
     }
@@ -142,7 +141,7 @@ export class DataValidator {
         field: 'type',
         message: `Invalid data type: ${type}`,
         details: `Supported types: ${Object.keys(this.dataTypes).join(', ')}`,
-        severity: 'error'
+        severity: 'error',
       })
       result.isValid = false
       return result
@@ -156,7 +155,7 @@ export class DataValidator {
             field: 'value',
             message: 'Value must be a valid number',
             details: `Received: ${typeof value} "${value}"`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -169,7 +168,7 @@ export class DataValidator {
             field: 'value',
             message: 'Value must be a string',
             details: `Received: ${typeof value}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -182,7 +181,7 @@ export class DataValidator {
             field: 'value',
             message: 'Value must be a valid date',
             details: `Received: "${value}". Expected format: YYYY-MM-DD`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -195,7 +194,7 @@ export class DataValidator {
             field: 'value',
             message: 'BLOB value cannot be null or undefined',
             details: 'BLOB must contain actual data',
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -220,14 +219,14 @@ export class DataValidator {
     switch (type) {
       case 'numeric': {
         const numValue = Number(value)
-        
+
         if (numValue < rules.min) {
           result.errors.push({
             code: 'VALUE_BELOW_MINIMUM',
             field: 'value',
             message: `Value ${numValue} is below minimum ${rules.min}`,
             details: `Numeric values must be >= ${rules.min}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -238,7 +237,7 @@ export class DataValidator {
             field: 'value',
             message: `Value ${numValue} is above maximum ${rules.max}`,
             details: `Numeric values must be <= ${rules.max}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -249,7 +248,7 @@ export class DataValidator {
             field: 'value',
             message: 'Negative values are not allowed',
             details: `Received: ${numValue}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -260,7 +259,7 @@ export class DataValidator {
             field: 'value',
             message: 'Zero values are not allowed',
             details: `Received: ${numValue}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -273,7 +272,7 @@ export class DataValidator {
             field: 'value',
             message: `Precision exceeded: ${decimalPlaces} decimal places`,
             details: `Maximum allowed: ${rules.precision} decimal places`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -282,14 +281,14 @@ export class DataValidator {
 
       case 'text': {
         const textValue = rules.trim ? value.trim() : value
-        
+
         if (textValue.length < rules.minLength) {
           result.errors.push({
             code: 'TEXT_TOO_SHORT',
             field: 'value',
             message: `Text length ${textValue.length} is below minimum ${rules.minLength}`,
             details: `Text must be at least ${rules.minLength} characters`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -300,7 +299,7 @@ export class DataValidator {
             field: 'value',
             message: `Text length ${textValue.length} exceeds maximum ${rules.maxLength}`,
             details: `Text must be no more than ${rules.maxLength} characters`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -311,7 +310,7 @@ export class DataValidator {
             field: 'value',
             message: 'Empty text is not allowed',
             details: 'Text must contain at least one character',
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -323,7 +322,7 @@ export class DataValidator {
             field: 'value',
             message: 'Text does not match required pattern',
             details: `Pattern: ${rules.pattern.toString()}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -342,7 +341,7 @@ export class DataValidator {
             field: 'value',
             message: `Date ${value} is before minimum ${rules.minDate}`,
             details: `Dates must be >= ${rules.minDate}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -353,7 +352,7 @@ export class DataValidator {
             field: 'value',
             message: `Date ${value} is after maximum ${rules.maxDate}`,
             details: `Dates must be <= ${rules.maxDate}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -364,7 +363,7 @@ export class DataValidator {
             field: 'value',
             message: 'Future dates are not allowed',
             details: `Received: ${value}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -375,7 +374,7 @@ export class DataValidator {
             field: 'value',
             message: 'Past dates are not allowed',
             details: `Received: ${value}`,
-            severity: 'error'
+            severity: 'error',
           })
           result.isValid = false
         }
@@ -391,7 +390,7 @@ export class DataValidator {
               field: 'value',
               message: `BLOB size ${blobSize} bytes exceeds maximum ${rules.maxSize}`,
               details: `Maximum allowed size: ${rules.maxSize} bytes`,
-              severity: 'error'
+              severity: 'error',
             })
             result.isValid = false
           }
@@ -415,14 +414,14 @@ export class DataValidator {
     try {
       // Find concept-specific CQL rules
       const conceptRules = await this.cqlRepository.findByConceptCode(conceptCode)
-      
+
       if (!conceptRules || conceptRules.length === 0) {
         result.warnings.push({
           code: 'NO_CONCEPT_RULES',
           field: 'conceptCode',
           message: `No validation rules found for concept: ${conceptCode}`,
           details: 'Using standard validation rules only',
-          severity: 'warning'
+          severity: 'warning',
         })
         return result
       }
@@ -439,7 +438,7 @@ export class DataValidator {
               details: ruleValidation.error || 'Rule validation failed',
               severity: 'error',
               ruleId: rule.CQL_ID,
-              ruleName: rule.NAME_CHAR
+              ruleName: rule.NAME_CHAR,
             })
             result.isValid = false
           }
@@ -451,19 +450,18 @@ export class DataValidator {
             details: error.message,
             severity: 'error',
             ruleId: rule.CQL_ID,
-            ruleName: rule.NAME_CHAR
+            ruleName: rule.NAME_CHAR,
           })
           result.isValid = false
         }
       }
-
     } catch (error) {
       result.errors.push({
         code: 'CONCEPT_VALIDATION_ERROR',
         field: 'conceptCode',
         message: 'Error during concept validation',
         details: error.message,
-        severity: 'error'
+        severity: 'error',
       })
       result.isValid = false
     }
@@ -489,7 +487,7 @@ export class DataValidator {
           field: 'value',
           message: 'Age must be between 0 and 150 years',
           details: `Received: ${age} years`,
-          severity: 'error'
+          severity: 'error',
         })
         result.isValid = false
       }
@@ -504,7 +502,7 @@ export class DataValidator {
           field: 'value',
           message: 'Blood pressure must be between 50 and 300 mmHg',
           details: `Received: ${bp} mmHg`,
-          severity: 'error'
+          severity: 'error',
         })
         result.isValid = false
       }
@@ -519,7 +517,7 @@ export class DataValidator {
           field: 'value',
           message: 'Heart rate must be between 30 and 250 bpm',
           details: `Received: ${hr} bpm`,
-          severity: 'error'
+          severity: 'error',
         })
         result.isValid = false
       }
@@ -538,7 +536,7 @@ export class DataValidator {
     try {
       // For now, implement basic rule execution
       // In a full implementation, this would use the cql-execution library
-      
+
       if (rule.JSON_CHAR) {
         const ruleData = JSON.parse(rule.JSON_CHAR)
         return this.executeBasicRule(ruleData, value)
@@ -548,7 +546,7 @@ export class DataValidator {
     } catch (error) {
       return {
         isValid: false,
-        error: `Rule execution failed: ${error.message}`
+        error: `Rule execution failed: ${error.message}`,
       }
     }
   }
@@ -562,13 +560,13 @@ export class DataValidator {
   executeBasicRule(ruleData, value) {
     // This is a simplified rule execution
     // In production, this would use the full CQL execution engine
-    
+
     if (ruleData.type === 'range') {
       const numValue = Number(value)
       if (numValue < ruleData.min || numValue > ruleData.max) {
         return {
           isValid: false,
-          error: `Value ${numValue} outside range [${ruleData.min}, ${ruleData.max}]`
+          error: `Value ${numValue} outside range [${ruleData.min}, ${ruleData.max}]`,
         }
       }
     }
@@ -577,7 +575,7 @@ export class DataValidator {
       if (!ruleData.values.includes(value)) {
         return {
           isValid: false,
-          error: `Value "${value}" not in allowed values: [${ruleData.values.join(', ')}]`
+          error: `Value "${value}" not in allowed values: [${ruleData.values.join(', ')}]`,
         }
       }
     }
@@ -592,10 +590,10 @@ export class DataValidator {
    */
   isValidDate(dateString) {
     if (typeof dateString !== 'string') return false
-    
+
     // Check format first
     if (!dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return false
-    
+
     const date = new Date(dateString)
     return date instanceof Date && !isNaN(date) && date.getFullYear() > 0
   }
@@ -630,27 +628,27 @@ export class DataValidator {
         max: Infinity,
         precision: 2,
         allowNegative: true,
-        allowZero: true
+        allowZero: true,
       },
       text: {
         minLength: 0,
         maxLength: 1000,
         allowEmpty: false,
         pattern: null,
-        trim: true
+        trim: true,
       },
       date: {
         minDate: '1900-01-01',
         maxDate: '2100-12-31',
         format: 'YYYY-MM-DD',
         allowFuture: true,
-        allowPast: true
+        allowPast: true,
       },
       blob: {
         maxSize: 1024 * 1024,
         allowedTypes: ['json', 'xml', 'text', 'binary'],
-        validateContent: false
-      }
+        validateContent: false,
+      },
     }
   }
 }

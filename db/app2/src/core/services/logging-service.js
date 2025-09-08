@@ -72,11 +72,7 @@ class LoggingService {
         envLevel = process.env.NODE_ENV === 'development' ? 'DEBUG' : 'INFO'
       } else if (typeof window !== 'undefined' && window.location) {
         // Browser/Electron renderer fallback - check for development indicators
-        const isDevelopment =
-          window.location.hostname === 'localhost' ||
-          window.location.hostname === '127.0.0.1' ||
-          window.location.port !== '' ||
-          window.location.protocol === 'file:'
+        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port !== '' || window.location.protocol === 'file:'
         envLevel = isDevelopment ? 'DEBUG' : 'INFO'
       } else {
         // Default fallback for other environments (like tests)
@@ -295,16 +291,7 @@ class LoggingService {
     const style = `color: ${color}; font-weight: bold;`
 
     // Choose console method based on level
-    const consoleMethod =
-      level === 'ERROR'
-        ? 'error'
-        : level === 'WARN'
-          ? 'warn'
-          : level === 'SUCCESS'
-            ? 'info'
-            : level === 'DEBUG'
-              ? 'debug'
-              : 'log'
+    const consoleMethod = level === 'ERROR' ? 'error' : level === 'WARN' ? 'warn' : level === 'SUCCESS' ? 'info' : level === 'DEBUG' ? 'debug' : 'log'
 
     // Output main message
     console[consoleMethod](prefix, style, message)
@@ -484,5 +471,4 @@ export const debug = (context, message, data) => loggingService.debug(context, m
 export const info = (context, message, data) => loggingService.info(context, message, data)
 export const success = (context, message, data) => loggingService.success(context, message, data)
 export const warn = (context, message, data) => loggingService.warn(context, message, data)
-export const error = (context, message, err, data) =>
-  loggingService.error(context, message, err, data)
+export const error = (context, message, err, data) => loggingService.error(context, message, err, data)

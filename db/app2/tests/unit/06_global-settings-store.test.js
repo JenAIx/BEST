@@ -116,7 +116,7 @@ describe('Global Settings Store', () => {
       expect(result[0].CODE_CD).toBe('CAT_GENERAL')
       expect(result[0].NAME_CHAR).toBe('General')
 
-      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['CATEGORY_CHAR'])
+      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['CONCEPT_DIMENSION', 'CATEGORY_CHAR'])
     })
 
     it('should return empty array for invalid column', async () => {
@@ -193,15 +193,15 @@ describe('Global Settings Store', () => {
       // Test getCategories
       const categories = await globalSettingsStore.getCategories()
       expect(categories).toHaveLength(1)
-      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['CATEGORY_CHAR'])
+      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['CONCEPT_DIMENSION', 'CATEGORY_CHAR'])
 
       // Test getValueTypes
       await globalSettingsStore.getValueTypes()
-      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['VALTYPE_CD'])
+      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['CONCEPT_DIMENSION', 'VALTYPE_CD'])
 
       // Test getSourceSystems
       await globalSettingsStore.getSourceSystems()
-      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['SOURCESYSTEM_CD'])
+      expect(mockDbStore.executeQuery).toHaveBeenCalledWith(expect.stringContaining('SELECT * FROM CODE_LOOKUP'), ['CONCEPT_DIMENSION', 'SOURCESYSTEM_CD'])
     })
   })
 

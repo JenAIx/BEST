@@ -1,6 +1,6 @@
 /**
  * Advanced Search Service for Clinical Data
- * 
+ *
  * Features:
  * - Multi-repository search across patients, visits, observations, notes, and providers
  * - Complex query building with multiple criteria
@@ -12,14 +12,7 @@
  */
 
 export class SearchService {
-  constructor(
-    patientRepository,
-    visitRepository,
-    observationRepository,
-    noteRepository,
-    providerRepository,
-    conceptRepository
-  ) {
+  constructor(patientRepository, visitRepository, observationRepository, noteRepository, providerRepository, conceptRepository) {
     this.patientRepository = patientRepository
     this.visitRepository = visitRepository
     this.observationRepository = observationRepository
@@ -42,19 +35,11 @@ export class SearchService {
    */
   async searchPatients(criteria = {}) {
     try {
-      const {
-        searchTerm,
-        sex,
-        ageRange,
-        vitalStatus,
-        dateRange,
-        pagination = { page: 1, pageSize: 20 },
-        sortBy = [{ field: 'PATIENT_NUM', direction: 'ASC' }]
-      } = criteria
+      const { searchTerm, sex, ageRange, vitalStatus, dateRange, pagination = { page: 1, pageSize: 20 }, sortBy = [{ field: 'PATIENT_NUM', direction: 'ASC' }] } = criteria
 
       // Build search criteria object
       const searchCriteria = {}
-      
+
       if (sex) searchCriteria.sex = sex
       if (vitalStatus) searchCriteria.vitalStatus = vitalStatus
       if (ageRange) searchCriteria.ageRange = ageRange
@@ -94,7 +79,7 @@ export class SearchService {
         data: paginatedResults.data,
         pagination: paginatedResults.pagination,
         totalCount: results.length,
-        searchCriteria: criteria
+        searchCriteria: criteria,
       }
     } catch (error) {
       console.error('Patient search failed:', error)
@@ -103,7 +88,7 @@ export class SearchService {
         error: error.message,
         data: [],
         pagination: { page: 1, pageSize: 20, totalPages: 0 },
-        totalCount: 0
+        totalCount: 0,
       }
     }
   }
@@ -121,14 +106,7 @@ export class SearchService {
    */
   async searchVisits(criteria = {}) {
     try {
-      const {
-        patientNum,
-        locationCode,
-        inoutCode,
-        dateRange,
-        activeStatus,
-        pagination = { page: 1, pageSize: 20 }
-      } = criteria
+      const { patientNum, locationCode, inoutCode, dateRange, activeStatus, pagination = { page: 1, pageSize: 20 } } = criteria
 
       let results = []
 
@@ -138,10 +116,7 @@ export class SearchService {
       } else if (locationCode) {
         results = await this.visitRepository.findByLocationCode(locationCode)
       } else if (dateRange) {
-        results = await this.visitRepository.findByDateRange(
-          dateRange.start,
-          dateRange.end
-        )
+        results = await this.visitRepository.findByDateRange(dateRange.start, dateRange.end)
       } else if (activeStatus) {
         if (activeStatus === 'active') {
           results = await this.visitRepository.findActiveVisits()
@@ -154,7 +129,7 @@ export class SearchService {
 
       // Apply additional filters
       if (inoutCode) {
-        results = results.filter(visit => visit.INOUT_CD === inoutCode)
+        results = results.filter((visit) => visit.INOUT_CD === inoutCode)
       }
 
       // Apply pagination
@@ -165,7 +140,7 @@ export class SearchService {
         data: paginatedResults.data,
         pagination: paginatedResults.pagination,
         totalCount: results.length,
-        searchCriteria: criteria
+        searchCriteria: criteria,
       }
     } catch (error) {
       console.error('Visit search failed:', error)
@@ -174,7 +149,7 @@ export class SearchService {
         error: error.message,
         data: [],
         pagination: { page: 1, pageSize: 20, totalPages: 0 },
-        totalCount: 0
+        totalCount: 0,
       }
     }
   }
@@ -193,15 +168,7 @@ export class SearchService {
    */
   async searchObservations(criteria = {}) {
     try {
-      const {
-        patientNum,
-        encounterNum,
-        conceptCode,
-        valueType,
-        valueRange,
-        dateRange,
-        pagination = { page: 1, pageSize: 20 }
-      } = criteria
+      const { patientNum, encounterNum, conceptCode, valueType, valueRange, dateRange, pagination = { page: 1, pageSize: 20 } } = criteria
 
       let results = []
 
@@ -215,19 +182,14 @@ export class SearchService {
       } else if (valueType) {
         results = await this.observationRepository.findByValueType(valueType)
       } else if (dateRange) {
-        results = await this.observationRepository.findByDateRange(
-          dateRange.start,
-          dateRange.end
-        )
+        results = await this.observationRepository.findByDateRange(dateRange.start, dateRange.end)
       } else {
         results = await this.observationRepository.findAll()
       }
 
       // Apply additional filters
       if (valueRange && valueType === 'N') {
-        results = results.filter(obs => 
-          obs.NVAL_NUM >= valueRange.min && obs.NVAL_NUM <= valueRange.max
-        )
+        results = results.filter((obs) => obs.NVAL_NUM >= valueRange.min && obs.NVAL_NUM <= valueRange.max)
       }
 
       // Apply pagination
@@ -238,7 +200,7 @@ export class SearchService {
         data: paginatedResults.data,
         pagination: paginatedResults.pagination,
         totalCount: results.length,
-        searchCriteria: criteria
+        searchCriteria: criteria,
       }
     } catch (error) {
       console.error('Observation search failed:', error)
@@ -247,7 +209,7 @@ export class SearchService {
         error: error.message,
         data: [],
         pagination: { page: 1, pageSize: 20, totalPages: 0 },
-        totalCount: 0
+        totalCount: 0,
       }
     }
   }
@@ -264,13 +226,7 @@ export class SearchService {
    */
   async searchNotes(criteria = {}) {
     try {
-      const {
-        searchTerm,
-        category,
-        patientNum,
-        dateRange,
-        pagination = { page: 1, pageSize: 20 }
-      } = criteria
+      const { searchTerm, category, patientNum, dateRange, pagination = { page: 1, pageSize: 20 } } = criteria
 
       let results = []
 
@@ -288,7 +244,7 @@ export class SearchService {
 
       // Apply date range filter if specified
       if (dateRange) {
-        results = results.filter(note => {
+        results = results.filter((note) => {
           const noteDate = new Date(note.CREATED_AT || note.UPDATE_DATE)
           const startDate = new Date(dateRange.start)
           const endDate = new Date(dateRange.end)
@@ -304,7 +260,7 @@ export class SearchService {
         data: paginatedResults.data,
         pagination: paginatedResults.pagination,
         totalCount: results.length,
-        searchCriteria: criteria
+        searchCriteria: criteria,
       }
     } catch (error) {
       console.error('Note search failed:', error)
@@ -313,7 +269,7 @@ export class SearchService {
         error: error.message,
         data: [],
         pagination: { page: 1, pageSize: 20, totalPages: 0 },
-        totalCount: 0
+        totalCount: 0,
       }
     }
   }
@@ -329,12 +285,7 @@ export class SearchService {
    */
   async searchProviders(criteria = {}) {
     try {
-      const {
-        searchTerm,
-        specialty,
-        organization,
-        pagination = { page: 1, pageSize: 20 }
-      } = criteria
+      const { searchTerm, specialty, organization, pagination = { page: 1, pageSize: 20 } } = criteria
 
       let results = []
 
@@ -350,9 +301,7 @@ export class SearchService {
 
       // Apply organization filter if specified
       if (organization) {
-        results = results.filter(provider => 
-          provider.ORGANIZATION_CD === organization
-        )
+        results = results.filter((provider) => provider.ORGANIZATION_CD === organization)
       }
 
       // Apply pagination
@@ -363,7 +312,7 @@ export class SearchService {
         data: paginatedResults.data,
         pagination: paginatedResults.pagination,
         totalCount: results.length,
-        searchCriteria: criteria
+        searchCriteria: criteria,
       }
     } catch (error) {
       console.error('Provider search failed:', error)
@@ -372,7 +321,7 @@ export class SearchService {
         error: error.message,
         data: [],
         pagination: { page: 1, pageSize: 20, totalPages: 0 },
-        totalCount: 0
+        totalCount: 0,
       }
     }
   }
@@ -389,7 +338,7 @@ export class SearchService {
       observations: null,
       notes: null,
       providers: null,
-      crossReferences: []
+      crossReferences: [],
     }
 
     // Extract patient-based criteria
@@ -462,8 +411,8 @@ export class SearchService {
           totalVisits: 0,
           totalObservations: 0,
           totalNotes: 0,
-          totalProviders: 0
-        }
+          totalProviders: 0,
+        },
       }
 
       // Execute searches in parallel
@@ -471,74 +420,84 @@ export class SearchService {
 
       if (complexQuery.patients) {
         searchPromises.push(
-          this.searchPatients(complexQuery.patients).then(result => {
-            if (result.success) {
-              results.patients = result.data
-              results.summary.totalPatients = result.totalCount
-            } else {
-              // If search failed, throw error to trigger catch
-              throw new Error(result.error || 'Patient search failed')
-            }
-          }).catch(error => {
-            console.error('Patient search failed:', error)
-            throw error
-          })
+          this.searchPatients(complexQuery.patients)
+            .then((result) => {
+              if (result.success) {
+                results.patients = result.data
+                results.summary.totalPatients = result.totalCount
+              } else {
+                // If search failed, throw error to trigger catch
+                throw new Error(result.error || 'Patient search failed')
+              }
+            })
+            .catch((error) => {
+              console.error('Patient search failed:', error)
+              throw error
+            }),
         )
       }
 
       if (complexQuery.visits) {
         searchPromises.push(
-          this.searchVisits(complexQuery.visits).then(result => {
-            if (result.success) {
-              results.visits = result.data
-              results.summary.totalVisits = result.totalCount
-            }
-          }).catch(error => {
-            console.error('Visit search failed:', error)
-            throw error
-          })
+          this.searchVisits(complexQuery.visits)
+            .then((result) => {
+              if (result.success) {
+                results.visits = result.data
+                results.summary.totalVisits = result.totalCount
+              }
+            })
+            .catch((error) => {
+              console.error('Visit search failed:', error)
+              throw error
+            }),
         )
       }
 
       if (complexQuery.observations) {
         searchPromises.push(
-          this.searchObservations(complexQuery.observations).then(result => {
-            if (result.success) {
-              results.observations = result.data
-              results.summary.totalObservations = result.totalCount
-            }
-          }).catch(error => {
-            console.error('Observation search failed:', error)
-            throw error
-          })
+          this.searchObservations(complexQuery.observations)
+            .then((result) => {
+              if (result.success) {
+                results.observations = result.data
+                results.summary.totalObservations = result.totalCount
+              }
+            })
+            .catch((error) => {
+              console.error('Observation search failed:', error)
+              throw error
+            }),
         )
       }
 
       if (complexQuery.notes) {
         searchPromises.push(
-          this.searchNotes(complexQuery.notes).then(result => {
-            if (result.success) {
-              results.notes = result.data
-              results.summary.totalNotes = result.totalCount
-            }
-          }).catch(error => {
-            console.error('Note search failed:', error)
-            throw error
-          })
+          this.searchNotes(complexQuery.notes)
+            .then((result) => {
+              if (result.success) {
+                results.notes = result.data
+                results.summary.totalNotes = result.totalCount
+              }
+            })
+            .catch((error) => {
+              console.error('Note search failed:', error)
+              throw error
+            }),
         )
       }
 
       if (complexQuery.providers) {
         searchPromises.push(
-          this.searchProviders(complexQuery.providers).then(result => {
-            if (result.success) {
-              results.providers = result.data
-              results.summary.totalProviders = result.totalCount
-            }
-          }).catch(error => {
-            console.error('Provider search failed:', error)
-            throw error
-          })
+          this.searchProviders(complexQuery.providers)
+            .then((result) => {
+              if (result.success) {
+                results.providers = result.data
+                results.summary.totalProviders = result.totalCount
+              }
+            })
+            .catch((error) => {
+              console.error('Provider search failed:', error)
+              throw error
+            }),
         )
       }
 
@@ -551,7 +510,7 @@ export class SearchService {
           success: false,
           error: error.message,
           results: {},
-          query: complexQuery
+          query: complexQuery,
         }
       }
 
@@ -559,7 +518,7 @@ export class SearchService {
         success: true,
         results,
         query: complexQuery,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       }
     } catch (error) {
       console.error('Complex search failed:', error)
@@ -567,7 +526,7 @@ export class SearchService {
         success: false,
         error: error.message,
         results: {},
-        query: complexQuery
+        query: complexQuery,
       }
     }
   }
@@ -583,7 +542,7 @@ export class SearchService {
         totalResults: 0,
         resultBreakdown: {},
         searchPerformance: {},
-        commonPatterns: []
+        commonPatterns: [],
       }
 
       // Calculate total results across all repositories
@@ -614,14 +573,14 @@ export class SearchService {
       return {
         success: true,
         statistics: stats,
-        searchCriteria
+        searchCriteria,
       }
     } catch (error) {
       console.error('Search statistics failed:', error)
       return {
         success: false,
         error: error.message,
-        statistics: {}
+        statistics: {},
       }
     }
   }
@@ -637,7 +596,7 @@ export class SearchService {
       sex: criteria.sex,
       ageRange: criteria.ageRange,
       vitalStatus: criteria.vitalStatus,
-      searchTerm: criteria.searchTerm
+      searchTerm: criteria.searchTerm,
     }
   }
 
@@ -650,7 +609,7 @@ export class SearchService {
       locationCode: criteria.locationCode,
       inoutCode: criteria.inoutCode,
       activeStatus: criteria.activeStatus,
-      dateRange: criteria.dateRange
+      dateRange: criteria.dateRange,
     }
   }
 
@@ -663,7 +622,7 @@ export class SearchService {
       conceptCode: criteria.conceptCode,
       valueType: criteria.valueType,
       valueRange: criteria.valueRange,
-      dateRange: criteria.dateRange
+      dateRange: criteria.dateRange,
     }
   }
 
@@ -672,11 +631,11 @@ export class SearchService {
    * @private
    */
   buildCrossReferences(crossRefCriteria) {
-    return crossRefCriteria.map(ref => ({
+    return crossRefCriteria.map((ref) => ({
       fromEntity: ref.from,
       toEntity: ref.to,
       relationship: ref.relationship,
-      conditions: ref.conditions
+      conditions: ref.conditions,
     }))
   }
 
@@ -705,11 +664,11 @@ export class SearchService {
   applyPagination(results, pagination) {
     // Validate and normalize pagination parameters
     let { page = 1, pageSize = 20 } = pagination
-    
+
     // Ensure valid page and pageSize
     page = Math.max(1, Math.floor(page) || 1)
     pageSize = Math.max(1, Math.floor(pageSize) || 20)
-    
+
     const startIndex = (page - 1) * pageSize
     const endIndex = startIndex + pageSize
     const totalPages = Math.ceil(results.length / pageSize)
@@ -722,8 +681,8 @@ export class SearchService {
         totalPages,
         totalCount: results.length,
         hasNext: page < totalPages,
-        hasPrevious: page > 1
-      }
+        hasPrevious: page > 1,
+      },
     }
   }
 }

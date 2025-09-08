@@ -356,87 +356,9 @@ export const getAvailableValueTypes = () => {
 }
 
 // Field Sets Configuration for Visit Data Entry
-export const AVAILABLE_FIELD_SETS = [
-  {
-    id: 'vitals',
-    name: 'Vital Signs',
-    icon: 'favorite',
-    description: 'Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation',
-    concepts: [
-      'LOINC:8480-6', // Systolic BP
-      'LOINC:8462-4', // Diastolic BP
-      'LOINC:8867-4', // Heart rate
-      'LOINC:8310-5', // Body temperature
-      'LOINC:9279-1', // Respiratory rate
-      'LOINC:2708-6', // Oxygen saturation
-      // Also include LID versions as they appear in database
-      'LID: 8480-6', // Systolic BP
-      'LID: 8462-4', // Diastolic BP
-      'LID: 8867-4', // Heart rate
-    ],
-  },
-  {
-    id: 'symptoms',
-    name: 'Symptoms',
-    icon: 'sick',
-    description: 'Patient reported symptoms and complaints',
-    concepts: [
-      'SNOMED:25064002', // Headache
-      'SNOMED:49727002', // Cough
-      'SNOMED:267036007', // Dyspnea
-      'SNOMED:21522001', // Abdominal pain
-      'SNOMED:386661006', // Fever
-      'SNOMED:84229001', // Fatigue
-    ],
-  },
-  {
-    id: 'physical',
-    name: 'Physical Exam',
-    icon: 'medical_services',
-    description: 'Physical examination findings',
-    concepts: [
-      'SNOMED:5880005', // Physical examination
-      'SNOMED:32750006', // Inspection
-      'SNOMED:113011001', // Palpation
-      'SNOMED:37931006', // Auscultation
-      'SNOMED:113006009', // Percussion
-    ],
-  },
-  {
-    id: 'medications',
-    name: 'Medications',
-    icon: 'medication',
-    description: 'Current medications and dosages',
-    concepts: [
-      'SNOMED:182836005', // Review of medication
-      'SNOMED:432102000', // Administration of substance
-      'SNOMED:182840001', // Drug treatment stopped
-    ],
-  },
-  {
-    id: 'lab',
-    name: 'Lab Results',
-    icon: 'science',
-    description: 'Laboratory test results',
-    concepts: [
-      'LOINC:33747-0', // General laboratory studies
-      'LOINC:24323-8', // Comprehensive metabolic panel
-      'LOINC:57698-3', // Lipid panel
-      'LOINC:58410-2', // Complete blood count
-    ],
-  },
-  {
-    id: 'assessment',
-    name: 'Assessment',
-    icon: 'assignment',
-    description: 'Clinical assessment and diagnosis',
-    concepts: [
-      'SNOMED:439401001', // Diagnosis
-      'SNOMED:386053000', // Evaluation procedure
-      'SNOMED:182836005', // Review of systems
-    ],
-  },
-]
+// NOTE: Field sets are now loaded dynamically from the database
+// via CODE_LOOKUP table where TABLE_CD = 'VISIT_DIMENSION' and COLUMN_CD = 'FIELD_SET_CD'
+// This hardcoded definition has been removed to ensure database-driven configuration
 
 // ===========================
 // DYNAMIC DATA FUNCTIONS
@@ -551,8 +473,8 @@ export const loadFieldSets = async (forceRefresh = false) => {
     _fieldSetsCache = await globalSettingsStore.getFieldSetOptions(forceRefresh)
     return _fieldSetsCache
   } catch (error) {
-    console.warn('Failed to load field sets from database, using fallback', error)
-    return AVAILABLE_FIELD_SETS
+    console.warn('Failed to load field sets from database, no fallback available', error)
+    return []
   }
 }
 
@@ -583,8 +505,8 @@ export const clearMedicalDataCache = () => {
 
 // Field set utilities
 export const getFieldSetById = (fieldSetId) => {
-  // Use cached dynamic data if available
-  const dynamicSets = _fieldSetsCache || AVAILABLE_FIELD_SETS
+  // Use cached dynamic data from database only
+  const dynamicSets = _fieldSetsCache || []
   return dynamicSets.find((fs) => fs.id === fieldSetId)
 }
 
@@ -624,4 +546,86 @@ export const getCategoryMetadata = (categoryName, categoryMetadata = []) => {
   }
 
   return { icon: 'assignment', color: 'grey' }
+}
+
+/**
+ * Patient Utility Functions
+ */
+
+/**
+ * Generate patient initials from full name
+ * @param {string} name - Patient's full name
+ * @returns {string} Patient initials (up to 2 characters)
+ */
+export const getPatientInitials = (name) => {
+  if (!name || typeof name !== 'string') {
+    return '??'
+  }
+
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+/**
+ * Format patient name for display
+ * @param {string} name - Patient's full name
+ * @param {boolean} lastFirst - Format as "Last, First" instead of "First Last"
+ * @returns {string} Formatted name
+ */
+export const formatPatientName = (name, lastFirst = false) => {
+  if (!name || typeof name !== 'string') {
+    return 'Unknown Patient'
+  }
+
+  const nameParts = name
+    .trim()
+    .split(' ')
+    .filter((part) => part.length > 0)
+  if (nameParts.length === 0) {
+    return 'Unknown Patient'
+  }
+
+  if (nameParts.length === 1) {
+    return nameParts[0]
+  }
+
+  if (lastFirst) {
+    const last = nameParts[nameParts.length - 1]
+    const first = nameParts.slice(0, -1).join(' ')
+    return `${last}, ${first}`
+  }
+
+  return nameParts.join(' ')
+}
+
+/**
+ * Get patient display color based on status or other criteria
+ * @param {Object} patient - Patient object
+ * @returns {string} Quasar color name
+ */
+export const getPatientDisplayColor = (patient) => {
+  if (!patient) return 'grey'
+
+  // Color based on vital status if available
+  if (patient.vital_status || patient.vitalStatus) {
+    const status = (patient.vital_status || patient.vitalStatus).toLowerCase()
+    switch (status) {
+      case 'alive':
+      case 'active':
+        return 'positive'
+      case 'deceased':
+      case 'dead':
+        return 'negative'
+      case 'inactive':
+        return 'warning'
+      default:
+        return 'primary'
+    }
+  }
+
+  return 'primary'
 }

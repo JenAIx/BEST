@@ -49,14 +49,12 @@ describe('DataValidator Integration Tests', () => {
     // Initialize migration manager
     migrationManager = new MigrationManager(connection)
 
-    // Register migrations
-    const initialSchema = await import('../../src/core/database/migrations/001-initial-schema.js')
-    const currentSchema = await import('../../src/core/database/migrations/002-current-schema.js')
-    const addNoteFactColumns = await import('../../src/core/database/migrations/003-add-note-fact-columns.js')
+    // Register consolidated migrations
+    const coreSchemaImport = await import('../../src/core/database/migrations/001-core-schema.js')
+    const databaseViewsImport = await import('../../src/core/database/migrations/002-views.js')
 
-    migrationManager.registerMigration(initialSchema.initialSchema)
-    migrationManager.registerMigration(currentSchema.currentSchema)
-    migrationManager.registerMigration(addNoteFactColumns.addNoteFactColumns)
+    migrationManager.registerMigration(coreSchemaImport.coreSchema)
+    migrationManager.registerMigration(databaseViewsImport.databaseViews)
 
     // Initialize seed manager
     seedManager = new SeedManager(connection)

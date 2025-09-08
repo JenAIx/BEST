@@ -105,9 +105,7 @@ class MigrationManager {
    */
   async runPendingMigrations() {
     const executedMigrations = await this.getExecutedMigrations()
-    const pendingMigrations = this.migrations.filter(
-      (migration) => !executedMigrations.includes(migration.name),
-    )
+    const pendingMigrations = this.migrations.filter((migration) => !executedMigrations.includes(migration.name))
 
     if (pendingMigrations.length === 0) {
       this.logger.debug(null, 'No pending migrations')
@@ -137,10 +135,7 @@ class MigrationManager {
         // Execute the migration SQL
         await this.connection.executeCommand(migration.sql)
       } else {
-        this.logger.warn(
-          null,
-          `Migration ${migration.name} has no SQL or execute function, marking as executed`,
-        )
+        this.logger.warn(null, `Migration ${migration.name} has no SQL or execute function, marking as executed`)
       }
 
       // Mark migration as executed
@@ -164,14 +159,9 @@ class MigrationManager {
       VALUES (?, ?, ?)
     `
     // Calculate checksum based on SQL or execute function
-    const content =
-      migration.sql || (migration.execute ? migration.execute.toString() : migration.name)
+    const content = migration.sql || (migration.execute ? migration.execute.toString() : migration.name)
     const checksum = this.calculateChecksum(content)
-    await this.connection.executeCommand(sql, [
-      migration.name,
-      checksum,
-      migration.description || '',
-    ])
+    await this.connection.executeCommand(sql, [migration.name, checksum, migration.description || ''])
   }
 
   /**
@@ -199,9 +189,7 @@ class MigrationManager {
    */
   async getMigrationStatus() {
     const executedMigrations = await this.getExecutedMigrations()
-    const pendingMigrations = this.migrations.filter(
-      (migration) => !executedMigrations.includes(migration.name),
-    )
+    const pendingMigrations = this.migrations.filter((migration) => !executedMigrations.includes(migration.name))
 
     return {
       total: this.migrations.length,
@@ -221,9 +209,7 @@ class MigrationManager {
       console.log('Resetting database...')
 
       // Get all table names
-      const tablesResult = await this.connection.executeQuery(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
-      )
+      const tablesResult = await this.connection.executeQuery("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
 
       if (tablesResult.success) {
         // Drop all tables
@@ -269,8 +255,7 @@ class MigrationManager {
 
           if (result.success && result.data.length > 0) {
             const storedChecksum = result.data[0].checksum
-            const content =
-              migration.sql || (migration.execute ? migration.execute.toString() : migration.name)
+            const content = migration.sql || (migration.execute ? migration.execute.toString() : migration.name)
             const calculatedChecksum = this.calculateChecksum(content)
 
             if (storedChecksum !== calculatedChecksum) {

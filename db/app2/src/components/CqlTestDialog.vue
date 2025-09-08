@@ -86,9 +86,8 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useCqlStore } from 'src/stores/cql-store'
 import { useLoggingStore } from 'src/stores/logging-store'
-import cql from 'cql-execution'
-import { unstringify_json } from 'src/shared/utils/sql-tools.js'
 
 const props = defineProps({
   modelValue: {
@@ -103,6 +102,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'cancel'])
 
+const cqlStore = useCqlStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('CqlTestDialog')
 
@@ -110,9 +110,11 @@ const logger = loggingStore.createLogger('CqlTestDialog')
 const localShow = ref(false)
 const testValue = ref('')
 const valueType = ref('string')
-const testing = ref(false)
 const testResults = ref([])
 const errorMessage = ref('')
+
+// Use store state for testing
+const testing = computed(() => cqlStore.testing)
 
 // Options
 const valueTypeOptions = [
@@ -149,7 +151,8 @@ const resetForm = () => {
   valueType.value = 'string'
   testResults.value = []
   errorMessage.value = ''
-  testing.value = false
+  // Clear store error as well
+  cqlStore.clearError()
 }
 
 const getInputType = () => {
@@ -166,22 +169,12 @@ const getInputType = () => {
 const runTest = async () => {
   if (!canRunTest.value) return
 
-  testing.value = true
   errorMessage.value = ''
   testResults.value = []
 
   try {
-    // Convert test value based on type
-    let processedValue = testValue.value
-    if (valueType.value === 'number') {
-      processedValue = parseFloat(testValue.value)
-      if (isNaN(processedValue)) {
-        throw new Error('Invalid number format')
-      }
-    }
-
-    // Execute CQL rule
-    const result = await executeCqlRule(props.cqlRule, processedValue)
+    // Use store to test CQL rule
+    const result = await cqlStore.testCqlRule(props.cqlRule, testValue.value, valueType.value)
 
     if (result.success) {
       testResults.value = [
@@ -196,110 +189,7 @@ const runTest = async () => {
     }
   } catch (error) {
     logger.error('CQL test error', error)
-    errorMessage.value = error.message || 'Failed to execute CQL rule'
-  } finally {
-    testing.value = false
-  }
-}
-
-const executeCqlRule = async (rule, value) => {
-  try {
-    // Check if rule has compiled JSON
-    if (!rule.JSON_CHAR) {
-      return {
-        success: false,
-        error: 'CQL rule has no compiled JSON. Please compile the rule first.',
-      }
-    }
-
-    // Parse the JSON_CHAR using the unstringify_json utility
-    let lib
-    try {
-      // Convert single quotes to double quotes and parse
-      const jsonString = unstringify_json(rule.JSON_CHAR)
-      lib = JSON.parse(jsonString)
-    } catch (error) {
-      return {
-        success: false,
-        error: 'Invalid JSON format in CQL rule: ' + error.message,
-      }
-    }
-
-    // Execute CQL using the cql-execution library
-    return await executeCqlWithLibrary(lib, value)
-  } catch (error) {
-    return {
-      success: false,
-      error: error.message || 'CQL execution failed',
-    }
-  }
-}
-
-const executeCqlWithLibrary = async (lib, value) => {
-  try {
-    // Validate payload
-    if (!lib || typeof lib !== 'object') {
-      return { success: false, error: 'Invalid CQL library format' }
-    }
-
-    // Initialize CQL library
-    let cqlLibrary
-    try {
-      cqlLibrary = new cql.Library(lib)
-    } catch (err) {
-      return {
-        success: false,
-        error: 'Failed to initialize CQL library: ' + (err.message || err),
-      }
-    }
-
-    // Set up CQL execution environment
-    const patientSource = new cql.PatientSource([])
-    const codeService = new cql.CodeService([])
-    const executionDateTime = null
-
-    // Create parameters object - CQL rules expect a VALUE parameter
-    const parameters = { VALUE: value }
-
-    // Create executor
-    const executor = new cql.Executor(cqlLibrary, codeService, parameters)
-
-    // Execute CQL
-    try {
-      const result = await executor.exec(patientSource, executionDateTime)
-
-      if (result && result.unfilteredResults && Object.keys(result.unfilteredResults).length > 0) {
-        const data = result.unfilteredResults
-
-        // Check if all results are true (following the old logic)
-        let check = true
-        Object.keys(data).forEach((key) => {
-          if (data[key] === false) {
-            check = false
-          }
-        })
-
-        return {
-          success: true,
-          data: { check, data },
-        }
-      } else {
-        return {
-          success: true,
-          data: { data: result, check: false },
-        }
-      }
-    } catch (execError) {
-      return {
-        success: false,
-        error: execError.message || execError.toString(),
-      }
-    }
-  } catch (error) {
-    return {
-      success: false,
-      error: 'CQL execution error: ' + (error.message || error),
-    }
+    errorMessage.value = error.message || cqlStore.error || 'Failed to execute CQL rule'
   }
 }
 

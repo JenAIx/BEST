@@ -8,18 +8,13 @@
         <div class="text-h6">Database Connection</div>
 
         <div class="row q-gutter-md q-mt-md">
-          <q-input v-model="databasePath" label="Database Path" filled dense class="col-6"
-            placeholder="Enter database file path (e.g., ./test.db)" />
+          <q-input v-model="databasePath" label="Database Path" filled dense class="col-6" placeholder="Enter database file path (e.g., ./test.db)" />
 
-          <q-btn :loading="databaseStore.isLoading" :disable="!databasePath" color="primary" @click="initializeDatabase"
-            class="col-2">
+          <q-btn :loading="databaseStore.isLoading" :disable="!databasePath" color="primary" @click="initializeDatabase" class="col-2">
             {{ databaseStore.isConnected ? 'Reconnect' : 'Connect' }}
           </q-btn>
 
-          <q-btn v-if="databaseStore.isConnected" :loading="databaseStore.isLoading" color="negative"
-            @click="closeDatabase" class="col-2">
-            Disconnect
-          </q-btn>
+          <q-btn v-if="databaseStore.isConnected" :loading="databaseStore.isLoading" color="negative" @click="closeDatabase" class="col-2"> Disconnect </q-btn>
         </div>
 
         <!-- Connection Status -->
@@ -28,9 +23,7 @@
             {{ databaseStore.isConnected ? 'Connected' : 'Disconnected' }}
           </q-chip>
 
-          <q-chip v-if="databaseStore.isInitialized" color="positive" text-color="white" icon="check_circle">
-            Initialized
-          </q-chip>
+          <q-chip v-if="databaseStore.isInitialized" color="positive" text-color="white" icon="check_circle"> Initialized </q-chip>
 
           <q-chip v-if="databaseStore.connectionError" color="negative" text-color="white" icon="error">
             {{ databaseStore.connectionError }}
@@ -45,17 +38,11 @@
         <div class="text-h6">Database Operations</div>
 
         <div class="row q-gutter-md q-mt-md">
-          <q-btn :loading="databaseStore.isLoading" color="secondary" @click="refreshDatabaseInfo" class="col-2">
-            Refresh Info
-          </q-btn>
+          <q-btn :loading="databaseStore.isLoading" color="secondary" @click="refreshDatabaseInfo" class="col-2"> Refresh Info </q-btn>
 
-          <q-btn :loading="databaseStore.isLoading" color="warning" @click="validateDatabase" class="col-2">
-            Validate DB
-          </q-btn>
+          <q-btn :loading="databaseStore.isLoading" color="warning" @click="validateDatabase" class="col-2"> Validate DB </q-btn>
 
-          <q-btn :loading="databaseStore.isLoading" color="negative" @click="resetDatabase" class="col-2">
-            Reset DB
-          </q-btn>
+          <q-btn :loading="databaseStore.isLoading" color="negative" @click="resetDatabase" class="col-2"> Reset DB </q-btn>
         </div>
       </q-card-section>
     </q-card>
@@ -67,39 +54,26 @@
 
         <!-- Create Patient Form -->
         <div class="row q-gutter-md q-mt-md">
-          <q-input v-model="newPatient.PATIENT_CD" label="Patient Code" filled dense class="col-3"
-            placeholder="e.g., P001" />
+          <q-input v-model="newPatient.PATIENT_CD" label="Patient Code" filled dense class="col-3" placeholder="e.g., P001" />
 
           <q-input v-model="newPatient.SEX_CD" label="Sex" filled dense class="col-2" placeholder="M/F" />
 
-          <q-input v-model="newPatient.AGE_IN_YEARS" label="Age" filled dense type="number" class="col-2"
-            placeholder="25" />
+          <q-input v-model="newPatient.AGE_IN_YEARS" label="Age" filled dense type="number" class="col-2" placeholder="25" />
 
-          <q-btn :loading="isCreatingPatient" color="positive" @click="createTestPatient" class="col-2">
-            Create Patient
-          </q-btn>
+          <q-btn :loading="isCreatingPatient" color="positive" @click="createTestPatient" class="col-2"> Create Patient </q-btn>
 
-          <q-btn :loading="isCreatingDemoPatients" color="secondary" @click="createDemoPatients" class="col-2">
-            Create Demo Patients
-          </q-btn>
+          <q-btn :loading="isCreatingDemoPatients" color="secondary" @click="createDemoPatients" class="col-2"> Create Demo Patients </q-btn>
 
-          <q-btn :loading="isDeletingDemoPatients" color="negative" @click="deleteDemoPatients" class="col-2">
-            Delete Demo Patients
-          </q-btn>
+          <q-btn :loading="isDeletingDemoPatients" color="negative" @click="deleteDemoPatients" class="col-2"> Delete Demo Patients </q-btn>
         </div>
 
         <!-- Patient Search -->
         <div class="row q-gutter-md q-mt-md">
-          <q-input v-model="searchTerm" label="Search Patients" filled dense class="col-4"
-            placeholder="Enter search term" />
+          <q-input v-model="searchTerm" label="Search Patients" filled dense class="col-4" placeholder="Enter search term" />
 
-          <q-btn :loading="isSearching" color="info" @click="searchPatients" class="col-2">
-            Search
-          </q-btn>
+          <q-btn :loading="isSearching" color="info" @click="searchPatients" class="col-2"> Search </q-btn>
 
-          <q-btn :loading="isLoadingPatients" color="secondary" @click="loadAllPatients" class="col-2">
-            Load All
-          </q-btn>
+          <q-btn :loading="isLoadingPatients" color="secondary" @click="loadAllPatients" class="col-2"> Load All </q-btn>
         </div>
 
         <!-- Patient List -->
@@ -108,15 +82,8 @@
           <q-list bordered>
             <q-item v-for="patient in patients" :key="patient.PATIENT_NUM">
               <q-item-section>
-                <q-item-label>
-                  {{ patient.PATIENT_CD }} -
-                  Sex: {{ patient.SEX_CD || 'N/A' }},
-                  Age: {{ patient.AGE_IN_YEARS || 'N/A' }}
-                </q-item-label>
-                <q-item-label caption>
-                  ID: {{ patient.PATIENT_NUM }} |
-                  Created: {{ formatDate(patient.CREATED_AT) }}
-                </q-item-label>
+                <q-item-label> {{ patient.PATIENT_CD }} - Sex: {{ patient.SEX_CD || 'N/A' }}, Age: {{ patient.AGE_IN_YEARS || 'N/A' }} </q-item-label>
+                <q-item-label caption> ID: {{ patient.PATIENT_NUM }} | Created: {{ formatDate(patient.CREATED_AT) }} </q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
@@ -251,7 +218,7 @@ const databasePath = ref('./test.db')
 const newPatient = ref({
   PATIENT_CD: '',
   SEX_CD: '',
-  AGE_IN_YEARS: null
+  AGE_IN_YEARS: null,
 })
 const searchTerm = ref('')
 const patients = ref([])
@@ -267,12 +234,12 @@ const initializeDatabase = async () => {
     await databaseStore.initializeDatabase(databasePath.value)
     $q.notify({
       type: 'positive',
-      message: 'Database connected successfully!'
+      message: 'Database connected successfully!',
     })
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Failed to connect: ${error.message}`
+      message: `Failed to connect: ${error.message}`,
     })
   }
 }
@@ -283,12 +250,12 @@ const closeDatabase = async () => {
     patients.value = []
     $q.notify({
       type: 'positive',
-      message: 'Database disconnected successfully!'
+      message: 'Database disconnected successfully!',
     })
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Failed to disconnect: ${error.message}`
+      message: `Failed to disconnect: ${error.message}`,
     })
   }
 }
@@ -298,12 +265,12 @@ const refreshDatabaseInfo = async () => {
     await databaseStore.refreshDatabaseInfo()
     $q.notify({
       type: 'positive',
-      message: 'Database information refreshed!'
+      message: 'Database information refreshed!',
     })
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Failed to refresh: ${error.message}`
+      message: `Failed to refresh: ${error.message}`,
     })
   }
 }
@@ -314,18 +281,18 @@ const validateDatabase = async () => {
     if (validation.valid) {
       $q.notify({
         type: 'positive',
-        message: 'Database validation passed!'
+        message: 'Database validation passed!',
       })
     } else {
       $q.notify({
         type: 'warning',
-        message: `Database validation issues: ${validation.errors.length} errors found`
+        message: `Database validation issues: ${validation.errors.length} errors found`,
       })
     }
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Validation failed: ${error.message}`
+      message: `Validation failed: ${error.message}`,
     })
   }
 }
@@ -336,19 +303,19 @@ const resetDatabase = async () => {
       title: 'Confirm Reset',
       message: 'This will delete all data and recreate the database schema. Are you sure?',
       cancel: true,
-      persistent: true
+      persistent: true,
     }).onOk(async () => {
       await databaseStore.resetDatabase()
       patients.value = []
       $q.notify({
         type: 'positive',
-        message: 'Database reset completed!'
+        message: 'Database reset completed!',
       })
     })
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Reset failed: ${error.message}`
+      message: `Reset failed: ${error.message}`,
     })
   }
 }
@@ -357,7 +324,7 @@ const createTestPatient = async () => {
   if (!newPatient.value.PATIENT_CD) {
     $q.notify({
       type: 'warning',
-      message: 'Patient Code is required!'
+      message: 'Patient Code is required!',
     })
     return
   }
@@ -373,14 +340,14 @@ const createTestPatient = async () => {
       MARITAL_STATUS_CD: 'UNK',
       RELIGION_CD: 'UNK',
       SOURCESYSTEM_CD: 'TEST',
-      UPLOAD_ID: 1
+      UPLOAD_ID: 1,
     })
 
     // Clear form
     newPatient.value = {
       PATIENT_CD: '',
       SEX_CD: '',
-      AGE_IN_YEARS: null
+      AGE_IN_YEARS: null,
     }
 
     // Refresh patient list
@@ -388,13 +355,12 @@ const createTestPatient = async () => {
 
     $q.notify({
       type: 'positive',
-      message: `Patient ${patient.PATIENT_CD} created successfully!`
+      message: `Patient ${patient.PATIENT_CD} created successfully!`,
     })
-
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Failed to create patient: ${error.message}`
+      message: `Failed to create patient: ${error.message}`,
     })
   } finally {
     isCreatingPatient.value = false
@@ -410,13 +376,13 @@ const createDemoPatients = async () => {
       patientRepository: databaseStore.getRepository('patient'),
       visitRepository: databaseStore.getRepository('visit'),
       observationRepository: databaseStore.getRepository('observation'),
-      conceptRepository: databaseStore.getRepository('concept')
+      conceptRepository: databaseStore.getRepository('concept'),
     }
 
     $q.notify({
       type: 'info',
       message: 'Creating 20 demo patients with visits and observations...',
-      timeout: 2000
+      timeout: 2000,
     })
 
     const results = await createDemoPatientsUtil(repositories, 20)
@@ -426,13 +392,13 @@ const createDemoPatients = async () => {
       $q.notify({
         type: 'warning',
         message: `Demo patients created with ${results.errors.length} warnings. Check console for details.`,
-        timeout: 5000
+        timeout: 5000,
       })
     } else {
       $q.notify({
         type: 'positive',
         message: `Successfully created ${results.patients.length} demo patients with ${results.visits.length} visits and ${results.observations.length} observations!`,
-        timeout: 5000
+        timeout: 5000,
       })
     }
 
@@ -441,13 +407,12 @@ const createDemoPatients = async () => {
 
     // Refresh database statistics
     await refreshDatabaseInfo()
-
   } catch (error) {
     console.error('Failed to create demo patients:', error)
     $q.notify({
       type: 'negative',
       message: `Failed to create demo patients: ${error.message}`,
-      timeout: 5000
+      timeout: 5000,
     })
   } finally {
     isCreatingDemoPatients.value = false
@@ -463,7 +428,7 @@ const deleteDemoPatients = async () => {
       patientRepository: databaseStore.getRepository('patient'),
       visitRepository: databaseStore.getRepository('visit'),
       observationRepository: databaseStore.getRepository('observation'),
-      conceptRepository: databaseStore.getRepository('concept')
+      conceptRepository: databaseStore.getRepository('concept'),
     }
 
     const count = await countDemoData(repositories)
@@ -472,7 +437,7 @@ const deleteDemoPatients = async () => {
       $q.notify({
         type: 'info',
         message: 'No demo patients found to delete.',
-        timeout: 3000
+        timeout: 3000,
       })
       return
     }
@@ -482,13 +447,13 @@ const deleteDemoPatients = async () => {
       title: 'Confirm Deletion',
       message: `This will delete ${count.patients} demo patients, ${count.visits} visits, and ${count.observations} observations. Are you sure?`,
       cancel: true,
-      persistent: true
+      persistent: true,
     }).onOk(async () => {
       try {
         $q.notify({
           type: 'info',
           message: 'Deleting demo patients...',
-          timeout: 2000
+          timeout: 2000,
         })
 
         const results = await deleteDemoPatientsUtil(repositories)
@@ -498,36 +463,34 @@ const deleteDemoPatients = async () => {
           $q.notify({
             type: 'warning',
             message: `Demo patients deleted with ${results.errors.length} warnings. Check console for details.`,
-            timeout: 5000
+            timeout: 5000,
           })
         } else {
           $q.notify({
             type: 'positive',
             message: `Successfully deleted ${results.deletedPatients} demo patients, ${results.deletedVisits} visits, and ${results.deletedObservations} observations!`,
-            timeout: 5000
+            timeout: 5000,
           })
         }
 
         // Refresh patient list and database statistics
         await loadAllPatients()
         await refreshDatabaseInfo()
-
       } catch (error) {
         console.error('Failed to delete demo patients:', error)
         $q.notify({
           type: 'negative',
           message: `Failed to delete demo patients: ${error.message}`,
-          timeout: 5000
+          timeout: 5000,
         })
       }
     })
-
   } catch (error) {
     console.error('Failed to count demo patients:', error)
     $q.notify({
       type: 'negative',
       message: `Failed to count demo patients: ${error.message}`,
-      timeout: 5000
+      timeout: 5000,
     })
   } finally {
     isDeletingDemoPatients.value = false
@@ -538,7 +501,7 @@ const searchPatients = async () => {
   if (!searchTerm.value.trim()) {
     $q.notify({
       type: 'warning',
-      message: 'Please enter a search term!'
+      message: 'Please enter a search term!',
     })
     return
   }
@@ -550,14 +513,13 @@ const searchPatients = async () => {
     if (patients.value.length === 0) {
       $q.notify({
         type: 'info',
-        message: 'No patients found matching your search.'
+        message: 'No patients found matching your search.',
       })
     }
-
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Search failed: ${error.message}`
+      message: `Search failed: ${error.message}`,
     })
   } finally {
     isSearching.value = false
@@ -572,14 +534,13 @@ const loadAllPatients = async () => {
     if (patients.value.length === 0) {
       $q.notify({
         type: 'info',
-        message: 'No patients found in database.'
+        message: 'No patients found in database.',
       })
     }
-
   } catch (error) {
     $q.notify({
       type: 'negative',
-      message: `Failed to load patients: ${error.message}`
+      message: `Failed to load patients: ${error.message}`,
     })
   } finally {
     isLoadingPatients.value = false

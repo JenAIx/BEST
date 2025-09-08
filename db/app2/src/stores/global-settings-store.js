@@ -35,10 +35,10 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     loading.value = true
     try {
       const result = await dbStore.executeQuery(
-        `SELECT DISTINCT COLUMN_CD, COUNT(*) as count 
-         FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION' 
-         GROUP BY COLUMN_CD 
+        `SELECT DISTINCT COLUMN_CD, COUNT(*) as count
+         FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         GROUP BY COLUMN_CD
          ORDER BY COLUMN_CD`,
       )
 
@@ -87,33 +87,36 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   /**
    * Load lookup values for a specific COLUMN_CD
    */
-  const loadLookupValues = async (columnCd, forceRefresh = false) => {
+  const loadLookupValues = async (columnCd, tableCd = 'CONCEPT_DIMENSION', forceRefresh = false) => {
     if (!columnCd) return []
 
+    // Create cache key that includes both table and column
+    const cacheKey = `${tableCd}_${columnCd}`
+
     // Check cache first
-    if (!forceRefresh && lookupData.value[columnCd] && isCacheValid.value) {
-      return lookupData.value[columnCd]
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
     }
 
     loading.value = true
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION' 
-         AND COLUMN_CD = ? 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = ?
+         AND COLUMN_CD = ?
          ORDER BY NAME_CHAR`,
-        [columnCd],
+        [tableCd, columnCd],
       )
 
       if (result.success) {
-        lookupData.value[columnCd] = result.data
-        logger.success(`Loaded ${result.data.length} lookup values for ${columnCd}`)
+        lookupData.value[cacheKey] = result.data
+        logger.success(`Loaded ${result.data.length} lookup values for ${tableCd}.${columnCd}`)
         return result.data
       } else {
         throw new Error(result.error)
       }
     } catch (error) {
-      logger.error(`Failed to load lookup values for ${columnCd}`, error)
+      logger.error(`Failed to load lookup values for ${tableCd}.${columnCd}`, error)
       throw error
     } finally {
       loading.value = false
@@ -123,23 +126,26 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   /**
    * Get lookup value by CODE_CD
    */
-  const getLookupValue = async (columnCd, codeCd) => {
+  const getLookupValue = async (columnCd, codeCd, tableCd = 'CONCEPT_DIMENSION') => {
     if (!columnCd || !codeCd) return null
 
+    // Create cache key that includes both table and column
+    const cacheKey = `${tableCd}_${columnCd}`
+
     // Try cache first
-    if (lookupData.value[columnCd]) {
-      const cached = lookupData.value[columnCd].find((item) => item.CODE_CD === codeCd)
+    if (lookupData.value[cacheKey]) {
+      const cached = lookupData.value[cacheKey].find((item) => item.CODE_CD === codeCd)
       if (cached) return cached
     }
 
     // If not in cache, load from database
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'CONCEPT_DIMENSION' 
-         AND COLUMN_CD = ? 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = ?
+         AND COLUMN_CD = ?
          AND CODE_CD = ?`,
-        [columnCd, codeCd],
+        [tableCd, columnCd, codeCd],
       )
 
       if (result.success && result.data.length > 0) {
@@ -147,7 +153,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       }
       return null
     } catch (error) {
-      logger.error(`Failed to get lookup value ${codeCd} for ${columnCd}`, error)
+      logger.error(`Failed to get lookup value ${codeCd} for ${tableCd}.${columnCd}`, error)
       return null
     }
   }
@@ -183,7 +189,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   const updateLookupValue = async (codeCd, nameChar, lookupBlob = null) => {
     try {
       const result = await dbStore.executeCommand(
-        `UPDATE CODE_LOOKUP 
+        `UPDATE CODE_LOOKUP
          SET NAME_CHAR = ?, LOOKUP_BLOB = ?, UPDATE_DATE = datetime('now')
          WHERE CODE_CD = ?`,
         [nameChar, lookupBlob, codeCd],
@@ -280,7 +286,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    * Get all categories (convenience method)
    */
   const getCategories = async (forceRefresh = false) => {
-    return await loadLookupValues('CATEGORY_CHAR', forceRefresh)
+    return await loadLookupValues('CATEGORY_CHAR', 'CONCEPT_DIMENSION', forceRefresh)
   }
 
   /**
@@ -290,7 +296,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getCategoryOptions = async (forceRefresh = false) => {
     try {
-      const categories = await loadLookupValues('CATEGORY_CHAR', forceRefresh)
+      const categories = await loadLookupValues('CATEGORY_CHAR', 'CONCEPT_DIMENSION', forceRefresh)
 
       return categories.map((cat) => ({
         label: formatCategoryLabel(cat.NAME_CHAR || cat.CODE_CD),
@@ -344,7 +350,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    * Get all value types (convenience method)
    */
   const getValueTypes = async (forceRefresh = false) => {
-    return await loadLookupValues('VALTYPE_CD', forceRefresh)
+    return await loadLookupValues('VALTYPE_CD', 'CONCEPT_DIMENSION', forceRefresh)
   }
 
   /**
@@ -354,7 +360,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getValueTypeOptions = async (forceRefresh = false) => {
     try {
-      const valueTypes = await loadLookupValues('VALTYPE_CD', forceRefresh)
+      const valueTypes = await loadLookupValues('VALTYPE_CD', 'CONCEPT_DIMENSION', forceRefresh)
 
       // If we have data from the database, use it
       if (valueTypes.length > 0) {
@@ -373,6 +379,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Answer (A)', value: 'A' },
         { label: 'Date (D)', value: 'D' },
         { label: 'Finding (F)', value: 'F' },
+        { label: 'Medication (M)', value: 'M', icon: 'medication', color: 'orange' },
         { label: 'Numeric (N)', value: 'N' },
         { label: 'Raw Text (R)', value: 'R' },
         { label: 'Selection (S)', value: 'S' },
@@ -385,6 +392,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Answer (A)', value: 'A' },
         { label: 'Date (D)', value: 'D' },
         { label: 'Finding (F)', value: 'F' },
+        { label: 'Medication (M)', value: 'M', icon: 'medication', color: 'orange' },
         { label: 'Numeric (N)', value: 'N' },
         { label: 'Raw Text (R)', value: 'R' },
         { label: 'Selection (S)', value: 'S' },
@@ -409,6 +417,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       A: 'Answer (A)',
       D: 'Date (D)',
       F: 'Finding (F)',
+      M: 'Medication (M)',
       N: 'Numeric (N)',
       R: 'Raw Text (R)',
       S: 'Selection (S)',
@@ -422,7 +431,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    * Get all source systems (convenience method)
    */
   const getSourceSystems = async (forceRefresh = false) => {
-    return await loadLookupValues('SOURCESYSTEM_CD', forceRefresh)
+    return await loadLookupValues('SOURCESYSTEM_CD', 'CONCEPT_DIMENSION', forceRefresh)
   }
 
   /**
@@ -432,7 +441,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getSourceSystemOptions = async (forceRefresh = false) => {
     try {
-      const sourceSystems = await loadLookupValues('SOURCESYSTEM_CD', forceRefresh)
+      const sourceSystems = await loadLookupValues('SOURCESYSTEM_CD', 'CONCEPT_DIMENSION', forceRefresh)
 
       // If we have data from the database, use it
       if (sourceSystems.length > 0) {
@@ -505,7 +514,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    */
   const getCategoryMetadata = async (forceRefresh = false) => {
     try {
-      const metadata = await loadLookupValues('CATEGORY_METADATA', forceRefresh)
+      const metadata = await loadLookupValues('CATEGORY_METADATA', 'CODE_LOOKUP', forceRefresh)
       return metadata.map((item) => ({
         code: item.CODE_CD,
         name: item.NAME_CHAR,
@@ -532,9 +541,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'VISIT_DIMENSION' 
-         AND COLUMN_CD = 'VISIT_TYPE_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'VISIT_TYPE_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -590,9 +599,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'FILE_DIMENSION' 
-         AND COLUMN_CD = 'FILE_TYPE_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'FILE_DIMENSION'
+         AND COLUMN_CD = 'FILE_TYPE_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -651,9 +660,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'VISIT_DIMENSION' 
-         AND COLUMN_CD = 'FIELD_SET_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'FIELD_SET_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -675,41 +684,13 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         return options
       }
 
-      // Fallback to standard field sets
-      return [
-        {
-          id: 'vitals',
-          name: 'Vital Signs',
-          icon: 'favorite',
-          description: 'Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation',
-          concepts: ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4', 'LOINC:8310-5', 'LOINC:9279-1', 'LOINC:2708-6'],
-        },
-        {
-          id: 'symptoms',
-          name: 'Symptoms',
-          icon: 'sick',
-          description: 'Patient reported symptoms and complaints',
-          concepts: ['SNOMED:25064002', 'SNOMED:49727002', 'SNOMED:267036007'],
-        },
-        {
-          id: 'physical',
-          name: 'Physical Exam',
-          icon: 'medical_services',
-          description: 'Physical examination findings',
-          concepts: ['SNOMED:5880005', 'SNOMED:32750006', 'SNOMED:113011001'],
-        },
-      ]
+      // No fallback - field sets must be configured in database
+      logger.warn('No field sets found in database and no fallback provided')
+      return []
     } catch (error) {
       logger.error('Failed to get field set options', error)
-      return [
-        {
-          id: 'vitals',
-          name: 'Vital Signs',
-          icon: 'favorite',
-          description: 'Blood pressure, heart rate, temperature, respiratory rate, oxygen saturation',
-          concepts: ['LOINC:8480-6', 'LOINC:8462-4', 'LOINC:8867-4'],
-        },
-      ]
+      // No fallback - database configuration is required
+      return []
     }
   }
 
@@ -722,21 +703,21 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Try to load from database first
       const sourceSystems = await getSourceSystemOptions()
-      
+
       // Look for context-specific defaults
       const contextMap = {
-        'VISITS_PAGE': 'VISITS_PAGE',
-        'DATAGRID_EDITOR': 'DATAGRID_EDITOR',
-        'PATIENT': 'SYSTEM',
-        'GENERAL': 'SYSTEM'
+        VISITS_PAGE: 'VISITS_PAGE',
+        DATAGRID_EDITOR: 'DATAGRID_EDITOR',
+        PATIENT: 'SYSTEM',
+        GENERAL: 'SYSTEM',
       }
-      
+
       const preferredCode = contextMap[context] || 'SYSTEM'
-      
+
       // Check if preferred code exists in loaded options
-      const exists = sourceSystems.find(ss => ss.value === preferredCode)
+      const exists = sourceSystems.find((ss) => ss.value === preferredCode)
       if (exists) return preferredCode
-      
+
       // Return first available option or fallback
       return sourceSystems.length > 0 ? sourceSystems[0].value : 'SYSTEM'
     } catch (error) {
@@ -754,25 +735,22 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Try to load from database first
       const categories = await getCategoryOptions()
-      
+
       // Look for context-specific defaults
       const contextMap = {
-        'CLINICAL': 'Clinical',
-        'DEMOGRAPHICS': 'Demographics',
-        'CLONED': 'Cloned',
-        'OBSERVATION': 'Observation',
-        'GENERAL': 'General'
+        CLINICAL: 'Clinical',
+        DEMOGRAPHICS: 'Demographics',
+        CLONED: 'Cloned',
+        OBSERVATION: 'Observation',
+        GENERAL: 'General',
       }
-      
+
       const preferredCategory = contextMap[context] || 'General'
-      
+
       // Check if preferred category exists in loaded options
-      const exists = categories.find(cat => 
-        cat.value === preferredCategory || 
-        cat.label === preferredCategory
-      )
+      const exists = categories.find((cat) => cat.value === preferredCategory || cat.label === preferredCategory)
       if (exists) return exists.value
-      
+
       // Return first available option or fallback
       return categories.length > 0 ? categories[0].value : 'General'
     } catch (error) {
@@ -796,9 +774,9 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     try {
       const result = await dbStore.executeQuery(
-        `SELECT * FROM CODE_LOOKUP 
-         WHERE TABLE_CD = 'USER_DIMENSION' 
-         AND COLUMN_CD = 'ROLE_CD' 
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'USER_DIMENSION'
+         AND COLUMN_CD = 'ROLE_CD'
          ORDER BY NAME_CHAR`,
       )
 
@@ -819,7 +797,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Administrator', value: 'admin' },
         { label: 'Physician', value: 'physician' },
         { label: 'Nurse', value: 'nurse' },
-        { label: 'Research', value: 'research' }
+        { label: 'Research', value: 'research' },
       ]
 
       // Cache the fallback result
@@ -833,10 +811,432 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         { label: 'Administrator', value: 'admin' },
         { label: 'Physician', value: 'physician' },
         { label: 'Nurse', value: 'nurse' },
-        { label: 'Research', value: 'research' }
+        { label: 'Research', value: 'research' },
       ]
       return fallbackRoles
     }
+  }
+
+  /**
+   * Get visit template options for quick visit creation
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of visit template configurations
+   */
+  const getVisitTemplateOptions = async (forceRefresh = false) => {
+    const cacheKey = 'visit_templates'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'TEMPLATE_CD'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const templates = result.data.map((template) => {
+          const metadata = parseMetadata(template.LOOKUP_BLOB)
+          return {
+            id: template.CODE_CD,
+            name: template.NAME_CHAR,
+            type: metadata.visitType || 'routine',
+            location: metadata.location || '',
+            notes: metadata.notes || '',
+            icon: metadata.icon || 'assignment',
+            color: metadata.color || 'primary',
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = templates
+        logger.success(`Loaded ${templates.length} visit templates`)
+        return templates
+      }
+
+      // Fallback to standard visit templates
+      return getDefaultVisitTemplates()
+    } catch (error) {
+      logger.error('Failed to get visit template options', error)
+      return getDefaultVisitTemplates()
+    }
+  }
+
+  /**
+   * Get drug options for medication search
+   * @param {string} searchTerm - Search term to filter drugs
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of drug options
+   */
+  const getDrugOptions = async (searchTerm = '', forceRefresh = false) => {
+    const cacheKey = 'drug_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      const cached = lookupData.value[cacheKey]
+      if (searchTerm && searchTerm.length >= 2) {
+        return cached.filter((drug) => drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()))
+      }
+      return cached
+    }
+
+    try {
+      // Load from VISIT_DIMENSION DRUG_OPTIONS
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'DRUG_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      let drugOptions = []
+
+      if (result.success && result.data.length > 0) {
+        // Parse database drugs
+        drugOptions = result.data.map((drug) => {
+          const metadata = parseMetadata(drug.LOOKUP_BLOB)
+          console.log('Drug:', drug.NAME_CHAR, 'LOOKUP_BLOB:', drug.LOOKUP_BLOB, 'Parsed metadata:', metadata)
+          return {
+            name: drug.NAME_CHAR || drug.CODE_CD,
+            generic: metadata.generic || '',
+            default_strength: metadata.default_strength || '',
+            default_route: metadata.default_route || '',
+            default_frequency: metadata.default_frequency || '',
+            category: metadata.category || 'general',
+            code: drug.CODE_CD,
+          }
+        })
+        logger.success(`Loaded ${drugOptions.length} drugs from VISIT_DIMENSION DRUG_OPTIONS`)
+      } else {
+        // Fallback to comprehensive drug list from database
+        drugOptions = await getDefaultDrugOptions()
+        logger.info('Using fallback drug options from database')
+      }
+
+      // Cache the result
+      lookupData.value[cacheKey] = drugOptions
+
+      // Filter by search term if provided
+      if (searchTerm && searchTerm.length >= 2) {
+        return drugOptions.filter((drug) => drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()))
+      }
+
+      return drugOptions
+    } catch (error) {
+      logger.error('Failed to get drug options', error)
+      try {
+        const fallbackDrugs = await getDefaultDrugOptions()
+        return fallbackDrugs.filter(
+          (drug) => !searchTerm || searchTerm.length < 2 || drug.name.toLowerCase().includes(searchTerm.toLowerCase()) || drug.generic.toLowerCase().includes(searchTerm.toLowerCase()),
+        )
+      } catch (fallbackError) {
+        logger.error('Failed to get fallback drug options', fallbackError)
+        return []
+      }
+    }
+  }
+
+  /**
+   * Get default drug options from CODE_LOOKUP database
+   * @returns {Promise<Array>} Comprehensive list of medications from database
+   */
+  const getDefaultDrugOptions = async () => {
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'VISIT_DIMENSION'
+         AND COLUMN_CD = 'DRUG_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        return result.data.map((drug) => {
+          const metadata = parseMetadata(drug.LOOKUP_BLOB)
+          return {
+            name: drug.NAME_CHAR || drug.CODE_CD,
+            generic: metadata.generic || '',
+            default_strength: metadata.default_strength || '',
+            default_route: metadata.default_route || '',
+            default_frequency: metadata.default_frequency || '',
+            category: metadata.category || 'general',
+            code: drug.CODE_CD,
+          }
+        })
+      }
+
+      // If no data found, return empty array
+      logger.warn('No drug options found in CODE_LOOKUP database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get default drug options from database', error)
+      return []
+    }
+  }
+
+  /**
+   * Get unit options for medication dosages
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of unit options
+   */
+  const getUnitOptions = async (forceRefresh = false) => {
+    const cacheKey = 'unit_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = 'UNIT_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((unit) => {
+          const metadata = parseMetadata(unit.LOOKUP_BLOB)
+          return {
+            label: metadata.label || unit.NAME_CHAR,
+            value: unit.CODE_CD,
+            icon: metadata.icon || 'straighten',
+            category: metadata.category || 'measurement',
+            aliases: metadata.aliases || [],
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} unit options`)
+        return options
+      }
+
+      logger.warn('No unit options found in database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get unit options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get frequency options for medication dosing
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of frequency options
+   */
+  const getFrequencyOptions = async (forceRefresh = false) => {
+    const cacheKey = 'frequency_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = 'FREQUENCY_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((freq) => {
+          const metadata = parseMetadata(freq.LOOKUP_BLOB)
+          return {
+            label: metadata.label || freq.NAME_CHAR,
+            value: freq.CODE_CD,
+            icon: metadata.icon || 'schedule',
+            category: metadata.category || 'frequency',
+            abbreviation: metadata.abbreviation || freq.CODE_CD,
+            application: metadata.application || freq.CODE_CD,
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} frequency options`)
+        return options
+      }
+
+      logger.warn('No frequency options found in database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get frequency options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get route options for medication administration
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of route options
+   */
+  const getRouteOptions = async (forceRefresh = false) => {
+    const cacheKey = 'route_options'
+
+    // Check cache first
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) {
+      return lookupData.value[cacheKey]
+    }
+
+    try {
+      const result = await dbStore.executeQuery(
+        `SELECT * FROM CODE_LOOKUP
+         WHERE TABLE_CD = 'CONCEPT_DIMENSION'
+         AND COLUMN_CD = 'ROUTE_OPTIONS'
+         ORDER BY NAME_CHAR`,
+      )
+
+      if (result.success && result.data.length > 0) {
+        const options = result.data.map((route) => {
+          const metadata = parseMetadata(route.LOOKUP_BLOB)
+          return {
+            label: metadata.label || route.NAME_CHAR,
+            value: route.CODE_CD,
+            icon: metadata.icon || 'route',
+            category: metadata.category || 'route',
+            abbreviation: metadata.abbreviation || route.CODE_CD,
+          }
+        })
+
+        // Cache the result
+        lookupData.value[cacheKey] = options
+        logger.success(`Loaded ${options.length} route options`)
+        return options
+      }
+
+      logger.warn('No route options found in database')
+      return []
+    } catch (error) {
+      logger.error('Failed to get route options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get field sets associated with a specific visit type
+   * @param {string} visitTypeCode - Visit type code to get field sets for
+   * @param {boolean} activeOnly - Only return active field sets (default: false)
+   * @returns {Promise<Array>} Array of field set IDs associated with the visit type
+   */
+  const getFieldSetsForVisitType = async (visitTypeCode, activeOnly = false) => {
+    if (!visitTypeCode) {
+      logger.warn('getFieldSetsForVisitType called with empty visitTypeCode')
+      return []
+    }
+
+    try {
+      // Get the visit type data from CODE_LOOKUP
+      const visitType = await getLookupValue('VISIT_TYPE_CD', visitTypeCode, 'VISIT_DIMENSION')
+      
+      if (!visitType || !visitType.LOOKUP_BLOB) {
+        logger.warn(`No visit type data found for ${visitTypeCode}`)
+        return []
+      }
+
+      // Parse the visit type metadata
+      const metadata = parseMetadata(visitType.LOOKUP_BLOB)
+      
+      if (!Array.isArray(metadata.fieldSets)) {
+        logger.debug(`Visit type ${visitTypeCode} has no field sets configured`)
+        return []
+      }
+
+      // Filter field sets based on activeOnly parameter
+      let fieldSets = metadata.fieldSets
+      if (activeOnly) {
+        fieldSets = fieldSets.filter(fs => fs.active === true)
+      }
+
+      // Return array of field set IDs
+      const fieldSetIds = fieldSets.map(fs => fs.id)
+      
+      logger.debug(`Found ${fieldSetIds.length} field sets for visit type ${visitTypeCode}`, {
+        visitTypeCode,
+        activeOnly,
+        fieldSetIds,
+        totalFieldSets: metadata.fieldSets.length
+      })
+
+      return fieldSetIds
+    } catch (error) {
+      logger.error(`Failed to get field sets for visit type ${visitTypeCode}`, error)
+      return []
+    }
+  }
+
+  /**
+   * Get default visit templates when database lookup fails
+   * @returns {Array} Default visit templates
+   */
+  const getDefaultVisitTemplates = () => {
+    const defaultTemplates = [
+      {
+        id: 'annual-checkup',
+        name: 'Annual Checkup',
+        type: 'routine',
+        location: '',
+        notes: 'Annual physical examination and health assessment',
+        icon: 'health_and_safety',
+        color: 'primary',
+      },
+      {
+        id: 'follow-up-labs',
+        name: 'Lab Follow-up',
+        type: 'followup',
+        location: '',
+        notes: 'Follow-up visit to review laboratory results',
+        icon: 'science',
+        color: 'secondary',
+      },
+      {
+        id: 'medication-review',
+        name: 'Medication Review',
+        type: 'consultation',
+        location: '',
+        notes: 'Review current medications and adjust dosages as needed',
+        icon: 'medication',
+        color: 'info',
+      },
+      {
+        id: 'parkinson-assessment',
+        name: 'Parkinson Assessment',
+        type: 'parkinson',
+        location: 'Neurology Clinic',
+        notes: 'Parkinson disease assessment including motor function evaluation, UPDRS scoring, medication review, and symptom monitoring',
+        icon: 'psychology',
+        color: 'deep-purple',
+      },
+      {
+        id: 'emergency-visit',
+        name: 'Emergency Visit',
+        type: 'emergency',
+        location: 'Emergency Department',
+        notes: 'Urgent medical attention required',
+        icon: 'emergency',
+        color: 'negative',
+      },
+      {
+        id: 'procedure-visit',
+        name: 'Procedure Visit',
+        type: 'procedure',
+        location: 'Procedure Suite',
+        notes: 'Medical procedure or intervention',
+        icon: 'medical_services',
+        color: 'warning',
+      },
+    ]
+
+    // Cache the fallback result
+    lookupData.value['visit_templates'] = defaultTemplates
+    logger.info('Using default visit templates')
+    return defaultTemplates
   }
 
   /**
@@ -891,12 +1291,28 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     getVisitTypeOptions,
     getFileTypeOptions,
     getFieldSetOptions,
-    
+
     // Default value methods
     getDefaultSourceSystem,
     getDefaultCategory,
-    
+
     // User role methods
     getUserRoleOptions,
+
+    // Visit template methods
+    getVisitTemplateOptions,
+    getDefaultVisitTemplates,
+
+    // Drug methods
+    getDrugOptions,
+    getDefaultDrugOptions,
+
+    // Medication options methods
+    getUnitOptions,
+    getFrequencyOptions,
+    getRouteOptions,
+
+    // Visit type field set methods
+    getFieldSetsForVisitType,
   }
 })

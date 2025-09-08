@@ -11,6 +11,10 @@
             <div class="visit-date">
               <q-icon name="event" class="q-mr-xs" />
               {{ formattedDate }}
+              <!-- Status Chip -->
+              <q-chip v-if="statusData.label !== 'Unknown'" :color="statusData.color" text-color="white" size="sm" class="q-ml-sm status-chip">
+                {{ statusData.label }}
+              </q-chip>
             </div>
             <div class="visit-actions">
               <q-btn flat round icon="visibility" size="sm" color="secondary" @click.stop="viewVisit">
@@ -77,7 +81,10 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const props = defineProps({
   visit: {
@@ -96,7 +103,236 @@ const props = defineProps({
 
 const emit = defineEmits(['select', 'edit', 'view', 'duplicate', 'delete'])
 
-// Computed
+// Store instances
+const globalSettingsStore = useGlobalSettingsStore()
+const conceptStore = useConceptResolutionStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('VisitTimelineItem')
+
+// Reactive state for resolved data
+const visitTypeData = ref({ label: 'General Visit', icon: 'local_hospital', color: 'primary' })
+const statusData = ref({ label: 'Unknown', color: 'grey', class: 'status-default' })
+const visitTypeOptions = ref([])
+
+// Load visit type options on mount
+onMounted(async () => {
+  try {
+    visitTypeOptions.value = await globalSettingsStore.getVisitTypeOptions()
+    await resolveVisitType()
+    await resolveVisitStatus()
+  } catch (error) {
+    logger.error('Failed to load visit type options', error, { visitId: props.visit.id })
+  }
+})
+
+// Watch for changes in visit type, status, or rawData
+watch(
+  () => [props.visit.visitType, props.visit.status, props.visit.rawData?.VISIT_BLOB],
+  async () => {
+    await resolveVisitType()
+    await resolveVisitStatus()
+  },
+  { immediate: false },
+)
+
+// Resolve visit type using store
+const resolveVisitType = async () => {
+  // Extract visit type from VISIT_BLOB if available (new approach)
+  let visitType = props.visit.visitType // Use the new visitType field
+
+  if (props.visit.rawData?.VISIT_BLOB) {
+    try {
+      const blobData = JSON.parse(props.visit.rawData.VISIT_BLOB)
+      if (blobData.visitType) {
+        visitType = blobData.visitType
+      }
+      logger.debug('Extracted visit type from VISIT_BLOB', {
+        visitId: props.visit.id,
+        visitBlob: props.visit.rawData.VISIT_BLOB,
+        extractedVisitType: visitType,
+      })
+    } catch {
+      logger.debug('Failed to parse VISIT_BLOB, using visitType field', {
+        visitId: props.visit.id,
+        visitBlob: props.visit.rawData.VISIT_BLOB,
+        visitType: props.visit.visitType,
+      })
+    }
+  }
+
+  try {
+    if (!visitType) {
+      visitTypeData.value = { label: 'General Visit', icon: 'local_hospital', color: 'primary' }
+      return
+    }
+
+    // First try to find in global settings visit type options
+    const typeOption = visitTypeOptions.value.find((vt) => vt.value === visitType)
+    if (typeOption) {
+      visitTypeData.value = {
+        label: typeOption.label,
+        icon: typeOption.icon || getVisitTypeIcon(visitType),
+        color: typeOption.color || getVisitTypeColor(visitType),
+      }
+      logger.debug('Resolved visit type from global settings', {
+        visitId: props.visit.id,
+        visitType,
+        resolvedLabel: typeOption.label,
+      })
+      return
+    }
+
+    // Fallback to concept resolution
+    const resolved = await conceptStore.resolveConcept(visitType, {
+      context: 'visit_type',
+      table: 'VISIT_DIMENSION',
+      column: 'VISIT_TYPE_CD',
+    })
+
+    visitTypeData.value = {
+      label: resolved.label || getVisitTypeLabel(visitType),
+      icon: getVisitTypeIcon(visitType),
+      color: resolved.color || getVisitTypeColor(visitType),
+    }
+
+    logger.debug('Resolved visit type from concept store', {
+      visitId: props.visit.id,
+      visitType,
+      resolvedLabel: resolved.label,
+    })
+  } catch (error) {
+    logger.error('Failed to resolve visit type', error, {
+      visitType: visitType || props.visit.visitType,
+      visitId: props.visit.id,
+    })
+    visitTypeData.value = {
+      label: getVisitTypeLabel(visitType || props.visit.visitType),
+      icon: getVisitTypeIcon(visitType || props.visit.visitType),
+      color: getVisitTypeColor(visitType || props.visit.visitType),
+    }
+  }
+}
+
+// Visit type helper methods (same as in VisitDataEntry.vue)
+const getVisitTypeLabel = (typeCode) => {
+  const labelMap = {
+    routine: 'Routine Check-up',
+    followup: 'Follow-up',
+    emergency: 'Emergency',
+    consultation: 'Consultation',
+    procedure: 'Procedure',
+  }
+  return labelMap[typeCode] || typeCode || 'General Visit'
+}
+
+const getVisitTypeIcon = (typeCode) => {
+  const iconMap = {
+    routine: 'health_and_safety',
+    followup: 'follow_the_signs',
+    emergency: 'emergency',
+    consultation: 'psychology',
+    procedure: 'medical_services',
+  }
+  return iconMap[typeCode] || 'local_hospital'
+}
+
+const getVisitTypeColor = (typeCode) => {
+  const colorMap = {
+    routine: 'blue',
+    followup: 'orange',
+    emergency: 'negative',
+    consultation: 'purple',
+    procedure: 'teal',
+  }
+  return colorMap[typeCode] || 'primary'
+}
+
+// Resolve visit status using concept resolution
+const resolveVisitStatus = async () => {
+  try {
+    if (!props.visit.status) {
+      statusData.value = { label: 'Unknown', color: 'grey', class: 'status-default' }
+      return
+    }
+
+    const resolved = await conceptStore.resolveConcept(props.visit.status, {
+      context: 'visit_status',
+      table: 'VISIT_DIMENSION',
+      column: 'ACTIVE_STATUS_CD',
+    })
+
+    logger.debug('Visit status resolution result', {
+      visitId: props.visit.id,
+      rawStatus: props.visit.status,
+      resolvedLabel: resolved.label,
+      resolvedColor: resolved.color,
+      resolvedSource: resolved.source,
+    })
+
+    // Map resolved status labels to CSS classes - let concept store handle colors
+    const statusClassMapping = {
+      // SNOMED-CT visit status labels from concept-resolution-store
+      Active: 'status-active', // SCTID: 55561003
+      Classified: 'status-active', // SCTID: 73504009 (like active)
+      Closed: 'status-completed', // SCTID: 29179001 (completed)
+      Inactive: 'status-cancelled', // SCTID: 73425007
+
+      // Legacy labels (for backward compatibility)
+      Completed: 'status-completed',
+      Discharged: 'status-completed',
+      Cancelled: 'status-cancelled',
+      Pending: 'status-active',
+    }
+
+    // Get CSS class based on resolved label, with fallback to raw status code mapping
+    const getCssClass = (label, rawStatus) => {
+      if (label && statusClassMapping[label]) {
+        return statusClassMapping[label]
+      }
+
+      // Fallback mapping for raw database codes (both legacy and SNOMED-CT)
+      const rawCodeMapping = {
+        // SNOMED-CT codes (preferred)
+        'SCTID: 55561003': 'status-active', // Active
+        'SCTID: 73504009': 'status-active', // Classified (like active)
+        'SCTID: 29179001': 'status-completed', // Closed (completed)
+        'SCTID: 73425007': 'status-cancelled', // Inactive
+
+        // Legacy single-letter codes (for backward compatibility)
+        A: 'status-active', // Active
+        C: 'status-completed', // Completed
+        I: 'status-cancelled', // Inactive
+        X: 'status-cancelled', // Cancelled
+        P: 'status-active', // Pending
+      }
+
+      return rawCodeMapping[rawStatus] || 'status-default'
+    }
+
+    statusData.value = {
+      label: resolved.label,
+      color: resolved.color, // Use concept store's color (now handles visit_status context properly)
+      class: getCssClass(resolved.label, props.visit.status),
+    }
+
+    logger.debug('Final status mapping result', {
+      visitId: props.visit.id,
+      finalLabel: resolved.label,
+      finalColor: resolved.color,
+      finalClass: statusData.value.class,
+      conceptStoreColor: resolved.color,
+      usesConceptStore: true,
+    })
+  } catch (error) {
+    logger.error('Failed to resolve visit status', error, {
+      visitStatus: props.visit.status,
+      visitId: props.visit.id,
+    })
+    statusData.value = { label: 'Unknown', color: 'grey', class: 'status-default' }
+  }
+}
+
+// Computed properties using resolved data
 const formattedDate = computed(() => {
   if (!props.visit.date) return 'Unknown'
   const date = new Date(props.visit.date)
@@ -108,55 +344,9 @@ const formattedDate = computed(() => {
   })
 })
 
-const statusClass = computed(() => {
-  switch (props.visit.status) {
-    case 'active':
-    case 'A':
-      return 'status-active'
-    case 'completed':
-    case 'C':
-      return 'status-completed'
-    case 'cancelled':
-    case 'X':
-      return 'status-cancelled'
-    default:
-      return 'status-default'
-  }
-})
-
-const visitTypeLabel = computed(() => {
-  switch (props.visit.type) {
-    case 'routine':
-      return 'Routine Check-up'
-    case 'followup':
-      return 'Follow-up'
-    case 'emergency':
-      return 'Emergency'
-    case 'consultation':
-      return 'Consultation'
-    case 'procedure':
-      return 'Procedure'
-    default:
-      return 'General Visit'
-  }
-})
-
-const typeIcon = computed(() => {
-  switch (props.visit.type) {
-    case 'routine':
-      return 'health_and_safety'
-    case 'followup':
-      return 'follow_the_signs'
-    case 'emergency':
-      return 'emergency'
-    case 'consultation':
-      return 'psychology'
-    case 'procedure':
-      return 'medical_services'
-    default:
-      return 'local_hospital'
-  }
-})
+const statusClass = computed(() => statusData.value.class)
+const visitTypeLabel = computed(() => visitTypeData.value.label)
+const typeIcon = computed(() => visitTypeData.value.icon)
 
 const visitDuration = computed(() => {
   if (!props.visit.endDate || !props.visit.date) return null
@@ -176,24 +366,53 @@ const visitDuration = computed(() => {
   }
 })
 
-// Methods
+// Methods with logging
 const selectVisit = () => {
+  logger.logUserAction('visit_selected', {
+    visitId: props.visit.id,
+    visitType: props.visit.visitType,
+    visitDate: props.visit.date,
+  })
   emit('select', props.visit)
 }
 
 const editVisit = () => {
+  logger.logUserAction('visit_edit_initiated', {
+    visitId: props.visit.id,
+    visitType: props.visit.visitType,
+    visitDate: props.visit.date,
+    observationCount: props.visit.observationCount || 0,
+  })
   emit('edit', props.visit)
 }
 
 const viewVisit = () => {
+  logger.logUserAction('visit_view_requested', {
+    visitId: props.visit.id,
+    visitType: props.visit.visitType,
+    visitDate: props.visit.date,
+  })
   emit('view', props.visit)
 }
 
 const duplicateVisit = () => {
+  logger.logUserAction('visit_clone_initiated', {
+    originalVisitId: props.visit.id,
+    visitType: props.visit.visitType,
+    visitDate: props.visit.date,
+    observationCount: props.visit.observationCount || 0,
+  })
   emit('duplicate', props.visit)
 }
 
 const deleteVisit = () => {
+  logger.logUserAction('visit_delete_initiated', {
+    visitId: props.visit.id,
+    visitType: props.visit.visitType,
+    visitDate: props.visit.date,
+    observationCount: props.visit.observationCount || 0,
+    severity: 'high', // Deletion is a high-impact action
+  })
   emit('delete', props.visit)
 }
 </script>
@@ -234,18 +453,18 @@ const deleteVisit = () => {
     transition: all 0.3s ease;
 
     &.status-active {
+      background: $negative;
+      box-shadow: 0 0 0 4px rgba($negative, 0.2);
+    }
+
+    &.status-completed {
       background: $positive;
       box-shadow: 0 0 0 4px rgba($positive, 0.2);
     }
 
-    &.status-completed {
-      background: $primary;
-      box-shadow: 0 0 0 4px rgba($primary, 0.2);
-    }
-
     &.status-cancelled {
-      background: $negative;
-      box-shadow: 0 0 0 4px rgba($negative, 0.2);
+      background: $grey-5;
+      box-shadow: 0 0 0 4px rgba($grey-5, 0.2);
     }
 
     &.status-default {
@@ -288,11 +507,26 @@ const deleteVisit = () => {
     display: flex;
     align-items: center;
     font-size: 0.95rem;
+    flex-wrap: wrap;
+    gap: 0.25rem;
   }
 
   .visit-actions {
     display: flex;
     gap: 0.25rem;
+  }
+
+  .status-chip {
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+
+    &:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+    }
   }
 }
 
@@ -397,6 +631,22 @@ const deleteVisit = () => {
     margin-right: 1rem;
   }
 
+  .visit-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+
+    .visit-date {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+
+    .visit-actions {
+      align-self: flex-end;
+    }
+  }
+
   .visit-summary {
     flex-direction: column;
     align-items: flex-start;
@@ -406,6 +656,10 @@ const deleteVisit = () => {
   .visit-metadata {
     flex-direction: column;
     gap: 0.5rem;
+  }
+
+  .status-chip {
+    font-size: 0.7rem;
   }
 }
 </style>

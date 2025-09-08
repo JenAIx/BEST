@@ -48,17 +48,12 @@ function generatePatientData(index, conceptAnswers) {
   }
 
   // Select random values from concept answers (use defaults if empty)
-  const vitalStatusCodes =
-    conceptAnswers.vitalStatus.length > 0 ? conceptAnswers.vitalStatus : ['SCTID: 438949009'] // Default to alive
-  const sexCodes =
-    conceptAnswers.sex.length > 0 ? conceptAnswers.sex : ['SCTID: 248153007', 'SCTID: 248152002'] // Default to male/female
+  const vitalStatusCodes = conceptAnswers.vitalStatus.length > 0 ? conceptAnswers.vitalStatus : ['SCTID: 438949009'] // Default to alive
+  const sexCodes = conceptAnswers.sex.length > 0 ? conceptAnswers.sex : ['SCTID: 248153007', 'SCTID: 248152002'] // Default to male/female
   const raceCodes = conceptAnswers.race.length > 0 ? conceptAnswers.race : ['LID: LA4489-6'] // Default to unknown
-  const languageCodes =
-    conceptAnswers.language.length > 0 ? conceptAnswers.language : ['LID: LA43-5'] // Default to English
-  const maritalStatusCodes =
-    conceptAnswers.maritalStatus.length > 0 ? conceptAnswers.maritalStatus : ['LID: LA45404-1'] // Default to never married
-  const religionCodes =
-    conceptAnswers.religion.length > 0 ? conceptAnswers.religion : ['SCTID: 312864006'] // Default to unknown
+  const languageCodes = conceptAnswers.language.length > 0 ? conceptAnswers.language : ['LID: LA43-5'] // Default to English
+  const maritalStatusCodes = conceptAnswers.maritalStatus.length > 0 ? conceptAnswers.maritalStatus : ['LID: LA45404-1'] // Default to never married
+  const religionCodes = conceptAnswers.religion.length > 0 ? conceptAnswers.religion : ['SCTID: 312864006'] // Default to unknown
 
   return {
     PATIENT_CD: `DEMO_PATIENT_${index.toString().padStart(2, '0')}`,
@@ -66,9 +61,7 @@ function generatePatientData(index, conceptAnswers) {
     AGE_IN_YEARS: age,
     BIRTH_DATE: birthDate,
     DEATH_DATE: deathDate,
-    VITAL_STATUS_CD: deathDate
-      ? 'SCTID: 419099009'
-      : vitalStatusCodes[Math.floor(Math.random() * vitalStatusCodes.length)], // Dead if death date, otherwise random
+    VITAL_STATUS_CD: deathDate ? 'SCTID: 419099009' : vitalStatusCodes[Math.floor(Math.random() * vitalStatusCodes.length)], // Dead if death date, otherwise random
     LANGUAGE_CD: languageCodes[Math.floor(Math.random() * languageCodes.length)],
     RACE_CD: raceCodes[Math.floor(Math.random() * raceCodes.length)],
     MARITAL_STATUS_CD: maritalStatusCodes[Math.floor(Math.random() * maritalStatusCodes.length)],
@@ -99,8 +92,7 @@ function generateVisitData(patientNum, conceptAnswers) {
   const inoutCodes = ['I', 'O', 'E'] // Inpatient, Outpatient, Emergency
 
   // Select random values from concept answers (use defaults if empty)
-  const activeStatusCodes =
-    conceptAnswers.activeStatus.length > 0 ? conceptAnswers.activeStatus : ['SCTID: 55561003'] // Default to active
+  const activeStatusCodes = conceptAnswers.activeStatus.length > 0 ? conceptAnswers.activeStatus : ['SCTID: 55561003'] // Default to active
 
   // Generate visit date (within last 2 years)
   const daysAgo = Math.floor(Math.random() * 730) // 0-730 days ago
@@ -139,8 +131,7 @@ function generateVisitData(patientNum, conceptAnswers) {
  * @returns {Object} Observation data object
  */
 function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) {
-  // Demo concepts that are created within this function
-  // Using demo concepts to avoid database connection timeout issues during seeding
+  // Demo concepts that match the production database CONCEPT_DIMENSION entries
   const concepts = [
     // Numeric concepts (N) - Vital Signs and Lab Values
     {
@@ -149,7 +140,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'mmHg',
       range: [90, 180],
-      category: 'VITAL_SIGNS',
+      category: 'Laboratory',
     },
     {
       code: 'LID: 8462-4',
@@ -157,7 +148,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'mmHg',
       range: [60, 110],
-      category: 'VITAL_SIGNS',
+      category: 'Laboratory',
     },
     {
       code: 'LID: 8867-4',
@@ -165,7 +156,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'beats/min',
       range: [60, 120],
-      category: 'VITAL_SIGNS',
+      category: 'Vital Signs',
     },
     {
       code: 'SCTID: 27113001',
@@ -173,7 +164,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'kg',
       range: [45, 120],
-      category: 'VITAL_SIGNS',
+      category: 'Vital Signs',
     },
     {
       code: 'SCTID: 1153637007',
@@ -181,7 +172,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'cm',
       range: [150, 200],
-      category: 'VITAL_SIGNS',
+      category: 'Vital Signs',
     },
     {
       code: 'SCTID: 60621009',
@@ -189,15 +180,15 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'kg/m2',
       range: [18.5, 35.0],
-      category: 'VITAL_SIGNS',
+      category: 'Vital Signs',
     },
     {
       code: 'LID: 6298-4',
-      name: 'Kalium in Blood',
+      name: 'Kalium',
       type: 'N',
       unit: 'mmol/l',
       range: [3.5, 5.1],
-      category: 'LAB',
+      category: 'Laboratory',
     },
     {
       code: 'LID: 2947-0',
@@ -205,7 +196,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'mmol/l',
       range: [135, 145],
-      category: 'LAB',
+      category: 'Laboratory',
     },
     {
       code: 'LID: 38483-4',
@@ -213,7 +204,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: 'umol/l',
       range: [60, 120],
-      category: 'LAB',
+      category: 'Laboratory',
     },
     {
       code: 'LID: 74246-8',
@@ -221,7 +212,23 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       type: 'N',
       unit: '%',
       range: [4.0, 10.0],
-      category: 'LAB',
+      category: 'Laboratory',
+    },
+    {
+      code: 'LID: 8310-5',
+      name: 'Body temperature',
+      type: 'N',
+      unit: 'Cel',
+      range: [36.0, 38.5],
+      category: 'Laboratory',
+    },
+    {
+      code: 'LID: 9279-1',
+      name: 'Respiratory rate',
+      type: 'N',
+      unit: '/min',
+      range: [12, 20],
+      category: 'Laboratory',
     },
 
     // Text concepts (T) - Diagnoses, Medications, Assessments
@@ -229,53 +236,45 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       code: 'LID: 18630-4',
       name: 'Primary Diagnosis',
       type: 'T',
-      values: [
-        'Hypertension',
-        'Diabetes mellitus type 2',
-        'Hyperlipidemia',
-        'Coronary artery disease',
-        'Atrial fibrillation',
-      ],
-      category: 'DIAGNOSIS',
-    },
-    {
-      code: 'LID: 52418-1',
-      name: 'Current medication, Name',
-      type: 'T',
-      values: [
-        'Aspirin 100mg',
-        'Metformin 500mg',
-        'Lisinopril 10mg',
-        'Atorvastatin 20mg',
-        'Warfarin 5mg',
-      ],
-      category: 'MEDICATION',
+      value: 'Hypertension',
+      category: 'Diagnosis',
     },
     {
       code: 'SCTID: 47965005',
       name: 'Differential diagnosis',
       type: 'T',
-      values: [
-        'Rule out myocardial infarction',
-        'Possible stroke',
-        'Suspected pneumonia',
-        'Exclude pulmonary embolism',
-      ],
-      category: 'DIAGNOSIS',
+      value: 'Rule out myocardial infarction',
+      category: 'Diagnosis',
     },
     {
       code: 'LID: 74287-4',
       name: 'Occupation',
       type: 'T',
-      values: ['Teacher', 'Engineer', 'Nurse', 'Retired', 'Office worker', 'Manual laborer'],
-      category: 'SOCIAL_HISTORY',
+      value: 'Office worker',
+      category: 'Demographics',
     },
     {
       code: 'SCTID: 262188008',
       name: 'Stress',
       type: 'T',
-      values: ['Mild stress', 'Moderate stress', 'High stress', 'No significant stress'],
-      category: 'ASSESSMENT',
+      value: 'Moderate stress',
+      category: 'General',
+    },
+    {
+      code: 'SCTID: 302147001',
+      name: 'Demographic history detail',
+      type: 'T',
+      value: 'Retired professional',
+      category: 'Social History',
+    },
+
+    // Medication concept (M)
+    {
+      code: 'LID: 52418-1',
+      name: 'Current medication, Name',
+      type: 'M',
+      value: 'Aspirin 100mg',
+      category: 'Medications',
     },
 
     // Date concepts (D) - Medical Events
@@ -283,13 +282,13 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
       code: 'SCTID: 399423000',
       name: 'Date of admission',
       type: 'D',
-      category: 'ADMINISTRATIVE',
+      category: 'General',
     },
     {
       code: 'CUSTOM: ASSESSMENT_DATE',
-      name: 'Date of assessment',
+      name: 'Datum der Erhebung / Date assessment',
       type: 'D',
-      category: 'ASSESSMENT',
+      category: 'Assessment',
     },
   ]
 
@@ -314,9 +313,14 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
     observation.UNIT_CD = concept.unit
     observation.TVAL_CHAR = null // Explicitly set to null for numeric values
   } else if (concept.type === 'T') {
-    observation.TVAL_CHAR = concept.values[Math.floor(Math.random() * concept.values.length)]
+    observation.TVAL_CHAR = concept.value
     observation.NVAL_NUM = null // Explicitly set to null for text values
     observation.UNIT_CD = null // No unit for text values
+  } else if (concept.type === 'M') {
+    // Medication type - use TVAL_CHAR for the medication name
+    observation.TVAL_CHAR = concept.value
+    observation.NVAL_NUM = null // No numeric value for medications
+    observation.UNIT_CD = null // No unit for medications
   } else if (concept.type === 'D') {
     // Generate a random date within the last 30 days from visit date
     const visitDateObj = new Date(visitDate)
@@ -338,8 +342,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
  * @returns {Promise<Object>} Creation results
  */
 export async function createDemoPatients(repositories, count = 20) {
-  const { patientRepository, visitRepository, observationRepository, conceptRepository } =
-    repositories
+  const { patientRepository, visitRepository, observationRepository, conceptRepository } = repositories
 
   const results = {
     patients: [],
@@ -353,27 +356,12 @@ export async function createDemoPatients(repositories, count = 20) {
     // Load concept answers for demographic fields
     const conceptAnswers = {
       vitalStatus: await getConceptAnswers(conceptRepository, '\\SNOMED-CT\\365860008\\LA'),
-      sex: await getConceptAnswers(
-        conceptRepository,
-        '\\SNOMED-CT\\363787003\\278844005\\263495000\\LA',
-      ),
-      race: await getConceptAnswers(
-        conceptRepository,
-        '\\LOINC\\ADMIN.DEMOG\\Patient\\46463-6\\LA',
-      ),
-      language: await getConceptAnswers(
-        conceptRepository,
-        '\\LOINC\\ADMIN.DEMOG\\Patient\\54505-3\\LA',
-      ),
-      maritalStatus: await getConceptAnswers(
-        conceptRepository,
-        '\\LOINC\\ADMIN.PATIENT.DEMOG\\Patient\\45404-1\\LA',
-      ),
+      sex: await getConceptAnswers(conceptRepository, '\\SNOMED-CT\\363787003\\278844005\\263495000\\LA'),
+      race: await getConceptAnswers(conceptRepository, '\\LOINC\\ADMIN.DEMOG\\Patient\\46463-6\\LA'),
+      language: await getConceptAnswers(conceptRepository, '\\LOINC\\ADMIN.DEMOG\\Patient\\54505-3\\LA'),
+      maritalStatus: await getConceptAnswers(conceptRepository, '\\LOINC\\ADMIN.PATIENT.DEMOG\\Patient\\45404-1\\LA'),
       religion: await getConceptAnswers(conceptRepository, '\\SNOMED-CT\\160538000\\LA'),
-      activeStatus: await getConceptAnswers(
-        conceptRepository,
-        '\\SNOMED-CT\\138875005\\362981000\\272099008\\106232001\\106234000\\LA',
-      ),
+      activeStatus: await getConceptAnswers(conceptRepository, '\\SNOMED-CT\\138875005\\362981000\\272099008\\106232001\\106234000\\LA'),
     }
 
     // Note: Real LOINC/SNOMED concepts are loaded from concept_dimension_data.csv during database seeding
@@ -397,24 +385,15 @@ export async function createDemoPatients(repositories, count = 20) {
             // Create 10 random observations per visit
             for (let o = 1; o <= 10; o++) {
               try {
-                const observationData = generateObservationData(
-                  patient.PATIENT_NUM,
-                  visit.ENCOUNTER_NUM,
-                  o,
-                  visit.START_DATE,
-                )
+                const observationData = generateObservationData(patient.PATIENT_NUM, visit.ENCOUNTER_NUM, o, visit.START_DATE)
                 const observation = await observationRepository.createObservation(observationData)
                 results.observations.push(observation)
               } catch (error) {
-                results.errors.push(
-                  `Failed to create observation ${o} for visit ${visit.ENCOUNTER_NUM}: ${error.message}`,
-                )
+                results.errors.push(`Failed to create observation ${o} for visit ${visit.ENCOUNTER_NUM}: ${error.message}`)
               }
             }
           } catch (error) {
-            results.errors.push(
-              `Failed to create visit ${v} for patient ${patient.PATIENT_CD}: ${error.message}`,
-            )
+            results.errors.push(`Failed to create visit ${v} for patient ${patient.PATIENT_CD}: ${error.message}`)
           }
         }
       } catch (error) {

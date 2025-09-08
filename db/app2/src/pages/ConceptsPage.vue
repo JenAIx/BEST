@@ -4,6 +4,9 @@
       <div class="text-h4">Concepts Administration</div>
       <div class="row items-center q-gutter-md">
         <div class="text-caption text-grey-6">Showing {{ concepts.length }} of {{ totalConcepts }} concepts</div>
+        <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
+          <q-tooltip>Export to CSV</q-tooltip>
+        </q-btn>
         <q-btn color="primary" icon="add" label="Create Concept" @click="onCreateConcept" />
       </div>
     </div>
@@ -132,11 +135,8 @@
       </template>
     </q-table>
 
-    <!-- Edit Concept Dialog -->
-    <ConceptEditDialog v-model="showEditDialog" :concept="selectedConcept" @save="onSaveConcept" @cancel="onCancelEdit" />
-
-    <!-- Create Concept Dialog -->
-    <ConceptCreateDialog v-model="showCreateDialog" @save="onSaveNewConcept" @cancel="onCancelCreate" />
+    <!-- Concept Dialog (Create/Edit) -->
+    <ConceptDialog v-model="showConceptDialog" :mode="conceptDialogMode" :concept="selectedConcept" @saved="onConceptSaved" @cancelled="onConceptCancelled" />
   </q-page>
 </template>
 
@@ -145,20 +145,24 @@ import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
-import ConceptEditDialog from 'components/ConceptEditDialog.vue'
-import ConceptCreateDialog from 'components/ConceptCreateDialog.vue'
+import { useExportStore } from 'src/stores/export-store'
+import { createLogger } from 'src/core/services/logging-service'
+import ConceptDialog from 'components/ConceptDialog.vue'
 import ValueTypeIcon from 'components/shared/ValueTypeIcon.vue'
 
 const $q = useQuasar()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
+const exportStore = useExportStore()
+const logger = createLogger('ConceptsPage')
 
 // State
 const concepts = ref([])
 const totalConcepts = ref(0)
 const loading = ref(false)
-const showEditDialog = ref(false)
-const showCreateDialog = ref(false)
+const exportLoading = ref(false)
+const showConceptDialog = ref(false)
+const conceptDialogMode = ref('create')
 const selectedConcept = ref(null)
 const searchQuery = ref('')
 const selectedValueTypes = ref(['D', 'F', 'N', 'R', 'S', 'T']) // All except 'A' which is disabled by default
@@ -351,12 +355,15 @@ const formatCategoryName = (category) => {
 
 // Concept actions
 const onCreateConcept = () => {
-  showCreateDialog.value = true
+  selectedConcept.value = null
+  conceptDialogMode.value = 'create'
+  showConceptDialog.value = true
 }
 
 const onEditConcept = (concept) => {
   selectedConcept.value = { ...concept }
-  showEditDialog.value = true
+  conceptDialogMode.value = 'edit'
+  showConceptDialog.value = true
 }
 
 const onDeleteConcept = (concept) => {
@@ -390,60 +397,75 @@ const onDeleteConcept = (concept) => {
 }
 
 // Dialog handlers
-const onSaveConcept = async (conceptData) => {
-  try {
-    const conceptRepo = dbStore.getRepository('concept')
-    await conceptRepo.updateConcept(selectedConcept.value.CONCEPT_CD, conceptData)
-
-    $q.notify({
-      type: 'positive',
-      message: 'Concept updated successfully',
-      position: 'top',
-    })
-
-    showEditDialog.value = false
-    await loadConcepts()
-  } catch (error) {
-    console.error('Failed to update concept:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update concept',
-      position: 'top',
-    })
-  }
+const onConceptSaved = async () => {
+  // Notification is handled by the dialog component
+  // Just refresh the list
+  await loadConcepts()
 }
 
-const onSaveNewConcept = async (conceptData) => {
-  try {
-    const conceptRepo = dbStore.getRepository('concept')
-    await conceptRepo.createConcept(conceptData)
-
-    $q.notify({
-      type: 'positive',
-      message: 'Concept created successfully',
-      position: 'top',
-    })
-
-    showCreateDialog.value = false
-    await loadConcepts()
-  } catch (error) {
-    console.error('Failed to create concept:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to create concept',
-      position: 'top',
-    })
-  }
-}
-
-const onCancelEdit = () => {
-  showEditDialog.value = false
+const onConceptCancelled = () => {
+  // Dialog will close itself
   selectedConcept.value = null
 }
 
-const onCancelCreate = () => {
-  showCreateDialog.value = false
-  selectedConcept.value = null
+// Export functionality
+const onExportConcepts = async () => {
+  exportLoading.value = true
+  logger.info('User initiated concept CSV export', {
+    totalConceptsDisplayed: concepts.value.length,
+    totalConceptsInDatabase: totalConcepts.value,
+  })
+
+  try {
+    const result = await exportStore.exportConceptsToCSV()
+
+    if (result.success) {
+      logger.success('Concept CSV export completed successfully', {
+        recordCount: result.recordCount,
+        filename: result.filename,
+        fileSize: result.fileSize,
+        duration: result.duration,
+      })
+
+      $q.notify({
+        type: 'positive',
+        message: result.message,
+        caption: `File size: ${result.fileSize}KB • Export time: ${result.duration}ms`,
+        position: 'top',
+        timeout: 5000,
+        actions: [
+          {
+            label: 'Dismiss',
+            color: 'white',
+            handler: () => {
+              /* intentionally ignored */
+            },
+          },
+        ],
+      })
+    } else {
+      logger.error('Concept CSV export failed', null, {
+        error: result.error,
+        message: result.message,
+      })
+
+      $q.notify({
+        type: 'negative',
+        message: result.message,
+        position: 'top',
+      })
+    }
+  } catch (error) {
+    logger.error('Concept CSV export threw exception', error)
+    console.error('Failed to export concepts:', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to export concepts',
+      position: 'top',
+    })
+  } finally {
+    exportLoading.value = false
+  }
 }
 
 // Initialize

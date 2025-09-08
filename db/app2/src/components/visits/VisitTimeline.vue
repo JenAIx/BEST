@@ -39,18 +39,24 @@
 
     <!-- Visit Summary Dialog -->
     <VisitSummaryDialog v-model="showVisitSummary" :visit="selectedVisitForView" />
+
+    <!-- Edit Visit Dialog -->
+    <EditVisitDialog v-if="selectedVisitForEdit" v-model="showEditVisitDialog" :patient="patient" :visit="selectedVisitForEdit" @visitUpdated="onVisitUpdated" />
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
-import { useVisitObservationStore } from 'src/stores/visit-observation-store'
+import { useVisitStore } from 'src/stores/visit-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
+import { useLoggingStore } from 'src/stores/logging-store'
 import VisitTimelineItem from './VisitTimelineItem.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
 import VisitSummaryDialog from './VisitSummaryDialog.vue'
+import EditVisitDialog from '../patient/EditVisitDialog.vue'
 
-defineProps({
+const props = defineProps({
   patient: {
     type: Object,
     required: true,
@@ -64,12 +70,16 @@ defineProps({
 const emit = defineEmits(['visit-selected', 'visit-edited'])
 
 const $q = useQuasar()
-const visitStore = useVisitObservationStore()
+const visitStore = useVisitStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('VisitTimeline')
 
 // State
 const showNewVisitDialog = ref(false)
 const showVisitSummary = ref(false)
+const showEditVisitDialog = ref(false)
 const selectedVisitForView = ref(null)
+const selectedVisitForEdit = ref(null)
 
 // Computed from store
 const visits = computed(() => visitStore.visits)
@@ -83,7 +93,80 @@ const selectVisit = (visit) => {
 }
 
 const editVisit = (visit) => {
-  emit('visit-edited', visit)
+  logger.logUserAction('visit_edit_dialog_opened', {
+    visitId: visit.id,
+    visitType: visit.visitType,
+    visitDate: visit.date,
+    patientId: props.patient?.id,
+  })
+
+  // Transform visit data for EditVisitDialog (similar to VisitDataEntry.vue)
+  const visitForEdit = {
+    encounterNum: visit.id,
+    visitDate: visit.date,
+    endDate: visit.endDate,
+    visit: visit.rawData || {
+      // Fallback to constructed data if rawData is not available
+      ENCOUNTER_NUM: visit.id,
+      START_DATE: visit.date,
+      END_DATE: visit.endDate,
+      UPDATE_DATE: visit.last_changed,
+      ACTIVE_STATUS_CD: visit.status,
+      LOCATION_CD: visit.location,
+      INOUT_CD: visit.inout || (visit.visitType === 'emergency' ? 'E' : 'O'),
+      SOURCESYSTEM_CD: 'SYSTEM',
+      VISIT_BLOB: JSON.stringify({
+        visitType: visit.visitType || 'routine',
+        notes: visit.notes || '',
+        updatedAt: new Date().toISOString(),
+      }),
+    },
+    observations: [], // Empty array since we're just editing the visit
+  }
+
+  // Update VISIT_BLOB with current visitType and notes from store
+  if (visit.rawData?.VISIT_BLOB) {
+    try {
+      const blobData = JSON.parse(visit.rawData.VISIT_BLOB)
+      // Update VISIT_BLOB with current visitType and notes from store
+      const updatedBlobData = {
+        ...blobData,
+        visitType: visit.visitType || blobData.visitType || 'routine',
+        notes: visit.notes || blobData.notes || '',
+        updatedAt: new Date().toISOString(),
+      }
+      visitForEdit.visit.VISIT_BLOB = JSON.stringify(updatedBlobData)
+
+      logger.debug('Updated VISIT_BLOB for edit', {
+        visitId: visit.id,
+        originalBlob: visit.rawData.VISIT_BLOB,
+        updatedBlob: visitForEdit.visit.VISIT_BLOB,
+        visitType: visit.visitType,
+        notes: visit.notes,
+      })
+    } catch (error) {
+      logger.warn('Failed to parse VISIT_BLOB JSON for edit', {
+        visitId: visit.id,
+        visitBlob: visit.rawData.VISIT_BLOB,
+        error: error.message,
+      })
+      // Recreate VISIT_BLOB with current data
+      visitForEdit.visit.VISIT_BLOB = JSON.stringify({
+        visitType: visit.visitType || 'routine',
+        notes: visit.notes || '',
+        updatedAt: new Date().toISOString(),
+      })
+    }
+  } else {
+    logger.debug('No VISIT_BLOB found for visit, using store data', {
+      visitId: visit.id,
+      visitType: visit.visitType,
+      notes: visit.notes,
+    })
+  }
+
+  selectedVisitForEdit.value = visitForEdit
+  showEditVisitDialog.value = true
 }
 
 const viewVisit = (visit) => {
@@ -92,46 +175,134 @@ const viewVisit = (visit) => {
 }
 
 const createNewVisit = () => {
+  logger.logUserAction('new_visit_dialog_opened', {
+    patientId: props.patient?.id,
+    currentVisitCount: visits.value.length,
+  })
   showNewVisitDialog.value = true
 }
 
 const onVisitCreated = (newVisit) => {
+  logger.logUserAction('visit_created_from_timeline', {
+    visitId: newVisit.id,
+    visitType: newVisit.type,
+    patientId: props.patient?.id,
+    previousVisitCount: visits.value.length - 1,
+  })
   // Store handles adding the visit, just emit for parent component
   emit('visit-edited', newVisit)
 }
 
 const duplicateVisit = async (visit) => {
+  logger.logUserAction('visit_clone_dialog_opened', {
+    originalVisitId: visit.id,
+    visitDate: visit.date,
+    observationCount: visit.observationCount || 0,
+    patientId: props.patient?.id,
+  })
+
   $q.dialog({
     title: 'Clone Visit',
-    message: `This will create a new visit with all observations from ${visitStore.formatVisitDate(visit.date)}. Continue?`,
+    message: `This will create a new visit with all observations from ${new Date(visit.date).toLocaleDateString()}. Continue?`,
     cancel: true,
     persistent: true,
-  }).onOk(async () => {
-    try {
-      await visitStore.duplicateVisit(visit)
-    } catch {
-      // Error handling is done in the store
-    }
   })
+    .onOk(async () => {
+      const timer = logger.startTimer('visit_clone_operation')
+      try {
+        logger.logUserAction('visit_clone_confirmed', {
+          originalVisitId: visit.id,
+          observationCount: visit.observationCount || 0,
+        })
+        await visitObservationService.duplicateVisit(visit)
+        const duration = timer.end()
+        logger.success('Visit cloned successfully', {
+          originalVisitId: visit.id,
+          duration: `${duration.toFixed(2)}ms`,
+        })
+      } catch (error) {
+        timer.end()
+        logger.error('Visit clone failed', error, {
+          originalVisitId: visit.id,
+          patientId: props.patient?.id,
+        })
+      }
+    })
+    .onCancel(() => {
+      logger.logUserAction('visit_clone_cancelled', {
+        originalVisitId: visit.id,
+      })
+    })
+}
+
+const onVisitUpdated = async (updatedVisit) => {
+  logger.info('VisitTimeline: Visit updated event received', {
+    visitId: updatedVisit.ENCOUNTER_NUM,
+    patientId: props.patient?.id,
+    visitDate: updatedVisit.START_DATE,
+  })
+
+  // Reload visits for the current patient to get the updated data
+  if (props.patient) {
+    try {
+      await visitStore.loadVisitsForPatient(props.patient)
+    } catch (error) {
+      logger.error('Failed to reload visits after update', error)
+    }
+  }
+
+  // Emit event to notify parent component that visit was edited
+  emit('visit-edited', updatedVisit)
 }
 
 const deleteVisit = async (visit) => {
+  logger.logUserAction('visit_delete_dialog_opened', {
+    visitId: visit.id,
+    visitDate: visit.date,
+    observationCount: visit.observationCount || 0,
+    patientId: props.patient?.id,
+    severity: 'high',
+  })
+
   $q.dialog({
     title: 'Delete Visit',
-    message: `Are you sure you want to delete the visit from ${visitStore.formatVisitDate(visit.date)}? This will also delete all ${visit.observationCount} observations. This action cannot be undone.`,
+    message: `Are you sure you want to delete the visit from ${new Date(visit.date).toLocaleDateString()}? This will also delete all ${visit.observationCount} observations. This action cannot be undone.`,
     cancel: true,
     persistent: true,
     ok: {
       label: 'Delete',
       color: 'negative',
     },
-  }).onOk(async () => {
-    try {
-      await visitStore.deleteVisit(visit)
-    } catch {
-      // Error handling is done in the store
-    }
   })
+    .onOk(async () => {
+      const timer = logger.startTimer('visit_delete_operation')
+      try {
+        logger.logUserAction('visit_delete_confirmed', {
+          visitId: visit.id,
+          observationCount: visit.observationCount || 0,
+          severity: 'high',
+        })
+        await visitObservationService.deleteVisit(visit)
+        const duration = timer.end()
+        logger.success('Visit deleted successfully', {
+          visitId: visit.id,
+          duration: `${duration.toFixed(2)}ms`,
+          severity: 'high',
+        })
+      } catch (error) {
+        timer.end()
+        logger.error('Visit delete failed', error, {
+          visitId: visit.id,
+          patientId: props.patient?.id,
+          severity: 'high',
+        })
+      }
+    })
+    .onCancel(() => {
+      logger.logUserAction('visit_delete_cancelled', {
+        visitId: visit.id,
+      })
+    })
 }
 
 // All logic now handled by the store

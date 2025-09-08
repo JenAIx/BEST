@@ -78,9 +78,7 @@ export async function deleteDemoPatientsByCode(repositories, patientCodes) {
         }
 
         // Count related data before deletion for reporting
-        const patientObservations = await observationRepository.findByPatientNum(
-          patient.PATIENT_NUM,
-        )
+        const patientObservations = await observationRepository.findByPatientNum(patient.PATIENT_NUM)
         const patientVisits = await visitRepository.findByPatientNum(patient.PATIENT_NUM)
 
         // With foreign key cascade deletion enabled, we only need to delete the patient

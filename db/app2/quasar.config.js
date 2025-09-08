@@ -2,6 +2,10 @@
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
 import { defineConfig } from '#q-app/wrappers'
+import { readFileSync } from 'fs'
+
+// Read package.json for version info
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'))
 
 export default defineConfig((/* ctx */) => {
   return {
@@ -46,7 +50,14 @@ export default defineConfig((/* ctx */) => {
 
       // publicPath: '/',
       // analyze: true,
-      // env: {},
+
+      // Inject version information from package.json
+      env: {
+        VITE_APP_VERSION: packageJson.version,
+        VITE_APP_NAME: packageJson.productName || packageJson.name,
+        VITE_APP_BUILD_DATE: new Date().toISOString().split('T')[0],
+      },
+
       // rawDefine: {}
       // ignorePublicFolder: true,
       // minify: false,

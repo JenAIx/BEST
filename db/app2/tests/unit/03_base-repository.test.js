@@ -172,9 +172,7 @@ describe('BaseRepository', () => {
       })
 
       const lastQuery = mockConnection.getLastQuery()
-      expect(lastQuery.sql).toBe(
-        'SELECT * FROM test_table ORDER BY created_at DESC LIMIT ? OFFSET ?',
-      )
+      expect(lastQuery.sql).toBe('SELECT * FROM test_table ORDER BY created_at DESC LIMIT ? OFFSET ?')
       expect(lastQuery.params).toEqual([5, 10])
     })
   })
@@ -224,9 +222,7 @@ describe('BaseRepository', () => {
       await repository.findByCriteria({ status: 'active' }, { orderBy: 'created_at', limit: 10 })
 
       const lastQuery = mockConnection.getLastQuery()
-      expect(lastQuery.sql).toBe(
-        'SELECT * FROM test_table WHERE 1=1 AND status = ? ORDER BY created_at LIMIT ?',
-      )
+      expect(lastQuery.sql).toBe('SELECT * FROM test_table WHERE 1=1 AND status = ? ORDER BY created_at LIMIT ?')
       expect(lastQuery.params).toEqual(['active', 10])
     })
   })
@@ -248,9 +244,7 @@ describe('BaseRepository', () => {
       expect(result).toBe(5)
 
       const lastQuery = mockConnection.getLastQuery()
-      expect(lastQuery.sql).toBe(
-        'SELECT COUNT(*) as count FROM test_table WHERE 1=1 AND status = ?',
-      )
+      expect(lastQuery.sql).toBe('SELECT COUNT(*) as count FROM test_table WHERE 1=1 AND status = ?')
       expect(lastQuery.params).toEqual(['active'])
     })
 
@@ -258,9 +252,7 @@ describe('BaseRepository', () => {
       await repository.countByCriteria({ status: ['active', 'pending'] })
 
       const lastQuery = mockConnection.getLastQuery()
-      expect(lastQuery.sql).toBe(
-        'SELECT COUNT(*) as count FROM test_table WHERE 1=1 AND status IN (?, ?)',
-      )
+      expect(lastQuery.sql).toBe('SELECT COUNT(*) as count FROM test_table WHERE 1=1 AND status IN (?, ?)')
       expect(lastQuery.params).toEqual(['active', 'pending'])
     })
   })

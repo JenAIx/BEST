@@ -79,6 +79,16 @@ class ConceptRepository extends BaseRepository {
   }
 
   /**
+   * Execute custom query for concept lookups (used by import services)
+   * @param {string} query - SQL query to execute
+   * @param {Array} params - Query parameters
+   * @returns {Promise<Object>} - Query result with success/data structure
+   */
+  async executeQuery(query, params = []) {
+    return this.connection.executeQuery(query, params)
+  }
+
+  /**
    * Search concepts by multiple criteria
    * @param {Object} criteria - Search criteria object
    * @returns {Promise<Array>} - Array of matching concepts
@@ -273,7 +283,24 @@ class ConceptRepository extends BaseRepository {
       UPLOAD_ID: conceptData.UPLOAD_ID || 1,
     }
 
-    return await this.create(conceptWithAudit)
+    // Use custom create method for string-based primary key (similar to ProviderRepository)
+    const fields = Object.keys(conceptWithAudit).filter((key) => conceptWithAudit[key] !== undefined)
+    const placeholders = fields.map(() => '?').join(', ')
+    const values = fields.map((field) => conceptWithAudit[field])
+
+    const sql = `INSERT INTO ${this.tableName} (${fields.join(', ')}) VALUES (${placeholders})`
+    const result = await this.connection.executeCommand(sql, values)
+
+    if (result.success) {
+      return conceptWithAudit // Return the original data since CONCEPT_CD is the primary key
+    }
+
+    // Handle specific constraint errors more gracefully
+    if (result.error && result.error.includes('UNIQUE constraint failed')) {
+      throw new Error(`Concept code '${conceptData.CONCEPT_CD}' already exists`)
+    }
+
+    throw new Error('Failed to create concept')
   }
 
   /**

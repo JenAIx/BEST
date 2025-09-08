@@ -1,6 +1,6 @@
 /**
  * Unit Tests for Search Service
- * 
+ *
  * Tests:
  * - Patient search with various criteria
  * - Visit search with location and date filters
@@ -21,7 +21,7 @@ import { SearchService } from '../../src/core/services/search-service.js'
 const mockPatientRepository = {
   searchPatients: vi.fn().mockResolvedValue([]),
   findPatientsByCriteria: vi.fn().mockResolvedValue([]),
-  findAll: vi.fn().mockResolvedValue([])
+  findAll: vi.fn().mockResolvedValue([]),
 }
 
 const mockVisitRepository = {
@@ -29,7 +29,7 @@ const mockVisitRepository = {
   findByLocationCode: vi.fn().mockResolvedValue([]),
   findByDateRange: vi.fn().mockResolvedValue([]),
   findActiveVisits: vi.fn().mockResolvedValue([]),
-  findAll: vi.fn().mockResolvedValue([])
+  findAll: vi.fn().mockResolvedValue([]),
 }
 
 const mockObservationRepository = {
@@ -38,39 +38,32 @@ const mockObservationRepository = {
   findByConceptCode: vi.fn().mockResolvedValue([]),
   findByValueType: vi.fn().mockResolvedValue([]),
   findByDateRange: vi.fn().mockResolvedValue([]),
-  findAll: vi.fn().mockResolvedValue([])
+  findAll: vi.fn().mockResolvedValue([]),
 }
 
 const mockNoteRepository = {
   searchNotes: vi.fn().mockResolvedValue([]),
   findByCategory: vi.fn().mockResolvedValue([]),
   findByPatientNum: vi.fn().mockResolvedValue([]),
-  findAll: vi.fn().mockResolvedValue([])
+  findAll: vi.fn().mockResolvedValue([]),
 }
 
 const mockProviderRepository = {
   searchProviders: vi.fn().mockResolvedValue([]),
   findBySpecialty: vi.fn().mockResolvedValue([]),
-  findAll: vi.fn().mockResolvedValue([])
+  findAll: vi.fn().mockResolvedValue([]),
 }
 
 const mockConceptRepository = {
   findByCode: vi.fn().mockResolvedValue([]),
-  searchConcepts: vi.fn().mockResolvedValue([])
+  searchConcepts: vi.fn().mockResolvedValue([]),
 }
 
 describe('Search Service', () => {
   let searchService
 
   beforeEach(() => {
-    searchService = new SearchService(
-      mockPatientRepository,
-      mockVisitRepository,
-      mockObservationRepository,
-      mockNoteRepository,
-      mockProviderRepository,
-      mockConceptRepository
-    )
+    searchService = new SearchService(mockPatientRepository, mockVisitRepository, mockObservationRepository, mockNoteRepository, mockProviderRepository, mockConceptRepository)
     vi.clearAllMocks()
   })
 
@@ -89,7 +82,7 @@ describe('Search Service', () => {
     const mockPatients = [
       { PATIENT_NUM: 1, PATIENT_CD: 'P001', SEX_CD: 'M', AGE_IN_YEARS: 25, VITAL_STATUS_CD: 'A' },
       { PATIENT_NUM: 2, PATIENT_CD: 'P002', SEX_CD: 'F', AGE_IN_YEARS: 35, VITAL_STATUS_CD: 'A' },
-      { PATIENT_NUM: 3, PATIENT_NUM: 'P003', SEX_CD: 'M', AGE_IN_YEARS: 45, VITAL_STATUS_CD: 'D' }
+      { PATIENT_NUM: 3, PATIENT_NUM: 'P003', SEX_CD: 'M', AGE_IN_YEARS: 45, VITAL_STATUS_CD: 'D' },
     ]
 
     it('should search patients by text term', async () => {
@@ -118,7 +111,7 @@ describe('Search Service', () => {
       mockPatientRepository.findAll.mockResolvedValue(mockPatients)
 
       const result = await searchService.searchPatients({
-        sortBy: [{ field: 'AGE_IN_YEARS', direction: 'DESC' }]
+        sortBy: [{ field: 'AGE_IN_YEARS', direction: 'DESC' }],
       })
 
       expect(result.success).toBe(true)
@@ -130,7 +123,7 @@ describe('Search Service', () => {
       mockPatientRepository.findAll.mockResolvedValue(mockPatients)
 
       const result = await searchService.searchPatients({
-        pagination: { page: 1, pageSize: 2 }
+        pagination: { page: 1, pageSize: 2 },
       })
 
       expect(result.success).toBe(true)
@@ -156,7 +149,7 @@ describe('Search Service', () => {
   describe('Visit Search', () => {
     const mockVisits = [
       { ENCOUNTER_NUM: 1, PATIENT_NUM: 1, START_DATE: '2024-01-15', LOCATION_CD: 'EMERGENCY', INOUT_CD: 'I' },
-      { ENCOUNTER_NUM: 2, PATIENT_NUM: 2, START_DATE: '2024-01-16', LOCATION_CD: 'CLINIC', INOUT_CD: 'O' }
+      { ENCOUNTER_NUM: 2, PATIENT_NUM: 2, START_DATE: '2024-01-16', LOCATION_CD: 'CLINIC', INOUT_CD: 'O' },
     ]
 
     it('should search visits by patient number', async () => {
@@ -212,7 +205,7 @@ describe('Search Service', () => {
   describe('Observation Search', () => {
     const mockObservations = [
       { OBSERVATION_ID: 1, PATIENT_NUM: 1, ENCOUNTER_NUM: 1, CONCEPT_CD: 'LOINC:8302-2', VALTYPE_CD: 'N', NVAL_NUM: 180 },
-      { OBSERVATION_ID: 2, PATIENT_NUM: 1, ENCOUNTER_NUM: 1, CONCEPT_CD: 'LOINC:29463-7', VALTYPE_CD: 'N', NVAL_NUM: 75.5 }
+      { OBSERVATION_ID: 2, PATIENT_NUM: 1, ENCOUNTER_NUM: 1, CONCEPT_CD: 'LOINC:29463-7', VALTYPE_CD: 'N', NVAL_NUM: 75.5 },
     ]
 
     it('should search observations by patient number', async () => {
@@ -249,7 +242,7 @@ describe('Search Service', () => {
       const result = await searchService.searchObservations({
         patientNum: 1,
         valueType: 'N',
-        valueRange: { min: 70, max: 80 }
+        valueRange: { min: 70, max: 80 },
       })
 
       expect(result.success).toBe(true)
@@ -261,7 +254,7 @@ describe('Search Service', () => {
   describe('Note Search', () => {
     const mockNotes = [
       { NOTE_ID: 1, PATIENT_NUM: 1, CATEGORY: 'ASSESSMENT', CONTENT: 'Patient assessment note', CREATED_AT: '2024-01-15' },
-      { NOTE_ID: 2, PATIENT_NUM: 1, CATEGORY: 'PLAN', CONTENT: 'Treatment plan', CREATED_AT: '2024-01-16' }
+      { NOTE_ID: 2, PATIENT_NUM: 1, CATEGORY: 'PLAN', CONTENT: 'Treatment plan', CREATED_AT: '2024-01-16' },
     ]
 
     it('should search notes by text term', async () => {
@@ -298,7 +291,7 @@ describe('Search Service', () => {
   describe('Provider Search', () => {
     const mockProviders = [
       { PROVIDER_ID: 1, NAME_CHAR: 'Dr. Smith', SPECIALTY_CD: 'CARDIOLOGY', ORGANIZATION_CD: 'HOSPITAL_A' },
-      { PROVIDER_ID: 2, NAME_CHAR: 'Dr. Johnson', SPECIALTY_CD: 'NEUROLOGY', ORGANIZATION_CD: 'HOSPITAL_B' }
+      { PROVIDER_ID: 2, NAME_CHAR: 'Dr. Johnson', SPECIALTY_CD: 'NEUROLOGY', ORGANIZATION_CD: 'HOSPITAL_B' },
     ]
 
     it('should search providers by text term', async () => {
@@ -337,9 +330,7 @@ describe('Search Service', () => {
         patientCriteria: { sex: 'M', ageRange: { min: 20, max: 50 } },
         visitCriteria: { locationCode: 'EMERGENCY' },
         observationCriteria: { valueType: 'N' },
-        crossReference: [
-          { from: 'patients', to: 'visits', relationship: 'has_visits' }
-        ]
+        crossReference: [{ from: 'patients', to: 'visits', relationship: 'has_visits' }],
       }
 
       const query = searchService.buildComplexQueries(searchParams)
@@ -354,7 +345,7 @@ describe('Search Service', () => {
     it('should apply date range filters to queries', () => {
       const baseQuery = {
         visits: { locationCode: 'EMERGENCY' },
-        observations: { valueType: 'N' }
+        observations: { valueType: 'N' },
       }
 
       const dateRange = { start: '2024-01-01', end: '2024-01-31' }
@@ -375,7 +366,7 @@ describe('Search Service', () => {
       const complexQuery = {
         patients: { sex: 'M' },
         visits: { locationCode: 'EMERGENCY' },
-        observations: { valueType: 'N' }
+        observations: { valueType: 'N' },
       }
 
       const result = await searchService.executeComplexSearch(complexQuery)
@@ -407,7 +398,7 @@ describe('Search Service', () => {
 
       const searchCriteria = {
         patients: { sex: 'M' },
-        visits: { locationCode: 'EMERGENCY' }
+        visits: { locationCode: 'EMERGENCY' },
       }
 
       const result = await searchService.getSearchStatistics(searchCriteria)
@@ -426,7 +417,7 @@ describe('Search Service', () => {
       mockPatientRepository.findPatientsByCriteria.mockResolvedValue([])
 
       const result = await searchService.searchPatients({
-        pagination: { page: 1, pageSize: 10 }
+        pagination: { page: 1, pageSize: 10 },
       })
 
       expect(result.success).toBe(true)
@@ -443,7 +434,7 @@ describe('Search Service', () => {
       mockPatientRepository.findPatientsByCriteria.mockResolvedValue(manyPatients)
 
       const result = await searchService.searchPatients({
-        pagination: { page: 3, pageSize: 10 }
+        pagination: { page: 3, pageSize: 10 },
       })
 
       expect(result.success).toBe(true)
@@ -469,7 +460,7 @@ describe('Search Service', () => {
       mockPatientRepository.findAll.mockResolvedValue([{ PATIENT_NUM: 1 }])
 
       const result = await searchService.searchPatients({
-        pagination: { page: -1, pageSize: 0 }
+        pagination: { page: -1, pageSize: 0 },
       })
 
       expect(result.success).toBe(true)

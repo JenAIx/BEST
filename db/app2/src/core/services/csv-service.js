@@ -1,6 +1,6 @@
 /**
  * CSV Service for Clinical Data Import/Export
- * 
+ *
  * Features:
  * - Two header rows: human-readable descriptions + CONCEPT codes
  * - Complex nested data support (patients, visits, observations)
@@ -16,14 +16,14 @@ export class CsvService {
     this.conceptRepository = conceptRepository
     this.cqlRepository = cqlRepository
     this.dataValidator = new DataValidator(conceptRepository, cqlRepository)
-    
+
     // CSV configuration
     this.config = {
       delimiter: ',',
       quoteChar: '"',
       escapeChar: '"',
       lineEnding: '\n',
-      encoding: 'utf-8'
+      encoding: 'utf-8',
     }
   }
 
@@ -39,7 +39,7 @@ export class CsvService {
   async exportToCsv(exportOptions) {
     try {
       const { patients, visits, observations, metadata } = exportOptions
-      
+
       // Validate input data
       if (!patients || !Array.isArray(patients)) {
         throw new Error('Patients data is required and must be an array')
@@ -47,10 +47,10 @@ export class CsvService {
 
       // Build CSV structure
       const csvStructure = await this.buildCsvStructure(patients, visits, observations)
-      
+
       // Generate CSV content
       const csvContent = this.generateCsvContent(csvStructure, metadata)
-      
+
       return csvContent
     } catch (error) {
       console.error('CSV export failed:', error)
@@ -65,13 +65,13 @@ export class CsvService {
    */
   async getUniqueConcepts(observations) {
     const conceptMap = new Map()
-    
+
     for (const obs of observations) {
       if (obs.CONCEPT_CD && !conceptMap.has(obs.CONCEPT_CD)) {
         conceptMap.set(obs.CONCEPT_CD, obs.CONCEPT_CD)
       }
     }
-    
+
     return Array.from(conceptMap.values())
   }
 
@@ -86,14 +86,14 @@ export class CsvService {
       return {
         displayName: concept?.NAME_CHAR || conceptCode,
         conceptPath: concept?.CONCEPT_PATH || '',
-        description: concept?.DESCRIPTION_CHAR || ''
+        description: concept?.DESCRIPTION_CHAR || '',
       }
     } catch (error) {
       console.warn(`Could not fetch concept info for ${conceptCode}:`, error.message)
       return {
         displayName: conceptCode,
         conceptPath: '',
-        description: ''
+        description: '',
       }
     }
   }
@@ -108,8 +108,8 @@ export class CsvService {
   async buildCsvStructure(patients, visits, observations) {
     const structure = {
       descriptionHeaders: [], // Human-readable descriptions
-      conceptHeaders: [],     // CONCEPT codes
-      dataRows: []           // Actual data rows
+      conceptHeaders: [], // CONCEPT codes
+      dataRows: [], // Actual data rows
     }
 
     // Start with patient-level fields
@@ -125,7 +125,7 @@ export class CsvService {
     // Add observation fields dynamically
     if (observations && observations.length > 0) {
       const uniqueConcepts = await this.getUniqueConcepts(observations)
-      
+
       for (const conceptCode of uniqueConcepts) {
         const conceptInfo = await this.getConceptInfo(conceptCode)
         structure.descriptionHeaders.push(conceptInfo.displayName || conceptCode)
@@ -149,10 +149,10 @@ export class CsvService {
    */
   async buildDataRows(patients, visits, observations, conceptHeaders) {
     const dataRows = []
-    
+
     for (const patient of patients) {
-      const patientVisits = visits?.filter(v => v.PATIENT_NUM === patient.PATIENT_NUM) || []
-      
+      const patientVisits = visits?.filter((v) => v.PATIENT_NUM === patient.PATIENT_NUM) || []
+
       if (patientVisits.length === 0) {
         // Patient without visits - don't create a row
         continue
@@ -164,7 +164,7 @@ export class CsvService {
         }
       }
     }
-    
+
     return dataRows
   }
 
@@ -178,38 +178,30 @@ export class CsvService {
    */
   buildPatientRow(patient, visit, observations, conceptHeaders) {
     const row = []
-    
+
     // Patient fields
-    row.push(
-      patient.PATIENT_CD || '',
-      patient.SEX_CD || '',
-      patient.AGE_IN_YEARS || '',
-      patient.BIRTH_DATE || ''
-    )
-    
+    row.push(patient.PATIENT_CD || '', patient.SEX_CD || '', patient.AGE_IN_YEARS || '', patient.BIRTH_DATE || '')
+
     // Visit fields
     if (visit) {
-      row.push(
-        visit.START_DATE || '',
-        visit.LOCATION_CD || '',
-        visit.INOUT_CD || ''
-      )
+      row.push(visit.START_DATE || '', visit.LOCATION_CD || '', visit.INOUT_CD || '')
     } else {
       row.push('', '', '') // Empty visit fields
     }
-    
+
     // Observation fields
-    const visitObservations = observations?.filter(o => o.ENCOUNTER_NUM === visit?.ENCOUNTER_NUM) || []
-    
-    for (const conceptCode of conceptHeaders.slice(7)) { // Skip patient (4) and visit (3) fields
-      const obs = visitObservations.find(o => o.CONCEPT_CD === conceptCode)
+    const visitObservations = observations?.filter((o) => o.ENCOUNTER_NUM === visit?.ENCOUNTER_NUM) || []
+
+    for (const conceptCode of conceptHeaders.slice(7)) {
+      // Skip patient (4) and visit (3) fields
+      const obs = visitObservations.find((o) => o.CONCEPT_CD === conceptCode)
       if (obs) {
         row.push(this.formatObservationValue(obs))
       } else {
         row.push('') // No observation for this concept
       }
     }
-    
+
     return row
   }
 
@@ -225,13 +217,11 @@ export class CsvService {
       return observation.TVAL_CHAR
     } else if (observation.VALTYPE_CD === 'B' && observation.OBSERVATION_BLOB) {
       // If it's already a string, return it directly; otherwise stringify
-      return typeof observation.OBSERVATION_BLOB === 'string' 
-        ? observation.OBSERVATION_BLOB 
-        : JSON.stringify(observation.OBSERVATION_BLOB)
+      return typeof observation.OBSERVATION_BLOB === 'string' ? observation.OBSERVATION_BLOB : JSON.stringify(observation.OBSERVATION_BLOB)
     } else if (observation.VALTYPE_CD === 'D' && observation.START_DATE) {
       return observation.START_DATE
     }
-    
+
     return 'Unknown'
   }
 
@@ -243,7 +233,7 @@ export class CsvService {
    */
   generateCsvContent(structure, metadata = {}) {
     let csv = ''
-    
+
     // Add metadata comment lines
     if (metadata.exportDate) {
       csv += `# Export Date: ${metadata.exportDate}\n`
@@ -261,21 +251,21 @@ export class CsvService {
       csv += `# ${metadata.author}\n`
     }
     csv += '\n'
-    
+
     // Add description headers (human-readable)
     csv += this.escapeCsvRow(structure.descriptionHeaders).join(this.config.delimiter)
     csv += this.config.lineEnding
-    
+
     // Add concept headers (CONCEPT codes)
     csv += this.escapeCsvRow(structure.conceptHeaders).join(this.config.delimiter)
     csv += this.config.lineEnding
-    
+
     // Add data rows
     for (const row of structure.dataRows) {
       csv += this.escapeCsvRow(row).join(this.config.delimiter)
       csv += this.config.lineEnding
     }
-    
+
     return csv
   }
 
@@ -285,17 +275,14 @@ export class CsvService {
    * @returns {string} Escaped CSV row
    */
   escapeCsvRow(row) {
-    return row.map(value => {
+    return row.map((value) => {
       const stringValue = value?.toString() || ''
-      
+
       // Escape quotes and wrap in quotes if needed
-      if (stringValue.includes(this.config.quoteChar) || 
-          stringValue.includes(this.config.delimiter) || 
-          stringValue.includes('\n') || 
-          stringValue.includes('\r')) {
+      if (stringValue.includes(this.config.quoteChar) || stringValue.includes(this.config.delimiter) || stringValue.includes('\n') || stringValue.includes('\r')) {
         return `${this.config.quoteChar}${stringValue.replace(new RegExp(this.config.quoteChar, 'g'), this.config.escapeChar + this.config.quoteChar)}${this.config.quoteChar}`
       }
-      
+
       return stringValue
     })
   }
@@ -310,21 +297,21 @@ export class CsvService {
     try {
       // Parse CSV content
       const parsedData = this.parseCsvContent(csvContent)
-      
+
       // Validate structure
       const validationResult = await this.validateCsvStructure(parsedData)
-      
+
       if (!validationResult.isValid) {
         return {
           success: false,
           errors: validationResult.errors,
-          warnings: validationResult.warnings
+          warnings: validationResult.warnings,
         }
       }
-      
+
       // Transform to clinical objects
       const clinicalData = await this.transformCsvToClinical(parsedData, importOptions)
-      
+
       return {
         success: true,
         data: clinicalData,
@@ -333,18 +320,20 @@ export class CsvService {
           rowsProcessed: parsedData.dataRows.length,
           patients: clinicalData.patients.length,
           visits: clinicalData.visits.length,
-          observations: clinicalData.observations.length
-        }
+          observations: clinicalData.observations.length,
+        },
       }
     } catch (error) {
       console.error('CSV import failed:', error)
       return {
         success: false,
-        errors: [{
-          code: 'IMPORT_ERROR',
-          message: `CSV import failed: ${error.message}`,
-          details: error.stack
-        }]
+        errors: [
+          {
+            code: 'IMPORT_ERROR',
+            message: `CSV import failed: ${error.message}`,
+            details: error.stack,
+          },
+        ],
       }
     }
   }
@@ -356,25 +345,25 @@ export class CsvService {
    */
   parseCsvContent(csvContent) {
     const lines = csvContent.split(/\r?\n/)
-    const commentLines = lines.filter(line => line.trim().startsWith('#'))
-    const dataLines = lines.filter(line => line.trim() && !line.startsWith('#'))
-    
+    const commentLines = lines.filter((line) => line.trim().startsWith('#'))
+    const dataLines = lines.filter((line) => line.trim() && !line.startsWith('#'))
+
     if (dataLines.length < 2) {
       throw new Error('CSV must have at least description and concept header rows')
     }
-    
+
     const descriptionHeaders = this.parseCsvRow(dataLines[0])
     const conceptHeaders = this.parseCsvRow(dataLines[1])
-    const dataRows = dataLines.slice(2).map(line => this.parseCsvRow(line))
-    
+    const dataRows = dataLines.slice(2).map((line) => this.parseCsvRow(line))
+
     // Extract metadata from comment lines
     const metadata = this.extractMetadataFromComments(commentLines)
-    
+
     return {
       descriptionHeaders,
       conceptHeaders,
       dataRows,
-      metadata
+      metadata,
     }
   }
 
@@ -385,7 +374,7 @@ export class CsvService {
    */
   extractMetadataFromComments(commentLines) {
     const metadata = {}
-    
+
     for (const line of commentLines) {
       const trimmed = line.trim()
       if (trimmed.startsWith('# Export Date:')) {
@@ -404,7 +393,7 @@ export class CsvService {
         }
       }
     }
-    
+
     return metadata
   }
 
@@ -418,10 +407,10 @@ export class CsvService {
     let current = ''
     let inQuotes = false
     let i = 0
-    
+
     while (i < line.length) {
       const char = line[i]
-      
+
       if (char === this.config.quoteChar) {
         if (inQuotes && line[i + 1] === this.config.quoteChar) {
           // Escaped quote
@@ -436,10 +425,10 @@ export class CsvService {
       } else {
         current += char
       }
-      
+
       i++
     }
-    
+
     values.push(current.trim())
     return values
   }
@@ -452,16 +441,16 @@ export class CsvService {
   async validateCsvStructure(parsedData) {
     const errors = []
     const warnings = []
-    
+
     // Check header consistency
     if (parsedData.descriptionHeaders.length !== parsedData.conceptHeaders.length) {
       errors.push({
         code: 'HEADER_MISMATCH',
         message: 'Description and concept headers must have the same number of columns',
-        details: `Description: ${parsedData.descriptionHeaders.length}, Concept: ${parsedData.conceptHeaders.length}`
+        details: `Description: ${parsedData.descriptionHeaders.length}, Concept: ${parsedData.conceptHeaders.length}`,
       })
     }
-    
+
     // Check required fields
     const requiredFields = ['PATIENT_CD']
     for (const field of requiredFields) {
@@ -469,23 +458,23 @@ export class CsvService {
         errors.push({
           code: 'MISSING_REQUIRED_FIELD',
           message: `Required field missing: ${field}`,
-          details: 'PATIENT_CD is required for all imports'
+          details: 'PATIENT_CD is required for all imports',
         })
       }
     }
-    
+
     // Validate data rows
     for (let i = 0; i < parsedData.dataRows.length; i++) {
       const row = parsedData.dataRows[i]
       const rowErrors = this.validateDataRow(row, parsedData.conceptHeaders, i + 3) // +3 for 0-index, description header, concept header
-      
+
       errors.push(...rowErrors)
     }
-    
+
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     }
   }
 
@@ -498,27 +487,27 @@ export class CsvService {
    */
   validateDataRow(row, conceptHeaders, rowNumber) {
     const errors = []
-    
+
     // Check row length
     if (row.length !== conceptHeaders.length) {
       errors.push({
         code: 'ROW_LENGTH_MISMATCH',
         message: `Row ${rowNumber} has incorrect number of columns`,
-        details: `Expected ${conceptHeaders.length}, got ${row.length}`
+        details: `Expected ${conceptHeaders.length}, got ${row.length}`,
       })
       return errors
     }
-    
+
     // Validate required fields
     const patientCdIndex = conceptHeaders.indexOf('PATIENT_CD')
     if (patientCdIndex >= 0 && (!row[patientCdIndex] || row[patientCdIndex].trim() === '')) {
       errors.push({
         code: 'MISSING_PATIENT_CD',
         message: `Row ${rowNumber} missing required PATIENT_CD`,
-        details: 'Patient ID is required for all rows'
+        details: 'Patient ID is required for all rows',
       })
     }
-    
+
     return errors
   }
 
@@ -532,15 +521,15 @@ export class CsvService {
     const clinicalData = {
       patients: [],
       visits: [],
-      observations: []
+      observations: [],
     }
-    
+
     const patientMap = new Map()
     const visitMap = new Map()
-    
+
     for (const row of parsedData.dataRows) {
       const rowData = this.mapRowToObject(row, parsedData.conceptHeaders)
-      
+
       // Create or update patient
       if (rowData.PATIENT_CD) {
         let patient = patientMap.get(rowData.PATIENT_CD)
@@ -549,7 +538,7 @@ export class CsvService {
           patientMap.set(rowData.PATIENT_CD, patient)
           clinicalData.patients.push(patient)
         }
-        
+
         // Create or update visit
         if (rowData.START_DATE || rowData.LOCATION_CD) {
           const visitKey = `${rowData.PATIENT_CD}_${rowData.START_DATE || 'unknown'}`
@@ -559,14 +548,14 @@ export class CsvService {
             visitMap.set(visitKey, visit)
             clinicalData.visits.push(visit)
           }
-          
+
           // Create observations
           const observations = this.createObservationsFromRow(rowData, patient.PATIENT_NUM, visit.ENCOUNTER_NUM)
           clinicalData.observations.push(...observations)
         }
       }
     }
-    
+
     return clinicalData
   }
 
@@ -578,13 +567,13 @@ export class CsvService {
    */
   mapRowToObject(row, conceptHeaders) {
     const obj = {}
-    
+
     for (let i = 0; i < conceptHeaders.length; i++) {
       if (conceptHeaders[i] && row[i] !== undefined) {
         obj[conceptHeaders[i]] = row[i]
       }
     }
-    
+
     return obj
   }
 
@@ -600,7 +589,7 @@ export class CsvService {
       AGE_IN_YEARS: rowData.AGE_IN_YEARS ? parseInt(rowData.AGE_IN_YEARS) : null,
       BIRTH_DATE: rowData.BIRTH_DATE || null,
       SOURCESYSTEM_CD: 'CSV_IMPORT',
-      UPLOAD_ID: 1
+      UPLOAD_ID: 1,
     }
   }
 
@@ -618,7 +607,7 @@ export class CsvService {
       LOCATION_CD: rowData.LOCATION_CD || 'UNKNOWN',
       INOUT_CD: rowData.INOUT_CD || 'O',
       SOURCESYSTEM_CD: 'CSV_IMPORT',
-      UPLOAD_ID: 1
+      UPLOAD_ID: 1,
     }
   }
 
@@ -631,21 +620,21 @@ export class CsvService {
    */
   createObservationsFromRow(rowData, patientNum, encounterNum) {
     const observations = []
-    
+
     // Skip patient and visit fields
     const skipFields = ['PATIENT_CD', 'SEX_CD', 'AGE_IN_YEARS', 'BIRTH_DATE', 'START_DATE', 'LOCATION_CD', 'INOUT_CD']
-    
+
     for (const [field, value] of Object.entries(rowData)) {
       if (skipFields.includes(field) || !value || value.trim() === '') {
         continue
       }
-      
+
       const observation = this.createObservationFromField(field, value, patientNum, encounterNum)
       if (observation) {
         observations.push(observation)
       }
     }
-    
+
     return observations
   }
 
@@ -663,14 +652,14 @@ export class CsvService {
     let tval = value
     let nval = null
     let observationBlob = null
-    
+
     // Try to parse as number
     if (!isNaN(value) && value.trim() !== '') {
       valtype = 'N'
       nval = parseFloat(value)
       tval = null
     }
-    
+
     // Try to parse as date (YYYY-MM-DD format)
     if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
       const date = new Date(value)
@@ -680,7 +669,7 @@ export class CsvService {
         // For date observations, we store the date in START_DATE field
       }
     }
-    
+
     // Try to parse as JSON (for BLOB data)
     try {
       if (value.startsWith('{') || value.startsWith('[')) {
@@ -693,7 +682,7 @@ export class CsvService {
     } catch {
       // Not JSON, keep as text
     }
-    
+
     return {
       PATIENT_NUM: patientNum,
       ENCOUNTER_NUM: encounterNum,
@@ -704,7 +693,7 @@ export class CsvService {
       OBSERVATION_BLOB: observationBlob,
       START_DATE: valtype === 'D' ? value : new Date().toISOString().split('T')[0],
       SOURCESYSTEM_CD: 'CSV_IMPORT',
-      UPLOAD_ID: 1
+      UPLOAD_ID: 1,
     }
   }
 

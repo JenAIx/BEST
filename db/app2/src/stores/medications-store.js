@@ -1,0 +1,884 @@
+/**
+ * Medications Store
+ *
+ * Centralized state management for medication CRUD operations.
+ * Handles database interactions, data normalization, and reactive state.
+ */
+
+import { defineStore } from 'pinia'
+import { ref, computed } from 'vue'
+import { useDatabaseStore } from './database-store.js'
+import { useGlobalSettingsStore } from './global-settings-store.js'
+import { useLoggingStore } from './logging-store.js'
+
+export const useMedicationsStore = defineStore('medications', () => {
+  const dbStore = useDatabaseStore()
+  const globalSettingsStore = useGlobalSettingsStore()
+  const loggingStore = useLoggingStore()
+  const logger = loggingStore.createLogger('MedicationsStore')
+
+  // State
+  const medications = ref([])
+  const loading = ref(false)
+  const error = ref(null)
+
+  // Computed
+  const medicationsByVisit = computed(() => {
+    return (visitId) => medications.value.filter((med) => med.visitId === visitId)
+  })
+
+  // Data normalization helpers
+  const normalizeMedicationData = (data) => {
+    return {
+      drugName: data.drugName?.trim() || null,
+      dosage: data.dosage || null,
+      dosageUnit: data.dosageUnit?.trim() || 'mg',
+      frequency: typeof data.frequency === 'string' ? data.frequency.trim() || null : data.frequency?.value || null,
+      route: typeof data.route === 'string' ? data.route.trim() || null : data.route?.value || null,
+      instructions: data.instructions?.trim() || null,
+    }
+  }
+
+  const createMedicationBlob = (medicationData) => {
+    const normalized = normalizeMedicationData(medicationData)
+    return {
+      ...normalized,
+      prescribedDate: new Date().toISOString(),
+      prescribedBy: 'CURRENT_DOCTOR', // TODO: Get from auth store
+      isActive: true,
+    }
+  }
+
+  // CRUD Operations
+
+  /**
+   * Create a new medication observation
+   * @param {Object} params - Medication parameters
+   * @param {string} params.patientId - Patient ID
+   * @param {number} params.visitId - Visit/Encounter ID
+   * @param {Object} params.medicationData - Medication data object
+   * @returns {Promise<Object>} Created medication observation
+   */
+  const createMedication = async ({ patientId, visitId, medicationData }) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      logger.debug('Creating medication', {
+        patientId,
+        visitId,
+        medicationData,
+      })
+
+      // Validate required data - only drugName is mandatory
+      const normalized = normalizeMedicationData(medicationData)
+      if (!normalized.drugName) {
+        throw new Error('Drug name is required')
+      }
+
+      // Get patient record
+      const patientRepo = dbStore.getRepository('patient')
+      const patient = await patientRepo.findByPatientCode(patientId)
+      if (!patient) {
+        throw new Error(`Patient not found: ${patientId}`)
+      }
+
+      // Get default values
+      const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
+
+      // Create medication BLOB
+      const medicationBlob = createMedicationBlob(normalized)
+
+      // Prepare observation data
+      const observationData = {
+        PATIENT_NUM: patient.PATIENT_NUM,
+        ENCOUNTER_NUM: visitId,
+        CONCEPT_CD: 'LID: 52418-1', // Standard medication concept
+        VALTYPE_CD: 'M', // Medication type
+        TVAL_CHAR: normalized.drugName, // Primary drug name
+        NVAL_NUM: normalized.dosage, // Dosage amount (can be null)
+        UNIT_CD: normalized.dosageUnit, // Dosage unit
+        OBSERVATION_BLOB: JSON.stringify(medicationBlob), // Complete medication data
+        START_DATE: new Date().toISOString().split('T')[0],
+        CATEGORY_CHAR: 'Medications', // Force medications category
+        PROVIDER_ID: 'SYSTEM',
+        LOCATION_CD: 'VISITS_PAGE',
+        SOURCESYSTEM_CD: defaultSourceSystem,
+        INSTANCE_NUM: 1,
+        UPLOAD_ID: 1,
+      }
+
+      logger.debug('Creating medication observation', { observationData })
+
+      // Create observation
+      const observationRepo = dbStore.getRepository('observation')
+      const result = await observationRepo.createObservation(observationData)
+
+      logger.info('Medication created successfully', {
+        drugName: normalized.drugName,
+        patientId,
+        visitId,
+      })
+
+      // Return normalized medication object
+      return {
+        observationId: result.observationId,
+        patientId,
+        visitId,
+        conceptCode: 'LID: 52418-1',
+        ...normalized,
+        ...medicationBlob,
+      }
+    } catch (err) {
+      error.value = err.message
+      logger.error('Failed to create medication', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Update an existing medication observation
+   * @param {Object} params - Update parameters
+   * @param {number} params.observationId - Observation ID to update
+   * @param {Object} params.medicationData - Updated medication data
+   * @returns {Promise<Object>} Updated medication observation
+   */
+  const updateMedication = async ({ observationId, medicationData }) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      logger.debug('Updating medication', {
+        observationId,
+        medicationData,
+      })
+
+      // Validate required data
+      const normalized = normalizeMedicationData(medicationData)
+      if (!normalized.drugName) {
+        throw new Error('Drug name is required')
+      }
+
+      // Create medication BLOB
+      const medicationBlob = createMedicationBlob(normalized)
+
+      // Prepare update query
+      const updateQuery = `
+        UPDATE OBSERVATION_FACT
+        SET TVAL_CHAR = ?,
+            NVAL_NUM = ?,
+            UNIT_CD = ?,
+            OBSERVATION_BLOB = ?,
+            UPDATE_DATE = datetime('now')
+        WHERE OBSERVATION_ID = ?
+      `
+
+      const params = [normalized.drugName, normalized.dosage, normalized.dosageUnit, JSON.stringify(medicationBlob), observationId]
+
+      logger.debug('Executing medication update', {
+        query: updateQuery,
+        params,
+      })
+
+      const result = await dbStore.executeQuery(updateQuery, params)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update medication')
+      }
+
+      if (result.changes === 0) {
+        logger.warn('No rows affected by medication update', { observationId })
+      }
+
+      logger.info('Medication updated successfully', {
+        observationId,
+        drugName: normalized.drugName,
+        rowsAffected: result.changes,
+      })
+
+      return {
+        observationId,
+        ...normalized,
+        ...medicationBlob,
+      }
+    } catch (err) {
+      error.value = err.message
+      logger.error('Failed to update medication', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Delete a medication observation
+   * @param {Object} params - Delete parameters
+   * @param {number} params.observationId - Observation ID to delete
+   * @returns {Promise<boolean>} Success status
+   */
+  const deleteMedication = async ({ observationId }) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      logger.debug('Deleting medication', { observationId })
+
+      const deleteQuery = `DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?`
+      const result = await dbStore.executeQuery(deleteQuery, [observationId])
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to delete medication')
+      }
+
+      if (result.changes === 0) {
+        logger.warn('No rows affected by medication deletion', { observationId })
+        return false
+      }
+
+      logger.info('Medication deleted successfully', {
+        observationId,
+        rowsAffected: result.changes,
+      })
+
+      return true
+    } catch (err) {
+      error.value = err.message
+      logger.error('Failed to delete medication', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Get medications for a specific visit
+   * @param {Object} params - Query parameters
+   * @param {number} params.visitId - Visit/Encounter ID
+   * @returns {Promise<Array>} Array of medication observations
+   */
+  const getMedicationsForVisit = async ({ visitId }) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      logger.debug('Loading medications for visit', { visitId })
+
+      const query = `
+        SELECT
+          OBSERVATION_ID as observationId,
+          CONCEPT_CD as conceptCode,
+          TVAL_CHAR as value,
+          NVAL_NUM as numericValue,
+          UNIT_CD as unit,
+          OBSERVATION_BLOB as observationBlob,
+          START_DATE as date,
+          VALTYPE_CD as valTypeCode,
+          CATEGORY_CHAR as categoryCode
+        FROM OBSERVATION_FACT
+        WHERE ENCOUNTER_NUM = ?
+          AND (CONCEPT_CD = 'LID: 52418-1' OR VALTYPE_CD = 'M')
+        ORDER BY OBSERVATION_ID
+      `
+
+      const result = await dbStore.executeQuery(query, [visitId])
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to load medications')
+      }
+
+      const medications = result.data.map((obs) => {
+        let medicationData = {
+          drugName: obs.value || '',
+          dosage: obs.numericValue || null,
+          dosageUnit: obs.unit || 'mg',
+          frequency: '',
+          route: '',
+          instructions: '',
+        }
+
+        // Parse BLOB if available
+        if (obs.observationBlob) {
+          try {
+            const parsedData = JSON.parse(obs.observationBlob)
+            medicationData = {
+              drugName: parsedData.drugName || obs.value || '',
+              dosage: parsedData.dosage || obs.numericValue || null,
+              dosageUnit: parsedData.dosageUnit || obs.unit || 'mg',
+              frequency: parsedData.frequency || '',
+              route: parsedData.route || '',
+              instructions: parsedData.instructions || '',
+            }
+          } catch (blobError) {
+            logger.warn('Failed to parse medication BLOB', {
+              observationId: obs.observationId,
+              error: blobError.message,
+            })
+          }
+        }
+
+        return {
+          observationId: obs.observationId,
+          conceptCode: obs.conceptCode,
+          visitId,
+          ...medicationData,
+          date: obs.date,
+          valTypeCode: obs.valTypeCode,
+          categoryCode: obs.categoryCode,
+        }
+      })
+
+      logger.info('Medications loaded successfully', {
+        visitId,
+        medicationCount: medications.length,
+      })
+
+      return medications
+    } catch (err) {
+      error.value = err.message
+      logger.error('Failed to load medications', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  /**
+   * Clear/reset a medication (set all fields to null except concept)
+   * @param {Object} params - Clear parameters
+   * @param {number} params.observationId - Observation ID to clear
+   * @returns {Promise<boolean>} Success status
+   */
+  const clearMedication = async ({ observationId }) => {
+    try {
+      loading.value = true
+      error.value = null
+
+      logger.debug('Clearing medication', { observationId })
+
+      // Create empty medication BLOB
+      const emptyBlob = {
+        drugName: null,
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: null,
+        route: null,
+        instructions: null,
+        prescribedDate: new Date().toISOString(),
+        prescribedBy: 'CURRENT_DOCTOR',
+        isActive: false,
+      }
+
+      const updateQuery = `
+        UPDATE OBSERVATION_FACT
+        SET TVAL_CHAR = NULL,
+            NVAL_NUM = NULL,
+            UNIT_CD = 'mg',
+            OBSERVATION_BLOB = ?,
+            UPDATE_DATE = datetime('now')
+        WHERE OBSERVATION_ID = ?
+      `
+
+      const params = [JSON.stringify(emptyBlob), observationId]
+
+      const result = await dbStore.executeQuery(updateQuery, params)
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to clear medication')
+      }
+
+      logger.info('Medication cleared successfully', {
+        observationId,
+        rowsAffected: result.changes,
+      })
+
+      return true
+    } catch (err) {
+      error.value = err.message
+      logger.error('Failed to clear medication', err)
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Medication options methods
+
+  /**
+   * Get frequency options for medication dosing
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of frequency options
+   */
+  const getFrequencyOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getFrequencyOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get frequency options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get route options for medication administration
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of route options
+   */
+  const getRouteOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getRouteOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get route options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get unit options for medication dosages
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of unit options
+   */
+  const getUnitOptions = async (forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getUnitOptions(forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get unit options', error)
+      return []
+    }
+  }
+
+  /**
+   * Get drug options for medication search
+   * @param {string} searchTerm - Search term to filter drugs
+   * @param {boolean} forceRefresh - Force refresh from database
+   * @returns {Promise<Array>} Array of drug options
+   */
+  const getDrugOptions = async (searchTerm = '', forceRefresh = false) => {
+    try {
+      return await globalSettingsStore.getDrugOptions(searchTerm, forceRefresh)
+    } catch (error) {
+      logger.error('Failed to get drug options', error)
+      return []
+    }
+  }
+
+  // Utility methods
+
+  /**
+   * Parse dosage from strength string
+   * @param {string} strength - Strength string (e.g., "100mg", "25-100mg")
+   * @returns {Object} Parsed dosage and unit
+   */
+  const parseDosageFromStrength = (strength) => {
+    if (!strength || typeof strength !== 'string') {
+      return { dosage: null, unit: '' }
+    }
+
+    // Remove any spaces and convert to lowercase for consistent parsing
+    const cleanStrength = strength.replace(/\s+/g, '').toLowerCase()
+
+    // Handle special cases like "25-100mg" - take the first number
+    if (cleanStrength.includes('-')) {
+      const firstPart = cleanStrength.split('-')[0]
+      return parseDosageFromStrength(firstPart + cleanStrength.replace(/[\d.-]/g, ''))
+    }
+
+    // Regular expression to match dosage and unit
+    const dosageRegex = /^(\d+(?:\.\d+)?)([a-zA-Z]+(?:\/[a-zA-Z]+)?)$/
+    const match = cleanStrength.match(dosageRegex)
+
+    if (match) {
+      const dosage = parseFloat(match[1])
+      let unit = match[2]
+
+      // Normalize common unit variations
+      const unitMappings = {
+        iu: 'IU',
+        units: 'units',
+        mcg: 'mcg',
+        ug: 'mcg',
+        g: 'g',
+        mg: 'mg',
+        ml: 'ml',
+        l: 'L',
+        'u/ml': 'U/mL',
+        'units/ml': 'U/mL',
+        'iu/ml': 'IU/mL',
+      }
+
+      unit = unitMappings[unit] || unit
+      return { dosage, unit }
+    }
+
+    // If no match, try to extract just the numeric part
+    const numericRegex = /^(\d+(?:\.\d+)?)/
+    const numericMatch = cleanStrength.match(numericRegex)
+
+    if (numericMatch) {
+      const dosage = parseFloat(numericMatch[1])
+      return { dosage, unit: 'mg' }
+    }
+
+    return { dosage: null, unit: '' }
+  }
+
+  /**
+   * Validate medication data
+   * @param {Object} medicationData - Data to validate
+   * @returns {Object} Validation result
+   */
+  const validateMedicationData = (medicationData) => {
+    const errors = []
+    const normalized = normalizeMedicationData(medicationData)
+
+    if (!normalized.drugName) {
+      errors.push('Drug name is required')
+    }
+
+    if (normalized.dosage && isNaN(normalized.dosage)) {
+      errors.push('Dosage must be a valid number')
+    }
+
+    return {
+      isValid: errors.length === 0,
+      errors,
+      normalized,
+    }
+  }
+
+  /**
+   * Get simplified frequency display from database lookup
+   * @param {string} frequency - Frequency code (e.g., 'QD', 'BID')
+   * @returns {string} Simplified frequency display (e.g., '1-0-0', 'q4h')
+   */
+  const getSimplifiedFrequency = async (frequency) => {
+    if (!frequency) return ''
+
+    try {
+      // Get frequency options from database
+      const frequencyOptions = await getFrequencyOptions()
+
+      // Find the matching frequency option
+      const freqOption = frequencyOptions.find((opt) => opt.value === frequency)
+
+      if (freqOption?.application) {
+        return freqOption.application
+      }
+
+      // Fallback to abbreviation if application not available
+      if (freqOption?.abbreviation) {
+        return freqOption.abbreviation
+      }
+
+      // Final fallback to original value
+      return frequency
+    } catch (error) {
+      logger.warn('Failed to get simplified frequency from database', { frequency, error })
+      return frequency
+    }
+  }
+
+  /**
+   * Get route abbreviation from database lookup
+   * @param {string} route - Route code (e.g., 'PO', 'IV')
+   * @returns {string} Route abbreviation (e.g., 'p.o.', 'i.v.')
+   */
+  const getRouteAbbreviation = async (route) => {
+    if (!route) return ''
+
+    try {
+      // Get route options from database
+      const routeOptions = await getRouteOptions()
+
+      // Find the matching route option
+      const routeOption = routeOptions.find((opt) => opt.value === route)
+
+      if (routeOption?.abbreviation) {
+        return routeOption.abbreviation
+      }
+
+      // Fallback to lowercase version
+      return route.toLowerCase()
+    } catch (error) {
+      logger.warn('Failed to get route abbreviation from database', { route, error })
+      return route.toLowerCase()
+    }
+  }
+
+  /**
+   * Get frequency label from stored frequency code
+   * @param {string|Object} frequencyCode - Stored frequency code or option object
+   * @returns {Promise<string>} Frequency label (e.g., 'Once daily', 'Twice daily')
+   */
+  const getFrequencyLabel = async (frequencyCode) => {
+    if (!frequencyCode) return ''
+
+    // Handle both string values and objects from q-select
+    const codeValue = typeof frequencyCode === 'object' ? frequencyCode?.value : frequencyCode
+    if (!codeValue || typeof codeValue !== 'string') return ''
+
+    try {
+      const frequencyOptions = await getFrequencyOptions()
+      const freqOption = frequencyOptions.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+      return freqOption?.label || codeValue
+    } catch (error) {
+      logger.warn('Failed to get frequency label', { frequencyCode: codeValue, error })
+      return codeValue
+    }
+  }
+
+  /**
+   * Get route label from stored route code
+   * @param {string|Object} routeCode - Stored route code or option object
+   * @returns {Promise<string>} Route label (e.g., 'Oral', 'Intravenous')
+   */
+  const getRouteLabel = async (routeCode) => {
+    if (!routeCode) return ''
+
+    // Handle both string values and objects from q-select
+    const codeValue = typeof routeCode === 'object' ? routeCode?.value : routeCode
+    if (!codeValue || typeof codeValue !== 'string') return ''
+
+    try {
+      const routeOptions = await getRouteOptions()
+      const routeOption = routeOptions.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+      return routeOption?.label || codeValue
+    } catch (error) {
+      logger.warn('Failed to get route label', { routeCode: codeValue, error })
+      return codeValue
+    }
+  }
+
+  /**
+   * Parse medication data from observation row (centralized function)
+   * @param {Object} row - Observation row data
+   * @returns {Object} Parsed medication data
+   */
+  const parseMedicationData = (row) => {
+    try {
+      // Try to parse OBSERVATION_BLOB first
+      if (row.rawObservation?.observation_blob || row.rawObservation?.OBSERVATION_BLOB) {
+        const blobData = row.rawObservation.observation_blob || row.rawObservation.OBSERVATION_BLOB
+        if (typeof blobData === 'string') {
+          try {
+            const parsed = JSON.parse(blobData)
+            return {
+              drugName: parsed.drugName || '',
+              dosage: parsed.dosage || null,
+              dosageUnit: parsed.dosageUnit || 'mg',
+              frequency: parsed.frequency || '',
+              route: parsed.route || '',
+              instructions: parsed.instructions || '',
+            }
+          } catch (parseError) {
+            logger.warn('Failed to parse BLOB JSON', parseError)
+          }
+        }
+      }
+
+      // For basic medication data without BLOB, extract from TVAL_CHAR (drug name only)
+      const drugName = row.rawObservation?.tval_char || row.rawObservation?.TVAL_CHAR || row.origVal || row.currentVal || ''
+
+      if (drugName && drugName.trim()) {
+        // Create basic medication data - BLOB will be loaded by the component
+        return {
+          drugName: drugName.trim(), // TVAL_CHAR contains only the drug name
+          dosage: row.rawObservation?.nval_num || row.rawObservation?.NVAL_NUM || null,
+          dosageUnit: row.rawObservation?.unit_cd || row.rawObservation?.UNIT_CD || 'mg',
+          frequency: '', // Will be loaded from BLOB by component
+          route: '', // Will be loaded from BLOB by component
+          instructions: '',
+        }
+      }
+
+      // Fallback to empty structure
+      return {
+        drugName: '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    } catch (error) {
+      logger.error('Failed to parse medication data', error, { rowId: row.id })
+      return {
+        drugName: row.origVal || row.currentVal || '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    }
+  }
+
+  /**
+   * Format medication for display
+   * @param {Object} medication - Medication object
+   * @returns {string} Formatted display string
+   */
+  const formatMedicationDisplay = (medication) => {
+    if (!medication.drugName) return ''
+
+    const parts = [medication.drugName]
+
+    if (medication.dosage && medication.dosageUnit) {
+      parts.push(`${medication.dosage}${medication.dosageUnit}`)
+    }
+
+    if (medication.frequency) {
+      parts.push(medication.frequency)
+    }
+
+    if (medication.route) {
+      parts.push(medication.route)
+    }
+
+    return parts.join(' • ')
+  }
+
+  /**
+   * Parse medication data from observation with optional BLOB loading
+   * @param {Object} observation - Observation data (can be row data or raw observation)
+   * @param {boolean} loadBlob - Whether to load BLOB data if not present
+   * @returns {Promise<Object>} Parsed medication data
+   */
+  const parseMedicationDataWithBlob = async (observation, loadBlob = true) => {
+    try {
+      // First check if BLOB data is already available
+      const blobData =
+        observation?.observationBlob || observation?.OBSERVATION_BLOB || observation?.observation_blob || observation?.rawObservation?.observation_blob || observation?.rawObservation?.OBSERVATION_BLOB
+
+      if (blobData && typeof blobData === 'string') {
+        try {
+          const parsed = JSON.parse(blobData)
+          return {
+            drugName: parsed.drugName || observation.value || '',
+            dosage: parsed.dosage || observation.numericValue || null,
+            dosageUnit: parsed.dosageUnit || observation.unit || 'mg',
+            frequency: parsed.frequency || '',
+            route: parsed.route || '',
+            instructions: parsed.instructions || '',
+          }
+        } catch (parseError) {
+          logger.warn('Failed to parse BLOB JSON', parseError)
+        }
+      }
+
+      // If no BLOB data and we should load it
+      if (loadBlob && observation?.observationId) {
+        try {
+          const { useObservationStore } = await import('./observation-store.js')
+          const observationStore = useObservationStore()
+          const loadedBlob = await observationStore.getObservationBlob(observation.observationId)
+
+          if (loadedBlob) {
+            const parsed = JSON.parse(loadedBlob)
+            return {
+              drugName: parsed.drugName || observation.value || '',
+              dosage: parsed.dosage || observation.numericValue || null,
+              dosageUnit: parsed.dosageUnit || observation.unit || 'mg',
+              frequency: parsed.frequency || '',
+              route: parsed.route || '',
+              instructions: parsed.instructions || '',
+            }
+          }
+        } catch (error) {
+          logger.warn('Failed to load OBSERVATION_BLOB', { observationId: observation.observationId, error })
+        }
+      }
+
+      // Fallback to basic data
+      const drugName = observation?.value || observation?.TVAL_CHAR || observation?.tval_char || observation?.rawObservation?.tval_char || observation?.rawObservation?.TVAL_CHAR || ''
+
+      return {
+        drugName: drugName.trim(),
+        dosage: observation?.numericValue || observation?.NVAL_NUM || observation?.nval_num || null,
+        dosageUnit: observation?.unit || observation?.UNIT_CD || observation?.unit_cd || 'mg',
+        frequency: '', // Will need to be loaded from BLOB
+        route: '', // Will need to be loaded from BLOB
+        instructions: '',
+      }
+    } catch (error) {
+      logger.error('Failed to parse medication data with BLOB', error)
+      return {
+        drugName: '',
+        dosage: null,
+        dosageUnit: 'mg',
+        frequency: '',
+        route: '',
+        instructions: '',
+      }
+    }
+  }
+
+  /**
+   * Format medication for elegant display
+   * @param {Object} medicationData - Parsed medication data
+   * @returns {Promise<string>} Formatted display string (e.g., "Aspirin 100mg 1-0-1 p.o.")
+   */
+  const formatMedicationDisplayElegant = async (medicationData) => {
+    if (!medicationData.drugName) return ''
+
+    const parts = []
+
+    // Drug name
+    parts.push(medicationData.drugName)
+
+    // Dosage with unit: "100mg"
+    if (medicationData.dosage && medicationData.dosageUnit) {
+      parts.push(`${medicationData.dosage}${medicationData.dosageUnit}`)
+    }
+
+    // Frequency in simplified format
+    if (medicationData.frequency) {
+      const freq = await getSimplifiedFrequency(medicationData.frequency)
+      parts.push(freq)
+    }
+
+    // Route abbreviation
+    if (medicationData.route) {
+      const route = await getRouteAbbreviation(medicationData.route)
+      parts.push(route)
+    }
+
+    return parts.join(' ')
+  }
+
+  return {
+    // State
+    medications,
+    loading,
+    error,
+
+    // Computed
+    medicationsByVisit,
+
+    // CRUD Operations
+    createMedication,
+    updateMedication,
+    deleteMedication,
+    getMedicationsForVisit,
+    clearMedication,
+
+    // Medication options
+    getFrequencyOptions,
+    getRouteOptions,
+    getUnitOptions,
+    getDrugOptions,
+
+    // Utilities
+    validateMedicationData,
+    formatMedicationDisplay,
+    formatMedicationDisplayElegant,
+    normalizeMedicationData,
+    parseDosageFromStrength,
+    getSimplifiedFrequency,
+    getRouteAbbreviation,
+    getFrequencyLabel,
+    getRouteLabel,
+    parseMedicationData,
+    parseMedicationDataWithBlob,
+  }
+})
