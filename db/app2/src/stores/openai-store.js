@@ -23,7 +23,7 @@ export const useOpenAIStore = defineStore('openai', () => {
   })
 
   // Utility to compact history
-  const MAX_TURNS = 6
+  const MAX_TURNS = 4
   const compactMessages = (messages) => {
     const recent = messages.slice(-MAX_TURNS)
     const system = systemSummary.value
@@ -64,7 +64,7 @@ export const useOpenAIStore = defineStore('openai', () => {
     }
   }
 
-  // Send a prompt with conversation history (uses compact history)
+  // Send a prompt with conversation history (streaming for faster UX)
   const sendPromptWithHistory = async (conversationMessages, options = {}) => {
     if (!hasApiKey.value) throw new Error('OpenAI API key not configured.')
     if (!Array.isArray(conversationMessages) || conversationMessages.length === 0) {
@@ -82,16 +82,21 @@ export const useOpenAIStore = defineStore('openai', () => {
         }))
       )
 
-      const response = await client.value.responses.create({
+      const stream = await client.value.responses.stream({
         model: 'gpt-5-mini',
         input: formattedInput,
-        max_output_tokens: 512,
+        max_output_tokens: 256,
         ...options,
       })
 
-      const outputText = response.output_text || 'No response received'
-      lastResponse.value = outputText
-      return outputText
+      let text = ''
+      for await (const event of stream) {
+        if (event.type === 'response.output_text.delta') {
+          text += event.delta
+          lastResponse.value = text
+        }
+      }
+      return text || 'No response received'
     } catch (err) {
       console.error('OpenAI API error with history:', err)
       error.value = err.message || 'Failed to get response from OpenAI'
