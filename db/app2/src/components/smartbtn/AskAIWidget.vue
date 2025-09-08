@@ -29,7 +29,7 @@
           <div
             v-for="(message, index) in messages"
             :key="index"
-            :class="['message', message.role]"
+            :class="['message', message.role, { shake: shaking[index] }]"
           >
             <div class="message-avatar">
               <q-icon
@@ -40,7 +40,21 @@
             </div>
             <div class="message-content">
               <div class="message-text">{{ message.content }}</div>
-              <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+              <div class="message-meta">
+                <div class="message-time">{{ formatTime(message.timestamp) }}</div>
+                <q-btn
+                  v-if="message.role === 'assistant'"
+                  icon="content_copy"
+                  flat
+                  round
+                  dense
+                  size="sm"
+                  class="copy-btn"
+                  @click="copyMessage(index, message)"
+                >
+                  <q-tooltip>Copy</q-tooltip>
+                </q-btn>
+              </div>
             </div>
           </div>
 
@@ -161,6 +175,7 @@ const currentPrompt = ref('')
 const lastPrompt = ref('')
 const messagesScrollArea = ref(null)
 const messagesContainer = ref(null)
+const shaking = ref({})
 
 // Use persistent messages from store
 const messages = computed(() => openAIStore.getChatMessages())
@@ -283,6 +298,20 @@ const clearChat = () => {
   })
 }
 
+const copyMessage = (index, message) => {
+  const text = message?.content || ''
+  if (!text) return
+  navigator.clipboard
+    .writeText(text)
+    .then(() => {
+      shaking.value[index] = true
+      setTimeout(() => {
+        shaking.value[index] = false
+      }, 400)
+    })
+    .catch(() => { /* intentionally ignored */ })
+}
+
 // Initialize on mount
 onMounted(() => {
   if (!hasApiKey.value) {
@@ -381,6 +410,21 @@ onMounted(() => {
         color: rgba(0, 0, 0, 0.5);
         padding: 0 12px;
       }
+
+      .message-meta {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 8px 0 12px;
+      }
+
+      .copy-btn {
+        color: rgba(0, 0, 0, 0.5);
+      }
+
+      &.shake {
+        animation: shake 0.35s ease-in-out;
+      }
     }
   }
 
@@ -397,6 +441,13 @@ onMounted(() => {
       font-size: 0.875rem;
     }
   }
+}
+
+@keyframes shake {
+  10%, 90% { transform: translateX(-1px); }
+  20%, 80% { transform: translateX(2px); }
+  30%, 50%, 70% { transform: translateX(-4px); }
+  40%, 60% { transform: translateX(4px); }
 }
 
 // Dark theme support
