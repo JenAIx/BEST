@@ -2,7 +2,7 @@
   <q-page-sticky position="bottom-right" :offset="fabPos">
     <q-fab
       icon="smart_toy"
-      direction="up"
+      :direction="fabDirection"
       color="accent"
       :disable="draggingFab"
       v-touch-pan.prevent.mouse="moveFab"
@@ -46,7 +46,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onBeforeUnmount } from 'vue'
 import { pluginManager } from './plugins'
 
 defineOptions({
@@ -63,6 +63,13 @@ const loadingPlugin = ref(false)
 // Get registered plugins
 const registeredPlugins = computed(() => pluginManager.getPlugins())
 
+// Dynamic FAB direction based on screen position
+const fabDirection = computed(() => {
+  const windowHeight = window.innerHeight
+  const fabY = fabPos.value[1]
+  return fabY > windowHeight / 2 ? 'down' : 'up'
+})
+
 const moveFab = (ev) => {
   draggingFab.value = ev.isFirst !== true && ev.isFinal !== true
 
@@ -71,6 +78,14 @@ const moveFab = (ev) => {
     fabPos.value[1] - ev.delta.y
   ]
 }
+
+// Handle window resize to update FAB direction
+const handleResize = () => {
+  // Trigger reactivity update for fabDirection
+  fabPos.value = [...fabPos.value]
+}
+
+window.addEventListener('resize', handleResize)
 
 const openPlugin = async (pluginId) => {
   try {
@@ -97,6 +112,11 @@ const closePlugin = () => {
   activePluginConfig.value = null
   pluginManager.clearActivePlugin()
 }
+
+// Cleanup event listeners
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+})
 </script>
 
 <style lang="scss" scoped>
