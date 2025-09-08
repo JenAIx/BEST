@@ -1,5 +1,5 @@
 <template>
-  <div class="ask-ai-widget">
+  <div class="ask-ai-widget" :class="{ resizing: isResizing }" :style="{ width: widgetWidth + 'px' }">
     <!-- API Key Warning -->
     <q-banner v-if="!hasApiKey" class="bg-orange-1 text-orange-9 q-mb-md" rounded>
       <template v-slot:avatar>
@@ -24,7 +24,7 @@
     <!-- Chat Interface -->
     <div v-if="hasApiKey" class="chat-container">
       <!-- Messages -->
-      <q-scroll-area ref="messagesScrollArea" class="messages-container" :style="{ height: '300px' }">
+      <q-scroll-area ref="messagesScrollArea" class="messages-container" :style="{ height: messagesHeight + 'px' }">
         <div ref="messagesContainer" class="messages">
           <div
             v-for="(message, index) in messages"
@@ -152,11 +152,13 @@
         />
       </div>
     </div>
+    <!-- Resize handle -->
+    <div class="resize-handle" @mousedown="onResizeMouseDown" />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useOpenAIStore } from 'src/stores/openai-store'
@@ -177,6 +179,12 @@ const messagesScrollArea = ref(null)
 const messagesContainer = ref(null)
 const shaking = ref({})
 
+// Resizable widget state
+const widgetWidth = ref(480)
+const messagesHeight = ref(300)
+const isResizing = ref(false)
+const resizeState = ref({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 })
+
 // Use persistent messages from store
 const messages = computed(() => openAIStore.getChatMessages())
 
@@ -187,8 +195,7 @@ const error = computed(() => openAIStore.error)
 
 // Quick prompts for users
 const quickPrompts = [
-  'Explain medical terminology',
-  'Help with patient notes',
+  'Correct spelling and grammar',
   'Research drug interactions',
   'Generate treatment summary'
 ]
@@ -312,6 +319,44 @@ const copyMessage = (index, message) => {
     .catch(() => { /* intentionally ignored */ })
 }
 
+// Resize handlers
+const onResizeMouseDown = (event) => {
+  isResizing.value = true
+  resizeState.value = {
+    startX: event.clientX,
+    startY: event.clientY,
+    startWidth: widgetWidth.value,
+    startHeight: messagesHeight.value,
+  }
+  window.addEventListener('mousemove', onResizeMouseMove)
+  window.addEventListener('mouseup', onResizeMouseUp)
+}
+
+const onResizeMouseMove = (event) => {
+  if (!isResizing.value) return
+  const dx = event.clientX - resizeState.value.startX
+  const dy = event.clientY - resizeState.value.startY
+
+  const minWidth = 320
+  const maxWidth = window.innerWidth - 8
+  const minHeight = 180
+  const maxHeight = Math.min(700, window.innerHeight - 160)
+
+  widgetWidth.value = Math.max(minWidth, Math.min(maxWidth, resizeState.value.startWidth + dx))
+  messagesHeight.value = Math.max(minHeight, Math.min(maxHeight, resizeState.value.startHeight + dy))
+}
+
+const onResizeMouseUp = () => {
+  isResizing.value = false
+  window.removeEventListener('mousemove', onResizeMouseMove)
+  window.removeEventListener('mouseup', onResizeMouseUp)
+}
+
+onBeforeUnmount(() => {
+  window.removeEventListener('mousemove', onResizeMouseMove)
+  window.removeEventListener('mouseup', onResizeMouseUp)
+})
+
 // Initialize on mount
 onMounted(() => {
   if (!hasApiKey.value) {
@@ -333,6 +378,9 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .ask-ai-widget {
+  position: relative;
+  max-width: 100%;
+
   .chat-container {
     .messages-container {
       border: 1px solid rgba(0, 0, 0, 0.12);
@@ -441,6 +489,18 @@ onMounted(() => {
       font-size: 0.875rem;
     }
   }
+
+  .resize-handle {
+    position: absolute;
+    right: -8px;
+    bottom: -8px;
+    width: 14px;
+    height: 14px;
+    cursor: nwse-resize;
+    border-right: 2px solid rgba(0, 0, 0, 0.25);
+    border-bottom: 2px solid rgba(0, 0, 0, 0.25);
+    border-radius: 2px;
+  }
 }
 
 @keyframes shake {
@@ -474,6 +534,11 @@ onMounted(() => {
       .q-field {
         background: rgba(255, 255, 255, 0.08);
       }
+    }
+
+    .resize-handle {
+      border-right-color: rgba(255, 255, 255, 0.35);
+      border-bottom-color: rgba(255, 255, 255, 0.35);
     }
   }
 }
