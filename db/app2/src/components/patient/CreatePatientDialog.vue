@@ -202,12 +202,12 @@ const showDialog = computed({
 // Form data with defaults
 const formData = ref({
   PATIENT_CD: '',
-  VITAL_STATUS_CD: 'SCTID: 438949009', // Alive by default
+  VITAL_STATUS_CD: 'SCTID: 55561003', // Active by default
   BIRTH_DATE: null,
   DEATH_DATE: null,
   AGE_IN_YEARS: null,
   SEX_CD: null,
-  LANGUAGE_CD: 'LID: LA43-XX', // German by default
+  LANGUAGE_CD: null, // No default - let user choose from dropdown options
   RACE_CD: null,
   MARITAL_STATUS_CD: null,
   RELIGION_CD: null,
@@ -251,12 +251,12 @@ const resetForm = async () => {
 
   formData.value = {
     PATIENT_CD: '',
-    VITAL_STATUS_CD: 'SCTID: 438949009', // Alive - could be made configurable
+    VITAL_STATUS_CD: 'SCTID: 55561003', // Active by default
     BIRTH_DATE: null,
     DEATH_DATE: null,
     AGE_IN_YEARS: null,
     SEX_CD: null,
-    LANGUAGE_CD: 'LID: LA43-XX', // German by default - could be made configurable
+    LANGUAGE_CD: null, // No default - let user choose from dropdown options
     RACE_CD: null,
     MARITAL_STATUS_CD: null,
     RELIGION_CD: null,
@@ -371,9 +371,14 @@ const validatePatientId = async (val) => {
 
 const loadConceptOptions = async () => {
   try {
+    // Check database availability first
+    if (!databaseStore.canPerformOperations) {
+      throw new Error('Database not available for concept loading')
+    }
+
     await conceptStore.initialize()
 
-    // Load all concept options in parallel
+    // Load all concept options in parallel using hierarchical concept loading
     const [genderOpts, vitalOpts, languageOpts, raceOpts, maritalOpts, religionOpts] = await Promise.all([
       conceptStore.getConceptOptions('gender'),
       conceptStore.getConceptOptions('vital_status'),
@@ -390,8 +395,9 @@ const loadConceptOptions = async () => {
     maritalStatusOptions.value = maritalOpts
     religionOptions.value = religionOpts
   } catch (error) {
-    logger.error('Failed to load concept options', error)
-    // Use fallback options
+    logger.error('Failed to load concept options, using fallbacks', error)
+
+    // Use fallback options from concept store - let the store handle all fallback logic
     genderOptions.value = conceptStore.getFallbackOptions('gender')
     vitalStatusOptions.value = conceptStore.getFallbackOptions('vital_status')
     languageOptions.value = conceptStore.getFallbackOptions('language')
@@ -528,7 +534,7 @@ const handleSubmit = async () => {
 watch(showDialog, async (newValue) => {
   if (newValue) {
     await resetForm()
-    loadConceptOptions()
+    await loadConceptOptions() // Wait for concept options to load before dialog is fully ready
   }
 })
 

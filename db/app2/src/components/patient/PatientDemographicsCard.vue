@@ -153,7 +153,7 @@ const loadOptions = async () => {
     }
   } catch (error) {
     logger.error('Failed to load options', error)
-    // Use fallback options from concept store
+    // Use fallback options from concept store - let the store handle all fallback logic
     genderOptions.value = conceptStore.getFallbackOptions('gender')
     statusOptions.value = conceptStore.getFallbackOptions('vital_status')
   }
@@ -161,9 +161,15 @@ const loadOptions = async () => {
 
 // Edit methods
 const startEdit = () => {
-  editForm.value.gender = props.patient.SEX_CD || ''
-  editForm.value.status = props.patient.VITAL_STATUS_CD || ''
+  // Find the current values in the options arrays to ensure proper selection
+  const currentGender = props.patient.SEX_CD || ''
+  const currentStatus = props.patient.VITAL_STATUS_CD || ''
+
+  // Set form values - the options should have matching values
+  editForm.value.gender = currentGender
+  editForm.value.status = currentStatus
   editForm.value.birthDate = props.patient.BIRTH_DATE ? props.patient.BIRTH_DATE.split('T')[0] : ''
+
   editing.value = true
 }
 
@@ -189,10 +195,10 @@ const save = async () => {
 
     if (Object.keys(updates).length > 0) {
       const updateQuery = `
-                UPDATE PATIENT_DIMENSION 
+                UPDATE PATIENT_DIMENSION
                 SET ${Object.keys(updates)
                   .map((key) => `${key} = ?`)
-                  .join(', ')}, 
+                  .join(', ')},
                     UPDATE_DATE = datetime('now')
                 WHERE PATIENT_NUM = ?
             `

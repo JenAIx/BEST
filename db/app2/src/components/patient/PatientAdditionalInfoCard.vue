@@ -116,7 +116,7 @@ const loadOptions = async () => {
     }
   } catch (error) {
     logger.error('Failed to load options', error)
-    // Use fallback options from concept store
+    // Use fallback options from concept store - let the store handle all fallback logic
     languageOptions.value = conceptStore.getFallbackOptions('language')
     raceOptions.value = conceptStore.getFallbackOptions('race')
     maritalStatusOptions.value = conceptStore.getFallbackOptions('marital_status')
@@ -126,10 +126,18 @@ const loadOptions = async () => {
 
 // Edit methods
 const startEdit = () => {
-  editForm.value.language = props.patient.LANGUAGE_CD || ''
-  editForm.value.race = props.patient.RACE_CD || ''
-  editForm.value.maritalStatus = props.patient.MARITAL_STATUS_CD || ''
-  editForm.value.religion = props.patient.RELIGION_CD || ''
+  // Find the current values in the options arrays to ensure proper selection
+  const currentLanguage = props.patient.LANGUAGE_CD || ''
+  const currentRace = props.patient.RACE_CD || ''
+  const currentMaritalStatus = props.patient.MARITAL_STATUS_CD || ''
+  const currentReligion = props.patient.RELIGION_CD || ''
+
+  // Set form values - the options should have matching values
+  editForm.value.language = currentLanguage
+  editForm.value.race = currentRace
+  editForm.value.maritalStatus = currentMaritalStatus
+  editForm.value.religion = currentReligion
+
   editing.value = true
 }
 
@@ -159,10 +167,10 @@ const save = async () => {
 
     if (Object.keys(updates).length > 0) {
       const updateQuery = `
-                UPDATE PATIENT_DIMENSION 
+                UPDATE PATIENT_DIMENSION
                 SET ${Object.keys(updates)
                   .map((key) => `${key} = ?`)
-                  .join(', ')}, 
+                  .join(', ')},
                     UPDATE_DATE = datetime('now')
                 WHERE PATIENT_NUM = ?
             `

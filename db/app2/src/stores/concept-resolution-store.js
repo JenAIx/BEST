@@ -6,6 +6,7 @@ import { createCacheManager } from 'src/shared/utils/cache-manager'
 import { createConceptResolver } from 'src/shared/utils/concept-resolver'
 import { createOptionsLoader } from 'src/shared/utils/options-loader'
 import { createConceptSearcher } from 'src/shared/utils/concept-searcher'
+import { createGeneralConceptsService } from 'src/shared/services/general-concepts-service'
 import { determineColor } from 'src/shared/utils/color-mapper'
 
 export const useConceptResolutionStore = defineStore('conceptResolution', {
@@ -17,6 +18,7 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
     conceptResolver: null,
     optionsLoader: null,
     conceptSearcher: null,
+    generalConceptsService: null,
     // Track initialization state
     isInitialized: false,
   }),
@@ -82,6 +84,7 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
         this.conceptResolver = createConceptResolver(dbStore, this.logger)
         this.optionsLoader = createOptionsLoader(dbStore, globalSettingsStore, this.logger)
         this.conceptSearcher = createConceptSearcher(dbStore, this.logger)
+        this.generalConceptsService = createGeneralConceptsService(dbStore, this.logger)
 
         // Initialize cache manager
         await this.cacheManager.initialize()
@@ -93,7 +96,7 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
           cachedConcepts: cacheStats.size,
           cacheExpiry: '24h',
           maxCacheSize: cacheStats.maxSize,
-          utilitiesLoaded: ['cacheManager', 'conceptResolver', 'optionsLoader', 'conceptSearcher'],
+          utilitiesLoaded: ['cacheManager', 'conceptResolver', 'optionsLoader', 'conceptSearcher', 'generalConceptsService'],
         })
         timer.end()
       } catch (error) {
@@ -370,7 +373,7 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
      * @returns {Promise<Array>} Array of {label, value, color} options
      */
     async getConceptOptions(category, table = null, column = null) {
-      if (!this.optionsLoader || !this.cacheManager) {
+      if (!this.optionsLoader || !this.cacheManager || !this.generalConceptsService) {
         await this.initialize()
       }
 
@@ -380,6 +383,36 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
       return await this.cacheManager.getOrSet(
         cacheKey,
         async () => {
+          // First try the hierarchical general concepts approach
+          try {
+            const generalConceptAnswers = await this.generalConceptsService.getAnswersForCategory(category)
+
+            if (generalConceptAnswers.length > 0) {
+              // Cache individual concepts for future resolution
+              for (const option of generalConceptAnswers) {
+                if (option.value && option.label) {
+                  await this.cacheManager.set(
+                    option.value,
+                    {
+                      code: option.value,
+                      label: option.label,
+                      color: option.color,
+                      resolved: true,
+                      source: 'general_concepts_service',
+                    },
+                    { tags: ['concept', category, 'general_concept'] },
+                  )
+                }
+              }
+
+              return generalConceptAnswers
+            }
+          } catch (error) {
+            this.logger.error('Error in hierarchical concept loading', error)
+          }
+
+          // Fall back to the existing options loader approach
+
           const options = await this.optionsLoader.getConceptOptions(category, table, column)
 
           // Cache individual concepts for future resolution
@@ -671,6 +704,37 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
       }
 
       return await this.conceptResolver.getCodeFromLabel(label, category, this.cacheManager.cache)
+    },
+
+    /**
+     * Get general concept definitions
+     * @returns {Array} Array of general concept definitions
+     */
+    getGeneralConceptDefinitions() {
+      if (!this.generalConceptsService) return []
+      return this.generalConceptsService.getGeneralConceptDefinitions()
+    },
+
+    /**
+     * Check if a category is supported as a general concept
+     * @param {string} category - Category name
+     * @returns {boolean} True if supported
+     */
+    isGeneralConcept(category) {
+      if (!this.generalConceptsService) return false
+      const conceptChar = this.generalConceptsService.mapCategoryToConceptChar(category)
+      return this.generalConceptsService.isGeneralConcept(conceptChar)
+    },
+
+    /**
+     * Validate that general concepts exist in the database
+     * @returns {Promise<Object>} Validation results
+     */
+    async validateGeneralConcepts() {
+      if (!this.generalConceptsService) {
+        await this.initialize()
+      }
+      return await this.generalConceptsService.validateGeneralConcepts()
     },
   },
 })
