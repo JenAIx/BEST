@@ -30,9 +30,13 @@
       </q-card-section>
       
       <q-card-section>
+        <div v-if="loadingPlugin" class="text-center q-pa-md">
+          <q-spinner color="primary" size="2em" />
+          <div class="q-mt-sm">Loading plugin...</div>
+        </div>
         <component 
           :is="activePluginConfig?.component" 
-          v-if="activePluginConfig"
+          v-else-if="activePluginConfig"
           @close="closePlugin"
           v-bind="activePluginConfig?.config || {}"
         />
@@ -53,14 +57,11 @@ const fabPos = ref([18, 18])
 const draggingFab = ref(false)
 const pluginDialog = ref(false)
 const activePluginId = ref(null)
+const activePluginConfig = ref(null)
+const loadingPlugin = ref(false)
 
 // Get registered plugins
 const registeredPlugins = computed(() => pluginManager.getPlugins())
-
-// Get active plugin configuration
-const activePluginConfig = computed(() => {
-  return activePluginId.value ? pluginManager.getPlugin(activePluginId.value) : null
-})
 
 const moveFab = (ev) => {
   draggingFab.value = ev.isFirst !== true && ev.isFinal !== true
@@ -71,15 +72,29 @@ const moveFab = (ev) => {
   ]
 }
 
-const openPlugin = (pluginId) => {
-  activePluginId.value = pluginId
-  pluginManager.setActivePlugin(pluginId)
-  pluginDialog.value = true
+const openPlugin = async (pluginId) => {
+  try {
+    loadingPlugin.value = true
+    activePluginId.value = pluginId
+    
+    // Lazy load the plugin component
+    const plugin = await pluginManager.loadPlugin(pluginId)
+    activePluginConfig.value = plugin
+    
+    pluginManager.setActivePlugin(pluginId)
+    pluginDialog.value = true
+  } catch (error) {
+    console.error('Failed to load plugin:', error)
+    // You could show a user-friendly error message here
+  } finally {
+    loadingPlugin.value = false
+  }
 }
 
 const closePlugin = () => {
   pluginDialog.value = false
   activePluginId.value = null
+  activePluginConfig.value = null
   pluginManager.clearActivePlugin()
 }
 </script>

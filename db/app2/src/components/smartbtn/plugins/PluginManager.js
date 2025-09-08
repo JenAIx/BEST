@@ -3,6 +3,8 @@
  * Manages registration and lifecycle of SmartButton plugins
  */
 
+import { markRaw } from 'vue'
+
 class PluginManager {
   constructor() {
     this.plugins = new Map()
@@ -16,13 +18,13 @@ class PluginManager {
    * @param {string} plugin.name - Display name for the plugin
    * @param {string} plugin.icon - Icon name for the FAB action
    * @param {string} plugin.color - Color for the FAB action
-   * @param {Object} plugin.component - Vue component for the plugin
+   * @param {Function|Object} plugin.component - Vue component or lazy loader function for the plugin
    * @param {string} plugin.tooltip - Tooltip text for the FAB action
    * @param {Object} plugin.config - Additional plugin configuration
    */
   register(plugin) {
-    if (!plugin.id || !plugin.name || !plugin.component) {
-      throw new Error('Plugin must have id, name, and component')
+    if (!plugin.id || !plugin.name) {
+      throw new Error('Plugin must have id and name')
     }
 
     const pluginConfig = {
@@ -31,8 +33,9 @@ class PluginManager {
       icon: plugin.icon || 'extension',
       color: plugin.color || 'primary',
       tooltip: plugin.tooltip || plugin.name,
-      component: plugin.component,
+      component: plugin.component, // Can be component or lazy loader function
       config: plugin.config || {},
+      loaded: false, // Track if component has been loaded
       ...plugin
     }
 
@@ -66,6 +69,43 @@ class PluginManager {
    */
   getPlugin(pluginId) {
     return this.plugins.get(pluginId) || null
+  }
+
+  /**
+   * Lazy load a plugin component
+   * @param {string} pluginId - Plugin identifier
+   * @returns {Promise<Object>} Plugin configuration with loaded component
+   */
+  async loadPlugin(pluginId) {
+    const plugin = this.plugins.get(pluginId)
+    if (!plugin) {
+      throw new Error(`Plugin not found: ${pluginId}`)
+    }
+
+    // If already loaded, return the plugin
+    if (plugin.loaded) {
+      return plugin
+    }
+
+    // If component is a function (lazy loader), call it
+    if (typeof plugin.component === 'function') {
+      try {
+        const component = await plugin.component()
+        // Use markRaw to prevent Vue from making the component reactive
+        plugin.component = markRaw(component)
+        plugin.loaded = true
+        console.log(`Plugin component loaded: ${plugin.name}`)
+      } catch (error) {
+        console.error(`Failed to load plugin component: ${plugin.name}`, error)
+        throw error
+      }
+    } else {
+      // Component is already loaded (direct import) - mark as raw to be safe
+      plugin.component = markRaw(plugin.component)
+      plugin.loaded = true
+    }
+
+    return plugin
   }
 
   /**
