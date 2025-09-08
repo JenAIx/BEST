@@ -6,8 +6,6 @@
 import AskAIWidget from '../AskAIWidget.vue'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 
-const localSettingsStore = useLocalSettingsStore()
-
 const AskAIPlugin = {
   id: 'ask-ai',
   name: 'Ask AI',
@@ -21,7 +19,15 @@ const AskAIPlugin = {
     persistent: false
   },
   // Check if plugin should be disabled
-  isDisabled: () => !localSettingsStore.hasOpenAIApiKey(),
+  isDisabled: () => {
+    try {
+      const localSettingsStore = useLocalSettingsStore()
+      return !localSettingsStore.hasOpenAIApiKey()
+    } catch {
+      // If Pinia not initialized yet, keep disabled to avoid runtime error
+      return true
+    }
+  },
   // Get disabled reason
   disabledReason: () => 'OpenAI API key not configured. Please set it in Settings → Local Settings.'
 }

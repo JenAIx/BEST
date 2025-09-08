@@ -24,7 +24,6 @@
     <q-page-container>
       <!-- Router View -->
       <router-view />
-      <SmartButton />
     </q-page-container>
 
     <!-- Footer Container - This will hold the GridFooter -->
@@ -40,7 +39,6 @@ import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import GridFooter from 'src/components/datagrid/GridFooter.vue'
-import { SmartButton } from 'src/components/smartbtn'
 
 const $q = useQuasar()
 const router = useRouter()

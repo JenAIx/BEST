@@ -1,5 +1,5 @@
 <template>
-  <q-page-sticky position="bottom-right" :offset="fabPos">
+  <div class="smart-button-container" :style="fabStyle">
     <q-tooltip>Smart Button - Click to open plugins</q-tooltip>
     <q-fab
       icon="smart_toy"
@@ -19,7 +19,7 @@
         <q-tooltip>{{ plugin.isDisabled ? plugin.disabledReason : plugin.tooltip }}</q-tooltip>
       </q-fab-action>
     </q-fab>
-  </q-page-sticky>
+  </div>
 
   <!-- Plugin Dialog -->
   <q-dialog v-model="pluginDialog" :persistent="activePluginConfig?.config?.persistent || false">
@@ -97,6 +97,14 @@ defineOptions({
 
 const localSettingsStore = useLocalSettingsStore()
 const fabPos = ref([18, 18])
+
+// Computed style for FAB positioning
+const fabStyle = computed(() => ({
+  position: 'fixed',
+  bottom: fabPos.value[1] + 'px',
+  right: fabPos.value[0] + 'px',
+  zIndex: 2000
+}))
 const draggingFab = ref(false)
 const pluginDialog = ref(false)
 const activePluginId = ref(null)
@@ -206,6 +214,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+.smart-button-container {
+  // Container for the FAB button
+  // Positioning handled by inline styles
+}
+
 .mini-plugins-container {
   position: fixed;
   left: 10px;

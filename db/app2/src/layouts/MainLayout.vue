@@ -222,8 +222,7 @@
       <!-- Router View -->
       <router-view :class="{ 'search-active': isSearchActive }" />
 
-      <!-- Smart Button - Only available for authenticated users -->
-      <SmartButton />
+      
     </q-page-container>
   </q-layout>
 </template>
@@ -237,7 +236,6 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import NotificationButton from 'src/components/shared/NotificationButton.vue'
 import SmartSearch from 'src/components/shared/SmartSearch.vue'
-import { SmartButton } from 'src/components/smartbtn'
 
 const $q = useQuasar()
 const route = useRoute()
