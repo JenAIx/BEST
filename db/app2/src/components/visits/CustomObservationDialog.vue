@@ -591,15 +591,15 @@ const saveCustomObservation = async () => {
         hasId: !!props.visit.id,
         hasEncounterNum: !!props.visit.encounterNum,
         hasVisitEncounterNum: !!props.visit.visit?.ENCOUNTER_NUM,
-        extractedEncounterNum: encounterNum
+        extractedEncounterNum: encounterNum,
       },
-      visitKeys: Object.keys(props.visit)
+      visitKeys: Object.keys(props.visit),
     })
 
     if (!encounterNum) {
       logger.error('Visit encounter number not found', {
         visit: props.visit,
-        visitKeys: Object.keys(props.visit)
+        visitKeys: Object.keys(props.visit),
       })
       throw new Error('Visit encounter number not found')
     }
