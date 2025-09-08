@@ -153,7 +153,14 @@
     <EditVisitDialog v-model="showEditVisitDialog" :patient="patient" :visit="visitGroup" @visitUpdated="onVisitUpdated" />
 
     <!-- Create Observation Dialog -->
-    <CreateObservationDialog v-model="showCreateObservationDialog" :patient="patient" :visit="visitGroup" @observationCreated="onObservationCreated" />
+    <CustomObservationDialog
+      v-model="showCreateObservationDialog"
+      :patient="patient"
+      :visit="visitGroup"
+      :field-set-name="'General'"
+      :field-set-id="'general'"
+      @observation-added="onObservationCreated"
+    />
 
     <!-- Delete Confirmation Dialogs -->
     <AppDialog
@@ -193,7 +200,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import EditVisitDialog from './EditVisitDialog.vue'
-import CreateObservationDialog from './CreateObservationDialog.vue'
+import CustomObservationDialog from '../visits/CustomObservationDialog.vue'
 import AppDialog from '../shared/AppDialog.vue'
 
 const props = defineProps({

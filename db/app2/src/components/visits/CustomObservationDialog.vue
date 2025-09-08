@@ -583,8 +583,29 @@ const saveCustomObservation = async () => {
     // Get default values from global settings
     const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
 
+    // Extract encounter number from visit object (handle different visit structures)
+    const encounterNum = props.visit.id || props.visit.encounterNum || props.visit.visit?.ENCOUNTER_NUM
+
+    logger.debug('Extracting encounter number from visit', {
+      visitStructure: {
+        hasId: !!props.visit.id,
+        hasEncounterNum: !!props.visit.encounterNum,
+        hasVisitEncounterNum: !!props.visit.visit?.ENCOUNTER_NUM,
+        extractedEncounterNum: encounterNum
+      },
+      visitKeys: Object.keys(props.visit)
+    })
+
+    if (!encounterNum) {
+      logger.error('Visit encounter number not found', {
+        visit: props.visit,
+        visitKeys: Object.keys(props.visit)
+      })
+      throw new Error('Visit encounter number not found')
+    }
+
     const observationData = {
-      ENCOUNTER_NUM: props.visit.id,
+      ENCOUNTER_NUM: encounterNum,
       // Don't pass PATIENT_NUM - let the store look it up from selectedPatient
       CONCEPT_CD: conceptCode,
       VALTYPE_CD: valueType,
