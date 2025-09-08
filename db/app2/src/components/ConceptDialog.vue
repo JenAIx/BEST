@@ -122,7 +122,7 @@
 
         <!-- Unit Code Field -->
         <div class="col-12 col-md">
-          <q-input v-model="formData.unitCode" label="Unit Code" outlined dense hint="Unit of measurement (optional, e.g., mg/dL, mmHg)" />
+          <q-select v-model="formData.unitCode" label="Unit Code" outlined dense :options="unitOptions" emit-value map-options clearable hint="Unit of measurement (optional)" />
         </div>
       </div>
 
@@ -238,6 +238,7 @@ const answersCount = ref(0)
 const categoryOptions = ref([])
 const valueTypeOptions = ref([])
 const sourceSystemOptions = ref([])
+const unitOptions = ref([])
 
 // Computed
 const dialogVisible = computed({
@@ -359,10 +360,11 @@ const validateConceptCodeUnique = (val) => {
 
 const loadOptions = async () => {
   try {
-    const [categories, valueTypes, sourceSystems] = await Promise.all([
+    const [categories, valueTypes, sourceSystems, units] = await Promise.all([
       globalSettingsStore.getCategoryOptions(),
       globalSettingsStore.getValueTypeOptions(),
       globalSettingsStore.getSourceSystemOptions(),
+      globalSettingsStore.getUnitOptions(),
     ])
 
     categoryOptions.value = categories.map((c) => ({
@@ -378,6 +380,11 @@ const loadOptions = async () => {
     sourceSystemOptions.value = sourceSystems.map((s) => ({
       label: s.label || s.value,
       value: s.value,
+    }))
+
+    unitOptions.value = units.map((u) => ({
+      label: u.value, // Use the short code as the label (mg, ml, etc.)
+      value: u.value,
     }))
   } catch (error) {
     logger.error('Failed to load options', error)
@@ -402,6 +409,8 @@ const loadOptions = async () => {
       { label: 'ICD-10', value: 'ICD10' },
       { label: 'Custom', value: 'CUSTOM' },
     ]
+
+    unitOptions.value = []
   }
 }
 

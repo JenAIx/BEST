@@ -188,14 +188,18 @@
         class="q-mb-md"
       />
 
-      <!-- Unit input for non-Finding and non-Selection types -->
-      <q-input
+      <!-- Unit selection for non-Finding and non-Selection types -->
+      <q-select
         v-if="selectedConcept.VALTYPE_CD !== 'F' && selectedConcept.VALTYPE_CD !== 'S'"
         v-model="customObservation.unit"
         label="Unit (optional)"
         outlined
         dense
-        :placeholder="selectedConcept.UNIT_CD || 'Enter unit if different from concept default'"
+        :options="unitOptions"
+        emit-value
+        map-options
+        clearable
+        :placeholder="selectedConcept.UNIT_CD || 'Select unit if different from concept default'"
       />
     </div>
 
@@ -267,6 +271,7 @@ const saving = ref(false)
 const findingOptions = ref([])
 const selectionOptions = ref([])
 const fileData = ref(null)
+const unitOptions = ref([])
 
 // Computed
 const showDialog = computed({
@@ -298,8 +303,9 @@ const isConceptInCurrentVisit = (conceptCode) => {
 // Watch for dialog close to reset state
 watch(showDialog, (newValue) => {
   if (newValue) {
-    // Load recent concepts when dialog opens
+    // Load recent concepts and unit options when dialog opens
     loadRecentConcepts()
+    loadUnitOptions()
   } else {
     resetState()
   }
@@ -410,6 +416,19 @@ const saveRecentConcept = (concept) => {
     })
   } catch (error) {
     logger.warn('Failed to save recent concept', error)
+  }
+}
+
+const loadUnitOptions = async () => {
+  try {
+    const units = await globalSettingsStore.getUnitOptions()
+    unitOptions.value = units.map((u) => ({
+      label: u.value, // Use short code as label (mg, ml, etc.)
+      value: u.value,
+    }))
+  } catch (error) {
+    logger.error('Failed to load unit options', error)
+    unitOptions.value = []
   }
 }
 

@@ -121,11 +121,11 @@
                   </q-input>
                 </div>
                 <div class="col-auto" style="min-width: 120px">
-                  <q-input v-model="formData.UNIT_CD" label="Unit" outlined dense>
+                  <q-select v-model="formData.UNIT_CD" label="Unit" outlined dense :options="unitOptions" emit-value map-options clearable>
                     <template v-slot:prepend>
                       <q-icon name="straighten" />
                     </template>
-                  </q-input>
+                  </q-select>
                 </div>
               </div>
 
@@ -314,8 +314,9 @@ const formData = ref({
   OBSERVATION_BLOB: '',
 })
 
-// Dynamic value flag options from global settings
+// Dynamic options from global settings
 const valueFlagOptions = ref([])
+const unitOptions = ref([])
 
 // Computed properties
 const displayedResults = computed(() => {
@@ -367,28 +368,17 @@ const loadOptions = async () => {
   try {
     loadingOptions.value = true
 
-    // Load value flag options from global settings
-    try {
-      const valueFlagData = await globalSettingsStore.loadLookupValues('VALUEFLAG_CD')
-      if (valueFlagData && valueFlagData.length > 0) {
-        valueFlagOptions.value = valueFlagData.map((flag) => ({
-          label: flag.NAME_CHAR || flag.CODE_CD,
-          value: flag.CODE_CD,
-        }))
-      } else {
-        // Fallback to hardcoded options
-        valueFlagOptions.value = [
-          { label: 'Normal', value: 'N' },
-          { label: 'High', value: 'H' },
-          { label: 'Low', value: 'L' },
-          { label: 'Abnormal', value: 'A' },
-          { label: 'Critical', value: 'C' },
-          { label: 'Very High', value: 'HH' },
-          { label: 'Very Low', value: 'LL' },
-        ]
-      }
-    } catch {
-      // Use fallback options
+    // Load value flag and unit options from global settings
+    const [valueFlagData, unitData] = await Promise.all([globalSettingsStore.loadLookupValues('VALUEFLAG_CD').catch(() => []), globalSettingsStore.getUnitOptions().catch(() => [])])
+
+    // Process value flag options
+    if (valueFlagData && valueFlagData.length > 0) {
+      valueFlagOptions.value = valueFlagData.map((flag) => ({
+        label: flag.NAME_CHAR || flag.CODE_CD,
+        value: flag.CODE_CD,
+      }))
+    } else {
+      // Fallback to hardcoded options
       valueFlagOptions.value = [
         { label: 'Normal', value: 'N' },
         { label: 'High', value: 'H' },
@@ -398,6 +388,16 @@ const loadOptions = async () => {
         { label: 'Very High', value: 'HH' },
         { label: 'Very Low', value: 'LL' },
       ]
+    }
+
+    // Process unit options - use short codes as labels
+    if (unitData && unitData.length > 0) {
+      unitOptions.value = unitData.map((unit) => ({
+        label: unit.value, // Use short code as label (mg, ml, etc.)
+        value: unit.value,
+      }))
+    } else {
+      unitOptions.value = []
     }
   } catch (error) {
     logger.error('Failed to load options from global settings', error)
