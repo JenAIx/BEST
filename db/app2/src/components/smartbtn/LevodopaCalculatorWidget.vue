@@ -22,15 +22,49 @@
             <q-select
               :model-value="props.row.drugType"
               @update:model-value="updateMedicationType(props.row, $event)"
-              :options="drugOptions"
+              :options="filteredDrugOptions"
               option-value="value"
               option-label="label"
               emit-value
               map-options
+              use-input
+              hide-selected
+              fill-input
+              input-debounce="0"
+              @filter="filterDrugs"
               outlined
               dense
               class="drug-select"
-            />
+              placeholder="Type to search medications..."
+            >
+              <template v-slot:no-option>
+                <q-item>
+                  <q-item-section class="text-grey">
+                    No medications found
+                  </q-item-section>
+                </q-item>
+              </template>
+              
+              <template v-slot:option="scope">
+                <q-item v-bind="scope.itemProps">
+                  <q-item-section>
+                    <q-item-label>{{ scope.opt.label }}</q-item-label>
+                    <q-item-label caption class="text-grey-6">
+                      {{ scope.opt.category }} • Factor: {{ scope.opt.factor }}
+                    </q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-chip 
+                      size="sm" 
+                      :color="getFactorColor(scope.opt.factor.toString())"
+                      text-color="white"
+                    >
+                      {{ scope.opt.factor }}
+                    </q-chip>
+                  </q-item-section>
+                </q-item>
+              </template>
+            </q-select>
           </q-td>
         </template>
         
@@ -514,6 +548,9 @@ const drugOptions = [
   }
 ]
 
+// Filtered drug options for searchable select
+const filteredDrugOptions = ref(drugOptions)
+
 const referenceMedications = [
   // Levodopa-containing drugs
   {
@@ -665,25 +702,19 @@ const totalLED = computed(() => {
 
 
 const updateMedicationType = (medicationFromComputed, newDrugType) => {
-  console.log('updateMedicationType called:', { medicationFromComputed, newDrugType })
-  
   // Find the original medication in the medications array
   const originalMed = medications.value.find(med => med.id === medicationFromComputed.id)
   if (!originalMed) {
-    console.log('Original medication not found!')
     return
   }
   
   const selectedDrug = drugOptions.find(drug => drug.value === newDrugType)
   if (selectedDrug) {
-    console.log('Updating medication:', { originalMed, selectedDrug })
     // Update the original medication
     originalMed.drugType = newDrugType
     originalMed.name = selectedDrug.label
     originalMed.factor = selectedDrug.factor
     originalMed.unit = selectedDrug.unit
-  } else {
-    console.log('Selected drug not found for value:', newDrugType)
   }
 }
 
@@ -764,7 +795,21 @@ const getFactorColor = (factor) => {
   return 'grey'                           // Default
 }
 
-// No manual calculation needed - using computed properties
+const filterDrugs = (val, update) => {
+  update(() => {
+    if (val === '') {
+      filteredDrugOptions.value = drugOptions
+    } else {
+      const needle = val.toLowerCase()
+      filteredDrugOptions.value = drugOptions.filter(drug => 
+        drug.label.toLowerCase().includes(needle) ||
+        drug.category.toLowerCase().includes(needle) ||
+        drug.value.toLowerCase().includes(needle)
+      )
+    }
+  })
+}
+
 </script>
 
 <style lang="scss" scoped>
@@ -790,7 +835,15 @@ const getFactorColor = (factor) => {
 }
 
 .drug-select {
-  min-width: 180px;
+  min-width: 220px;
+  
+  .q-field__input {
+    font-size: 14px;
+  }
+  
+  .q-item__label--caption {
+    font-size: 11px;
+  }
 }
 
 .led-equivalent {
