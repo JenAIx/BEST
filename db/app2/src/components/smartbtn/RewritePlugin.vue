@@ -49,13 +49,22 @@ const $q = useQuasar()
 const ai = useOpenAIStore()
 const localSettingsStore = useLocalSettingsStore()
 
-const inputText = ref('')
-const outputText = ref('')
+// Define props to receive initial state
+const props = defineProps({
+  initialState: {
+    type: Object,
+    default: () => ({})
+  }
+})
+
+// Reactive state with initial values from props
+const inputText = ref(props.initialState.inputText || '')
+const outputText = ref(props.initialState.outputText || '')
 const isLoading = computed(() => ai.isLoading)
 const hasApiKey = computed(() => localSettingsStore.hasOpenAIApiKey())
 
-const tone = ref('clear')
-const length = ref('concise')
+const tone = ref(props.initialState.tone || 'clear')
+const length = ref(props.initialState.length || 'concise')
 
 const toneOptions = [
   { label: 'Clear and clinical', value: 'clear' },
@@ -81,6 +90,19 @@ const contextInfo = computed(() => {
 
 const canRewrite = computed(() => {
   return (inputText.value && inputText.value.trim().length > 0)
+})
+
+// State management functions for minimize/expand
+const getState = () => ({
+  inputText: inputText.value,
+  outputText: outputText.value,
+  tone: tone.value,
+  length: length.value
+})
+
+// Expose getState function for external access
+defineExpose({
+  getState
 })
 
 const buildPrompt = () => {
@@ -135,13 +157,15 @@ const copyOutput = async () => {
 }
 
 onMounted(() => {
-  // Load selection into input on open
-  const ctx = window.__smartRewriteContext
-  if (ctx?.selectedText && ctx.selectedText.trim()) {
-    inputText.value = ctx.selectedText
-  } else {
-    inputText.value = ''
+  // Only load selection if we don't have initial state (i.e., not restored from minimize)
+  if (!props.initialState.inputText) {
+    // Load selection into input on open
+    const ctx = window.__smartRewriteContext
+    if (ctx?.selectedText && ctx.selectedText.trim()) {
+      inputText.value = ctx.selectedText
+    }
   }
+  
 })
 </script>
 

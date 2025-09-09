@@ -9,6 +9,7 @@ class PluginManager {
   constructor() {
     this.plugins = new Map()
     this.activePlugin = null
+    this.pluginInstances = new Map() // Store component instances for state preservation
   }
 
   /**
@@ -138,6 +139,70 @@ class PluginManager {
    */
   isActive(pluginId) {
     return this.activePlugin === pluginId
+  }
+
+  /**
+   * Store a plugin instance for state preservation
+   * @param {string} pluginId - Plugin identifier
+   * @param {Object} instanceData - Instance data to store (component props, state, etc.)
+   */
+  storePluginInstance(pluginId, instanceData) {
+    this.pluginInstances.set(pluginId, {
+      config: instanceData.config || {},
+      componentState: instanceData.componentState || {},
+      storedAt: Date.now()
+    })
+    console.log(`Plugin instance stored: ${pluginId}`)
+  }
+
+  /**
+   * Retrieve a stored plugin instance
+   * @param {string} pluginId - Plugin identifier
+   * @returns {Object|null} Stored instance data or null if not found
+   */
+  getStoredPluginInstance(pluginId) {
+    const instance = this.pluginInstances.get(pluginId)
+    if (instance) {
+      console.log(`Plugin instance retrieved: ${pluginId}`)
+      return instance
+    }
+    return null
+  }
+
+  /**
+   * Check if a plugin has a stored instance
+   * @param {string} pluginId - Plugin identifier
+   * @returns {boolean} True if instance exists
+   */
+  hasStoredInstance(pluginId) {
+    return this.pluginInstances.has(pluginId)
+  }
+
+  /**
+   * Remove a stored plugin instance
+   * @param {string} pluginId - Plugin identifier
+   */
+  removeStoredInstance(pluginId) {
+    if (this.pluginInstances.has(pluginId)) {
+      this.pluginInstances.delete(pluginId)
+      console.log(`Plugin instance removed: ${pluginId}`)
+    }
+  }
+
+  /**
+   * Clear all stored plugin instances
+   */
+  clearAllStoredInstances() {
+    this.pluginInstances.clear()
+    console.log('All stored plugin instances cleared')
+  }
+
+  /**
+   * Get all stored instance IDs
+   * @returns {Array} Array of plugin IDs with stored instances
+   */
+  getStoredInstanceIds() {
+    return Array.from(this.pluginInstances.keys())
   }
 }
 
