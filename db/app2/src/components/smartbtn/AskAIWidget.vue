@@ -21,6 +21,18 @@
       </template>
     </q-banner>
 
+    <!-- Context Banner -->
+    <q-banner v-if="hasApiKey && context && context.hasContext" class="bg-blue-1 text-blue-9 q-mb-md" rounded>
+      <template v-slot:avatar>
+        <q-icon name="info" />
+      </template>
+      <div>
+        <strong>Context:</strong> {{ context.visit.visitType }} visit on {{ formatDate(context.visit.date) }}
+        <br>
+        <span class="text-caption">{{ context.observations.total }} observations available</span>
+      </div>
+    </q-banner>
+
     <!-- Chat Interface -->
     <div v-if="hasApiKey" class="chat-container">
       <!-- Messages -->
@@ -169,6 +181,14 @@ const router = useRouter()
 const openAIStore = useOpenAIStore()
 const localSettingsStore = useLocalSettingsStore()
 
+// Props
+const props = defineProps({
+  context: {
+    type: Object,
+    default: () => ({ hasContext: false })
+  }
+})
+
 // Emits
 const emit = defineEmits(['close'])
 
@@ -193,12 +213,27 @@ const hasApiKey = computed(() => localSettingsStore.hasOpenAIApiKey())
 const isLoading = computed(() => openAIStore.isLoading)
 const error = computed(() => openAIStore.error)
 
-// Quick prompts for users
-const quickPrompts = [
-  'Correct spelling and grammar',
-  'Research drug interactions',
-  'Generate treatment summary'
-]
+// Context-aware quick prompts
+const quickPrompts = computed(() => {
+  const basePrompts = [
+    'Correct spelling and grammar',
+    'Research drug interactions',
+    'Generate treatment summary'
+  ]
+  
+  if (props.context && props.context.hasContext && props.context.observations) {
+    const contextPrompts = [
+      `Analyze ${props.context.observations.total} observations for this visit`,
+      'Suggest missing observations',
+      'Check for data inconsistencies',
+      'Generate visit summary',
+      'Identify patterns in the data'
+    ]
+    return [...basePrompts, ...contextPrompts]
+  }
+  
+  return basePrompts
+})
 
 // Methods
 const formatTime = (timestamp) => {
@@ -206,6 +241,67 @@ const formatTime = (timestamp) => {
     hour: '2-digit',
     minute: '2-digit'
   })
+}
+
+const formatDate = (dateString) => {
+  if (!dateString) return 'Unknown date'
+  try {
+    return new Date(dateString).toLocaleDateString()
+  } catch (error) {
+    return dateString
+  }
+}
+
+const createContextMessage = () => {
+  const context = props.context
+  
+  if (!context || !context.hasContext) {
+    return {
+      role: 'system',
+      content: 'You are an AI assistant helping with medical data entry.'
+    }
+  }
+  
+  let contextText = `You are an AI assistant helping with medical data entry. 
+
+Current context:
+- Visit Type: ${context.visit?.visitType || 'Unknown'}
+- Visit Date: ${context.visit?.date || 'Unknown'}
+- Visit Status: ${context.visit?.status || 'Unknown'}
+- Location: ${context.visit?.location || 'Unknown'}
+- Total Observations: ${context.observations?.total || 0}
+- Observation Categories: ${context.observations?.byCategory ? Object.keys(context.observations.byCategory).join(', ') : 'None'}
+
+Current observations:`
+
+  // Add recent observations with cleaned up format
+  if (context.observations?.recent && context.observations.recent.length > 0) {
+    context.observations.recent.forEach(obs => {
+      const name = obs.conceptName || obs.concept || obs.conceptCode
+      const value = obs.value
+      const unit = obs.unit && obs.unit !== 'N/A' ? ` ${obs.unit}` : ''
+      const category = obs.category ? ` [${obs.category}]` : ''
+      
+      contextText += `\n- ${name}: ${value}${unit}${category}`
+    })
+  }
+
+  contextText += `
+
+You can help with:
+- Analyzing the current observations (family history, symptoms, lab values, diagnosis)
+- Suggesting additional relevant observations for this ${context.visit?.visitType || 'visit'}
+- Explaining medical concepts and terminology
+- Identifying potential data inconsistencies or missing information
+- Generating visit summaries based on the observations
+- Providing clinical insights based on the observation patterns
+
+Please provide helpful, accurate, and contextually relevant responses based on the current ${context.visit?.visitType || 'visit'} visit data.`
+
+  return {
+    role: 'system',
+    content: contextText
+  }
 }
 
 const scrollToBottom = () => {
@@ -258,6 +354,12 @@ const sendPrompt = async () => {
       role: msg.role,
       content: msg.content
     }))
+
+    // Add context information if available
+    if (props.context && props.context.hasContext) {
+      const contextMessage = createContextMessage()
+      conversationHistory.unshift(contextMessage)
+    }
 
     // Send to AI with full conversation history
     const response = await openAIStore.sendPromptWithHistory(conversationHistory)

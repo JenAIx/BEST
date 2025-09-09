@@ -45,6 +45,7 @@
           @close="closePlugin"
           v-bind="activePluginConfig?.config || {}"
           :initial-state="activePluginConfig?.initialState"
+          :context="visitContext"
         />
       </q-card-section>
     </q-card>
@@ -116,6 +117,7 @@ const activePluginConfig = ref(null)
 const loadingPlugin = ref(false)
 const miniPlugins = ref([]) // Array of minimized plugins
 const activePluginComponent = ref(null) // Reference to the active plugin component instance
+const visitContext = ref({ hasContext: false }) // Reactive visit context
 
 // Get registered plugins with disabled state
 const registeredPlugins = computed(() => {
@@ -251,7 +253,30 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
       }
     }
 
+    // Capture visit/observation context for plugins
+    const captureVisitContext = async () => {
+      try {
+        // Import the context service dynamically to avoid circular dependencies
+        const { pluginContextService } = await import('src/services/plugin-context-service')
+        const context = pluginContextService.getContext()
+        
+        // Store context both globally and reactively
+        window.__smartVisitContext = context
+        visitContext.value = context
+        
+        console.debug('Captured visit context:', context)
+      } catch (e) {
+        console.warn('Failed to capture visit context:', e)
+        const fallbackContext = { hasContext: false, message: 'Failed to load context' }
+        window.__smartVisitContext = fallbackContext
+        visitContext.value = fallbackContext
+      }
+    }
+
     captureSelectionContext()
+    
+    // Capture visit context for context-aware plugins
+    await captureVisitContext()
 
     // Lazy load the plugin component
     const plugin = await pluginManager.loadPlugin(pluginId)
@@ -291,6 +316,11 @@ const closePlugin = (isMinimizing = false) => {
   pluginDialog.value = false
   activePluginId.value = null
   activePluginConfig.value = null
+  
+  // Reset context when closing (but not when minimizing)
+  if (!isMinimizing) {
+    visitContext.value = { hasContext: false }
+  }
 }
 
 const minimizePlugin = async () => {

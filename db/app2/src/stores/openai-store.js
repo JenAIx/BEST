@@ -91,7 +91,7 @@ export const useOpenAIStore = defineStore('openai', () => {
       logger.info('sendPrompt: start', {
         model: options?.model || 'gpt-3.5-turbo',
         promptLength: String(prompt ?? '').length,
-        maxTokens: options?.max_tokens || 256,
+        maxTokens: options?.max_tokens || 1500,
       })
       // Use the standard OpenAI chat completions API
       const response = await client.value.chat.completions.create({
@@ -99,7 +99,7 @@ export const useOpenAIStore = defineStore('openai', () => {
         messages: [
           { role: 'user', content: String(prompt ?? '') }
         ],
-        max_tokens: 256,
+        max_tokens: 1500,
         temperature: 0.7,
         ...options,
       })
@@ -147,13 +147,13 @@ export const useOpenAIStore = defineStore('openai', () => {
       logger.info('sendPromptWithHistory: start', {
         model: options?.model || 'gpt-3.5-turbo',
         turns: formattedInput.length,
-        maxTokens: options?.max_tokens || 256,
+        maxTokens: options?.max_tokens || 1500,
       })
       // Use the standard OpenAI chat completions API
       const response = await client.value.chat.completions.create({
         model: 'gpt-3.5-turbo', // Use a standard model
         messages: formattedInput,
-        max_tokens: 256,
+        max_tokens: 1500,
         temperature: 0.7,
         ...options,
       })
