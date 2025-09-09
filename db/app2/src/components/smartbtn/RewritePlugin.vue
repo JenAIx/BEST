@@ -85,17 +85,24 @@ const canRewrite = computed(() => {
 
 const buildPrompt = () => {
   const goals = [
+    'CRITICAL: Maintain the EXACT same language as the original text. Do NOT translate, switch languages, or change the language in any way.',
+    'Preserve all technical terms, proper nouns, medical terminology, and domain-specific vocabulary in their original form.',
     tone.value === 'clear' ? 'Make it clear, clinical, and unambiguous.' :
     tone.value === 'formal' ? 'Make it formal and professional.' :
     'Make it friendly and approachable.',
     length.value === 'concise' ? 'Keep it concise.' : length.value === 'detailed' ? 'Provide enough detail without verbosity.' : 'Balance brevity and completeness.'
   ]
 
-  return `Rewrite the following text and keep the original language. ${goals.join(' ')}
-Text:
+  return `Rewrite the following text. ${goals.join(' ')}
+
+IMPORTANT: The rewritten text MUST be in the same language as the original text. If the original is in German, respond in German. If it's in French, respond in French. If it's in Spanish, respond in Spanish. Never switch to English unless the original text is already in English.
+
+Original text:
 """
 ${inputText.value}
-"""`
+"""
+
+Rewritten text (same language, same terminology):`
 }
 
 const rewrite = async () => {
