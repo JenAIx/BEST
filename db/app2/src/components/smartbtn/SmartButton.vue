@@ -148,16 +148,53 @@ const getMiniPluginStyle = (index) => ({
 const moveFab = (ev) => {
   draggingFab.value = ev.isFirst !== true && ev.isFinal !== true
 
-  fabPos.value = [
-    fabPos.value[0] - ev.delta.x,
-    fabPos.value[1] - ev.delta.y
-  ]
+  // Calculate new position
+  const newX = fabPos.value[0] - ev.delta.x
+  const newY = fabPos.value[1] - ev.delta.y
+
+  // Get viewport dimensions
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  
+  // FAB button dimensions (approximate)
+  const fabSize = 56 // Standard FAB size
+  const margin = 8 // Minimum margin from edges
+  const leftDrawerMargin = 50 // Extra margin for left drawer
+
+  // Constrain X position (left and right edges)
+  const minX = 0
+  const maxX = viewportWidth - fabSize - leftDrawerMargin
+  const constrainedX = Math.max(minX, Math.min(maxX, newX))
+
+  // Constrain Y position (bottom edge)
+  const minY = margin
+  const maxY = viewportHeight - fabSize - margin
+  const constrainedY = Math.max(minY, Math.min(maxY, newY))
+
+  fabPos.value = [constrainedX, constrainedY]
 }
 
-// Handle window resize to update FAB direction
+// Handle window resize to update FAB direction and ensure it stays in bounds
 const handleResize = () => {
-  // Force reactivity update by creating new reference
-  fabPos.value = fabPos.value.slice()
+  // Get current viewport dimensions
+  const viewportWidth = window.innerWidth
+  const viewportHeight = window.innerHeight
+  
+  // FAB button dimensions (approximate)
+  const fabSize = 56
+  const margin = 8
+  const leftDrawerMargin = 50 // Extra margin for left drawer
+
+  // Constrain current position to new viewport bounds
+  const minX = leftDrawerMargin
+  const maxX = viewportWidth - fabSize - leftDrawerMargin
+  const constrainedX = Math.max(minX, Math.min(maxX, fabPos.value[0]))
+
+  const minY = margin
+  const maxY = viewportHeight - fabSize - margin
+  const constrainedY = Math.max(minY, Math.min(maxY, fabPos.value[1]))
+
+  fabPos.value = [constrainedX, constrainedY]
 }
 
 window.addEventListener('resize', handleResize)
@@ -214,11 +251,6 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
-.smart-button-container {
-  // Container for the FAB button
-  // Positioning handled by inline styles
-}
-
 .mini-plugins-container {
   position: fixed;
   left: 10px;
