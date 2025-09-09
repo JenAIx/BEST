@@ -238,6 +238,11 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     loadSettings()
   }
 
+  // Eagerly load settings on store creation to ensure availability after refresh
+  try {
+    loadSettings()
+  } catch {}
+
   return {
     // State
     settings,

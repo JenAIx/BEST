@@ -204,6 +204,50 @@ const openPlugin = async (pluginId) => {
     loadingPlugin.value = true
     activePluginId.value = pluginId
     
+    // Capture current selection and focused editable element before opening dialog
+    const captureSelectionContext = () => {
+      try {
+        const selection = window.getSelection ? window.getSelection() : null
+        const selectedText = selection ? selection.toString() : ''
+        const activeEl = document.activeElement
+
+        let selectionStart = null
+        let selectionEnd = null
+        let isEditable = false
+        let tagName = ''
+
+        if (activeEl) {
+          tagName = activeEl.tagName
+          if (
+            activeEl.tagName === 'TEXTAREA' ||
+            (activeEl.tagName === 'INPUT' && (!activeEl.type || activeEl.type === 'text' || activeEl.type === 'search')) ||
+            activeEl.isContentEditable
+          ) {
+            isEditable = true
+            if (typeof activeEl.selectionStart === 'number' && typeof activeEl.selectionEnd === 'number') {
+              selectionStart = activeEl.selectionStart
+              selectionEnd = activeEl.selectionEnd
+            }
+          }
+        }
+
+        window.__smartRewriteContext = {
+          selectedText,
+          selectionStart,
+          selectionEnd,
+          isEditable,
+          tagName,
+          timestamp: Date.now()
+        }
+        // Store element separately to avoid serialization issues
+        window.__smartRewriteElement = isEditable ? activeEl : null
+      } catch (e) {
+        console.warn('Failed to capture selection context', e)
+      }
+    }
+
+    captureSelectionContext()
+
     // Lazy load the plugin component
     const plugin = await pluginManager.loadPlugin(pluginId)
     activePluginConfig.value = plugin
