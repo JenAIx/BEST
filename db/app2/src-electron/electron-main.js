@@ -37,9 +37,43 @@ function createWindow() {
     },
   })
 
-  const appURL = process.env.APP_URL || 'http://localhost:9000'
-  console.log('Loading URL:', appURL)
-  mainWindow.loadURL(appURL)
+  const appURL = process.env.APP_URL
+  console.log('Resolved APP_URL:', appURL)
+
+  const loadPackagedIndex = () => {
+    const packagedIndex = path.join(process.resourcesPath, 'app.asar', 'index.html')
+    console.log('Falling back to packaged index:', packagedIndex)
+    try {
+      mainWindow.loadFile(packagedIndex)
+    } catch (err) {
+      console.error('Failed to load packaged index.html:', err)
+    }
+  }
+
+  try {
+    if (appURL && appURL.length > 0) {
+      console.log('Loading APP_URL:', appURL)
+      mainWindow.loadURL(appURL).catch((e) => {
+        console.error('loadURL rejected:', e)
+        loadPackagedIndex()
+      })
+    } else {
+      const devIndex = path.resolve(__dirname, '../index.html')
+      console.log('APP_URL missing, loading dev-built file:', devIndex)
+      mainWindow.loadFile(devIndex).catch((e) => {
+        console.error('loadFile(dev) rejected:', e)
+        loadPackagedIndex()
+      })
+    }
+  } catch (err) {
+    console.error('Failed initial load, trying packaged index:', err)
+    loadPackagedIndex()
+  }
+
+  // Optional diagnostics (keep listeners minimal in production)
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error('Renderer failed to load:', { errorCode, errorDescription, validatedURL })
+  })
 
   // Show window when ready
   mainWindow.once('ready-to-show', () => {

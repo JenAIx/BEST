@@ -193,6 +193,10 @@ export default defineConfig((/* ctx */) => {
         // protocol: 'myapp://path',
         // Windows only
         // win32metadata: { ... }
+        asar: {
+          // Ensure native modules like sqlite3 remain unpacked so Electron can load .node binaries
+          unpack: '**/*.node',
+        },
       },
 
       builder: {
