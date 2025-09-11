@@ -331,6 +331,72 @@ npm run dev
 npm run build
 ```
 
+### Windows (Electron) Build & Packaging
+
+The project includes Windows-friendly scripts and packaging. Use PowerShell.
+
+1) Open PowerShell in the project root and allow scripts for this session:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+```
+
+2) Install dependencies:
+
+```powershell
+npm.cmd install
+```
+
+3) Build and package the Windows x64 app (EXE + ZIP):
+
+!! WICHTIG: sollte als **ADMIN** ausgeführt werden !!!
+
+```powershell
+npm.cmd run build:win-x64
+```
+
+This will:
+- build the Electron app for `win32-x64`
+- create the packaged folder at:
+  - `dist\electron\Packaged\Best - Scientific DB Manager-win32-x64\`
+- produce a timestamped ZIP at:
+  - `dist\builds\best-win-x64-YYYY-MM-DD-HH-mm-ss.zip`
+
+4) Run the packaged app:
+
+```text
+dist\electron\Packaged\Best - Scientific DB Manager-win32-x64\Best - Scientific DB Manager.exe
+```
+
+#### Troubleshooting on Windows
+
+- Execution policy error (when running npm scripts):
+  - Symptom: “Ausführung von Skripts auf diesem System deaktiviert” / `PSSecurityException`
+  - Fix: Run step 1 above (temporary policy bypass).
+
+- Cannot find module 'sqlite3' (at runtime):
+  - Ensure `sqlite3` is installed as a runtime dependency (already configured in `package.json`).
+  - Rebuild native module for your Electron version:
+    ```powershell
+    npx.cmd --yes electron-rebuild -f -w sqlite3 -v 37.3.1
+    ```
+  - Re-run: `npm.cmd run build:win-x64`
+
+- Build fails with EBUSY/locked folder:
+  - Close any running app instance or force kill:
+    ```powershell
+    taskkill /IM "Best - Scientific DB Manager.exe" /F
+    ```
+  - Remove the old packaged directory and rebuild:
+    ```powershell
+    Remove-Item -LiteralPath ".\dist\electron\Packaged\Best - Scientific DB Manager-win32-x64" -Recurse -Force -ErrorAction SilentlyContinue
+    npm.cmd run build:win-x64
+    ```
+
+- Blank Electron window after packaging:
+  - Rebuild and re-run; the app auto-detects production paths and loads `index.html` from the package.
+  - Open DevTools with `Ctrl+Shift+I` and check the Console for errors if it persists.
+
 ## MVC Data Flow Architecture
 
 ### Complete MVC Flow

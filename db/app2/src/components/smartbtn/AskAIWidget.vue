@@ -305,15 +305,8 @@ const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date'
   
   try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) {
-      return dateString // Return original if invalid
-    }
-    return date.toLocaleDateString()
-  } catch (error) {
-    console.warn('Date formatting error:', error)
-    return dateString
-  }
+    return new Date(dateString).toLocaleDateString()
+  } catch (error) { void error; return dateString }
 }
 
 /**
