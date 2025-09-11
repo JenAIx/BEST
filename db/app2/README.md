@@ -349,6 +349,8 @@ npm.cmd install
 
 3) Build and package the Windows x64 app (EXE + ZIP):
 
+!! WICHTIG: sollte als **ADMIN** ausgeführt werden !!!
+
 ```powershell
 npm.cmd run build:win-x64
 ```

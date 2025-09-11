@@ -24,9 +24,9 @@
     "cypress:install": "cypress install",
     "build": "quasar build",
     "build:electron": "quasar build -m electron",
-    "build:win-x64": "quasar build -m electron --target win32 --arch x64 && npm run package:win-x64",
+    "build:win-x64": "quasar build -m electron --target win32 --arch x64",
     "build:mac-arm64": "quasar build -m electron --target darwin --arch arm64 && npm run package:mac-arm64",
-    "package:win-x64": "powershell -NoProfile -ExecutionPolicy Bypass -Command \"New-Item -ItemType Directory -Path 'dist/builds' -Force | Out-Null; if (-not (Test-Path 'dist/electron/Packaged/Best - Scientific DB Manager-win32-x64')) { Write-Error 'Packaged app folder not found.'; exit 1 }; $ts = (Get-Date -Format yyyy-MM-dd-HH-mm-ss); $zipPath = 'dist/builds/best-win-x64-' + $ts + '.zip'; Compress-Archive -Path 'dist/electron/Packaged/Best - Scientific DB Manager-win32-x64' -DestinationPath $zipPath -Force\"",
+    "package:win-x64": "quasar build -m electron --target win32 --arch x64 && node -e \"console.log('Portable build at dist/electron/Builder')\"",
     "package:mac-arm64": "mkdir -p dist/builds && cd dist/electron/Packaged && if command -v hdiutil >/dev/null 2>&1; then hdiutil create -volname \"Best - Scientific DB Manager\" -srcfolder \"Best - Scientific DB Manager-darwin-arm64\" -ov -format UDZO \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).dmg\"; else tar -czf \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).tar.gz\" \"Best - Scientific DB Manager-darwin-arm64\"; fi",
     "postinstall": "quasar prepare",
     "icon": "icongenie g -i ./public/icons/app_logo.png"

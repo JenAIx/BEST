@@ -182,27 +182,35 @@ export default defineConfig((/* ctx */) => {
       // specify the debugging port to use for the Electron app when running in development mode
       inspectPort: 5858,
 
-      bundler: 'packager', // 'packager' or 'builder'
+      bundler: 'builder', // 'packager' or 'builder'
 
       packager: {
-        // https://github.com/electron-userland/electron-packager/blob/master/docs/api.md#options
-        // OS X / Mac App Store
-        // appBundleId: '',
-        // appCategoryType: '',
-        // osxSign: '',
-        // protocol: 'myapp://path',
-        // Windows only
-        // win32metadata: { ... }
-        asar: {
-          // Ensure native modules like sqlite3 remain unpacked so Electron can load .node binaries
-          unpack: '**/*.node',
-        },
+        // retained for reference; not used when bundler is 'builder'
       },
 
       builder: {
         // https://www.electron.build/configuration/configuration
-
         appId: 'best',
+        productName: 'Best - Scientific DB Manager',
+        asar: true,
+        asarUnpack: ["**/*.node"],
+        directories: {
+          buildResources: 'src-electron/icons',
+          output: 'dist/electron/Builder'
+        },
+        files: [
+          '!tests',
+          '!dist/builds/**',
+        ],
+        win: {
+          target: [
+            {
+              target: 'portable',
+              arch: ['x64']
+            }
+          ],
+          artifactName: 'best-win-x64-${version}-portable.exe'
+        }
       },
     },
 
