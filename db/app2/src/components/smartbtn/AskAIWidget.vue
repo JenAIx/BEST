@@ -247,9 +247,7 @@ const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date'
   try {
     return new Date(dateString).toLocaleDateString()
-  } catch (error) {
-    return dateString
-  }
+  } catch (error) { void error; return dateString }
 }
 
 const createContextMessage = () => {
