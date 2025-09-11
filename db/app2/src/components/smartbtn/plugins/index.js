@@ -67,6 +67,19 @@ pluginManager.register({
   }
 })
 
+pluginManager.register({
+  id: 'rewrite',
+  name: 'Rewrite',
+  icon: 'edit',
+  color: 'teal',
+  tooltip: 'Rewrite selected text',
+  component: () => import('./RewritePlugin.js').then(module => module.default.component),
+  config: {
+    minWidth: '600px',
+    maxWidth: '800px'
+  }
+})
+
 export { pluginManager }
 export { default as CalcPlugin } from './CalcPlugin.js'
 export { default as NotesPlugin } from './NotesPlugin.js'
@@ -74,3 +87,4 @@ export { default as UnitConverterPlugin } from './UnitConverterPlugin.js'
 export { default as BmiCalculatorPlugin } from './BmiCalculatorPlugin.js'
 export { default as LevodopaCalculatorPlugin } from './LevodopaCalculatorPlugin.js'
 export { default as AskAIPlugin } from './AskAIPlugin.js'
+export { default as RewritePlugin } from './RewritePlugin.js'

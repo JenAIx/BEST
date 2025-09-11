@@ -46,9 +46,18 @@ defineOptions({
   name: 'CalculatorWidget'
 })
 
-const previousOperand = ref('')
-const currentOperand = ref('0')
-const operation = ref('')
+// Define props to receive initial state
+const props = defineProps({
+  initialState: {
+    type: Object,
+    default: () => ({})
+  }
+})
+
+// Reactive state with initial values from props
+const previousOperand = ref(props.initialState.previousOperand || '')
+const currentOperand = ref(props.initialState.currentOperand || '0')
+const operation = ref(props.initialState.operation || '')
 
 const clear = () => {
   currentOperand.value = '0'
@@ -91,11 +100,11 @@ const chooseOperation = (event) => {
 const compute = () => {
   const prev = parseFloat(previousOperand.value)
   const current = parseFloat(currentOperand.value)
-  
+
   if (isNaN(prev) || isNaN(current)) return
-  
+
   let computation
-  
+
   switch (operation.value) {
     case '+':
       computation = prev + current
@@ -112,11 +121,23 @@ const compute = () => {
     default:
       return
   }
-  
+
   currentOperand.value = computation.toString()
   operation.value = ''
   previousOperand.value = ''
 }
+
+// State management functions for minimize/expand
+const getState = () => ({
+  previousOperand: previousOperand.value,
+  currentOperand: currentOperand.value,
+  operation: operation.value
+})
+
+// Expose getState function for external access
+defineExpose({
+  getState
+})
 </script>
 
 <style lang="scss" scoped>

@@ -39,10 +39,13 @@
           <div class="q-mt-sm">Loading plugin...</div>
         </div>
         <component
+          ref="activePluginComponent"
           :is="activePluginConfig?.component"
           v-else-if="activePluginConfig"
           @close="closePlugin"
           v-bind="activePluginConfig?.config || {}"
+          :initial-state="activePluginConfig?.initialState"
+          :context="visitContext"
         />
       </q-card-section>
     </q-card>
@@ -87,15 +90,17 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue'
+import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
 import { pluginManager } from './plugins'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { usePluginStateStore } from 'src/stores/plugin-state-store'
 
 defineOptions({
   name: 'SmartButton'
 })
 
 const localSettingsStore = useLocalSettingsStore()
+const pluginStateStore = usePluginStateStore()
 const fabPos = ref([18, 18])
 
 // Computed style for FAB positioning
@@ -111,6 +116,8 @@ const activePluginId = ref(null)
 const activePluginConfig = ref(null)
 const loadingPlugin = ref(false)
 const miniPlugins = ref([]) // Array of minimized plugins
+const activePluginComponent = ref(null) // Reference to the active plugin component instance
+const visitContext = ref({ hasContext: false }) // Reactive visit context
 
 // Get registered plugins with disabled state
 const registeredPlugins = computed(() => {
@@ -199,16 +206,99 @@ const handleResize = () => {
 
 window.addEventListener('resize', handleResize)
 
-const openPlugin = async (pluginId) => {
+const openPlugin = async (pluginId, overrideConfig = null, componentState = null) => {
   try {
     loadingPlugin.value = true
     activePluginId.value = pluginId
     
+    // Capture current selection and focused editable element before opening dialog
+    const captureSelectionContext = () => {
+      try {
+        const selection = window.getSelection ? window.getSelection() : null
+        const selectedText = selection ? selection.toString() : ''
+        const activeEl = document.activeElement
+
+        let selectionStart = null
+        let selectionEnd = null
+        let isEditable = false
+        let tagName = ''
+
+        if (activeEl) {
+          tagName = activeEl.tagName
+          if (
+            activeEl.tagName === 'TEXTAREA' ||
+            (activeEl.tagName === 'INPUT' && (!activeEl.type || activeEl.type === 'text' || activeEl.type === 'search')) ||
+            activeEl.isContentEditable
+          ) {
+            isEditable = true
+            if (typeof activeEl.selectionStart === 'number' && typeof activeEl.selectionEnd === 'number') {
+              selectionStart = activeEl.selectionStart
+              selectionEnd = activeEl.selectionEnd
+            }
+          }
+        }
+
+        window.__smartRewriteContext = {
+          selectedText,
+          selectionStart,
+          selectionEnd,
+          isEditable,
+          tagName,
+          timestamp: Date.now()
+        }
+        // Store element separately to avoid serialization issues
+        window.__smartRewriteElement = isEditable ? activeEl : null
+      } catch (e) {
+        console.warn('Failed to capture selection context', e)
+      }
+    }
+
+    // Capture visit/observation context for plugins
+    const captureVisitContext = async () => {
+      try {
+        // Import the context service dynamically to avoid circular dependencies
+        const { pluginContextService } = await import('src/services/plugin-context-service')
+        const context = pluginContextService.getContext()
+        
+        // Store context both globally and reactively
+        window.__smartVisitContext = context
+        visitContext.value = context
+        
+        console.debug('Captured visit context:', context)
+      } catch (e) {
+        console.warn('Failed to capture visit context:', e)
+        const fallbackContext = { hasContext: false, message: 'Failed to load context' }
+        window.__smartVisitContext = fallbackContext
+        visitContext.value = fallbackContext
+      }
+    }
+
+    captureSelectionContext()
+    
+    // Capture visit context for context-aware plugins
+    await captureVisitContext()
+
     // Lazy load the plugin component
     const plugin = await pluginManager.loadPlugin(pluginId)
-    activePluginConfig.value = plugin
+
+    // Apply override config and component state if provided (for state restoration)
+    if (overrideConfig || componentState) {
+      activePluginConfig.value = {
+        ...plugin,
+        config: overrideConfig ? { ...plugin.config, ...overrideConfig } : plugin.config,
+        initialState: componentState // Pass component state for restoration
+      }
+    } else {
+      activePluginConfig.value = plugin
+    }
 
     pluginDialog.value = true
+    
+    // Wait for dialog and component to be fully rendered
+    await nextTick()
+    // Additional small delay to ensure component is fully initialized
+    await new Promise(resolve => setTimeout(resolve, 100))
+    
   } catch (error) {
     console.error('Failed to load plugin:', error)
     // You could show a user-friendly error message here
@@ -217,36 +307,83 @@ const openPlugin = async (pluginId) => {
   }
 }
 
-const closePlugin = () => {
+const closePlugin = (isMinimizing = false) => {
+  // Only clean up stored instance when closing permanently (not when minimizing)
+  if (activePluginId.value && !isMinimizing) {
+    pluginStateStore.removePluginState(activePluginId.value)
+  }
+
   pluginDialog.value = false
   activePluginId.value = null
   activePluginConfig.value = null
+  
+  // Reset context when closing (but not when minimizing)
+  if (!isMinimizing) {
+    visitContext.value = { hasContext: false }
+  }
 }
 
-const minimizePlugin = () => {
+const minimizePlugin = async () => {
   if (activePluginConfig.value) {
+    // Wait for next tick to ensure component is fully rendered
+    await nextTick()
+    
+    // Get component state before minimizing (if the component instance exposes it)
+    let componentState = {}
+    
+    // Try to access the component instance
+    const componentRef = activePluginComponent.value
+    
+    if (componentRef && typeof componentRef.getState === 'function') {
+      try {
+        componentState = componentRef.getState() || {}
+      } catch (e) {
+        console.warn(`Failed to get component state for ${activePluginConfig.value.id}:`, e)
+      }
+    }
+
+    // Store the current plugin state in the store
+    pluginStateStore.savePluginState(activePluginConfig.value.id, {
+      config: { ...activePluginConfig.value.config },
+      componentState
+    })
+
     // Prevent duplicate mini plugins
     if (!miniPlugins.value.some(p => p.id === activePluginConfig.value.id)) {
       miniPlugins.value.push({ ...activePluginConfig.value })
     }
-    closePlugin()
+    closePlugin(true) // Pass true to indicate we're minimizing, not closing permanently
   }
 }
 
 const expandPlugin = (pluginId) => {
   if (miniPlugins.value.some(p => p.id === pluginId)) {
     miniPlugins.value = miniPlugins.value.filter(p => p.id !== pluginId)
-    openPlugin(pluginId)
+
+    // Check if we have stored state for this plugin in the store
+    const storedState = pluginStateStore.restorePluginState(pluginId)
+    
+    if (storedState && storedState.componentState) {
+      // Restore the plugin with stored configuration and component state
+      openPlugin(pluginId, storedState.config, storedState.componentState)
+    } else {
+      // No stored state, open normally
+      openPlugin(pluginId)
+    }
   }
 }
 
 const closeMiniPlugin = (pluginId) => {
   miniPlugins.value = miniPlugins.value.filter(p => p.id !== pluginId)
+  // Clean up stored state when mini plugin is permanently closed
+  pluginStateStore.removePluginState(pluginId)
 }
 
 // Cleanup event listeners
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  // Clear all stored plugin states when component is destroyed
+  pluginStateStore.clearAllPluginStates()
 })
 </script>
 

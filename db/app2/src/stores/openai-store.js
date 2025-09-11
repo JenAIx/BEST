@@ -1,11 +1,14 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useLocalSettingsStore } from './local-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 import OpenAI from 'openai'
 
 // Optimized OpenAI Pinia store
 export const useOpenAIStore = defineStore('openai', () => {
   const localSettingsStore = useLocalSettingsStore()
+  const loggingStore = useLoggingStore()
+  const logger = loggingStore.createLogger('OpenAIStore')
 
   // Reactive state
   const isLoading = ref(false)
@@ -19,8 +22,52 @@ export const useOpenAIStore = defineStore('openai', () => {
   const apiKey = computed(() => localSettingsStore.getOpenAIApiKey())
   const client = computed(() => {
     if (!hasApiKey.value) throw new Error('OpenAI API key not configured.')
-    return new OpenAI({ apiKey: apiKey.value, dangerouslyAllowBrowser: true })
+    const createdClient = new OpenAI({ apiKey: apiKey.value, dangerouslyAllowBrowser: true })
+    logger.debug('Created OpenAI client', { browserMode: true })
+    return createdClient
   })
+
+  // Extract text from standard OpenAI Chat Completions API response
+  const extractOutputText = (response) => {
+    if (!response) return ''
+
+    // Standard OpenAI chat completions response format
+    if (response?.choices && Array.isArray(response.choices) && response.choices.length > 0) {
+      const firstChoice = response.choices[0]
+      if (firstChoice?.message?.content) {
+        return firstChoice.message.content.trim()
+      }
+    }
+
+    // Fallback to other possible formats
+    const choiceText = response?.choices?.[0]?.message?.content || response?.choices?.[0]?.text
+    if (typeof choiceText === 'string' && choiceText.trim()) return choiceText
+
+    // Legacy format
+    if (typeof response === 'string') return response
+
+    logger.warn('extractOutputText: unexpected response format', { 
+      responseType: typeof response,
+      hasChoices: !!response?.choices,
+      choicesLength: response?.choices?.length 
+    })
+
+    return ''
+  }
+
+  const summarizeResponse = (response, extractedText) => {
+    try {
+      return {
+        model: response?.model || 'unknown',
+        choicesLength: Array.isArray(response?.choices) ? response.choices.length : 0,
+        finishReason: response?.choices?.[0]?.finish_reason || 'unknown',
+        usage: response?.usage || null,
+        extractedPreview: (extractedText || '').slice(0, 120),
+      }
+    } catch {
+      return { error: 'summarize_failed' }
+    }
+  }
 
   // Utility to compact history
   const MAX_TURNS = 4
@@ -40,21 +87,41 @@ export const useOpenAIStore = defineStore('openai', () => {
     error.value = null
 
     try {
-      const response = await client.value.responses.create({
-        model: 'gpt-5-mini',
-        input: prompt,
-        max_output_tokens: 256,
+      const startTimeMs = performance.now()
+      logger.info('sendPrompt: start', {
+        model: options?.model || 'gpt-3.5-turbo',
+        promptLength: String(prompt ?? '').length,
+        maxTokens: options?.max_tokens || 1500,
+      })
+      // Use the standard OpenAI chat completions API
+      const response = await client.value.chat.completions.create({
+        model: 'gpt-3.5-turbo', // Use a standard model
+        messages: [
+          { role: 'user', content: String(prompt ?? '') }
+        ],
+        max_tokens: 1500,
+        temperature: 0.7,
         ...options,
       })
-      const outputText = response.output_text || 'No response received'
+      const extracted = extractOutputText(response)
+      const outputText = extracted && extracted.trim().length > 0 ? extracted : 'No response received'
+      const durationMs = performance.now() - startTimeMs
+      logger.success('sendPrompt: success', {
+        durationMs: durationMs.toFixed(1),
+        summary: summarizeResponse(response, extracted),
+        returnedTextLength: (outputText || '').length,
+        emptyFallbackUsed: !(extracted && extracted.trim().length > 0),
+      })
       lastResponse.value = outputText
       return outputText
     } catch (err) {
       console.error('OpenAI API error:', err)
+      logger.error('sendPrompt: error', err)
       error.value = err.message || 'Failed to get response from OpenAI'
       throw err
     } finally {
       isLoading.value = false
+      logger.debug('sendPrompt: finished')
     }
   }
 
@@ -76,21 +143,39 @@ export const useOpenAIStore = defineStore('openai', () => {
     )
 
     try {
-      const response = await client.value.responses.create({
-        model: 'gpt-5-mini',
-        input: formattedInput,
-        max_output_tokens: 256,
+      const startTimeMs = performance.now()
+      logger.info('sendPromptWithHistory: start', {
+        model: options?.model || 'gpt-3.5-turbo',
+        turns: formattedInput.length,
+        maxTokens: options?.max_tokens || 1500,
+      })
+      // Use the standard OpenAI chat completions API
+      const response = await client.value.chat.completions.create({
+        model: 'gpt-3.5-turbo', // Use a standard model
+        messages: formattedInput,
+        max_tokens: 1500,
+        temperature: 0.7,
         ...options,
       })
-      const outputText = response.output_text || 'No response received'
+      const extracted = extractOutputText(response)
+      const outputText = extracted && extracted.trim().length > 0 ? extracted : 'No response received'
+      const durationMs = performance.now() - startTimeMs
+      logger.success('sendPromptWithHistory: success', {
+        durationMs: durationMs.toFixed(1),
+        summary: summarizeResponse(response, extracted),
+        returnedTextLength: (outputText || '').length,
+        emptyFallbackUsed: !(extracted && extracted.trim().length > 0),
+      })
       lastResponse.value = outputText
       return outputText
     } catch (err) {
       console.error('OpenAI API error with history:', err)
+      logger.error('sendPromptWithHistory: error', err)
       error.value = err.message || 'Failed to get response from OpenAI'
       throw err
     } finally {
       isLoading.value = false
+      logger.debug('sendPromptWithHistory: finished')
     }
   }
 
