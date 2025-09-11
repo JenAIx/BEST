@@ -181,11 +181,18 @@ const router = useRouter()
 const openAIStore = useOpenAIStore()
 const localSettingsStore = useLocalSettingsStore()
 
-// Props
+// Props with validation
 const props = defineProps({
+  /**
+   * Context object containing visit and observation data
+   * @type {Object}
+   */
   context: {
     type: Object,
-    default: () => ({ hasContext: false })
+    default: () => ({ hasContext: false }),
+    validator: (value) => {
+      return value && typeof value === 'object' && typeof value.hasContext === 'boolean'
+    }
   }
 })
 
@@ -205,15 +212,49 @@ const messagesHeight = ref(300)
 const isResizing = ref(false)
 const resizeState = ref({ startX: 0, startY: 0, startWidth: 0, startHeight: 0 })
 
-// Use persistent messages from store
-const messages = computed(() => openAIStore.getChatMessages())
+// Computed properties with better error handling
+/**
+ * Gets chat messages from the store
+ * @returns {Array} Array of chat messages
+ */
+const messages = computed(() => {
+  try {
+    return openAIStore.getChatMessages() || []
+  } catch (error) {
+    console.error('Error getting chat messages:', error)
+    return []
+  }
+})
 
-// Computed properties
-const hasApiKey = computed(() => localSettingsStore.hasOpenAIApiKey())
+/**
+ * Checks if OpenAI API key is configured
+ * @returns {boolean} True if API key is available
+ */
+const hasApiKey = computed(() => {
+  try {
+    return localSettingsStore.hasOpenAIApiKey()
+  } catch (error) {
+    console.error('Error checking API key:', error)
+    return false
+  }
+})
+
+/**
+ * Gets loading state from OpenAI store
+ * @returns {boolean} True if API call is in progress
+ */
 const isLoading = computed(() => openAIStore.isLoading)
+
+/**
+ * Gets error state from OpenAI store
+ * @returns {string|null} Error message or null if no error
+ */
 const error = computed(() => openAIStore.error)
 
-// Context-aware quick prompts
+/**
+ * Generates context-aware quick prompts based on current visit data
+ * @returns {Array<string>} Array of quick prompt suggestions
+ */
 const quickPrompts = computed(() => {
   const basePrompts = [
     'Correct spelling and grammar',
@@ -221,9 +262,11 @@ const quickPrompts = computed(() => {
     'Generate treatment summary'
   ]
   
-  if (props.context && props.context.hasContext && props.context.observations) {
+  // Add context-specific prompts if visit data is available
+  if (props.context?.hasContext && props.context.observations?.total > 0) {
+    const observationCount = props.context.observations.total
     const contextPrompts = [
-      `Analyze ${props.context.observations.total} observations for this visit`,
+      `Analyze ${observationCount} observation${observationCount !== 1 ? 's' : ''} for this visit`,
       'Suggest missing observations',
       'Check for data inconsistencies',
       'Generate visit summary',
@@ -236,67 +279,119 @@ const quickPrompts = computed(() => {
 })
 
 // Methods
+/**
+ * Formats a timestamp for display in chat messages
+ * @param {Date|string|number} timestamp - Timestamp to format
+ * @returns {string} Formatted time string
+ */
 const formatTime = (timestamp) => {
-  return new Date(timestamp).toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  try {
+    return new Date(timestamp).toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    console.warn('Invalid timestamp for formatTime:', timestamp)
+    return 'Invalid time'
+  }
 }
 
+/**
+ * Formats a date string for display
+ * @param {string} dateString - Date string to format
+ * @returns {string} Formatted date string
+ */
 const formatDate = (dateString) => {
   if (!dateString) return 'Unknown date'
+  
   try {
-    return new Date(dateString).toLocaleDateString()
+    const date = new Date(dateString)
+    if (isNaN(date.getTime())) {
+      return dateString // Return original if invalid
+    }
+    return date.toLocaleDateString()
   } catch (error) {
+    console.warn('Date formatting error:', error)
     return dateString
   }
 }
 
+/**
+ * Creates base context message for AI without visit data
+ * @returns {Object} Base system message
+ */
+const createBaseContextMessage = () => ({
+  role: 'system',
+  content: 'You are an AI assistant helping with medical data entry.'
+})
+
+/**
+ * Formats visit information for context message
+ * @param {Object} visit - Visit data object
+ * @returns {string} Formatted visit information
+ */
+const formatVisitContext = (visit) => {
+  if (!visit) return 'No visit information available'
+  
+  return `Current context:
+- Visit Type: ${visit.visitType || 'Unknown'}
+- Visit Date: ${visit.date || 'Unknown'}
+- Visit Status: ${visit.status || 'Unknown'}
+- Location: ${visit.location || 'Unknown'}`
+}
+
+/**
+ * Formats observation data for context message
+ * @param {Object} observations - Observations data object
+ * @returns {string} Formatted observations text
+ */
+const formatObservationsContext = (observations) => {
+  if (!observations) return '\n- Total Observations: 0\n- Observation Categories: None'
+  
+  let text = `\n- Total Observations: ${observations.total || 0}`
+  text += `\n- Observation Categories: ${observations.byCategory ? Object.keys(observations.byCategory).join(', ') : 'None'}`
+  
+  // Add recent observations
+  if (observations.recent && observations.recent.length > 0) {
+    text += '\n\nCurrent observations:'
+    observations.recent.forEach(obs => {
+      const name = obs.conceptName || obs.concept || obs.conceptCode || 'Unknown'
+      const value = obs.value || 'N/A'
+      const unit = obs.unit ? ` ${obs.unit}` : ''
+      const category = obs.category ? ` [${obs.category}]` : ''
+      text += `\n- ${name}: ${value}${unit}${category}`
+    })
+  }
+  
+  return text
+}
+
+/**
+ * Creates contextual system message for AI based on current visit and observations
+ * @returns {Object} System message with context
+ */
 const createContextMessage = () => {
   const context = props.context
   
   if (!context || !context.hasContext) {
-    return {
-      role: 'system',
-      content: 'You are an AI assistant helping with medical data entry.'
-    }
+    return createBaseContextMessage()
   }
   
-  let contextText = `You are an AI assistant helping with medical data entry. 
+  const visitType = context.visit?.visitType || 'visit'
+  
+  const contextText = `You are an AI assistant helping with medical data entry.
 
-Current context:
-- Visit Type: ${context.visit?.visitType || 'Unknown'}
-- Visit Date: ${context.visit?.date || 'Unknown'}
-- Visit Status: ${context.visit?.status || 'Unknown'}
-- Location: ${context.visit?.location || 'Unknown'}
-- Total Observations: ${context.observations?.total || 0}
-- Observation Categories: ${context.observations?.byCategory ? Object.keys(context.observations.byCategory).join(', ') : 'None'}
-
-Current observations:`
-
-  // Add recent observations with cleaned up format
-  if (context.observations?.recent && context.observations.recent.length > 0) {
-    context.observations.recent.forEach(obs => {
-      const name = obs.conceptName || obs.concept || obs.conceptCode
-      const value = obs.value
-      const unit = obs.unit && obs.unit !== 'N/A' ? ` ${obs.unit}` : ''
-      const category = obs.category ? ` [${obs.category}]` : ''
-      
-      contextText += `\n- ${name}: ${value}${unit}${category}`
-    })
-  }
-
-  contextText += `
+${formatVisitContext(context.visit)}${formatObservationsContext(context.observations)}
 
 You can help with:
 - Analyzing the current observations (family history, symptoms, lab values, diagnosis)
-- Suggesting additional relevant observations for this ${context.visit?.visitType || 'visit'}
+- Suggesting additional relevant observations for this ${visitType}
 - Explaining medical concepts and terminology
 - Identifying potential data inconsistencies or missing information
 - Generating visit summaries based on the observations
 - Providing clinical insights based on the observation patterns
 
-Please provide helpful, accurate, and contextually relevant responses based on the current ${context.visit?.visitType || 'visit'} visit data.`
+Please provide helpful, accurate, and contextually relevant responses based on the current ${visitType} visit data.`
 
   return {
     role: 'system',
@@ -304,95 +399,131 @@ Please provide helpful, accurate, and contextually relevant responses based on t
   }
 }
 
+/**
+ * Scrolls the messages container to the bottom
+ * Uses multiple methods to ensure compatibility across different scenarios
+ */
 const scrollToBottom = () => {
   nextTick(() => {
+    if (!messagesScrollArea.value) return
+    
     setTimeout(() => {
-      if (messagesScrollArea.value) {
-        // Try multiple methods to ensure scrolling works
+      try {
+        // Primary method: Use Quasar's setScrollPosition
+        messagesScrollArea.value.setScrollPosition('vertical', 999999, 100)
+      } catch {
+        // Fallback: Direct DOM manipulation
         try {
-          // Method 1: Quasar's setScrollPosition
-          messagesScrollArea.value.setScrollPosition('vertical', 999999, 100)
-        } catch {
-          // Method 2: Direct DOM manipulation
           const scrollTarget = messagesScrollArea.value.$el?.querySelector('.scroll')
           if (scrollTarget) {
             scrollTarget.scrollTop = scrollTarget.scrollHeight
           }
+        } catch (fallbackError) {
+          console.warn('Scroll to bottom failed:', fallbackError)
         }
       }
     }, 50)
   })
 }
 
+/**
+ * Navigates to the settings page and closes the widget
+ */
 const goToSettings = () => {
   router.push('/settings')
   emit('close')
 }
 
+/**
+ * Sends the current prompt to the AI and handles the response
+ * Includes conversation history and context information
+ */
 const sendPrompt = async () => {
-  if (!currentPrompt.value.trim() || isLoading.value) return
+  if (!currentPrompt.value.trim() || isLoading.value) {
+    return
+  }
 
   const prompt = currentPrompt.value.trim()
   lastPrompt.value = prompt
 
-  // Add user message
+  // Add user message to chat
   openAIStore.addMessage({
     role: 'user',
     content: prompt,
     timestamp: new Date()
   })
 
-  // Scroll to bottom after adding user message
   scrollToBottom()
-
-  // Clear input
   currentPrompt.value = ''
 
   try {
-    // Prepare conversation history for context using the new API format
-    const conversationHistory = openAIStore.getChatMessages().map(msg => ({
-      role: msg.role,
-      content: msg.content
-    }))
-
-    // Add context information if available
-    if (props.context && props.context.hasContext) {
-      const contextMessage = createContextMessage()
-      conversationHistory.unshift(contextMessage)
-    }
-
-    // Send to AI with full conversation history
+    const conversationHistory = buildConversationHistory()
     const response = await openAIStore.sendPromptWithHistory(conversationHistory)
 
-    // Add AI response
+    // Add AI response to chat
     openAIStore.addMessage({
       role: 'assistant',
       content: response,
       timestamp: new Date()
     })
 
-    // Scroll to bottom after adding AI response
     scrollToBottom()
-
-    // Clear any previous errors
     openAIStore.clearResponse()
   } catch (err) {
-    // Error is handled by the store and displayed in the banner
+    // Error is handled by the store and displayed in the error banner
     console.error('Failed to send prompt:', err)
   }
 }
 
+/**
+ * Builds conversation history with context for AI
+ * @returns {Array} Formatted conversation history
+ */
+const buildConversationHistory = () => {
+  const conversationHistory = openAIStore.getChatMessages().map(msg => ({
+    role: msg.role,
+    content: msg.content
+  }))
+
+  // Add context information if available
+  if (props.context?.hasContext) {
+    const contextMessage = createContextMessage()
+    conversationHistory.unshift(contextMessage)
+  }
+
+  return conversationHistory
+}
+
+/**
+ * Retries the last prompt that was sent
+ * Useful when there was an error in the previous attempt
+ */
 const retryLastPrompt = async () => {
-  if (!lastPrompt.value) return
+  if (!lastPrompt.value) {
+    console.warn('No previous prompt to retry')
+    return
+  }
 
   currentPrompt.value = lastPrompt.value
   await sendPrompt()
 }
 
+/**
+ * Sets a quick prompt as the current input
+ * @param {string} prompt - The prompt text to use
+ */
 const useQuickPrompt = (prompt) => {
-  currentPrompt.value = prompt
+  if (!prompt || typeof prompt !== 'string') {
+    console.warn('Invalid prompt provided to useQuickPrompt')
+    return
+  }
+  currentPrompt.value = prompt.trim()
 }
 
+/**
+ * Clears all chat messages after user confirmation
+ * Shows a confirmation dialog before clearing
+ */
 const clearChat = () => {
   $q.dialog({
     title: 'Clear Chat',
@@ -407,12 +538,22 @@ const clearChat = () => {
   })
 }
 
+/**
+ * Copies a message to the clipboard and shows visual feedback
+ * @param {number} index - Index of the message for visual feedback
+ * @param {Object} message - Message object containing content
+ */
 const copyMessage = (index, message) => {
   const text = message?.content || ''
-  if (!text) return
+  if (!text) {
+    console.warn('No content to copy')
+    return
+  }
+  
   navigator.clipboard
     .writeText(text)
     .then(() => {
+      // Show shake animation as visual feedback
       shaking.value[index] = true
       setTimeout(() => {
         shaking.value[index] = false
@@ -421,51 +562,95 @@ const copyMessage = (index, message) => {
     .catch(() => { /* intentionally ignored */ })
 }
 
-// Resize handlers
+// Resize configuration
+const RESIZE_LIMITS = {
+  minWidth: 320,
+  minHeight: 180,
+  maxHeight: 700,
+  windowPadding: 8,
+  bottomPadding: 160
+}
+
+/**
+ * Handles mouse down event on resize handle
+ * Initializes resize operation and adds event listeners
+ * @param {MouseEvent} event - Mouse down event
+ */
 const onResizeMouseDown = (event) => {
+  event.preventDefault()
   isResizing.value = true
+  
   resizeState.value = {
     startX: event.clientX,
     startY: event.clientY,
     startWidth: widgetWidth.value,
     startHeight: messagesHeight.value,
   }
+  
   window.addEventListener('mousemove', onResizeMouseMove)
   window.addEventListener('mouseup', onResizeMouseUp)
+  document.body.style.userSelect = 'none' // Prevent text selection during resize
 }
 
+/**
+ * Handles mouse move during resize operation
+ * Updates widget dimensions within defined limits
+ * @param {MouseEvent} event - Mouse move event
+ */
 const onResizeMouseMove = (event) => {
   if (!isResizing.value) return
+  
   const dx = event.clientX - resizeState.value.startX
   const dy = event.clientY - resizeState.value.startY
-
-  const minWidth = 320
-  const maxWidth = window.innerWidth - 8
-  const minHeight = 180
-  const maxHeight = Math.min(700, window.innerHeight - 160)
-
-  widgetWidth.value = Math.max(minWidth, Math.min(maxWidth, resizeState.value.startWidth + dx))
-  messagesHeight.value = Math.max(minHeight, Math.min(maxHeight, resizeState.value.startHeight + dy))
+  
+  const maxWidth = window.innerWidth - RESIZE_LIMITS.windowPadding
+  const maxHeight = Math.min(RESIZE_LIMITS.maxHeight, window.innerHeight - RESIZE_LIMITS.bottomPadding)
+  
+  // Calculate new dimensions with bounds checking
+  widgetWidth.value = Math.max(
+    RESIZE_LIMITS.minWidth,
+    Math.min(maxWidth, resizeState.value.startWidth + dx)
+  )
+  
+  messagesHeight.value = Math.max(
+    RESIZE_LIMITS.minHeight,
+    Math.min(maxHeight, resizeState.value.startHeight + dy)
+  )
 }
 
+/**
+ * Handles mouse up event to end resize operation
+ * Removes event listeners and resets state
+ */
 const onResizeMouseUp = () => {
   isResizing.value = false
+  document.body.style.userSelect = '' // Restore text selection
   window.removeEventListener('mousemove', onResizeMouseMove)
   window.removeEventListener('mouseup', onResizeMouseUp)
 }
 
+/**
+ * Cleanup resize event listeners on component unmount
+ * Ensures no memory leaks from global event listeners
+ */
 onBeforeUnmount(() => {
+  isResizing.value = false
+  document.body.style.userSelect = ''
   window.removeEventListener('mousemove', onResizeMouseMove)
   window.removeEventListener('mouseup', onResizeMouseUp)
 })
 
-// Initialize on mount
+/**
+ * Component initialization
+ * Shows API key notification if not configured
+ */
 onMounted(() => {
   if (!hasApiKey.value) {
     $q.notify({
       type: 'info',
-      message: 'Please configure your OpenAI API key in Settings',
+      message: 'Please configure your OpenAI API key in Settings to use the AI assistant',
       position: 'top',
+      timeout: 5000,
       actions: [
         {
           label: 'Go to Settings',
