@@ -1,6 +1,10 @@
 /**
  * Plugin Context Service
  * Provides structured context data to SmartButton plugins while maintaining privacy
+ * 
+ * This service aggregates data from visit, observation, and patient stores
+ * to provide contextual information for AI and plugin operations without
+ * exposing sensitive patient data.
  */
 
 import { useVisitStore } from 'src/stores/visit-store'
@@ -20,24 +24,34 @@ class PluginContextService {
     this.logger.debug('PluginContextService initialized')
   }
 
+  /**
+   * Lazily initializes Pinia stores to avoid timing issues
+   * @private
+   */
   _initializeStores() {
     if (!this.visitStore) {
       this.logger.debug('Initializing stores...')
-      this.visitStore = useVisitStore()
-      this.observationStore = useObservationStore()
-      this.patientStore = usePatientStore()
-      
-      this.logger.debug('Stores initialized', {
-        visitStoreExists: !!this.visitStore,
-        observationStoreExists: !!this.observationStore,
-        patientStoreExists: !!this.patientStore
-      })
+      try {
+        this.visitStore = useVisitStore()
+        this.observationStore = useObservationStore()
+        this.patientStore = usePatientStore()
+        
+        this.logger.debug('Stores initialized successfully', {
+          visitStoreExists: !!this.visitStore,
+          observationStoreExists: !!this.observationStore,
+          patientStoreExists: !!this.patientStore
+        })
+      } catch (error) {
+        this.logger.error('Failed to initialize stores', error)
+        throw new Error(`Store initialization failed: ${error.message}`)
+      }
     }
   }
 
   /**
    * Get current context data for plugins
    * Returns structured data without exposing patient information
+   * @returns {Object} Context object with visit and observation data
    */
   getContext() {
     try {
@@ -45,87 +59,60 @@ class PluginContextService {
       this._initializeStores()
       
       const selectedVisit = this.visitStore.selectedVisit
-      const observations = this.observationStore.observations
+      const observations = this.observationStore.observations || []
 
-      this.logger.debug('Getting context for visit', {
+      this.logger.debug('Retrieved store data', {
         visitId: selectedVisit?.id,
-        observationsCount: observations?.length || 0
+        observationsCount: observations.length
       })
 
-
-    if (!selectedVisit) {
-      this.logger.warn('No visit selected, returning no context')
-      return {
-        hasContext: false,
-        message: 'No visit selected'
+      if (!selectedVisit) {
+        this.logger.warn('No visit selected, returning no context')
+        return {
+          hasContext: false,
+          message: 'No visit selected'
+        }
       }
-    }
 
-    // Create sanitized context without patient information
-    this.logger.debug('Creating context object...')
-    
-    const groupedObservations = this._groupObservationsByCategory(observations)
-    const recentObservations = this._getRecentObservations(observations, 5)
-    const observationSummary = this._createObservationSummary(observations)
-    
-    this.logger.info('Observations extracted and processed', {
-      total: observations.length,
-      categories: Object.keys(groupedObservations),
-      recent: recentObservations.length,
-      recentObservations: recentObservations,
-      groupedObservations: groupedObservations
-    })
+      // Process observations data
+      const processedData = this._processObservations(observations)
+      
+      const context = {
+        hasContext: true,
+        visit: this._createVisitContext(selectedVisit),
+        observations: {
+          total: observations.length,
+          byCategory: processedData.grouped,
+          recent: processedData.recent,
+          summary: processedData.summary
+        },
+        fieldSets: this._getActiveFieldSets(),
+        timestamp: new Date().toISOString()
+      }
 
-    const context = {
-      hasContext: true,
-      visit: {
-        id: selectedVisit.id,
-        date: selectedVisit.date,
-        visitType: selectedVisit.visitType || 'unknown',
-        status: selectedVisit.status,
-        location: selectedVisit.location,
-        notes: selectedVisit.notes || '',
-        // Include visit blob data if available
-        visitBlob: selectedVisit.rawData?.VISIT_BLOB || null
-      },
-      observations: {
-        total: observations.length,
-        byCategory: groupedObservations,
-        recent: recentObservations,
-        // Include observation summaries without sensitive data
-        summary: observationSummary
-      },
-      // Include field sets if available
-      fieldSets: this._getActiveFieldSets(),
-      // Timestamp for context freshness
-      timestamp: new Date().toISOString()
-    }
-
-    this.logger.info('Context created successfully', {
-      hasContext: context.hasContext,
-      visitId: context.visit.id,
-      visitType: context.visit.visitType,
-      observationsTotal: context.observations.total,
-      categoriesCount: Object.keys(context.observations.byCategory).length,
-      recentObservationsCount: context.observations.recent.length
-    })
-
-    return context
-    } catch (error) {
-      this.logger.error('Failed to get plugin context', error, {
-        hasStores: !!(this.visitStore && this.observationStore && this.patientStore),
-        errorMessage: error.message,
-        errorStack: error.stack
+      this.logger.info('Context created successfully', {
+        hasContext: context.hasContext,
+        visitId: context.visit.id,
+        visitType: context.visit.visitType,
+        observationsTotal: context.observations.total,
+        categoriesCount: Object.keys(context.observations.byCategory).length,
+        recentObservationsCount: context.observations.recent.length
       })
+
+      return context
+    } catch (error) {
+      this.logger.error('Failed to get plugin context', error)
       return {
         hasContext: false,
-        message: 'Failed to load context: ' + error.message
+        message: `Failed to load context: ${error.message}`
       }
     }
   }
 
   /**
-   * Get context for AI prompts - includes more detailed information
+   * Get enhanced context data specifically for AI operations
+   * Includes additional details and insights for better AI analysis
+   * @returns {Object} Enhanced context object with AI-specific data
    */
   getAIContext() {
     try {
@@ -139,166 +126,253 @@ class PluginContextService {
       return {
         ...baseContext,
         ai: {
-          // Include observation details for AI analysis
           observationDetails: this._getObservationDetailsForAI(),
-          // Include visit notes and context
           visitContext: this._getVisitContextForAI(),
-          // Include field set information
           fieldSetInfo: this._getFieldSetInfoForAI(),
-          // Include data patterns and insights
           dataInsights: this._getDataInsights()
         }
       }
     } catch (error) {
-      console.warn('Failed to get AI context:', error)
+      this.logger.error('Failed to get AI context', error)
       return {
         hasContext: false,
-        message: 'Failed to load AI context: ' + error.message
+        message: `Failed to load AI context: ${error.message}`
       }
     }
   }
 
   /**
    * Get the appropriate display value for an observation based on its value type
+   * @param {Object} obs - Observation object
+   * @returns {string|number} Formatted display value
+   * @private
    */
   _getDisplayValue(obs) {
+    if (!obs) return 'N/A'
+    
     switch (obs.valueType) {
       case 'N': // Numeric value
-        return obs.numericValue
+        return obs.numericValue ?? obs.value
       case 'T': // Text value
-        return obs.value
+        return obs.value || ''
       case 'S': // Set value (concept code) - use resolved/display value
       case 'F': // Flag value (concept code) - use resolved/display value
-        // Use displayValue if available, otherwise fall back to resolvedValue or original value
-        return obs.displayValue || obs.resolvedValue || obs.value
+        return obs.displayValue || obs.resolvedValue || obs.value || ''
       default:
-        // For unknown types, prefer displayValue, then original value
-        return obs.displayValue || obs.value
+        return obs.displayValue || obs.value || 'N/A'
     }
   }
 
   /**
-   * Group observations by category
+   * Creates sanitized visit context without patient information
+   * @param {Object} visit - Visit object from store
+   * @returns {Object} Sanitized visit context
+   * @private
+   */
+  _createVisitContext(visit) {
+    return {
+      id: visit.id,
+      date: visit.date,
+      visitType: visit.visitType || 'unknown',
+      status: visit.status,
+      location: visit.location,
+      notes: visit.notes || '',
+      visitBlob: visit.rawData?.VISIT_BLOB || null
+    }
+  }
+
+  /**
+   * Processes observations data and returns grouped, recent, and summary data
+   * @param {Array} observations - Array of observation objects
+   * @returns {Object} Processed observation data
+   * @private
+   */
+  _processObservations(observations) {
+    if (!Array.isArray(observations)) {
+      this.logger.warn('_processObservations: observations is not an array', { observations })
+      observations = []
+    }
+
+    this.logger.debug('Processing observations', { count: observations.length })
+    
+    return {
+      grouped: this._groupObservationsByCategory(observations),
+      recent: this._getRecentObservations(observations, 5),
+      summary: this._createObservationSummary(observations)
+    }
+  }
+
+  /**
+   * Groups observations by category
+   * @param {Array} observations - Array of observation objects
+   * @returns {Object} Grouped observations by category
+   * @private
    */
   _groupObservationsByCategory(observations) {
-    this.logger.debug('Grouping observations by category', { count: observations.length })
-    
     const grouped = {}
+    
     observations.forEach(obs => {
       const category = obs.category || 'uncategorized'
       if (!grouped[category]) {
         grouped[category] = []
       }
+      
       grouped[category].push({
         conceptCode: obs.conceptCode,
         conceptName: obs.conceptName,
         value: this._getDisplayValue(obs),
-        unit: obs.unit && obs.unit !== 'N/A' ? obs.unit : null,
+        unit: this._normalizeUnit(obs.unit),
         date: obs.date || null,
         source: obs.source || null
       })
     })
     
-    
     return grouped
   }
 
   /**
-   * Get recent observations
+   * Gets recent observations up to the specified limit
+   * @param {Array} observations - Array of observation objects
+   * @param {number} limit - Maximum number of observations to return
+   * @returns {Array} Array of recent observations
+   * @private
    */
   _getRecentObservations(observations, limit = 5) {
+    if (!Array.isArray(observations) || observations.length === 0) {
+      return []
+    }
     
-    // Simply return all observations for the current visit, no date filtering needed
-    // The observations are already filtered by encounter_num in the store
     const recent = observations
-      .slice(0, limit) // Just take the first 'limit' observations
+      .slice(0, Math.max(0, limit))
       .map(obs => ({
         conceptCode: obs.conceptCode,
         conceptName: obs.conceptName,
         value: this._getDisplayValue(obs),
-        unit: obs.unit && obs.unit !== 'N/A' ? obs.unit : null,
+        unit: this._normalizeUnit(obs.unit),
         date: obs.date || null,
         category: obs.category
       }))
     
-    this.logger.info('Recent observations extracted', { 
-      count: recent.length,
-      observations: recent.map(obs => ({
-        concept: obs.conceptCode,
-        name: obs.conceptName,
-        value: obs.value,
-        unit: obs.unit,
-        category: obs.category,
-        valueType: observations.find(o => o.conceptCode === obs.conceptCode)?.valueType
-      }))
+    this.logger.debug('Recent observations extracted', {
+      requested: limit,
+      returned: recent.length,
+      total: observations.length
     })
     
     return recent
   }
 
   /**
-   * Create observation summary
+   * Creates a summary of observations data
+   * @param {Array} observations - Array of observation objects
+   * @returns {Object} Summary object with counts and metadata
+   * @private
    */
   _createObservationSummary(observations) {
-    const summary = {
+    if (!Array.isArray(observations)) {
+      return {
+        totalCount: 0,
+        categories: [],
+        dateRange: null,
+        valueTypes: []
+      }
+    }
+
+    const dateInfo = this._analyzeDates(observations)
+    
+    return {
       totalCount: observations.length,
       categories: Object.keys(this._groupObservationsByCategory(observations)),
-      dateRange: this._getDateRange(observations),
+      dateRange: dateInfo.range,
+      dateSpanDays: dateInfo.spanDays,
       valueTypes: this._getValueTypes(observations)
     }
-    return summary
   }
 
   /**
-   * Get active field sets
+   * Normalizes unit values, filtering out N/A and null values
+   * @param {string} unit - Unit string
+   * @returns {string|null} Normalized unit or null
+   * @private
+   */
+  _normalizeUnit(unit) {
+    if (!unit || unit === 'N/A' || unit === 'null') {
+      return null
+    }
+    return unit
+  }
+
+  /**
+   * Gets active field sets for the current context
+   * @returns {Array} Array of active field sets
+   * @private
+   * @todo Implement based on field set system
    */
   _getActiveFieldSets() {
-    // This would need to be implemented based on your field set system
-    // For now, return empty array
+    // TODO: Implement based on field set system when available
+    this.logger.debug('Getting active field sets (not implemented)')
     return []
   }
 
   /**
-   * Get observation details for AI analysis
+   * Gets detailed observation data for AI analysis
+   * @returns {Array} Array of detailed observation objects for AI
+   * @private
    */
   _getObservationDetailsForAI() {
-    const observations = this.observationStore.observations
-    return observations.map(obs => ({
-      conceptCode: obs.conceptCode,
-      conceptName: obs.conceptName,
-      value: this._getDisplayValue(obs),
-      unit: obs.unit && obs.unit !== 'N/A' ? obs.unit : null,
-      category: obs.category,
-      date: obs.date || null,
-      source: obs.source || null,
-      valueType: obs.valueType,
-      displayValue: obs.displayValue
-    }))
-  }
-
-  /**
-   * Get visit context for AI
-   */
-  _getVisitContextForAI() {
-    const visit = this.visitStore.selectedVisit
-    if (!visit) return null
-
-    return {
-      visitType: visit.visitType,
-      date: visit.date,
-      status: visit.status,
-      location: visit.location,
-      notes: visit.notes,
-      // Include parsed visit blob if available
-      visitBlobData: this._parseVisitBlob(visit.rawData?.VISIT_BLOB)
+    try {
+      const observations = this.observationStore?.observations || []
+      return observations.map(obs => ({
+        conceptCode: obs.conceptCode,
+        conceptName: obs.conceptName,
+        value: this._getDisplayValue(obs),
+        unit: this._normalizeUnit(obs.unit),
+        category: obs.category,
+        date: obs.date || null,
+        source: obs.source || null,
+        valueType: obs.valueType,
+        displayValue: obs.displayValue,
+        numericValue: obs.numericValue
+      }))
+    } catch (error) {
+      this.logger.error('Failed to get observation details for AI', error)
+      return []
     }
   }
 
   /**
-   * Get field set information for AI
+   * Gets visit context data for AI analysis
+   * @returns {Object|null} Visit context object or null if no visit
+   * @private
+   */
+  _getVisitContextForAI() {
+    try {
+      const visit = this.visitStore?.selectedVisit
+      if (!visit) return null
+
+      return {
+        visitType: visit.visitType,
+        date: visit.date,
+        status: visit.status,
+        location: visit.location,
+        notes: visit.notes,
+        visitBlobData: this._parseVisitBlob(visit.rawData?.VISIT_BLOB)
+      }
+    } catch (error) {
+      this.logger.error('Failed to get visit context for AI', error)
+      return null
+    }
+  }
+
+  /**
+   * Gets field set information for AI analysis
+   * @returns {Object} Field set information object
+   * @private
+   * @todo Implement based on field set system
    */
   _getFieldSetInfoForAI() {
-    // This would need to be implemented based on your field set system
+    // TODO: Implement based on field set system when available
+    this.logger.debug('Getting field set info for AI (not implemented)')
     return {
       activeFieldSets: [],
       availableFieldSets: []
@@ -306,69 +380,116 @@ class PluginContextService {
   }
 
   /**
-   * Get data insights
+   * Generates data insights for AI analysis
+   * @returns {Object} Data insights object
+   * @private
    */
   _getDataInsights() {
-    const observations = this.observationStore.observations
-    return {
-      hasNumericValues: observations.some(obs => obs.valueType === 'N'),
-      hasTextValues: observations.some(obs => obs.valueType === 'T'),
-      mostCommonCategory: this._getMostCommonCategory(observations),
-      dateSpan: this._getDateSpan(observations)
+    try {
+      const observations = this.observationStore?.observations || []
+      const dateInfo = this._analyzeDates(observations)
+      
+      return {
+        hasNumericValues: observations.some(obs => obs.valueType === 'N'),
+        hasTextValues: observations.some(obs => obs.valueType === 'T'),
+        mostCommonCategory: this._getMostCommonCategory(observations),
+        dateSpanDays: dateInfo.spanDays,
+        totalObservations: observations.length,
+        uniqueCategories: new Set(observations.map(obs => obs.category)).size
+      }
+    } catch (error) {
+      this.logger.error('Failed to get data insights', error)
+      return {
+        hasNumericValues: false,
+        hasTextValues: false,
+        mostCommonCategory: null,
+        dateSpanDays: 0,
+        totalObservations: 0,
+        uniqueCategories: 0
+      }
     }
   }
 
   /**
-   * Parse visit blob data
+   * Parses visit blob JSON data
+   * @param {string} visitBlob - JSON string to parse
+   * @returns {Object|null} Parsed object or null if parsing fails
+   * @private
    */
   _parseVisitBlob(visitBlob) {
-    if (!visitBlob) return null
+    if (!visitBlob || typeof visitBlob !== 'string') return null
     
     try {
       return JSON.parse(visitBlob)
     } catch (error) {
-      console.warn('Failed to parse visit blob:', error)
+      this.logger.warn('Failed to parse visit blob', { error: error.message, visitBlob: visitBlob.slice(0, 100) })
       return null
     }
   }
 
   /**
-   * Get date range of observations
+   * Analyzes dates in observations and returns range and span information
+   * @param {Array} observations - Array of observation objects
+   * @returns {Object} Date analysis object with range and span
+   * @private
    */
-  _getDateRange(observations) {
-    if (observations.length === 0) return null
+  _analyzeDates(observations) {
+    if (!Array.isArray(observations) || observations.length === 0) {
+      return {
+        range: null,
+        spanDays: 0
+      }
+    }
     
-    // Try to get date range, but don't fail if dates are invalid
     try {
       const validDates = observations
         .map(obs => obs.date)
         .filter(dateStr => dateStr && dateStr !== null && dateStr !== undefined)
-        .map(dateStr => new Date(dateStr))
-        .filter(date => !isNaN(date.getTime()))
+        .map(dateStr => {
+          const date = new Date(dateStr)
+          return isNaN(date.getTime()) ? null : date
+        })
+        .filter(date => date !== null)
       
       if (validDates.length === 0) {
-        return { start: 'N/A', end: 'N/A', note: 'No valid dates available' }
+        return {
+          range: { start: 'N/A', end: 'N/A', note: 'No valid dates available' },
+          spanDays: 0
+        }
       }
       
       const minDate = new Date(Math.min(...validDates))
       const maxDate = new Date(Math.max(...validDates))
+      const spanDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24))
       
       return {
-        start: minDate.toISOString().split('T')[0],
-        end: maxDate.toISOString().split('T')[0]
+        range: {
+          start: minDate.toISOString().split('T')[0],
+          end: maxDate.toISOString().split('T')[0]
+        },
+        spanDays: spanDays
       }
-    } catch {
-      return { start: 'N/A', end: 'N/A', note: 'Date parsing error' }
+    } catch (error) {
+      this.logger.warn('Error analyzing dates', error)
+      return {
+        range: { start: 'N/A', end: 'N/A', note: 'Date parsing error' },
+        spanDays: 0
+      }
     }
   }
 
   /**
-   * Get value types in observations
+   * Gets unique value types present in observations
+   * @param {Array} observations - Array of observation objects
+   * @returns {Array} Array of unique value types
+   * @private
    */
   _getValueTypes(observations) {
+    if (!Array.isArray(observations)) return []
+    
     const types = new Set()
     observations.forEach(obs => {
-      if (obs.valueType) {
+      if (obs && obs.valueType) {
         types.add(obs.valueType)
       }
     })
@@ -376,13 +497,20 @@ class PluginContextService {
   }
 
   /**
-   * Get most common category
+   * Finds the most common category in observations
+   * @param {Array} observations - Array of observation objects
+   * @returns {string|null} Most common category or null if none found
+   * @private
    */
   _getMostCommonCategory(observations) {
+    if (!Array.isArray(observations) || observations.length === 0) return null
+    
     const categoryCount = {}
     observations.forEach(obs => {
-      const category = obs.category || 'uncategorized'
-      categoryCount[category] = (categoryCount[category] || 0) + 1
+      if (obs) {
+        const category = obs.category || 'uncategorized'
+        categoryCount[category] = (categoryCount[category] || 0) + 1
+      }
     })
     
     let maxCount = 0
@@ -397,30 +525,6 @@ class PluginContextService {
     return mostCommon
   }
 
-  /**
-   * Get date span of observations
-   */
-  _getDateSpan(observations) {
-    if (observations.length === 0) return 0
-    
-    // Try to calculate date span, but return 0 if dates are not available
-    try {
-      const validDates = observations
-        .map(obs => obs.date)
-        .filter(dateStr => dateStr && dateStr !== null && dateStr !== undefined)
-        .map(dateStr => new Date(dateStr))
-        .filter(date => !isNaN(date.getTime()))
-      
-      if (validDates.length === 0) return 0
-      
-      const minDate = new Date(Math.min(...validDates))
-      const maxDate = new Date(Math.max(...validDates))
-      
-      return Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24)) // days
-    } catch {
-      return 0
-    }
-  }
 }
 
 // Export singleton instance
