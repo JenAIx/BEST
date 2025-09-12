@@ -263,7 +263,16 @@
     "chooseExistingOrCreate": "Choose an existing visit or create a new one",
     "noObservationCategories": "No observation categories selected",
     "chooseCategoriesAbove": "Choose categories above to start entering data",
-    "configureCategories": "Configure Categories"
+    "configureCategories": "Configure Categories",
+    "location": "Location",
+    "quickTemplates": "Quick Templates",
+    "cancel": "Cancel",
+    "createVisit": "Create Visit",
+    "typeToAddCustomLocation": "Type to add custom location",
+    "usingDefaultOptions": "Using default options. Some settings may not be available.",
+    "appliedTemplate": "Applied \"{templateName}\" template",
+    "failedToCreateVisit": "Failed to create visit",
+    "patientNotFound": "Patient not found"
   },
   "observation": {
     "observation": "Observation",

@@ -263,7 +263,16 @@
     "chooseExistingOrCreate": "Wählen Sie einen vorhandenen Besuch oder erstellen Sie einen neuen",
     "noObservationCategories": "Keine Beobachtungskategorien ausgewählt",
     "chooseCategoriesAbove": "Wählen Sie oben Kategorien aus, um mit der Dateneingabe zu beginnen",
-    "configureCategories": "Kategorien konfigurieren"
+    "configureCategories": "Kategorien konfigurieren",
+    "location": "Standort",
+    "quickTemplates": "Schnellvorlagen",
+    "cancel": "Abbrechen",
+    "createVisit": "Besuch erstellen",
+    "typeToAddCustomLocation": "Eingeben, um benutzerdefinierten Standort hinzuzufügen",
+    "usingDefaultOptions": "Standard-Optionen werden verwendet. Einige Einstellungen sind möglicherweise nicht verfügbar.",
+    "appliedTemplate": "Vorlage \"{templateName}\" angewendet",
+    "failedToCreateVisit": "Erstellen des Besuchs fehlgeschlagen",
+    "patientNotFound": "Patient nicht gefunden"
   },
   "observation": {
     "observation": "Beobachtung",

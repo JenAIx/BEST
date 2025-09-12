@@ -28,7 +28,7 @@
               </q-input>
             </div>
             <div class="col-12 col-md-6">
-              <q-input v-model="visitData.time" type="time" label="Visit Time (optional)" outlined>
+              <q-input v-model="visitData.time" type="time" :label="$t('visit.visitTime')" outlined>
                 <template v-slot:prepend>
                   <q-icon name="schedule" />
                 </template>
@@ -36,7 +36,7 @@
             </div>
           </div>
 
-          <q-select v-model="visitData.type" :options="visitTypes" label="Visit Type" outlined emit-value map-options>
+          <q-select v-model="visitData.type" :options="visitTypes" :label="$t('visit.visitType')" outlined emit-value map-options>
             <template v-slot:prepend>
               <q-icon :name="getTypeIcon(visitData.type)" />
             </template>
@@ -53,18 +53,18 @@
             </template>
           </q-select>
 
-          <q-select v-model="visitData.location" :options="locationOptions" label="Location" outlined emit-value map-options use-input @filter="filterLocations">
+          <q-select v-model="visitData.location" :options="locationOptions" :label="$t('visit.location')" outlined emit-value map-options use-input @filter="filterLocations">
             <template v-slot:prepend>
               <q-icon name="place" />
             </template>
             <template v-slot:no-option>
               <q-item>
-                <q-item-section class="text-grey"> Type to add custom location </q-item-section>
+                <q-item-section class="text-grey">{{ $t('visit.typeToAddCustomLocation') }}</q-item-section>
               </q-item>
             </template>
           </q-select>
 
-          <q-input v-model="visitData.notes" type="textarea" label="Visit Notes (optional)" outlined rows="3" counter maxlength="500">
+          <q-input v-model="visitData.notes" type="textarea" :label="$t('visit.visitNotes')" outlined rows="3" counter maxlength="500">
             <template v-slot:prepend>
               <q-icon name="notes" />
             </template>
@@ -72,7 +72,7 @@
 
           <!-- Quick templates -->
           <div class="quick-templates">
-            <div class="text-subtitle2 q-mb-sm">Quick Templates:</div>
+            <div class="text-subtitle2 q-mb-sm">{{ $t('visit.quickTemplates') }}:</div>
             <div class="template-chips">
               <q-chip
                 v-for="template in quickTemplates"
@@ -91,8 +91,8 @@
       </q-card-section>
 
       <q-card-actions align="right" class="q-pa-md">
-        <q-btn flat label="Cancel" @click="closeDialog" />
-        <q-btn color="primary" label="Create Visit" @click="saveVisit" :loading="creating" :disable="!isFormValid" />
+        <q-btn flat :label="$t('visit.cancel')" @click="closeDialog" />
+        <q-btn color="primary" :label="$t('visit.createVisit')" @click="saveVisit" :loading="creating" :disable="!isFormValid" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -101,6 +101,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -121,6 +122,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'created'])
 
 const $q = useQuasar()
+const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const visitStore = useVisitStore()
 const globalSettingsStore = useGlobalSettingsStore()
@@ -214,23 +216,11 @@ const loadOptions = async () => {
         }))
       } else {
         // Fallback to hardcoded options if not in database
-        locationOptions.value = [
-          { label: 'Main Clinic', value: 'CLINIC' },
-          { label: 'Emergency Room', value: 'ER' },
-          { label: 'Outpatient', value: 'OUTPATIENT' },
-          { label: 'Home Visit', value: 'HOME' },
-          { label: 'Telemedicine', value: 'TELEHEALTH' },
-        ]
+        locationOptions.value = [{ label: 'Main Clinic', value: 'CLINIC' }]
       }
     } catch {
       // Use fallback if location lookup fails
-      locationOptions.value = [
-        { label: 'Main Clinic', value: 'CLINIC' },
-        { label: 'Emergency Room', value: 'ER' },
-        { label: 'Outpatient', value: 'OUTPATIENT' },
-        { label: 'Home Visit', value: 'HOME' },
-        { label: 'Telemedicine', value: 'TELEHEALTH' },
-      ]
+      locationOptions.value = [{ label: 'Main Clinic', value: 'CLINIC' }]
     }
 
     filteredLocationOptions.value = [...locationOptions.value]
@@ -261,7 +251,7 @@ const loadOptions = async () => {
     logger.error('Failed to load options from global settings', error)
     $q.notify({
       type: 'warning',
-      message: 'Using default options. Some settings may not be available.',
+      message: t('visit.usingDefaultOptions'),
       position: 'top',
     })
 
@@ -312,7 +302,6 @@ const getTypeIcon = (type) => {
   return typeObj?.icon || 'local_hospital'
 }
 
-
 const filterLocations = (val, update) => {
   update(() => {
     if (val === '') {
@@ -360,7 +349,7 @@ const applyTemplate = (template) => {
 
   $q.notify({
     type: 'positive',
-    message: `Applied "${template.name}" template`,
+    message: t('visit.appliedTemplate', { templateName: template.name }),
     position: 'top',
     color: template.color || 'primary',
     icon: template.icon || 'assignment',
@@ -377,7 +366,7 @@ const saveVisit = async () => {
 
     const patient = await patientRepo.findByPatientCode(props.patient.id)
     if (!patient) {
-      throw new Error('Patient not found')
+      throw new Error(t('visit.patientNotFound'))
     }
 
     // Combine date and time if provided
@@ -418,7 +407,7 @@ const saveVisit = async () => {
     logger.error('Failed to create visit', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to create visit',
+      message: t('visit.failedToCreateVisit'),
       position: 'top',
     })
   } finally {
