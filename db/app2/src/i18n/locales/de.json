@@ -263,9 +263,7 @@
     "chooseExistingOrCreate": "Wählen Sie einen vorhandenen Besuch oder erstellen Sie einen neuen",
     "noObservationCategories": "Keine Beobachtungskategorien ausgewählt",
     "chooseCategoriesAbove": "Wählen Sie oben Kategorien aus, um mit der Dateneingabe zu beginnen",
-    "configureCategories": "Kategorien konfigurieren",
-    "editVisit": "Besuch bearbeiten",
-    "newVisit": "Neuer Besuch"
+    "configureCategories": "Kategorien konfigurieren"
   },
   "observation": {
     "observation": "Beobachtung",
@@ -476,7 +474,6 @@
     "importError": "Import-Fehler",
     "importPatientData": "Patientendaten aus Dateien importieren",
     "backToUpload": "Zurück zum Datei-Upload",
-    "uploadFile": "Datei hochladen",
     "analyzeFile": "Datei analysieren",
     "selectMode": "Modus auswählen",
     "uploadDataFile": "Datendatei hochladen",
@@ -551,14 +548,6 @@
     "searchingPatients": "Patienten werden gesucht...",
     "foundPatients": "{count} Patient(en) gefunden"
   },
-  "notifications": {
-    "countNotifications": "{count} Benachrichtigungen",
-    "noNewNotifications": "Keine neuen Benachrichtigungen",
-    "recentNotifications": "Aktuelle Benachrichtigungen",
-    "noRecentNotifications": "Keine aktuellen Benachrichtigungen",
-    "clearAllLogs": "Alle Logs löschen",
-    "exportLogs": "Logs exportieren"
-  },
   "concepts": {
     "conceptsAdministration": "Konzepte-Administration",
     "showingConcepts": "{showing} von {total} Konzepten angezeigt",
@@ -583,5 +572,32 @@
     "findPatient": "Patient finden",
     "searchPatientPlaceholder": "Nach Name oder Patienten-ID suchen...",
     "dragToResize": "Ziehen zum Ändern der Beobachtungsspalten-Größe"
+  },
+  "notifications": {
+    "countNotifications": "{count} Benachrichtigungen",
+    "noNewNotifications": "Keine neuen Benachrichtigungen",
+    "recentNotifications": "Aktuelle Benachrichtigungen",
+    "noRecentNotifications": "Keine aktuellen Benachrichtigungen",
+    "clearAllLogs": "Alle Logs löschen",
+    "exportLogs": "Logs exportieren",
+    "usingDefaultFieldSets": "Standard-Feldgruppen werden verwendet. Einige Konfigurationen sind möglicherweise nicht verfügbar.",
+    "failedToLoadVisitData": "Laden der Besuchsdaten fehlgeschlagen",
+    "fieldSetConfigurationSaved": "Feldgruppen-Konfiguration gespeichert",
+    "valueClonedFromPrevious": "Wert aus vorherigem Besuch geklont",
+    "failedToCloneValue": "Klonen des Werts fehlgeschlagen",
+    "customObservationAdded": "Benutzerdefinierte Beobachtung erfolgreich hinzugefügt",
+    "failedToLoadStudies": "Laden der Studien fehlgeschlagen",
+    "failedToLoadStudyAnalytics": "Laden der Studien-Analytik fehlgeschlagen",
+    "errorSwitchingLanguage": "Fehler beim Sprachwechsel",
+    "failedToLoadRecentPatients": "Laden der aktuellen Patienten fehlgeschlagen",
+    "failedToLoadDashboardStatistics": "Laden der Dashboard-Statistiken fehlgeschlagen",
+    "failedToLoadTableData": "Laden der Tabellendaten fehlgeschlagen",
+    "filtersCleared": "Filter zurückgesetzt",
+    "pleaseWaitPatientDeleting": "Bitte warten Sie, während der Patient gelöscht wird...",
+    "failedToLoadDashboardData": "Laden der Dashboard-Daten fehlgeschlagen",
+    "loginFailed": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
+    "contactAdminForPasswordReset": "Bitte wenden Sie sich an Ihren Systemadministrator, um Ihr Passwort zurückzusetzen.",
+    "enterFolderPathManually": "Bitte geben Sie den Ordnerpfad manuell ein",
+    "errorOpeningFolderDialog": "Fehler beim Öffnen des Ordner-Dialogs"
   }
 }

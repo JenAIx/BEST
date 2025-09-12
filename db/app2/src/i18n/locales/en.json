@@ -263,9 +263,7 @@
     "chooseExistingOrCreate": "Choose an existing visit or create a new one",
     "noObservationCategories": "No observation categories selected",
     "chooseCategoriesAbove": "Choose categories above to start entering data",
-    "configureCategories": "Configure Categories",
-    "editVisit": "Edit Visit",
-    "newVisit": "New Visit"
+    "configureCategories": "Configure Categories"
   },
   "observation": {
     "observation": "Observation",
@@ -475,7 +473,6 @@
     "importError": "Import Error",
     "importPatientData": "Import patient data from files",
     "backToUpload": "Back to File Upload",
-    "uploadFile": "Upload File",
     "analyzeFile": "Analyze File",
     "selectMode": "Select Mode",
     "uploadDataFile": "Upload Data File",
@@ -550,14 +547,6 @@
     "searchingPatients": "Searching patients...",
     "foundPatients": "Found {count} patient(s)"
   },
-  "notifications": {
-    "countNotifications": "{count} notifications",
-    "noNewNotifications": "No new notifications",
-    "recentNotifications": "Recent Notifications",
-    "noRecentNotifications": "No recent notifications",
-    "clearAllLogs": "Clear All Logs",
-    "exportLogs": "Export Logs"
-  },
   "concepts": {
     "conceptsAdministration": "Concepts Administration",
     "showingConcepts": "Showing {showing} of {total} concepts",
@@ -582,5 +571,32 @@
     "findPatient": "Find Patient",
     "searchPatientPlaceholder": "Search by name or Patient ID...",
     "dragToResize": "Drag to resize observation column"
+  },
+  "notifications": {
+    "countNotifications": "{count} notifications",
+    "noNewNotifications": "No new notifications",
+    "recentNotifications": "Recent Notifications",
+    "noRecentNotifications": "No recent notifications",
+    "clearAllLogs": "Clear All Logs",
+    "exportLogs": "Export Logs",
+    "usingDefaultFieldSets": "Using default field sets. Some configurations may not be available.",
+    "failedToLoadVisitData": "Failed to load visit data",
+    "fieldSetConfigurationSaved": "Field set configuration saved",
+    "valueClonedFromPrevious": "Value cloned from previous visit",
+    "failedToCloneValue": "Failed to clone value",
+    "customObservationAdded": "Custom observation added successfully",
+    "failedToLoadStudies": "Failed to load studies",
+    "failedToLoadStudyAnalytics": "Failed to load study analytics",
+    "errorSwitchingLanguage": "Error switching language",
+    "failedToLoadRecentPatients": "Failed to load recent patients",
+    "failedToLoadDashboardStatistics": "Failed to load dashboard statistics",
+    "failedToLoadTableData": "Failed to load table data",
+    "filtersCleared": "Filters cleared",
+    "pleaseWaitPatientDeleting": "Please wait while the patient is being deleted...",
+    "failedToLoadDashboardData": "Failed to load dashboard data",
+    "loginFailed": "Login failed. Please try again.",
+    "contactAdminForPasswordReset": "Please contact your system administrator to reset your password.",
+    "enterFolderPathManually": "Please enter the folder path manually",
+    "errorOpeningFolderDialog": "Error opening folder dialog"
   }
 }

@@ -107,6 +107,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
@@ -140,6 +141,7 @@ const props = defineProps({
 const emit = defineEmits(['visit-created'])
 
 const $q = useQuasar()
+const { t } = useI18n()
 const patientStore = usePatientStore()
 const visitStore = useVisitStore()
 const observationStore = useObservationStore()
@@ -273,7 +275,7 @@ const loadFieldSets = async () => {
     logger.error('Failed to load field sets from global settings', error)
     $q.notify({
       type: 'warning',
-      message: 'Using default field sets. Some configurations may not be available.',
+      message: t('notifications.usingDefaultFieldSets'),
       position: 'top',
     })
 
@@ -412,7 +414,7 @@ const onVisitSelected = async (visit) => {
     logger.error('Failed to select visit', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to load visit data',
+      message: t('notifications.failedToLoadVisitData'),
       position: 'top',
     })
   }
@@ -436,7 +438,7 @@ const onFieldSetConfigSave = (selectedFieldSets) => {
 
   $q.notify({
     type: 'positive',
-    message: 'Field set configuration saved',
+    message: t('notifications.fieldSetConfigurationSaved'),
     position: 'top',
   })
 }
@@ -534,14 +536,14 @@ const onCloneFromPrevious = async (data) => {
 
     $q.notify({
       type: 'positive',
-      message: 'Value cloned from previous visit',
+      message: t('notifications.valueClonedFromPrevious'),
       position: 'top',
     })
   } catch (error) {
     logger.error('Failed to clone from previous visit', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to clone value',
+      message: t('notifications.failedToCloneValue'),
       position: 'top',
     })
   }
@@ -560,7 +562,7 @@ const onCustomObservationAdded = (data) => {
 
   $q.notify({
     type: 'positive',
-    message: 'Custom observation added successfully',
+    message: t('notifications.customObservationAdded'),
     position: 'top',
   })
 }
