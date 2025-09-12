@@ -6,7 +6,7 @@
       v-model="searchQuery"
       dense
       outlined
-      placeholder="Search patients: P001, John Doe..."
+      :placeholder="$t('search.searchPatientsPlaceholder')"
       class="smart-search__input"
       bg-color="grey-1"
       @focus="onFocus"
@@ -19,10 +19,10 @@
       </template>
       <template v-slot:append>
         <q-btn v-if="searchQuery" flat round dense icon="close" size="sm" @click="clearSearch" class="q-mr-xs">
-          <q-tooltip>Clear search</q-tooltip>
+          <q-tooltip>{{ $t('search.clearSearch') }}</q-tooltip>
         </q-btn>
         <q-btn v-if="searchQuery" flat round dense icon="arrow_forward" size="sm" color="primary" @click="onEnterSearch">
-          <q-tooltip>Search</q-tooltip>
+          <q-tooltip>{{ $t('common.search') }}</q-tooltip>
         </q-btn>
       </template>
     </q-input>
@@ -33,14 +33,14 @@
         <!-- Loading State -->
         <div v-if="isSearching" class="text-center q-pa-xl">
           <q-spinner-dots size="40px" color="primary" />
-          <div class="text-grey-6 q-mt-md">Searching patients...</div>
+          <div class="text-grey-6 q-mt-md">{{ $t('search.searchingPatients') }}</div>
         </div>
 
         <!-- Search Results -->
         <div v-else-if="searchResults.length > 0" class="q-pa-md">
           <div class="text-h6 q-mb-md text-grey-8">
             <q-icon name="people" class="q-mr-sm" />
-            Found {{ searchResults.length }} patient{{ searchResults.length > 1 ? 's' : '' }}
+            {{ $t('search.foundPatients', { count: searchResults.length }) }}
           </div>
 
           <q-list separator>

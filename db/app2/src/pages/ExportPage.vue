@@ -1,13 +1,13 @@
 <template>
   <q-page class="export-page">
     <div class="q-pa-md">
-      <div class="text-h4 q-mb-md">Export Data</div>
+      <div class="text-h4 q-mb-md">{{ $t('export.exportData') }}</div>
 
       <!-- Patient Data Explorer -->
       <q-card>
         <q-card-section>
-          <div class="text-h6">Patient Data Export</div>
-          <div class="text-caption text-grey-6 q-mt-xs">Select patients and configure export options</div>
+          <div class="text-h6">{{ $t('export.patientDataExport') }}</div>
+          <div class="text-caption text-grey-6 q-mt-xs">{{ $t('export.selectPatientsHint') }}</div>
         </q-card-section>
 
         <q-separator />
@@ -16,21 +16,21 @@
         <q-card-section>
           <div class="row q-col-gutter-md items-end">
             <div class="col-12 col-md-4">
-              <q-input v-model="filters.search" label="Search by name or Patient ID" outlined dense clearable debounce="300" placeholder="Search patients...">
+              <q-input v-model="filters.search" :label="$t('export.searchByNameOrId')" outlined dense clearable debounce="300" :placeholder="$t('export.searchPatientsPlaceholder')">
                 <template v-slot:prepend>
                   <q-icon name="search" />
                 </template>
               </q-input>
             </div>
             <div class="col-12 col-md-3">
-              <q-select v-model="filters.gender" :options="genderOptions" label="Gender" outlined dense clearable emit-value map-options />
+              <q-select v-model="filters.gender" :options="genderOptions" :label="$t('patient.gender')" outlined dense clearable emit-value map-options />
             </div>
             <div class="col-12 col-md-3">
-              <q-select v-model="filters.status" :options="statusOptions" label="Vital Status" outlined dense clearable emit-value map-options />
+              <q-select v-model="filters.status" :options="statusOptions" :label="$t('export.vitalStatus')" outlined dense clearable emit-value map-options />
             </div>
             <div class="col-12 col-md-2 text-right">
               <q-btn round flat icon="clear_all" color="grey-7" @click="clearFilters" size="md">
-                <q-tooltip>Clear all filters</q-tooltip>
+                <q-tooltip>{{ $t('export.clearAllFilters') }}</q-tooltip>
               </q-btn>
             </div>
           </div>
@@ -208,19 +208,13 @@ const loadTableData = async () => {
     }
 
     if (filters.value.gender) {
-      // Use concept store to get code from label
-      const genderCode = conceptStore.getCodeFromLabel(filters.value.gender, 'gender')
-      if (genderCode) {
-        criteria.SEX_CD = genderCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.SEX_CD = filters.value.gender
     }
 
     if (filters.value.status) {
-      // Use concept store to get code from label
-      const statusCode = conceptStore.getCodeFromLabel(filters.value.status, 'vital_status')
-      if (statusCode) {
-        criteria.VITAL_STATUS_CD = statusCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.VITAL_STATUS_CD = filters.value.status
     }
 
     // Add sorting options

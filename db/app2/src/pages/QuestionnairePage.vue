@@ -9,18 +9,18 @@
             <p class="text-body1 text-grey-6 q-ma-none">Select and complete medical questionnaires</p>
           </div>
           <div v-if="currentStep === 'questionnaire'" class="header-actions">
-            <q-btn flat color="grey-7" icon="arrow_back" label="Back to Selection" @click="goBackToSelection" />
+            <q-btn flat color="grey-7" icon="arrow_back" :label="$t('common.back')" @click="goBackToSelection" />
           </div>
         </div>
       </div>
 
       <!-- Step Indicator -->
       <q-stepper v-model="currentStepNumber" color="primary" animated flat bordered class="q-mb-lg">
-        <q-step :name="1" title="Select Patient" icon="person" :done="currentStepNumber > 1" />
-        <q-step :name="2" title="Select Visit" icon="event" :done="currentStepNumber > 2" />
-        <q-step :name="3" title="Choose Questionnaire" icon="quiz" :done="currentStepNumber > 3" />
-        <q-step :name="4" title="Complete Questionnaire" icon="edit" :done="currentStepNumber > 4" />
-        <q-step :name="5" title="Review & Submit" icon="check" :done="submissionComplete" />
+        <q-step :name="1" :title="$t('visit.selectPatient')" icon="person" :done="currentStepNumber > 1" />
+        <q-step :name="2" :title="$t('visit.selectVisit')" icon="event" :done="currentStepNumber > 2" />
+        <q-step :name="3" :title="$t('questionnaire.chooseQuestionnaire')" icon="quiz" :done="currentStepNumber > 3" />
+        <q-step :name="4" :title="$t('questionnaire.fillQuestionnaire')" icon="edit" :done="currentStepNumber > 4" />
+        <q-step :name="5" :title="$t('common.submit')" icon="check" :done="submissionComplete" />
       </q-stepper>
 
       <!-- Main Content -->
@@ -28,7 +28,7 @@
         <!-- Step 1: Patient Selection -->
         <div v-if="currentStep === 'patient'" class="step-content">
           <PatientSelectionCard
-            title="Select Patient"
+            :title="$t('visit.selectPatient')"
             description="Choose the patient for whom you want to complete a questionnaire."
             :selected-patient="selectedPatient"
             @patient-selected="selectPatient"
@@ -51,7 +51,7 @@
                       <div class="text-subtitle2">{{ getVisitDisplayName() }}</div>
                       <div class="text-caption text-grey-6">{{ getVisitDetails() }}</div>
                     </div>
-                    <q-btn flat size="sm" color="primary" label="Change Visit" @click="openVisitSelection" />
+                    <q-btn flat size="sm" color="primary" :label="$t('visit.changeVisit')" @click="openVisitSelection" />
                   </q-card-section>
                 </q-card>
               </div>
@@ -107,8 +107,8 @@
 
               <!-- Actions -->
               <div class="q-gutter-md">
-                <q-btn color="primary" label="Complete Another Questionnaire" @click="startOver" />
-                <q-btn flat color="grey-7" label="View Patient Record" @click="goToPatientRecord" />
+                <q-btn color="primary" :label="$t('questionnaire.completeAnother')" @click="startOver" />
+                <q-btn flat color="grey-7" :label="$t('patient.viewRecord')" @click="goToPatientRecord" />
               </div>
             </q-card-section>
           </q-card>

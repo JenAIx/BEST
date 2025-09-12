@@ -4,13 +4,13 @@
     <q-header elevated class="bg-white text-dark">
       <q-toolbar class="q-py-sm">
         <!-- Menu Toggle -->
-        <q-btn flat dense round icon="menu" aria-label="Menu" @click="toggleLeftDrawer" class="q-mr-sm" />
+        <q-btn flat dense round icon="menu" :aria-label="$t('common.menu')" @click="toggleLeftDrawer" class="q-mr-sm" />
 
         <!-- Logo and Brand -->
         <q-toolbar-title class="flex items-center cursor-pointer" @click="router.push('/dashboard')">
           <q-icon name="medical_services" size="32px" color="primary" class="q-mr-sm" />
           <span class="text-h6 text-weight-medium">BEST</span>
-          <q-tooltip>Best Medical System, click to go to the Dashboard</q-tooltip>
+          <q-tooltip>{{ $t('auth.appName') }}, click to go to the {{ $t('common.dashboard') }}</q-tooltip>
         </q-toolbar-title>
 
         <!-- Mode Toggle - Only show on Dashboard -->
@@ -19,8 +19,8 @@
           v-model="viewMode"
           toggle-color="primary"
           :options="[
-            { label: 'Visit Mode', value: 'visit', icon: 'person' },
-            { label: 'Deep Work', value: 'deep', icon: 'analytics' },
+            { label: $t('dashboard.visitMode'), value: 'visit', icon: 'person' },
+            { label: $t('dashboard.deepWork'), value: 'deep', icon: 'analytics' },
           ]"
           unelevated
           size="sm"
@@ -29,6 +29,13 @@
 
         <!-- Smart Search -->
         <SmartSearch class="q-mr-md" @search-active="onSearchActive" @search-cleared="onSearchCleared" />
+
+        <!-- Language Toggle -->
+        <q-btn flat dense color="grey-7" @click="toggleLanguage" class="q-mr-md">
+          <q-icon name="language" class="q-mr-xs" />
+          {{ currentLanguageFlag }}
+          <q-tooltip>{{ $t('settings.languageSettings') }}</q-tooltip>
+        </q-btn>
 
         <!-- Notifications -->
         <NotificationButton />
@@ -56,13 +63,13 @@
                 <q-item-section avatar>
                   <q-icon name="settings" />
                 </q-item-section>
-                <q-item-section>Settings</q-item-section>
+                <q-item-section>{{ $t('common.settings') }}</q-item-section>
               </q-item>
               <q-item clickable v-close-popup @click="onLogout">
                 <q-item-section avatar>
                   <q-icon name="logout" />
                 </q-item-section>
-                <q-item-section>Logout</q-item-section>
+                <q-item-section>{{ $t('common.logout') }}</q-item-section>
               </q-item>
             </q-list>
           </q-menu>
@@ -70,7 +77,7 @@
 
         <!-- Connection Status -->
         <q-chip :color="isConnected ? 'positive' : 'negative'" text-color="white" size="sm" icon="storage" class="q-ml-sm">
-          {{ isConnected ? 'Connected' : 'Disconnected' }}
+          <q-tooltip>{{ isConnected ? $t('common.connected') : $t('common.disconnected') }}</q-tooltip>
         </q-chip>
       </q-toolbar>
     </q-header>
@@ -96,114 +103,128 @@
             <q-item-section avatar>
               <q-icon name="dashboard" />
             </q-item-section>
-            <q-item-section> Dashboard </q-item-section>
+            <q-item-section>{{ $t('navigation.dashboard') }}</q-item-section>
           </q-item>
 
           <q-separator spaced />
 
           <!-- Patient Management -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7"> Patient Management </q-item-label>
+          <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.patientManagement') }}</q-item-label>
 
           <q-item clickable v-ripple to="/patients" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="people" />
             </q-item-section>
-            <q-item-section> Patient Search </q-item-section>
+            <q-item-section>{{ $t('navigation.patientSearch') }}</q-item-section>
           </q-item>
 
           <q-item clickable v-ripple to="/visits" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="event" />
             </q-item-section>
-            <q-item-section> Visits </q-item-section>
+            <q-item-section>{{ $t('navigation.patientVisits') }}</q-item-section>
           </q-item>
 
           <q-item clickable v-ripple to="/questionnaires" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="quiz" />
             </q-item-section>
-            <q-item-section> Questionnaires </q-item-section>
+            <q-item-section>{{ $t('navigation.questionnaires') }}</q-item-section>
           </q-item>
 
           <q-separator spaced />
 
           <!-- Study Management -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7"> Study Management </q-item-label>
+          <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.studyManagement') }}</q-item-label>
 
           <q-item clickable v-ripple to="/studies" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="science" />
             </q-item-section>
-            <q-item-section> Study Search </q-item-section>
+            <q-item-section>{{ $t('navigation.studySearch') }}</q-item-section>
           </q-item>
 
           <q-item clickable v-ripple to="/data-grid" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="grid_on" />
             </q-item-section>
-            <q-item-section> Data Grid </q-item-section>
+            <q-item-section>{{ $t('navigation.dataGrid') }}</q-item-section>
           </q-item>
 
-          <q-separator spaced />
+          <!-- Administration (Admin only) -->
+          <template v-if="isAdmin">
+            <q-separator spaced />
 
-          <!-- Administration -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7"> Administration </q-item-label>
+            <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.administration') }}</q-item-label>
 
-          <q-item v-if="canAccess('/concepts')" clickable v-ripple to="/concepts" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="category" />
-            </q-item-section>
-            <q-item-section> Concepts </q-item-section>
-          </q-item>
+            <q-item v-if="canAccess('/concepts')" clickable v-ripple to="/concepts" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="category" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.concepts') }}</q-item-section>
+            </q-item>
 
-          <q-item v-if="canAccess('/cql')" clickable v-ripple to="/cql" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="code" />
-            </q-item-section>
-            <q-item-section> CQL Rules </q-item-section>
-          </q-item>
+            <q-item v-if="canAccess('/cql')" clickable v-ripple to="/cql" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="code" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.cqlRules') }}</q-item-section>
+            </q-item>
 
-          <q-item v-if="isAdmin" clickable v-ripple to="/users" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="manage_accounts" />
-            </q-item-section>
-            <q-item-section> User Management </q-item-section>
-          </q-item>
+            <q-item clickable v-ripple to="/users" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="manage_accounts" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.userManagement') }}</q-item-section>
+            </q-item>
 
-          <q-item v-if="isAdmin" clickable v-ripple to="/global-settings" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="settings_applications" />
-            </q-item-section>
-            <q-item-section> Global Settings </q-item-section>
-          </q-item>
+            <q-item clickable v-ripple to="/global-settings" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="settings_applications" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.globalSettings') }}</q-item-section>
+            </q-item>
+          </template>
 
           <q-separator spaced />
 
           <!-- Data Operations -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7"> Data Operations </q-item-label>
+          <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.dataOperations') }}</q-item-label>
 
           <q-item clickable v-ripple to="/import" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="upload" />
             </q-item-section>
-            <q-item-section> Import Data </q-item-section>
+            <q-item-section>{{ $t('navigation.import') }}</q-item-section>
           </q-item>
 
           <q-item clickable v-ripple to="/export" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="download" />
             </q-item-section>
-            <q-item-section> Export Data </q-item-section>
+            <q-item-section>{{ $t('navigation.export') }}</q-item-section>
           </q-item>
 
-          <!-- Development -->
+          <!-- Development (Admin only) -->
+          <template v-if="isAdmin">
+            <q-separator spaced />
+
+            <q-item clickable v-ripple to="/database-test" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="bug_report" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.databaseTest') }}</q-item-section>
+            </q-item>
+          </template>
+
+          <!-- Support & Feedback -->
           <q-separator spaced />
 
-          <q-item clickable v-ripple to="/database-test" active-class="bg-primary text-white">
+          <q-item clickable v-ripple to="/feedback" active-class="bg-primary text-white">
             <q-item-section avatar>
-              <q-icon name="bug_report" />
+              <q-icon name="feedback" />
             </q-item-section>
-            <q-item-section> Database Test </q-item-section>
+            <q-item-section>{{ $t('navigation.feedback') }}</q-item-section>
           </q-item>
         </q-list>
       </q-scroll-area>
@@ -221,8 +242,6 @@
 
       <!-- Router View -->
       <router-view :class="{ 'search-active': isSearchActive }" />
-
-      
     </q-page-container>
   </q-layout>
 </template>
@@ -231,6 +250,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
@@ -240,6 +260,7 @@ import SmartSearch from 'src/components/shared/SmartSearch.vue'
 const $q = useQuasar()
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const dbStore = useDatabaseStore()
 const localSettingsStore = useLocalSettingsStore()
@@ -267,6 +288,38 @@ const userInitials = computed(() => {
 })
 const isAdmin = computed(() => authStore.isAdmin)
 const isConnected = computed(() => dbStore.isConnected)
+
+// Language toggle functionality
+const currentLanguageFlag = computed(() => {
+  return locale.value === 'de' ? 'DE' : 'EN'
+})
+
+const toggleLanguage = () => {
+  try {
+    const newLocale = locale.value === 'de' ? 'en' : 'de'
+    locale.value = newLocale
+
+    try {
+      localStorage?.setItem('locale', newLocale)
+    } catch (storageError) {
+      console.warn('Error saving locale to localStorage:', storageError)
+    }
+
+    $q.notify({
+      message: newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English',
+      type: 'info',
+      position: 'top',
+      timeout: 1500,
+    })
+  } catch (error) {
+    console.error('Error in toggleLanguage:', error)
+    $q.notify({
+      message: 'Error switching language',
+      type: 'negative',
+      position: 'top',
+    })
+  }
+}
 
 // Check if current page is Dashboard
 const isDashboard = computed(() => route.path === '/dashboard')
@@ -322,8 +375,8 @@ const canAccess = (routePath) => {
 
 const onLogout = async () => {
   $q.dialog({
-    title: 'Confirm Logout',
-    message: 'Are you sure you want to logout?',
+    title: t('auth.confirmLogout'),
+    message: t('auth.confirmLogoutMessage'),
     cancel: true,
     persistent: true,
   }).onOk(async () => {
@@ -331,7 +384,7 @@ const onLogout = async () => {
     router.push('/login')
     $q.notify({
       type: 'info',
-      message: 'You have been logged out',
+      message: t('auth.loggedOut'),
       position: 'top',
     })
   })

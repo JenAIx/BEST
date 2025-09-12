@@ -15,7 +15,7 @@ export default defineConfig((/* ctx */) => {
     // app boot file (/src/boot)
     // --> boot files are part of "main.js"
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ['axios'],
+    boot: ['axios', 'i18n'],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ['app.scss'],
@@ -193,24 +193,21 @@ export default defineConfig((/* ctx */) => {
         appId: 'best',
         productName: 'Best - Scientific DB Manager',
         asar: true,
-        asarUnpack: ["**/*.node"],
+        asarUnpack: ['**/*.node'],
         directories: {
           buildResources: 'src-electron/icons',
-          output: 'dist/electron/Builder'
+          output: 'dist/electron/Builder',
         },
-        files: [
-          '!tests',
-          '!dist/builds/**',
-        ],
+        files: ['!tests', '!dist/builds/**'],
         win: {
           target: [
             {
               target: 'portable',
-              arch: ['x64']
-            }
+              arch: ['x64'],
+            },
           ],
-          artifactName: 'best-win-x64-${version}-portable.exe'
-        }
+          artifactName: 'best-win-x64-${version}-portable.exe',
+        },
       },
     },
 

@@ -7,17 +7,11 @@
       </template>
       <div>
         <strong>OpenAI API Key Required</strong>
-        <br>
+        <br />
         To use the AI assistant, please configure your OpenAI API key in Settings → Local Settings.
       </div>
       <template v-slot:action>
-        <q-btn
-          flat
-          dense
-          label="Go to Settings"
-          color="orange"
-          @click="goToSettings"
-        />
+        <q-btn flat dense :label="$t('settings.goToSettings')" color="orange" @click="goToSettings" />
       </template>
     </q-banner>
 
@@ -28,7 +22,7 @@
       </template>
       <div>
         <strong>Context:</strong> {{ context.visit.visitType }} visit on {{ formatDate(context.visit.date) }}
-        <br>
+        <br />
         <span class="text-caption">{{ context.observations.total }} observations available</span>
       </div>
     </q-banner>
@@ -38,32 +32,15 @@
       <!-- Messages -->
       <q-scroll-area ref="messagesScrollArea" class="messages-container" :style="{ height: messagesHeight + 'px' }">
         <div ref="messagesContainer" class="messages">
-          <div
-            v-for="(message, index) in messages"
-            :key="index"
-            :class="['message', message.role, { shake: shaking[index] }]"
-          >
+          <div v-for="(message, index) in messages" :key="index" :class="['message', message.role, { shake: shaking[index] }]">
             <div class="message-avatar">
-              <q-icon
-                :name="message.role === 'user' ? 'person' : 'smart_toy'"
-                :color="message.role === 'user' ? 'primary' : 'accent'"
-                size="sm"
-              />
+              <q-icon :name="message.role === 'user' ? 'person' : 'smart_toy'" :color="message.role === 'user' ? 'primary' : 'accent'" size="sm" />
             </div>
             <div class="message-content">
               <div class="message-text">{{ message.content }}</div>
               <div class="message-meta">
                 <div class="message-time">{{ formatTime(message.timestamp) }}</div>
-                <q-btn
-                  v-if="message.role === 'assistant'"
-                  icon="content_copy"
-                  flat
-                  round
-                  dense
-                  size="sm"
-                  class="copy-btn"
-                  @click="copyMessage(index, message)"
-                >
+                <q-btn v-if="message.role === 'assistant'" icon="content_copy" flat round dense size="sm" class="copy-btn" @click="copyMessage(index, message)">
                   <q-tooltip>Copy</q-tooltip>
                 </q-btn>
               </div>
@@ -87,10 +64,10 @@
       <div class="input-container q-mt-md">
         <q-input
           v-model="currentPrompt"
-          label="Ask AI anything..."
+          :label="$t('smartButton.askAIPlaceholder')"
           outlined
           dense
-          placeholder="Type your question here..."
+          :placeholder="$t('smartButton.questionPlaceholder')"
           :loading="isLoading"
           :disable="isLoading"
           @keyup.enter="sendPrompt"
@@ -99,28 +76,10 @@
           :max-rows="3"
         >
           <template v-slot:append>
-            <q-btn
-              v-if="messages.length > 0"
-              icon="clear_all"
-              color="grey-7"
-              flat
-              round
-              dense
-              :disable="isLoading"
-              @click="clearChat"
-              class="q-mr-xs"
-            >
+            <q-btn v-if="messages.length > 0" icon="clear_all" color="grey-7" flat round dense :disable="isLoading" @click="clearChat" class="q-mr-xs">
               <q-tooltip>Clear chat</q-tooltip>
             </q-btn>
-            <q-btn
-              icon="send"
-              color="primary"
-              flat
-              round
-              dense
-              :disable="!currentPrompt.trim() || isLoading"
-              @click="sendPrompt"
-            >
+            <q-btn icon="send" color="primary" flat round dense :disable="!currentPrompt.trim() || isLoading" @click="sendPrompt">
               <q-tooltip>Send message</q-tooltip>
             </q-btn>
           </template>
@@ -132,17 +91,9 @@
         <template v-slot:avatar>
           <q-icon name="error" />
         </template>
-        <div>
-          <strong>AI Error:</strong> {{ error }}
-        </div>
+        <div><strong>AI Error:</strong> {{ error }}</div>
         <template v-slot:action>
-          <q-btn
-            flat
-            dense
-            label="Retry"
-            color="negative"
-            @click="retryLastPrompt"
-          />
+          <q-btn flat dense :label="$t('common.retry')" color="negative" @click="retryLastPrompt" />
         </template>
       </q-banner>
     </div>
@@ -151,17 +102,7 @@
     <div v-if="hasApiKey && messages.length === 0" class="quick-prompts q-mt-md">
       <div class="text-subtitle2 q-mb-sm">Quick Start:</div>
       <div class="q-gutter-sm">
-        <q-btn
-          v-for="prompt in quickPrompts"
-          :key="prompt"
-          :label="prompt"
-          color="grey-7"
-          outline
-          dense
-          size="sm"
-          @click="useQuickPrompt(prompt)"
-          :disable="isLoading"
-        />
+        <q-btn v-for="prompt in quickPrompts" :key="prompt" :label="prompt" color="grey-7" outline dense size="sm" @click="useQuickPrompt(prompt)" :disable="isLoading" />
       </div>
     </div>
     <!-- Resize handle -->
@@ -270,11 +211,11 @@ const quickPrompts = computed(() => {
       'Suggest missing observations',
       'Check for data inconsistencies',
       'Generate visit summary',
-      'Identify patterns in the data'
+      'Identify patterns in the data',
     ]
     return [...basePrompts, ...contextPrompts]
   }
-  
+
   return basePrompts
 })
 
@@ -306,7 +247,10 @@ const formatDate = (dateString) => {
   
   try {
     return new Date(dateString).toLocaleDateString()
-  } catch (error) { void error; return dateString }
+  } catch (error) {
+    void error
+    return dateString
+  }
 }
 
 /**
@@ -365,7 +309,7 @@ const formatObservationsContext = (observations) => {
  */
 const createContextMessage = () => {
   const context = props.context
-  
+
   if (!context || !context.hasContext) {
     return createBaseContextMessage()
   }
@@ -388,7 +332,7 @@ Please provide helpful, accurate, and contextually relevant responses based on t
 
   return {
     role: 'system',
-    content: contextText
+    content: contextText,
   }
 }
 
@@ -443,7 +387,7 @@ const sendPrompt = async () => {
   openAIStore.addMessage({
     role: 'user',
     content: prompt,
-    timestamp: new Date()
+    timestamp: new Date(),
   })
 
   scrollToBottom()
@@ -457,7 +401,7 @@ const sendPrompt = async () => {
     openAIStore.addMessage({
       role: 'assistant',
       content: response,
-      timestamp: new Date()
+      timestamp: new Date(),
     })
 
     scrollToBottom()
@@ -522,7 +466,7 @@ const clearChat = () => {
     title: 'Clear Chat',
     message: 'Are you sure you want to clear all messages? This action cannot be undone.',
     cancel: true,
-    persistent: false
+    persistent: false,
   }).onOk(() => {
     openAIStore.clearChatMessages()
     currentPrompt.value = ''
@@ -552,7 +496,9 @@ const copyMessage = (index, message) => {
         shaking.value[index] = false
       }, 400)
     })
-    .catch(() => { /* intentionally ignored */ })
+    .catch(() => {
+      /* intentionally ignored */
+    })
 }
 
 // Resize configuration
@@ -648,9 +594,9 @@ onMounted(() => {
         {
           label: 'Go to Settings',
           color: 'white',
-          handler: goToSettings
-        }
-      ]
+          handler: goToSettings,
+        },
+      ],
     })
   }
 })
@@ -784,10 +730,23 @@ onMounted(() => {
 }
 
 @keyframes shake {
-  10%, 90% { transform: translateX(-1px); }
-  20%, 80% { transform: translateX(2px); }
-  30%, 50%, 70% { transform: translateX(-4px); }
-  40%, 60% { transform: translateX(4px); }
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(2px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-4px);
+  }
+  40%,
+  60% {
+    transform: translateX(4px);
+  }
 }
 
 // Dark theme support

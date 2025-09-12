@@ -3,44 +3,27 @@
     <q-form @submit="onSubmit" class="q-gutter-md">
       <!-- OpenAI API Key Section -->
       <div>
-        <div class="text-subtitle2 q-mb-sm">API Keys</div>
-        <div class="text-caption text-grey-6 q-mb-md">
-          Configure API keys for external services. Keys are stored locally in your browser.
-        </div>
+        <div class="text-subtitle2 q-mb-sm">{{ $t('settings.apiKeys') }}</div>
+        <div class="text-caption text-grey-6 q-mb-md">{{ $t('settings.apiKeysHint') }}</div>
 
         <!-- OpenAI API Key Input -->
         <div class="q-mb-md">
           <q-input
             v-model="apiKeyInput"
             :type="showApiKey ? 'text' : 'password'"
-            label="OpenAI API Key"
+            :label="$t('settings.openaiApiKey')"
             outlined
             dense
             :rules="[validateApiKey]"
-            placeholder="sk-..."
-            :suffix="hasApiKey ? 'Saved' : ''"
+            :placeholder="$t('settings.apiKeyPlaceholder')"
+            :suffix="hasApiKey ? $t('settings.saved') : ''"
           >
             <template v-slot:append>
-              <q-btn
-                flat
-                dense
-                round
-                :icon="showApiKey ? 'visibility_off' : 'visibility'"
-                @click="showApiKey = !showApiKey"
-                :disable="!hasApiKey && !apiKeyInput"
-              >
-                <q-tooltip>{{ showApiKey ? 'Hide API Key' : 'Show API Key' }}</q-tooltip>
+              <q-btn flat dense round :icon="showApiKey ? 'visibility_off' : 'visibility'" @click="showApiKey = !showApiKey" :disable="!hasApiKey && !apiKeyInput">
+                <q-tooltip>{{ showApiKey ? $t('settings.hideApiKey') : $t('settings.showApiKey') }}</q-tooltip>
               </q-btn>
-              <q-btn
-                v-if="hasApiKey || apiKeyInput"
-                flat
-                dense
-                round
-                icon="clear"
-                color="negative"
-                @click="clearApiKey"
-              >
-                <q-tooltip>Clear API Key</q-tooltip>
+              <q-btn v-if="hasApiKey || apiKeyInput" flat dense round icon="clear" color="negative" @click="clearApiKey">
+                <q-tooltip>{{ $t('settings.clearApiKey') }}</q-tooltip>
               </q-btn>
             </template>
           </q-input>
@@ -52,34 +35,18 @@
             <q-icon name="security" />
           </template>
           <div class="text-body2">
-            <strong>Security Notice:</strong> API keys are stored unencrypted in your browser's localStorage.
-            This is convenient for development but not recommended for production use with sensitive keys.
-            Consider using environment variables or secure key management services in production.
+            <strong>{{ $t('settings.securityNotice') }}:</strong> {{ $t('settings.securityWarning') }}
           </div>
         </q-banner>
 
         <!-- Last Updated Info -->
-        <div v-if="lastUpdated" class="text-caption text-grey-6 q-mb-md">
-          Last updated: {{ formatDate(lastUpdated) }}
-        </div>
+        <div v-if="lastUpdated" class="text-caption text-grey-6 q-mb-md">{{ $t('settings.lastUpdated') }}: {{ formatDate(lastUpdated) }}</div>
       </div>
 
       <!-- Save/Cancel Buttons -->
       <div v-if="hasChanges" class="q-mt-lg">
-        <q-btn
-          type="submit"
-          color="primary"
-          label="Save API Key"
-          :loading="isSaving"
-          unelevated
-        />
-        <q-btn
-          class="q-ml-sm"
-          color="grey"
-          label="Cancel"
-          outline
-          @click="resetForm"
-        />
+        <q-btn type="submit" color="primary" :label="$t('settings.saveApiKey')" :loading="isSaving" unelevated />
+        <q-btn class="q-ml-sm" color="grey" :label="$t('common.cancel')" outline @click="resetForm" />
       </div>
     </q-form>
   </div>
@@ -87,8 +54,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 
+const { t } = useI18n()
 const localSettingsStore = useLocalSettingsStore()
 
 // Form state
@@ -107,13 +76,13 @@ const hasChanges = computed(() => {
 // Methods
 const validateApiKey = (val) => {
   if (!val || val.trim() === '') return true // Allow empty for clearing
-  if (!val.startsWith('sk-')) return 'OpenAI API keys should start with "sk-"'
-  if (val.length < 20) return 'API key appears to be too short'
+  if (!val.startsWith('sk-')) return t('settings.apiKeyFormatError')
+  if (val.length < 20) return t('settings.apiKeyTooShort')
   return true
 }
 
 const formatDate = (dateString) => {
-  if (!dateString) return 'Never'
+  if (!dateString) return t('settings.never')
   return new Date(dateString).toLocaleString()
 }
 

@@ -3,7 +3,7 @@
     <!-- Notifications Button -->
     <q-btn flat dense round icon="notifications" class="q-mr-sm" @click="openNotificationDialog">
       <q-badge v-if="showNotificationBadge" color="red" floating>{{ notificationCount }}</q-badge>
-      <q-tooltip>{{ notificationCount > 0 ? `${notificationCount} notifications` : 'No new notifications' }}</q-tooltip>
+      <q-tooltip>{{ notificationCount > 0 ? $t('notifications.countNotifications', { count: notificationCount }) : $t('notifications.noNewNotifications') }}</q-tooltip>
     </q-btn>
 
     <!-- Notification Dialog -->
@@ -11,7 +11,7 @@
       <q-card style="width: 500px; max-width: 90vw; height: 600px; max-height: 90vh">
         <!-- Header -->
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">Recent Notifications</div>
+          <div class="text-h6">{{ $t('notifications.recentNotifications') }}</div>
           <q-space />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
@@ -20,7 +20,7 @@
         <q-card-section class="q-pt-none" style="height: calc(100% - 120px); overflow-y: auto">
           <div v-if="loggingStore.recentLogs.length === 0" class="text-center text-grey-6 q-mt-lg">
             <q-icon name="notifications_none" size="48px" class="q-mb-md" />
-            <div>No recent notifications</div>
+            <div>{{ $t('notifications.noRecentNotifications') }}</div>
           </div>
 
           <q-list v-else separator>
@@ -46,8 +46,8 @@
 
         <!-- Actions -->
         <q-card-actions align="between" class="q-pa-md">
-          <q-btn flat color="grey-7" label="Clear All Logs" @click="clearAllLogs" :disable="loggingStore.recentLogs.length === 0" />
-          <q-btn flat color="primary" label="Export Logs" @click="exportLogs" :disable="loggingStore.recentLogs.length === 0" />
+          <q-btn flat color="grey-7" :label="$t('notifications.clearAllLogs')" @click="clearAllLogs" :disable="loggingStore.recentLogs.length === 0" />
+          <q-btn flat color="primary" :label="$t('notifications.exportLogs')" @click="exportLogs" :disable="loggingStore.recentLogs.length === 0" />
         </q-card-actions>
       </q-card>
     </q-dialog>

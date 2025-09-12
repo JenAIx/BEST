@@ -255,7 +255,7 @@ export class ConceptResolver {
    * Reverse lookup: get code from resolved label
    * @param {string} label - Resolved label
    * @param {string} category - Category context
-   * @param {Map} cache - Optional cache to search through
+   * @param {Object|Map} cache - Optional cache to search through
    * @returns {Promise<string|null>} Concept code or null
    */
   async getCodeFromLabel(label, category = null, cache = null) {
@@ -263,8 +263,10 @@ export class ConceptResolver {
 
     // Search through cache first if provided
     if (cache) {
-      for (const [code, cached] of cache.entries()) {
-        if (cached.data?.label === label) {
+      // Handle both Map and reactive object caches
+      const entries = cache.entries ? cache.entries() : Object.entries(cache)
+      for (const [code, cached] of entries) {
+        if (cached?.data?.label === label || cached?.label === label) {
           return code
         }
       }

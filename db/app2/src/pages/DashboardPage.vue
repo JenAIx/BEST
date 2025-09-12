@@ -5,19 +5,26 @@
       <div class="row q-col-gutter-md">
         <!-- Quick Actions -->
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="person_search" icon-color="primary" title="Quick Patient Search" subtitle="Find and view patient records" :clickable="true" @click="$router.push('/patients')" />
+          <DashboardCard
+            icon="person_search"
+            icon-color="primary"
+            :title="$t('dashboard.quickPatientSearch')"
+            :subtitle="$t('dashboard.quickPatientSearchSubtitle')"
+            :clickable="true"
+            @click="$router.push('/patients')"
+          />
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="person_add" icon-color="positive" title="New Patient" subtitle="Add a new patient to the system" :clickable="true" @click="showNewPatientDialog" />
+          <DashboardCard icon="person_add" icon-color="positive" :title="$t('dashboard.newPatient')" :subtitle="$t('dashboard.newPatientSubtitle')" :clickable="true" @click="showNewPatientDialog" />
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
           <DashboardCard
             icon="schedule"
             icon-color="info"
-            title="Patient Visits"
-            subtitle="Manage patient visits"
+            :title="$t('dashboard.patientVisits')"
+            :subtitle="$t('dashboard.patientVisitsSubtitle')"
             :value="stats.visitsToday"
             value-color="text-primary"
             :clickable="true"
@@ -26,7 +33,14 @@
         </div>
 
         <div class="col-12 col-md-6 col-lg-3">
-          <DashboardCard icon="upload_file" icon-color="accent" title="Quick Import" subtitle="Import patient data" :clickable="true" @click="$router.push('/import')" />
+          <DashboardCard
+            icon="upload_file"
+            icon-color="accent"
+            :title="$t('dashboard.quickImport')"
+            :subtitle="$t('dashboard.quickImportSubtitle')"
+            :clickable="true"
+            @click="$router.push('/import')"
+          />
         </div>
       </div>
 
@@ -35,13 +49,13 @@
         <div class="col-12 col-lg-8">
           <q-card>
             <q-card-section>
-              <div class="text-h6">Recent Patients</div>
+              <div class="text-h6">{{ $t('dashboard.recentPatients') }}</div>
             </q-card-section>
             <q-separator />
             <q-card-section class="q-pa-none">
               <div v-if="loading" class="q-pa-md text-center">
                 <q-spinner color="primary" size="32px" />
-                <div class="q-mt-sm text-grey-6">Loading recent patients...</div>
+                <div class="q-mt-sm text-grey-6">{{ $t('dashboard.loadingRecentPatients') }}</div>
               </div>
 
               <q-list v-else-if="recentPatients.length > 0" separator>
@@ -64,12 +78,12 @@
 
               <div v-else class="q-pa-lg text-center text-grey-6">
                 <q-icon name="person_off" size="48px" class="q-mb-sm" />
-                <div>No patients found</div>
-                <div class="text-caption">Add some patients to see recent activity</div>
+                <div>{{ $t('dashboard.noPatientsFound') }}</div>
+                <div class="text-caption">{{ $t('dashboard.addPatientsHint') }}</div>
               </div>
             </q-card-section>
             <q-card-actions align="right">
-              <q-btn flat color="primary" label="View All" to="/patients" />
+              <q-btn flat color="primary" :label="$t('dashboard.viewAll')" to="/patients" />
             </q-card-actions>
           </q-card>
         </div>
@@ -78,7 +92,7 @@
         <div class="col-12 col-lg-4">
           <q-card>
             <q-card-section>
-              <div class="text-h6">Today's Statistics</div>
+              <div class="text-h6">{{ $t('dashboard.todaysStatistics') }}</div>
             </q-card-section>
             <q-separator />
             <q-card-section>
@@ -86,25 +100,25 @@
                 <div class="col-6">
                   <div class="stat-item">
                     <div class="text-h4 text-primary">{{ stats.patientsToday }}</div>
-                    <div class="text-caption text-grey-6">Patients Seen</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.patientsSeen') }}</div>
                   </div>
                 </div>
                 <div class="col-6">
                   <div class="stat-item">
                     <div class="text-h4 text-positive">{{ stats.visitsToday }}</div>
-                    <div class="text-caption text-grey-6">Total Visits</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.totalVisits') }}</div>
                   </div>
                 </div>
                 <div class="col-6 q-mt-md">
                   <div class="stat-item">
                     <div class="text-h4 text-warning">{{ stats.pendingReports }}</div>
-                    <div class="text-caption text-grey-6">Pending Reports</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.pendingReports') }}</div>
                   </div>
                 </div>
                 <div class="col-6 q-mt-md">
                   <div class="stat-item">
                     <div class="text-h4 text-info">{{ stats.activeStudies }}</div>
-                    <div class="text-caption text-grey-6">Active Studies</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.activeStudies') }}</div>
                   </div>
                 </div>
               </div>
@@ -114,13 +128,13 @@
           <!-- Recent Activities -->
           <q-card class="q-mt-md">
             <q-card-section>
-              <div class="text-h6">Recent Activities</div>
+              <div class="text-h6">{{ $t('dashboard.recentActivities') }}</div>
             </q-card-section>
             <q-separator />
             <q-card-section class="q-pa-lg text-center text-grey-6">
               <q-icon name="timeline" size="48px" class="q-mb-sm" />
-              <div>Activity Tracking</div>
-              <div class="text-caption">Coming soon - patient activity monitoring</div>
+              <div>{{ $t('dashboard.activityTracking') }}</div>
+              <div class="text-caption">{{ $t('dashboard.comingSoon') }}</div>
             </q-card-section>
           </q-card>
         </div>
@@ -134,11 +148,11 @@
         <div class="col-12 col-sm-6 col-md-3">
           <q-card>
             <q-card-section>
-              <div class="text-h6 text-grey-8">Total Patients</div>
+              <div class="text-h6 text-grey-8">{{ $t('dashboard.totalPatients') }}</div>
               <div class="text-h3 text-primary">{{ dataOverview.totalPatients }}</div>
               <div class="text-caption text-grey-6">
                 <q-icon name="trending_up" color="positive" />
-                +{{ dataOverview.newPatientsWeek }} this week
+                +{{ dataOverview.newPatientsWeek }} {{ $t('dashboard.thisWeek') }}
               </div>
             </q-card-section>
           </q-card>
@@ -147,9 +161,9 @@
         <div class="col-12 col-sm-6 col-md-3">
           <q-card>
             <q-card-section>
-              <div class="text-h6 text-grey-8">Active Studies</div>
+              <div class="text-h6 text-grey-8">{{ $t('dashboard.activeStudies') }}</div>
               <div class="text-h3 text-info">{{ dataOverview.activeStudies }}</div>
-              <div class="text-caption text-grey-6">{{ dataOverview.studyParticipants }} participants</div>
+              <div class="text-caption text-grey-6">{{ dataOverview.studyParticipants }} {{ $t('dashboard.participants') }}</div>
             </q-card-section>
           </q-card>
         </div>
@@ -157,9 +171,9 @@
         <div class="col-12 col-sm-6 col-md-3">
           <q-card>
             <q-card-section>
-              <div class="text-h6 text-grey-8">New Today</div>
+              <div class="text-h6 text-grey-8">{{ $t('dashboard.newToday') }}</div>
               <div class="text-h3 text-positive">{{ dataOverview.newToday }}</div>
-              <div class="text-caption text-grey-6">Observations recorded</div>
+              <div class="text-caption text-grey-6">{{ $t('dashboard.observationsRecorded') }}</div>
             </q-card-section>
           </q-card>
         </div>
@@ -167,7 +181,7 @@
         <div class="col-12 col-sm-6 col-md-3">
           <q-card>
             <q-card-section>
-              <div class="text-h6 text-grey-8">Data Quality</div>
+              <div class="text-h6 text-grey-8">{{ $t('dashboard.dataQuality') }}</div>
               <div class="text-h3 text-warning">{{ dataOverview.dataQuality }}%</div>
               <q-linear-progress :value="dataOverview.dataQuality / 100" color="warning" class="q-mt-sm" />
             </q-card-section>
@@ -178,7 +192,7 @@
       <!-- Advanced Search and Data Table -->
       <q-card class="q-mt-md">
         <q-card-section>
-          <div class="text-h6">Patient Data Explorer</div>
+          <div class="text-h6">{{ $t('dashboard.patientDataExplorer') }}</div>
         </q-card-section>
 
         <q-separator />
@@ -187,21 +201,21 @@
         <q-card-section>
           <div class="row q-col-gutter-md items-end">
             <div class="col-12 col-md-4">
-              <q-input v-model="filters.search" label="Search by name or Patient ID" outlined dense clearable debounce="300" placeholder="Search patients...">
+              <q-input v-model="filters.search" :label="$t('export.searchByNameOrId')" outlined dense clearable debounce="300" :placeholder="$t('export.searchPatientsPlaceholder')">
                 <template v-slot:prepend>
                   <q-icon name="search" />
                 </template>
               </q-input>
             </div>
             <div class="col-12 col-md-3">
-              <q-select v-model="filters.gender" :options="genderOptions" label="Gender" outlined dense clearable emit-value map-options />
+              <q-select v-model="filters.gender" :options="genderOptions" :label="$t('patient.gender')" outlined dense clearable emit-value map-options />
             </div>
             <div class="col-12 col-md-3">
-              <q-select v-model="filters.status" :options="statusOptions" label="Vital Status" outlined dense clearable emit-value map-options />
+              <q-select v-model="filters.status" :options="statusOptions" :label="$t('patient.vitalStatus')" outlined dense clearable emit-value map-options />
             </div>
             <div class="col-12 col-md-2 text-right">
               <q-btn round flat icon="clear_all" color="grey-7" @click="clearFilters" size="md">
-                <q-tooltip>Clear all filters</q-tooltip>
+                <q-tooltip>{{ $t('export.clearAllFilters') }}</q-tooltip>
               </q-btn>
             </div>
           </div>
@@ -212,10 +226,10 @@
               <div class="text-caption text-grey-6 q-px-sm">
                 <q-icon name="people" size="14px" class="q-mr-xs" />
                 <span class="q-mr-md"
-                  >Total: <strong>{{ dataOverview.totalPatients }}</strong></span
+                  >{{ $t('dashboard.total') }}: <strong>{{ dataOverview.totalPatients }}</strong></span
                 >
                 <span v-if="hasActiveFilters"
-                  >• Filtered: <strong>{{ pagination.rowsNumber }}</strong></span
+                  >• {{ $t('dashboard.filtered') }}: <strong>{{ pagination.rowsNumber }}</strong></span
                 >
               </div>
             </div>
@@ -226,7 +240,7 @@
         <q-card-section class="q-pa-none">
           <q-table
             :rows="tableData"
-            :columns="tableColumns"
+            :columns="translatedTableColumns"
             row-key="id"
             v-model:pagination="pagination"
             :loading="loading"
@@ -240,7 +254,7 @@
               <q-td :props="props">
                 <div class="patient-delete-btn">
                   <q-btn flat round icon="delete" size="sm" color="negative" @click.stop="confirmDeletePatient(props.row)">
-                    <q-tooltip>Delete Patient</q-tooltip>
+                    <q-tooltip>{{ $t('patient.deletePatient') }}</q-tooltip>
                   </q-btn>
                 </div>
               </q-td>
@@ -286,6 +300,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import DashboardCard from '../components/shared/DashboardCard.vue'
 import PatientAvatar from '../components/shared/PatientAvatar.vue'
 import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
@@ -296,6 +311,7 @@ import { visitObservationService } from 'src/services/visit-observation-service'
 
 const $q = useQuasar()
 const router = useRouter()
+const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 
@@ -406,6 +422,49 @@ const tableColumns = [
 const tableData = ref([])
 
 // Computed properties
+const translatedTableColumns = computed(() => {
+  try {
+    return tableColumns.map((col) => {
+      let translatedLabel = col.label
+      try {
+        switch (col.name) {
+          case 'id':
+            translatedLabel = t('patient.patientId')
+            break
+          case 'name':
+            translatedLabel = t('patient.patientName')
+            break
+          case 'age':
+            translatedLabel = t('patient.age')
+            break
+          case 'gender':
+            translatedLabel = t('patient.gender')
+            break
+          case 'lastChanged':
+            translatedLabel = t('dashboard.lastChanged')
+            break
+          case 'status':
+            translatedLabel = t('patient.vitalStatus')
+            break
+          default:
+            translatedLabel = col.label
+        }
+      } catch (translationError) {
+        console.error('Error translating column:', col.name, translationError)
+        translatedLabel = col.label // fallback to original
+      }
+
+      return {
+        ...col,
+        label: translatedLabel,
+      }
+    })
+  } catch (error) {
+    console.error('Error in translatedTableColumns computed:', error)
+    return tableColumns // fallback to original
+  }
+})
+
 const hasActiveFilters = computed(() => {
   return filters.value.search || filters.value.gender || filters.value.status
 })
@@ -432,6 +491,9 @@ const loadRecentPatients = async () => {
       // Include original patient data for PatientAvatar component
       SEX_RESOLVED: patient.SEX_RESOLVED,
       SEX_CD: patient.SEX_CD,
+      // Store raw data for reactive translation
+      _rawAge: patient.AGE_IN_YEARS,
+      _rawLastVisit: patient.UPDATE_DATE || patient.IMPORT_DATE || patient.CREATED_AT,
     }))
   } catch (error) {
     console.error('Failed to load recent patients:', error)
@@ -506,19 +568,13 @@ const loadTableData = async () => {
     }
 
     if (filters.value.gender) {
-      // Use concept store to get code from label
-      const genderCode = conceptStore.getCodeFromLabel(filters.value.gender, 'gender')
-      if (genderCode) {
-        criteria.SEX_CD = genderCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.SEX_CD = filters.value.gender
     }
 
     if (filters.value.status) {
-      // Use concept store to get code from label
-      const statusCode = conceptStore.getCodeFromLabel(filters.value.status, 'vital_status')
-      if (statusCode) {
-        criteria.VITAL_STATUS_CD = statusCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.VITAL_STATUS_CD = filters.value.status
     }
 
     // Add sorting options
@@ -571,41 +627,56 @@ const loadTableData = async () => {
 
 // Helper methods
 const getPatientName = (patient) => {
-  if (patient.PATIENT_BLOB) {
-    try {
-      const blob = JSON.parse(patient.PATIENT_BLOB)
-      if (blob.name) return blob.name
-      if (blob.firstName && blob.lastName) return `${blob.firstName} ${blob.lastName}`
-    } catch {
-      // Fallback to PATIENT_CD
+  try {
+    if (patient.PATIENT_BLOB) {
+      try {
+        const blob = JSON.parse(patient.PATIENT_BLOB)
+        if (blob.name) return blob.name
+        if (blob.firstName && blob.lastName) return `${blob.firstName} ${blob.lastName}`
+      } catch (blobError) {
+        console.warn('Error parsing patient blob:', blobError)
+      }
     }
+    return patient.PATIENT_CD || t('patient.unknownPatient')
+  } catch (error) {
+    console.error('Error in getPatientName:', error, { patient })
+    return 'Unknown Patient'
   }
-  return patient.PATIENT_CD || 'Unknown Patient'
 }
 
 const formatDate = (dateStr) => {
-  if (!dateStr) return 'Unknown'
-  return new Date(dateStr).toLocaleDateString()
+  try {
+    if (!dateStr) return t('common.unknown')
+    return new Date(dateStr).toLocaleDateString()
+  } catch (error) {
+    console.error('Error in formatDate:', error, { dateStr })
+    return 'Unknown'
+  }
 }
 
 const formatRelativeTime = (dateStr) => {
-  if (!dateStr) return 'Unknown'
+  try {
+    if (!dateStr) return t('common.unknown')
 
-  const now = new Date()
-  const date = new Date(dateStr)
-  const diffMs = now - date
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMs / 3600000)
-  const diffDays = Math.floor(diffMs / 86400000)
+    const now = new Date()
+    const date = new Date(dateStr)
+    const diffMs = now - date
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 60) {
-    return `${diffMins} minutes ago`
-  } else if (diffHours < 24) {
-    return `${diffHours} hours ago`
-  } else if (diffDays === 1) {
-    return 'Yesterday'
-  } else {
-    return `${diffDays} days ago`
+    if (diffMins < 60) {
+      return t('dashboard.minutesAgo', { minutes: diffMins })
+    } else if (diffHours < 24) {
+      return t('dashboard.hoursAgo', { hours: diffHours })
+    } else if (diffDays === 1) {
+      return t('dashboard.yesterday')
+    } else {
+      return t('dashboard.daysAgo', { days: diffDays })
+    }
+  } catch (error) {
+    console.error('Error in formatRelativeTime:', error, { dateStr })
+    return 'Unknown'
   }
 }
 

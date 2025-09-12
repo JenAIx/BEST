@@ -1,13 +1,7 @@
 <template>
   <div class="smart-button-container" :style="fabStyle">
-    <q-tooltip>Smart Button - Click to open plugins</q-tooltip>
-    <q-fab
-      icon="smart_toy"
-      :direction="fabDirection"
-      color="accent"
-      :disable="draggingFab"
-      v-touch-pan.prevent.mouse="moveFab"
-    >
+    <q-tooltip>{{ $t('smartButton.tooltip') }}</q-tooltip>
+    <q-fab icon="smart_toy" :direction="fabDirection" color="accent" :disable="draggingFab" v-touch-pan.prevent.mouse="moveFab">
       <q-fab-action
         v-for="plugin in registeredPlugins"
         :key="plugin.id"
@@ -28,7 +22,7 @@
         <div class="text-h6">{{ activePluginConfig?.name || 'Plugin' }}</div>
         <q-space />
         <q-btn icon="minimize" flat round dense @click="minimizePlugin" :disable="loadingPlugin">
-          <q-tooltip>Minimize to bottom</q-tooltip>
+          <q-tooltip>{{ $t('smartButton.minimize') }}</q-tooltip>
         </q-btn>
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
@@ -36,7 +30,7 @@
       <q-card-section>
         <div v-if="loadingPlugin" class="text-center q-pa-md">
           <q-spinner color="primary" size="2em" />
-          <div class="q-mt-sm">Loading plugin...</div>
+          <div class="q-mt-sm">{{ $t('smartButton.loadingPlugin') }}</div>
         </div>
         <component
           ref="activePluginComponent"
@@ -53,34 +47,15 @@
 
   <!-- Mini Plugins Container -->
   <div v-if="miniPlugins.length > 0" class="mini-plugins-container">
-    <div
-      v-for="(plugin, index) in miniPlugins"
-      :key="plugin.id"
-      class="mini-plugin-card"
-      :style="getMiniPluginStyle(index)"
-    >
-      <q-card
-        flat
-        bordered
-        class="mini-card"
-        @click="expandPlugin(plugin.id)"
-      >
+    <div v-for="(plugin, index) in miniPlugins" :key="plugin.id" class="mini-plugin-card" :style="getMiniPluginStyle(index)">
+      <q-card flat bordered class="mini-card" @click="expandPlugin(plugin.id)">
         <q-card-section class="row items-center q-pa-sm">
           <q-icon :name="plugin.icon" :color="plugin.color" size="md" />
           <div class="mini-plugin-title text-caption q-ml-sm">
             {{ plugin.name }}
           </div>
           <q-space />
-          <q-btn
-            icon="close"
-            size="sm"
-            flat
-            round
-            dense
-            @click.stop="closeMiniPlugin(plugin.id)"
-            @mouseover.stop
-            @mouseout.stop
-          >
+          <q-btn icon="close" size="sm" flat round dense @click.stop="closeMiniPlugin(plugin.id)" @mouseover.stop @mouseout.stop>
             <q-tooltip>Close</q-tooltip>
           </q-btn>
         </q-card-section>
@@ -96,7 +71,7 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { usePluginStateStore } from 'src/stores/plugin-state-store'
 
 defineOptions({
-  name: 'SmartButton'
+  name: 'SmartButton',
 })
 
 const localSettingsStore = useLocalSettingsStore()
@@ -108,7 +83,7 @@ const fabStyle = computed(() => ({
   position: 'fixed',
   bottom: fabPos.value[1] + 'px',
   right: fabPos.value[0] + 'px',
-  zIndex: 2000
+  zIndex: 2000,
 }))
 const draggingFab = ref(false)
 const pluginDialog = ref(false)
@@ -121,21 +96,19 @@ const visitContext = ref({ hasContext: false }) // Reactive visit context
 
 // Get registered plugins with disabled state
 const registeredPlugins = computed(() => {
-  return pluginManager.getPlugins().map(plugin => {
+  return pluginManager.getPlugins().map((plugin) => {
     let tooltip = plugin.tooltip
 
     // Handle dynamic tooltip for Ask AI plugin
     if (plugin.id === 'ask-ai') {
-      tooltip = localSettingsStore.hasOpenAIApiKey()
-        ? 'Ask AI Assistant'
-        : 'AI Assistant (API Key Required)'
+      tooltip = localSettingsStore.hasOpenAIApiKey() ? 'Ask AI Assistant' : 'AI Assistant (API Key Required)'
     }
 
     return {
       ...plugin,
       isDisabled: plugin.isDisabled ? plugin.isDisabled() : false,
       disabledReason: plugin.disabledReason ? plugin.disabledReason() : null,
-      tooltip: typeof tooltip === 'function' ? tooltip() : tooltip
+      tooltip: typeof tooltip === 'function' ? tooltip() : tooltip,
     }
   })
 })
@@ -149,7 +122,7 @@ const fabDirection = computed(() => {
 
 // Compute mini plugin positioning
 const getMiniPluginStyle = (index) => ({
-  bottom: `${10 + index * 60}px`
+  bottom: `${10 + index * 60}px`,
 })
 
 const moveFab = (ev) => {
@@ -162,7 +135,7 @@ const moveFab = (ev) => {
   // Get viewport dimensions
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  
+
   // FAB button dimensions (approximate)
   const fabSize = 56 // Standard FAB size
   const margin = 8 // Minimum margin from edges
@@ -186,7 +159,7 @@ const handleResize = () => {
   // Get current viewport dimensions
   const viewportWidth = window.innerWidth
   const viewportHeight = window.innerHeight
-  
+
   // FAB button dimensions (approximate)
   const fabSize = 56
   const margin = 8
@@ -210,7 +183,7 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
   try {
     loadingPlugin.value = true
     activePluginId.value = pluginId
-    
+
     // Capture current selection and focused editable element before opening dialog
     const captureSelectionContext = () => {
       try {
@@ -225,11 +198,7 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
 
         if (activeEl) {
           tagName = activeEl.tagName
-          if (
-            activeEl.tagName === 'TEXTAREA' ||
-            (activeEl.tagName === 'INPUT' && (!activeEl.type || activeEl.type === 'text' || activeEl.type === 'search')) ||
-            activeEl.isContentEditable
-          ) {
+          if (activeEl.tagName === 'TEXTAREA' || (activeEl.tagName === 'INPUT' && (!activeEl.type || activeEl.type === 'text' || activeEl.type === 'search')) || activeEl.isContentEditable) {
             isEditable = true
             if (typeof activeEl.selectionStart === 'number' && typeof activeEl.selectionEnd === 'number') {
               selectionStart = activeEl.selectionStart
@@ -244,7 +213,7 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
           selectionEnd,
           isEditable,
           tagName,
-          timestamp: Date.now()
+          timestamp: Date.now(),
         }
         // Store element separately to avoid serialization issues
         window.__smartRewriteElement = isEditable ? activeEl : null
@@ -259,11 +228,11 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
         // Import the context service dynamically to avoid circular dependencies
         const { pluginContextService } = await import('src/services/plugin-context-service')
         const context = pluginContextService.getContext()
-        
+
         // Store context both globally and reactively
         window.__smartVisitContext = context
         visitContext.value = context
-        
+
         console.debug('Captured visit context:', context)
       } catch (e) {
         console.warn('Failed to capture visit context:', e)
@@ -274,7 +243,7 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
     }
 
     captureSelectionContext()
-    
+
     // Capture visit context for context-aware plugins
     await captureVisitContext()
 
@@ -286,19 +255,18 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
       activePluginConfig.value = {
         ...plugin,
         config: overrideConfig ? { ...plugin.config, ...overrideConfig } : plugin.config,
-        initialState: componentState // Pass component state for restoration
+        initialState: componentState, // Pass component state for restoration
       }
     } else {
       activePluginConfig.value = plugin
     }
 
     pluginDialog.value = true
-    
+
     // Wait for dialog and component to be fully rendered
     await nextTick()
     // Additional small delay to ensure component is fully initialized
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
+    await new Promise((resolve) => setTimeout(resolve, 100))
   } catch (error) {
     console.error('Failed to load plugin:', error)
     // You could show a user-friendly error message here
@@ -316,7 +284,7 @@ const closePlugin = (isMinimizing = false) => {
   pluginDialog.value = false
   activePluginId.value = null
   activePluginConfig.value = null
-  
+
   // Reset context when closing (but not when minimizing)
   if (!isMinimizing) {
     visitContext.value = { hasContext: false }
@@ -327,13 +295,13 @@ const minimizePlugin = async () => {
   if (activePluginConfig.value) {
     // Wait for next tick to ensure component is fully rendered
     await nextTick()
-    
+
     // Get component state before minimizing (if the component instance exposes it)
     let componentState = {}
-    
+
     // Try to access the component instance
     const componentRef = activePluginComponent.value
-    
+
     if (componentRef && typeof componentRef.getState === 'function') {
       try {
         componentState = componentRef.getState() || {}
@@ -345,11 +313,11 @@ const minimizePlugin = async () => {
     // Store the current plugin state in the store
     pluginStateStore.savePluginState(activePluginConfig.value.id, {
       config: { ...activePluginConfig.value.config },
-      componentState
+      componentState,
     })
 
     // Prevent duplicate mini plugins
-    if (!miniPlugins.value.some(p => p.id === activePluginConfig.value.id)) {
+    if (!miniPlugins.value.some((p) => p.id === activePluginConfig.value.id)) {
       miniPlugins.value.push({ ...activePluginConfig.value })
     }
     closePlugin(true) // Pass true to indicate we're minimizing, not closing permanently
@@ -357,12 +325,12 @@ const minimizePlugin = async () => {
 }
 
 const expandPlugin = (pluginId) => {
-  if (miniPlugins.value.some(p => p.id === pluginId)) {
-    miniPlugins.value = miniPlugins.value.filter(p => p.id !== pluginId)
+  if (miniPlugins.value.some((p) => p.id === pluginId)) {
+    miniPlugins.value = miniPlugins.value.filter((p) => p.id !== pluginId)
 
     // Check if we have stored state for this plugin in the store
     const storedState = pluginStateStore.restorePluginState(pluginId)
-    
+
     if (storedState && storedState.componentState) {
       // Restore the plugin with stored configuration and component state
       openPlugin(pluginId, storedState.config, storedState.componentState)
@@ -374,7 +342,7 @@ const expandPlugin = (pluginId) => {
 }
 
 const closeMiniPlugin = (pluginId) => {
-  miniPlugins.value = miniPlugins.value.filter(p => p.id !== pluginId)
+  miniPlugins.value = miniPlugins.value.filter((p) => p.id !== pluginId)
   // Clean up stored state when mini plugin is permanently closed
   pluginStateStore.removePluginState(pluginId)
 }

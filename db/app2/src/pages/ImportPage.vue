@@ -5,21 +5,21 @@
       <div class="page-header q-mb-lg">
         <div class="row items-center justify-between">
           <div>
-            <h1 class="text-h4 q-ma-none">Import Data</h1>
-            <p class="text-body1 text-grey-6 q-ma-none">Import patient data from files</p>
+            <h1 class="text-h4 q-ma-none">{{ $t('import.importData') }}</h1>
+            <p class="text-body1 text-grey-6 q-ma-none">{{ $t('import.importPatientData') }}</p>
           </div>
           <div v-if="currentStep !== 'upload'" class="header-actions">
-            <q-btn flat color="grey-7" icon="arrow_back" label="Back to File Upload" @click="goBackToUpload" />
+            <q-btn flat color="grey-7" icon="arrow_back" :label="$t('import.backToUpload')" @click="goBackToUpload" />
           </div>
         </div>
       </div>
 
       <!-- Step Indicator -->
       <q-stepper v-model="currentStepNumber" color="primary" animated flat bordered class="q-mb-lg">
-        <q-step :name="1" title="Upload File" icon="upload" :done="currentStepNumber > 1" />
-        <q-step :name="2" title="Analyze File" icon="search" :done="currentStepNumber > 2" />
-        <q-step :name="3" title="Select Mode" icon="settings" :done="currentStepNumber > 3" />
-        <q-step :name="4" title="Import Data" icon="check" :done="importComplete" />
+        <q-step :name="1" :title="$t('import.uploadFile')" icon="upload" :done="currentStepNumber > 1" />
+        <q-step :name="2" :title="$t('import.analyzeFile')" icon="search" :done="currentStepNumber > 2" />
+        <q-step :name="3" :title="$t('import.selectMode')" icon="settings" :done="currentStepNumber > 3" />
+        <q-step :name="4" :title="$t('import.importData')" icon="check" :done="importComplete" />
       </q-stepper>
 
       <!-- Main Content -->
@@ -28,8 +28,8 @@
         <div v-if="currentStep === 'upload'" class="step-content">
           <q-card flat bordered>
             <q-card-section>
-              <div class="text-h6 q-mb-md">Upload Data File</div>
-              <div class="text-body2 text-grey-6 q-mb-lg">Upload a file containing patient data to import. Supported formats include CSV, JSON, XML, HL7 CDA, and HTML survey files.</div>
+              <div class="text-h6 q-mb-md">{{ $t('import.uploadDataFile') }}</div>
+              <div class="text-body2 text-grey-6 q-mb-lg">{{ $t('import.uploadHint') }}</div>
 
               <!-- File Upload Component -->
               <div class="file-upload-section">

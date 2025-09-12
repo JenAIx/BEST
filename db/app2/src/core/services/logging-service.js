@@ -363,11 +363,27 @@ class LoggingService {
 
       // Handle global errors
       window.addEventListener('error', (event) => {
+        // Ignore harmless ResizeObserver errors
+        if (event.message && event.message.includes('ResizeObserver loop completed with undelivered notifications')) {
+          console.debug('Ignoring harmless ResizeObserver error:', event.message)
+          return
+        }
+
+        console.error('DETAILED GLOBAL ERROR:', {
+          error: event.error,
+          message: event.message,
+          filename: event.filename,
+          lineno: event.lineno,
+          colno: event.colno,
+          stack: event.error?.stack,
+        })
         this.error('Global', 'Global error', event.error, {
           type: 'error',
           filename: event.filename,
           lineno: event.lineno,
           colno: event.colno,
+          message: event.message,
+          stack: event.error?.stack,
         })
       })
     } else if (typeof process !== 'undefined') {

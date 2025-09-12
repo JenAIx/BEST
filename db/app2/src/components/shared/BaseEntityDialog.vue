@@ -25,8 +25,8 @@
 
       <!-- Actions -->
       <q-card-actions align="right" class="q-pa-md">
-        <q-btn flat :label="cancelLabel" @click="handleCancel" />
-        <q-btn color="primary" :label="submitLabel" :loading="loading" :disable="!canSubmit" @click="handleSubmit" />
+        <q-btn flat :label="cancelLabel || $t('common.cancel')" @click="handleCancel" />
+        <q-btn color="primary" :label="submitLabel || $t('common.submit')" :loading="loading" :disable="!canSubmit" @click="handleSubmit" />
       </q-card-actions>
     </q-card>
   </q-dialog>

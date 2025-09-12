@@ -17,8 +17,8 @@
 
       <!-- Add Observation Button -->
       <div v-if="selectedVisit" class="add-observation-section">
-        <q-btn flat icon="add" label="ADD OBSERVATION" @click="showAddCustomDialog = true" class="add-observation-btn full-width" style="border: 2px dashed #ccc">
-          <q-tooltip>Add a custom observation</q-tooltip>
+        <q-btn flat icon="add" :label="$t('observation.addObservation').toUpperCase()" @click="showAddCustomDialog = true" class="add-observation-btn full-width" style="border: 2px dashed #ccc">
+          <q-tooltip>{{ $t('observation.addCustomObservation') }}</q-tooltip>
         </q-btn>
       </div>
 
@@ -53,16 +53,16 @@
       <!-- Empty State -->
       <div v-if="!selectedVisit" class="empty-state">
         <q-icon name="assignment" size="64px" color="grey-4" />
-        <div class="text-h6 text-grey-6 q-mt-sm">Select a visit to start</div>
-        <div class="text-body2 text-grey-5">Choose an existing visit or create a new one</div>
+        <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.selectVisitToStart') }}</div>
+        <div class="text-body2 text-grey-5">{{ $t('visit.chooseExistingOrCreate') }}</div>
       </div>
 
       <!-- No Field Sets Selected -->
       <div v-if="selectedVisit && activeFieldSets.length === 0" class="no-fieldsets-state compact">
         <q-icon name="category" size="32px" color="grey-4" />
-        <div class="text-subtitle1 text-grey-6 q-mt-sm">No observation categories selected</div>
-        <div class="text-body2 text-grey-5 q-mb-sm">Choose categories above to start entering data</div>
-        <q-btn color="primary" size="sm" @click="showFieldSetConfig = true">Configure Categories</q-btn>
+        <div class="text-subtitle1 text-grey-6 q-mt-sm">{{ $t('visit.noObservationCategories') }}</div>
+        <div class="text-body2 text-grey-5 q-mb-sm">{{ $t('visit.chooseCategoriesAbove') }}</div>
+        <q-btn color="primary" size="sm" @click="showFieldSetConfig = true">{{ $t('visit.configureCategories') }}</q-btn>
       </div>
 
       <!-- Always show uncategorized observations when visit is selected -->
@@ -107,6 +107,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
@@ -140,6 +141,7 @@ const props = defineProps({
 const emit = defineEmits(['visit-created'])
 
 const $q = useQuasar()
+const { t } = useI18n()
 const patientStore = usePatientStore()
 const visitStore = useVisitStore()
 const observationStore = useObservationStore()
@@ -273,7 +275,7 @@ const loadFieldSets = async () => {
     logger.error('Failed to load field sets from global settings', error)
     $q.notify({
       type: 'warning',
-      message: 'Using default field sets. Some configurations may not be available.',
+      message: t('notifications.usingDefaultFieldSets'),
       position: 'top',
     })
 
@@ -295,13 +297,13 @@ const activateFieldSetsForVisitType = async (visit) => {
     visitId: visit.id,
     visitType: visit.visitType,
     visitRawData: !!visit.rawData,
-    visitBlobExists: !!visit.rawData?.VISIT_BLOB
+    visitBlobExists: !!visit.rawData?.VISIT_BLOB,
   })
 
   try {
     // Extract visit type from visit data
     let visitType = null
-    
+
     // Try to get visit type from different possible sources
     if (visit.visitType) {
       visitType = visit.visitType
@@ -318,61 +320,59 @@ const activateFieldSetsForVisitType = async (visit) => {
     }
 
     if (!visitType) {
-      logger.warn('No visit type found for visit', { 
+      logger.warn('No visit type found for visit', {
         visitId: visit.id,
         visitKeys: Object.keys(visit),
-        rawDataKeys: visit.rawData ? Object.keys(visit.rawData) : []
+        rawDataKeys: visit.rawData ? Object.keys(visit.rawData) : [],
       })
       return
     }
 
     // Get field sets associated with this visit type (only active ones)
     logger.debug('Getting field sets for visit type', { visitType })
-    
+
     // Clear cache to ensure we get fresh data
     globalSettingsStore.clearCache()
-    
+
     const visitTypeFieldSets = await globalSettingsStore.getFieldSetsForVisitType(visitType, true)
-    
+
     logger.debug('Field sets retrieved from global settings', {
       visitType,
       fieldSetCount: visitTypeFieldSets.length,
-      fieldSets: visitTypeFieldSets
+      fieldSets: visitTypeFieldSets,
     })
-    
+
     if (visitTypeFieldSets.length === 0) {
       logger.debug(`No active field sets configured for visit type: ${visitType}`)
       return
     }
 
     // Filter to only include field sets that actually exist in availableFieldSets
-    const validFieldSets = visitTypeFieldSets.filter(fsId => 
-      availableFieldSets.value.some(fs => fs.id === fsId)
-    )
+    const validFieldSets = visitTypeFieldSets.filter((fsId) => availableFieldSets.value.some((fs) => fs.id === fsId))
 
     logger.debug('Field sets after validation', {
       visitTypeFieldSets,
-      availableFieldSetIds: availableFieldSets.value.map(fs => fs.id),
-      validFieldSets
+      availableFieldSetIds: availableFieldSets.value.map((fs) => fs.id),
+      validFieldSets,
     })
 
     if (validFieldSets.length > 0) {
       // Clear existing field sets first
       logger.debug('Clearing existing field sets before activation', {
-        previousFieldSets: activeFieldSets.value
+        previousFieldSets: activeFieldSets.value,
       })
-      
+
       // Activate the field sets for this visit type
       activeFieldSets.value = [...validFieldSets] // Create new array to ensure reactivity
-      
+
       // Save to local settings
       localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
-      
+
       logger.info(`Activated ${validFieldSets.length} field sets for visit type: ${visitType}`, {
         visitId: visit.id,
         visitType,
         activatedFieldSets: validFieldSets,
-        activeFieldSetsAfterUpdate: activeFieldSets.value
+        activeFieldSetsAfterUpdate: activeFieldSets.value,
       })
 
       // Special logging for Parkinson visits
@@ -381,7 +381,7 @@ const activateFieldSetsForVisitType = async (visit) => {
           requestedFieldSets: visitTypeFieldSets,
           validatedFieldSets: validFieldSets,
           finalActiveFieldSets: activeFieldSets.value,
-          availableFieldSets: availableFieldSets.value.map(fs => ({ id: fs.id, name: fs.name }))
+          availableFieldSets: availableFieldSets.value.map((fs) => ({ id: fs.id, name: fs.name })),
         })
       }
 
@@ -389,12 +389,12 @@ const activateFieldSetsForVisitType = async (visit) => {
         type: 'info',
         message: `Activated ${validFieldSets.length} field sets for ${visitType} visit`,
         position: 'top',
-        timeout: 2000
+        timeout: 2000,
       })
     } else {
       logger.warn(`No valid field sets found for visit type: ${visitType}`, {
         visitTypeFieldSets,
-        availableFieldSetIds: availableFieldSets.value.map(fs => fs.id)
+        availableFieldSetIds: availableFieldSets.value.map((fs) => fs.id),
       })
     }
   } catch (error) {
@@ -407,14 +407,14 @@ const onVisitSelected = async (visit) => {
 
   try {
     await visitObservationService.selectVisitAndLoadObservations(visit)
-    
+
     // Automatically activate field sets based on visit type
     await activateFieldSetsForVisitType(visit)
   } catch (error) {
     logger.error('Failed to select visit', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to load visit data',
+      message: t('notifications.failedToLoadVisitData'),
       position: 'top',
     })
   }
@@ -438,7 +438,7 @@ const onFieldSetConfigSave = (selectedFieldSets) => {
 
   $q.notify({
     type: 'positive',
-    message: 'Field set configuration saved',
+    message: t('notifications.fieldSetConfigurationSaved'),
     position: 'top',
   })
 }
@@ -472,11 +472,11 @@ const previewSelectedVisit = (visit) => {
 
 const onVisitCreated = async (newVisit) => {
   emit('visit-created', newVisit)
-  
+
   // The visit will be selected by the service, but we need to activate field sets
   // Wait a bit for the visit to be properly selected
-  await new Promise(resolve => setTimeout(resolve, 100))
-  
+  await new Promise((resolve) => setTimeout(resolve, 100))
+
   // Activate field sets for the new visit type
   await activateFieldSetsForVisitType(newVisit)
 }
@@ -536,14 +536,14 @@ const onCloneFromPrevious = async (data) => {
 
     $q.notify({
       type: 'positive',
-      message: 'Value cloned from previous visit',
+      message: t('notifications.valueClonedFromPrevious'),
       position: 'top',
     })
   } catch (error) {
     logger.error('Failed to clone from previous visit', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to clone value',
+      message: t('notifications.failedToCloneValue'),
       position: 'top',
     })
   }
@@ -562,7 +562,7 @@ const onCustomObservationAdded = (data) => {
 
   $q.notify({
     type: 'positive',
-    message: 'Custom observation added successfully',
+    message: t('notifications.customObservationAdded'),
     position: 'top',
   })
 }
@@ -574,9 +574,9 @@ watch(
   () => props.initialVisit,
   async (newVisit) => {
     if (newVisit) {
-      logger.debug('Initial visit changed', { 
-        visitId: newVisit.id, 
-        visitType: newVisit.visitType 
+      logger.debug('Initial visit changed', {
+        visitId: newVisit.id,
+        visitType: newVisit.visitType,
       })
       await visitObservationService.selectVisitAndLoadObservations(newVisit)
       // Activate field sets for the initial visit
@@ -598,7 +598,7 @@ onMounted(async () => {
   await loadFieldSets()
 
   // Don't load saved field sets yet - let the visit type determine them first
-  
+
   logger.info('Field sets configuration loaded', {
     availableFieldSets: availableFieldSets.value.map((fs) => fs.id),
     selectedVisitId: selectedVisit.value?.id,
@@ -612,14 +612,14 @@ onMounted(async () => {
     logger.info('No visit selected, selecting the most recent visit')
     const mostRecentVisit = visitStore.visitOptions[0].value
     await visitObservationService.selectVisitAndLoadObservations(mostRecentVisit)
-    
+
     // Activate field sets for the auto-selected visit
     await activateFieldSetsForVisitType(mostRecentVisit)
   } else if (selectedVisit.value) {
     // If a visit is already selected, activate its field sets
     logger.info('Visit already selected, activating field sets', {
       visitId: selectedVisit.value.id,
-      visitType: selectedVisit.value.visitType
+      visitType: selectedVisit.value.visitType,
     })
     await activateFieldSetsForVisitType(selectedVisit.value)
   } else {

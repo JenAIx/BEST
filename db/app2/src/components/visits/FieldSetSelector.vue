@@ -2,31 +2,31 @@
   <div class="field-set-selector">
     <div class="field-set-header">
       <div class="field-set-title-section">
-        <h4 class="field-set-title">Observation Categories</h4>
+        <h4 class="field-set-title">{{ $t('observation.observationCategories') }}</h4>
         <q-chip :color="overallStats.color" :text-color="overallStats.textColor" size="md" class="q-ml-md overall-stats-chip" outline>
           <q-icon name="analytics" size="16px" class="q-mr-xs" />
-          {{ overallStats.percentage }}% Complete ({{ overallStats.filled }}/{{ overallStats.total }})<span v-if="overallStats.uncategorizedCount > 0" class="uncategorized-note">
-            (uncategorized {{ overallStats.uncategorizedCount }})</span
+          {{ overallStats.percentage }}% {{ $t('visit.complete') }} ({{ overallStats.filled }}/{{ overallStats.total }})<span v-if="overallStats.uncategorizedCount > 0" class="uncategorized-note">
+            ({{ $t('visit.uncategorized') }} {{ overallStats.uncategorizedCount }})</span
           >
 
           <q-tooltip class="stats-tooltip">
             <div class="stats-details">
-              <div class="stats-header">📊 Overall Visit Progress</div>
+              <div class="stats-header">📊 {{ $t('visit.overallProgress') }}</div>
               <div class="stats-grid">
                 <div class="stat-item">
-                  <span class="stat-label">Active Categories:</span>
+                  <span class="stat-label">{{ $t('visit.activeCategories') }}:</span>
                   <span class="stat-value">{{ overallStats.activeCategories }}</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label">Total Concepts:</span>
+                  <span class="stat-label">{{ $t('visit.totalConcepts') }}:</span>
                   <span class="stat-value">{{ overallStats.total }}</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label">Completed:</span>
+                  <span class="stat-label">{{ $t('visit.completed') }}:</span>
                   <span class="stat-value">{{ overallStats.filled }}</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label">Progress:</span>
+                  <span class="stat-label">{{ $t('visit.progress') }}:</span>
                   <span class="stat-value">{{ overallStats.percentage }}%</span>
                 </div>
               </div>

@@ -2,12 +2,12 @@
   <div class="questionnaire-selector">
     <q-card flat bordered>
       <q-card-section>
-        <div class="text-h6 q-mb-md">Select Questionnaire</div>
+        <div class="text-h6 q-mb-md">{{ $t('questionnaire.selectQuestionnaire') }}</div>
 
         <!-- Loading State -->
         <div v-if="loading" class="text-center q-pa-lg">
           <q-spinner-dots size="50px" color="primary" />
-          <div class="text-body2 q-mt-md text-grey-6">Loading questionnaires...</div>
+          <div class="text-body2 q-mt-md text-grey-6">{{ $t('questionnaire.loadingQuestionnaires') }}</div>
         </div>
 
         <!-- Error State -->
@@ -17,16 +17,16 @@
           </template>
           {{ error }}
           <template v-slot:action>
-            <q-btn flat color="red" label="Retry" @click="loadQuestionnaires" />
+            <q-btn flat color="red" :label="$t('common.retry')" @click="loadQuestionnaires" />
           </template>
         </q-banner>
 
         <!-- Empty State -->
         <div v-else-if="!questionnaires || questionnaires.length === 0" class="text-center q-pa-lg">
           <q-icon name="quiz" size="64px" color="grey-4" />
-          <div class="text-h6 text-grey-6 q-mt-md">No Questionnaires Available</div>
-          <div class="text-body2 text-grey-5">No questionnaires have been loaded into the system yet.</div>
-          <q-btn color="primary" label="Refresh" @click="loadQuestionnaires" class="q-mt-md" />
+          <div class="text-h6 text-grey-6 q-mt-md">{{ $t('questionnaire.noQuestionnairesAvailable') }}</div>
+          <div class="text-body2 text-grey-5">{{ $t('questionnaire.noQuestionnairesLoaded') }}</div>
+          <q-btn color="primary" :label="$t('common.refresh')" @click="loadQuestionnaires" class="q-mt-md" />
         </div>
 
         <!-- Questionnaire List -->

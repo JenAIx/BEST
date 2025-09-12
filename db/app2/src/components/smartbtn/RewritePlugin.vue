@@ -15,23 +15,23 @@
 
     <div class="row q-col-gutter-sm q-mb-md">
       <div class="col-12 col-md-6">
-        <q-select v-model="tone" :options="toneOptions" outlined dense label="Tone/Style" emit-value map-options />
+        <q-select v-model="tone" :options="toneOptions" outlined dense :label="$t('smartButton.toneStyle')" emit-value map-options />
       </div>
       <div class="col-12 col-md-6">
-        <q-select v-model="length" :options="lengthOptions" outlined dense label="Length" emit-value map-options />
+        <q-select v-model="length" :options="lengthOptions" outlined dense :label="$t('smartButton.length')" emit-value map-options />
       </div>
     </div>
 
     <div class="row items-center q-gutter-sm q-mb-md">
-      <q-btn :disable="!hasApiKey || isLoading || !canRewrite" :loading="isLoading" color="teal" icon="auto_fix_high" label="Rewrite" @click="rewrite" />
-      <q-btn flat color="grey-7" icon="content_copy" label="Copy" @click="copyOutput" />
+      <q-btn :disable="!hasApiKey || isLoading || !canRewrite" :loading="isLoading" color="teal" icon="auto_fix_high" :label="$t('smartButton.rewrite')" @click="rewrite" />
+      <q-btn flat color="grey-7" icon="content_copy" :label="$t('common.copy')" @click="copyOutput" />
       <q-space />
     </div>
 
     <q-separator />
 
-    <div class="q-mt-md" style="position: relative;">
-      <q-input v-model="outputText" type="textarea" autogrow outlined dense placeholder="Rewritten text will appear here" />
+    <div class="q-mt-md" style="position: relative">
+      <q-input v-model="outputText" type="textarea" autogrow outlined dense :placeholder="$t('smartButton.rewrittenTextPlaceholder')" />
       <q-inner-loading :showing="isLoading">
         <q-spinner-dots color="teal" size="32px" />
       </q-inner-loading>
@@ -53,8 +53,8 @@ const localSettingsStore = useLocalSettingsStore()
 const props = defineProps({
   initialState: {
     type: Object,
-    default: () => ({})
-  }
+    default: () => ({}),
+  },
 })
 
 // Reactive state with initial values from props
@@ -89,7 +89,7 @@ const contextInfo = computed(() => {
 })
 
 const canRewrite = computed(() => {
-  return (inputText.value && inputText.value.trim().length > 0)
+  return inputText.value && inputText.value.trim().length > 0
 })
 
 // State management functions for minimize/expand
@@ -97,22 +97,20 @@ const getState = () => ({
   inputText: inputText.value,
   outputText: outputText.value,
   tone: tone.value,
-  length: length.value
+  length: length.value,
 })
 
 // Expose getState function for external access
 defineExpose({
-  getState
+  getState,
 })
 
 const buildPrompt = () => {
   const goals = [
     'CRITICAL: Maintain the EXACT same language as the original text. Do NOT translate, switch languages, or change the language in any way.',
     'Preserve all technical terms, proper nouns, medical terminology, and domain-specific vocabulary in their original form.',
-    tone.value === 'clear' ? 'Make it clear, clinical, and unambiguous.' :
-    tone.value === 'formal' ? 'Make it formal and professional.' :
-    'Make it friendly and approachable.',
-    length.value === 'concise' ? 'Keep it concise.' : length.value === 'detailed' ? 'Provide enough detail without verbosity.' : 'Balance brevity and completeness.'
+    tone.value === 'clear' ? 'Make it clear, clinical, and unambiguous.' : tone.value === 'formal' ? 'Make it formal and professional.' : 'Make it friendly and approachable.',
+    length.value === 'concise' ? 'Keep it concise.' : length.value === 'detailed' ? 'Provide enough detail without verbosity.' : 'Balance brevity and completeness.',
   ]
 
   return `Rewrite the following text. ${goals.join(' ')}
@@ -144,7 +142,6 @@ const rewrite = async () => {
   }
 }
 
-
 const copyOutput = async () => {
   try {
     if (!outputText.value) return
@@ -165,7 +162,6 @@ onMounted(() => {
       inputText.value = ctx.selectedText
     }
   }
-  
 })
 </script>
 
@@ -174,5 +170,3 @@ onMounted(() => {
   min-width: 480px;
 }
 </style>
-
-

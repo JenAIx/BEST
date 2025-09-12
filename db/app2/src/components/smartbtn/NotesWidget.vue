@@ -1,25 +1,9 @@
 <template>
   <div class="notes-plugin">
-    <q-input
-      v-model="note"
-      type="textarea"
-      placeholder="Enter your note here..."
-      rows="4"
-      outlined
-      class="q-mb-md"
-    />
+    <q-input v-model="note" type="textarea" :placeholder="$t('smartButton.notesPlaceholder')" rows="4" outlined class="q-mb-md" />
     <div class="row q-gutter-sm">
-      <q-btn 
-        color="primary" 
-        label="Save Note" 
-        @click="saveNote"
-        :disable="!note.trim()"
-      />
-      <q-btn 
-        color="grey" 
-        label="Clear" 
-        @click="clearNote"
-      />
+      <q-btn color="primary" :label="$t('smartButton.saveNote')" @click="saveNote" :disable="!note.trim()" />
+      <q-btn color="grey" :label="$t('common.clear')" @click="clearNote" />
     </div>
     <div v-if="savedNotes.length > 0" class="q-mt-md">
       <div class="text-subtitle2 q-mb-sm">Recent Notes:</div>
@@ -30,13 +14,7 @@
             <q-item-label caption>{{ savedNote.timestamp }}</q-item-label>
           </q-item-section>
           <q-item-section side>
-            <q-btn 
-              icon="delete" 
-              size="sm" 
-              flat 
-              round 
-              @click="deleteNote(index)"
-            />
+            <q-btn icon="delete" size="sm" flat round @click="deleteNote(index)" />
           </q-item-section>
         </q-item>
       </q-list>
@@ -48,7 +26,7 @@
 import { ref } from 'vue'
 
 defineOptions({
-  name: 'NotesWidget'
+  name: 'NotesWidget',
 })
 
 const note = ref('')
@@ -58,7 +36,7 @@ const saveNote = () => {
   if (note.value.trim()) {
     savedNotes.value.unshift({
       text: note.value.trim(),
-      timestamp: new Date().toLocaleString()
+      timestamp: new Date().toLocaleString(),
     })
     note.value = ''
   }

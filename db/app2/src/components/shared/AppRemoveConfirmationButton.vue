@@ -2,16 +2,16 @@
   <div class="remove-confirmation-container">
     <!-- Single Remove Button -->
     <q-btn v-if="!showRemoveConfirmation" flat round icon="clear" size="xs" color="grey-6" :disabled="disabled" @click="showConfirmation">
-      <q-tooltip>Remove</q-tooltip>
+      <q-tooltip>{{ $t('common.remove') }}</q-tooltip>
     </q-btn>
 
     <!-- Remove Confirmation Buttons -->
     <div v-else class="remove-confirmation-buttons">
       <q-btn flat round icon="clear" size="xs" color="grey-6" @click="cancelRemove" class="cancel-remove-btn" :disabled="loading">
-        <q-tooltip>Cancel</q-tooltip>
+        <q-tooltip>{{ $t('common.cancel') }}</q-tooltip>
       </q-btn>
       <q-btn flat round icon="check" size="xs" color="negative" @click="confirmRemove" class="confirm-remove-btn" :loading="loading" :disabled="loading">
-        <q-tooltip>Confirm Remove</q-tooltip>
+        <q-tooltip>{{ $t('common.confirmRemove') }}</q-tooltip>
       </q-btn>
     </div>
   </div>

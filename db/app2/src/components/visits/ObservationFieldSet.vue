@@ -7,15 +7,15 @@
         <!-- Show observation counts when collapsed -->
         <div v-if="collapsed && observationCount > 0" class="observation-badges q-ml-sm">
           <q-badge v-if="filledObservationCount > 0" :label="filledObservationCount" color="positive" class="observation-count-badge">
-            <q-tooltip>{{ filledObservationCount }} filled observation{{ filledObservationCount > 1 ? 's' : '' }}</q-tooltip>
+            <q-tooltip>{{ $t('observation.filledObservations', { count: filledObservationCount }) }}</q-tooltip>
           </q-badge>
           <q-badge v-if="unfilledObservationCount > 0" :label="unfilledObservationCount" color="grey-5" class="observation-count-badge unfilled-badge">
-            <q-tooltip>{{ unfilledObservationCount }} unfilled observation{{ unfilledObservationCount > 1 ? 's' : '' }}</q-tooltip>
+            <q-tooltip>{{ $t('observation.unfilledObservations', { count: unfilledObservationCount }) }}</q-tooltip>
           </q-badge>
         </div>
       </div>
       <q-icon name="expand_more" size="20px" class="expand-icon" :class="{ 'rotate-180': !collapsed }">
-        <q-tooltip>{{ collapsed ? 'Expand' : 'Collapse' }}</q-tooltip>
+        <q-tooltip>{{ collapsed ? $t('common.expand') : $t('common.collapse') }}</q-tooltip>
       </q-icon>
     </div>
 
@@ -44,8 +44,8 @@
         <!-- Empty State -->
         <div v-if="tableRows.length === 0" class="empty-observations">
           <q-icon name="assignment" size="48px" color="grey-4" />
-          <div class="text-h6 text-grey-6 q-mt-sm">No observations yet</div>
-          <div class="text-body2 text-grey-5">Add observations from the available options below</div>
+          <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('observation.noObservationsYet') }}</div>
+          <div class="text-body2 text-grey-5">{{ $t('observation.addObservationsHint') }}</div>
         </div>
 
         <!-- Unfilled Observations - Compact Chips -->
@@ -776,22 +776,22 @@ const onDuplicateValue = async (data) => {
     })
 
     // Find the row for this concept code to update it
-    const rowIndex = tableRows.value.findIndex(row => row.conceptCode === data.conceptCode)
-    
+    const rowIndex = tableRows.value.findIndex((row) => row.conceptCode === data.conceptCode)
+
     if (rowIndex !== -1) {
       const row = tableRows.value[rowIndex]
-      
+
       // Update the current value and mark as changed
       row.currentVal = data.value
       row.hasChanges = true
       pendingChanges.value.set(row.id, data.value)
-      
+
       logger.success('Value duplicated successfully', {
         conceptCode: data.conceptCode,
         newValue: data.value,
         rowId: row.id,
       })
-      
+
       $q.notify({
         type: 'positive',
         message: `Value duplicated from previous visit (${new Date(data.fromVisit.date).toLocaleDateString()})`,

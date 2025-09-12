@@ -12,8 +12,8 @@
       <!-- Logo and Title -->
       <div class="text-center q-mb-xl">
         <img src="/favicon.ico" alt="BEST Medical System Logo" style="width: 64px; height: 64px" class="q-mb-md" />
-        <h1 class="text-h3 text-weight-bold q-my-none">BEST Medical System</h1>
-        <p class="text-subtitle1 text-grey-7 q-mt-sm">Base for Experiment Storage & Tracking</p>
+        <h1 class="text-h3 text-weight-bold q-my-none">{{ $t('auth.appName') }}</h1>
+        <p class="text-subtitle1 text-grey-7 q-mt-sm">{{ $t('auth.appSubtitle') }}</p>
       </div>
 
       <!-- Login Form Card -->
@@ -22,7 +22,7 @@
           <q-form @submit="onLogin" class="q-gutter-md">
             <!-- Database Selection -->
             <div>
-              <label class="text-weight-medium text-grey-8 q-mb-xs block"> Database </label>
+              <label class="text-weight-medium text-grey-8 q-mb-xs block">{{ $t('auth.database') }}</label>
               <q-select
                 v-model="formData.database"
                 :options="databaseOptions"
@@ -30,7 +30,7 @@
                 option-label="label"
                 outlined
                 dense
-                :rules="[(val) => !!val || 'Please select a database']"
+                :rules="[(val) => !!val || $t('auth.selectDatabase')]"
                 data-cy="login-database"
               >
                 <template v-slot:prepend>
@@ -58,8 +58,8 @@
 
             <!-- Username -->
             <div>
-              <label class="text-weight-medium text-grey-8 q-mb-xs block"> Username </label>
-              <q-input v-model="formData.username" outlined dense placeholder="Enter your username" :rules="[(val) => !!val || 'Username is required']" lazy-rules data-cy="login-username">
+              <label class="text-weight-medium text-grey-8 q-mb-xs block">{{ $t('auth.username') }}</label>
+              <q-input v-model="formData.username" outlined dense :placeholder="$t('auth.username')" :rules="[(val) => !!val || $t('validation.required')]" lazy-rules data-cy="login-username">
                 <template v-slot:prepend>
                   <q-icon name="person" />
                 </template>
@@ -68,14 +68,14 @@
 
             <!-- Password -->
             <div>
-              <label class="text-weight-medium text-grey-8 q-mb-xs block"> Password </label>
+              <label class="text-weight-medium text-grey-8 q-mb-xs block">{{ $t('auth.password') }}</label>
               <q-input
                 v-model="formData.password"
                 outlined
                 dense
                 :type="showPassword ? 'text' : 'password'"
-                placeholder="Enter your password"
-                :rules="[(val) => !!val || 'Password is required']"
+                :placeholder="$t('auth.password')"
+                :rules="[(val) => !!val || $t('validation.required')]"
                 lazy-rules
                 data-cy="login-password"
               >
@@ -90,8 +90,8 @@
 
             <!-- Remember Me -->
             <div class="flex items-center justify-between">
-              <q-checkbox v-model="formData.rememberMe" label="Remember me" color="primary" dense />
-              <q-btn flat dense no-caps color="primary" label="Forgot password?" @click="onForgotPassword" />
+              <q-checkbox v-model="formData.rememberMe" :label="$t('auth.rememberMe')" color="primary" dense />
+              <q-btn flat dense no-caps color="primary" :label="$t('auth.forgotPassword')" @click="onForgotPassword" />
             </div>
 
             <!-- Error Message -->
@@ -107,19 +107,24 @@
               <template v-slot:avatar>
                 <q-icon name="schedule" color="warning" />
               </template>
-              Your session has expired. Please login again.
+              {{ $t('auth.sessionExpired') }}
             </q-banner>
 
             <!-- Submit Button -->
-            <q-btn type="submit" color="primary" class="full-width q-mt-lg" size="lg" unelevated :loading="loading" label="Login" data-cy="login-submit" />
+            <q-btn type="submit" color="primary" class="full-width q-mt-lg" size="lg" unelevated :loading="loading" :label="$t('auth.login')" data-cy="login-submit" />
           </q-form>
         </q-card-section>
       </q-card>
 
       <!-- Footer Links -->
       <div class="text-center q-mt-lg">
-        <q-btn flat dense no-caps color="grey-7" label="Help" icon="help_outline" @click="onHelp" class="q-mx-sm" />
-        <q-btn flat dense no-caps color="grey-7" label="About" icon="info_outline" @click="onAbout" class="q-mx-sm" />
+        <q-btn flat dense no-caps color="grey-7" :label="$t('common.help')" icon="help_outline" @click="onHelp" class="q-mx-sm" />
+        <q-btn flat dense no-caps color="grey-7" :label="$t('common.about')" icon="info_outline" @click="onAbout" class="q-mx-sm" />
+        <q-btn flat dense color="grey-7" @click="toggleLanguage" class="q-mx-sm">
+          <q-icon :name="currentLanguageIcon" class="q-mr-xs" />
+          {{ currentLanguageFlag }}
+          <q-tooltip>{{ $t('settings.languageSettings') }}</q-tooltip>
+        </q-btn>
       </div>
     </div>
 
@@ -129,7 +134,7 @@
         <q-card-section>
           <div class="text-h6 q-mb-md">
             <q-icon name="folder" class="q-mr-sm" />
-            Configure Database Folder
+            {{ $t('auth.configureDatabaseFolder') }}
           </div>
           <div v-if="configDatabase" class="q-mb-md">
             <p class="text-subtitle2 q-mb-xs">{{ configDatabase.label }}</p>
@@ -139,32 +144,32 @@
 
         <q-card-section class="q-pt-none">
           <div class="q-mb-md">
-            <label class="text-weight-medium text-grey-8 q-mb-xs block"> Custom Folder Path (leave empty for default) </label>
-            <q-input v-model="customFolderPath" outlined dense placeholder="e.g., /path/to/your/database/folder" :hint="`Default: ./database/`">
+            <label class="text-weight-medium text-grey-8 q-mb-xs block">{{ $t('auth.customFolderPath') }}</label>
+            <q-input v-model="customFolderPath" outlined dense :placeholder="$t('auth.folderPathPlaceholder')" :hint="$t('auth.folderPathHint')">
               <template v-slot:prepend>
                 <q-icon name="folder" />
               </template>
               <template v-slot:append>
-                <q-btn flat dense round icon="folder_open" @click="selectCustomFolder" title="Browse folder" />
+                <q-btn flat dense round icon="folder_open" @click="selectCustomFolder" :title="$t('auth.browseFolder')" />
               </template>
             </q-input>
           </div>
 
           <div class="text-caption text-grey-6 q-mb-md">
             <q-icon name="info" class="q-mr-xs" />
-            The database file ({{ configDatabase?.filename }}) will be stored in this folder.
+            {{ $t('auth.databaseFileInfo', { filename: configDatabase?.filename }) }}
           </div>
 
           <div v-if="configDatabase?.customPath" class="q-mb-md">
-            <div class="text-caption text-grey-7">Current custom path: {{ configDatabase.customPath }}</div>
-            <div class="text-caption text-grey-7">Full database path: {{ configDatabase.value }}</div>
+            <div class="text-caption text-grey-7">{{ $t('auth.currentCustomPath') }}: {{ configDatabase.customPath }}</div>
+            <div class="text-caption text-grey-7">{{ $t('auth.fullDatabasePath') }}: {{ configDatabase.value }}</div>
           </div>
         </q-card-section>
 
         <q-card-actions align="right" class="q-pt-none">
-          <q-btn flat label="Cancel" color="grey-7" @click="onCancelDatabaseConfig" />
-          <q-btn flat label="Clear Custom Path" color="orange" @click="customFolderPath = ''" v-if="configDatabase?.customPath" />
-          <q-btn unelevated label="Save" color="primary" @click="onSaveDatabaseConfig" />
+          <q-btn flat :label="$t('common.cancel')" color="grey-7" @click="onCancelDatabaseConfig" />
+          <q-btn flat :label="$t('auth.clearCustomPath')" color="orange" @click="customFolderPath = ''" v-if="configDatabase?.customPath" />
+          <q-btn unelevated :label="$t('common.save')" color="primary" @click="onSaveDatabaseConfig" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -175,6 +180,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLogger } from '../shared/composables/useLogger.js'
@@ -183,6 +189,7 @@ import { useLogger } from '../shared/composables/useLogger.js'
 const $q = useQuasar()
 const router = useRouter()
 const route = useRoute()
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const localSettingsStore = useLocalSettingsStore()
 const logger = useLogger('LoginPage')
@@ -257,6 +264,38 @@ const databaseOptions = computed(() => {
     customPath: localSettingsStore.getDatabaseCustomPath(config.name),
   }))
 })
+
+// Language toggle functionality
+const currentLanguageFlag = computed(() => {
+  return locale.value === 'de' ? 'DE' : 'EN'
+})
+
+const currentLanguageIcon = computed(() => {
+  return 'language'
+})
+
+const toggleLanguage = () => {
+  const newLocale = locale.value === 'de' ? 'en' : 'de'
+  locale.value = newLocale
+
+  try {
+    localStorage?.setItem('locale', newLocale)
+  } catch (error) {
+    console.warn('Error saving locale:', error)
+  }
+
+  logger.info('Language toggled', {
+    from: locale.value === 'de' ? 'en' : 'de',
+    to: newLocale,
+  })
+
+  $q.notify({
+    message: newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English',
+    type: 'info',
+    position: 'top',
+    timeout: 1500,
+  })
+}
 
 // Initialize
 onMounted(async () => {
@@ -370,15 +409,15 @@ const onForgotPassword = () => {
 // Help handler
 const onHelp = () => {
   $q.dialog({
-    title: 'Login Help',
+    title: t('auth.loginHelp'),
     message: `
-      <p>To access the BEST Medical System:</p>
+      <p>${t('auth.helpIntro')}:</p>
       <ol>
-        <li>Select your database from the dropdown</li>
-        <li>Enter your username and password</li>
-        <li>Click Login to continue</li>
+        <li>${t('auth.helpStep1')}</li>
+        <li>${t('auth.helpStep2')}</li>
+        <li>${t('auth.helpStep3')}</li>
       </ol>
-      <p class="q-mt-md">For technical support, contact your IT department.</p>
+      <p class="q-mt-md">${t('auth.helpSupport')}</p>
     `,
     html: true,
     persistent: false,
@@ -505,45 +544,45 @@ const onVersionInfo = () => {
 // About handler
 const onAbout = () => {
   $q.dialog({
-    title: 'About BEST Medical System',
+    title: t('auth.aboutTitle'),
     message: `
       <div class="text-center q-mb-md">
         <p class="text-h6 q-mb-sm">${appName.value}</p>
-        <p class="text-subtitle2 q-mb-xs">Version ${appVersion.value}</p>
-        <p class="text-caption text-grey-7">Base for Experiment Storage & Tracking</p>
-        ${buildDate.value ? `<p class="text-caption text-grey-7">Build: ${buildDate.value}</p>` : ''}
+        <p class="text-subtitle2 q-mb-xs">${t('auth.version')} ${appVersion.value}</p>
+        <p class="text-caption text-grey-7">${t('auth.appSubtitle')}</p>
+        ${buildDate.value ? `<p class="text-caption text-grey-7">${t('auth.build')}: ${buildDate.value}</p>` : ''}
       </div>
 
       <div class="q-mb-md">
-        <p><strong>Developer:</strong> Stefan Brodoehl</p>
+        <p><strong>${t('auth.developer')}:</strong> Stefan Brodoehl</p>
       </div>
 
       <div class="q-mb-md">
-        <p><strong>Technology Stack:</strong></p>
+        <p><strong>${t('auth.technologyStack')}:</strong></p>
         <ul class="q-mt-xs">
-          <li><strong>Frontend:</strong> Vue.js 3 with Composition API</li>
-          <li><strong>UI Framework:</strong> Quasar Framework v2.18.2</li>
-          <li><strong>Build Tool:</strong> Vite v2.3.0</li>
-          <li><strong>State Management:</strong> Pinia</li>
+          <li><strong>${t('auth.frontend')}:</strong> Vue.js 3 with Composition API</li>
+          <li><strong>${t('auth.uiFramework')}:</strong> Quasar Framework v2.18.2</li>
+          <li><strong>${t('auth.buildTool')}:</strong> Vite v2.3.0</li>
+          <li><strong>${t('auth.stateManagement')}:</strong> Pinia</li>
         </ul>
       </div>
 
       <div class="q-mb-md">
-        <p><strong>Database:</strong></p>
+        <p><strong>${t('auth.database')}:</strong></p>
         <ul class="q-mt-xs">
-          <li><strong>Engine:</strong> SQLite3</li>
-          <li><strong>Features:</strong> Lightweight, serverless, ACID compliant</li>
-          <li><strong>Storage:</strong> Local file-based database</li>
+          <li><strong>${t('auth.engine')}:</strong> SQLite3</li>
+          <li><strong>${t('auth.features')}:</strong> ${t('auth.databaseFeatures')}</li>
+          <li><strong>${t('auth.storage')}:</strong> ${t('auth.localFileStorage')}</li>
         </ul>
       </div>
 
       <div class="q-mb-md">
-        <p><strong>Architecture:</strong></p>
+        <p><strong>${t('auth.architecture')}:</strong></p>
         <ul class="q-mt-xs">
-          <li>Component-based architecture</li>
-          <li>Repository pattern for data access</li>
-          <li>Service layer for business logic</li>
-          <li>Protected routing with JWT authentication</li>
+          <li>${t('auth.componentBased')}</li>
+          <li>${t('auth.repositoryPattern')}</li>
+          <li>${t('auth.serviceLayer')}</li>
+          <li>${t('auth.protectedRouting')}</li>
         </ul>
       </div>
     `,

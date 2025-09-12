@@ -7,25 +7,25 @@
     :show-actions="true"
     :show-close="true"
     @ok="exportToPDF"
-    ok-label="Export PDF"
+    :ok-label="$t('visit.exportPdf')"
     ok-icon="picture_as_pdf"
     ok-color="primary"
   >
     <div v-if="loading" class="loading-container">
       <q-spinner-grid size="50px" color="primary" />
-      <div class="text-h6 q-mt-md">Loading visit summary...</div>
+      <div class="text-h6 q-mt-md">{{ $t('visit.loadingSummary') }}</div>
     </div>
 
     <div v-else-if="observationStore.error" class="error-container">
       <q-icon name="error" size="48px" color="negative" />
-      <div class="text-h6 text-negative q-mt-sm">Failed to load visit data</div>
+      <div class="text-h6 text-negative q-mt-sm">{{ $t('visit.failedToLoad') }}</div>
       <div class="text-body2 text-grey-6">{{ observationStore.error }}</div>
     </div>
 
     <div v-else-if="!visit" class="no-visit-selected">
       <q-icon name="event_busy" size="48px" color="grey-4" />
-      <div class="text-h6 text-grey-6 q-mt-sm">No visit selected</div>
-      <div class="text-body2 text-grey-5">Please select a visit to view its summary.</div>
+      <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noVisitSelected') }}</div>
+      <div class="text-body2 text-grey-5">{{ $t('visit.selectVisitForSummary') }}</div>
     </div>
 
     <div v-else class="visit-summary-content q-pa-md">
@@ -40,7 +40,7 @@
             <div class="patient-details text-caption text-grey-6">
               <div class="patient-basic">{{ getPatientBasicDetails() }}</div>
               <div v-if="getPatientBirthdate() || getPatientGender()" class="patient-extended">
-                <span v-if="getPatientBirthdate()">Born: {{ getPatientBirthdate() }}</span>
+                <span v-if="getPatientBirthdate()">{{ $t('patient.born') }}: {{ getPatientBirthdate() }}</span>
                 <span v-if="getPatientBirthdate() && getPatientGender()" class="q-mx-xs">•</span>
                 <span v-if="getPatientGender()">{{ getPatientGender() }}</span>
               </div>

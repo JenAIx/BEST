@@ -3,7 +3,7 @@
     <div class="q-pa-md">
       <div class="text-h4 q-mb-md flex items-center">
         <q-icon name="grid_on" size="32px" color="primary" class="q-mr-sm" />
-        Data Grid
+        {{ $t('navigation.dataGrid') }}
       </div>
 
       <!-- Patient Selection Card -->
@@ -11,12 +11,12 @@
         <q-card-section>
           <div class="row items-center justify-between">
             <div>
-              <div class="text-h6">Patient Selection</div>
-              <div class="text-caption text-grey-6 q-mt-xs">Select patients for multi-observation editing in Excel-like interface</div>
+              <div class="text-h6">{{ $t('dataGrid.patientSelection') }}</div>
+              <div class="text-caption text-grey-6 q-mt-xs">{{ $t('dataGrid.patientSelectionHint') }}</div>
             </div>
             <div v-if="hasStoredSelection" class="q-gutter-sm">
-              <q-btn color="primary" icon="table_view" label="Continue with Stored Selection" @click="goToDataGrid" :loading="loadingStoredSelection" />
-              <q-btn flat color="grey-7" icon="clear" label="Clear Stored" @click="clearStoredSelection" />
+              <q-btn color="primary" icon="table_view" :label="$t('dataGrid.continueWithStored')" @click="goToDataGrid" :loading="loadingStoredSelection" />
+              <q-btn flat color="grey-7" icon="clear" :label="$t('dataGrid.clearStored')" @click="clearStoredSelection" />
             </div>
           </div>
         </q-card-section>
@@ -30,8 +30,8 @@
               <q-icon name="info" color="blue" />
             </template>
             <div class="text-body2">
-              <strong>{{ storedPatientIds.length }} patients</strong> from previous session available.
-              <div class="text-caption q-mt-xs">Last used: {{ formatStoredDate() }}</div>
+              <strong>{{ $t('dataGrid.storedPatientsCount', { count: storedPatientIds.length }) }}</strong> {{ $t('dataGrid.fromPreviousSession') }}.
+              <div class="text-caption q-mt-xs">{{ $t('dataGrid.lastUsed') }}: {{ formatStoredDate() }}</div>
             </div>
           </q-banner>
         </q-card-section>
@@ -42,7 +42,7 @@
         <q-card-section>
           <div class="row q-col-gutter-md items-end">
             <div class="col-12 col-md-4">
-              <q-input v-model="filters.search" label="Search by name or Patient ID" outlined dense clearable debounce="300" placeholder="Search patients...">
+              <q-input v-model="filters.search" :label="$t('export.searchByNameOrId')" outlined dense clearable debounce="300" :placeholder="$t('export.searchPatientsPlaceholder')">
                 <template v-slot:prepend>
                   <q-icon name="search" />
                 </template>
@@ -276,17 +276,13 @@ const loadTableData = async () => {
     }
 
     if (filters.value.gender) {
-      const genderCode = conceptStore.getCodeFromLabel(filters.value.gender, 'gender')
-      if (genderCode) {
-        criteria.SEX_CD = genderCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.SEX_CD = filters.value.gender
     }
 
     if (filters.value.status) {
-      const statusCode = conceptStore.getCodeFromLabel(filters.value.status, 'vital_status')
-      if (statusCode) {
-        criteria.VITAL_STATUS_CD = statusCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.VITAL_STATUS_CD = filters.value.status
     }
 
     // Add sorting options

@@ -10,13 +10,13 @@
         <div class="patient-meta">
           <template v-if="variant === 'recent'">
             <q-icon name="event" size="12px" class="q-mr-xs" />
-            {{ patient.lastVisit || 'No visits' }}
+            {{ patient.lastVisit || $t('visit.noVisits') }}
           </template>
           <template v-else>
-            <span v-if="patient.age">Age: {{ patient.age }}</span>
+            <span v-if="patient.age">{{ $t('patient.age') }}: {{ patient.age }}</span>
             <span v-if="patient.age && patient.visitCount > 0"> • </span>
-            <span v-if="patient.visitCount > 0">{{ patient.visitCount }} visits</span>
-            <span v-if="!patient.age && patient.visitCount === 0">No additional info</span>
+            <span v-if="patient.visitCount > 0">{{ patient.visitCount }} {{ $t('visit.visits').toLowerCase() }}</span>
+            <span v-if="!patient.age && patient.visitCount === 0">{{ $t('patient.noAdditionalInfo') }}</span>
           </template>
         </div>
       </div>

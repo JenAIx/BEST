@@ -2,19 +2,19 @@
   <div class="patient-selection-container">
     <div class="selection-hero">
       <q-icon name="medical_information" size="64px" color="primary" class="hero-icon" />
-      <h1 class="hero-title">Patient Visits</h1>
-      <p class="hero-subtitle">Select a patient to view and manage their visit history</p>
+      <h1 class="hero-title">{{ $t('navigation.patientVisits') }}</h1>
+      <p class="hero-subtitle">{{ $t('visits.selectPatientHint') }}</p>
     </div>
 
     <q-card class="selection-card" flat bordered>
       <q-card-section>
         <div class="text-h6 text-center q-mb-md">
           <q-icon name="person_search" class="q-mr-sm" />
-          Find Patient
+          {{ $t('visits.findPatient') }}
         </div>
 
         <!-- Search Input -->
-        <q-input v-model="searchQuery" placeholder="Search by name or Patient ID..." outlined dense @update:model-value="onSearchInput" :loading="searchLoading" debounce="300">
+        <q-input v-model="searchQuery" :placeholder="$t('visits.searchPatientPlaceholder')" outlined dense @update:model-value="onSearchInput" :loading="searchLoading" debounce="300">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -28,7 +28,7 @@
       <q-card-section v-if="!searchQuery && recentPatients.length > 0">
         <div class="text-subtitle2 text-grey-7 q-mb-sm">
           <q-icon name="history" size="16px" class="q-mr-xs" />
-          Recent Patients
+          {{ $t('visit.recentPatients') }}
         </div>
         <div class="recent-patients-grid">
           <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" variant="recent" @select="selectPatient" />
@@ -39,7 +39,7 @@
       <q-card-section v-if="searchQuery && searchResults.length > 0">
         <div class="text-subtitle2 text-grey-7 q-mb-sm">
           <q-icon name="search" size="16px" class="q-mr-xs" />
-          Search Results ({{ searchResults.length }})
+          {{ $t('visit.searchResults', { count: searchResults.length }) }}
         </div>
         <div class="search-results">
           <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" variant="search" @select="selectPatient" />
@@ -50,8 +50,8 @@
       <q-card-section v-if="searchQuery && searchResults.length === 0 && !searchLoading">
         <div class="no-results">
           <q-icon name="search_off" size="48px" color="grey-4" />
-          <div class="text-h6 text-grey-6 q-mt-sm">No patients found</div>
-          <div class="text-body2 text-grey-5">Try a different search term</div>
+          <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noPatientsFound') }}</div>
+          <div class="text-body2 text-grey-5">{{ $t('visit.tryDifferentSearch') }}</div>
         </div>
       </q-card-section>
 
@@ -59,7 +59,7 @@
       <q-card-section v-if="searchLoading">
         <div class="loading-state">
           <q-spinner-dots size="40px" color="primary" />
-          <div class="text-body2 text-grey-6 q-mt-sm">Searching patients...</div>
+          <div class="text-body2 text-grey-6 q-mt-sm">{{ $t('visit.searchingPatients') }}</div>
         </div>
       </q-card-section>
     </q-card>

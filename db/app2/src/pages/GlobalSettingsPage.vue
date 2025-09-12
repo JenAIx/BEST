@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h4 q-mb-md">Global Settings</div>
-    <p class="text-subtitle1 text-grey-7 q-mb-lg">Manage system-wide lookup values and configurations</p>
+    <div class="text-h4 q-mb-md">{{ $t('navigation.globalSettings') }}</div>
+    <p class="text-subtitle1 text-grey-7 q-mb-lg">{{ $t('settings.globalSettingsHint') }}</p>
 
     <!-- Category Selection -->
     <CategorySelector

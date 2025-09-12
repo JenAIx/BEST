@@ -1,20 +1,20 @@
 <template>
   <AppDialog
     v-model="dialogVisible"
-    :title="`${mode === 'create' ? 'Create' : 'Edit'} User`"
-    :subtitle="mode === 'edit' ? `Editing: ${localFormData.name || localFormData.username}` : 'Add a new system user'"
+    :title="mode === 'create' ? $t('user.createUser') : $t('user.editUser')"
+    :subtitle="mode === 'edit' ? `${$t('user.editing')}: ${localFormData.name || localFormData.username}` : $t('user.addNewUser')"
     size="md"
     :persistent="true"
     @ok="handleSubmit"
     @cancel="handleCancel"
     :show-ok="isFormValid && !loading && !userStore.saving"
-    :ok-label="mode === 'create' ? 'Create User' : 'Save Changes'"
+    :ok-label="mode === 'create' ? $t('user.createUser') : $t('user.saveChanges')"
     :ok-color="mode === 'create' ? 'positive' : 'primary'"
   >
     <!-- Loading State -->
     <div v-if="loading" class="row justify-center q-py-lg">
       <q-spinner color="primary" size="40px" />
-      <div class="q-ml-md text-grey-6">Loading user data...</div>
+      <div class="q-ml-md text-grey-6">{{ $t('user.loadingUserData') }}</div>
     </div>
 
     <!-- Form Content -->
@@ -22,13 +22,13 @@
       <!-- Username Field -->
       <q-input
         v-model="localFormData.username"
-        label="Username"
+        :label="$t('auth.username')"
         outlined
         dense
         :readonly="mode === 'edit'"
-        :hint="mode === 'edit' ? 'Username cannot be changed' : 'Login username (letters, numbers, underscores only)'"
+        :hint="mode === 'edit' ? $t('user.usernameCannotChange') : $t('user.usernameHint')"
         :rules="[
-          (val) => !!val || 'Username is required',
+          (val) => !!val || $t('user.usernameRequired'),
           (val) => mode === 'edit' || val.length >= 3 || 'Username must be at least 3 characters',
           (val) => mode === 'edit' || /^[a-zA-Z0-9_]+$/.test(val) || 'Username can only contain letters, numbers, and underscores',
         ]"
@@ -37,11 +37,11 @@
       <!-- Display Name Field -->
       <q-input
         v-model="localFormData.name"
-        label="Display Name"
+        :label="$t('settings.displayName')"
         outlined
         dense
-        :rules="[(val) => !!val || 'Display name is required']"
-        :hint="mode === 'edit' ? null : 'Full name displayed in the interface'"
+        :rules="[(val) => !!val || $t('user.displayNameRequired')]"
+        :hint="mode === 'edit' ? null : $t('user.displayNameHint')"
       />
 
       <!-- Password Fields (only for create mode) -->

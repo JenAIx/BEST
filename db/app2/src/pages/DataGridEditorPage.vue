@@ -4,9 +4,9 @@
     <div v-if="!hasPatientSelection" class="no-selection-state">
       <div class="text-center q-pa-xl">
         <q-icon name="grid_off" size="64px" color="grey-5" class="q-mb-md" />
-        <div class="text-h5 text-grey-7 q-mb-sm">No Patients Selected</div>
-        <div class="text-body2 text-grey-6 q-mb-lg">Please select patients from the Data Grid selection page to start editing.</div>
-        <q-btn color="primary" icon="arrow_back" label="Go to Patient Selection" @click="goToSelection" />
+        <div class="text-h5 text-grey-7 q-mb-sm">{{ $t('dataGrid.noPatientsSelected') }}</div>
+        <div class="text-body2 text-grey-6 q-mb-lg">{{ $t('dataGrid.selectPatientsHint') }}</div>
+        <q-btn color="primary" icon="arrow_back" :label="$t('dataGrid.goToPatientSelection')" @click="goToSelection" />
       </div>
     </div>
 

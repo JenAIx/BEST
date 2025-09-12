@@ -1,12 +1,12 @@
 <template>
-  <AppDialog v-model="showDialog" title="Search and Add Observation" :subtitle="`Category: ${fieldSetName}`" size="lg" persistent @close="cancelCustomObservation">
+  <AppDialog v-model="showDialog" :title="$t('observation.searchAndAddObservation')" :subtitle="`${$t('observation.category')}: ${fieldSetName}`" size="lg" persistent @close="cancelCustomObservation">
     <template #header>
       <div class="text-h6">
         <q-icon name="search" class="q-mr-sm" color="primary" />
-        Search and Add Observation
+        {{ $t('observation.searchAndAddObservation') }}
       </div>
       <div class="text-caption text-grey-6 q-mt-xs">
-        Category: <q-chip size="sm" :color="getCategoryColor()" text-color="white">{{ fieldSetName }}</q-chip>
+        {{ $t('observation.category') }}: <q-chip size="sm" :color="getCategoryColor()" text-color="white">{{ fieldSetName }}</q-chip>
       </div>
     </template>
 
@@ -14,11 +14,11 @@
     <div class="concept-search-section">
       <div class="text-subtitle2 q-mb-sm">
         <q-icon name="search" class="q-mr-xs" />
-        Search for existing concepts in the database
+        {{ $t('observation.searchConcepts') }}
       </div>
 
       <div class="search-row">
-        <q-input v-model="searchTerm" placeholder="Search concepts (min. 2 characters)" outlined dense class="search-input" @keyup="onSearchInput" @focus="showSearchResults = true">
+        <q-input v-model="searchTerm" :placeholder="$t('observation.searchPlaceholder')" outlined dense class="search-input" @keyup="onSearchInput" @focus="showSearchResults = true">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -27,14 +27,14 @@
           </template>
         </q-input>
 
-        <q-btn color="primary" icon="search" label="Search" @click="searchConcepts" :loading="searching" :disable="!searchTerm || searchTerm.length < 2" class="search-btn" />
+        <q-btn color="primary" icon="search" :label="$t('common.search')" @click="searchConcepts" :loading="searching" :disable="!searchTerm || searchTerm.length < 2" class="search-btn" />
       </div>
 
       <!-- Recent Concepts -->
       <div v-if="recentConcepts.length > 0 && !searchTerm" class="recent-concepts-section q-mb-md">
         <div class="text-subtitle2 text-grey-7 q-mb-sm">
           <q-icon name="history" class="q-mr-xs" />
-          Recently Used Concepts
+          {{ $t('observation.recentConcepts') }}
         </div>
         <div class="recent-concepts-grid">
           <q-chip v-for="concept in recentConcepts" :key="concept.CONCEPT_CD" clickable @click="selectConcept(concept)" color="blue-1" text-color="primary" size="md" class="recent-concept-chip">
@@ -47,7 +47,9 @@
 
       <!-- Search Results -->
       <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
-        <div class="text-caption text-grey-6 q-mb-xs">Found {{ searchResults.length }} concept{{ searchResults.length > 1 ? 's' : '' }}</div>
+        <div class="text-caption text-grey-6 q-mb-xs">
+          {{ $t('messages.found') }} {{ searchResults.length }} {{ searchResults.length === 1 ? $t('observation.conceptFound') : $t('observation.conceptsFound') }}
+        </div>
         <div class="concept-list">
           <q-card v-for="concept in searchResults" :key="concept.CONCEPT_CD" flat bordered class="concept-item cursor-pointer" @click="selectConcept(concept)">
             <q-card-section class="q-pa-sm">

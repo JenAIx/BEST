@@ -1,20 +1,20 @@
 <template>
   <q-page class="q-pa-md">
     <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">Concepts Administration</div>
+      <div class="text-h4">{{ $t('concepts.conceptsAdministration') }}</div>
       <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">Showing {{ concepts.length }} of {{ totalConcepts }} concepts</div>
+        <div class="text-caption text-grey-6">{{ $t('concepts.showingConcepts', { showing: concepts.length, total: totalConcepts }) }}</div>
         <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
-          <q-tooltip>Export to CSV</q-tooltip>
+          <q-tooltip>{{ $t('export.exportToCsv') }}</q-tooltip>
         </q-btn>
-        <q-btn color="primary" icon="add" label="Create Concept" @click="onCreateConcept" />
+        <q-btn color="primary" icon="add" :label="$t('concepts.createConcept')" @click="onCreateConcept" />
       </div>
     </div>
 
     <!-- Search and Filters -->
     <div class="row q-gutter-md q-mb-md">
       <div class="col-12 col-md-3">
-        <q-input v-model="searchQuery" outlined dense placeholder="Search concepts (code, name, path)..." @update:model-value="onSearchChange" debounce="300">
+        <q-input v-model="searchQuery" outlined dense :placeholder="$t('concepts.searchPlaceholder')" @update:model-value="onSearchChange" debounce="300">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -29,7 +29,7 @@
           outlined
           dense
           :options="valueTypeOptions"
-          label="Filter by Value Type"
+          :label="$t('concepts.filterByValueType')"
           multiple
           clearable
           emit-value

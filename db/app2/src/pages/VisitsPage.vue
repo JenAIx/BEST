@@ -18,9 +18,9 @@
               <div class="patient-details">
                 <span>{{ selectedPatient.id }}</span>
                 <span class="separator">•</span>
-                <span>Age: {{ selectedPatient.age || 'Unknown' }}</span>
+                <span>{{ $t('patient.age') }}: {{ selectedPatient.age || $t('common.unknown') }}</span>
                 <span class="separator">•</span>
-                <span>{{ visits.length }} visits</span>
+                <span>{{ visits.length }} {{ $t('visit.visits').toLowerCase() }}</span>
               </div>
             </div>
           </div>
@@ -30,10 +30,10 @@
                 :color="viewMode === 'timeline' ? 'white' : 'grey-4'"
                 :text-color="viewMode === 'timeline' ? 'primary' : 'white'"
                 icon="timeline"
-                label="Timeline"
+                :label="$t('visit.timeline')"
                 @click="viewMode = 'timeline'"
               />
-              <q-btn :color="viewMode === 'entry' ? 'white' : 'grey-4'" :text-color="viewMode === 'entry' ? 'primary' : 'white'" icon="edit" label="Data Entry" @click="viewMode = 'entry'" />
+              <q-btn :color="viewMode === 'entry' ? 'white' : 'grey-4'" :text-color="viewMode === 'entry' ? 'primary' : 'white'" icon="edit" :label="$t('visit.dataEntry')" @click="viewMode = 'entry'" />
             </q-btn-group>
           </div>
         </div>

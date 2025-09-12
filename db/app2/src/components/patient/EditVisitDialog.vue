@@ -4,27 +4,27 @@
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6 text-primary">
           <q-icon name="edit" class="q-mr-sm" />
-          Edit Visit
+          {{ $t('visit.editVisit') }}
         </div>
         <q-space />
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
       <q-card-section>
-        <div class="text-body2 text-grey-6 q-mb-md">Edit visit {{ visit?.encounterNum }} for {{ patient?.PATIENT_CD || 'this patient' }}</div>
+        <div class="text-body2 text-grey-6 q-mb-md">{{ $t('visit.editVisitFor', { visitNum: visit?.encounterNum, patientId: patient?.PATIENT_CD || $t('patient.thisPatient') }) }}</div>
 
         <q-form @submit="handleSubmit" class="q-gutter-md">
           <!-- Start Date -->
           <div class="row q-gutter-md">
             <div class="col">
-              <q-input v-model="formData.START_DATE" type="date" label="Start Date *" outlined dense :rules="[(val) => !!val || 'Start date is required']" clearable>
+              <q-input v-model="formData.START_DATE" type="date" :label="$t('visit.startDate') + ' *'" outlined dense :rules="[(val) => !!val || $t('visit.startDateRequired')]" clearable>
                 <template v-slot:prepend>
                   <q-icon name="event" />
                 </template>
               </q-input>
             </div>
             <div class="col">
-              <q-input v-model="formData.END_DATE" type="date" label="End Date" outlined dense clearable>
+              <q-input v-model="formData.END_DATE" type="date" :label="$t('visit.endDate')" outlined dense clearable>
                 <template v-slot:prepend>
                   <q-icon name="event_available" />
                 </template>
@@ -35,7 +35,17 @@
           <!-- Status and Location -->
           <div class="row q-gutter-md">
             <div class="col">
-              <q-select v-model="formData.ACTIVE_STATUS_CD" :options="statusOptions" label="Status *" outlined dense emit-value map-options clearable :rules="[(val) => !!val || 'Status is required']">
+              <q-select
+                v-model="formData.ACTIVE_STATUS_CD"
+                :options="statusOptions"
+                :label="$t('user.status') + ' *'"
+                outlined
+                dense
+                emit-value
+                map-options
+                clearable
+                :rules="[(val) => !!val || $t('validation.required')]"
+              >
                 <template v-slot:prepend>
                   <q-icon name="info" />
                 </template>

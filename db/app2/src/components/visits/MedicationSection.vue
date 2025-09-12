@@ -1,6 +1,6 @@
 <template>
   <div v-if="showMedicationSection" class="add-medication">
-    <q-btn flat icon="add" label="Add Medication" @click="$emit('add-empty-medication')" class="full-width" style="border: 2px dashed #ccc" />
+    <q-btn flat icon="add" :label="$t('visit.addMedication')" @click="$emit('add-empty-medication')" class="full-width" style="border: 2px dashed #ccc" />
   </div>
 </template>
 
