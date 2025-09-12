@@ -61,7 +61,8 @@
     "cqlRules": "CQL Rules",
     "export": "Export",
     "import": "Import",
-    "databaseTest": "Database Test"
+    "databaseTest": "Database Test",
+    "feedback": "Feedback"
   },
   "auth": {
     "appName": "BEST Medical System",
@@ -607,5 +608,41 @@
     "contactAdminForPasswordReset": "Please contact your system administrator to reset your password.",
     "enterFolderPathManually": "Please enter the folder path manually",
     "errorOpeningFolderDialog": "Error opening folder dialog"
+  },
+  "feedback": {
+    "title": "Feedback",
+    "subtitle": "Share your thoughts and suggestions to help us improve the system",
+    "giveFeedback": "Give Feedback",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Enter a brief title for your feedback",
+    "titleRequired": "Title is required",
+    "titleMaxLength": "Title must be less than 100 characters",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "Describe your feedback in detail...",
+    "descriptionRequired": "Description is required",
+    "descriptionMaxLength": "Description must be less than 1000 characters",
+    "ratingLabel": "Overall Rating",
+    "ratingRequired": "Please select a rating",
+    "thumbsUp": "Thumbs Up",
+    "thumbsDown": "Thumbs Down",
+    "submitFeedback": "Submit Feedback",
+    "statistics": "Feedback Statistics",
+    "totalFeedback": "Total",
+    "positiveFeedback": "Positive",
+    "negativeFeedback": "Negative",
+    "info": "Information",
+    "infoText": "Your feedback is valuable to us. All feedback is anonymous and helps us improve the system for everyone.",
+    "recentFeedback": "Recent Feedback",
+    "loadingFeedback": "Loading feedback...",
+    "noFeedback": "No feedback yet",
+    "noFeedbackHint": "Be the first to share your thoughts!",
+    "feedbackSubmitted": "Feedback submitted successfully!",
+    "feedbackError": "Failed to submit feedback. Please try again.",
+    "deleteFeedback": "Delete Feedback",
+    "deleteFeedbackTitle": "Delete Feedback",
+    "deleteFeedbackMessage": "Are you sure you want to delete the feedback",
+    "feedbackDeleted": "Feedback deleted successfully",
+    "deleteError": "Failed to delete feedback. Please try again.",
+    "loadError": "Failed to load feedback data. Please try again."
   }
 }

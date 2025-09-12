@@ -121,6 +121,11 @@ const routes = [
         component: () => import('pages/DatabaseTest.vue'),
         meta: { requiresAuth: true },
       },
+      {
+        path: 'feedback',
+        component: () => import('pages/FeedbackPage.vue'),
+        meta: { requiresAuth: true },
+      },
     ],
   },
 

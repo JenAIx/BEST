@@ -77,7 +77,7 @@
 
         <!-- Connection Status -->
         <q-chip :color="isConnected ? 'positive' : 'negative'" text-color="white" size="sm" icon="storage" class="q-ml-sm">
-          {{ isConnected ? $t('common.connected') : $t('common.disconnected') }}
+          <q-tooltip>{{ isConnected ? $t('common.connected') : $t('common.disconnected') }}</q-tooltip>
         </q-chip>
       </q-toolbar>
     </q-header>
@@ -151,38 +151,40 @@
             <q-item-section>{{ $t('navigation.dataGrid') }}</q-item-section>
           </q-item>
 
-          <q-separator spaced />
+          <!-- Administration (Admin only) -->
+          <template v-if="isAdmin">
+            <q-separator spaced />
 
-          <!-- Administration -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.administration') }}</q-item-label>
+            <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.administration') }}</q-item-label>
 
-          <q-item v-if="canAccess('/concepts')" clickable v-ripple to="/concepts" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="category" />
-            </q-item-section>
-            <q-item-section>{{ $t('navigation.concepts') }}</q-item-section>
-          </q-item>
+            <q-item v-if="canAccess('/concepts')" clickable v-ripple to="/concepts" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="category" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.concepts') }}</q-item-section>
+            </q-item>
 
-          <q-item v-if="canAccess('/cql')" clickable v-ripple to="/cql" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="code" />
-            </q-item-section>
-            <q-item-section>{{ $t('navigation.cqlRules') }}</q-item-section>
-          </q-item>
+            <q-item v-if="canAccess('/cql')" clickable v-ripple to="/cql" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="code" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.cqlRules') }}</q-item-section>
+            </q-item>
 
-          <q-item v-if="isAdmin" clickable v-ripple to="/users" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="manage_accounts" />
-            </q-item-section>
-            <q-item-section>{{ $t('navigation.userManagement') }}</q-item-section>
-          </q-item>
+            <q-item clickable v-ripple to="/users" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="manage_accounts" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.userManagement') }}</q-item-section>
+            </q-item>
 
-          <q-item v-if="isAdmin" clickable v-ripple to="/global-settings" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="settings_applications" />
-            </q-item-section>
-            <q-item-section>{{ $t('navigation.globalSettings') }}</q-item-section>
-          </q-item>
+            <q-item clickable v-ripple to="/global-settings" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="settings_applications" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.globalSettings') }}</q-item-section>
+            </q-item>
+          </template>
 
           <q-separator spaced />
 
@@ -203,14 +205,26 @@
             <q-item-section>{{ $t('navigation.export') }}</q-item-section>
           </q-item>
 
-          <!-- Development -->
+          <!-- Development (Admin only) -->
+          <template v-if="isAdmin">
+            <q-separator spaced />
+
+            <q-item clickable v-ripple to="/database-test" active-class="bg-primary text-white">
+              <q-item-section avatar>
+                <q-icon name="bug_report" />
+              </q-item-section>
+              <q-item-section>{{ $t('navigation.databaseTest') }}</q-item-section>
+            </q-item>
+          </template>
+
+          <!-- Support & Feedback -->
           <q-separator spaced />
 
-          <q-item clickable v-ripple to="/database-test" active-class="bg-primary text-white">
+          <q-item clickable v-ripple to="/feedback" active-class="bg-primary text-white">
             <q-item-section avatar>
-              <q-icon name="bug_report" />
+              <q-icon name="feedback" />
             </q-item-section>
-            <q-item-section>{{ $t('navigation.databaseTest') }}</q-item-section>
+            <q-item-section>{{ $t('navigation.feedback') }}</q-item-section>
           </q-item>
         </q-list>
       </q-scroll-area>

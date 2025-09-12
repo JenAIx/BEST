@@ -61,7 +61,8 @@
     "cqlRules": "CQL-Regeln",
     "export": "Export",
     "import": "Import",
-    "databaseTest": "Datenbanktest"
+    "databaseTest": "Datenbanktest",
+    "feedback": "Feedback"
   },
   "auth": {
     "appName": "BEST Medical System",
@@ -608,5 +609,41 @@
     "contactAdminForPasswordReset": "Bitte wenden Sie sich an Ihren Systemadministrator, um Ihr Passwort zurückzusetzen.",
     "enterFolderPathManually": "Bitte geben Sie den Ordnerpfad manuell ein",
     "errorOpeningFolderDialog": "Fehler beim Öffnen des Ordner-Dialogs"
+  },
+  "feedback": {
+    "title": "Feedback",
+    "subtitle": "Teilen Sie Ihre Gedanken und Vorschläge mit uns, um das System zu verbessern",
+    "giveFeedback": "Feedback Geben",
+    "titleLabel": "Titel",
+    "titlePlaceholder": "Geben Sie einen kurzen Titel für Ihr Feedback ein",
+    "titleRequired": "Titel ist erforderlich",
+    "titleMaxLength": "Titel muss weniger als 100 Zeichen haben",
+    "descriptionLabel": "Beschreibung",
+    "descriptionPlaceholder": "Beschreiben Sie Ihr Feedback detailliert...",
+    "descriptionRequired": "Beschreibung ist erforderlich",
+    "descriptionMaxLength": "Beschreibung muss weniger als 1000 Zeichen haben",
+    "ratingLabel": "Gesamtbewertung",
+    "ratingRequired": "Bitte wählen Sie eine Bewertung",
+    "thumbsUp": "Daumen Hoch",
+    "thumbsDown": "Daumen Runter",
+    "submitFeedback": "Feedback Senden",
+    "statistics": "Feedback-Statistiken",
+    "totalFeedback": "Gesamt",
+    "positiveFeedback": "Positiv",
+    "negativeFeedback": "Negativ",
+    "info": "Information",
+    "infoText": "Ihr Feedback ist wertvoll für uns. Alle Rückmeldungen sind anonym und helfen uns, das System für alle zu verbessern.",
+    "recentFeedback": "Neuestes Feedback",
+    "loadingFeedback": "Lade Feedback...",
+    "noFeedback": "Noch kein Feedback",
+    "noFeedbackHint": "Seien Sie der Erste, der seine Gedanken teilt!",
+    "feedbackSubmitted": "Feedback erfolgreich gesendet!",
+    "feedbackError": "Feedback konnte nicht gesendet werden. Bitte versuchen Sie es erneut.",
+    "deleteFeedback": "Feedback Löschen",
+    "deleteFeedbackTitle": "Feedback Löschen",
+    "deleteFeedbackMessage": "Sind Sie sicher, dass Sie das Feedback löschen möchten",
+    "feedbackDeleted": "Feedback erfolgreich gelöscht",
+    "deleteError": "Feedback konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+    "loadError": "Feedback-Daten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
   }
 }
