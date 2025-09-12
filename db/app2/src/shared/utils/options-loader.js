@@ -518,9 +518,9 @@ export class OptionsLoader {
         { label: 'Female', value: 'F', color: 'pink' },
       ],
       vital_status: [
-        { label: 'Active', value: 'A', color: 'positive' },
-        { label: 'Deceased', value: 'D', color: 'negative' },
-        { label: 'Inactive', value: 'I', color: 'grey' },
+        { label: 'alive', value: 'SCTID: 438949009', color: 'positive' },
+        { label: 'dead', value: 'SCTID: 419099009', color: 'negative' },
+        { label: 'unknown', value: 'SCTID: 438949009xx', color: 'grey' },
       ],
       language: [
         { label: 'English', value: 'en', color: 'blue' },

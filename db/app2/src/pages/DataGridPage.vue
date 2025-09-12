@@ -276,17 +276,13 @@ const loadTableData = async () => {
     }
 
     if (filters.value.gender) {
-      const genderCode = conceptStore.getCodeFromLabel(filters.value.gender, 'gender')
-      if (genderCode) {
-        criteria.SEX_CD = genderCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.SEX_CD = filters.value.gender
     }
 
     if (filters.value.status) {
-      const statusCode = conceptStore.getCodeFromLabel(filters.value.status, 'vital_status')
-      if (statusCode) {
-        criteria.VITAL_STATUS_CD = statusCode
-      }
+      // The filter value is already the code (from options loader)
+      criteria.VITAL_STATUS_CD = filters.value.status
     }
 
     // Add sorting options

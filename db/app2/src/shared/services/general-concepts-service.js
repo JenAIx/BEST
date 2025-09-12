@@ -65,12 +65,12 @@ const GENERAL_CONCEPTS = [
   },
   {
     concept_char: 'vital_status',
-    concept_cd: 'SCTID: 106234000',
-    path: '\\SNOMED-CT\\138875005\\362981000\\272099008\\106232001\\106234000',
-    answers_path: '\\SNOMED-CT\\138875005\\362981000\\272099008\\106232001\\106234000\\LA\\',
+    concept_cd: 'SCTID: 365860008',
+    path: '\\SNOMED-CT\\365860008',
+    answers_path: '\\SNOMED-CT\\365860008\\LA\\',
     valtype_parent: 'S',
     valtype_answers: 'A',
-    description: 'Vital status (alive/deceased) concepts',
+    description: 'General clinical state finding',
   },
 ]
 
