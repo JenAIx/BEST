@@ -9,7 +9,7 @@
             <!-- Column Resizer (only after observation column) -->
             <div v-if="col.name === 'observation'" class="column-resizer" @mousedown="startResize" :class="{ resizing: isResizing }">
               <div class="resizer-line"></div>
-              <q-tooltip>Drag to resize observation column</q-tooltip>
+              <q-tooltip>{{ $t('visits.dragToResize') }}</q-tooltip>
             </div>
           </div>
         </q-th>

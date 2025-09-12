@@ -1,13 +1,13 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h4 q-mb-md">Settings</div>
+    <div class="text-h4 q-mb-md">{{ $t('common.settings') }}</div>
 
     <div class="row q-col-gutter-md">
       <!-- User Profile Settings -->
       <div class="col-12 col-md-6">
         <q-card class="q-mb-md full-height">
           <q-card-section>
-            <div class="text-h6">Profile Settings</div>
+            <div class="text-h6">{{ $t('settings.profileSettings') }}</div>
           </q-card-section>
 
           <q-card-section class="flex-grow">
@@ -20,35 +20,35 @@
       <div class="col-12 col-md-6">
         <q-card class="full-height">
           <q-card-section>
-            <div class="text-h6">Account Information</div>
+            <div class="text-h6">{{ $t('settings.accountInformation') }}</div>
           </q-card-section>
 
           <q-card-section class="flex-grow">
             <q-list>
               <q-item>
                 <q-item-section>
-                  <q-item-label caption>Display Name</q-item-label>
+                  <q-item-label caption>{{ $t('settings.displayName') }}</q-item-label>
                   <q-item-label>{{ currentUser?.NAME_CHAR || 'N/A' }}</q-item-label>
                 </q-item-section>
               </q-item>
 
               <q-item>
                 <q-item-section>
-                  <q-item-label caption>Username</q-item-label>
+                  <q-item-label caption>{{ $t('auth.username') }}</q-item-label>
                   <q-item-label>{{ currentUser?.USER_CD || 'N/A' }}</q-item-label>
                 </q-item-section>
               </q-item>
 
               <q-item>
                 <q-item-section>
-                  <q-item-label caption>Role</q-item-label>
+                  <q-item-label caption>{{ $t('user.role') }}</q-item-label>
                   <q-item-label>{{ currentUser?.COLUMN_CD || 'N/A' }}</q-item-label>
                 </q-item-section>
               </q-item>
 
               <q-item>
                 <q-item-section>
-                  <q-item-label caption>Last Login</q-item-label>
+                  <q-item-label caption>{{ $t('settings.lastLogin') }}</q-item-label>
                   <q-item-label>{{ formatDate(currentUser?.lastLogin) }}</q-item-label>
                 </q-item-section>
               </q-item>
@@ -63,7 +63,7 @@
       <div class="col-12">
         <q-card>
           <q-card-section>
-            <div class="text-h6">Local Settings</div>
+            <div class="text-h6">{{ $t('settings.localSettings') }}</div>
           </q-card-section>
 
           <q-card-section>
@@ -81,19 +81,21 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useAuthStore } from 'src/stores/auth-store'
 import SettingsForm from 'components/SettingsForm.vue'
 import PasswordResetDialog from 'components/PasswordResetDialog.vue'
 import LocalSettingsForm from 'components/LocalSettingsForm.vue'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const authStore = useAuthStore()
 
 const currentUser = computed(() => authStore.currentUser)
 const showPasswordDialog = ref(false)
 
 const formatDate = (dateString) => {
-  if (!dateString) return 'Never'
+  if (!dateString) return t('settings.never')
   return new Date(dateString).toLocaleString()
 }
 
@@ -102,14 +104,14 @@ const onSaveProfile = async (userData) => {
     await authStore.updateProfile(userData)
     $q.notify({
       type: 'positive',
-      message: 'Profile updated successfully',
+      message: t('settings.profileUpdatedSuccess'),
       position: 'top',
     })
   } catch (error) {
     console.error('Profile update error:', error)
     $q.notify({
       type: 'negative',
-      message: `Failed to update profile: ${error.message || 'Unknown error'}`,
+      message: t('settings.profileUpdateFailed', { error: error.message || t('common.unknownError') }),
       position: 'top',
     })
   }
@@ -124,7 +126,7 @@ const onPasswordSave = async (passwordData) => {
     await authStore.updatePassword(passwordData.newPassword)
     $q.notify({
       type: 'positive',
-      message: 'Password updated successfully',
+      message: t('settings.passwordUpdatedSuccess'),
       position: 'top',
     })
     showPasswordDialog.value = false
@@ -132,7 +134,7 @@ const onPasswordSave = async (passwordData) => {
     console.error('Password update error:', error)
     $q.notify({
       type: 'negative',
-      message: `Failed to update password: ${error.message || 'Unknown error'}`,
+      message: t('settings.passwordUpdateFailed', { error: error.message || t('common.unknownError') }),
       position: 'top',
     })
   }

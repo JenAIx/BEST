@@ -3,23 +3,23 @@
     <q-form @submit="onSubmit" class="q-gutter-md">
       <!-- User Name Field -->
       <div>
-        <q-input v-model="formData.name" label="Full Name" outlined dense :rules="[(val) => !!val || 'Name is required']" @update:model-value="onFieldChange" />
+        <q-input v-model="formData.name" :label="$t('user.fullName')" outlined dense :rules="[(val) => !!val || $t('user.nameRequired')]" @update:model-value="onFieldChange" />
       </div>
 
       <!-- Password Reset Section -->
       <div class="q-mt-lg">
-        <div class="text-subtitle2 q-mb-sm">Password Management</div>
+        <div class="text-subtitle2 q-mb-sm">{{ $t('user.passwordManagement') }}</div>
 
-        <q-btn color="secondary" label="Reset Password" outline @click="onResetPassword" :loading="isResetting" />
+        <q-btn color="secondary" :label="$t('user.resetPassword')" outline @click="onResetPassword" :loading="isResetting" />
 
-        <div class="text-caption text-grey-6 q-mt-sm">Click to receive a password reset email</div>
+        <div class="text-caption text-grey-6 q-mt-sm">{{ $t('user.resetPasswordHint') }}</div>
       </div>
 
       <!-- Save Button - Only show when changes are made -->
       <div v-if="hasChanges" class="q-mt-lg">
-        <q-btn type="submit" color="primary" label="Save Changes" :loading="isSaving" unelevated />
+        <q-btn type="submit" color="primary" :label="$t('user.saveChanges')" :loading="isSaving" unelevated />
 
-        <q-btn class="q-ml-sm" color="grey" label="Cancel" outline @click="resetForm" />
+        <q-btn class="q-ml-sm" color="grey" :label="$t('common.cancel')" outline @click="resetForm" />
       </div>
     </q-form>
   </div>

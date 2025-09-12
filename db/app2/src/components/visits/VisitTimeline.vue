@@ -2,20 +2,20 @@
   <div class="timeline-view">
     <div class="timeline-container">
       <div class="timeline-header">
-        <h3 class="timeline-title">Visit Timeline</h3>
-        <q-btn color="primary" icon="add" label="New Visit" @click="createNewVisit" />
+        <h3 class="timeline-title">{{ $t('visit.timeline') }}</h3>
+        <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="createNewVisit" />
       </div>
 
       <div v-if="loading" class="loading-state">
         <q-spinner-grid size="50px" color="primary" />
-        <div class="text-h6 q-mt-md">Loading visits...</div>
+        <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
       </div>
 
       <div v-else-if="visits.length === 0" class="no-visits">
         <q-icon name="event_busy" size="64px" color="grey-4" />
-        <div class="text-h6 text-grey-6 q-mt-sm">No visits recorded</div>
-        <div class="text-body2 text-grey-5 q-mb-md">Start by creating a new visit</div>
-        <q-btn color="primary" icon="add" label="Create First Visit" @click="createNewVisit" />
+        <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noVisitsRecorded') }}</div>
+        <div class="text-body2 text-grey-5 q-mb-md">{{ $t('visit.startByCreating') }}</div>
+        <q-btn color="primary" icon="add" :label="$t('visit.createFirstVisit')" @click="createNewVisit" />
       </div>
 
       <div v-else class="timeline-list">

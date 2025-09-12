@@ -15,7 +15,7 @@
     <!-- Tab Selection -->
     <div class="row q-gutter-md q-mb-md">
       <div class="col-12 col-md-6">
-        <q-select v-model="selectedTab" :options="tabOptions" outlined dense label="Management Type" emit-value map-options @update:model-value="onTabChange" />
+        <q-select v-model="selectedTab" :options="tabOptions" outlined dense :label="$t('user.managementType')" emit-value map-options @update:model-value="onTabChange" />
       </div>
     </div>
 

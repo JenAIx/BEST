@@ -4,14 +4,14 @@
       <q-card-section class="row items-center q-pb-none">
         <div class="text-h6 text-primary">
           <q-icon name="person_add" class="q-mr-sm" />
-          Create New Patient
+          {{ $t('patient.createPatient') }}
         </div>
         <q-space />
         <q-btn icon="close" flat round dense v-close-popup />
       </q-card-section>
 
       <q-card-section>
-        <div class="text-body2 text-grey-6 q-mb-md">Add a new patient to the system</div>
+        <div class="text-body2 text-grey-6 q-mb-md">{{ $t('patient.addPatientHint') }}</div>
 
         <q-form @submit="handleSubmit" class="q-gutter-md">
           <!-- Patient ID and Name -->
@@ -19,25 +19,25 @@
             <div class="col">
               <q-input
                 v-model="formData.PATIENT_CD"
-                label="Patient ID *"
+                :label="$t('patient.patientId') + ' *'"
                 outlined
                 dense
-                :rules="[(val) => !!val || 'Patient ID is required', validatePatientId]"
+                :rules="[(val) => !!val || $t('patient.patientIdRequired'), validatePatientId]"
                 clearable
-                placeholder="e.g., P001, PAT-2024-001"
+                :placeholder="$t('patient.patientIdPlaceholder')"
               >
                 <template v-slot:prepend>
                   <q-icon name="badge" />
                 </template>
                 <template v-slot:append>
                   <q-btn flat round dense icon="auto_awesome" color="primary" @click="generatePatientId" size="sm">
-                    <q-tooltip>Generate Patient ID</q-tooltip>
+                    <q-tooltip>{{ $t('patient.generatePatientId') }}</q-tooltip>
                   </q-btn>
                 </template>
               </q-input>
             </div>
             <div class="col">
-              <q-input v-model="patientName" label="Patient Name" outlined dense clearable placeholder="e.g., John Doe">
+              <q-input v-model="patientName" :label="$t('patient.patientName')" outlined dense clearable :placeholder="$t('patient.patientNamePlaceholder')">
                 <template v-slot:prepend>
                   <q-icon name="person" />
                 </template>

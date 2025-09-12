@@ -5,16 +5,16 @@
 
       <h1 class="text-h2 text-weight-bold q-my-md">403</h1>
 
-      <p class="text-h5 text-grey-8 q-mb-xl">Access Forbidden</p>
+      <p class="text-h5 text-grey-8 q-mb-xl">{{ $t('errors.accessForbidden') }}</p>
 
       <p class="text-body1 text-grey-7 q-mb-xl" style="max-width: 400px">
         {{ errorMessage }}
       </p>
 
       <div class="q-gutter-sm">
-        <q-btn color="primary" unelevated label="Go to Dashboard" icon="dashboard" to="/dashboard" />
+        <q-btn color="primary" unelevated :label="$t('navigation.dashboard')" icon="dashboard" to="/dashboard" />
 
-        <q-btn outline color="primary" label="Go Back" icon="arrow_back" @click="$router.go(-1)" />
+        <q-btn outline color="primary" :label="$t('common.goBack')" icon="arrow_back" @click="$router.go(-1)" />
       </div>
     </div>
   </q-page>

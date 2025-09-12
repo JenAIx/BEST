@@ -2,12 +2,12 @@
   <q-page class="q-pa-md">
     <!-- Header -->
     <div class="row items-center justify-between q-mb-lg">
-      <div class="text-h4">Patient Search</div>
+      <div class="text-h4">{{ $t('patient.patientSearch') }}</div>
       <div class="row items-center q-gutter-md">
         <div class="text-caption text-grey-6">
           {{ hasSearched ? `${totalPatients} patients found` : `${totalAvailablePatients} total patients` }}
         </div>
-        <q-btn color="primary" icon="person_add" label="Add Patient" @click="onAddPatient" />
+        <q-btn color="primary" icon="person_add" :label="$t('patient.addPatient')" @click="onAddPatient" />
       </div>
     </div>
 
@@ -18,15 +18,15 @@
           <q-card-section class="q-pa-lg">
             <div class="text-center q-mb-md">
               <q-icon name="search" size="32px" color="primary" />
-              <div class="text-h6 q-mt-sm">Smart Patient Search</div>
-              <div class="text-caption text-grey-6">Search by name, ID, age, birth year, or any combination</div>
+              <div class="text-h6 q-mt-sm">{{ $t('patient.smartSearch') }}</div>
+              <div class="text-caption text-grey-6">{{ $t('patient.searchHint') }}</div>
             </div>
 
             <q-input
               v-model="searchQuery"
               outlined
               dense
-              placeholder="Try: 'John Doe', 'P001', 'age 45', '1978', 'male 30-40'..."
+              :placeholder="$t('patient.searchPlaceholder')"
               class="smart-search"
               @update:model-value="onSearchChange"
               debounce="300"
@@ -37,14 +37,14 @@
               <template v-slot:append>
                 <q-btn v-if="searchQuery" flat round dense icon="close" @click="clearSearch" />
                 <q-btn flat round dense icon="tune" @click="showAdvancedSearch = !showAdvancedSearch">
-                  <q-tooltip>Advanced Filters</q-tooltip>
+                  <q-tooltip>{{ $t('patient.advancedFilters') }}</q-tooltip>
                 </q-btn>
               </template>
             </q-input>
 
             <!-- Search Suggestions -->
             <div v-if="searchSuggestions.length > 0" class="q-mt-sm">
-              <div class="text-caption text-grey-6 q-mb-xs">Detected:</div>
+              <div class="text-caption text-grey-6 q-mb-xs">{{ $t('patient.detected') }}:</div>
               <div class="row q-gutter-xs">
                 <q-chip v-for="suggestion in searchSuggestions" :key="suggestion.type" :color="suggestion.color" text-color="white" size="sm" :icon="suggestion.icon">
                   {{ suggestion.label }}

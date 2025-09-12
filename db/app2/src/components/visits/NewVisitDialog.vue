@@ -2,7 +2,7 @@
   <q-dialog :model-value="modelValue" @update:model-value="updateModelValue" persistent transition-show="scale" transition-hide="scale">
     <q-card style="min-width: 500px; max-width: 600px">
       <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">Create New Visit</div>
+        <div class="text-h6">{{ $t('visit.newVisit') }}</div>
         <q-space />
         <q-btn icon="close" flat round dense @click="closeDialog" />
       </q-card-section>
@@ -21,7 +21,7 @@
         <q-form @submit="saveVisit" class="q-gutter-md">
           <div class="row q-col-gutter-md">
             <div class="col-12 col-md-6">
-              <q-input v-model="visitData.date" type="date" label="Visit Date" outlined :rules="[(val) => !!val || 'Date is required']">
+              <q-input v-model="visitData.date" type="date" :label="$t('visit.visitDate')" outlined :rules="[(val) => !!val || $t('validation.required')]">
                 <template v-slot:prepend>
                   <q-icon name="event" />
                 </template>

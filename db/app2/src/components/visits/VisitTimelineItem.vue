@@ -21,7 +21,7 @@
                 <q-tooltip>View Visit Summary</q-tooltip>
               </q-btn>
               <q-btn flat round icon="edit" size="sm" color="primary" @click.stop="editVisit">
-                <q-tooltip>Edit Visit</q-tooltip>
+                <q-tooltip>{{ $t('visit.editVisit') }}</q-tooltip>
               </q-btn>
               <q-btn flat round icon="more_vert" size="sm" color="grey-6" @click.stop>
                 <q-menu>

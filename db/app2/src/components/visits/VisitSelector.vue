@@ -1,8 +1,7 @@
 <template>
   <div class="row">
     <div class="col-3">
-      <q-select v-model="selectedVisit" :options="visitOptions" option-label="label" label="Select Visit" outlined dense
-        emit-value map-options @update:model-value="onVisitSelected">
+      <q-select v-model="selectedVisit" :options="visitOptions" option-label="label" :label="$t('visit.selectVisit')" outlined dense emit-value map-options @update:model-value="onVisitSelected">
         <template v-slot:selected-item="scope">
           <div class="selected-visit">
             <q-icon name="event" class="q-mr-xs" />
@@ -24,45 +23,47 @@
     </div>
 
     <!-- Inline Visit Info Preview -->
-    <div v-if="selectedVisit && visitPreviewInfo && (visitPreviewInfo.visitType || visitPreviewInfo.notes)"
-      class="col-4" style="line-height: 1em">
+    <div v-if="selectedVisit && visitPreviewInfo && (visitPreviewInfo.visitType || visitPreviewInfo.notes)" class="col-4" style="line-height: 1em">
       <div class="q-ml-xs">
-      <q-chip v-if="visitPreviewInfo.visitType" :color="getVisitTypeColor(visitPreviewInfo.visitType)"
-        text-color="white" size="sm" :icon="getVisitTypeIcon(visitPreviewInfo.visitType)"
-        class="q-mr-xs cursor-pointer">
-        {{ getVisitTypeLabel(visitPreviewInfo.visitType) }}
-        <q-tooltip class="bg-dark text-white" :delay="500">
-          <div class="text-body2">
-            <div class="text-weight-medium">Visit Type</div>
-            <div>{{ getVisitTypeLabel(visitPreviewInfo.visitType) }}</div>
-          </div>
-        </q-tooltip>
-      </q-chip>
-      <div v-if="visitPreviewInfo.notes" class="cursor-pointer">
-        <q-icon name="notes" size="12px" class="text-grey-6 q-mr-xs" />
-        <span class="text-caption text-grey-7 overflow-hidden text-ellipsis">{{ visitPreviewInfo.notes }}</span>
-        <q-tooltip class="bg-dark text-white" :delay="500" max-width="400px">
-          <div class="text-body2">
-            <div class="text-weight-medium q-mb-xs">Visit Notes</div>
-            <div style="white-space: pre-wrap; word-break: break-word">{{ visitPreviewInfo.notes }}</div>
-          </div>
-        </q-tooltip>
+        <q-chip
+          v-if="visitPreviewInfo.visitType"
+          :color="getVisitTypeColor(visitPreviewInfo.visitType)"
+          text-color="white"
+          size="sm"
+          :icon="getVisitTypeIcon(visitPreviewInfo.visitType)"
+          class="q-mr-xs cursor-pointer"
+        >
+          {{ getVisitTypeLabel(visitPreviewInfo.visitType) }}
+          <q-tooltip class="bg-dark text-white" :delay="500">
+            <div class="text-body2">
+              <div class="text-weight-medium">{{ $t('visit.visitType') }}</div>
+              <div>{{ getVisitTypeLabel(visitPreviewInfo.visitType) }}</div>
+            </div>
+          </q-tooltip>
+        </q-chip>
+        <div v-if="visitPreviewInfo.notes" class="cursor-pointer">
+          <q-icon name="notes" size="12px" class="text-grey-6 q-mr-xs" />
+          <span class="text-caption text-grey-7 overflow-hidden text-ellipsis">{{ visitPreviewInfo.notes }}</span>
+          <q-tooltip class="bg-dark text-white" :delay="500" max-width="400px">
+            <div class="text-body2">
+              <div class="text-weight-medium q-mb-xs">{{ $t('visit.visitNotes') }}</div>
+              <div style="white-space: pre-wrap; word-break: break-word">{{ visitPreviewInfo.notes }}</div>
+            </div>
+          </q-tooltip>
+        </div>
       </div>
-    </div>
     </div>
 
     <!-- Visit Actions -->
     <div class="col-5 row" style="position: relative">
       <div class="col-10">
-      <q-btn color="secondary" icon="edit" label="Edit Visit" @click="editSelectedVisit" :disable="!selectedVisit"
-        class="q-mr-sm" />
-      <q-btn color="primary" icon="add" label="New Visit" @click="createNewVisit" />
-    </div>
+        <q-btn color="secondary" icon="edit" :label="$t('visit.editVisit')" @click="editSelectedVisit" :disable="!selectedVisit" class="q-mr-sm" />
+        <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="createNewVisit" />
+      </div>
       <div class="col-2 text-right">
-      <q-btn color="info" icon="visibility" round @click="previewSelectedVisit" :disable="!selectedVisit"
-        >
-        <q-tooltip>Preview Visit Summary</q-tooltip>
-      </q-btn>
+        <q-btn color="info" icon="visibility" round @click="previewSelectedVisit" :disable="!selectedVisit">
+          <q-tooltip>Preview Visit Summary</q-tooltip>
+        </q-btn>
       </div>
     </div>
   </div>
@@ -216,7 +217,6 @@ const getVisitTypeColor = (typeCode) => {
 </script>
 
 <style lang="scss" scoped>
-
 @media (max-width: 768px) {
   .visit-selector {
     .visit-selector-main {

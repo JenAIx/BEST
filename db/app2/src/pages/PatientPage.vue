@@ -2,7 +2,7 @@
   <q-page class="q-pa-md">
     <div v-if="loading" class="text-center q-py-xl">
       <q-spinner color="primary" size="48px" />
-      <div class="text-grey-6 q-mt-md">Loading patient details...</div>
+      <div class="text-grey-6 q-mt-md">{{ $t('patient.loadingDetails') }}</div>
     </div>
 
     <div v-else-if="patient">
@@ -21,12 +21,12 @@
         <div class="row q-gutter-sm">
           <!-- View Visits Button -->
           <q-btn color="primary" icon="event" round outline @click="goToVisitsPage" :loading="loading">
-            <q-tooltip>View patient visits and timeline</q-tooltip>
+            <q-tooltip>{{ $t('patient.viewVisitsTooltip') }}</q-tooltip>
           </q-btn>
 
           <!-- Delete Patient Button -->
           <q-btn color="negative" icon="delete" round outline @click="showDeleteConfirmation" :loading="deleteLoading">
-            <q-tooltip>Delete this patient and all associated data</q-tooltip>
+            <q-tooltip>{{ $t('patient.deletePatientTooltip') }}</q-tooltip>
           </q-btn>
         </div>
       </div>

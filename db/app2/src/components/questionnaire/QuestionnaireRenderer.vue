@@ -13,10 +13,10 @@
               <q-menu>
                 <q-list>
                   <q-item clickable @click="randomFill" data-cy="random-fill">
-                    <q-item-section>Random Fill</q-item-section>
+                    <q-item-section>{{ $t('questionnaire.randomFill') }}</q-item-section>
                   </q-item>
                   <q-item clickable @click="clearAll" data-cy="clear-all">
-                    <q-item-section>Clear All</q-item-section>
+                    <q-item-section>{{ $t('questionnaire.clearAll') }}</q-item-section>
                   </q-item>
                 </q-list>
               </q-menu>
@@ -34,11 +34,11 @@
       <q-card-section v-if="showPatientField">
         <q-input
           v-model="patientId"
-          label="Patient ID"
-          hint="Enter patient identifier"
+          :label="$t('patient.patientId')"
+          :hint="$t('questionnaire.enterPatientId')"
           outlined
           dense
-          :rules="[(val) => !!val || 'Patient ID is required']"
+          :rules="[(val) => !!val || $t('patient.patientIdRequired')]"
           :disable="patientIdDisabled"
           data-cy="patient-id"
         />

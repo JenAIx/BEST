@@ -1,8 +1,8 @@
 <template>
   <div class="file-upload-input">
     <div class="text-subtitle2 text-grey-7 q-mb-sm">
-      File Upload: <span class="text-negative">*</span>
-      <span class="text-caption text-grey-6">(Required)</span>
+      {{ $t('files.fileUpload') }}: <span class="text-negative">*</span>
+      <span class="text-caption text-grey-6">({{ $t('validation.required') }})</span>
     </div>
 
     <!-- File Drop Zone -->
@@ -20,9 +20,9 @@
       <!-- Drop Zone Content -->
       <div v-if="!selectedFile" class="drop-zone-content">
         <q-icon name="cloud_upload" size="48px" color="grey-5" />
-        <div class="text-h6 text-grey-6 q-mt-sm">Drop file here or click to browse</div>
-        <div class="text-caption text-grey-5 q-mt-xs">Supported: {{ supportedFormats.join(', ') }}</div>
-        <div class="text-caption text-grey-5">Max size: {{ maxSizeMB }}MB</div>
+        <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('files.dropFileHere') }}</div>
+        <div class="text-caption text-grey-5 q-mt-xs">{{ $t('files.supported') }}: {{ supportedFormats.join(', ') }}</div>
+        <div class="text-caption text-grey-5">{{ $t('files.maxSize') }}: {{ maxSizeMB }}MB</div>
       </div>
 
       <!-- Selected File Display -->
@@ -37,7 +37,7 @@
           </div>
           <div class="col-auto">
             <q-btn flat round dense icon="close" color="negative" size="sm" @click.stop="clearFile">
-              <q-tooltip>Remove file</q-tooltip>
+              <q-tooltip>{{ $t('files.removeFile') }}</q-tooltip>
             </q-btn>
           </div>
         </div>

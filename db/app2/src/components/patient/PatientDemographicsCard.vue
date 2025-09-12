@@ -2,16 +2,16 @@
   <q-card class="full-height">
     <q-card-section class="full-height">
       <div class="row items-center justify-between q-mb-md">
-        <div class="text-h6">Demographics</div>
+        <div class="text-h6">{{ $t('patient.demographics') }}</div>
         <q-btn v-if="!editing" flat round dense icon="edit" color="primary" size="sm" @click="startEdit">
-          <q-tooltip>Edit Demographics</q-tooltip>
+          <q-tooltip>{{ $t('patient.editDemographics') }}</q-tooltip>
         </q-btn>
         <div v-else class="row q-gutter-xs">
           <q-btn flat round dense icon="check" color="positive" size="sm" @click="save">
-            <q-tooltip>Save Changes</q-tooltip>
+            <q-tooltip>{{ $t('user.saveChanges') }}</q-tooltip>
           </q-btn>
           <q-btn flat round dense icon="close" color="negative" size="sm" @click="cancelEdit">
-            <q-tooltip>Cancel</q-tooltip>
+            <q-tooltip>{{ $t('common.cancel') }}</q-tooltip>
           </q-btn>
         </div>
       </div>
@@ -19,15 +19,15 @@
       <!-- View Mode -->
       <div v-if="!editing" class="q-gutter-sm">
         <div class="row">
-          <div class="col-5 text-grey-6">Gender:</div>
+          <div class="col-5 text-grey-6">{{ $t('patient.gender') }}:</div>
           <div class="col-7">{{ getPatientGender(patient) }}</div>
         </div>
         <div class="row">
-          <div class="col-5 text-grey-6">Age:</div>
+          <div class="col-5 text-grey-6">{{ $t('patient.age') }}:</div>
           <div class="col-7">{{ getPatientAge(patient) }}</div>
         </div>
         <div class="row">
-          <div class="col-5 text-grey-6">Status:</div>
+          <div class="col-5 text-grey-6">{{ $t('user.status') }}:</div>
           <div class="col-7">
             <q-chip :color="getStatusColor(patient)" text-color="white" size="sm">
               {{ getStatusLabel(patient) }}
@@ -35,19 +35,19 @@
           </div>
         </div>
         <div v-if="patient.BIRTH_DATE" class="row">
-          <div class="col-5 text-grey-6">Birth Date:</div>
+          <div class="col-5 text-grey-6">{{ $t('patient.dateOfBirth') }}:</div>
           <div class="col-7">{{ formatDate(patient.BIRTH_DATE) }}</div>
         </div>
         <div v-if="patient.DEATH_DATE" class="row">
-          <div class="col-5 text-grey-6">Death Date:</div>
+          <div class="col-5 text-grey-6">{{ $t('patient.deathDate') }}:</div>
           <div class="col-7">{{ formatDate(patient.DEATH_DATE) }}</div>
         </div>
       </div>
 
       <!-- Edit Mode -->
       <div v-else class="q-gutter-md">
-        <q-select v-model="editForm.gender" :options="genderOptions" label="Gender" outlined dense emit-value map-options />
-        <q-select v-model="editForm.status" :options="statusOptions" label="Vital Status" outlined dense emit-value map-options />
+        <q-select v-model="editForm.gender" :options="genderOptions" :label="$t('patient.gender')" outlined dense emit-value map-options />
+        <q-select v-model="editForm.status" :options="statusOptions" :label="$t('patient.vitalStatus')" outlined dense emit-value map-options />
         <q-input v-model="editForm.birthDate" label="Birth Date" outlined dense type="date" />
       </div>
     </q-card-section>
