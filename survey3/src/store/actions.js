@@ -167,4 +167,92 @@ export function storage_export_notion({state}, uid) {
   }
   
   return state.STORAGE.export_notion(payload)
- }
+}
+
+// SPACE INVADERS ACTIONS
+export function si_initGame({commit}, payload) {
+  commit('SI_INIT_GAME', payload);
+}
+
+export function si_movePlayer({commit}, direction) {
+  commit('SI_MOVE_PLAYER', direction);
+}
+
+export function si_setPlayerX({commit}, x) {
+  commit('SI_SET_PLAYER_X', x);
+}
+
+export function si_shoot({commit}) {
+  commit('SI_SHOOT');
+}
+
+export function si_updateGame({commit, state}) {
+  if (state.spaceInvaders.gameOver || state.spaceInvaders.isPaused) return;
+  
+  // Update bullets
+  commit('SI_UPDATE_BULLETS');
+  commit('SI_UPDATE_ENEMY_BULLETS');
+  
+  // Check collisions
+  commit('SI_CHECK_COLLISIONS');
+}
+
+export function si_moveEnemies({commit, state}) {
+  if (state.spaceInvaders.gameOver || state.spaceInvaders.isPaused) return;
+  
+  const enemies = state.spaceInvaders.enemies;
+  const currentDirection = state.spaceInvaders.enemyDirection;
+  let shouldMoveDown = false;
+  let newDirection = currentDirection;
+  
+  // Check if any enemy will hit the edge in the NEXT move
+  const aliveEnemies = enemies.filter(e => e.alive);
+  if (aliveEnemies.length > 0) {
+    const rightmost = Math.max(...aliveEnemies.map(e => e.x + e.width));
+    const leftmost = Math.min(...aliveEnemies.map(e => e.x));
+    
+    // Check if moving in current direction would hit edge
+    if (currentDirection > 0 && rightmost + 10 >= 320) {
+      // Moving right and would hit right edge
+      shouldMoveDown = true;
+      newDirection = -1; // Next time move left
+    } else if (currentDirection < 0 && leftmost - 10 <= 0) {
+      // Moving left and would hit left edge
+      shouldMoveDown = true;
+      newDirection = 1; // Next time move right
+    }
+  }
+  
+  commit('SI_MOVE_ENEMIES', { shouldMoveDown, newDirection });
+}
+
+export function si_enemyShoot({commit, state}) {
+  if (state.spaceInvaders.gameOver || state.spaceInvaders.isPaused) return;
+  
+  const aliveEnemies = state.spaceInvaders.enemies.filter(e => e.alive);
+  if (aliveEnemies.length > 0 && Math.random() < 0.02) {
+    const randomEnemy = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
+    commit('SI_ENEMY_SHOOT', randomEnemy);
+  }
+}
+
+export function si_togglePause({commit}) {
+  commit('SI_TOGGLE_PAUSE');
+}
+
+export function si_resetGame({commit}, payload) {
+  commit('SI_RESET_GAME', payload);
+}
+
+export function si_nextLevel({commit}, payload) {
+  commit('SI_NEXT_LEVEL', payload);
+}
+
+export function si_checkLevelComplete({state}) {
+  const aliveEnemies = state.spaceInvaders.enemies.filter(e => e.alive);
+  return aliveEnemies.length === 0 && !state.spaceInvaders.gameOver;
+}
+
+export function si_respawnPlayer({commit}, payload) {
+  commit('SI_RESPAWN_PLAYER', payload);
+}

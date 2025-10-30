@@ -21,6 +21,27 @@ export default function () {
     debug: false,
     PROTECTED_MODE: false,
     editquest: undefined,
-    EXPORT_DATA: []
+    EXPORT_DATA: [],
+    // Space Invaders Game State
+    spaceInvaders: {
+      player: { x: 150, y: 0, width: 40, height: 30, speed: 5 },
+      bullets: [],
+      enemies: [],
+      enemyBullets: [],
+      explosions: [],
+      score: 0,
+      lives: 3,
+      level: 1,
+      gameOver: false,
+      isPaused: false,
+      isInvulnerable: false,
+      invulnerabilityTimer: 0,
+      isDying: false,
+      deathTimer: 0,
+      isRespawning: false,
+      respawnCountdown: 0,
+      enemyDirection: 1, // 1 = right, -1 = left
+      highScore: parseInt(localStorage.getItem('si_highscore') || '0')
+    }
   }
 }

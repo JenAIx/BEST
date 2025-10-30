@@ -8,6 +8,14 @@
       <div class="col">
         <q-img src="~assets/favicon.svg" style="height: 300px; width: 300px; " />
       </div>
+      <div class="col q-mt-md">
+        <q-btn 
+          color="primary" 
+          label="🚀 Space Invaders spielen" 
+          @click="$router.push('/spaceinvaders')"
+          size="lg"
+        />
+      </div>
     </div>
 
     <!-- BACKBUTTON -->

@@ -19,6 +19,11 @@ const routes = [{
     component: () => import("pages/Changelog.vue"),
   },
   {
+    path: "spaceinvaders",
+    name: "spaceinvaders",
+    component: () => import("pages/SpaceInvaders.vue"),
+  },
+  {
     path: "select",
     name: "select",
     component: () => import("pages/SelectQ.vue"),
