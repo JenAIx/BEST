@@ -1,0 +1,256 @@
+{
+  "title": "EQ-5D-5L",
+  "short_title": "eq5d5l",
+  "coding": {
+    "system": "http://snomed.info/sct",
+    "code": "736535009",
+    "display": "EQ-5D-5L (EuroQol five dimension five level scale)",
+    "version": "20240126"
+  },
+  "description": "EQ-5D-5L - Fragebogen zur gesundheitsbezogenen Lebensqualität",
+  "manual": "<b>EQ-5D-5L – Beschreibendes System</b><br><br>Bitte kreuzen Sie unter jeder Überschrift eine Box an, die Ihren Gesundheitszustand <b>heute</b> am besten beschreibt.",
+  "keywords": "quality, of, life, qol, health, qualität, lebensqualität, euroqol, eq5d, gesundheitszustand",
+  "ref": "EuroQol Group (1990). EuroQol - a new facility for the measurement of health-related quality of life. Health Policy, 16(3), 199-208.",
+  "items": [
+    {
+      "label": "1. Mobilität",
+      "id": 1,
+      "tag": "mobility",
+      "coding": {
+        "display": "Mobility",
+        "code": "301438001",
+        "system": "http://snomed.info/sct"
+      },
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "force": true,
+      "options": [
+        {
+          "label": "Ich habe keine Probleme, mich fortzubewegen.",
+          "value": 1
+        },
+        {
+          "label": "Ich habe geringe Probleme, mich fortzubewegen.",
+          "value": 2
+        },
+        {
+          "label": "Ich habe mäßige Probleme, mich fortzubewegen.",
+          "value": 3
+        },
+        {
+          "label": "Ich habe schwere Probleme, mich fortzubewegen.",
+          "value": 4
+        },
+        {
+          "label": "Ich bin unfähig, mich fortzubewegen.",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "label": "2. Selbstversorgung",
+      "id": 2,
+      "tag": "self_care",
+      "coding": {
+        "display": "Self care",
+        "code": "285658004",
+        "system": "http://snomed.info/sct"
+      },
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "force": true,
+      "options": [
+        {
+          "label": "Ich habe keine Probleme, mich zu waschen oder anzuziehen.",
+          "value": 1
+        },
+        {
+          "label": "Ich habe geringe Probleme, mich zu waschen oder anzuziehen.",
+          "value": 2
+        },
+        {
+          "label": "Ich habe mäßige Probleme, mich zu waschen oder anzuziehen.",
+          "value": 3
+        },
+        {
+          "label": "Ich habe schwere Probleme, mich zu waschen oder anzuziehen.",
+          "value": 4
+        },
+        {
+          "label": "Ich bin unfähig, mich zu waschen oder anzuziehen.",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "label": "3. Übliche Aktivitäten",
+      "caption": "(z. B. Arbeit, Studium, Hausarbeit, Familie oder Freizeitaktivitäten)",
+      "id": 3,
+      "tag": "usual_activities",
+      "coding": {
+        "display": "Usual activities",
+        "code": "284545001",
+        "system": "http://snomed.info/sct"
+      },
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "force": true,
+      "options": [
+        {
+          "label": "Ich habe keine Probleme bei meinen üblichen Aktivitäten.",
+          "value": 1
+        },
+        {
+          "label": "Ich habe geringe Probleme bei meinen üblichen Aktivitäten.",
+          "value": 2
+        },
+        {
+          "label": "Ich habe mäßige Probleme bei meinen üblichen Aktivitäten.",
+          "value": 3
+        },
+        {
+          "label": "Ich habe schwere Probleme bei meinen üblichen Aktivitäten.",
+          "value": 4
+        },
+        {
+          "label": "Ich bin unfähig, meine üblichen Aktivitäten auszuführen.",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "label": "4. Schmerzen / Beschwerden",
+      "id": 4,
+      "tag": "pain_discomfort",
+      "coding": {
+        "display": "Pain/discomfort",
+        "code": "22253000",
+        "system": "http://snomed.info/sct"
+      },
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "force": true,
+      "options": [
+        {
+          "label": "Ich habe keine Schmerzen oder Beschwerden.",
+          "value": 1
+        },
+        {
+          "label": "Ich habe geringe Schmerzen oder Beschwerden.",
+          "value": 2
+        },
+        {
+          "label": "Ich habe mäßige Schmerzen oder Beschwerden.",
+          "value": 3
+        },
+        {
+          "label": "Ich habe starke Schmerzen oder Beschwerden.",
+          "value": 4
+        },
+        {
+          "label": "Ich habe extreme Schmerzen oder Beschwerden.",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "label": "5. Angst / Niedergeschlagenheit",
+      "id": 5,
+      "tag": "anxiety_depression",
+      "coding": {
+        "display": "Anxiety/depression",
+        "code": "404128003",
+        "system": "http://snomed.info/sct"
+      },
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "force": true,
+      "options": [
+        {
+          "label": "Ich bin nicht ängstlich oder niedergeschlagen.",
+          "value": 1
+        },
+        {
+          "label": "Ich bin etwas ängstlich oder niedergeschlagen.",
+          "value": 2
+        },
+        {
+          "label": "Ich bin mäßig ängstlich oder niedergeschlagen.",
+          "value": 3
+        },
+        {
+          "label": "Ich bin stark ängstlich oder niedergeschlagen.",
+          "value": 4
+        },
+        {
+          "label": "Ich bin extrem ängstlich oder niedergeschlagen.",
+          "value": 5
+        }
+      ]
+    },
+    {
+      "label": "EQ-VAS - Visuelle Analogskala für das heutige Befinden",
+      "caption": "Wir möchten wissen, wie gut oder schlecht Ihr Gesundheitszustand <b>heute</b> ist.<br>Diese Skala reicht von 0 bis 100, wobei<br><b>100</b> = der beste Gesundheitszustand, den Sie sich vorstellen können, und<br><b>0</b> = der schlechteste Gesundheitszustand, den Sie sich vorstellen können.<br>Bitte markieren Sie die Stelle auf der Skala, die Ihren Gesundheitszustand heute am besten beschreibt.",
+      "id": 6,
+      "tag": "eq_vas",
+      "coding": {
+        "display": "EQ-VAS (Visual Analogue Scale)",
+        "code": "736537001",
+        "system": "http://snomed.info/sct"
+      },
+      "value": 50,
+      "type": "slider",
+      "inline": false,
+      "force": true,
+      "vertical": true,
+      "ignore_for_result": true,
+      "options": {
+        "top": {
+          "value": 100,
+          "label": "Der beste Gesundheitszustand, den Sie sich vorstellen können"
+        },
+        "bottom": {
+          "value": 0,
+          "label": "Der schlechteste Gesundheitszustand, den Sie sich vorstellen können"
+        },
+        "steps": 1
+      }
+    }
+  ],
+  "results": {
+    "method": "sum",
+    "coding": {
+      "display": "EQ-5D-5L Summary Score (sum of 5 dimensions, range 5-25)",
+      "code": "736535009_SUM",
+      "system": "CUSTOM"
+    },
+    "evaluation": [
+      {
+        "range": [5, 5],
+        "label": "Keine Probleme in allen Dimensionen (11111) - Volle Gesundheit"
+      },
+      {
+        "range": [6, 10],
+        "label": "Geringe bis leichte Probleme"
+      },
+      {
+        "range": [11, 15],
+        "label": "Mäßige Probleme"
+      },
+      {
+        "range": [16, 20],
+        "label": "Schwere Probleme"
+      },
+      {
+        "range": [21, 25],
+        "label": "Extreme Probleme/Unfähigkeit in mehreren Dimensionen"
+      }
+    ]
+  }
+}
+

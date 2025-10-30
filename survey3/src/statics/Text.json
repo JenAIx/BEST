@@ -1,8 +1,8 @@
 {
   "ENV": {
     "APP_NAME": "surveyBEST",
-    "APP_VERSION": "v1.7.1",
-    "APP_UPDATED": "2025-04-04"
+    "APP_VERSION": "v1.7.2",
+    "APP_UPDATED": "2025-10-30"
   },
   "title": "Willkommen",
   "label": "bestQUEST",

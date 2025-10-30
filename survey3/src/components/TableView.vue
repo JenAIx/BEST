@@ -61,22 +61,22 @@ export default {
   font-size: 0.8em;
 }
 
-.my-table>>>h2 {
+.my-table :deep(h2) {
   margin-top: -20px;
   margin-bottom: -10px;
 }
 
-.my-table>>>h1 {
+.my-table :deep(h1) {
   margin-top: -30px;
   margin-bottom: -10px;
 }
 
-.my-table>>>td {
+.my-table :deep(td) {
   border: 0.8px solid grey;
 }
 
 
-.my-table>>>table {
+.my-table :deep(table) {
   table-layout: auto;
   width: 100%;
   overflow: auto;

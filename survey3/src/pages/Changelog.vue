@@ -17,7 +17,7 @@
 
 <script>
 import showdown from "showdown"
-import MD_TEXT from 'raw-loader!../../Changelog.md'
+import MD_TEXT from 'raw-loader!../../CHANGELOG.md'
 import BACKBUTTON from 'src/components/BackButton.vue'
 
 export default {

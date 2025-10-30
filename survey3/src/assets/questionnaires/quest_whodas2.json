@@ -1,0 +1,203 @@
+{
+  "title": "WHODAS 2.0 (12-Item)",
+  "short_title": "whodas2",
+  "coding": {
+    "system": "http://snomed.info/sct",
+    "code": "450738001",
+    "display": "WHODAS 2.0 (World Health Organization Disability Assessment Schedule version 2.0)",
+    "version": "20240126"
+  },
+  "description": "WHODAS 2.0 - WHO Disability Assessment Schedule (Kurzversion, 12 Items)",
+  "manual": "<b>WHODAS 2.0 – 12-Item Version (deutsche Adaptation, Selbstbeurteilung)</b><br><br><b>Erhebungszeitraum:</b> Bitte geben Sie an, wie viele Schwierigkeiten Sie in den <b>letzten 30 Tagen</b> mit den folgenden Tätigkeiten hatten.<br><br>Bitte kreuzen Sie in jeder Zeile eine Antwort an.",
+  "keywords": "disability, behinderung, funktionsfähigkeit, WHO, aktivität, teilhabe, partizipation, ICF",
+  "ref": "Kirchberger I, et al. (2014). Feasibility and psychometric properties of the German 12-item WHO Disability Assessment Schedule 2.0 (WHODAS 2.0). Population Health Metrics, 12:27. © World Health Organization",
+  "items": [
+    {
+      "label": "Wie viele Schwierigkeiten hatten Sie in den letzten 30 Tagen mit den folgenden Tätigkeiten?",
+      "tag": "whodas_items",
+      "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+      "caption": "Bitte kreuzen Sie in jeder Zeile eine Antwort an.",
+      "value": [],
+      "type": "multiple_radio",
+      "inline": true,
+      "longanswers": false,
+      "options": {
+        "answers": [
+          {
+            "label": "Keine",
+            "value": 1
+          },
+          {
+            "label": "Geringe",
+            "value": 2
+          },
+          {
+            "label": "Mäßige",
+            "value": 3
+          },
+          {
+            "label": "Schwere",
+            "value": 4
+          },
+          {
+            "label": "Extreme / Kann ich nicht",
+            "value": 5
+          }
+        ],
+        "questions": [
+          {
+            "id": 1,
+            "label": "1. Sich 10 Minuten lang konzentrieren (z. B. auf eine Aufgabe oder ein Gespräch)",
+            "tag": "d1_concentration",
+            "coding": {
+              "display": "WHODAS D1: Cognition - Concentration",
+              "code": "450738001_D1",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 2,
+            "label": "2. Eine neue Aufgabe lernen (z. B. wie man an einen neuen Ort gelangt)",
+            "tag": "d2_learning",
+            "coding": {
+              "display": "WHODAS D1: Cognition - Learning",
+              "code": "450738001_D2",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 3,
+            "label": "3. Länger stehen (etwa 30 Minuten)",
+            "tag": "d3_standing",
+            "coding": {
+              "display": "WHODAS D2: Mobility - Standing",
+              "code": "450738001_D3",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 4,
+            "label": "4. Eine längere Strecke gehen (z. B. 1 km)",
+            "tag": "d4_walking",
+            "coding": {
+              "display": "WHODAS D2: Mobility - Walking",
+              "code": "450738001_D4",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 5,
+            "label": "5. Sich waschen (den ganzen Körper)",
+            "tag": "d5_washing",
+            "coding": {
+              "display": "WHODAS D3: Self-care - Washing",
+              "code": "450738001_D5",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 6,
+            "label": "6. Sich anziehen",
+            "tag": "d6_dressing",
+            "coding": {
+              "display": "WHODAS D3: Self-care - Dressing",
+              "code": "450738001_D6",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 7,
+            "label": "7. Mit fremden Personen umgehen",
+            "tag": "d7_strangers",
+            "coding": {
+              "display": "WHODAS D4: Getting along - Strangers",
+              "code": "450738001_D7",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 8,
+            "label": "8. Freundschaften aufrechterhalten",
+            "tag": "d8_friendships",
+            "coding": {
+              "display": "WHODAS D4: Getting along - Friendships",
+              "code": "450738001_D8",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 9,
+            "label": "9. Haushaltsaufgaben erledigen",
+            "tag": "d9_household",
+            "coding": {
+              "display": "WHODAS D5: Life activities - Household",
+              "code": "450738001_D9",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 10,
+            "label": "10. Tägliche Arbeit, Schule oder Studium ausführen",
+            "tag": "d10_work",
+            "coding": {
+              "display": "WHODAS D5: Life activities - Work/School",
+              "code": "450738001_D10",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 11,
+            "label": "11. An Gemeinschaftsaktivitäten teilnehmen (z. B. Feste, religiöse oder andere Veranstaltungen)",
+            "tag": "d11_community",
+            "coding": {
+              "display": "WHODAS D6: Participation - Community",
+              "code": "450738001_D11",
+              "system": "CUSTOM"
+            }
+          },
+          {
+            "id": 12,
+            "label": "12. Emotional durch Ihre Gesundheitsprobleme beeinträchtigt sein",
+            "tag": "d12_emotional",
+            "coding": {
+              "display": "WHODAS D6: Participation - Emotional impact",
+              "code": "450738001_D12",
+              "system": "CUSTOM"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "results": {
+    "method": "sum",
+    "coding": {
+      "display": "WHODAS 2.0 (12-Item) Total Score (range 12-60, higher is worse)",
+      "code": "450738001",
+      "system": "http://snomed.info/sct"
+    },
+    "evaluation": [
+      {
+        "range": [12, 12],
+        "label": "Keine Beeinträchtigung - volle Funktionsfähigkeit"
+      },
+      {
+        "range": [13, 23],
+        "label": "Geringe Beeinträchtigung"
+      },
+      {
+        "range": [24, 35],
+        "label": "Mäßige Beeinträchtigung"
+      },
+      {
+        "range": [36, 47],
+        "label": "Schwere Beeinträchtigung"
+      },
+      {
+        "range": [48, 60],
+        "label": "Extreme Beeinträchtigung / Unfähigkeit"
+      }
+    ]
+  }
+}
+

@@ -29,6 +29,7 @@ const quest = [
   "dynamic_gait_index",
   "ecoq",
   "eq5d",
+  "eq5d5l",
   "ess",
   "fallstab",
   "fas",
@@ -93,6 +94,7 @@ const quest = [
   "vr_final",
   "vr_evaluation",
   "whoqol",
+  "whodas2",
   "test"
 ]
 
