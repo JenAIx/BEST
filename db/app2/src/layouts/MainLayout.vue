@@ -77,7 +77,13 @@
 
         <!-- Connection Status -->
         <q-chip :color="isConnected ? 'positive' : 'negative'" text-color="white" size="sm" icon="storage" class="q-ml-sm">
-          <q-tooltip>{{ isConnected ? $t('common.connected') : $t('common.disconnected') }}</q-tooltip>
+          <q-tooltip>
+            <div class="text-weight-bold q-mb-xs">{{ isConnected ? $t('common.connected') : $t('common.disconnected') }}</div>
+            <div v-if="isConnected && databasePath" class="text-caption">
+              <div><strong>{{ $t('auth.database') }}:</strong> {{ databaseFilename }}</div>
+              <div class="q-mt-xs"><strong>{{ $t('common.path') }}:</strong> {{ databasePath }}</div>
+            </div>
+          </q-tooltip>
         </q-chip>
       </q-toolbar>
     </q-header>
@@ -288,6 +294,16 @@ const userInitials = computed(() => {
 })
 const isAdmin = computed(() => authStore.isAdmin)
 const isConnected = computed(() => dbStore.isConnected)
+
+// Database info
+const databasePath = computed(() => dbStore.databasePath)
+const databaseFilename = computed(() => {
+  if (!databasePath.value) return ''
+  // Extract filename from path (works for both Windows and Unix paths)
+  const path = databasePath.value
+  const lastSlash = Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\'))
+  return lastSlash >= 0 ? path.substring(lastSlash + 1) : path
+})
 
 // Language toggle functionality
 const currentLanguageFlag = computed(() => {

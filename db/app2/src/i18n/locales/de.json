@@ -40,7 +40,15 @@
     "refresh": "Aktualisieren",
     "help": "Hilfe",
     "about": "Über",
-    "unknownError": "Unbekannter Fehler"
+    "unknownError": "Unbekannter Fehler",
+    "path": "Pfad"
+  },
+  "database": {
+    "notConnected": "Keine Datenbank ist derzeit verbunden",
+    "connectionInfo": "Verbindungsinformationen",
+    "filename": "Dateiname",
+    "usingCustomPath": "Benutzerdefinierter Pfad wird verwendet",
+    "connectedSince": "Verbunden und betriebsbereit"
   },
   "navigation": {
     "dashboard": "Dashboard",

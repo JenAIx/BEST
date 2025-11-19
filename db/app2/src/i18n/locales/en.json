@@ -40,7 +40,15 @@
     "refresh": "Refresh",
     "help": "Help",
     "about": "About",
-    "unknownError": "Unknown error"
+    "unknownError": "Unknown error",
+    "path": "Path"
+  },
+  "database": {
+    "notConnected": "No database is currently connected",
+    "connectionInfo": "Connection Information",
+    "filename": "Filename",
+    "usingCustomPath": "Using custom path",
+    "connectedSince": "Connected and operational"
   },
   "navigation": {
     "dashboard": "Dashboard",

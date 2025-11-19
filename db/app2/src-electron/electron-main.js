@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog } from 'electron'
 import path from 'path'
 import os from 'os'
 import { fileURLToPath } from 'url'
@@ -99,6 +99,26 @@ function createWindow() {
     mainWindow = null
   })
 }
+
+// IPC Handlers
+ipcMain.handle('dialog:openDirectory', async (event, options) => {
+  // Merge user options with smart defaults
+  const dialogOptions = {
+    properties: ['openDirectory'],
+    title: 'Select Folder',
+    // Default to app directory if no defaultPath is provided
+    defaultPath: options?.defaultPath || app.getPath('userData'),
+    ...options,
+  }
+
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, dialogOptions)
+    return result
+  } catch (error) {
+    console.error('Error showing open dialog:', error)
+    return { canceled: true, filePaths: [] }
+  }
+})
 
 app.whenReady().then(createWindow)
 

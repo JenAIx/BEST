@@ -463,7 +463,7 @@ export const useObservationStore = defineStore('observation', () => {
       logger.info('Loading observation details', { observationId })
 
       const query = `
-        SELECT OBSERVATION_BLOB, VALTYPE_CD, TVAL_CHAR
+        SELECT OBSERVATION_BLOB, VALTYPE_CD, TVAL_CHAR, START_DATE, END_DATE
         FROM OBSERVATION_FACT
         WHERE OBSERVATION_ID = ?
       `
@@ -492,6 +492,8 @@ export const useObservationStore = defineStore('observation', () => {
           rawBlob: obsData.OBSERVATION_BLOB,
           valType: obsData.VALTYPE_CD,
           tvalChar: obsData.TVAL_CHAR,
+          startDate: obsData.START_DATE,
+          endDate: obsData.END_DATE,
         }
       } else {
         logger.warn('Observation not found', { observationId })

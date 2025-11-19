@@ -86,7 +86,7 @@
     </div>
 
     <!-- Completion Details -->
-    <div v-if="results.date_start || results.date_end" class="completion-details q-mt-xl">
+    <div v-if="results.date_start || results.date_end || completionDate" class="completion-details q-mt-xl">
       <div class="details-card">
         <div class="details-header">
           <div class="text-h6 text-weight-medium">
@@ -106,6 +106,12 @@
               <div class="detail-item">
                 <div class="detail-label">Completed</div>
                 <div class="detail-value">{{ formatDateTime(results.date_end) }}</div>
+              </div>
+            </div>
+            <div v-else-if="completionDate" class="col-md-4">
+              <div class="detail-item">
+                <div class="detail-label">Completed</div>
+                <div class="detail-value">{{ formatDateTime(completionDate) }}</div>
               </div>
             </div>
             <div v-if="results.date_start && results.date_end" class="col-md-4">
@@ -236,14 +242,39 @@ const getValueClass = (value) => {
 
 const calculateDuration = (start, end) => {
   if (!start || !end) return 'Unknown'
-  const duration = end - start
-  const minutes = Math.floor(duration / 60000)
-  const seconds = Math.floor((duration % 60000) / 1000)
 
-  if (minutes > 0) {
-    return `${minutes}m ${seconds}s`
+  try {
+    // Convert to Date objects if they are strings
+    const startDate = start instanceof Date ? start : new Date(start)
+    const endDate = end instanceof Date ? end : new Date(end)
+
+    // Check if dates are valid
+    if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+      return 'Unknown'
+    }
+
+    const duration = endDate.getTime() - startDate.getTime()
+
+    // If duration is negative or zero, return "Same day"
+    if (duration <= 0) {
+      return 'Same day'
+    }
+
+    const minutes = Math.floor(duration / 60000)
+    const seconds = Math.floor((duration % 60000) / 1000)
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+
+    if (hours > 0) {
+      return `${hours}h ${remainingMinutes}m`
+    }
+    if (minutes > 0) {
+      return `${minutes}m ${seconds}s`
+    }
+    return `${seconds}s`
+  } catch {
+    return 'Unknown'
   }
-  return `${seconds}s`
 }
 </script>
 
