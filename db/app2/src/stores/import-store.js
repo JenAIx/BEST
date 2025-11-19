@@ -337,7 +337,21 @@ export const useImportStore = defineStore('import', () => {
       importProgressValue.value = 40
 
       // Apply user selections if provided
+      logger.info('Checking for user selections', {
+        hasSelections: !!options.selections,
+        selectionsPatients: options.selections?.patients?.length || 0,
+        selectionsVisits: options.selections?.visits?.length || 0,
+        selectionsObservations: options.selections?.observations?.length || 0,
+        structurePatientsBeforeFilter: importStructure?.data?.patients?.length || 0,
+      })
+      
       let processedStructure = options.selections ? applySelectionsToStructure(importStructure, options.selections) : importStructure
+      
+      logger.info('After applying selections', {
+        processedPatientsCount: processedStructure?.data?.patients?.length || 0,
+        processedVisitsCount: processedStructure?.data?.visits?.length || 0,
+        processedObservationsCount: processedStructure?.data?.observations?.length || 0,
+      })
 
       // Handle selected patient and visit for existing patient mode
       if (options.patientMode === 'existing' && options.selectedPatient && options.selectedVisit) {
@@ -515,6 +529,17 @@ export const useImportStore = defineStore('import', () => {
     if (selections.patients && Array.isArray(selections.patients) && selections.patients.length > 0) {
       const selectedPatientIds = new Set(selections.patients.map((p) => p.PATIENT_CD || p.patientId))
       filtered.data.patients = importStructure.data.patients.filter((patient) => selectedPatientIds.has(patient.PATIENT_CD || patient.patientId))
+      logger.info('Filtered patients based on selections', {
+        originalCount: importStructure.data.patients.length,
+        filteredCount: filtered.data.patients.length,
+        selectedIds: Array.from(selectedPatientIds),
+      })
+    } else {
+      logger.info('No patient filtering applied - keeping all patients', {
+        hasSelectionsPatients: !!selections.patients,
+        isArray: Array.isArray(selections.patients),
+        length: selections.patients?.length || 0,
+      })
     }
 
     // Filter visits if selections provided

@@ -292,7 +292,13 @@
                 <!-- Actions -->
                 <div class="q-gutter-md">
                   <q-btn color="primary" label="Import Another File" @click="startOver" />
-                  <q-btn flat color="grey-7" label="View Patient Record" @click="goToPatientRecord" />
+                  <q-btn 
+                    flat 
+                    color="grey-7" 
+                    label="View Patient Record" 
+                    @click="goToPatientRecord"
+                    :disable="!importedPatientCode && !selectedPatient"
+                  />
                 </div>
               </div>
 
@@ -367,6 +373,7 @@ const debugLoading = ref(false)
 const importComplete = ref(false)
 const importError = ref('')
 const importSummary = ref(null)
+const importedPatientCode = ref(null) // Track the imported patient for navigation
 
 // Import options (currently not used in new flow)
 // const importOptions = ref(['createNewObservations'])
@@ -701,6 +708,9 @@ const onFileSelected = async (fileData) => {
     return
   }
 
+  // Clear any previous selections when starting with a new file
+  importStore.clearSelections()
+
   // Start file analysis
   analyzingFile.value = true
   currentStep.value = 'analyze'
@@ -808,6 +818,9 @@ const onFileCleared = () => {
   selectedPatient.value = null
   selectedVisit.value = null
   currentStep.value = 'upload'
+  importedPatientCode.value = null
+  // Clear any lingering selections from preview dialog
+  importStore.clearSelections()
 }
 
 const loadDebugFile = async (filename) => {
@@ -914,6 +927,17 @@ const startImport = async () => {
 
   importComplete.value = false
   importError.value = ''
+  
+  // Clear selections unless user explicitly made selections via preview dialog
+  // (selections should only be used if user actively chose them)
+  const hasUserSelections = importStore.getCurrentSelections()
+  logger.info('Starting import', {
+    hasUserSelections: !!hasUserSelections,
+    selectionsPatients: hasUserSelections?.patients?.length || 0,
+    selectionsVisits: hasUserSelections?.visits?.length || 0,
+    mode: selectedMode.value,
+    patientMode: patientMode.value,
+  })
 
   try {
     // Convert blob (Uint8Array) to string for import services
@@ -963,6 +987,14 @@ const startImport = async () => {
         format: result.data?.metadata?.format || 'unknown',
       }
 
+      // Capture imported patient code for navigation
+      // Try multiple sources: selected patient (existing mode), or from file analysis
+      if (selectedPatient.value?.PATIENT_CD) {
+        importedPatientCode.value = selectedPatient.value.PATIENT_CD
+      } else if (fileAnalysis.value?.importStructure?.data?.patients?.[0]?.PATIENT_CD) {
+        importedPatientCode.value = fileAnalysis.value.importStructure.data.patients[0].PATIENT_CD
+      }
+
       $q.notify({
         type: 'positive',
         message: `Import completed successfully! Imported ${importSummary.value.totalRecords} records.`,
@@ -973,6 +1005,7 @@ const startImport = async () => {
         mode: selectedMode.value,
         summary: importSummary.value,
         dbStats: result.data?.statistics,
+        importedPatientCode: importedPatientCode.value,
       })
     } else {
       throw new Error(result.errors?.[0]?.message || 'Database import failed')
@@ -1004,6 +1037,9 @@ const goBackToUpload = () => {
   selectedPatient.value = null
   selectedVisit.value = null
   currentStep.value = 'upload'
+  importedPatientCode.value = null
+  // Clear any lingering selections from preview dialog
+  importStore.clearSelections()
 }
 
 const startOver = () => {
@@ -1018,11 +1054,28 @@ const startOver = () => {
   importComplete.value = false
   importSummary.value = null
   importError.value = ''
+  importedPatientCode.value = null
+  // Clear any lingering selections from preview dialog
+  importStore.clearSelections()
 }
 
 const goToPatientRecord = () => {
-  if (selectedPatient.value) {
-    router.push(`/patient/${selectedPatient.value.PATIENT_CD}`)
+  // Use imported patient code first, then fall back to selected patient
+  const patientCode = importedPatientCode.value || selectedPatient.value?.PATIENT_CD
+  
+  if (patientCode) {
+    logger.info('Navigating to patient record', { patientCode })
+    router.push(`/patient/${patientCode}`)
+  } else {
+    logger.warn('No patient code available for navigation', {
+      hasImportedCode: !!importedPatientCode.value,
+      hasSelectedPatient: !!selectedPatient.value,
+    })
+    $q.notify({
+      type: 'warning',
+      message: 'Unable to navigate to patient record - patient information not available',
+      timeout: 3000,
+    })
   }
 }
 
