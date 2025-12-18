@@ -444,12 +444,13 @@ const onSaveDatabaseConfig = () => {
   if (!configDatabase.value) return
 
   const trimmedPath = customFolderPath.value.trim()
+  const databaseName = configDatabase.value.name
 
   // Save or clear the custom path
   if (trimmedPath) {
-    localSettingsStore.setDatabaseCustomPath(configDatabase.value.name, trimmedPath)
+    localSettingsStore.setDatabaseCustomPath(databaseName, trimmedPath)
     logger.info('Database custom path saved', {
-      database: configDatabase.value.name,
+      database: databaseName,
       customPath: trimmedPath,
     })
 
@@ -459,9 +460,9 @@ const onSaveDatabaseConfig = () => {
       position: 'top',
     })
   } else {
-    localSettingsStore.clearDatabaseCustomPath(configDatabase.value.name)
+    localSettingsStore.clearDatabaseCustomPath(databaseName)
     logger.info('Database custom path cleared', {
-      database: configDatabase.value.name,
+      database: databaseName,
     })
 
     $q.notify({
@@ -469,6 +470,21 @@ const onSaveDatabaseConfig = () => {
       message: `Using default folder for ${configDatabase.value.label}`,
       position: 'top',
     })
+  }
+
+  // Update formData.database with the new path if it's the currently selected database
+  // This ensures the login uses the updated path immediately without requiring a reload
+  if (formData.database && formData.database.name === databaseName) {
+    // Find the updated database option from the computed property
+    const updatedDatabase = databaseOptions.value.find((db) => db.name === databaseName)
+    if (updatedDatabase) {
+      formData.database = updatedDatabase
+      logger.debug('Updated formData.database with new path', {
+        database: databaseName,
+        newPath: updatedDatabase.value,
+        customPath: updatedDatabase.customPath,
+      })
+    }
   }
 
   // Close dialog
