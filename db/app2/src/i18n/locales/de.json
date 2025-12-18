@@ -222,7 +222,10 @@
     "vitalStatus": "Vitalstatus",
     "thisPatient": "diesen Patienten",
     "unknownPatient": "Unbekannter Patient",
-    "deletePatient": "Patient löschen"
+    "deletePatient": "Patient löschen",
+    "editVisits": "Besuche bearbeiten",
+    "editVisitsTooltip": "Zur Besuchsseite wechseln, um Patientenbesuche und Beobachtungen zu bearbeiten",
+    "visitsObservationsSummary": "Besuche & Beobachtungen Übersicht"
   },
   "visit": {
     "visit": "Besuch",
@@ -237,6 +240,7 @@
     "selectPatient": "Patient auswählen",
     "selectVisit": "Besuch auswählen",
     "visitSummary": "Besuchszusammenfassung",
+    "observation": "Beobachtung",
     "observations": "Beobachtungen",
     "medications": "Medikamente",
     "timeline": "Zeitlinie",
@@ -589,7 +593,8 @@
     "searchPlaceholder": "Konzepte suchen (Code, Name, Pfad)...",
     "filterByValueType": "Nach Werttyp filtern",
     "exportToCsv": "Als CSV exportieren",
-    "importConcepts": "Konzepte aus CSV importieren"
+    "importConcepts": "Konzepte aus CSV importieren",
+    "importConceptsSubtitle": "Konzepte aus CSV-Datei importieren"
   },
   "cql": {
     "cqlAdministration": "CQL-Administration",

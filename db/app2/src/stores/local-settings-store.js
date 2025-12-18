@@ -14,6 +14,9 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
       selectedPatientIds: [], // Store selected patient IDs for Data Grid
       lastUsed: null, // Timestamp of last usage
     },
+    visits: {
+      recentPatients: [], // Store recent patient IDs for quick access (max 10)
+    },
     databases: {
       customPaths: {
         // Custom folder paths for each database type
@@ -46,6 +49,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
           patientObservations: {
             ...defaultSettings.patientObservations,
             ...(parsedSettings.patientObservations || {}),
+          },
+          visits: {
+            ...defaultSettings.visits,
+            ...(parsedSettings.visits || {}),
           },
           dataGrid: {
             ...defaultSettings.dataGrid,

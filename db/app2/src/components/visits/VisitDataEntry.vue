@@ -166,7 +166,7 @@ const activeFieldSets = ref([]) // Start with empty array, let visit type determ
 // Computed from store
 const selectedVisit = computed(() => visitStore.selectedVisit)
 
-// Transform visit data for EditVisitDialog (create visitGroup structure like PatientObservationsTab)
+// Transform visit data for EditVisitDialog (create visitGroup structure)
 const selectedVisitForEdit = computed(() => {
   if (!selectedVisit.value) return null
 
@@ -180,7 +180,7 @@ const selectedVisitForEdit = computed(() => {
     fullVisit: visit,
   })
 
-  // Create visitGroup structure that EditVisitDialog expects (same as PatientObservationsTab.vue)
+  // Create visitGroup structure that EditVisitDialog expects
   const visitForEdit = {
     encounterNum: visit.id,
     visitDate: visit.date,

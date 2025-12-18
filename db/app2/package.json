@@ -27,7 +27,7 @@
     "build:win-x64": "quasar build -m electron --target win32 --arch x64",
     "build:mac-arm64": "quasar build -m electron --target darwin --arch arm64 && npm run package:mac-arm64",
     "package:win-x64": "quasar build -m electron --target win32 --arch x64 && node -e \"console.log('Portable build at dist/electron/Builder')\"",
-    "package:mac-arm64": "mkdir -p dist/builds && cd dist/electron/Packaged && if command -v hdiutil >/dev/null 2>&1; then hdiutil create -volname \"Best - Scientific DB Manager\" -srcfolder \"Best - Scientific DB Manager-darwin-arm64\" -ov -format UDZO \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).dmg\"; else tar -czf \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).tar.gz\" \"Best - Scientific DB Manager-darwin-arm64\"; fi",
+    "package:mac-arm64": "mkdir -p dist/builds && if [ -d \"dist/electron/Builder/mac-arm64\" ]; then cd dist/electron/Builder && if command -v hdiutil >/dev/null 2>&1; then hdiutil create -volname \"Best - Scientific DB Manager\" -srcfolder \"mac-arm64/Best - Scientific DB Manager.app\" -ov -format UDZO \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).dmg\"; else tar -czf \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).tar.gz\" \"mac-arm64/Best - Scientific DB Manager.app\"; fi; else echo \"Error: Build output not found at dist/electron/Builder/mac-arm64. Please run the build first.\"; exit 1; fi",
     "postinstall": "quasar prepare",
     "icon": "icongenie g -i ./public/icons/app_logo.png"
   },

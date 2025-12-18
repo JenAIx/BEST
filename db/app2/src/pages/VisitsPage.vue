@@ -9,9 +9,12 @@
       <div class="patient-header">
         <div class="patient-header-content">
           <div class="patient-header-left">
-            <q-btn flat round icon="arrow_back" color="white" @click="deselectPatient" class="back-btn" />
-            <q-avatar size="48px" color="white" text-color="primary" class="q-mr-md">
+            <q-btn flat round icon="arrow_back" color="white" @click="deselectPatient" class="back-btn">
+              <q-tooltip>Back to visits list</q-tooltip>
+            </q-btn>
+            <q-avatar size="48px" color="white" text-color="primary" class="q-mr-md patient-avatar-clickable" @click="goToPatientPage">
               {{ getPatientInitials(selectedPatient.name) }}
+              <q-tooltip>View Patient Details</q-tooltip>
             </q-avatar>
             <div class="patient-header-info">
               <h2 class="patient-name">{{ selectedPatient.name }}</h2>
@@ -33,7 +36,13 @@
                 :label="$t('visit.timeline')"
                 @click="viewMode = 'timeline'"
               />
-              <q-btn :color="viewMode === 'entry' ? 'white' : 'grey-4'" :text-color="viewMode === 'entry' ? 'primary' : 'white'" icon="edit" :label="$t('visit.dataEntry')" @click="viewMode = 'entry'" />
+              <q-btn
+                :color="viewMode === 'entry' ? 'white' : 'grey-4'"
+                :text-color="viewMode === 'entry' ? 'primary' : 'white'"
+                icon="edit"
+                :label="$t('visit.dataEntry')"
+                @click="viewMode = 'entry'"
+              />
             </q-btn-group>
           </div>
         </div>
@@ -53,6 +62,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useVisitStore } from 'src/stores/visit-store'
+import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
@@ -63,6 +73,7 @@ const route = useRoute()
 const router = useRouter()
 const patientStore = usePatientStore()
 const visitStore = useVisitStore()
+const localSettings = useLocalSettingsStore()
 
 // Local state
 const viewMode = ref('timeline')
@@ -72,9 +83,24 @@ const selectedPatient = computed(() => patientStore.selectedPatient)
 const selectedVisit = computed(() => visitStore.selectedVisit)
 const visits = computed(() => visitStore.visits)
 
+// Helper: Add patient to recent patients list
+const addToRecentPatients = (patientId) => {
+  if (!patientId) return
+
+  try {
+    const recent = localSettings.getSetting('visits.recentPatients') || []
+    // Only add if not already present, then move to front
+    const filtered = recent.filter((id) => id !== patientId)
+    const updatedRecent = [patientId, ...filtered].slice(0, 10)
+    localSettings.setSetting('visits.recentPatients', updatedRecent)
+  } catch (error) {
+    console.error('Failed to add patient to recent patients:', error)
+  }
+}
+
 // Methods
 const onPatientSelected = async (patient) => {
-  // PatientSelector already navigates, so we just need to ensure the patient is loaded
+  // PatientSelector already navigates and adds to recent patients, so we just need to ensure the patient is loaded
   if (patient.id !== selectedPatient.value?.id) {
     // Initialize service if needed
     visitObservationService.initialize()
@@ -89,6 +115,22 @@ const deselectPatient = () => {
   viewMode.value = 'timeline'
   // Navigate back to visits list
   router.push('/visits')
+}
+
+const goToPatientPage = () => {
+  if (!selectedPatient.value) {
+    console.error('Cannot navigate to patient page - no patient selected')
+    return
+  }
+
+  try {
+    // Navigate to patient page using PATIENT_CD (consistent with route parameter)
+    // The patient store normalizes id to PATIENT_CD, but we use PATIENT_CD for routes
+    const patientId = selectedPatient.value.PATIENT_CD || selectedPatient.value.id
+    router.push(`/patient/${patientId}`)
+  } catch (error) {
+    console.error('Failed to navigate to patient page:', error)
+  }
 }
 
 const onVisitSelected = async (visit) => {
@@ -136,24 +178,38 @@ const onVisitCreated = async (newVisit) => {
 // Load patient from route parameter
 const loadPatientFromRoute = async () => {
   const patientId = route.params.patientId
-  if (patientId && !selectedPatient.value) {
-    try {
-      // Initialize service if needed
-      visitObservationService.initialize()
+  if (!patientId) return
 
-      // Load patient with all data using the service
-      const loadedPatient = await visitObservationService.loadPatientWithData(patientId)
+  // Check if patient is already loaded and matches route
+  const currentPatientId = selectedPatient.value?.PATIENT_CD || selectedPatient.value?.id
 
-      if (loadedPatient) {
-        viewMode.value = 'timeline'
-      } else {
-        // Patient not found, redirect to visits list
-        router.push('/visits')
-      }
-    } catch (error) {
-      console.error('Failed to load patient from route:', error)
+  if (patientId === currentPatientId) {
+    // Patient is already loaded and matches route
+    // Save to recent patients and set view mode
+    addToRecentPatients(patientId)
+    viewMode.value = 'timeline'
+    return
+  }
+
+  // Patient not loaded yet or different patient, load it
+  try {
+    // Initialize service if needed
+    visitObservationService.initialize()
+
+    // Load patient with all data using the service
+    const loadedPatient = await visitObservationService.loadPatientWithData(patientId)
+
+    if (loadedPatient) {
+      // Save patient to recent patients when loaded from route
+      addToRecentPatients(patientId)
+      viewMode.value = 'timeline'
+    } else {
+      // Patient not found, redirect to visits list
       router.push('/visits')
     }
+  } catch (error) {
+    console.error('Failed to load patient from route:', error)
+    router.push('/visits')
   }
 }
 
@@ -161,7 +217,7 @@ const loadPatientFromRoute = async () => {
 watch(
   () => route.params.patientId,
   (newPatientId) => {
-    if (newPatientId && newPatientId !== selectedPatient.value?.id) {
+    if (newPatientId) {
       loadPatientFromRoute()
     }
   },
@@ -205,6 +261,16 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 1rem;
+}
+
+.patient-avatar-clickable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .patient-header-info {
