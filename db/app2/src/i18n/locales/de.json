@@ -635,6 +635,12 @@
     "enterFolderPathManually": "Bitte geben Sie den Ordnerpfad manuell ein",
     "errorOpeningFolderDialog": "Fehler beim Öffnen des Ordner-Dialogs"
   },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "Alle wichtigen Änderungen an diesem Projekt",
+    "loading": "Lade Changelog...",
+    "error": "Fehler beim Laden des Changelogs"
+  },
   "feedback": {
     "title": "Feedback",
     "subtitle": "Teilen Sie Ihre Gedanken und Vorschläge mit uns, um das System zu verbessern",

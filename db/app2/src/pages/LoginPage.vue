@@ -120,6 +120,7 @@
       <div class="text-center q-mt-lg">
         <q-btn flat dense no-caps color="grey-7" :label="$t('common.help')" icon="help_outline" @click="onHelp" class="q-mx-sm" />
         <q-btn flat dense no-caps color="grey-7" :label="$t('common.about')" icon="info_outline" @click="onAbout" class="q-mx-sm" />
+        <q-btn flat dense no-caps color="grey-7" :label="$t('changelog.title')" icon="history" @click="onChangelog" class="q-mx-sm" />
         <q-btn flat dense color="grey-7" @click="toggleLanguage" class="q-mx-sm">
           <q-icon :name="currentLanguageIcon" class="q-mr-xs" />
           {{ currentLanguageFlag }}
@@ -577,6 +578,12 @@ const onVersionInfo = () => {
     persistent: false,
     style: 'max-width: 400px',
   })
+}
+
+// Changelog handler
+const onChangelog = () => {
+  logger.info('Changelog clicked')
+  router.push('/changelog')
 }
 
 // About handler

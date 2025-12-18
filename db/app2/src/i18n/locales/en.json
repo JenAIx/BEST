@@ -634,6 +634,12 @@
     "enterFolderPathManually": "Please enter the folder path manually",
     "errorOpeningFolderDialog": "Error opening folder dialog"
   },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "All notable changes to this project",
+    "loading": "Loading changelog...",
+    "error": "Error loading changelog"
+  },
   "feedback": {
     "title": "Feedback",
     "subtitle": "Share your thoughts and suggestions to help us improve the system",
