@@ -406,8 +406,8 @@ export class ImportSurveyService extends BaseImportService {
       title: info.title || cda.title || 'Imported Questionnaire',
       short_title: info.label || null,
       questionnaire_code: info.label || 'imported_questionnaire',
-      date_start: cda.event?.[0]?.period?.start ? this.parseDate(cda.event[0].period.start) : null,
-      date_end: cda.event?.[0]?.period?.end ? this.parseDate(cda.event[0].period.end) : null,
+      date_start: cda.event?.[0]?.period?.start ? this.parseDateTime(cda.event[0].period.start) : null,
+      date_end: cda.event?.[0]?.period?.end ? this.parseDateTime(cda.event[0].period.end) : null,
       items: items,
       results: results.length > 0 ? results : null,
       coding: {
@@ -546,6 +546,54 @@ export class ImportSurveyService extends BaseImportService {
     } catch (error) {
       logger.warn('Date parsing failed, using current date', { originalDate: dateValue, error: error.message })
       return new Date().toISOString().split('T')[0]
+    }
+  }
+
+  /**
+   * Parse date/time string handling various formats, preserving time
+   * @param {string|number} dateValue - Date value to parse
+   * @returns {string} ISO datetime string (YYYY-MM-DDTHH:MM:SS.sssZ)
+   */
+  parseDateTime(dateValue) {
+    if (!dateValue) {
+      return new Date().toISOString()
+    }
+
+    try {
+      // Handle timestamp numbers
+      if (typeof dateValue === 'number') {
+        return new Date(dateValue).toISOString()
+      }
+
+      // Handle string dates with GMT+XXXX format
+      let dateString = String(dateValue)
+      if (dateString.includes('GMT')) {
+        // Convert "2025-09-01T10:26:49GMT+0200" to "2025-09-01T10:26:49+02:00"
+        // Also handle "2025-09-02T2:27:26GMT+0200" (single digit hour)
+        dateString = dateString.replace(/GMT([+-]\d{4})/, (match, offset) => {
+          return offset.slice(0, 3) + ':' + offset.slice(3)
+        })
+
+        // Fix single digit hours: "T2:" -> "T02:"
+        dateString = dateString.replace(/T(\d):/, 'T0$1:')
+        
+        // Fix single digit minutes: ":3:" -> ":03:"
+        dateString = dateString.replace(/:(\d):/, ':0$1:')
+        
+        // Fix single digit seconds at end: ":3+" or ":3Z"
+        dateString = dateString.replace(/:(\d)([+Z])/, ':0$1$2')
+      }
+
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) {
+        logger.warn('Invalid datetime format, using current datetime', { originalDate: dateValue })
+        return new Date().toISOString()
+      }
+
+      return date.toISOString()
+    } catch (error) {
+      logger.warn('DateTime parsing failed, using current datetime', { originalDate: dateValue, error: error.message })
+      return new Date().toISOString()
     }
   }
 

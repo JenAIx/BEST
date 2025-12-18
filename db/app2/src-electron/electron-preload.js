@@ -1,4 +1,4 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
@@ -290,6 +290,12 @@ contextBridge.exposeInMainWorld('electron', {
   // System info
   homedir: os.homedir(),
   platform: os.platform(),
+  appPath: process.cwd(),
+
+  // Dialog API for folder/file selection
+  dialog: {
+    showOpenDialog: (options) => ipcRenderer.invoke('dialog:openDirectory', options),
+  },
 
   // Environment
   publicFolder: path.resolve(__dirname, process.env.QUASAR_PUBLIC_FOLDER || '../public'),

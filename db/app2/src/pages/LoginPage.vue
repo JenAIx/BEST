@@ -120,6 +120,7 @@
       <div class="text-center q-mt-lg">
         <q-btn flat dense no-caps color="grey-7" :label="$t('common.help')" icon="help_outline" @click="onHelp" class="q-mx-sm" />
         <q-btn flat dense no-caps color="grey-7" :label="$t('common.about')" icon="info_outline" @click="onAbout" class="q-mx-sm" />
+        <q-btn flat dense no-caps color="grey-7" :label="$t('changelog.title')" icon="history" @click="onChangelog" class="q-mx-sm" />
         <q-btn flat dense color="grey-7" @click="toggleLanguage" class="q-mx-sm">
           <q-icon :name="currentLanguageIcon" class="q-mr-xs" />
           {{ currentLanguageFlag }}
@@ -150,7 +151,9 @@
                 <q-icon name="folder" />
               </template>
               <template v-slot:append>
-                <q-btn flat dense round icon="folder_open" @click="selectCustomFolder" :title="$t('auth.browseFolder')" />
+                <q-btn flat dense round icon="folder_open" color="primary" @click="selectCustomFolder" :title="$t('auth.browseFolder')">
+                  <q-tooltip>{{ $t('auth.browseFolder') }}</q-tooltip>
+                </q-btn>
               </template>
             </q-input>
           </div>
@@ -484,17 +487,53 @@ const selectCustomFolder = async () => {
   try {
     // Use Electron's dialog API if available
     if (window.electron && window.electron.dialog) {
+      // Determine the best default path to start from
+      let defaultPath = window.electron.appPath || window.electron.homedir
+
+      // If there's already a custom path set, start from there
+      if (customFolderPath.value) {
+        defaultPath = customFolderPath.value
+      }
+      // Or use the current database folder if it exists
+      else if (configDatabase.value?.customPath) {
+        defaultPath = configDatabase.value.customPath
+      }
+      // Or try the default database folder
+      else if (window.electron.fs && window.electron.path) {
+        const dbFolder = window.electron.path.join(defaultPath, 'database')
+        if (window.electron.fs.existsSync(dbFolder)) {
+          defaultPath = dbFolder
+        }
+      }
+
+      logger.debug('Opening folder dialog', { defaultPath })
+
       const result = await window.electron.dialog.showOpenDialog({
         properties: ['openDirectory'],
         title: 'Select Database Folder',
+        defaultPath: defaultPath,
+        buttonLabel: 'Select Folder',
       })
 
       if (!result.canceled && result.filePaths && result.filePaths.length > 0) {
         customFolderPath.value = result.filePaths[0]
-        logger.debug('Folder selected via dialog', { path: result.filePaths[0] })
+        logger.info('Folder selected via dialog', {
+          path: result.filePaths[0],
+          platform: window.electron.platform,
+        })
+
+        $q.notify({
+          type: 'positive',
+          message: `Folder selected: ${result.filePaths[0]}`,
+          position: 'top',
+          timeout: 2000,
+        })
+      } else {
+        logger.debug('Folder selection canceled')
       }
     } else {
       // Fallback for web environment
+      logger.warn('Electron dialog API not available, falling back to manual entry')
       $q.notify({
         type: 'info',
         message: 'Please enter the folder path manually',
@@ -539,6 +578,12 @@ const onVersionInfo = () => {
     persistent: false,
     style: 'max-width: 400px',
   })
+}
+
+// Changelog handler
+const onChangelog = () => {
+  logger.info('Changelog clicked')
+  router.push('/changelog')
 }
 
 // About handler

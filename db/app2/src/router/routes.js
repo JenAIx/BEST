@@ -16,6 +16,10 @@ const routes = [
         component: () => import('pages/Error403.vue'),
       },
       {
+        path: '/changelog',
+        component: () => import('pages/ChangelogPage.vue'),
+      },
+      {
         path: '/visits/:patientId',
         component: () => import('pages/VisitsPage.vue'),
         beforeEnter: requireAuth,

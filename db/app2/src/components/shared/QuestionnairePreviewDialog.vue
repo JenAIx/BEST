@@ -27,7 +27,7 @@
     <!-- Content -->
     <div v-else-if="questionnaire" class="questionnaire-content q-pa-md">
       <!-- Use CompletedQuestionnaireView for completed questionnaire results -->
-      <CompletedQuestionnaireView v-if="isCompletedQuestionnaire" :results="questionnaire" :completion-date="completionDate" />
+      <CompletedQuestionnaireView v-if="isCompletedQuestionnaire" :results="questionnaire" :completion-date="extractedDate || completionDate" />
       <!-- Use PreviewSurveyTemplate for questionnaire templates -->
       <PreviewSurveyTemplate v-else :questionnaire="questionnaire" />
     </div>
@@ -97,6 +97,7 @@ const localShow = ref(props.modelValue || false)
 const questionnaire = ref(null)
 const loading = ref(false)
 const loadError = ref(null)
+const extractedDate = ref(null)
 
 // Load questionnaire data based on context
 const loadQuestionnaireData = async () => {
@@ -139,6 +140,25 @@ const loadQuestionnaireFromObservation = async () => {
 
     if (observationDetails && observationDetails.observationBlob) {
       questionnaire.value = observationDetails.observationBlob
+      
+      // Extract date from BLOB or database fields
+      // Priority: date_end > date_start from BLOB > endDate > startDate from DB > props.completionDate
+      if (observationDetails.observationBlob?.date_end) {
+        extractedDate.value = observationDetails.observationBlob.date_end
+        logger.debug('Using date_end from BLOB', { date: extractedDate.value })
+      } else if (observationDetails.observationBlob?.date_start) {
+        extractedDate.value = observationDetails.observationBlob.date_start
+        logger.debug('Using date_start from BLOB', { date: extractedDate.value })
+      } else if (observationDetails.endDate) {
+        extractedDate.value = observationDetails.endDate
+        logger.debug('Using END_DATE from database', { date: extractedDate.value })
+      } else if (observationDetails.startDate) {
+        extractedDate.value = observationDetails.startDate
+        logger.debug('Using START_DATE from database', { date: extractedDate.value })
+      } else if (props.completionDate) {
+        extractedDate.value = props.completionDate
+        logger.debug('Using props.completionDate', { date: extractedDate.value })
+      }
     } else {
       loadError.value = 'No questionnaire data found for this observation'
     }
@@ -162,7 +182,9 @@ const dialogTitle = computed(() => {
 
 const dialogSubtitle = computed(() => {
   if (props.observationId && props.conceptName) {
-    const dateStr = props.completionDate ? new Date(props.completionDate).toLocaleDateString() : 'Unknown date'
+    // Use extracted date from BLOB/DB with fallback to props.completionDate
+    const dateToUse = extractedDate.value || props.completionDate
+    const dateStr = dateToUse ? new Date(dateToUse).toLocaleDateString() : 'Unknown date'
     return `${props.conceptName} - Completed on ${dateStr}`
   }
   return 'Interactive preview of how this questionnaire appears to users'
@@ -231,7 +253,8 @@ const generateQuestionnairePDFContent = () => {
   const patient = patientStore.selectedPatient
   const patientName = getPatientName(patient)
   const questionnaireTitle = questionnaire.value.title || 'Questionnaire'
-  const completionDateStr = props.completionDate ? new Date(props.completionDate).toLocaleDateString() : 'Unknown date'
+  const dateToUse = extractedDate.value || props.completionDate
+  const completionDateStr = dateToUse ? new Date(dateToUse).toLocaleDateString() : 'Unknown date'
 
   // Generate results summary
   let resultsHTML = ''
@@ -435,6 +458,7 @@ watch(
       // Reset state when opening
       questionnaire.value = null
       loadError.value = null
+      extractedDate.value = null
       await loadQuestionnaireData()
     }
   },
