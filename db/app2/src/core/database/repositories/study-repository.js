@@ -10,10 +10,8 @@ import { createLogger } from '../../services/logging-service.js'
 
 class StudyRepository extends BaseRepository {
   constructor(connection) {
-    super(connection)
+    super(connection, 'STUDY_DIMENSION', 'STUDY_NUM')
     this.logger = createLogger('StudyRepository')
-    this.tableName = 'STUDY_DIMENSION'
-    this.primaryKey = 'STUDY_NUM'
   }
 
   /**
@@ -77,16 +75,42 @@ class StudyRepository extends BaseRepository {
         throw new Error('Failed to get study ID after creation')
       }
 
-      const createdStudy = await this.findById(studyId)
-      if (!createdStudy) {
+      const rawStudy = await this.findById(studyId)
+      if (!rawStudy) {
         throw new Error(`Study created but not found with ID: ${studyId}`)
       }
 
-      return createdStudy
+      // Enrich with patient count
+      const enrichedStudies = await this.enrichStudiesWithPatientCounts([rawStudy])
+      return enrichedStudies[0]
     } catch (error) {
       this.logger.error('Failed to create study', error)
       throw error
     }
+  }
+
+  /**
+   * Override findById to include patient count
+   * @param {number} studyId - Study ID
+   * @returns {Promise<Object|null>} Study with patient count or null
+   */
+  async findById(studyId) {
+    const rawStudy = await super.findById(studyId)
+    if (!rawStudy) return null
+
+    // Enrich with patient count
+    const enrichedStudies = await this.enrichStudiesWithPatientCounts([rawStudy])
+    return enrichedStudies[0]
+  }
+
+  /**
+   * Override findAll to include patient counts
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} Studies with patient counts
+   */
+  async findAll(options = {}) {
+    const rawStudies = await super.findAll(options)
+    return await this.enrichStudiesWithPatientCounts(rawStudies)
   }
 
   /**
@@ -99,31 +123,36 @@ class StudyRepository extends BaseRepository {
     try {
       this.logger.info('Updating study', { studyId })
 
+      // Filter out undefined values and protected fields
       const updateFields = []
       const params = []
 
-      // Build dynamic update query
       Object.keys(updateData).forEach((key) => {
-        if (key !== 'STUDY_NUM' && key !== 'CREATED_AT') {
+        if (updateData[key] !== undefined && key !== 'STUDY_NUM' && key !== 'CREATED_AT') {
           updateFields.push(`${key} = ?`)
           params.push(updateData[key])
         }
       })
 
-      // Always update UPDATED_AT
+      // Always update UPDATED_AT using SQL function
+      if (updateFields.length === 0) {
+        throw new Error('No fields to update')
+      }
+
       updateFields.push('UPDATED_AT = CURRENT_TIMESTAMP')
       params.push(studyId)
 
       const sql = `
-        UPDATE STUDY_DIMENSION
+        UPDATE ${this.tableName}
         SET ${updateFields.join(', ')}
-        WHERE STUDY_NUM = ?
+        WHERE ${this.primaryKey} = ?
       `
 
       await this.connection.executeCommand(sql, params)
 
       this.logger.success('Study updated', { studyId })
 
+      // Return the updated study with patient count
       return await this.findById(studyId)
     } catch (error) {
       this.logger.error('Failed to update study', error)
@@ -177,9 +206,10 @@ class StudyRepository extends BaseRepository {
   /**
    * Transform raw database study data to application format
    * @param {Object} rawStudy - Raw study data from database
+   * @param {number} patientCount - Optional patient count
    * @returns {Object} Transformed study data
    */
-  transformStudyData(rawStudy) {
+  transformStudyData(rawStudy, patientCount = null) {
     const study = { ...rawStudy }
 
     // Transform field names to match application expectations
@@ -196,6 +226,9 @@ class StudyRepository extends BaseRepository {
     study.created = study.CREATED_AT
     study.updated = study.UPDATED_AT
 
+    // Set patient count if provided
+    study.patientCount = patientCount !== null ? patientCount : 0
+
     // Parse JSON data if exists
     if (study.STUDY_BLOB) {
       try {
@@ -209,6 +242,52 @@ class StudyRepository extends BaseRepository {
     }
 
     return study
+  }
+
+  /**
+   * Enrich studies with patient counts
+   * @param {Array} studies - Array of study objects
+   * @returns {Promise<Array>} Studies with patientCount added
+   */
+  async enrichStudiesWithPatientCounts(studies) {
+    if (!studies || studies.length === 0) return studies
+
+    try {
+      // Get all study IDs
+      const studyIds = studies.map((s) => s.STUDY_NUM || s.id).filter((id) => id)
+
+      if (studyIds.length === 0) return studies
+
+      // Get patient counts for all studies in one query
+      const placeholders = studyIds.map(() => '?').join(',')
+      const countSql = `
+        SELECT STUDY_NUM, COUNT(*) as count
+        FROM STUDY_PATIENT_LOOKUP
+        WHERE STUDY_NUM IN (${placeholders})
+        AND ENROLLMENT_STATUS_CD = 'active'
+        GROUP BY STUDY_NUM
+      `
+      const countResult = await this.connection.executeQuery(countSql, studyIds)
+
+      // Create a map of study ID to patient count
+      const countMap = new Map()
+      if (countResult.success) {
+        countResult.data.forEach((row) => {
+          countMap.set(row.STUDY_NUM, row.count)
+        })
+      }
+
+      // Enrich each study with its patient count
+      return studies.map((study) => {
+        const studyId = study.STUDY_NUM || study.id
+        const patientCount = countMap.get(studyId) || 0
+        return this.transformStudyData(study, patientCount)
+      })
+    } catch (error) {
+      this.logger.error('Failed to enrich studies with patient counts', error)
+      // Return studies without counts on error
+      return studies.map((study) => this.transformStudyData(study, 0))
+    }
   }
 
   /**
@@ -248,10 +327,13 @@ class StudyRepository extends BaseRepository {
       this.logger.info('Executing search query', { sql, params, criteria })
 
       const result = await this.connection.executeQuery(sql, params)
-      const transformedResults = result.success ? result.data.map((study) => this.transformStudyData(study)) : []
+      const rawStudies = result.success ? result.data : []
+      
+      // Enrich studies with patient counts
+      const transformedResults = await this.enrichStudiesWithPatientCounts(rawStudies)
 
       this.logger.info('Search query completed', {
-        rawResultCount: result.success ? result.data.length : 0,
+        rawResultCount: rawStudies.length,
         transformedResultCount: transformedResults.length,
         sql,
         params,

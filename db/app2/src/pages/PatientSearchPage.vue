@@ -22,15 +22,7 @@
               <div class="text-caption text-grey-6">{{ $t('patient.searchHint') }}</div>
             </div>
 
-            <q-input
-              v-model="searchQuery"
-              outlined
-              dense
-              :placeholder="$t('patient.searchPlaceholder')"
-              class="smart-search"
-              @update:model-value="onSearchChange"
-              debounce="300"
-            >
+            <q-input v-model="searchQuery" outlined dense :placeholder="$t('patient.searchPlaceholder')" class="smart-search" @update:model-value="onSearchChange" debounce="300">
               <template v-slot:prepend>
                 <q-icon name="psychology" color="primary" />
               </template>
@@ -65,11 +57,11 @@
                 <div class="col-12 col-md-5">
                   <q-select v-model="filters.sex" :options="sexOptions" label="Gender" outlined dense clearable emit-value map-options />
                 </div>
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-5">
                   <q-select v-model="filters.vitalStatus" :options="vitalStatusOptions" label="Status" outlined dense clearable emit-value map-options />
                 </div>
 
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-5">
                   <q-select
                     v-model="filters.location"
                     :options="locationOptions"
@@ -83,6 +75,19 @@
                     input-debounce="300"
                     @filter="filterLocations"
                   />
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <q-select v-model="filters.studies" :options="studyOptions" :label="$t('study.studies')" outlined dense clearable multiple emit-value map-options :loading="loadingStudies">
+                    <template v-slot:option="scope">
+                      <q-item v-bind="scope.itemProps">
+                        <q-item-section>
+                          <q-item-label>{{ scope.opt.label }}</q-item-label>
+                          <q-item-label caption>{{ scope.opt.subtitle }}</q-item-label>
+                        </q-item-section>
+                      </q-item>
+                    </template>
+                  </q-select>
                 </div>
               </div>
               <div class="row justify-end q-mt-md">
@@ -281,6 +286,7 @@ import { useQuasar } from 'quasar'
 import { useRouter } from 'vue-router'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useStudyStore } from 'src/stores/study-store'
 import PatientAvatar from '../components/shared/PatientAvatar.vue'
 import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
 import AppDialog from '../components/shared/AppDialog.vue'
@@ -289,6 +295,7 @@ const $q = useQuasar()
 const router = useRouter()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
+const studyStore = useStudyStore()
 
 // State
 const patients = ref([])
@@ -321,6 +328,7 @@ const filters = ref({
   vitalStatus: null,
   ageRange: { min: 20, max: 80 },
   location: '',
+  studies: [],
 })
 
 // Search intelligence
@@ -388,6 +396,8 @@ const tableColumns = [
 const sexOptions = ref([])
 const vitalStatusOptions = ref([])
 const locationOptions = ref([])
+const studyOptions = ref([])
+const loadingStudies = ref(false)
 
 // Computed
 const hasActiveFilters = computed(() => {
@@ -396,7 +406,8 @@ const hasActiveFilters = computed(() => {
     filters.value.vitalStatus ||
     filters.value.ageRange.min > 20 || // Changed from 0 to 20 (new default)
     filters.value.ageRange.max < 80 || // Changed from 120 to 80 (new default)
-    (filters.value.location && filters.value.location.trim())
+    (filters.value.location && filters.value.location.trim()) ||
+    (filters.value.studies && filters.value.studies.length > 0)
   )
 })
 
@@ -409,7 +420,38 @@ const loadPatients = async () => {
       throw new Error('Database not available')
     }
 
+    // Get enrolled patient IDs from selected studies FIRST (before building criteria)
+    let enrolledPatientNums = null
+    if (filters.value.studies && filters.value.studies.length > 0) {
+      const studyRepo = dbStore.getRepository('study')
+      enrolledPatientNums = new Set()
+
+      // Get all enrolled patients from selected studies
+      for (const studyId of filters.value.studies) {
+        try {
+          const enrolledPatients = await studyRepo.getEnrolledPatients(studyId)
+          enrolledPatients.forEach((p) => enrolledPatientNums.add(p.PATIENT_NUM))
+        } catch (error) {
+          console.error(`Failed to get enrolled patients for study ${studyId}:`, error)
+        }
+      }
+
+      // If no patients enrolled in selected studies, return empty results
+      if (enrolledPatientNums.size === 0) {
+        patients.value = []
+        totalPatients.value = 0
+        return
+      }
+    }
+
     const criteria = buildSearchCriteria()
+
+    // If studies are selected, add patient ID filter to criteria
+    // This ensures the repository filters at the database level for correct pagination
+    if (enrolledPatientNums && enrolledPatientNums.size > 0) {
+      criteria.patientNums = Array.from(enrolledPatientNums)
+    }
+
     const result = await dbStore.getPatientsPaginated(pagination.value.page, pagination.value.rowsPerPage, criteria)
 
     patients.value = result.patients || []
@@ -481,11 +523,34 @@ const loadFilterOptions = async () => {
         value: row.STATECITYZIP_PATH,
       }))
     }
+
+    // Load study options
+    await loadStudyOptions()
   } catch (error) {
     console.error('Failed to load filter options:', error)
     // Use fallback options from concept store
     sexOptions.value = conceptStore.getFallbackOptions('gender')
     vitalStatusOptions.value = conceptStore.getFallbackOptions('vital_status')
+  }
+}
+
+const loadStudyOptions = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+
+    loadingStudies.value = true
+    await studyStore.loadStudies()
+
+    studyOptions.value = studyStore.studies.map((study) => ({
+      label: study.name,
+      value: study.id,
+      subtitle: `${study.category || 'N/A'} • ${study.patientCount || 0} patients`,
+    }))
+  } catch (error) {
+    console.error('Failed to load study options:', error)
+    studyOptions.value = []
+  } finally {
+    loadingStudies.value = false
   }
 }
 
@@ -512,10 +577,13 @@ const buildSearchCriteria = () => {
     criteria.location = filters.value.location.trim()
   }
 
-  // Apply age range filter - use proper field names
-  if (filters.value.ageRange.min > 20 || filters.value.ageRange.max < 80) {
-    criteria.ageMin = filters.value.ageRange.min
-    criteria.ageMax = filters.value.ageRange.max
+  // Apply age range filter - use proper format for repository
+  // Apply filter if range differs from default (20-80)
+  if (filters.value.ageRange.min !== 20 || filters.value.ageRange.max !== 80) {
+    criteria.ageRange = {
+      min: filters.value.ageRange.min,
+      max: filters.value.ageRange.max,
+    }
   }
 
   return criteria
@@ -612,6 +680,7 @@ const resetFilters = () => {
     vitalStatus: null,
     ageRange: { min: 20, max: 80 },
     location: '',
+    studies: [],
   }
 }
 

@@ -334,13 +334,14 @@ const selectedConceptsCount = computed(() => {
 })
 
 const isAllSelected = computed(() => {
-  const selectableConcepts = parsedConcepts.value.filter((c) => !c.hasError)
-  return selectableConcepts.length > 0 && selectedConcepts.value.length === selectableConcepts.length
+  const selectableConcepts = filteredConcepts.value.filter((c) => !c.hasError)
+  return selectableConcepts.length > 0 && selectableConcepts.every((c) => isSelected(c))
 })
 
 const isIndeterminate = computed(() => {
   const selectableConcepts = filteredConcepts.value.filter((c) => !c.hasError)
-  return selectedConcepts.value.length > 0 && selectedConcepts.value.length < selectableConcepts.length
+  const selectedFilteredCount = selectableConcepts.filter((c) => isSelected(c)).length
+  return selectedFilteredCount > 0 && selectedFilteredCount < selectableConcepts.length
 })
 
 // Filter concepts based on search query

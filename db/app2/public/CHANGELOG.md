@@ -11,6 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- [2025-01-XX] Added comprehensive study support functionality
+  - Created `StudyDetailsPage.vue` - dedicated page for viewing and managing study details (replaces study details dialog)
+  - Added study enrollment management with `EnrollPatientDialog.vue` component
+  - Implemented patient enrollment in studies with enrollment date and status tracking
+  - Added study enrollment chips to `PatientPage.vue` showing studies a patient is enrolled in
+  - Added "Current Studies" list to `DashboardPage.vue` displaying recent studies with enrolled patient counts
+  - Added study filter to `PatientSearchPage.vue` advanced filters section for filtering patients by enrolled studies
+  - Implemented study-patient enrollment relationship with `STUDY_PATIENT_LOOKUP` table
+  - Added dynamic patient count calculation for studies from enrollment data
+  - Added navigation between study details and patient pages with clickable study/patient links
+  - Added study enrollment tooltips and visual indicators
+  - Added comprehensive I18n translations for study-related UI elements (German and English)
+  - Study enrollment dialog features patient search with autocomplete suggestions (5-10 results)
+  - Study details page supports editing study information and managing enrolled patients
+  - Study filter in patient search correctly integrates with pagination and other filters
+
 - [2025-01-XX] Added CSV import functionality for concepts
   - Created `ConceptsImportDialog` component for importing concepts from CSV files
   - Added import button to ConceptsPage with upload icon
@@ -26,7 +42,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+- [2025-01-XX] Replaced study details dialog with dedicated `StudyDetailsPage.vue` for better user experience
+  - Study details now accessible via route `/studies/:studyId`
+  - Provides more space for managing study information and enrolled patients
+  - Improved navigation flow between studies and patients
+
+- [2025-01-XX] Enhanced patient_list view to calculate age from multiple sources:
+  - First priority: Age observations from OBSERVATION_FACT (numeric observations with age-related concept names or units)
+  - Second priority: Stored AGE_IN_YEARS from PATIENT_DIMENSION
+  - Third priority: Calculated from BIRTH_DATE using SQLite's julianday() function
+  - This ensures accurate age filtering even when AGE_IN_YEARS is not directly stored
+
 #### Fixed
 
 - [2025-01-XX] Fixed auto-selection issue in concept import - concepts are no longer auto-selected, requiring manual selection by user
 - [2025-01-XX] Fixed import logic to only import explicitly selected concepts
+- [2025-01-XX] Fixed age range filtering in patient search - corrected field name usage (ageRange instead of ageMin/ageMax)
+- [2025-01-XX] Fixed age range filter condition to correctly detect when range differs from default values (20-80)
+- [2025-01-XX] Fixed combination of study filter and age range filter - age range now properly converted to repository format
+- [2025-01-XX] Fixed age calculation in patient_list view - now properly handles NULL age values when filtering
+- [2025-01-XX] Fixed age filtering in count queries - age range now correctly applied in both search and count operations

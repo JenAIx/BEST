@@ -242,22 +242,20 @@
 
     <!-- Create Study Dialog -->
     <CreateStudyDialog v-model="showCreateStudyDialog" @study-created="onStudyCreated" />
-
-    <!-- Study Details Dialog -->
-    <StudyDetailsDialog v-model="showStudyDetailsDialog" :study="selectedStudy" @edit="onEditStudy" />
   </q-page>
 </template>
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
 import CreateStudyDialog from '../components/studies/CreateStudyDialog.vue'
-import StudyDetailsDialog from '../components/studies/StudyDetailsDialog.vue'
 
+const router = useRouter()
 const $q = useQuasar()
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
@@ -270,8 +268,6 @@ const showAdvancedSearch = ref(false)
 const viewMode = ref('cards')
 const hasSearched = ref(false)
 const showCreateStudyDialog = ref(false)
-const showStudyDetailsDialog = ref(false)
-const selectedStudy = ref(null)
 
 // Search intelligence
 const searchSuggestions = ref([])
@@ -554,8 +550,7 @@ const getCategoryCount = (categoryValue) => {
 // Action handlers
 const onSelectStudy = (study) => {
   studyStore.setSelectedStudy(study)
-  selectedStudy.value = study
-  showStudyDetailsDialog.value = true
+  router.push(`/studies/${study.id}`)
 }
 
 const onTableRowClick = (evt, row) => {
@@ -602,14 +597,6 @@ const onStudyCreated = async (createdStudy) => {
   })
 }
 
-const onEditStudy = (study) => {
-  // Handle study editing
-  $q.notify({
-    type: 'info',
-    message: `Edit study: ${study.name} - Coming soon!`,
-    position: 'top',
-  })
-}
 
 // Clinical scales data - replace with database query
 const clinicalScales = ref([

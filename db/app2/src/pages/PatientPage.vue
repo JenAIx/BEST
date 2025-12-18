@@ -17,8 +17,17 @@
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="row q-gutter-sm">
+        <!-- Action Buttons and Study Enrollment -->
+        <div class="column items-end q-gutter-xs">
+          <!-- Study Enrollment Chips -->
+          <div v-if="patientStudies.length > 0" class="row items-center q-gutter-xs study-enrollment-chips">
+            <span class="text-caption text-grey-6 q-mr-xs">{{ $t('patient.enrolledIn') }}:</span>
+            <q-chip v-for="study in patientStudies" :key="study.STUDY_NUM" :color="getStudyStatusColor(study.STATUS_CD)" text-color="white" clickable @click="goToStudy(study.STUDY_NUM)">
+              {{ study.NAME_CHAR || study.STUDY_CD }}
+              <q-tooltip>{{ $t('patient.goToStudyPage') }}</q-tooltip>
+            </q-chip>
+          </div>
+
           <!-- Delete Patient Button -->
           <q-btn color="negative" icon="delete" round outline @click="showDeleteConfirmation" :loading="deleteLoading">
             <q-tooltip>{{ $t('patient.deletePatientTooltip') }}</q-tooltip>
@@ -128,6 +137,8 @@ const observationStore = useObservationStore()
 // State
 const loading = ref(true)
 const patient = ref(null)
+const patientStudies = ref([])
+const loadingStudies = ref(false)
 
 // Computed properties from stores
 const visits = computed(() => visitStore.visits)
@@ -139,7 +150,6 @@ const showDeleteDialog = ref(false)
 const showDeleteWarningDialog = ref(false)
 const deleteWarningMessage = ref('')
 const patientDataSummary = ref('')
-
 
 // Get patient ID from route params
 const patientId = route.params.patientId
@@ -278,6 +288,9 @@ const loadPatient = async () => {
     if (loadedPatient) {
       // Get the raw patient data for the UI
       patient.value = loadedPatient.rawData || loadedPatient
+
+      // Load patient's studies
+      await loadPatientStudies()
     } else {
       patient.value = null
     }
@@ -336,11 +349,44 @@ const goToPatientSearch = () => {
   })
 }
 
+const loadPatientStudies = async () => {
+  if (!patient.value?.PATIENT_NUM) return
+
+  try {
+    loadingStudies.value = true
+    if (!dbStore.canPerformOperations) return
+
+    const studyRepo = dbStore.getRepository('study')
+    const studies = await studyRepo.getPatientStudies(patient.value.PATIENT_NUM)
+
+    patientStudies.value = studies || []
+  } catch (error) {
+    console.error('Failed to load patient studies:', error)
+    patientStudies.value = []
+  } finally {
+    loadingStudies.value = false
+  }
+}
+
+const goToStudy = (studyId) => {
+  router.push(`/studies/${studyId}`)
+}
+
+const getStudyStatusColor = (status) => {
+  const colors = {
+    active: 'positive',
+    planning: 'info',
+    completed: 'secondary',
+    paused: 'warning',
+    cancelled: 'negative',
+  }
+  return colors[status] || 'grey'
+}
+
 // Handle patient updates from child components
 const onPatientUpdated = () => {
   loadPatient()
 }
-
 
 // Initialize
 onMounted(() => {
@@ -369,5 +415,10 @@ onMounted(() => {
       width: 100%;
     }
   }
+}
+
+// Move study enrollment chips up
+.study-enrollment-chips {
+  margin-top: -60px;
 }
 </style>

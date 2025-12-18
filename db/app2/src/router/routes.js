@@ -68,6 +68,11 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
+        path: 'studies/:studyId',
+        component: () => import('pages/StudyDetailsPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
         path: 'concepts',
         component: () => import('pages/ConceptsPage.vue'),
         meta: {
