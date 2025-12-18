@@ -19,10 +19,6 @@
           </div>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="row q-gutter-sm">
-          <q-btn color="primary" icon="edit" :label="$t('common.edit')" @click="editMode = !editMode" />
-        </div>
       </div>
 
       <!-- Study Info Cards -->
@@ -30,7 +26,20 @@
         <div class="col-12 col-md-6">
           <q-card>
             <q-card-section>
-              <div class="text-subtitle1 q-mb-md">{{ $t('study.studyInformation') }}</div>
+              <div class="row items-center justify-between q-mb-md">
+                <div class="text-subtitle1">{{ $t('study.studyInformation') }}</div>
+                <q-btn v-if="!editMode" flat round dense icon="edit" color="primary" size="sm" @click="startEdit">
+                  <q-tooltip>{{ $t('study.editStudy') }}</q-tooltip>
+                </q-btn>
+                <div v-else class="row q-gutter-xs">
+                  <q-btn flat round dense icon="check" color="positive" size="sm" @click="saveStudy" :loading="saving">
+                    <q-tooltip>{{ $t('common.save') }}</q-tooltip>
+                  </q-btn>
+                  <q-btn flat round dense icon="close" color="negative" size="sm" @click="cancelEdit">
+                    <q-tooltip>{{ $t('common.cancel') }}</q-tooltip>
+                  </q-btn>
+                </div>
+              </div>
               
               <!-- Edit Mode -->
               <div v-if="editMode" class="q-gutter-md">
@@ -58,11 +67,6 @@
                 <q-input v-model.number="editData.targetPatientCount" :label="$t('study.targetPatientCount')" outlined dense type="number" min="0" />
                 <q-input v-model="editData.startDate" :label="$t('study.startDate')" outlined dense type="date" />
                 <q-input v-model="editData.endDate" :label="$t('study.endDate')" outlined dense type="date" />
-                
-                <div class="row q-gutter-sm q-mt-md">
-                  <q-btn color="primary" :label="$t('common.save')" @click="saveStudy" :loading="saving" />
-                  <q-btn flat :label="$t('common.cancel')" @click="cancelEdit" />
-                </div>
               </div>
 
               <!-- View Mode -->
@@ -388,6 +392,11 @@ const saveStudy = async () => {
   } finally {
     saving.value = false
   }
+}
+
+const startEdit = () => {
+  editData.value = { ...study.value }
+  editMode.value = true
 }
 
 const cancelEdit = () => {
