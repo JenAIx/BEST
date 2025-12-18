@@ -1,5 +1,5 @@
 <template>
-  <AppDialog v-model="dialogModel" :title="$t('concepts.importConcepts')" subtitle="Import concepts from CSV file" size="xl" persistent :show-ok="false" :show-cancel="false">
+  <AppDialog v-model="dialogModel" :title="$t('concepts.importConcepts')" :subtitle="$t('concepts.importConceptsSubtitle')" size="xl" persistent :show-ok="false" :show-cancel="false">
     <div class="concepts-import-dialog">
       <!-- Step 1: File Selection -->
       <div class="import-section q-mb-lg">

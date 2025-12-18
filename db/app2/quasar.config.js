@@ -208,6 +208,15 @@ export default defineConfig((/* ctx */) => {
           ],
           artifactName: 'best-win-x64-${version}-portable.exe',
         },
+        mac: {
+          target: [
+            {
+              target: 'dir',
+              arch: ['arm64'],
+            },
+          ],
+          category: 'public.app-category.utilities',
+        },
       },
     },
 
