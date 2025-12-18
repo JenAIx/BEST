@@ -41,7 +41,8 @@
     "help": "Hilfe",
     "about": "Über",
     "unknownError": "Unbekannter Fehler",
-    "path": "Pfad"
+    "path": "Pfad",
+    "selected": "ausgewählt"
   },
   "database": {
     "notConnected": "Keine Datenbank ist derzeit verbunden",
@@ -481,6 +482,7 @@
   "import": {
     "import": "Import",
     "importData": "Daten importieren",
+    "importFromCsv": "Von CSV importieren",
     "selectFile": "Datei auswählen",
     "fileFormat": "Dateiformat",
     "uploadFile": "Datei hochladen",
@@ -495,7 +497,21 @@
     "analyzeFile": "Datei analysieren",
     "selectMode": "Modus auswählen",
     "uploadDataFile": "Datendatei hochladen",
-    "uploadHint": "Laden Sie eine Datei mit zu importierenden Patientendaten hoch. Unterstützte Formate: CSV, JSON, XML, HL7 CDA und HTML-Umfragedateien."
+    "uploadHint": "Laden Sie eine Datei mit zu importierenden Patientendaten hoch. Unterstützte Formate: CSV, JSON, XML, HL7 CDA und HTML-Umfragedateien.",
+    "validationErrors": "Validierungsfehler",
+    "csvValid": "CSV-Datei ist gültig. {count} Konzepte gefunden.",
+    "selectConceptsToImport": "Zu importierende Konzepte auswählen",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Alle abwählen",
+    "importSelected": "Ausgewählte importieren",
+    "duplicate": "Duplikat",
+    "error": "Fehler",
+    "new": "Neu",
+    "importResults": "Import-Ergebnisse",
+    "importedSuccessfully": "Erfolgreich importiert",
+    "skippedDuplicates": "Übersprungen (Duplikate)",
+    "errors": "Fehler",
+    "errorDetails": "Fehlerdetails"
   },
   "smartButton": {
     "askAI": "KI fragen",
@@ -572,7 +588,8 @@
     "createConcept": "Konzept erstellen",
     "searchPlaceholder": "Konzepte suchen (Code, Name, Pfad)...",
     "filterByValueType": "Nach Werttyp filtern",
-    "exportToCsv": "Als CSV exportieren"
+    "exportToCsv": "Als CSV exportieren",
+    "importConcepts": "Konzepte aus CSV importieren"
   },
   "cql": {
     "cqlAdministration": "CQL-Administration",

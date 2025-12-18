@@ -7,6 +7,9 @@
         <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
           <q-tooltip>{{ $t('export.exportToCsv') }}</q-tooltip>
         </q-btn>
+        <q-btn flat round dense icon="upload" color="secondary" @click="onImportConcepts" :loading="importLoading">
+          <q-tooltip>{{ $t('import.importFromCsv') }}</q-tooltip>
+        </q-btn>
         <q-btn color="primary" icon="add" :label="$t('concepts.createConcept')" @click="onCreateConcept" />
       </div>
     </div>
@@ -137,6 +140,9 @@
 
     <!-- Concept Dialog (Create/Edit) -->
     <ConceptDialog v-model="showConceptDialog" :mode="conceptDialogMode" :concept="selectedConcept" @saved="onConceptSaved" @cancelled="onConceptCancelled" />
+
+    <!-- Concept Import Dialog -->
+    <ConceptsImportDialog v-model="showImportDialog" @imported="onImportComplete" />
   </q-page>
 </template>
 
@@ -148,6 +154,7 @@ import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useExportStore } from 'src/stores/export-store'
 import { createLogger } from 'src/core/services/logging-service'
 import ConceptDialog from 'components/ConceptDialog.vue'
+import ConceptsImportDialog from 'components/ConceptsImportDialog.vue'
 import ValueTypeIcon from 'components/shared/ValueTypeIcon.vue'
 
 const $q = useQuasar()
@@ -161,7 +168,9 @@ const concepts = ref([])
 const totalConcepts = ref(0)
 const loading = ref(false)
 const exportLoading = ref(false)
+const importLoading = ref(false)
 const showConceptDialog = ref(false)
+const showImportDialog = ref(false)
 const conceptDialogMode = ref('create')
 const selectedConcept = ref(null)
 const searchQuery = ref('')
@@ -406,6 +415,17 @@ const onConceptSaved = async () => {
 const onConceptCancelled = () => {
   // Dialog will close itself
   selectedConcept.value = null
+}
+
+// Import functionality
+const onImportConcepts = () => {
+  showImportDialog.value = true
+}
+
+const onImportComplete = async () => {
+  // Refresh concepts list after import
+  await loadConcepts()
+  showImportDialog.value = false
 }
 
 // Export functionality

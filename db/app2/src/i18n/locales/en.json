@@ -41,7 +41,8 @@
     "help": "Help",
     "about": "About",
     "unknownError": "Unknown error",
-    "path": "Path"
+    "path": "Path",
+    "selected": "selected"
   },
   "database": {
     "notConnected": "No database is currently connected",
@@ -480,6 +481,7 @@
   "import": {
     "import": "Import",
     "importData": "Import Data",
+    "importFromCsv": "Import from CSV",
     "selectFile": "Select File",
     "fileFormat": "File Format",
     "uploadFile": "Upload File",
@@ -494,7 +496,21 @@
     "analyzeFile": "Analyze File",
     "selectMode": "Select Mode",
     "uploadDataFile": "Upload Data File",
-    "uploadHint": "Upload a file containing patient data to import. Supported formats include CSV, JSON, XML, HL7 CDA, and HTML survey files."
+    "uploadHint": "Upload a file containing patient data to import. Supported formats include CSV, JSON, XML, HL7 CDA, and HTML survey files.",
+    "validationErrors": "Validation Errors",
+    "csvValid": "CSV file is valid. Found {count} concepts.",
+    "selectConceptsToImport": "Select Concepts to Import",
+    "selectAll": "Select All",
+    "deselectAll": "Deselect All",
+    "importSelected": "Import Selected",
+    "duplicate": "Duplicate",
+    "error": "Error",
+    "new": "New",
+    "importResults": "Import Results",
+    "importedSuccessfully": "Imported Successfully",
+    "skippedDuplicates": "Skipped (Duplicates)",
+    "errors": "Errors",
+    "errorDetails": "Error Details"
   },
   "smartButton": {
     "askAI": "Ask AI",
@@ -571,7 +587,8 @@
     "createConcept": "Create Concept",
     "searchPlaceholder": "Search concepts (code, name, path)...",
     "filterByValueType": "Filter by Value Type",
-    "exportToCsv": "Export to CSV"
+    "exportToCsv": "Export to CSV",
+    "importConcepts": "Import Concepts from CSV"
   },
   "cql": {
     "cqlAdministration": "CQL Administration",
