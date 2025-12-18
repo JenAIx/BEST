@@ -86,6 +86,47 @@
               <q-btn flat color="primary" :label="$t('dashboard.viewAll')" to="/patients" />
             </q-card-actions>
           </q-card>
+
+          <!-- Current Studies -->
+          <q-card class="q-mt-md">
+            <q-card-section>
+              <div class="text-h6">{{ $t('dashboard.currentStudies') }}</div>
+            </q-card-section>
+            <q-separator />
+            <q-card-section class="q-pa-none">
+              <div v-if="loadingStudies" class="q-pa-md text-center">
+                <q-spinner color="primary" size="32px" />
+                <div class="q-mt-sm text-grey-6">{{ $t('dashboard.loadingStudies') }}</div>
+              </div>
+
+              <q-list v-else-if="recentStudies.length > 0" separator>
+                <q-item v-for="study in recentStudies" :key="study.id" clickable v-ripple @click="onStudyClick(study)">
+                  <q-item-section avatar>
+                    <q-avatar :color="getStudyStatusColor(study.status)" text-color="white" :icon="getCategoryIcon(study.category)" size="40px" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ study.name }}</q-item-label>
+                    <q-item-label caption>{{ study.category }} • {{ $t('dashboard.enrolledPatients') }}: {{ study.patientCount || 0 }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-item-label caption>{{ formatRelativeTime(study.updated || study.created) }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-btn flat round icon="arrow_forward" />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+
+              <div v-else class="q-pa-lg text-center text-grey-6">
+                <q-icon name="science" size="48px" class="q-mb-sm" />
+                <div>{{ $t('dashboard.noStudiesFound') }}</div>
+                <div class="text-caption">{{ $t('dashboard.addStudiesHint') }}</div>
+              </div>
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat color="primary" :label="$t('dashboard.viewAll')" to="/studies" />
+            </q-card-actions>
+          </q-card>
         </div>
 
         <!-- Quick Stats -->
@@ -307,6 +348,7 @@ import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
 import AppDialog from '../components/shared/AppDialog.vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useStudyStore } from 'src/stores/study-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 
 const $q = useQuasar()
@@ -314,13 +356,16 @@ const router = useRouter()
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
+const studyStore = useStudyStore()
 
 // View mode
 const viewMode = ref('visit')
 
 // Visit Mode Data
 const recentPatients = ref([])
+const recentStudies = ref([])
 const loading = ref(false)
+const loadingStudies = ref(false)
 
 // Dialog state
 const showCreatePatientDialog = ref(false)
@@ -505,6 +550,33 @@ const loadRecentPatients = async () => {
   }
 }
 
+const loadRecentStudies = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+
+    loadingStudies.value = true
+    await studyStore.loadStudies()
+
+    // Get recent studies (sorted by updated date, limit to 5)
+    const sorted = studyStore.sortedStudies.slice(0, 5)
+
+    recentStudies.value = sorted.map((study) => ({
+      id: study.id,
+      name: study.name,
+      category: study.category,
+      status: study.status,
+      patientCount: study.patientCount || 0,
+      updated: study.updated || study.created,
+      created: study.created,
+    }))
+  } catch (error) {
+    console.error('Failed to load recent studies:', error)
+    recentStudies.value = []
+  } finally {
+    loadingStudies.value = false
+  }
+}
+
 const loadDashboardStatistics = async () => {
   try {
     if (!dbStore.canPerformOperations) return
@@ -684,6 +756,32 @@ const formatRelativeTime = (dateStr) => {
 const onPatientClick = (evt, row) => {
   // Navigate to patient details page
   router.push({ path: `/patient/${row.id}` })
+}
+
+const onStudyClick = (study) => {
+  // Navigate to study details page
+  router.push({ path: `/studies/${study.id}` })
+}
+
+const getStudyStatusColor = (status) => {
+  const colors = {
+    active: 'positive',
+    planning: 'info',
+    completed: 'secondary',
+    paused: 'warning',
+    cancelled: 'negative',
+  }
+  return colors[status] || 'grey'
+}
+
+const getCategoryIcon = (category) => {
+  const icons = {
+    neurological: 'psychology',
+    stroke: 'favorite',
+    rehabilitation: 'healing',
+    research: 'science',
+  }
+  return icons[category?.toLowerCase()] || 'science'
 }
 
 const onTableRequest = async (props) => {
@@ -922,7 +1020,7 @@ const initializeDashboard = async () => {
   loading.value = true
   try {
     // Always load basic dashboard data and filter options
-    await Promise.all([loadRecentPatients(), loadDashboardStatistics(), loadFilterOptions()])
+    await Promise.all([loadRecentPatients(), loadRecentStudies(), loadDashboardStatistics(), loadFilterOptions()])
 
     // Only load table data if we're in deep work mode
     if (viewMode.value === 'deep') {

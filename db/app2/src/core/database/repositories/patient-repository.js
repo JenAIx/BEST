@@ -202,6 +202,13 @@ class PatientRepository extends BaseRepository {
       }
     }
 
+    if (criteria.ageMin !== undefined || criteria.ageMax !== undefined) {
+      searchCriteria.AGE_IN_YEARS = {
+        operator: 'BETWEEN',
+        value: [criteria.ageMin ?? 0, criteria.ageMax ?? 120],
+      }
+    }
+
     if (criteria.birthDateRange) {
       searchCriteria.BIRTH_DATE = {
         operator: 'BETWEEN',
@@ -237,6 +244,14 @@ class PatientRepository extends BaseRepository {
       searchCriteria.UPLOAD_ID = criteria.uploadId
     }
 
+    // Handle patient number filtering (e.g., for study enrollment)
+    if (criteria.patientNums && Array.isArray(criteria.patientNums) && criteria.patientNums.length > 0) {
+      searchCriteria.PATIENT_NUM = {
+        operator: 'IN',
+        value: criteria.patientNums,
+      }
+    }
+
     // Handle searchTerm with view-based search
     if (criteria.searchTerm) {
       const searchResults = await this.searchPatientsWithConcepts(criteria.searchTerm)
@@ -244,10 +259,16 @@ class PatientRepository extends BaseRepository {
       if (Object.keys(searchCriteria).length > 0) {
         return searchResults.filter((patient) => {
           // Apply filters to search results
+          // Filter by patient numbers (for study enrollment)
+          if (searchCriteria.PATIENT_NUM && searchCriteria.PATIENT_NUM.operator === 'IN') {
+            if (!searchCriteria.PATIENT_NUM.value.includes(patient.PATIENT_NUM)) return false
+          }
           if (searchCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== searchCriteria.VITAL_STATUS_CD) return false
           if (searchCriteria.SEX_CD && patient.SEX_CD !== searchCriteria.SEX_CD) return false
-          if (searchCriteria.AGE_IN_YEARS) {
+          if (searchCriteria.AGE_IN_YEARS && searchCriteria.AGE_IN_YEARS.operator === 'BETWEEN') {
             const age = patient.AGE_IN_YEARS
+            // Skip patients with null/undefined age if age filter is active
+            if (age == null) return false
             if (age < searchCriteria.AGE_IN_YEARS.value[0] || age > searchCriteria.AGE_IN_YEARS.value[1]) return false
           }
           if (searchCriteria.STATECITYZIP_PATH && !patient.STATECITYZIP_PATH?.includes(searchCriteria.STATECITYZIP_PATH)) return false
@@ -302,7 +323,12 @@ class PatientRepository extends BaseRepository {
         if (typeof value === 'object' && value.operator) {
           // Handle special operators like BETWEEN, IN, etc.
           if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
-            conditions.push(`${field} BETWEEN ? AND ?`)
+            // For age filtering, exclude NULL values explicitly
+            if (field === 'AGE_IN_YEARS') {
+              conditions.push(`${field} IS NOT NULL AND ${field} BETWEEN ? AND ?`)
+            } else {
+              conditions.push(`${field} BETWEEN ? AND ?`)
+            }
             params.push(value.value[0], value.value[1])
           } else if (value.operator === 'IN' && Array.isArray(value.value)) {
             const placeholders = value.value.map(() => '?').join(', ')
@@ -506,6 +532,42 @@ class PatientRepository extends BaseRepository {
    * @returns {Promise<number>} - Total count
    */
   async countByCriteriaFromView(criteria = {}) {
+    // Convert criteria to searchCriteria format (same as findPatientsByCriteriaWithConcepts)
+    const searchCriteria = {}
+
+    if (criteria.VITAL_STATUS_CD) {
+      searchCriteria.VITAL_STATUS_CD = criteria.VITAL_STATUS_CD
+    }
+
+    if (criteria.SEX_CD) {
+      searchCriteria.SEX_CD = criteria.SEX_CD
+    }
+
+    if (criteria.ageRange) {
+      searchCriteria.AGE_IN_YEARS = {
+        operator: 'BETWEEN',
+        value: [criteria.ageRange.min, criteria.ageRange.max],
+      }
+    }
+
+    if (criteria.ageMin !== undefined || criteria.ageMax !== undefined) {
+      searchCriteria.AGE_IN_YEARS = {
+        operator: 'BETWEEN',
+        value: [criteria.ageMin ?? 0, criteria.ageMax ?? 120],
+      }
+    }
+
+    if (criteria.location) {
+      searchCriteria.STATECITYZIP_PATH = criteria.location
+    }
+
+    if (criteria.patientNums && Array.isArray(criteria.patientNums) && criteria.patientNums.length > 0) {
+      searchCriteria.PATIENT_NUM = {
+        operator: 'IN',
+        value: criteria.patientNums,
+      }
+    }
+
     // Handle searchTerm specially - it needs to search across multiple fields
     if (criteria.searchTerm) {
       const searchPattern = `%${criteria.searchTerm}%`
@@ -523,19 +585,30 @@ class PatientRepository extends BaseRepository {
       `
       const searchParams = Array(9).fill(searchPattern)
 
-      // Add other criteria if they exist
-      const otherCriteria = { ...criteria }
-      delete otherCriteria.searchTerm
-
-      if (Object.keys(otherCriteria).length > 0) {
+      if (Object.keys(searchCriteria).length > 0) {
         // If there are other criteria, we need to get the search results first
         // and then apply additional filters - this is more complex but accurate
         const searchResults = await this.searchPatientsWithConcepts(criteria.searchTerm)
 
         // Apply additional filters to search results
         const filteredResults = searchResults.filter((patient) => {
-          if (otherCriteria.SEX_CD && patient.SEX_CD !== otherCriteria.SEX_CD) return false
-          if (otherCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== otherCriteria.VITAL_STATUS_CD) return false
+          // Filter by patient numbers (for study enrollment)
+          if (searchCriteria.PATIENT_NUM && searchCriteria.PATIENT_NUM.operator === 'IN') {
+            if (!searchCriteria.PATIENT_NUM.value.includes(patient.PATIENT_NUM)) return false
+          }
+          // Filter by gender
+          if (searchCriteria.SEX_CD && patient.SEX_CD !== searchCriteria.SEX_CD) return false
+          // Filter by vital status
+          if (searchCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== searchCriteria.VITAL_STATUS_CD) return false
+          // Filter by age range
+          if (searchCriteria.AGE_IN_YEARS && searchCriteria.AGE_IN_YEARS.operator === 'BETWEEN') {
+            const age = patient.AGE_IN_YEARS
+            // Skip patients with null/undefined age if age filter is active
+            if (age == null) return false
+            if (age < searchCriteria.AGE_IN_YEARS.value[0] || age > searchCriteria.AGE_IN_YEARS.value[1]) return false
+          }
+          // Filter by location
+          if (searchCriteria.STATECITYZIP_PATH && !patient.STATECITYZIP_PATH?.includes(searchCriteria.STATECITYZIP_PATH)) return false
           return true
         })
 
@@ -551,13 +624,18 @@ class PatientRepository extends BaseRepository {
     const conditions = []
     const params = []
 
-    // Build WHERE clause for non-search criteria
-    for (const [field, value] of Object.entries(criteria)) {
+    // Build WHERE clause for non-search criteria (using searchCriteria which has proper field names)
+    for (const [field, value] of Object.entries(searchCriteria)) {
       if (value !== undefined && value !== null && value !== '') {
         if (typeof value === 'object' && value.operator) {
           // Handle special operators like BETWEEN, IN, etc.
           if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
-            conditions.push(`${field} BETWEEN ? AND ?`)
+            // For age filtering, exclude NULL values explicitly
+            if (field === 'AGE_IN_YEARS') {
+              conditions.push(`${field} IS NOT NULL AND ${field} BETWEEN ? AND ?`)
+            } else {
+              conditions.push(`${field} BETWEEN ? AND ?`)
+            }
             params.push(value.value[0], value.value[1])
           } else if (value.operator === 'IN' && Array.isArray(value.value)) {
             const placeholders = value.value.map(() => '?').join(', ')

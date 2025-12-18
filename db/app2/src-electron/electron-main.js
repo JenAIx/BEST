@@ -12,7 +12,7 @@ const platform = process.platform || os.platform()
 
 let mainWindow
 
-function createWindow() {
+async function createWindow() {
   /**
    * Initial window options
    */
@@ -40,34 +40,35 @@ function createWindow() {
   const appURL = process.env.APP_URL
   console.log('Resolved APP_URL:', appURL)
 
-  const loadPackagedIndex = () => {
+  const loadPackagedIndex = async () => {
     const packagedIndex = path.join(process.resourcesPath, 'app.asar', 'index.html')
     console.log('Falling back to packaged index:', packagedIndex)
     try {
-      mainWindow.loadFile(packagedIndex)
+      await mainWindow.loadFile(packagedIndex)
     } catch (err) {
       console.error('Failed to load packaged index.html:', err)
+      throw err
     }
   }
 
   try {
     if (appURL && appURL.length > 0) {
       console.log('Loading APP_URL:', appURL)
-      mainWindow.loadURL(appURL).catch((e) => {
+      await mainWindow.loadURL(appURL).catch(async (e) => {
         console.error('loadURL rejected:', e)
-        loadPackagedIndex()
+        await loadPackagedIndex()
       })
     } else {
       const devIndex = path.resolve(__dirname, '../index.html')
       console.log('APP_URL missing, loading dev-built file:', devIndex)
-      mainWindow.loadFile(devIndex).catch((e) => {
+      await mainWindow.loadFile(devIndex).catch(async (e) => {
         console.error('loadFile(dev) rejected:', e)
-        loadPackagedIndex()
+        await loadPackagedIndex()
       })
     }
   } catch (err) {
     console.error('Failed initial load, trying packaged index:', err)
-    loadPackagedIndex()
+    await loadPackagedIndex()
   }
 
   // Optional diagnostics (keep listeners minimal in production)

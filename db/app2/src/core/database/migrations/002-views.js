@@ -13,7 +13,7 @@ export const databaseViews = {
       'DROP VIEW IF EXISTS patient_list',
       'DROP VIEW IF EXISTS patient_observations',
 
-      // Create patient_list view with resolved concept names
+      // Create patient_list view with resolved concept names and calculated age
       `CREATE VIEW patient_list AS
 SELECT
     PATIENT_DIMENSION.PATIENT_NUM as PATIENT_NUM,
@@ -22,7 +22,18 @@ SELECT
     PATIENT_DIMENSION.UPDATE_DATE as UPDATE_DATE,
     PATIENT_DIMENSION.BIRTH_DATE as BIRTH_DATE,
     PATIENT_DIMENSION.DEATH_DATE as DEATH_DATE,
-    PATIENT_DIMENSION.AGE_IN_YEARS as AGE_IN_YEARS,
+    -- Calculate age: prefer observation age, then stored AGE_IN_YEARS, then calculate from BIRTH_DATE
+    COALESCE(
+      AGE_OBS.NVAL_NUM,  -- Age from observation (if available)
+      PATIENT_DIMENSION.AGE_IN_YEARS,  -- Stored age
+      CASE 
+        WHEN PATIENT_DIMENSION.BIRTH_DATE IS NOT NULL THEN
+          CAST(
+            (julianday('now') - julianday(PATIENT_DIMENSION.BIRTH_DATE)) / 365.25 AS INTEGER
+          )
+        ELSE NULL
+      END
+    ) as AGE_IN_YEARS,
     PATIENT_DIMENSION.SEX_CD as SEX_CD,
     SEX.NAME_CHAR as SEX_RESOLVED,
     PATIENT_DIMENSION.VITAL_STATUS_CD as VITAL_STATUS_CD,
@@ -49,6 +60,26 @@ LEFT JOIN CONCEPT_DIMENSION AS LANG ON LANG.CONCEPT_CD = PATIENT_DIMENSION.LANGU
 LEFT JOIN CONCEPT_DIMENSION AS RACE ON RACE.CONCEPT_CD = PATIENT_DIMENSION.RACE_CD
 LEFT JOIN CONCEPT_DIMENSION AS MARITAL ON MARITAL.CONCEPT_CD = PATIENT_DIMENSION.MARITAL_STATUS_CD
 LEFT JOIN CONCEPT_DIMENSION AS REL ON REL.CONCEPT_CD = PATIENT_DIMENSION.RELIGION_CD
+-- Join with age observations (look for common age concept codes or numeric observations with 'year' or 'age' in concept name)
+LEFT JOIN (
+  SELECT 
+    OBS.PATIENT_NUM,
+    OBS.NVAL_NUM,
+    ROW_NUMBER() OVER (PARTITION BY OBS.PATIENT_NUM ORDER BY OBS.START_DATE DESC) as rn
+  FROM OBSERVATION_FACT OBS
+  INNER JOIN CONCEPT_DIMENSION CD ON CD.CONCEPT_CD = OBS.CONCEPT_CD
+  WHERE OBS.VALTYPE_CD = 'N' 
+    AND OBS.NVAL_NUM IS NOT NULL
+    AND (
+      CD.NAME_CHAR LIKE '%age%' 
+      OR CD.NAME_CHAR LIKE '%Alter%'
+      OR CD.CONCEPT_CD LIKE '%age%'
+      OR (OBS.UNIT_CD IS NOT NULL AND (
+        OBS.UNIT_CD LIKE '%year%' 
+        OR OBS.UNIT_CD LIKE '%Jahr%'
+      ))
+    )
+) AGE_OBS ON AGE_OBS.PATIENT_NUM = PATIENT_DIMENSION.PATIENT_NUM AND AGE_OBS.rn = 1
 ORDER BY PATIENT_CD`,
 
       // Create patient_observations view with resolved concept names and descriptions

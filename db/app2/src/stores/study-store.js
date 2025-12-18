@@ -292,24 +292,44 @@ export const useStudyStore = defineStore('study', () => {
 
       logger.info('Updating study', { studyId, updateData })
 
+      if (!dbStore.canPerformOperations) {
+        throw new Error('Database not available')
+      }
+
+      const studyRepo = dbStore.getRepository('study')
+      
+      // Transform updateData to database format
+      const dbUpdateData = {}
+      if (updateData.name !== undefined) dbUpdateData.NAME_CHAR = updateData.name
+      if (updateData.category !== undefined) dbUpdateData.CATEGORY_CHAR = updateData.category
+      if (updateData.description !== undefined) dbUpdateData.DESCRIPTION_CHAR = updateData.description
+      if (updateData.status !== undefined) dbUpdateData.STATUS_CD = updateData.status
+      if (updateData.principalInvestigator !== undefined) dbUpdateData.PRINCIPAL_INVESTIGATOR = updateData.principalInvestigator
+      if (updateData.targetPatientCount !== undefined) dbUpdateData.TARGET_PATIENT_COUNT = updateData.targetPatientCount
+      if (updateData.funding !== undefined) dbUpdateData.FUNDING_CD = updateData.funding
+      if (updateData.startDate !== undefined) dbUpdateData.START_DATE = updateData.startDate
+      if (updateData.endDate !== undefined) dbUpdateData.END_DATE = updateData.endDate
+      if (updateData.notes !== undefined) {
+        dbUpdateData.STUDY_BLOB = JSON.stringify({ notes: updateData.notes })
+      }
+
+      const updatedStudy = await studyRepo.update(studyId, dbUpdateData)
+
+      // Update local state
       const studyIndex = studies.value.findIndex((s) => s.id === studyId)
-      if (studyIndex === -1) {
-        throw new Error(`Study with ID ${studyId} not found`)
+      if (studyIndex !== -1) {
+        studies.value[studyIndex] = updatedStudy
+      } else {
+        studies.value.push(updatedStudy)
       }
-
-      // For now, update mock data - replace with database operation later
-      const updatedStudy = {
-        ...studies.value[studyIndex],
-        ...updateData,
-        updated: new Date().toISOString().split('T')[0],
-      }
-
-      studies.value[studyIndex] = updatedStudy
 
       // Update selected study if it's the one being updated
       if (selectedStudy.value?.id === studyId) {
         selectedStudy.value = updatedStudy
       }
+
+      // Update stats
+      updateResearchStats()
 
       logger.success('Study updated', { studyId, studyName: updatedStudy.name })
 
@@ -330,6 +350,10 @@ export const useStudyStore = defineStore('study', () => {
 
       logger.info('Deleting study', { studyId })
 
+      if (!dbStore.canPerformOperations) {
+        throw new Error('Database not available')
+      }
+
       const studyIndex = studies.value.findIndex((s) => s.id === studyId)
       if (studyIndex === -1) {
         throw new Error(`Study with ID ${studyId} not found`)
@@ -337,7 +361,11 @@ export const useStudyStore = defineStore('study', () => {
 
       const studyToDelete = studies.value[studyIndex]
 
-      // For now, remove from mock data - replace with database operation later
+      // Delete from database
+      const studyRepo = dbStore.getRepository('study')
+      await studyRepo.delete(studyId)
+
+      // Remove from local state
       studies.value.splice(studyIndex, 1)
       totalStudies.value--
 
