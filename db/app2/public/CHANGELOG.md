@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- [2025-01-XX] Enhanced Visit Summary dialog with questionnaires section
+  - Added dedicated "Questionnaires & Surveys" section at bottom of visit summary
+  - Displays all questionnaires (valueType='Q') with full response details using `CompletedQuestionnaireView` component
+  - Shows questionnaire count in visit summary header when questionnaires are present
+  - Questionnaires are automatically loaded when dialog opens
+  - Each questionnaire displays title, completion date, final results, and individual question responses
+  - Added "View Full Questionnaire" button to open detailed questionnaire preview dialog
+  - Enhanced PDF export to include complete questionnaire responses with all questions and answers
+  - PDF export now includes questionnaire results summary and individual responses formatted for printing
+  - Created sub-components for better code organization: `VisitSummaryPatientHeader`, `VisitSummaryHeader`, `VisitSummaryObservations`, `VisitSummaryQuestionnaires`, `VisitSummaryQuestionnaireItem`
+  - Extracted PDF generation logic to reusable `useVisitSummaryPDF` composable
+
 - [2025-01-XX] Added comprehensive study support functionality
   - Created `StudyDetailsPage.vue` - dedicated page for viewing and managing study details (replaces study details dialog)
   - Added study enrollment management with `EnrollPatientDialog.vue` component
@@ -41,6 +53,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports the same CSV format as the export function (13 columns matching CONCEPT_DIMENSION table)
 
 #### Changed
+
+- [2025-01-XX] Refactored Visit Summary dialog for better maintainability
+  - Split monolithic 1190-line component into smaller, focused sub-components (reduced main dialog to 366 lines)
+  - Created `VisitSummaryPatientHeader.vue` for patient information display
+  - Created `VisitSummaryHeader.vue` for visit overview information
+  - Created `VisitSummaryObservations.vue` for observations table display
+  - Created `VisitSummaryQuestionnaires.vue` and `VisitSummaryQuestionnaireItem.vue` for questionnaire display
+  - Extracted PDF generation logic to `useVisitSummaryPDF.js` composable for reusability
+  - Improved code organization and maintainability while preserving all functionality
 
 - [2025-01-XX] Replaced study details dialog with dedicated `StudyDetailsPage.vue` for better user experience
   - Study details now accessible via route `/studies/:studyId`
