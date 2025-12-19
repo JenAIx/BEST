@@ -143,7 +143,7 @@ const props = defineProps({
     default: null,
   },
   completionDate: {
-    type: String,
+    type: [String, Number, Date],
     default: null,
   },
 })

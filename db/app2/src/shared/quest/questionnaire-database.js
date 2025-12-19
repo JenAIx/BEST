@@ -22,9 +22,13 @@ export const saveQuestionnaireResponse = async (dbStore, patientNum, encounterNu
   const mainResult = await saveMainQuestionnaireResponse(dbStore, patientNum, encounterNum, results)
 
   // Extract and save individual results and answers as separate observations
-  await saveIndividualResultsAsObservations(dbStore, patientNum, encounterNum, results, mainResult.observationId, visitObservationService, conceptResolutionStore)
+  const observationCounts = await saveIndividualResultsAsObservations(dbStore, patientNum, encounterNum, results, mainResult.observationId, visitObservationService, conceptResolutionStore)
 
-  return mainResult
+  // Return main result with observation counts
+  return {
+    ...mainResult,
+    observationCounts,
+  }
 }
 
 /**
@@ -150,7 +154,7 @@ export const saveMainQuestionnaireResponse = async (dbStore, patientNum, encount
  * @param {number} questionnaireObservationId - Main questionnaire observation ID
  * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
- * @returns {Promise<void>}
+ * @returns {Promise<Object>} Object with resultsCount, answersCount, and totalObservations
  */
 export const saveIndividualResultsAsObservations = async (dbStore, patientNum, encounterNum, results, questionnaireObservationId, visitObservationService, conceptResolutionStore) => {
   logger.info('Saving individual results and answers as observations', {
@@ -158,14 +162,23 @@ export const saveIndividualResultsAsObservations = async (dbStore, patientNum, e
     questionnaireObservationId,
   })
 
+  let resultsCount = 0
+  let answersCount = 0
+
   // Process results first
   if (results.results && Array.isArray(results.results)) {
-    await saveResultsAsObservations(dbStore, patientNum, encounterNum, results.results, results, questionnaireObservationId, visitObservationService, conceptResolutionStore)
+    resultsCount = await saveResultsAsObservations(dbStore, patientNum, encounterNum, results.results, results, questionnaireObservationId, visitObservationService, conceptResolutionStore)
   }
 
   // Process individual answers with coding
   if (results.items && Array.isArray(results.items)) {
-    await saveAnswersAsObservations(dbStore, patientNum, encounterNum, results.items, results, questionnaireObservationId, visitObservationService, conceptResolutionStore)
+    answersCount = await saveAnswersAsObservations(dbStore, patientNum, encounterNum, results.items, results, questionnaireObservationId, visitObservationService, conceptResolutionStore)
+  }
+
+  return {
+    resultsCount,
+    answersCount,
+    totalObservations: resultsCount + answersCount,
   }
 }
 
@@ -179,10 +192,12 @@ export const saveIndividualResultsAsObservations = async (dbStore, patientNum, e
  * @param {number} questionnaireObservationId - Main questionnaire observation ID
  * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
- * @returns {Promise<void>}
+ * @returns {Promise<number>} Number of successfully created observations
  */
 export const saveResultsAsObservations = async (dbStore, patientNum, encounterNum, results, fullResults, questionnaireObservationId, visitObservationService, conceptResolutionStore) => {
   logger.debug('Processing results', { resultCount: results.length })
+
+  let successCount = 0
 
   for (const result of results) {
     try {
@@ -207,6 +222,7 @@ export const saveResultsAsObservations = async (dbStore, patientNum, encounterNu
         visitObservationService,
         conceptResolutionStore,
       )
+      successCount++
     } catch (error) {
       logger.error('Failed to save result as observation', error, {
         conceptCode: result.coding?.code,
@@ -214,6 +230,8 @@ export const saveResultsAsObservations = async (dbStore, patientNum, encounterNu
       })
     }
   }
+
+  return successCount
 }
 
 /**
@@ -226,10 +244,12 @@ export const saveResultsAsObservations = async (dbStore, patientNum, encounterNu
  * @param {number} questionnaireObservationId - Main questionnaire observation ID
  * @param {Object} visitObservationService - Visit observation service
  * @param {Object} conceptResolutionStore - Concept resolution store
- * @returns {Promise<void>}
+ * @returns {Promise<number>} Number of successfully created observations
  */
 export const saveAnswersAsObservations = async (dbStore, patientNum, encounterNum, items, fullResults, questionnaireObservationId, visitObservationService, conceptResolutionStore) => {
   logger.info('Processing answers', { itemCount: items.length, questionnaireCode: fullResults.questionnaire_code })
+
+  let successCount = 0
 
   for (const item of items) {
     try {
@@ -281,6 +301,7 @@ export const saveAnswersAsObservations = async (dbStore, patientNum, encounterNu
         visitObservationService,
         conceptResolutionStore,
       )
+      successCount++
     } catch (error) {
       logger.error('Failed to save answer as observation - FALLING BACK TO DEFAULT', error, {
         conceptCode: item.coding?.code,
@@ -296,6 +317,8 @@ export const saveAnswersAsObservations = async (dbStore, patientNum, encounterNu
       })
     }
   }
+
+  return successCount
 }
 
 /**

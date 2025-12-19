@@ -55,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- [2025-12-18] Fixed questionnaire submission error when auto-creating visits - now uses visit repository which properly handles `lastInsertRowid` being undefined in Electron environment
+- [2025-12-18] Fixed Vue prop type warning for `completionDate` in questionnaire preview - now properly converts number timestamps to ISO string format
+- [2025-12-18] Fixed questionnaire submission summary showing "0 Questions Answered" - now correctly displays `items.length` and shows detailed counts including answers added as separate observations
+- [2025-12-18] Fixed VALTYPE_CD being incorrectly set to 'T' for Selection type observations from questionnaires - now correctly uses the concept's VALTYPE_CD from database (typically 'S' for Selection) to enable proper ID-to-text resolution
 - [2025-01-XX] Fixed auto-selection issue in concept import - concepts are no longer auto-selected, requiring manual selection by user
 - [2025-01-XX] Fixed import logic to only import explicitly selected concepts
 - [2025-01-XX] Fixed age range filtering in patient search - corrected field name usage (ageRange instead of ageMin/ageMax)
