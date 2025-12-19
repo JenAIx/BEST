@@ -89,16 +89,20 @@
                     <div class="text-subtitle1 q-mb-sm">Submission Summary</div>
                     <div class="row q-gutter-md justify-center">
                       <div class="text-center">
-                        <div class="text-h6">{{ lastSubmissionResults.questionnaire_title }}</div>
+                        <div class="text-h6">{{ lastSubmissionResults.title || lastSubmissionResults.questionnaire_title }}</div>
                         <div class="text-caption text-grey-6">Questionnaire</div>
                       </div>
                       <div class="text-center">
-                        <div class="text-h6">{{ lastSubmissionResults.responses?.length || 0 }}</div>
-                        <div class="text-caption text-grey-6">Questions Answered</div>
+                        <div class="text-h6">{{ lastSubmissionResults.items?.length || 0 }}</div>
+                        <div class="text-caption text-grey-6">Total Answers</div>
                       </div>
-                      <div v-if="lastSubmissionResults.summary" class="text-center">
-                        <div class="text-h6">{{ lastSubmissionResults.summary.value }}</div>
-                        <div class="text-caption text-grey-6">{{ lastSubmissionResults.summary.label }}</div>
+                      <div class="text-center">
+                        <div class="text-h6">{{ lastSubmissionResults.observationCounts?.answersCount || 0 }}</div>
+                        <div class="text-caption text-grey-6">Answers Added as Observations</div>
+                      </div>
+                      <div v-if="lastSubmissionResults.results && Array.isArray(lastSubmissionResults.results) && lastSubmissionResults.results.length > 0" class="text-center">
+                        <div class="text-h6">{{ lastSubmissionResults.results[0]?.value }}</div>
+                        <div class="text-caption text-grey-6">{{ lastSubmissionResults.results[0]?.coding?.display || lastSubmissionResults.results[0]?.label || 'Score' }}</div>
                       </div>
                     </div>
                   </q-card-section>
@@ -223,31 +227,31 @@ const openVisitSelection = async () => {
 
 const createVisitForPatient = async () => {
   try {
-    const visitResult = await dbStore.executeQuery(
-      `INSERT INTO VISIT_DIMENSION (
-        PATIENT_NUM, ACTIVE_STATUS_CD, START_DATE, INOUT_CD,
-        LOCATION_CD, VISIT_BLOB, IMPORT_DATE, SOURCESYSTEM_CD
-      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?)`,
-      [
-        selectedPatient.value.PATIENT_NUM,
-        'A', // Active
-        new Date().toISOString(),
-        'QUESTIONNAIRE',
-        'Outpatient Clinic',
-        JSON.stringify({
-          visitNotes: 'Auto-created for questionnaire',
-          createdFor: 'questionnaire',
-        }),
-        'SURVEY_SYSTEM',
-      ],
-    )
+    // Use visit repository which has workaround for undefined lastInsertRowid
+    const visitRepo = dbStore.getRepository('visit')
+    
+    const visitData = {
+      PATIENT_NUM: selectedPatient.value.PATIENT_NUM,
+      ACTIVE_STATUS_CD: 'A', // Active
+      START_DATE: new Date().toISOString().split('T')[0], // Format as YYYY-MM-DD
+      INOUT_CD: 'QUESTIONNAIRE',
+      LOCATION_CD: 'Outpatient Clinic',
+      VISIT_BLOB: JSON.stringify({
+        visitNotes: 'Auto-created for questionnaire',
+        createdFor: 'questionnaire',
+      }),
+      SOURCESYSTEM_CD: 'SURVEY_SYSTEM',
+    }
 
-    if (!visitResult.success) {
-      throw new Error('Failed to create visit')
+    const createdVisit = await visitRepo.createVisit(visitData)
+
+    // Ensure ENCOUNTER_NUM is set - repository has workaround if lastInsertRowid is undefined
+    if (!createdVisit.ENCOUNTER_NUM) {
+      throw new Error('Failed to get encounter number after visit creation')
     }
 
     const newVisit = {
-      ENCOUNTER_NUM: visitResult.lastInsertRowid,
+      ENCOUNTER_NUM: createdVisit.ENCOUNTER_NUM,
       PATIENT_NUM: selectedPatient.value.PATIENT_NUM,
       ACTIVE_STATUS_CD: 'A',
       START_DATE: new Date().toISOString(),
@@ -353,16 +357,30 @@ const onQuestionnaireSubmit = async ({ results }) => {
     return
   }
 
+  // Validate encounter number is set
+  const encounterNum = selectedVisit.value.ENCOUNTER_NUM
+  if (!encounterNum) {
+    logger.error('Encounter number is missing from selected visit', {
+      selectedVisit: selectedVisit.value,
+    })
+    $q.notify({
+      type: 'negative',
+      message: 'Invalid visit: missing encounter number. Please select a different visit or create a new one.',
+    })
+    return
+  }
+
   showSubmissionDialog.value = true
 
   try {
-    // Use the selected visit's encounter number
-    const encounterNum = selectedVisit.value.ENCOUNTER_NUM
-
     // Save the questionnaire response
-    await questionnaireStore.saveQuestionnaireResponse(selectedPatient.value.PATIENT_NUM, encounterNum, results)
+    const saveResult = await questionnaireStore.saveQuestionnaireResponse(selectedPatient.value.PATIENT_NUM, encounterNum, results)
 
-    lastSubmissionResults.value = results
+    // Store results with observation counts
+    lastSubmissionResults.value = {
+      ...results,
+      observationCounts: saveResult.observationCounts || { answersCount: 0, resultsCount: 0, totalObservations: 0 },
+    }
     submissionComplete.value = true
     currentStep.value = 'complete'
 

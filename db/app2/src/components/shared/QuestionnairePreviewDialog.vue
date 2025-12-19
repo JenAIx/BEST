@@ -27,7 +27,7 @@
     <!-- Content -->
     <div v-else-if="questionnaire" class="questionnaire-content q-pa-md">
       <!-- Use CompletedQuestionnaireView for completed questionnaire results -->
-      <CompletedQuestionnaireView v-if="isCompletedQuestionnaire" :results="questionnaire" :completion-date="extractedDate || completionDate" />
+      <CompletedQuestionnaireView v-if="isCompletedQuestionnaire" :results="questionnaire" :completion-date="completionDateString" />
       <!-- Use PreviewSurveyTemplate for questionnaire templates -->
       <PreviewSurveyTemplate v-else :questionnaire="questionnaire" />
     </div>
@@ -196,6 +196,28 @@ const isCompletedQuestionnaire = computed(() => {
 
   // Check if this has completed response data
   return questionnaire.value.items && questionnaire.value.items.length > 0 && questionnaire.value.items[0].value !== undefined
+})
+
+// Convert completion date to string format (handles both number timestamps and string dates)
+const completionDateString = computed(() => {
+  const dateValue = extractedDate.value || props.completionDate
+  if (!dateValue) return null
+  
+  // If it's already a string, return it
+  if (typeof dateValue === 'string') return dateValue
+  
+  // If it's a number (timestamp), convert to ISO string
+  if (typeof dateValue === 'number') {
+    return new Date(dateValue).toISOString()
+  }
+  
+  // If it's a Date object, convert to ISO string
+  if (dateValue instanceof Date) {
+    return dateValue.toISOString()
+  }
+  
+  // Fallback: convert to string
+  return String(dateValue)
 })
 
 const exportToPDF = async () => {

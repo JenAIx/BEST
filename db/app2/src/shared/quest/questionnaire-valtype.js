@@ -17,6 +17,8 @@ import { logger } from '../../core/services/logging-service.js'
  * @returns {Promise<void>}
  */
 export const handleValueTypeCd = async (observationData, concept, value, item, questionnaireCode, conceptResolutionStore) => {
+  // IMPORTANT: Use the VALTYPE_CD from the concept retrieved from the database
+  // The concept was looked up using item.coding.code, and we must respect its VALTYPE_CD
   const valtypeCd = concept.VALTYPE_CD
 
   logger.info('handleValueTypeCd called', {
@@ -24,6 +26,7 @@ export const handleValueTypeCd = async (observationData, concept, value, item, q
     conceptCode: concept.CONCEPT_CD,
     value,
     questionnaireCode,
+    conceptValtypeCd: concept.VALTYPE_CD, // Log the concept's VALTYPE_CD for verification
   })
 
   switch (valtypeCd) {
@@ -115,6 +118,24 @@ export const handleSelectionValueType = async (observationData, concept, value, 
       questionnaireCode,
     })
 
+    // Check if value is already a concept code (e.g., "SCTID: 438949009" or "LOINC: 12345-6")
+    const valueStr = String(value).trim()
+    const isConceptCode = /^(SCTID|LOINC|CUSTOM):\s*\d+/.test(valueStr)
+    
+    if (isConceptCode) {
+      // Value is already a concept code (e.g., "SCTID: 438949009"), use it directly
+      // IMPORTANT: Use the concept's VALTYPE_CD from the database (should be 'S' for Selection)
+      logger.info('Value is already a concept code, using directly', {
+        conceptCode: concept.CONCEPT_CD,
+        conceptValtypeCd: concept.VALTYPE_CD,
+        value: valueStr,
+      })
+      observationData.VALTYPE_CD = concept.VALTYPE_CD // Use the concept's VALTYPE_CD from database
+      observationData.TVAL_CHAR = valueStr // Store the concept code
+      observationData.NVAL_NUM = null
+      return
+    }
+
     // Get selection options for this concept
     const options = await conceptResolutionStore.getStandardSelectionOptions(concept.CONCEPT_CD)
 
@@ -142,10 +163,14 @@ export const handleSelectionValueType = async (observationData, concept, value, 
     const matchedOption = findMatchingOption(value, options)
 
     if (matchedOption) {
-      // Keep the original concept but store the matched option's concept code in TVAL_CHAR
-      observationData.CONCEPT_CD = concept.CONCEPT_CD // Keep original concept
-      observationData.VALTYPE_CD = 'T' // Selection options are stored as text
-      observationData.TVAL_CHAR = matchedOption.value // Use the matched option's concept code
+      // IMPORTANT: Keep the VALTYPE_CD from the concept (should be 'S' for Selection)
+      // The concept was retrieved from the database and has the correct VALTYPE_CD
+      // We store the resolved answer concept code in TVAL_CHAR, but keep VALTYPE_CD as 'S'
+      // so the system can properly resolve the code back to text when displaying
+      observationData.CONCEPT_CD = concept.CONCEPT_CD // Keep original parent concept
+      observationData.VALTYPE_CD = concept.VALTYPE_CD // Use the concept's VALTYPE_CD from database (should be 'S')
+      observationData.TVAL_CHAR = matchedOption.value // Store the resolved answer concept code (e.g., "SCTID: 248153007")
+      observationData.NVAL_NUM = null
 
       logger.debug('Found matching selection option', {
         originalValue: value,
@@ -153,6 +178,8 @@ export const handleSelectionValueType = async (observationData, concept, value, 
         matchedCode: matchedOption.value,
         storedCode: observationData.TVAL_CHAR,
         originalConcept: concept.CONCEPT_CD,
+        conceptValtypeCd: concept.VALTYPE_CD, // The VALTYPE_CD from the database concept
+        observationValtypeCd: observationData.VALTYPE_CD, // Should match concept.VALTYPE_CD
       })
     } else {
       // No match found, fall back to text handling
