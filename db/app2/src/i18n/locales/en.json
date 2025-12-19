@@ -598,7 +598,15 @@
     "noMedicationData": "No data",
     "moreMedications": "more",
     "viewMedications": "View {count} medication(s)",
-    "editMedication": "Edit medication"
+    "editMedication": "Edit medication",
+    "selectAtLeastOnePatient": "Please select at least one patient",
+    "openingGridWithPatients": "Opening Data Grid with {count} patients...",
+    "openingGridWithStoredPatients": "Opening Data Grid with {count} stored patients...",
+    "failedToOpenGrid": "Failed to open data grid",
+    "selectionCleared": "Selection cleared",
+    "storedSelectionCleared": "Stored patient selection cleared",
+    "failedToLoadCounts": "Failed to load visit and observation counts",
+    "failedToLoadPageData": "Failed to load page data"
   },
   "export": {
     "export": "Export",

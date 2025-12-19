@@ -149,17 +149,11 @@
                   >
                     <q-tooltip>{{ $t('common.edit') }}</q-tooltip>
                   </q-btn>
-                  <q-btn
-                    icon="delete"
-                    flat
-                    round
-                    dense
-                    size="sm"
-                    color="negative"
-                    @click="confirmDelete(med, index)"
-                  >
-                    <q-tooltip>{{ $t('common.delete') }}</q-tooltip>
-                  </q-btn>
+                  <AppRemoveConfirmationButton
+                    :loading="saving"
+                    @remove-confirmed="deleteMedication(med, index)"
+                    @remove-cancelled="() => {}"
+                  />
                 </template>
 
                 <!-- Edit Mode Actions -->
@@ -229,6 +223,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useMedicationsStore } from 'src/stores/medications-store'
+import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
 
 const props = defineProps({
   modelValue: {
@@ -450,17 +445,7 @@ const saveMedication = async (index) => {
   }
 }
 
-const confirmDelete = (med, index) => {
-  $q.dialog({
-    title: t('common.confirmRemove'),
-    message: `Are you sure you want to delete "${med.drugName || 'this medication'}"?`,
-    cancel: true,
-    persistent: true,
-  }).onOk(async () => {
-    await deleteMedication(med, index)
-  })
-}
-
+// Delete action
 const deleteMedication = async (med, index) => {
   if (!med.observationId) {
     // Just remove from local list if not saved yet

@@ -899,7 +899,6 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         // Parse database drugs
         drugOptions = result.data.map((drug) => {
           const metadata = parseMetadata(drug.LOOKUP_BLOB)
-          console.log('Drug:', drug.NAME_CHAR, 'LOOKUP_BLOB:', drug.LOOKUP_BLOB, 'Parsed metadata:', metadata)
           return {
             name: drug.NAME_CHAR || drug.CODE_CD,
             generic: metadata.generic || '',
@@ -910,7 +909,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
             code: drug.CODE_CD,
           }
         })
-        logger.success(`Loaded ${drugOptions.length} drugs from VISIT_DIMENSION DRUG_OPTIONS`)
+        logger.debug(`Loaded ${drugOptions.length} drugs from VISIT_DIMENSION DRUG_OPTIONS`)
       } else {
         // Fallback to comprehensive drug list from database
         drugOptions = await getDefaultDrugOptions()

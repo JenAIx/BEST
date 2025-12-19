@@ -598,7 +598,15 @@
     "noMedicationData": "Keine Daten",
     "moreMedications": "weitere",
     "viewMedications": "{count} Medikation(en) anzeigen",
-    "editMedication": "Medikation bearbeiten"
+    "editMedication": "Medikation bearbeiten",
+    "selectAtLeastOnePatient": "Bitte wählen Sie mindestens einen Patienten aus",
+    "openingGridWithPatients": "Öffne Datentabelle mit {count} Patienten...",
+    "openingGridWithStoredPatients": "Öffne Datentabelle mit {count} gespeicherten Patienten...",
+    "failedToOpenGrid": "Fehler beim Öffnen der Datentabelle",
+    "selectionCleared": "Auswahl gelöscht",
+    "storedSelectionCleared": "Gespeicherte Patientenauswahl gelöscht",
+    "failedToLoadCounts": "Fehler beim Laden der Besuchs- und Beobachtungszahlen",
+    "failedToLoadPageData": "Fehler beim Laden der Seitendaten"
   },
   "export": {
     "export": "Export",
