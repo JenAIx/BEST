@@ -581,7 +581,8 @@
     "addPatientToGrid": "Add Patient to Grid",
     "patientAlreadyInGrid": "Patient \"{name}\" is already in the grid",
     "patientAddedToGrid": "Patient \"{name}\" has been added to the grid",
-    "failedToAddPatient": "Failed to add patient"
+    "failedToAddPatient": "Failed to add patient",
+    "noPatientsInGrid": "No patients in the grid"
   },
   "export": {
     "export": "Export",

@@ -581,7 +581,8 @@
     "addPatientToGrid": "Patient zur Tabelle hinzufügen",
     "patientAlreadyInGrid": "Patient \"{name}\" ist bereits in der Tabelle",
     "patientAddedToGrid": "Patient \"{name}\" wurde zur Tabelle hinzugefügt",
-    "failedToAddPatient": "Fehler beim Hinzufügen des Patienten"
+    "failedToAddPatient": "Fehler beim Hinzufügen des Patienten",
+    "noPatientsInGrid": "Keine Patienten in der Tabelle"
   },
   "export": {
     "export": "Export",

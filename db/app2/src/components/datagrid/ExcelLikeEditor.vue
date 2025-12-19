@@ -208,42 +208,31 @@
 
     <!-- Add Visit Dialog -->
     <q-dialog v-model="showAddVisitDialog" persistent>
-      <q-card style="min-width: 400px">
+      <q-card style="min-width: 500px">
         <q-card-section>
           <div class="text-h6">{{ $t('dataGrid.selectPatientForVisit') }}</div>
         </q-card-section>
         <q-card-section>
-          <q-input
-            v-model="patientSearchTerm"
-            :label="$t('patient.patientSearch')"
-            outlined
-            dense
-            @update:model-value="searchPatients"
-          >
-            <template v-slot:prepend>
-              <q-icon name="search" />
-            </template>
-          </q-input>
-          <q-list v-if="patientSearchResults.length > 0" class="q-mt-md">
+          <q-list v-if="gridPatients.length > 0">
             <q-item
-              v-for="patient in patientSearchResults"
-              :key="patient.PATIENT_CD"
+              v-for="patient in gridPatients"
+              :key="patient.patientId"
               clickable
               @click="selectPatientForVisit(patient)"
             >
               <q-item-section avatar>
                 <q-avatar color="primary" text-color="white">
-                  {{ getPatientInitials(patient.NAME_CHAR || patient.PATIENT_CD) }}
+                  {{ getPatientInitials(patient.patientName) }}
                 </q-avatar>
               </q-item-section>
               <q-item-section>
-                <q-item-label>{{ patient.NAME_CHAR || patient.PATIENT_CD }}</q-item-label>
-                <q-item-label caption>{{ patient.PATIENT_CD }}</q-item-label>
+                <q-item-label>{{ patient.patientName }}</q-item-label>
+                <q-item-label caption>{{ patient.patientId }}</q-item-label>
               </q-item-section>
             </q-item>
           </q-list>
-          <div v-else-if="patientSearchTerm && !searchingPatients" class="text-center text-grey-6 q-mt-md">
-            {{ $t('patient.noPatientsFound') }}
+          <div v-else class="text-center text-grey-6 q-mt-md">
+            {{ $t('dataGrid.noPatientsInGrid') }}
           </div>
         </q-card-section>
         <q-card-actions align="right">
@@ -252,13 +241,42 @@
       </q-card>
     </q-dialog>
 
-    <!-- New Visit Dialog (shown after patient selection) -->
-    <NewVisitDialog
-      v-if="selectedPatientForVisit"
-      v-model="showNewVisitDialog"
-      :patient="selectedPatientForVisit"
-      @created="handleVisitCreated"
-    />
+    <!-- Simple New Visit Dialog (shown after patient selection) -->
+    <q-dialog v-if="selectedPatientForVisit" v-model="showNewVisitDialog" persistent>
+      <q-card style="min-width: 400px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">{{ $t('visit.newVisit') }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="showNewVisitDialog = false" />
+        </q-card-section>
+        <q-card-section>
+          <div class="patient-info q-mb-md">
+            <q-avatar size="32px" color="primary" text-color="white" class="q-mr-sm">
+              {{ getPatientInitials(selectedPatientForVisit.patientName) }}
+            </q-avatar>
+            <div>
+              <div class="text-weight-medium">{{ selectedPatientForVisit.patientName }}</div>
+              <div class="text-caption text-grey-6">{{ selectedPatientForVisit.patientId }}</div>
+            </div>
+          </div>
+          <q-input
+            v-model="newVisitDate"
+            type="date"
+            :label="$t('visit.visitDate')"
+            outlined
+            :rules="[(val) => !!val || $t('validation.required')]"
+          >
+            <template v-slot:prepend>
+              <q-icon name="event" />
+            </template>
+          </q-input>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat :label="$t('common.cancel')" @click="showNewVisitDialog = false" />
+          <q-btn color="primary" :label="$t('visit.createVisit')" @click="createSimpleVisit" :loading="creatingVisit" :disable="!newVisitDate" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
 
     <!-- Add Patient Dialog -->
     <q-dialog v-model="showAddPatientDialog" persistent>
@@ -328,10 +346,10 @@ import EditableCell from './EditableCell.vue'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
 import AddObservationDialog from './AddObservationDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
-import NewVisitDialog from 'src/components/visits/NewVisitDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 import { useI18n } from 'vue-i18n'
+import { useVisitStore } from 'src/stores/visit-store'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -349,6 +367,7 @@ const { t } = useI18n()
 const dataGridStore = useDataGridStore()
 const conceptStore = useConceptResolutionStore()
 const databaseStore = useDatabaseStore()
+const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ExcelLikeEditor')
 
@@ -376,9 +395,8 @@ const showAddVisitDialog = ref(false)
 const showAddPatientDialog = ref(false)
 const showNewVisitDialog = ref(false)
 const selectedPatientForVisit = ref(null)
-const patientSearchTerm = ref('')
-const patientSearchResults = ref([])
-const searchingPatients = ref(false)
+const newVisitDate = ref(new Date().toISOString().split('T')[0]) // Today's date
+const creatingVisit = ref(false)
 const patientSearchTermForAdd = ref('')
 const patientSearchResultsForAdd = ref([])
 const searchingPatientsForAdd = ref(false)
@@ -392,6 +410,23 @@ const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObser
 
 const tableRows = computed(() => dataGridStore?.tableRows || [])
 const viewOptions = computed(() => dataGridStore?.viewOptions || {})
+
+// Computed: Get unique patients from grid
+const gridPatients = computed(() => {
+  const rows = tableRows.value || []
+  const patientMap = new Map()
+  
+  rows.forEach(row => {
+    if (!patientMap.has(row.patientId)) {
+      patientMap.set(row.patientId, {
+        patientId: row.patientId,
+        patientName: row.patientName,
+      })
+    }
+  })
+  
+  return Array.from(patientMap.values())
+})
 
 // Scroll area styling
 const thumbStyle = {
@@ -996,36 +1031,12 @@ const openAddObservationDialog = () => {
 
 const openAddVisitDialog = () => {
   showAddVisitDialog.value = true
-  patientSearchTerm.value = ''
-  patientSearchResults.value = []
 }
 
 const openAddPatientDialog = () => {
   showAddPatientDialog.value = true
   patientSearchTermForAdd.value = ''
   patientSearchResultsForAdd.value = []
-}
-
-// Patient search functions for visit dialog
-const searchPatients = async () => {
-  if (!patientSearchTerm.value || patientSearchTerm.value.length < 2) {
-    patientSearchResults.value = []
-    return
-  }
-
-  try {
-    searchingPatients.value = true
-    const patientRepo = databaseStore.getRepository('patient')
-    const result = await patientRepo.getPatientsPaginated(1, 10, {
-      searchTerm: patientSearchTerm.value.trim(),
-    })
-    patientSearchResults.value = result.patients || []
-  } catch (error) {
-    logger.error('Failed to search patients', error)
-    patientSearchResults.value = []
-  } finally {
-    searchingPatients.value = false
-  }
 }
 
 // Patient search functions for add patient dialog
@@ -1053,28 +1064,76 @@ const searchPatientsForAdd = async () => {
 // Select patient for visit creation
 const selectPatientForVisit = (patient) => {
   selectedPatientForVisit.value = {
-    id: patient.PATIENT_CD,
-    name: patient.NAME_CHAR || patient.PATIENT_CD,
-    patientNum: patient.PATIENT_NUM,
+    id: patient.patientId,
+    name: patient.patientName,
+    patientId: patient.patientId,
+    patientName: patient.patientName,
   }
+  newVisitDate.value = new Date().toISOString().split('T')[0] // Reset to today
   showAddVisitDialog.value = false
   showNewVisitDialog.value = true
 }
 
-// Handle visit created
-const handleVisitCreated = async (newVisit) => {
-  logger.info('Visit created successfully', { visit: newVisit })
-  selectedPatientForVisit.value = null
-  showNewVisitDialog.value = false
-  
-  // Refresh grid data to show new visit
-  await refreshData()
-  
-  $q.notify({
-    type: 'positive',
-    message: t('messages.updateSuccess'),
-    position: 'top',
-  })
+// Create simple visit with just start date
+const createSimpleVisit = async () => {
+  if (!newVisitDate.value || !selectedPatientForVisit.value) return
+
+  try {
+    creatingVisit.value = true
+
+    // Get patient from database
+    const patientRepo = databaseStore.getRepository('patient')
+    const patient = await patientRepo.findByPatientCode(selectedPatientForVisit.value.patientId)
+    
+    if (!patient) {
+      throw new Error(t('visit.patientNotFound'))
+    }
+
+    // Create visit with minimal data
+    const visitData = {
+      PATIENT_NUM: patient.PATIENT_NUM,
+      START_DATE: newVisitDate.value, // Just the date, no time
+      ACTIVE_STATUS_CD: 'SCTID: 55561003', // Active (SNOMED-CT)
+      INOUT_CD: 'O', // Outpatient by default
+      LOCATION_CD: 'CLINIC',
+      VISIT_BLOB: JSON.stringify({
+        visitType: 'routine',
+        createdBy: 'DATA_GRID_EDITOR',
+        createdAt: new Date().toISOString(),
+      }),
+      SOURCESYSTEM_CD: 'DATA_GRID',
+    }
+
+    const createdVisit = await visitStore.createVisit(visitData)
+
+    logger.info('Visit created successfully', { 
+      encounterNum: createdVisit.ENCOUNTER_NUM,
+      patientId: selectedPatientForVisit.value.patientId,
+    })
+
+    // Reset and close
+    selectedPatientForVisit.value = null
+    showNewVisitDialog.value = false
+    newVisitDate.value = new Date().toISOString().split('T')[0]
+    
+    // Refresh grid data to show new visit
+    await refreshData()
+    
+    $q.notify({
+      type: 'positive',
+      message: t('visit.visitCreated'),
+      position: 'top',
+    })
+  } catch (error) {
+    logger.error('Failed to create visit', error)
+    $q.notify({
+      type: 'negative',
+      message: t('visit.failedToCreateVisit'),
+      position: 'top',
+    })
+  } finally {
+    creatingVisit.value = false
+  }
 }
 
 // Add patient to grid
