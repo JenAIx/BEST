@@ -13,6 +13,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     dataGrid: {
       selectedPatientIds: [], // Store selected patient IDs for Data Grid
       lastUsed: null, // Timestamp of last usage
+      columnVisibility: {}, // Store column visibility state
+      columnOrder: [], // Store column order
+      viewOptions: {}, // Store view options
+      hiddenVisits: [], // Store hidden visit encounter numbers
     },
     visits: {
       recentPatients: [], // Store recent patient IDs for quick access (max 10)
@@ -57,6 +61,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
           dataGrid: {
             ...defaultSettings.dataGrid,
             ...(parsedSettings.dataGrid || {}),
+            columnVisibility: parsedSettings.dataGrid?.columnVisibility || defaultSettings.dataGrid.columnVisibility || {},
+            columnOrder: parsedSettings.dataGrid?.columnOrder || defaultSettings.dataGrid.columnOrder || [],
+            viewOptions: parsedSettings.dataGrid?.viewOptions || defaultSettings.dataGrid.viewOptions || {},
+            hiddenVisits: parsedSettings.dataGrid?.hiddenVisits || defaultSettings.dataGrid.hiddenVisits || [],
           },
           databases: {
             ...defaultSettings.databases,

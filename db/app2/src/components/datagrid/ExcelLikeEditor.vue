@@ -94,8 +94,16 @@
               <!-- Fixed columns -->
               <td class="fixed-col patient-col" :class="{ 'subsequent-visit': !isFirstVisitForPatient(row) }">
                 <div class="patient-info">
-                  <q-avatar v-if="isFirstVisitForPatient(row)" size="24px" color="primary" text-color="white" class="q-mr-xs">
+                  <q-avatar 
+                    v-if="isFirstVisitForPatient(row)" 
+                    size="24px" 
+                    color="primary" 
+                    text-color="white" 
+                    class="q-mr-xs patient-avatar-clickable"
+                    @click="openManagePatientDialog(row)"
+                  >
                     {{ getPatientInitials(row.patientName) }}
+                    <q-tooltip>{{ $t('dataGrid.managePatientTooltip') }}</q-tooltip>
                   </q-avatar>
                   <div v-else class="avatar-placeholder"></div>
                   <div>
@@ -331,6 +339,71 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Manage Patient Dialog -->
+    <q-dialog v-model="showManagePatientDialog" persistent>
+      <q-card style="min-width: 500px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">{{ $t('dataGrid.managePatient') }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense @click="showManagePatientDialog = false" />
+        </q-card-section>
+        <q-card-section v-if="selectedPatientForManagement">
+          <div class="patient-info q-mb-md">
+            <q-avatar size="32px" color="primary" text-color="white" class="q-mr-sm">
+              {{ getPatientInitials(selectedPatientForManagement.patientName) }}
+            </q-avatar>
+            <div>
+              <div class="text-weight-medium">{{ selectedPatientForManagement.patientName }}</div>
+              <div class="text-caption text-grey-6">{{ selectedPatientForManagement.patientId }}</div>
+            </div>
+          </div>
+
+          <q-separator class="q-my-md" />
+
+          <!-- Visits List -->
+          <div class="text-subtitle2 q-mb-sm">{{ $t('dataGrid.visits') }}</div>
+          <q-list bordered separator>
+            <q-item 
+              v-for="visit in patientVisits" 
+              :key="visit.encounterNum"
+              clickable
+              @click="toggleVisitVisibility(visit.encounterNum)"
+            >
+              <q-item-section avatar>
+                <q-icon 
+                  :name="isVisitHidden(visit.encounterNum) ? 'visibility_off' : 'visibility'" 
+                  :color="isVisitHidden(visit.encounterNum) ? 'grey-6' : 'primary'"
+                />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ formatDate(visit.visitDate) }}</q-item-label>
+                <q-item-label caption>{{ $t('dataGrid.encounter') }}: {{ visit.encounterNum }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-chip 
+                  :color="isVisitHidden(visit.encounterNum) ? 'grey' : 'primary'" 
+                  text-color="white" 
+                  size="sm"
+                >
+                  {{ isVisitHidden(visit.encounterNum) ? $t('dataGrid.hidden') : $t('dataGrid.visible') }}
+                </q-chip>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn 
+            flat 
+            :label="$t('dataGrid.removePatientFromGrid')" 
+            color="negative" 
+            @click="removePatientFromGrid"
+          />
+          <q-space />
+          <q-btn flat :label="$t('common.close')" @click="showManagePatientDialog = false" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -371,6 +444,7 @@ const databaseStore = useDatabaseStore()
 const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ExcelLikeEditor')
+const localSettings = useLocalSettingsStore()
 
 // Local component state (only what's component-specific)
 const showViewOptions = ref(false)
@@ -402,6 +476,23 @@ const patientSearchTermForAdd = ref('')
 const patientSearchResultsForAdd = ref([])
 const searchingPatientsForAdd = ref(false)
 
+// Manage patient dialog state
+const showManagePatientDialog = ref(false)
+const selectedPatientForManagement = ref(null)
+
+// Load hidden visits from localStorage
+const loadHiddenVisits = () => {
+  const saved = localSettings.getSetting('dataGrid.hiddenVisits', [])
+  return new Set(saved)
+}
+
+// Save hidden visits to localStorage
+const saveHiddenVisits = (hiddenVisitsSet) => {
+  localSettings.setSetting('dataGrid.hiddenVisits', Array.from(hiddenVisitsSet))
+}
+
+const hiddenVisits = ref(loadHiddenVisits()) // Track hidden visit encounter numbers
+
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
 const observationConcepts = computed(() => dataGridStore?.observationConcepts || [])
@@ -409,7 +500,12 @@ const observationConcepts = computed(() => dataGridStore?.observationConcepts ||
 // Use store's reactive properties for visibility and statistics
 const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObservationConcepts || [])
 
-const tableRows = computed(() => dataGridStore?.tableRows || [])
+// Filter table rows to exclude hidden visits
+const tableRows = computed(() => {
+  const rows = dataGridStore?.tableRows || []
+  if (hiddenVisits.value.size === 0) return rows
+  return rows.filter(row => !hiddenVisits.value.has(row.encounterNum))
+})
 const viewOptions = computed(() => dataGridStore?.viewOptions || {})
 
 // Computed: Get unique patients from grid
@@ -1206,6 +1302,77 @@ const handleConceptAdded = (concept) => {
   })
 }
 
+// Manage patient functions
+const openManagePatientDialog = (row) => {
+  selectedPatientForManagement.value = {
+    patientId: row.patientId,
+    patientName: row.patientName,
+  }
+  showManagePatientDialog.value = true
+}
+
+// Get all visits for the selected patient
+const patientVisits = computed(() => {
+  if (!selectedPatientForManagement.value) return []
+  const allRows = dataGridStore?.tableRows || []
+  return allRows
+    .filter(row => row.patientId === selectedPatientForManagement.value.patientId)
+    .map(row => ({
+      encounterNum: row.encounterNum,
+      visitDate: row.visitDate,
+    }))
+    .sort((a, b) => a.encounterNum - b.encounterNum)
+})
+
+// Check if a visit is hidden
+const isVisitHidden = (encounterNum) => {
+  return hiddenVisits.value.has(encounterNum)
+}
+
+// Toggle visit visibility
+const toggleVisitVisibility = (encounterNum) => {
+  if (hiddenVisits.value.has(encounterNum)) {
+    hiddenVisits.value.delete(encounterNum)
+  } else {
+    hiddenVisits.value.add(encounterNum)
+  }
+  // Force reactivity update and save to localStorage
+  hiddenVisits.value = new Set(hiddenVisits.value)
+  saveHiddenVisits(hiddenVisits.value)
+}
+
+// Remove patient from grid
+const removePatientFromGrid = async () => {
+  if (!selectedPatientForManagement.value) return
+
+  try {
+    const localSettings = useLocalSettingsStore()
+    const currentPatients = localSettings.getDataGridSelectedPatients()
+    const updatedPatients = currentPatients.filter(id => id !== selectedPatientForManagement.value.patientId)
+    localSettings.setDataGridSelectedPatients(updatedPatients)
+
+    showManagePatientDialog.value = false
+
+    // Refresh grid data with updated patient list
+    if (dataGridStore?.refreshData) {
+      await dataGridStore.refreshData(updatedPatients)
+    }
+
+    $q.notify({
+      type: 'positive',
+      message: t('dataGrid.patientRemovedFromGrid', { name: selectedPatientForManagement.value.patientName }),
+      position: 'top',
+    })
+  } catch (error) {
+    logger.error('Failed to remove patient from grid', error)
+    $q.notify({
+      type: 'negative',
+      message: t('dataGrid.failedToRemovePatient'),
+      position: 'top',
+    })
+  }
+}
+
 // Watch for view options changes (store handles persistence)
 watch(
   () => dataGridStore.viewOptions,
@@ -1506,6 +1673,15 @@ onMounted(async () => {
     width: 24px;
     height: 24px;
     flex-shrink: 0;
+  }
+
+  .patient-avatar-clickable {
+    cursor: pointer;
+    transition: opacity 0.2s;
+
+    &:hover {
+      opacity: 0.8;
+    }
   }
 }
 

@@ -217,18 +217,25 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       tableRows.value = updatedRows
 
       // Initialize column visibility for any new concepts that were merged
+      // Note: columnVisibility should already be loaded from initialize(), but ensure it exists
       if (!columnVisibility.value) {
         columnVisibility.value = new Map()
       }
+      
+      // Only add visibility for new concepts (preserve existing settings)
+      let hasNewConcepts = false
       observationConcepts.value.forEach((concept) => {
         if (concept && concept.code && !columnVisibility.value.has(concept.code)) {
           columnVisibility.value.set(concept.code, true) // Default to visible for new concepts
+          hasNewConcepts = true
         }
       })
       
-      // Save visibility to local settings
-      const visibilityObject = Object.fromEntries(columnVisibility.value)
-      localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+      // Only save if we added new concepts (avoid overwriting on every load)
+      if (hasNewConcepts) {
+        const visibilityObject = Object.fromEntries(columnVisibility.value)
+        localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
+      }
 
       lastUpdateTime.value = new Date().toLocaleTimeString()
 
@@ -473,14 +480,38 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   const initializeColumnOrder = () => {
     try {
       const concepts = observationConcepts.value || []
+      const conceptCodes = new Set(concepts.map(c => c.code))
 
-      // Only initialize if we don't already have an order or if the order is empty
+      // If no order exists, initialize with all concepts
       if (!columnOrder.value || columnOrder.value.length === 0) {
         columnOrder.value = concepts.map((concept) => concept.code)
         localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
         logger.debug('Initialized column order for concepts', { conceptCount: concepts.length })
       } else {
-        logger.debug('Column order already exists, skipping initialization', { orderCount: columnOrder.value.length })
+        // Merge new concepts into existing order (append at end)
+        const existingOrderSet = new Set(columnOrder.value)
+        const newConcepts = concepts
+          .filter(c => c.code && !existingOrderSet.has(c.code))
+          .map(c => c.code)
+        
+        if (newConcepts.length > 0) {
+          columnOrder.value = [...columnOrder.value, ...newConcepts]
+          localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
+          logger.debug('Merged new concepts into column order', { 
+            existingCount: columnOrder.value.length - newConcepts.length,
+            newCount: newConcepts.length 
+          })
+        }
+        
+        // Remove concepts that no longer exist
+        const filteredOrder = columnOrder.value.filter(code => conceptCodes.has(code))
+        if (filteredOrder.length !== columnOrder.value.length) {
+          columnOrder.value = filteredOrder
+          localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
+          logger.debug('Removed obsolete concepts from column order', { 
+            removed: columnOrder.value.length - filteredOrder.length 
+          })
+        }
       }
     } catch (error) {
       logger.warn('Error initializing column order', error)
