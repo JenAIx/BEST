@@ -1,8 +1,8 @@
 <template>
   <AppDialog
     v-model="dialogVisible"
-    title="Column Management"
-    subtitle="Customize your data grid view and manage observation columns"
+    :title="$t('dataGrid.columnManagement')"
+    :subtitle="$t('dataGrid.columnManagementSubtitle')"
     size="md"
     :persistent="true"
     :show-actions="false"
@@ -13,7 +13,7 @@
       <div class="compact-header">
         <div class="header-left">
           <q-icon name="view_column" size="18px" color="secondary" />
-          <span class="text-subtitle1 q-ml-xs">Column Management</span>
+          <span class="text-subtitle1 q-ml-xs">{{ $t('dataGrid.columnManagement') }}</span>
         </div>
         <div class="header-center">
           <q-chip :label="`${visibleColumns}/${totalColumns}`" color="secondary" text-color="white" size="sm" dense />
@@ -21,13 +21,13 @@
         <div class="header-right">
           <q-btn-group flat>
             <q-btn flat dense icon="visibility" size="sm" color="positive" @click="showAllColumns" :disable="visibleColumns === totalColumns">
-              <q-tooltip>Show All</q-tooltip>
+              <q-tooltip>{{ $t('dataGrid.showAll') }}</q-tooltip>
             </q-btn>
             <q-btn flat dense icon="visibility_off" size="sm" color="negative" @click="hideAllColumns" :disable="visibleColumns === 0">
-              <q-tooltip>Hide All</q-tooltip>
+              <q-tooltip>{{ $t('dataGrid.hideAll') }}</q-tooltip>
             </q-btn>
             <q-btn flat dense icon="shuffle" size="sm" color="primary" @click="resetColumnOrder">
-              <q-tooltip>Reset Order</q-tooltip>
+              <q-tooltip>{{ $t('dataGrid.resetOrder') }}</q-tooltip>
             </q-btn>
           </q-btn-group>
         </div>
@@ -38,8 +38,8 @@
         <div v-if="localColumns.length === 0" class="empty-state">
           <q-icon name="view_column" />
           <div class="q-mt-md">
-            <div class="text-h6 q-mb-sm">No columns available</div>
-            <div class="text-body2 text-grey-6 q-mb-md">Add observations to your data grid to see columns here</div>
+            <div class="text-h6 q-mb-sm">{{ $t('dataGrid.noColumnsAvailable') }}</div>
+            <div class="text-body2 text-grey-6 q-mb-md">{{ $t('dataGrid.addObservationsToGrid') }}</div>
           </div>
         </div>
 
@@ -94,8 +94,8 @@
         <!-- Add New Observation Button -->
         <div v-if="localColumns.length > 0" class="q-pa-md text-center">
           <div class="row justify-center">
-            <q-btn flat icon="add" label="Add Observation" color="primary" @click="showAddObservationDialog = true" class="add-observation-btn">
-              <q-tooltip>Add a new observation column to the grid</q-tooltip>
+            <q-btn flat icon="add" :label="$t('dataGrid.addObservation')" color="primary" @click="showAddObservationDialog = true" class="add-observation-btn">
+              <q-tooltip>{{ $t('dataGrid.addObservationColumnTooltip') }}</q-tooltip>
             </q-btn>
           </div>
         </div>
@@ -103,7 +103,7 @@
 
       <!-- Footer -->
       <div class="dialog-footer">
-        <div class="text-caption text-grey-6">Changes are applied instantly • Drag to reorder columns</div>
+        <div class="text-caption text-grey-6">{{ $t('dataGrid.changesAppliedInstantly') }}</div>
       </div>
     </div>
   </AppDialog>
@@ -115,6 +115,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 import draggable from 'vuedraggable'
 import AddObservationDialog from 'src/components/datagrid/AddObservationDialog.vue'
@@ -145,6 +146,7 @@ const emit = defineEmits(['update:modelValue', 'update:viewOptions', 'update:col
 
 // Composables
 const $q = useQuasar()
+const { t } = useI18n()
 
 // Local state
 const localOptions = ref({ ...props.viewOptions })
@@ -284,7 +286,7 @@ const onConceptAdded = (concept) => {
 
   $q.notify({
     type: 'positive',
-    message: `Column "${concept.name}" added successfully`,
+    message: t('dataGrid.columnAddedSuccessfully', { name: concept.name }),
     position: 'top',
   })
 }

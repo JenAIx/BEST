@@ -3,8 +3,8 @@
     <!-- Header Controls -->
     <div class="editor-header q-pa-md bg-white shadow-1">
       <div class="row items-center justify-start q-gutter-sm">
-        <q-btn flat icon="refresh" label="Refresh" @click="refreshData" :loading="loading" />
-        <q-btn flat icon="settings" label="View Options" @click="showViewOptions = true" />
+        <q-btn flat icon="refresh" :label="$t('common.refresh')" @click="refreshData" :loading="loading" />
+        <q-btn flat icon="settings" :label="$t('dataGrid.viewOptions')" @click="showViewOptions = true" />
       </div>
     </div>
 

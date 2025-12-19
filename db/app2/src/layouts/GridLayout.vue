@@ -5,16 +5,18 @@
       <q-toolbar class="q-py-sm">
         <!-- Back to Selection Button -->
         <q-btn flat icon="arrow_back" @click="exitDataGrid" class="q-mr-lg">
-          <q-tooltip>Back to Patient Selection</q-tooltip>
+          <q-tooltip>{{ $t('dataGrid.backToPatientSelection') }}</q-tooltip>
         </q-btn>
 
         <!-- Data Grid Editor Title and Info -->
         <div class="header-content">
           <div class="text-h6 flex items-center">
             <q-icon name="table_view" size="24px" color="primary" class="q-mr-sm" />
-            Data Grid Editor
-            <q-chip color="primary" text-color="white" size="sm" class="q-ml-sm" v-if="gridInfo"> {{ gridInfo.patientCount }} patients • {{ gridInfo.observationCount }} observations </q-chip>
-            <div class="text-caption text-grey-6 q-ml-sm">Click any cell to edit • Changes auto-save • Use Tab/Enter to navigate</div>
+            {{ $t('dataGrid.dataGridEditor') }}
+            <q-chip color="primary" text-color="white" size="sm" class="q-ml-sm" v-if="gridInfo">
+              {{ $t('dataGrid.patientsCount', { count: gridInfo.patientCount }) }} • {{ $t('dataGrid.observationsCount', { count: gridInfo.observationCount }) }}
+            </q-chip>
+            <div class="text-caption text-grey-6 q-ml-sm">{{ $t('dataGrid.navigationHint') }}</div>
           </div>
         </div>
       </q-toolbar>
@@ -37,12 +39,14 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import GridFooter from 'src/components/datagrid/GridFooter.vue'
 
 const $q = useQuasar()
 const router = useRouter()
 const dataGridStore = useDataGridStore()
+const { t } = useI18n()
 
 // Grid information for header
 const gridInfo = computed(() => {
@@ -63,8 +67,8 @@ const exitDataGrid = () => {
   // Check if there are unsaved changes
   if (dataGridStore?.hasUnsavedChanges) {
     $q.dialog({
-      title: 'Unsaved Changes',
-      message: 'You have unsaved changes. Are you sure you want to go back?',
+      title: t('dataGrid.unsavedChanges'),
+      message: t('dataGrid.unsavedChangesMessage'),
       cancel: true,
       persistent: true,
     }).onOk(() => {
@@ -79,7 +83,7 @@ const exitDataGrid = () => {
 
     $q.notify({
       type: 'info',
-      message: 'Returned to Patient Selection',
+      message: t('dataGrid.returnedToPatientSelection'),
       position: 'top',
     })
 
