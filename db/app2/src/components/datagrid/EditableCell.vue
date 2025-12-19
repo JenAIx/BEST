@@ -688,11 +688,13 @@ watch(editValue, (newValue) => {
 
   .cell-value {
     flex: 1;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.875rem;
     line-height: 1.2;
+    display: inline-block;
 
     .cell-unit {
       color: $grey-6;
