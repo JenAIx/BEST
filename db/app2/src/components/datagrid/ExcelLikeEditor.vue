@@ -1583,6 +1583,15 @@ onMounted(async () => {
         text-align: center;
         vertical-align: middle;
 
+        // Expand cell when editing text
+        :deep(.editable-cell.is-editing) {
+          min-width: 200px;
+          
+          .cell-edit {
+            min-width: 200px;
+          }
+        }
+
         // Override EditableCell alignment for all value types
         :deep(.editable-cell) {
           text-align: center !important;
