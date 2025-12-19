@@ -767,11 +767,12 @@ export const useMedicationsStore = defineStore('medications', () => {
       }
 
       // If no BLOB data and we should load it
-      if (loadBlob && observation?.observationId) {
+      const obsId = observation?.observationId || observation?.OBSERVATION_ID
+      if (loadBlob && obsId) {
         try {
           const { useObservationStore } = await import('./observation-store.js')
           const observationStore = useObservationStore()
-          const loadedBlob = await observationStore.getObservationBlob(observation.observationId)
+          const loadedBlob = await observationStore.getObservationBlob(obsId)
 
           if (loadedBlob) {
             const parsed = JSON.parse(loadedBlob)

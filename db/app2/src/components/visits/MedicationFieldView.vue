@@ -2,13 +2,9 @@
   <div class="medication-view">
     <!-- Empty Medication State -->
     <div v-if="!hasValue" class="empty-medication" @click="emit('enter-edit-mode')">
-      <div class="empty-display">
-        <q-icon name="add" size="16px" color="grey-5" class="q-mr-xs" />
-        <span class="empty-text">Click to add medication</span>
-        <q-icon name="edit" size="14px" color="grey-5" class="edit-icon">
-          <q-tooltip>Click to add medication</q-tooltip>
-        </q-icon>
-      </div>
+      <q-icon name="add" size="18px" color="grey-5" class="add-icon">
+        <q-tooltip>Click to add medication</q-tooltip>
+      </q-icon>
     </div>
 
     <!-- Filled Medication State -->
@@ -49,25 +45,34 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  // New prop to control display mode
+  simpleDisplay: {
+    type: Boolean,
+    default: false, // Default: full elegant display for VisitDataEntry
+  },
 })
 
 const emit = defineEmits(['enter-edit-mode'])
 
-// Store
 const medicationsStore = useMedicationsStore()
 
 // State management
 const fullMedicationData = ref({ ...props.medicationData })
 
-// Load BLOB data on mount if available
+// Initialize medication data with BLOB loading if needed
 onMounted(async () => {
-  // Use centralized parsing logic from medications store
-  if (props.existingObservation) {
-    fullMedicationData.value = await medicationsStore.parseMedicationDataWithBlob(props.existingObservation, true)
-  } else {
+  if (props.simpleDisplay) {
+    // Simple display mode (e.g., for data grid) - just show drug name
     fullMedicationData.value = { ...props.medicationData }
+  } else {
+    // Full display mode (e.g., for VisitDataEntry) - load BLOB for complete data
+    if (props.existingObservation) {
+      fullMedicationData.value = await medicationsStore.parseMedicationDataWithBlob(props.existingObservation, true)
+    } else {
+      fullMedicationData.value = { ...props.medicationData }
+    }
   }
-
+  
   // Update display after data is loaded
   await updateMedicationDisplay()
 })
@@ -88,22 +93,31 @@ const updateMedicationDisplay = async () => {
     return
   }
 
-  // Use centralized formatting from medications store
-  medicationViewDisplay.value = await medicationsStore.formatMedicationDisplayElegant(fullMedicationData.value)
+  if (props.simpleDisplay) {
+    // Simple display: just show drug name for grid
+    medicationViewDisplay.value = fullMedicationData.value.drugName || ''
+  } else {
+    // Elegant display: show full medication info "ASS 100mg 1-0-0 p.o."
+    medicationViewDisplay.value = await medicationsStore.formatMedicationDisplayElegant(fullMedicationData.value)
+  }
 }
 
-// Watch for changes to existingObservation to reload BLOB data
+// Watch for changes to existingObservation
 watch(
   () => props.existingObservation,
   async (newObservation) => {
-    // Use centralized parsing logic from medications store
-    if (newObservation) {
-      fullMedicationData.value = await medicationsStore.parseMedicationDataWithBlob(newObservation, true)
-    } else {
+    if (props.simpleDisplay) {
+      // Simple mode: just update with basic data
       fullMedicationData.value = { ...props.medicationData }
+    } else {
+      // Full mode: reload BLOB data
+      if (newObservation) {
+        fullMedicationData.value = await medicationsStore.parseMedicationDataWithBlob(newObservation, true)
+      } else {
+        fullMedicationData.value = { ...props.medicationData }
+      }
     }
-
-    // Update display after data change
+    
     await updateMedicationDisplay()
   },
   { deep: true },
@@ -140,36 +154,22 @@ watch(
   .empty-medication {
     cursor: pointer;
     transition: all 0.2s ease;
-    padding: 1rem;
-    border: 2px dashed $grey-4;
-    border-radius: 8px;
-    background: rgba($grey-2, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 4px;
+    min-height: 32px;
 
     &:hover {
-      border-color: $primary;
-      background: rgba($primary, 0.05);
-
-      .edit-icon {
-        opacity: 1;
+      .add-icon {
+        color: $primary;
+        transform: scale(1.1);
       }
     }
 
-    .empty-display {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 0.5rem;
-
-      .empty-text {
-        font-size: 0.9rem;
-        color: $grey-6;
-        font-style: italic;
-      }
-
-      .edit-icon {
-        opacity: 0.5;
-        transition: opacity 0.2s ease;
-      }
+    .add-icon {
+      transition: all 0.2s ease;
+      opacity: 0.6;
     }
   }
 

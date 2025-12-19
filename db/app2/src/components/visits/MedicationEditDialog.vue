@@ -369,72 +369,44 @@ watch(
   { deep: true, immediate: true },
 )
 
-// Load BLOB data when dialog opens
-const loadMedicationBlobData = async () => {
-  if (!props.observationId) {
-    logger.debug('No observation ID provided, using basic medication data')
-    return
-  }
+// loadMedicationBlobData removed - BLOB is now loaded in ExcelLikeEditor before opening dialog
 
-  try {
-    logger.debug('Loading BLOB data for medication edit', {
-      observationId: props.observationId,
-    })
+// Initialize medication data when props change
+const initializeMedicationData = async () => {
+  // Use the medication data that was already loaded with BLOB in ExcelLikeEditor
+  localMedicationData.value = { ...props.medicationData }
+  originalMedicationData.value = { ...props.medicationData }
+  saving.value = false
 
-    // Use centralized parsing with BLOB loading
-    const observationData = {
-      observationId: props.observationId,
-      value: localMedicationData.value.drugName,
-      numericValue: localMedicationData.value.dosage,
-      unit: localMedicationData.value.dosageUnit,
-    }
+  // BLOB data is already loaded in ExcelLikeEditor before opening dialog
+  // No need to load again here
 
-    const parsedData = await medicationsStore.parseMedicationDataWithBlob(observationData, true)
-
-    // Update the medication data with parsed values
-    localMedicationData.value = {
-      ...localMedicationData.value,
-      ...parsedData,
-    }
-
-    logger.debug('Medication data after BLOB loading', {
-      localMedicationData: localMedicationData.value,
-    })
-
-    // Update original data as well
-    originalMedicationData.value = { ...localMedicationData.value }
-
-    // Update the labels for display
-    await updateSelectedLabels()
-  } catch (error) {
-    logger.error('Failed to load BLOB data for medication edit', error)
-  }
+  // Update labels and preview
+  await updateSelectedLabels()
+  await updateMedicationPreview()
 }
 
-// Reset data when dialog opens
+// Watch for dialog open/close
 watch(
   () => props.modelValue,
   async (isOpen) => {
     if (isOpen) {
-      localMedicationData.value = { ...props.medicationData }
-      originalMedicationData.value = { ...props.medicationData }
-      saving.value = false
-
-      logger.debug('Dialog opened - checking options availability', {
-        frequencyOptionsCount: props.frequencyOptions?.length || 0,
-        routeOptionsCount: props.routeOptions?.length || 0,
-        frequencyOptions: props.frequencyOptions?.map((opt) => ({ label: opt.label, value: opt.value })) || [],
-        routeOptions: props.routeOptions?.map((opt) => ({ label: opt.label, value: opt.value })) || [],
-      })
-
-      // Load BLOB data to get complete medication information
-      await loadMedicationBlobData()
-
-      // Update labels and preview after loading BLOB data
-      await updateSelectedLabels()
-      await updateMedicationPreview()
+      await initializeMedicationData()
     }
   },
+  { immediate: true }, // Run immediately on mount
+)
+
+// Also watch for medication data changes (when dialog is already open)
+watch(
+  () => props.medicationData,
+  async (newData) => {
+    if (props.modelValue && newData) {
+      logger.info('Medication data changed while dialog open', { newData })
+      await initializeMedicationData()
+    }
+  },
+  { deep: true },
 )
 </script>
 

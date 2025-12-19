@@ -615,6 +615,8 @@ export const useDatabaseStore = defineStore('database', () => {
       })
 
       // Get all observations for selected patients using the patient_observations view
+      // Note: OBSERVATION_BLOB is NOT loaded here to avoid performance issues with large files/images
+      // BLOB data is loaded on-demand when editing medications or viewing questionnaires
       const placeholders = cleanPatientIds.map(() => '?').join(',')
       const observationQuery = `
         SELECT
@@ -742,6 +744,20 @@ export const useDatabaseStore = defineStore('database', () => {
           unit: obs.UNIT_CD,
           originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
           resolvedValue: obs.TVAL_RESOLVED,
+          // rawObservation without BLOB for performance (BLOB loaded on-demand)
+          rawObservation: {
+            OBSERVATION_ID: obs.OBSERVATION_ID,
+            CONCEPT_CD: obs.CONCEPT_CD,
+            CONCEPT_NAME: obs.CONCEPT_NAME,
+            VALTYPE_CD: obs.VALTYPE_CD,
+            TVAL_CHAR: obs.TVAL_CHAR,
+            tval_char: obs.TVAL_CHAR,
+            NVAL_NUM: obs.NVAL_NUM,
+            nval_num: obs.NVAL_NUM,
+            UNIT_CD: obs.UNIT_CD,
+            ENCOUNTER_NUM: obs.ENCOUNTER_NUM,
+            PATIENT_CD: obs.PATIENT_CD,
+          },
         }
       })
 

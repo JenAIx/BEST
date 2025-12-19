@@ -76,7 +76,16 @@
               <th class="fixed-col visit-col">Visit Date</th>
 
               <!-- Dynamic observation columns -->
-              <th v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-col" :title="concept.name">
+              <th 
+                v-for="concept in visibleObservationConcepts" 
+                :key="concept.code" 
+                class="obs-col" 
+                :class="{
+                  'value-type-d': concept.valueType === 'D',
+                  'value-type-n': concept.valueType === 'N'
+                }"
+                :title="concept.name"
+              >
                 <div class="col-header">
                   <div class="concept-name">{{ concept.name }}</div>
                   <div class="concept-code">{{ concept.code }}</div>
@@ -134,7 +143,18 @@
               </td>
 
               <!-- Observation cells -->
-              <td v-for="concept in visibleObservationConcepts" :key="concept.code" class="obs-cell" :class="getCellClass(row, concept)">
+              <td 
+                v-for="concept in visibleObservationConcepts" 
+                :key="concept.code" 
+                class="obs-cell" 
+                :class="[
+                  getCellClass(row, concept),
+                  {
+                    'value-type-d': concept.valueType === 'D',
+                    'value-type-n': concept.valueType === 'N'
+                  }
+                ]"
+              >
                 <!-- Custom questionnaire cell for Q type -->
                 <div v-if="concept.valueType === 'Q'" class="questionnaire-cell">
                   <!-- Filled questionnaire -->
@@ -148,6 +168,17 @@
                     <div class="empty-label">Add</div>
                     <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]"> Click to complete questionnaire </q-tooltip>
                   </div>
+                </div>
+                <!-- Medication cell for M type or LID: 52418-1 -->
+                <div v-else-if="isMedicationConcept(concept)" class="medication-cell">
+                  <MedicationFieldView
+                    :medication-data="getMedicationData(row, concept)"
+                    :existing-observation="getMedicationObservationSync(row, concept)"
+                    :frequency-options="frequencyOptions"
+                    :route-options="routeOptions"
+                    :simple-display="true"
+                    @enter-edit-mode="() => openMedicationEditDialog(row, concept)"
+                  />
                 </div>
                 <!-- Regular editable cell for other types -->
                 <EditableCell
@@ -287,6 +318,18 @@
       </q-card>
     </q-dialog>
 
+    <!-- Medication Edit Dialog -->
+    <MedicationEditDialog
+      v-if="editingMedicationData"
+      v-model="showMedicationEditDialog"
+      :medication-data="editingMedicationData.medicationData"
+      :observation-id="editingMedicationData.observationId"
+      :frequency-options="frequencyOptions"
+      :route-options="routeOptions"
+      @save="onMedicationEditSave"
+      @cancel="onMedicationEditCancel"
+    />
+
     <!-- Add Patient Dialog -->
     <q-dialog v-model="showAddPatientDialog" persistent>
       <q-card style="min-width: 500px">
@@ -393,6 +436,10 @@ import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDial
 import PatientSelectionCard from 'src/components/shared/PatientSelectionCard.vue'
 import { useI18n } from 'vue-i18n'
 import { useVisitStore } from 'src/stores/visit-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import MedicationFieldView from 'src/components/visits/MedicationFieldView.vue'
+import MedicationEditDialog from 'src/components/visits/MedicationEditDialog.vue'
+import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -414,6 +461,10 @@ const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ExcelLikeEditor')
 const localSettings = useLocalSettingsStore()
+const globalSettingsStore = useGlobalSettingsStore()
+
+// Medication options
+const { frequencyOptions, routeOptions, loadMedicationOptions } = useMedicationOptions()
 
 // Local component state (only what's component-specific)
 const showViewOptions = ref(false)
@@ -438,6 +489,8 @@ const showAddPatientDialog = ref(false)
 const showNewVisitDialog = ref(false)
 const showQuestionnairePreview = ref(false)
 const showQuestionnaireFillDialog = ref(false)
+const showMedicationEditDialog = ref(false)
+const editingMedicationData = ref(null)
 
 // Dialog control functions
 const openDialog = (name) => {
@@ -620,6 +673,292 @@ const getCellValue = dataGridStore?.getCellValue || (() => '')
 const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
 const getCellClass = dataGridStore?.getCellClass || (() => '')
 const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
+
+// Medication-specific helpers
+const isMedicationConcept = (concept) => {
+  return concept.code === 'LID: 52418-1' || concept.valueType === 'M' || (concept.code && concept.code.includes('52418'))
+}
+
+const getMedicationObservationSync = (row, concept) => {
+  const observationId = getCellObservationId(row, concept)
+  if (!observationId) return null
+  
+  // Get observation from tableRows data structure
+  const observation = row.observations?.[concept.code]
+  if (!observation) return null
+  
+  // Return minimal observation data - BLOB will be loaded on-demand when editing
+  if (observation.rawObservation) {
+    return {
+      ...observation.rawObservation,
+      observationId: observation.rawObservation.OBSERVATION_ID || observationId,
+      value: observation.value || observation.rawObservation.TVAL_CHAR,
+      numericValue: observation.rawObservation.NVAL_NUM,
+      unit: observation.unit || observation.rawObservation.UNIT_CD,
+    }
+  }
+  
+  // Fallback: construct observation object from available data
+  return {
+    OBSERVATION_ID: observationId,
+    observationId: observationId,
+    CONCEPT_CD: concept.code,
+    CONCEPT_NAME: concept.name,
+    VALTYPE_CD: 'M',
+    TVAL_CHAR: observation.value || observation.originalValue,
+    tval_char: observation.value || observation.originalValue,
+    value: observation.value || observation.originalValue,
+    NVAL_NUM: observation.unit ? parseFloat(observation.unit) : null,
+    nval_num: observation.unit ? parseFloat(observation.unit) : null,
+    numericValue: observation.unit ? parseFloat(observation.unit) : null,
+    UNIT_CD: observation.unit,
+    unit: observation.unit,
+    ENCOUNTER_NUM: row.encounterNum,
+    PATIENT_CD: row.patientId,
+  }
+}
+
+const getMedicationData = (row, concept) => {
+  const observation = getMedicationObservationSync(row, concept)
+  if (!observation) {
+    return {
+      drugName: '',
+      dosage: null,
+      dosageUnit: 'mg',
+      frequency: '',
+      route: '',
+      instructions: '',
+    }
+  }
+  
+  // For display in grid cells, just return drug name (from TVAL_CHAR)
+  // BLOB data will be loaded on-demand when opening the edit dialog
+  return {
+    drugName: observation.value || observation.TVAL_CHAR || '',
+    dosage: observation.NVAL_NUM || null,
+    dosageUnit: observation.UNIT_CD || 'mg',
+    frequency: '', // Will be loaded from BLOB when editing
+    route: '', // Will be loaded from BLOB when editing
+    instructions: '', // Will be loaded from BLOB when editing
+  }
+}
+
+const openMedicationEditDialog = async (row, concept) => {
+  logger.info('Opening medication edit dialog', {
+    patientId: row.patientId,
+    encounterNum: row.encounterNum,
+    conceptCode: concept.code,
+  })
+
+  try {
+    // Get observation ID
+    const observationId = getCellObservationId(row, concept)
+    
+    // Get basic observation data (without BLOB)
+    const observation = getMedicationObservationSync(row, concept)
+    
+    // Load BLOB data on-demand for editing
+    let medicationData = {
+      drugName: observation?.value || observation?.TVAL_CHAR || '',
+      dosage: observation?.NVAL_NUM || null,
+      dosageUnit: observation?.UNIT_CD || 'mg',
+      frequency: '',
+      route: '',
+      instructions: '',
+    }
+    
+    if (observationId) {
+      try {
+        const { useObservationStore } = await import('src/stores/observation-store.js')
+        const observationStore = useObservationStore()
+        const loadedBlob = await observationStore.getObservationBlob(observationId)
+        
+        if (loadedBlob) {
+          // Parse BLOB to get complete medication data
+          try {
+            const parsed = JSON.parse(loadedBlob)
+            medicationData = {
+              drugName: parsed.drugName || medicationData.drugName,
+              dosage: parsed.dosage || medicationData.dosage,
+              dosageUnit: parsed.dosageUnit || medicationData.dosageUnit,
+              frequency: parsed.frequency || '',
+              route: parsed.route || '',
+              instructions: parsed.instructions || '',
+            }
+          } catch (parseError) {
+            logger.warn('Failed to parse medication BLOB', parseError)
+          }
+        }
+      } catch (blobError) {
+        logger.warn('Failed to load medication BLOB', { observationId, error: blobError })
+      }
+    }
+    
+    // Prepare data for dialog
+    editingMedicationData.value = {
+      row,
+      concept,
+      observationId,
+      medicationData,
+      observation,
+    }
+    
+    // Open dialog
+    showMedicationEditDialog.value = true
+  } catch (error) {
+    logger.error('Failed to open medication edit dialog', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to open medication editor',
+      position: 'top',
+    })
+  }
+}
+
+const onMedicationEditSave = async (medicationData) => {
+  if (!editingMedicationData.value) return
+
+  try {
+    const { row, concept, observationId } = editingMedicationData.value
+    
+    logger.debug('Saving medication edit', {
+      observationId,
+      medicationData,
+      patientId: row.patientId,
+      encounterNum: row.encounterNum,
+    })
+
+    // Normalize medication data
+    const normalizedMedicationData = {
+      drugName: medicationData.drugName || '',
+      dosage: medicationData.dosage || null,
+      dosageUnit: medicationData.dosageUnit || 'mg',
+      frequency: (typeof medicationData.frequency === 'object' ? medicationData.frequency?.value || '' : medicationData.frequency || '').toLowerCase(),
+      route: (typeof medicationData.route === 'object' ? medicationData.route?.value || '' : medicationData.route || '').toLowerCase(),
+      instructions: medicationData.instructions || '',
+    }
+
+    // Update observation in database
+    const updateData = {
+      TVAL_CHAR: normalizedMedicationData.drugName,
+      NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+      OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
+    }
+
+    if (observationId) {
+      // Update existing observation
+      const observationRepo = databaseStore.getRepository('observation')
+      await observationRepo.updateObservation(observationId, updateData)
+    } else {
+      // Create new observation
+      const patientQuery = 'SELECT PATIENT_NUM FROM PATIENT_DIMENSION WHERE PATIENT_CD = ?'
+      const patientResult = await databaseStore.executeQuery(patientQuery, [row.patientId])
+      
+      if (!patientResult.success || !patientResult.data.length) {
+        throw new Error(`Patient not found: ${row.patientId}`)
+      }
+
+      const patientNum = patientResult.data[0].PATIENT_NUM
+      const visitQuery = 'SELECT START_DATE FROM VISIT_DIMENSION WHERE ENCOUNTER_NUM = ?'
+      const visitResult = await databaseStore.executeQuery(visitQuery, [row.encounterNum])
+      const visitStartDate = visitResult.success && visitResult.data.length > 0 
+        ? visitResult.data[0].START_DATE 
+        : new Date().toISOString().split('T')[0]
+
+      const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('DATAGRID_EDITOR')
+      const defaultCategory = await globalSettingsStore.getDefaultCategory('MEDICATIONS')
+
+      const observationData = {
+        PATIENT_NUM: patientNum,
+        ENCOUNTER_NUM: row.encounterNum,
+        CONCEPT_CD: concept.code,
+        VALTYPE_CD: 'M',
+        START_DATE: visitStartDate,
+        CATEGORY_CHAR: defaultCategory,
+        PROVIDER_ID: 'SYSTEM',
+        LOCATION_CD: 'DATAGRID',
+        SOURCESYSTEM_CD: defaultSourceSystem,
+        INSTANCE_NUM: 1,
+        UPLOAD_ID: 1,
+        ...updateData,
+      }
+
+      const observationRepo = databaseStore.getRepository('observation')
+      await observationRepo.createObservation(observationData)
+    }
+
+    // Update local observation data immediately (before refresh)
+    if (editingMedicationData.value) {
+      const { row, concept } = editingMedicationData.value
+      const observation = row.observations?.[concept.code]
+      
+      if (observation) {
+        // Update observation data in local state
+        observation.value = normalizedMedicationData.drugName
+        observation.originalValue = normalizedMedicationData.drugName
+        
+        // Update rawObservation if it exists
+        if (observation.rawObservation) {
+          observation.rawObservation.TVAL_CHAR = normalizedMedicationData.drugName
+          observation.rawObservation.tval_char = normalizedMedicationData.drugName
+          observation.rawObservation.NVAL_NUM = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+          observation.rawObservation.nval_num = medicationData.dosage ? parseFloat(medicationData.dosage) : null
+          observation.rawObservation.OBSERVATION_BLOB = JSON.stringify(normalizedMedicationData)
+          observation.rawObservation.observation_blob = JSON.stringify(normalizedMedicationData)
+        } else {
+          // Create rawObservation if it doesn't exist
+          observation.rawObservation = {
+            OBSERVATION_ID: observationId || observation.observationId,
+            CONCEPT_CD: concept.code,
+            CONCEPT_NAME: concept.name,
+            VALTYPE_CD: 'M',
+            TVAL_CHAR: normalizedMedicationData.drugName,
+            tval_char: normalizedMedicationData.drugName,
+            NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+            nval_num: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
+            UNIT_CD: normalizedMedicationData.dosageUnit,
+            ENCOUNTER_NUM: row.encounterNum,
+            PATIENT_CD: row.patientId,
+            OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
+            observation_blob: JSON.stringify(normalizedMedicationData),
+          }
+        }
+        
+        // Update BLOB references
+        observation.OBSERVATION_BLOB = JSON.stringify(normalizedMedicationData)
+        observation.observation_blob = JSON.stringify(normalizedMedicationData)
+        observation.observationBlob = JSON.stringify(normalizedMedicationData)
+      }
+    }
+
+    // Refresh grid data to ensure consistency
+    await refreshData()
+
+    // Close dialog
+    showMedicationEditDialog.value = false
+    editingMedicationData.value = null
+
+    $q.notify({
+      type: 'positive',
+      message: t('notifications.medicationSaved'),
+      position: 'top',
+    })
+
+    logger.success('Medication saved successfully')
+  } catch (error) {
+    logger.error('Failed to save medication', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Failed to save medication',
+      position: 'top',
+    })
+  }
+}
+
+const onMedicationEditCancel = () => {
+  showMedicationEditDialog.value = false
+  editingMedicationData.value = null
+}
 
 // Check if this is the first visit row for a patient
 const isFirstVisitForPatient = (row) => {
@@ -1402,6 +1741,9 @@ watch(
 
 // Lifecycle
 onMounted(async () => {
+  // Load medication options
+  await loadMedicationOptions()
+
   // Initialize stores
   if (dataGridStore?.initialize) {
     dataGridStore.initialize()
@@ -1512,6 +1854,17 @@ onMounted(async () => {
         width: 150px;
         min-width: 150px;
 
+        // Specific widths for different value types
+        &.value-type-d {
+          width: 120px; // Date columns: -30px
+          min-width: 120px;
+        }
+
+        &.value-type-n {
+          width: 100px; // Numeric columns: -50px
+          min-width: 100px;
+        }
+
         .col-header {
           display: flex;
           flex-direction: column;
@@ -1583,6 +1936,17 @@ onMounted(async () => {
         text-align: center;
         vertical-align: middle;
 
+        // Specific widths for different value types
+        &.value-type-d {
+          width: 120px; // Date cells: -30px
+          min-width: 120px;
+        }
+
+        &.value-type-n {
+          width: 100px; // Numeric cells: -50px
+          min-width: 100px;
+        }
+
         // Expand cell when editing text
         :deep(.editable-cell.is-editing) {
           min-width: 200px;
@@ -1630,6 +1994,16 @@ onMounted(async () => {
           background: $grey-1;
         }
 
+        // Medication cell styling
+        .medication-cell {
+          width: 100%;
+          height: 100%;
+          padding: 2px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
         // Questionnaire cell styling
         .questionnaire-cell {
           display: flex;
@@ -1646,12 +2020,24 @@ onMounted(async () => {
           }
 
           .questionnaire-content {
-            font-size: 0.875rem;
+            font-size: 0.7rem;
+            line-height: 1.3;
+            max-height: 2.6em; // 2 lines with line-height 1.3
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: normal;
+            word-wrap: break-word;
+            max-width: 150px;
             text-align: center;
-            line-height: 1.2;
-            word-break: break-word;
             color: $grey-8;
             cursor: pointer;
+            
+            &:hover {
+              color: $primary;
+            }
           }
 
           .questionnaire-empty {
