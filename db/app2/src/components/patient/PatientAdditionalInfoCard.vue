@@ -2,7 +2,7 @@
   <q-card class="full-height">
     <q-card-section class="full-height">
       <div class="row items-center justify-between q-mb-md">
-        <div class="text-h6">Additional Info</div>
+        <div class="text-h6">{{ $t('patient.additionalInfoCard') }}</div>
         <q-btn v-if="!editing" flat round dense icon="edit" color="primary" size="sm" @click="startEdit">
           <q-tooltip>Edit Additional Info</q-tooltip>
         </q-btn>

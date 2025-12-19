@@ -237,7 +237,13 @@
     "deletePatient": "Patient löschen",
     "editVisits": "Besuche bearbeiten",
     "editVisitsTooltip": "Zur Besuchsseite wechseln, um Patientenbesuche und Beobachtungen zu bearbeiten",
-    "visitsObservationsSummary": "Besuche & Beobachtungen Übersicht"
+    "visitsObservationsSummary": "Besuche & Beobachtungen Übersicht",
+    "additionalInfoCard": "Zusätzliche Infos",
+    "statistics": "Statistiken",
+    "totalVisits": "Besuche gesamt",
+    "totalObservations": "Beobachtungen gesamt",
+    "created": "Erstellt",
+    "updated": "Aktualisiert"
   },
   "visit": {
     "visit": "Besuch",

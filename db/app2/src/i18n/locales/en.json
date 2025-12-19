@@ -237,7 +237,13 @@
     "deletePatient": "Delete Patient",
     "editVisits": "Edit Visits",
     "editVisitsTooltip": "Switch to visits page to edit patient visits and observations",
-    "visitsObservationsSummary": "Visits & Observations Summary"
+    "visitsObservationsSummary": "Visits & Observations Summary",
+    "additionalInfoCard": "Additional Info",
+    "statistics": "Statistics",
+    "totalVisits": "Total Visits",
+    "totalObservations": "Total Observations",
+    "created": "Created",
+    "updated": "Updated"
   },
   "visit": {
     "visit": "Visit",
