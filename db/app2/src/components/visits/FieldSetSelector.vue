@@ -34,7 +34,7 @@
 
               <!-- Category breakdown in same order as chips below -->
               <div v-if="overallStats.categoryDetails.length > 0" class="category-breakdown">
-                <div class="breakdown-header">Categories (in display order):</div>
+                <div class="breakdown-header">{{ $t('visit.categoriesInDisplayOrder') }}</div>
                 <div v-for="category in overallStats.categoryDetails" :key="category.id" class="category-item" :class="{ 'uncategorized-item': category.isUncategorized }">
                   <div class="category-info">
                     <q-icon :name="category.icon" size="14px" class="category-icon" :class="{ 'uncategorized-icon': category.isUncategorized }" />
@@ -56,8 +56,8 @@
       </div>
       <div class="header-actions">
         <q-btn flat icon="settings" label="Configure" @click="emit('show-config')" size="sm" />
-        <q-btn flat round :icon="isCollapsed ? 'expand_more' : 'expand_less'" @click="isCollapsed = !isCollapsed" size="sm" class="collapse-btn">
-          <q-tooltip>{{ isCollapsed ? 'Show all categories' : 'Hide categories' }}</q-tooltip>
+          <q-btn flat round :icon="isCollapsed ? 'expand_more' : 'expand_less'" @click="isCollapsed = !isCollapsed" size="sm" class="collapse-btn">
+          <q-tooltip>{{ isCollapsed ? $t('visit.showAllCategories') : $t('visit.hideCategories') }}</q-tooltip>
         </q-btn>
       </div>
     </div>
@@ -105,9 +105,9 @@
           <!-- More Inactive Categories Dropdown -->
           <q-btn v-if="hiddenInactiveFieldSets.length > 0" flat round dense icon="more_horiz" color="grey-6" class="more-categories-btn" size="sm">
             <q-tooltip>
-              {{ hiddenInactiveFieldSets.length }} more categories
+              {{ $t('visit.moreCategories', { count: hiddenInactiveFieldSets.length }) }}
               <span v-if="hiddenInactiveFieldSets.some((fs) => getFieldSetObservationCount(fs.id) > 0)">
-                <br />({{ hiddenInactiveFieldSets.filter((fs) => getFieldSetObservationCount(fs.id) > 0).length }} with observations)
+                <br />({{ hiddenInactiveFieldSets.filter((fs) => getFieldSetObservationCount(fs.id) > 0).length }} {{ $t('visit.withObservations') }})
               </span>
             </q-tooltip>
             <q-menu auto-close>
