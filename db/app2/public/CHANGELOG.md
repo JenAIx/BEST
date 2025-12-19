@@ -55,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- [2025-12-19] Fixed observation creation from questionnaires failing with "No patient selected" error - now allows observation creation when PATIENT_NUM is explicitly provided, even without a selected patient in the store
+- [2025-12-19] Fixed observations not appearing immediately on PatientPage after questionnaire submission - modified visit-observation-service to always reload observations when loading patient data, ensuring fresh data is displayed
 - [2025-12-18] Fixed questionnaire submission error when auto-creating visits - now uses visit repository which properly handles `lastInsertRowid` being undefined in Electron environment
 - [2025-12-18] Fixed Vue prop type warning for `completionDate` in questionnaire preview - now properly converts number timestamps to ISO string format
 - [2025-12-18] Fixed questionnaire submission summary showing "0 Questions Answered" - now correctly displays `items.length` and shows detailed counts including answers added as separate observations

@@ -49,18 +49,20 @@ class VisitObservationService {
 
       const { patient, isNewPatient } = result
 
-      // Only load visits if it's a new patient selection
+      // Always reload visits and observations to ensure we have the latest data
+      // This is especially important after questionnaire submissions or other operations
+      // that create new observations
       if (isNewPatient) {
-        // Clear previous data
+        // Clear previous data only for new patients
         visitStore.clearVisits()
         observationStore.clearAllObservations()
-
-        // Load visits for the patient
-        await visitStore.loadVisitsForPatient(patient.PATIENT_NUM)
-
-        // Load all observations for the patient
-        await observationStore.loadAllObservationsForPatient(patient.PATIENT_NUM)
       }
+
+      // Load visits for the patient (always, to get fresh data)
+      await visitStore.loadVisitsForPatient(patient.PATIENT_NUM)
+
+      // Load all observations for the patient (always, to get fresh data)
+      await observationStore.loadAllObservationsForPatient(patient.PATIENT_NUM)
 
       this.logger.success('Patient data loaded successfully', {
         patientCode,
@@ -279,12 +281,14 @@ class VisitObservationService {
       const visitStore = useVisitStore()
       const observationStore = useObservationStore()
 
-      if (!patientStore.hasPatient) {
+      // Allow creating observations if PATIENT_NUM is explicitly provided (e.g., from questionnaire)
+      // Otherwise, require a selected patient in the store
+      if (!observationData.PATIENT_NUM && !patientStore.hasPatient) {
         throw new Error('No patient selected')
       }
 
-      // Ensure patient number is included
-      observationData.PATIENT_NUM = patientStore.patientNum
+      // Ensure patient number is included - use provided value or get from store
+      observationData.PATIENT_NUM = observationData.PATIENT_NUM || patientStore.patientNum
 
       this.logger.info('Creating observation', {
         conceptCode: observationData.CONCEPT_CD,
