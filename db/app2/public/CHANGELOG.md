@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- [2025-12-19] Added medication handling to Data Grid Editor
+  - Icon-based medication display showing medication icon with count (e.g., "💊 2") in 120px columns
+  - Created `MedicationOverviewDialog` for managing all medications in a visit with inline editing
+  - Integrated `AppRemoveConfirmationButton` for consistent delete confirmation UX
+  - Implemented drug autocomplete search with suggestions from CODE_LOOKUP table
+  - Auto-fill medication details (dosage, unit, frequency, route) from drug metadata
+  - Support for multiple medication observations per visit (INSTANCE_NUM)
+  - On-demand BLOB loading for optimal performance (prevents loading images/large files in grid)
+  - Medication count cache with async loading for fast grid rendering
+  - Full CRUD operations: Create, Edit (inline), Delete (with confirmation), View all
+  - All medication data stored in OBSERVATION_BLOB as JSON (drugName, dosage, dosageUnit, frequency, route, instructions)
+  - TVAL_CHAR contains only drug name for display, NVAL_NUM contains dosage
+  - Added I18n translations for medication UI elements (German and English)
+
 - [2025-01-XX] Added zoom functionality to Data Grid Editor
   - Added Zoom In, Zoom Out, and Reset Zoom buttons in editor header
   - Zoom range from 0.5x to 2.0x with 0.1x step increments
@@ -70,6 +84,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Supports the same CSV format as the export function (13 columns matching CONCEPT_DIMENSION table)
 
 #### Changed
+
+- [2025-12-19] Optimized Data Grid column widths for better space utilization
+  - Date columns (D): Reduced from 150px to 120px (-30px)
+  - Numeric columns (N): Reduced from 150px to 100px (-50px)
+  - Medication columns (M): Set to 120px for icon + count display
+  - Text columns (T): Kept at 150px (default)
+  - Dynamic CSS classes based on value type for flexible column sizing
+
+- [2025-12-19] Enhanced MedicationFieldView component with display modes
+  - Added `simpleDisplay` prop to control display complexity
+  - Simple mode (Data Grid): Shows only drug name for performance
+  - Full mode (VisitDataEntry): Shows elegant format "ASS 100mg 1-0-0 p.o." with BLOB data loading
+  - Conditional BLOB loading based on context to prevent unnecessary database queries
+
+- [2025-12-19] Improved DataGridPage and DataGridEditorPage code quality
+  - Replaced all console.error/console.log statements with proper logger usage
+  - Added `loggingStore.createLogger()` for consistent logging throughout pages
+  - Localized all hardcoded notification messages for multilingual support
+  - Added error handling for store initialization with user notifications
+  - Removed verbose drug loading logs from global-settings-store (reduced from 56+ logs to 1)
+  - Added user notification for failed visit/observation count queries
+  - Cleaned up outdated comments and empty code blocks
 
 - [2025-12-19] Refactored Data Grid Editor to reduce code duplication and complexity
   - Created `usePatientSearch` composable for reusable patient search functionality with flexible filtering options
