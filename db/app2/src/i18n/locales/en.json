@@ -590,7 +590,15 @@
     "patientAlreadyInGrid": "Patient \"{name}\" is already in the grid",
     "patientAddedToGrid": "Patient \"{name}\" has been added to the grid",
     "failedToAddPatient": "Failed to add patient",
-    "noPatientsInGrid": "No patients in the grid"
+    "noPatientsInGrid": "No patients in the grid",
+    "medicationList": "Medications",
+    "medicationListSubtitle": "All medications for this visit",
+    "noMedications": "No medications available",
+    "addMedication": "Add Medication",
+    "noMedicationData": "No data",
+    "moreMedications": "more",
+    "viewMedications": "View {count} medication(s)",
+    "editMedication": "Edit medication"
   },
   "export": {
     "export": "Export",
@@ -768,7 +776,11 @@
     "loginFailed": "Login failed. Please try again.",
     "contactAdminForPasswordReset": "Please contact your system administrator to reset your password.",
     "enterFolderPathManually": "Please enter the folder path manually",
-    "errorOpeningFolderDialog": "Error opening folder dialog"
+    "errorOpeningFolderDialog": "Error opening folder dialog",
+    "medicationSaved": "Medication saved",
+    "medicationDeleted": "Medication deleted",
+    "failedToSaveMedication": "Failed to save medication",
+    "failedToDeleteMedication": "Failed to delete medication"
   },
   "changelog": {
     "title": "Changelog",

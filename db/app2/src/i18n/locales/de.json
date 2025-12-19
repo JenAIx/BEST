@@ -590,7 +590,15 @@
     "patientAlreadyInGrid": "Patient \"{name}\" ist bereits in der Tabelle",
     "patientAddedToGrid": "Patient \"{name}\" wurde zur Tabelle hinzugefügt",
     "failedToAddPatient": "Fehler beim Hinzufügen des Patienten",
-    "noPatientsInGrid": "Keine Patienten in der Tabelle"
+    "noPatientsInGrid": "Keine Patienten in der Tabelle",
+    "medicationList": "Medikationen",
+    "medicationListSubtitle": "Alle Medikationen für diese Visite",
+    "noMedications": "Keine Medikationen vorhanden",
+    "addMedication": "Medikation hinzufügen",
+    "noMedicationData": "Keine Daten",
+    "moreMedications": "weitere",
+    "viewMedications": "{count} Medikation(en) anzeigen",
+    "editMedication": "Medikation bearbeiten"
   },
   "export": {
     "export": "Export",
@@ -768,7 +776,11 @@
     "loginFailed": "Anmeldung fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "contactAdminForPasswordReset": "Bitte wenden Sie sich an Ihren Systemadministrator, um Ihr Passwort zurückzusetzen.",
     "enterFolderPathManually": "Bitte geben Sie den Ordnerpfad manuell ein",
-    "errorOpeningFolderDialog": "Fehler beim Öffnen des Ordner-Dialogs"
+    "errorOpeningFolderDialog": "Fehler beim Öffnen des Ordner-Dialogs",
+    "medicationSaved": "Medikation gespeichert",
+    "medicationDeleted": "Medikation gelöscht",
+    "failedToSaveMedication": "Fehler beim Speichern der Medikation",
+    "failedToDeleteMedication": "Fehler beim Löschen der Medikation"
   },
   "changelog": {
     "title": "Changelog",
