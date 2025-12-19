@@ -157,15 +157,20 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useLoggingStore } from 'src/stores/logging-store'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const router = useRouter()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 const localSettings = useLocalSettingsStore()
+const loggingStore = useLoggingStore()
+const logger = loggingStore.createLogger('DataGridPage')
 
 // Data state
 const loading = ref(false)
@@ -330,10 +335,10 @@ const loadTableData = async () => {
     // Update pagination with total count from server
     pagination.value.rowsNumber = result.pagination?.totalCount || 0
   } catch (error) {
-    console.error('Failed to load table data:', error)
+    logger.error('Failed to load table data', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to load table data',
+      message: t('notifications.failedToLoadTableData'),
       position: 'top',
     })
   } finally {
@@ -394,7 +399,13 @@ const getVisitsAndObservationCounts = async (patientIds) => {
 
     return counts
   } catch (error) {
-    console.error('Failed to get visits and observation counts:', error)
+    logger.error('Failed to get visits and observation counts', error)
+    $q.notify({
+      type: 'warning',
+      message: t('dataGrid.failedToLoadCounts'),
+      position: 'top',
+      timeout: 2000,
+    })
   }
 
   return {}
@@ -408,7 +419,7 @@ const loadTotalPatients = async () => {
     const patientStats = await patientRepo.getPatientStatistics()
     totalPatients.value = patientStats.totalPatients || 0
   } catch (error) {
-    console.error('Failed to load total patients:', error)
+    logger.error('Failed to load total patients', error)
   }
 }
 
@@ -423,7 +434,7 @@ const loadFilterOptions = async () => {
     genderOptions.value = genderOpts
     statusOptions.value = statusOpts
   } catch (error) {
-    console.error('Failed to load filter options:', error)
+    logger.error('Failed to load filter options', error)
     // Use fallback options
     genderOptions.value = conceptStore.getFallbackOptions('gender')
     statusOptions.value = conceptStore.getFallbackOptions('vital_status')
@@ -488,7 +499,7 @@ const clearFilters = async () => {
   await loadTableData()
   $q.notify({
     type: 'info',
-    message: 'Filters cleared',
+    message: t('notifications.filtersCleared'),
     position: 'top',
   })
 }
@@ -497,7 +508,7 @@ const clearSelection = () => {
   selectedPatients.value = []
   $q.notify({
     type: 'info',
-    message: 'Selection cleared',
+    message: t('dataGrid.selectionCleared'),
     position: 'top',
   })
 }
@@ -506,7 +517,7 @@ const clearStoredSelection = () => {
   localSettings.clearDataGridSelectedPatients()
   $q.notify({
     type: 'info',
-    message: 'Stored patient selection cleared',
+    message: t('dataGrid.storedSelectionCleared'),
     position: 'top',
   })
 }
@@ -515,7 +526,7 @@ const openDataGrid = async () => {
   if (selectedPatients.value.length === 0) {
     $q.notify({
       type: 'warning',
-      message: 'Please select at least one patient',
+      message: t('dataGrid.selectAtLeastOnePatient'),
       position: 'top',
     })
     return
@@ -530,17 +541,17 @@ const openDataGrid = async () => {
 
     $q.notify({
       type: 'positive',
-      message: `Opening Data Grid with ${patientIds.length} patients...`,
+      message: t('dataGrid.openingGridWithPatients', { count: patientIds.length }),
       position: 'top',
     })
 
     // Navigate to the data grid editor
     router.push('/data-grid/editor')
   } catch (error) {
-    console.error('Failed to open data grid:', error)
+    logger.error('Failed to open data grid', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to open data grid',
+      message: t('dataGrid.failedToOpenGrid'),
       position: 'top',
     })
   } finally {
@@ -554,17 +565,17 @@ const goToDataGrid = async () => {
 
     $q.notify({
       type: 'positive',
-      message: `Opening Data Grid with ${storedPatientIds.value.length} stored patients...`,
+      message: t('dataGrid.openingGridWithStoredPatients', { count: storedPatientIds.value.length }),
       position: 'top',
     })
 
     // Navigate to the data grid editor with stored selection
     router.push('/data-grid/editor')
   } catch (error) {
-    console.error('Failed to open data grid:', error)
+    logger.error('Failed to open data grid', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to open data grid',
+      message: t('dataGrid.failedToOpenGrid'),
       position: 'top',
     })
   } finally {
@@ -575,7 +586,7 @@ const goToDataGrid = async () => {
 // Initialize data
 const initializeDataGridPage = async () => {
   if (!dbStore.canPerformOperations) {
-    console.log('Database not ready, skipping data grid page initialization')
+    logger.debug('Database not ready, skipping data grid page initialization')
     return
   }
 
@@ -583,10 +594,10 @@ const initializeDataGridPage = async () => {
   try {
     await Promise.all([loadFilterOptions(), loadTotalPatients(), loadTableData()])
   } catch (error) {
-    console.error('Failed to initialize data grid page:', error)
+    logger.error('Failed to initialize data grid page', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to load data grid page data',
+      message: t('dataGrid.failedToLoadPageData'),
       position: 'top',
     })
   } finally {

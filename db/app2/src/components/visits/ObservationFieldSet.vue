@@ -58,8 +58,9 @@
 
     <!-- Medication Edit Dialog -->
     <MedicationEditDialog
+      v-if="editingMedicationRow"
       v-model="showMedicationEditDialog"
-      :medication-data="editingMedicationRow ? medicationsStore.parseMedicationData(editingMedicationRow) : {}"
+      :medication-data="getMedicationDataForDialog(editingMedicationRow)"
       :observation-id="editingMedicationRow?.observationId"
       :frequency-options="frequencyOptions"
       :route-options="routeOptions"
@@ -477,9 +478,73 @@ const formatMedicationDisplay = (medication) => {
   return medication.originalValue || medication.value || 'No medication specified'
 }
 
+// Get medication data for dialog (with BLOB loading)
+const getMedicationDataForDialog = (row) => {
+  if (!row || !row.rawObservation) {
+    return {
+      drugName: '',
+      dosage: null,
+      dosageUnit: 'mg',
+      frequency: '',
+      route: '',
+      instructions: '',
+    }
+  }
+  
+  // If BLOB is available, parse it
+  const blobData = row.rawObservation.OBSERVATION_BLOB || row.rawObservation.observation_blob
+  if (blobData && typeof blobData === 'string') {
+    try {
+      const parsed = JSON.parse(blobData)
+      return {
+        drugName: parsed.drugName || row.rawObservation.TVAL_CHAR || '',
+        dosage: parsed.dosage || row.rawObservation.NVAL_NUM || null,
+        dosageUnit: parsed.dosageUnit || row.rawObservation.UNIT_CD || 'mg',
+        frequency: parsed.frequency || '',
+        route: parsed.route || '',
+        instructions: parsed.instructions || '',
+      }
+    } catch (parseError) {
+      logger.warn('Failed to parse medication BLOB', parseError)
+    }
+  }
+  
+  // Fallback to basic data
+  return {
+    drugName: row.rawObservation.TVAL_CHAR || '',
+    dosage: row.rawObservation.NVAL_NUM || null,
+    dosageUnit: row.rawObservation.UNIT_CD || 'mg',
+    frequency: '',
+    route: '',
+    instructions: '',
+  }
+}
+
 // Enter medication edit mode
-const enterMedicationEditMode = (row) => {
+const enterMedicationEditMode = async (row) => {
   logger.debug('Enter medication edit mode', { rowId: row.id })
+  
+  // Load BLOB data on-demand for editing
+  if (row.observationId) {
+    try {
+      const { useObservationStore } = await import('src/stores/observation-store.js')
+      const observationStore = useObservationStore()
+      const loadedBlob = await observationStore.getObservationBlob(row.observationId)
+      
+      if (loadedBlob) {
+        // Update rawObservation with BLOB data
+        row.rawObservation = {
+          ...row.rawObservation,
+          OBSERVATION_BLOB: loadedBlob,
+          observation_blob: loadedBlob,
+        }
+        logger.debug('BLOB data loaded for medication edit', { observationId: row.observationId })
+      }
+    } catch (error) {
+      logger.warn('Failed to load medication BLOB', { observationId: row.observationId, error })
+    }
+  }
+  
   editingMedicationRow.value = row
   showMedicationEditDialog.value = true
 }

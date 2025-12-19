@@ -6,12 +6,12 @@
         <div class="status-item">
           <q-icon :name="hasUnsavedChanges ? 'edit' : 'check_circle'" :color="hasUnsavedChanges ? 'warning' : 'positive'" size="16px" class="q-mr-xs" />
           <span :class="hasUnsavedChanges ? 'text-warning' : 'text-positive'">
-            {{ hasUnsavedChanges ? `${unsavedChangesCount} unsaved changes` : 'All changes saved' }}
+            {{ hasUnsavedChanges ? $t('dataGrid.unsavedChangesCount', { count: unsavedChangesCount }) : $t('dataGrid.allChangesSaved') }}
           </span>
         </div>
         <div class="status-item">
           <q-icon name="access_time" size="16px" color="grey-6" class="q-mr-xs" />
-          <span class="text-grey-6">Updated: {{ lastUpdateTime }}</span>
+          <span class="text-grey-6">{{ $t('dataGrid.updated') }}: {{ lastUpdateTime }}</span>
         </div>
       </div>
 
@@ -23,19 +23,19 @@
         <div class="stat-item">
           <q-icon name="table_chart" size="14px" color="primary" />
           <span class="stat-value">{{ statistics.totalObservations }}</span>
-          <span class="stat-label">cols</span>
+          <span class="stat-label">{{ $t('dataGrid.cols') }}</span>
         </div>
 
         <div class="stat-item">
           <q-icon name="visibility" size="14px" color="secondary" />
           <span class="stat-value">{{ statistics.visibleObservations }}</span>
-          <span class="stat-label">visible</span>
+          <span class="stat-label">{{ $t('dataGrid.visible') }}</span>
         </div>
 
         <div class="stat-item" v-if="statistics.hiddenObservations > 0">
           <q-icon name="visibility_off" size="14px" color="grey-6" />
           <span class="stat-value">{{ statistics.hiddenObservations }}</span>
-          <span class="stat-label">hidden</span>
+          <span class="stat-label">{{ $t('dataGrid.hidden') }}</span>
         </div>
 
         <!-- Vertical Separator -->
@@ -44,13 +44,13 @@
         <div class="stat-item">
           <q-icon name="check_circle" size="14px" color="positive" />
           <span class="stat-value">{{ statistics.filledCellsPercentage }}%</span>
-          <span class="stat-label">filled</span>
+          <span class="stat-label">{{ $t('dataGrid.filled') }}</span>
         </div>
 
         <div class="stat-item">
           <q-icon name="analytics" size="14px" color="info" />
           <span class="stat-value">{{ statistics.totalCells }}</span>
-          <span class="stat-label">cells</span>
+          <span class="stat-label">{{ $t('dataGrid.cells') }}</span>
         </div>
       </div>
     </div>
@@ -144,7 +144,6 @@ const statistics = computed(() => dataGridStore?.statistics || null)
 
     .stat-label {
       color: #7f8c8d;
-      text-transform: lowercase;
       font-weight: 500;
     }
   }

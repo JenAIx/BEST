@@ -688,11 +688,13 @@ watch(editValue, (newValue) => {
 
   .cell-value {
     flex: 1;
+    max-width: 150px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: 0.875rem;
     line-height: 1.2;
+    display: inline-block;
 
     .cell-unit {
       color: $grey-6;
@@ -728,9 +730,11 @@ watch(editValue, (newValue) => {
 .cell-edit {
   padding: 2px;
   height: 100%;
+  min-width: 200px;
 
   .cell-input {
     height: 100%;
+    width: 100%;
 
     :deep(.q-field__control) {
       height: 28px;
@@ -742,6 +746,23 @@ watch(editValue, (newValue) => {
       font-size: 0.875rem;
       line-height: 1.2;
       padding: 0;
+    }
+    
+    &.text-input {
+      min-width: 200px;
+      width: 100%;
+      
+      :deep(.q-field__control) {
+        min-width: 200px;
+      }
+      
+      :deep(.q-field__native) {
+        min-width: 200px;
+        width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
     }
 
     &.numeric-input {

@@ -1,8 +1,8 @@
 <template>
   <AppDialog
     v-model="dialogVisible"
-    title="Column Management"
-    subtitle="Customize your data grid view and manage observation columns"
+    :title="$t('dataGrid.columnManagement')"
+    :subtitle="$t('dataGrid.columnManagementSubtitle')"
     size="md"
     :persistent="true"
     :show-actions="false"
@@ -13,7 +13,7 @@
       <div class="compact-header">
         <div class="header-left">
           <q-icon name="view_column" size="18px" color="secondary" />
-          <span class="text-subtitle1 q-ml-xs">Column Management</span>
+          <span class="text-subtitle1 q-ml-xs">{{ $t('dataGrid.columnManagement') }}</span>
         </div>
         <div class="header-center">
           <q-chip :label="`${visibleColumns}/${totalColumns}`" color="secondary" text-color="white" size="sm" dense />
@@ -21,13 +21,13 @@
         <div class="header-right">
           <q-btn-group flat>
             <q-btn flat dense icon="visibility" size="sm" color="positive" @click="showAllColumns" :disable="visibleColumns === totalColumns">
-              <q-tooltip>Show All</q-tooltip>
+              <q-tooltip>{{ $t('dataGrid.showAll') }}</q-tooltip>
             </q-btn>
             <q-btn flat dense icon="visibility_off" size="sm" color="negative" @click="hideAllColumns" :disable="visibleColumns === 0">
-              <q-tooltip>Hide All</q-tooltip>
+              <q-tooltip>{{ $t('dataGrid.hideAll') }}</q-tooltip>
             </q-btn>
             <q-btn flat dense icon="shuffle" size="sm" color="primary" @click="resetColumnOrder">
-              <q-tooltip>Reset Order</q-tooltip>
+              <q-tooltip>{{ $t('dataGrid.resetOrder') }}</q-tooltip>
             </q-btn>
           </q-btn-group>
         </div>
@@ -38,8 +38,8 @@
         <div v-if="localColumns.length === 0" class="empty-state">
           <q-icon name="view_column" />
           <div class="q-mt-md">
-            <div class="text-h6 q-mb-sm">No columns available</div>
-            <div class="text-body2 text-grey-6 q-mb-md">Add observations to your data grid to see columns here</div>
+            <div class="text-h6 q-mb-sm">{{ $t('dataGrid.noColumnsAvailable') }}</div>
+            <div class="text-body2 text-grey-6 q-mb-md">{{ $t('dataGrid.addObservationsToGrid') }}</div>
           </div>
         </div>
 
@@ -91,33 +91,20 @@
           </template>
         </draggable>
 
-        <!-- Add New Observation Button -->
-        <div v-if="localColumns.length > 0" class="q-pa-md text-center">
-          <div class="row justify-center">
-            <q-btn flat icon="add" label="Add Observation" color="primary" @click="showAddObservationDialog = true" class="add-observation-btn">
-              <q-tooltip>Add a new observation column to the grid</q-tooltip>
-            </q-btn>
-          </div>
-        </div>
       </div>
 
       <!-- Footer -->
       <div class="dialog-footer">
-        <div class="text-caption text-grey-6">Changes are applied instantly • Drag to reorder columns</div>
+        <div class="text-caption text-grey-6">{{ $t('dataGrid.changesAppliedInstantly') }}</div>
       </div>
     </div>
   </AppDialog>
-
-  <!-- Add Observation Dialog -->
-  <AddObservationDialog v-model="showAddObservationDialog" :existing-concepts="localColumns" @concept-added="onConceptAdded" />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 import draggable from 'vuedraggable'
-import AddObservationDialog from 'src/components/datagrid/AddObservationDialog.vue'
 
 // Props
 const props = defineProps({
@@ -143,14 +130,10 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['update:modelValue', 'update:viewOptions', 'update:columnVisibility', 'update:columnOrder'])
 
-// Composables
-const $q = useQuasar()
-
 // Local state
 const localOptions = ref({ ...props.viewOptions })
 const localColumns = ref([])
 const dialogVisible = ref(false)
-const showAddObservationDialog = ref(false)
 
 // Computed
 const totalColumns = computed(() => localColumns.value.length)
@@ -269,25 +252,6 @@ const emitColumnOrder = () => {
   emit('update:columnOrder', columnOrder)
 }
 
-const onConceptAdded = (concept) => {
-  // The concept has already been added to the grid by the dialog
-  // We just need to update our local columns list to reflect the change
-  const newColumn = {
-    code: concept.code,
-    name: concept.name,
-    valueType: concept.valueType,
-    visible: true,
-    observationCount: 0,
-  }
-
-  localColumns.value.push(newColumn)
-
-  $q.notify({
-    type: 'positive',
-    message: `Column "${concept.name}" added successfully`,
-    position: 'top',
-  })
-}
 
 // Watchers
 // Removed the watcher that emits full visibility object - individual column changes
@@ -607,16 +571,4 @@ body.dragging-column .column-item:not(.sortable-chosen) .drag-handle {
   margin-bottom: 16px;
 }
 
-.add-observation-btn {
-  border: 2px dashed #1976d2;
-  border-radius: 8px;
-  padding: 8px 16px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: #1565c0;
-    background: rgba(25, 118, 210, 0.05);
-    transform: translateY(-1px);
-  }
-}
 </style>

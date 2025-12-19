@@ -1,22 +1,22 @@
 <template>
-  <AppDialog v-model="showDialog" title="Add Observation Column" subtitle="Search and add a new observation column to the data grid" size="lg" persistent @close="cancelAddObservation">
+  <AppDialog v-model="showDialog" :title="$t('dataGrid.addObservationColumn')" :subtitle="$t('dataGrid.addObservationColumnSubtitle')" size="lg" persistent @close="cancelAddObservation">
     <template #header>
       <div class="text-h6">
         <q-icon name="add" class="q-mr-sm" color="primary" />
-        Add Observation Column
+        {{ $t('dataGrid.addObservationColumn') }}
       </div>
-      <div class="text-caption text-grey-6 q-mt-xs">Choose an existing concept from the database to add as a column</div>
+      <div class="text-caption text-grey-6 q-mt-xs">{{ $t('dataGrid.addObservationColumnDescription') }}</div>
     </template>
 
     <!-- Concept Search Section -->
     <div class="concept-search-section">
       <div class="text-subtitle2 q-mb-sm">
         <q-icon name="search" class="q-mr-xs" />
-        Search for existing concepts in the database
+        {{ $t('dataGrid.searchConceptsInDatabase') }}
       </div>
 
       <div class="search-row">
-        <q-input v-model="searchTerm" placeholder="Search concepts (min. 2 characters)" outlined dense class="search-input" @keyup="onSearchInput" @focus="showSearchResults = true">
+        <q-input v-model="searchTerm" :placeholder="$t('dataGrid.searchConceptsPlaceholder')" outlined dense class="search-input" @keyup="onSearchInput" @focus="showSearchResults = true">
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
@@ -25,14 +25,14 @@
           </template>
         </q-input>
 
-        <q-btn color="primary" icon="search" label="Search" @click="searchConcepts" :loading="searching" :disable="!searchTerm || searchTerm.length < 2" class="search-btn" />
+        <q-btn color="primary" icon="search" :label="$t('common.search')" @click="searchConcepts" :loading="searching" :disable="!searchTerm || searchTerm.length < 2" class="search-btn" />
       </div>
 
       <!-- Recent Concepts -->
       <div v-if="recentConcepts.length > 0 && !searchTerm" class="recent-concepts-section q-mb-md">
         <div class="text-subtitle2 text-grey-7 q-mb-sm">
           <q-icon name="history" class="q-mr-xs" />
-          Recently Used Concepts
+          {{ $t('dataGrid.recentlyUsedConcepts') }}
         </div>
         <div class="recent-concepts-grid">
           <q-chip v-for="concept in recentConcepts" :key="concept.CONCEPT_CD" clickable @click="selectConcept(concept)" color="blue-1" text-color="primary" size="md" class="recent-concept-chip">
@@ -45,7 +45,7 @@
 
       <!-- Search Results -->
       <div v-if="showSearchResults && searchResults.length > 0" class="search-results">
-        <div class="text-caption text-grey-6 q-mb-xs">Found {{ searchResults.length }} concept{{ searchResults.length > 1 ? 's' : '' }}</div>
+        <div class="text-caption text-grey-6 q-mb-xs">{{ $t('dataGrid.conceptsFound', { count: searchResults.length }) }}</div>
         <div class="concept-list">
           <q-card v-for="concept in searchResults" :key="concept.CONCEPT_CD" flat bordered class="concept-item cursor-pointer" @click="selectConcept(concept)">
             <q-card-section class="q-pa-sm">
@@ -53,7 +53,7 @@
                 <div class="concept-name-container">
                   <div class="concept-name">{{ concept.NAME_CHAR }}</div>
                   <q-icon v-if="isConceptAlreadyInGrid(concept.CONCEPT_CD)" name="warning" color="amber-7" size="18px" class="existing-column-icon">
-                    <q-tooltip class="bg-amber-7 text-black">This concept is already in the grid</q-tooltip>
+                    <q-tooltip class="bg-amber-7 text-black">{{ $t('dataGrid.conceptAlreadyInGrid') }}</q-tooltip>
                   </q-icon>
                 </div>
                 <q-chip size="xs" :color="getValueTypeColor(concept.VALTYPE_CD)" text-color="white" class="value-type-chip">
@@ -72,7 +72,7 @@
       <!-- No Results Message -->
       <div v-else-if="showSearchResults && searchTerm.length >= 2 && !searching && searchAttempted" class="no-results">
         <q-icon name="search_off" color="grey-5" size="24px" />
-        <div class="text-caption text-grey-6">No concepts found matching your search.</div>
+        <div class="text-caption text-grey-6">{{ $t('dataGrid.noConceptsFound') }}</div>
       </div>
     </div>
 
@@ -97,10 +97,10 @@
     </div>
 
     <template #actions>
-      <q-btn color="primary" label="Add Column" @click="addConceptToGrid" :disable="!selectedConcept || isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)" :loading="adding">
-        <q-tooltip v-if="!selectedConcept">Please select a concept first</q-tooltip>
-        <q-tooltip v-else-if="isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)"> This concept is already in the grid </q-tooltip>
-        <q-tooltip v-else>Add this concept as a column</q-tooltip>
+      <q-btn color="primary" :label="$t('dataGrid.addColumn')" @click="addConceptToGrid" :disable="!selectedConcept || isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)" :loading="adding">
+        <q-tooltip v-if="!selectedConcept">{{ $t('dataGrid.selectConceptFirst') }}</q-tooltip>
+        <q-tooltip v-else-if="isConceptAlreadyInGrid(selectedConcept.CONCEPT_CD)">{{ $t('dataGrid.conceptAlreadyInGrid') }}</q-tooltip>
+        <q-tooltip v-else>{{ $t('dataGrid.addConceptAsColumn') }}</q-tooltip>
       </q-btn>
     </template>
   </AppDialog>
@@ -109,6 +109,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -128,6 +129,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'concept-added'])
 
 const $q = useQuasar()
+const { t } = useI18n()
 const conceptStore = useConceptResolutionStore()
 const dataGridStore = useDataGridStore()
 const loggingStore = useLoggingStore()
@@ -361,17 +363,22 @@ const addConceptToGrid = async () => {
     if (result.alreadyExists) {
       $q.notify({
         type: 'warning',
-        message: 'This concept is already in the grid',
+        message: t('dataGrid.conceptAlreadyInGrid'),
         position: 'top',
       })
       return
     }
 
+    // Save values before reset
+    const conceptCode = selectedConcept.value.CONCEPT_CD
+    const conceptName = selectedConcept.value.NAME_CHAR
+    const valueType = selectedConcept.value.VALTYPE_CD || 'T'
+
     // Emit the added concept
     const addedConcept = {
-      code: selectedConcept.value.CONCEPT_CD,
-      name: selectedConcept.value.NAME_CHAR,
-      valueType: selectedConcept.value.VALTYPE_CD || 'T',
+      code: conceptCode,
+      name: conceptName,
+      valueType: valueType,
     }
 
     emit('concept-added', addedConcept)
@@ -381,8 +388,8 @@ const addConceptToGrid = async () => {
     showDialog.value = false
 
     logger.success('Concept added to grid successfully', {
-      conceptCode: selectedConcept.value.CONCEPT_CD,
-      conceptName: selectedConcept.value.NAME_CHAR,
+      conceptCode: conceptCode,
+      conceptName: conceptName,
     })
   } catch (error) {
     logger.error('Failed to add concept to grid', error)

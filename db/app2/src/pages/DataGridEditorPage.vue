@@ -34,7 +34,6 @@ const dataGridStore = useDataGridStore()
 // Computed properties (using store functions)
 const selectedPatientIds = computed(() => {
   const ids = localSettings.getDataGridSelectedPatients()
-  console.log('Retrieved patient IDs from localStorage:', ids)
   // Ensure they are clean strings
   return ids.map((id) => String(id))
 })
@@ -43,23 +42,20 @@ const hasPatientSelection = computed(() => {
   return localSettings.hasDataGridSelectedPatients()
 })
 
-// Note: GridFooter now uses store directly, so these computed properties are no longer needed here
-
 // Methods
 const goToSelection = () => {
   router.push('/data-grid')
 }
 
 // Lifecycle
-onMounted(() => {
-  // Initialize stores
-  localSettings.initialize()
-  dataGridStore.initialize()
-
-  // If no patients selected, redirect to selection page
-  if (!hasPatientSelection.value) {
-    // Don't redirect immediately, let the user see the message
-    // They can click the button to go back
+onMounted(async () => {
+  try {
+    // Initialize stores
+    await localSettings.initialize()
+    await dataGridStore.initialize()
+  } catch (error) {
+    console.error('Failed to initialize stores', error)
+    // Show error but let component render (will show no selection state)
   }
 })
 </script>
