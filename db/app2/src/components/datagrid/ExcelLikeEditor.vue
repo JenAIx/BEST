@@ -92,11 +92,12 @@
           <tbody>
             <tr v-for="row in tableRows" :key="`${row.patientId}-${row.encounterNum}`" class="data-row" :class="{ 'has-changes': hasRowChanges(row) }">
               <!-- Fixed columns -->
-              <td class="fixed-col patient-col">
+              <td class="fixed-col patient-col" :class="{ 'subsequent-visit': !isFirstVisitForPatient(row) }">
                 <div class="patient-info">
-                  <q-avatar size="24px" color="primary" text-color="white" class="q-mr-xs">
+                  <q-avatar v-if="isFirstVisitForPatient(row)" size="24px" color="primary" text-color="white" class="q-mr-xs">
                     {{ getPatientInitials(row.patientName) }}
                   </q-avatar>
+                  <div v-else class="avatar-placeholder"></div>
                   <div>
                     <div class="patient-name">{{ row.patientName }}</div>
                     <div class="patient-id">{{ row.patientId }}</div>
@@ -505,6 +506,17 @@ const getCellValue = dataGridStore?.getCellValue || (() => '')
 const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
 const getCellClass = dataGridStore?.getCellClass || (() => '')
 const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
+
+// Check if this is the first visit row for a patient
+const isFirstVisitForPatient = (row) => {
+  const rows = tableRows.value || []
+  const patientRows = rows.filter(r => r.patientId === row.patientId)
+  if (patientRows.length === 0) return true
+  
+  // Sort by encounter number to find the first visit
+  const sortedRows = [...patientRows].sort((a, b) => a.encounterNum - b.encounterNum)
+  return sortedRows[0].encounterNum === row.encounterNum
+}
 
 // Helper function to get observation count for a visit
 const getObservationCount = async (encounterNum) => {
@@ -1488,6 +1500,24 @@ onMounted(async () => {
   .patient-id {
     font-size: 0.75rem;
     color: $grey-6;
+  }
+
+  .avatar-placeholder {
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+}
+
+// Style for subsequent visits (not the first visit for a patient)
+.patient-col.subsequent-visit {
+  opacity: 0.5;
+
+  .patient-info {
+    .patient-name,
+    .patient-id {
+      opacity: 0.5;
+    }
   }
 }
 
