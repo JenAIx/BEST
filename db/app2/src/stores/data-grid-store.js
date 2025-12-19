@@ -178,16 +178,65 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
       // Process the data for grid display
       const processed = dbStore.processObservationDataForGrid(observations, patients)
-      observationConcepts.value = processed.observationConcepts
-      tableRows.value = processed.tableRows
+      
+      // Merge with existing concepts to preserve manually added concepts
+      const existingConcepts = Array.isArray(observationConcepts.value) ? [...observationConcepts.value] : []
+      const newConceptsFromData = processed.observationConcepts || []
+      
+      // Create a map of existing concepts by code
+      const existingConceptMap = new Map(existingConcepts.map(c => [c.code, c]))
+      
+      // Add new concepts from data (they will overwrite existing ones if they have the same code)
+      newConceptsFromData.forEach(concept => {
+        existingConceptMap.set(concept.code, concept)
+      })
+      
+      // Convert back to array
+      observationConcepts.value = Array.from(existingConceptMap.values())
+      
+      // Update table rows, but preserve observations for manually added concepts
+      const updatedRows = processed.tableRows || []
+      
+      // For each existing row, merge observations from processed data with existing observations
+      // This ensures manually added concepts (with empty observations) are preserved
+      if (tableRows.value && tableRows.value.length > 0) {
+        updatedRows.forEach((newRow) => {
+          const existingRow = tableRows.value.find(r => 
+            r.patientId === newRow.patientId && r.encounterNum === newRow.encounterNum
+          )
+          if (existingRow && existingRow.observations) {
+            // Merge existing observations with new ones
+            newRow.observations = {
+              ...existingRow.observations,
+              ...newRow.observations
+            }
+          }
+        })
+      }
+      
+      tableRows.value = updatedRows
+
+      // Initialize column visibility for any new concepts that were merged
+      if (!columnVisibility.value) {
+        columnVisibility.value = new Map()
+      }
+      observationConcepts.value.forEach((concept) => {
+        if (concept && concept.code && !columnVisibility.value.has(concept.code)) {
+          columnVisibility.value.set(concept.code, true) // Default to visible for new concepts
+        }
+      })
+      
+      // Save visibility to local settings
+      const visibilityObject = Object.fromEntries(columnVisibility.value)
+      localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
 
       lastUpdateTime.value = new Date().toLocaleTimeString()
 
       logger.success('Grid data loaded successfully', {
         patients: patients.length,
         observations: observations.length,
-        concepts: processed.observationConcepts.length,
-        rows: processed.tableRows.length,
+        concepts: observationConcepts.value.length,
+        rows: updatedRows.length,
       })
     } catch (error) {
       logger.error('Failed to load grid data', error)
@@ -549,6 +598,16 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       }))
 
       tableRows.value = [...updatedRows]
+
+      // Initialize column visibility for the new concept
+      if (!columnVisibility.value) {
+        columnVisibility.value = new Map()
+      }
+      columnVisibility.value.set(concept.CONCEPT_CD, true) // Make new column visible by default
+      
+      // Save visibility to local settings
+      const visibilityObject = Object.fromEntries(columnVisibility.value)
+      localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
 
       logger.info('Concept added to grid via store method', {
         conceptCode: concept.CONCEPT_CD,

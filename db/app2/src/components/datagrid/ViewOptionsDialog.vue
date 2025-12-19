@@ -91,14 +91,6 @@
           </template>
         </draggable>
 
-        <!-- Add New Observation Button -->
-        <div v-if="localColumns.length > 0" class="q-pa-md text-center">
-          <div class="row justify-center">
-            <q-btn flat icon="add" :label="$t('dataGrid.addObservation')" color="primary" @click="showAddObservationDialog = true" class="add-observation-btn">
-              <q-tooltip>{{ $t('dataGrid.addObservationColumnTooltip') }}</q-tooltip>
-            </q-btn>
-          </div>
-        </div>
       </div>
 
       <!-- Footer -->
@@ -107,18 +99,12 @@
       </div>
     </div>
   </AppDialog>
-
-  <!-- Add Observation Dialog -->
-  <AddObservationDialog v-model="showAddObservationDialog" :existing-concepts="localColumns" @concept-added="onConceptAdded" />
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
-import { useI18n } from 'vue-i18n'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 import draggable from 'vuedraggable'
-import AddObservationDialog from 'src/components/datagrid/AddObservationDialog.vue'
 
 // Props
 const props = defineProps({
@@ -144,15 +130,10 @@ const props = defineProps({
 // Emits
 const emit = defineEmits(['update:modelValue', 'update:viewOptions', 'update:columnVisibility', 'update:columnOrder'])
 
-// Composables
-const $q = useQuasar()
-const { t } = useI18n()
-
 // Local state
 const localOptions = ref({ ...props.viewOptions })
 const localColumns = ref([])
 const dialogVisible = ref(false)
-const showAddObservationDialog = ref(false)
 
 // Computed
 const totalColumns = computed(() => localColumns.value.length)
@@ -271,25 +252,6 @@ const emitColumnOrder = () => {
   emit('update:columnOrder', columnOrder)
 }
 
-const onConceptAdded = (concept) => {
-  // The concept has already been added to the grid by the dialog
-  // We just need to update our local columns list to reflect the change
-  const newColumn = {
-    code: concept.code,
-    name: concept.name,
-    valueType: concept.valueType,
-    visible: true,
-    observationCount: 0,
-  }
-
-  localColumns.value.push(newColumn)
-
-  $q.notify({
-    type: 'positive',
-    message: t('dataGrid.columnAddedSuccessfully', { name: concept.name }),
-    position: 'top',
-  })
-}
 
 // Watchers
 // Removed the watcher that emits full visibility object - individual column changes
@@ -609,16 +571,4 @@ body.dragging-column .column-item:not(.sortable-chosen) .drag-handle {
   margin-bottom: 16px;
 }
 
-.add-observation-btn {
-  border: 2px dashed #1976d2;
-  border-radius: 8px;
-  padding: 8px 16px;
-  transition: all 0.2s ease;
-
-  &:hover {
-    border-color: #1565c0;
-    background: rgba(25, 118, 210, 0.05);
-    transform: translateY(-1px);
-  }
-}
 </style>

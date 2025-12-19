@@ -2,9 +2,58 @@
   <div class="excel-editor">
     <!-- Header Controls -->
     <div class="editor-header q-pa-md bg-white shadow-1">
-      <div class="row items-center justify-start q-gutter-sm">
-        <q-btn flat icon="refresh" :label="$t('common.refresh')" @click="refreshData" :loading="loading" />
-        <q-btn flat icon="settings" :label="$t('dataGrid.viewOptions')" @click="showViewOptions = true" />
+      <div class="row items-center justify-between q-gutter-sm">
+        <!-- Left side: Main actions -->
+        <div class="row items-center q-gutter-sm">
+          <q-btn flat icon="refresh" :label="$t('common.refresh')" @click="refreshData" :loading="loading" />
+          <q-btn flat icon="settings" :label="$t('dataGrid.viewOptions')" @click="showViewOptions = true" />
+          <q-btn flat icon="add" :label="$t('common.add')" color="dark">
+            <q-menu anchor="bottom left" self="top left">
+              <q-list style="min-width: 200px">
+                <q-item clickable v-close-popup @click="openAddObservationDialog">
+                  <q-item-section avatar>
+                    <q-icon name="table_chart" color="primary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ $t('dataGrid.addObservationColumn') }}</q-item-label>
+                    <q-item-label caption>{{ $t('dataGrid.addObservationColumnHint') }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="openAddVisitDialog">
+                  <q-item-section avatar>
+                    <q-icon name="event" color="secondary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ $t('dataGrid.addVisit') }}</q-item-label>
+                    <q-item-label caption>{{ $t('dataGrid.addVisitHint') }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+                <q-item clickable v-close-popup @click="openAddPatientDialog">
+                  <q-item-section avatar>
+                    <q-icon name="person_add" color="positive" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ $t('dataGrid.addPatient') }}</q-item-label>
+                    <q-item-label caption>{{ $t('dataGrid.addPatientHint') }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
+        </div>
+        
+        <!-- Right side: Zoom controls -->
+        <div class="row items-center q-gutter-xs zoom-controls">
+          <q-btn flat dense icon="zoom_in" size="sm" color="primary" @click="zoomIn" :disable="zoomLevel >= maxZoom">
+            <q-tooltip>{{ $t('dataGrid.zoomIn') }}</q-tooltip>
+          </q-btn>
+          <q-btn flat dense icon="zoom_out" size="sm" color="primary" @click="zoomOut" :disable="zoomLevel <= minZoom">
+            <q-tooltip>{{ $t('dataGrid.zoomOut') }}</q-tooltip>
+          </q-btn>
+          <q-btn flat dense icon="restart_alt" size="sm" color="grey-7" @click="resetZoom" :disable="zoomLevel === defaultZoom">
+            <q-tooltip>{{ $t('dataGrid.resetZoom') }}</q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </div>
 
@@ -17,7 +66,8 @@
     <!-- Excel-like Table -->
     <div v-else class="excel-table-container">
       <q-scroll-area class="excel-scroll-area" :thumb-style="thumbStyle" :bar-style="barStyle">
-        <table class="excel-table">
+        <div class="excel-table-wrapper" :style="zoomWrapperStyle">
+          <table class="excel-table" :style="tableZoomStyle">
           <!-- Header Row -->
           <thead>
             <tr class="header-row">
@@ -107,6 +157,7 @@
             </tr>
           </tbody>
         </table>
+        </div>
       </q-scroll-area>
     </div>
 
@@ -147,6 +198,120 @@
       @questionnaire-completed="handleQuestionnaireCompleted"
       @close="handleQuestionnaireClosed"
     />
+
+    <!-- Add Observation Dialog -->
+    <AddObservationDialog
+      v-model="showAddObservationDialog"
+      :existing-concepts="observationConcepts"
+      @concept-added="handleConceptAdded"
+    />
+
+    <!-- Add Visit Dialog -->
+    <q-dialog v-model="showAddVisitDialog" persistent>
+      <q-card style="min-width: 400px">
+        <q-card-section>
+          <div class="text-h6">{{ $t('dataGrid.selectPatientForVisit') }}</div>
+        </q-card-section>
+        <q-card-section>
+          <q-input
+            v-model="patientSearchTerm"
+            :label="$t('patient.patientSearch')"
+            outlined
+            dense
+            @update:model-value="searchPatients"
+          >
+            <template v-slot:prepend>
+              <q-icon name="search" />
+            </template>
+          </q-input>
+          <q-list v-if="patientSearchResults.length > 0" class="q-mt-md">
+            <q-item
+              v-for="patient in patientSearchResults"
+              :key="patient.PATIENT_CD"
+              clickable
+              @click="selectPatientForVisit(patient)"
+            >
+              <q-item-section avatar>
+                <q-avatar color="primary" text-color="white">
+                  {{ getPatientInitials(patient.NAME_CHAR || patient.PATIENT_CD) }}
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ patient.NAME_CHAR || patient.PATIENT_CD }}</q-item-label>
+                <q-item-label caption>{{ patient.PATIENT_CD }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else-if="patientSearchTerm && !searchingPatients" class="text-center text-grey-6 q-mt-md">
+            {{ $t('patient.noPatientsFound') }}
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat :label="$t('common.cancel')" @click="showAddVisitDialog = false" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- New Visit Dialog (shown after patient selection) -->
+    <NewVisitDialog
+      v-if="selectedPatientForVisit"
+      v-model="showNewVisitDialog"
+      :patient="selectedPatientForVisit"
+      @created="handleVisitCreated"
+    />
+
+    <!-- Add Patient Dialog -->
+    <q-dialog v-model="showAddPatientDialog" persistent>
+      <q-card style="min-width: 500px">
+        <q-card-section>
+          <div class="text-h6">{{ $t('dataGrid.addPatientToGrid') }}</div>
+        </q-card-section>
+        <q-card-section>
+          <q-input
+            v-model="patientSearchTermForAdd"
+            :label="$t('patient.patientSearch')"
+            outlined
+            dense
+            @update:model-value="searchPatientsForAdd"
+          >
+            <template v-slot:prepend>
+              <q-icon name="search" />
+            </template>
+          </q-input>
+          <q-list v-if="patientSearchResultsForAdd.length > 0" class="q-mt-md">
+            <q-item
+              v-for="patient in patientSearchResultsForAdd"
+              :key="patient.PATIENT_CD"
+              clickable
+              @click="addPatientToGrid(patient)"
+            >
+              <q-item-section avatar>
+                <q-avatar color="primary" text-color="white">
+                  {{ getPatientInitials(patient.NAME_CHAR || patient.PATIENT_CD) }}
+                </q-avatar>
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ patient.NAME_CHAR || patient.PATIENT_CD }}</q-item-label>
+                <q-item-label caption>{{ patient.PATIENT_CD }}</q-item-label>
+              </q-item-section>
+              <q-item-section side>
+                <q-icon
+                  v-if="props.patientIds.includes(patient.PATIENT_CD)"
+                  name="check_circle"
+                  color="positive"
+                />
+              </q-item-section>
+            </q-item>
+          </q-list>
+          <div v-else-if="patientSearchTermForAdd && !searchingPatientsForAdd" class="text-center text-grey-6 q-mt-md">
+            {{ $t('patient.noPatientsFound') }}
+          </div>
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat :label="$t('common.cancel')" @click="showAddPatientDialog = false" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -156,13 +321,17 @@ import { useQuasar } from 'quasar'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
+import AddObservationDialog from './AddObservationDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
+import NewVisitDialog from 'src/components/visits/NewVisitDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
+import { useI18n } from 'vue-i18n'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -176,6 +345,7 @@ const props = defineProps({
 // No longer need to emit events - store handles reactivity
 
 const $q = useQuasar()
+const { t } = useI18n()
 const dataGridStore = useDataGridStore()
 const conceptStore = useConceptResolutionStore()
 const databaseStore = useDatabaseStore()
@@ -187,11 +357,31 @@ const showViewOptions = ref(false)
 const showVisitEditDialog = ref(false)
 const selectedVisitData = ref(null)
 
+// Zoom state
+const defaultZoom = 1.0
+const minZoom = 0.5
+const maxZoom = 2.0
+const zoomStep = 0.1
+const zoomLevel = ref(defaultZoom)
+
 // Questionnaire dialogs state
 const showQuestionnairePreview = ref(false)
 const selectedQuestionnaireData = ref(null)
 const showQuestionnaireFillDialog = ref(false)
 const selectedQuestionnaireFillData = ref(null)
+
+// Add menu and dialogs state
+const showAddObservationDialog = ref(false)
+const showAddVisitDialog = ref(false)
+const showAddPatientDialog = ref(false)
+const showNewVisitDialog = ref(false)
+const selectedPatientForVisit = ref(null)
+const patientSearchTerm = ref('')
+const patientSearchResults = ref([])
+const searchingPatients = ref(false)
+const patientSearchTermForAdd = ref('')
+const patientSearchResultsForAdd = ref([])
+const searchingPatientsForAdd = ref(false)
 
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
@@ -234,6 +424,44 @@ const loadPatientData = async () => {
     }
   }
 }
+
+// Zoom functions
+const zoomIn = () => {
+  if (zoomLevel.value < maxZoom) {
+    zoomLevel.value = Math.min(zoomLevel.value + zoomStep, maxZoom)
+    logger.debug('Zoom in', { zoomLevel: zoomLevel.value })
+  }
+}
+
+const zoomOut = () => {
+  if (zoomLevel.value > minZoom) {
+    zoomLevel.value = Math.max(zoomLevel.value - zoomStep, minZoom)
+    logger.debug('Zoom out', { zoomLevel: zoomLevel.value })
+  }
+}
+
+const resetZoom = () => {
+  zoomLevel.value = defaultZoom
+  logger.debug('Zoom reset', { zoomLevel: zoomLevel.value })
+}
+
+// Computed styles for zoom
+const zoomWrapperStyle = computed(() => {
+  return {
+    transform: `scale(${zoomLevel.value})`,
+    transformOrigin: 'top left',
+    transition: 'transform 0.2s ease',
+  }
+})
+
+const tableZoomStyle = computed(() => {
+  // Adjust table width to compensate for scale transform
+  const scale = zoomLevel.value
+  return {
+    width: `${100 / scale}%`,
+    minWidth: `${100 / scale}%`,
+  }
+})
 
 // Helper methods (using store functions) - with defensive checks
 const getPatientInitials = dataGridStore?.getPatientInitials || (() => 'U')
@@ -761,6 +989,150 @@ const openQuestionnairePreview = async (row, concept) => {
   }
 }
 
+// Add menu functions
+const openAddObservationDialog = () => {
+  showAddObservationDialog.value = true
+}
+
+const openAddVisitDialog = () => {
+  showAddVisitDialog.value = true
+  patientSearchTerm.value = ''
+  patientSearchResults.value = []
+}
+
+const openAddPatientDialog = () => {
+  showAddPatientDialog.value = true
+  patientSearchTermForAdd.value = ''
+  patientSearchResultsForAdd.value = []
+}
+
+// Patient search functions for visit dialog
+const searchPatients = async () => {
+  if (!patientSearchTerm.value || patientSearchTerm.value.length < 2) {
+    patientSearchResults.value = []
+    return
+  }
+
+  try {
+    searchingPatients.value = true
+    const patientRepo = databaseStore.getRepository('patient')
+    const result = await patientRepo.getPatientsPaginated(1, 10, {
+      searchTerm: patientSearchTerm.value.trim(),
+    })
+    patientSearchResults.value = result.patients || []
+  } catch (error) {
+    logger.error('Failed to search patients', error)
+    patientSearchResults.value = []
+  } finally {
+    searchingPatients.value = false
+  }
+}
+
+// Patient search functions for add patient dialog
+const searchPatientsForAdd = async () => {
+  if (!patientSearchTermForAdd.value || patientSearchTermForAdd.value.length < 2) {
+    patientSearchResultsForAdd.value = []
+    return
+  }
+
+  try {
+    searchingPatientsForAdd.value = true
+    const patientRepo = databaseStore.getRepository('patient')
+    const result = await patientRepo.getPatientsPaginated(1, 20, {
+      searchTerm: patientSearchTermForAdd.value.trim(),
+    })
+    patientSearchResultsForAdd.value = result.patients || []
+  } catch (error) {
+    logger.error('Failed to search patients', error)
+    patientSearchResultsForAdd.value = []
+  } finally {
+    searchingPatientsForAdd.value = false
+  }
+}
+
+// Select patient for visit creation
+const selectPatientForVisit = (patient) => {
+  selectedPatientForVisit.value = {
+    id: patient.PATIENT_CD,
+    name: patient.NAME_CHAR || patient.PATIENT_CD,
+    patientNum: patient.PATIENT_NUM,
+  }
+  showAddVisitDialog.value = false
+  showNewVisitDialog.value = true
+}
+
+// Handle visit created
+const handleVisitCreated = async (newVisit) => {
+  logger.info('Visit created successfully', { visit: newVisit })
+  selectedPatientForVisit.value = null
+  showNewVisitDialog.value = false
+  
+  // Refresh grid data to show new visit
+  await refreshData()
+  
+  $q.notify({
+    type: 'positive',
+    message: t('messages.updateSuccess'),
+    position: 'top',
+  })
+}
+
+// Add patient to grid
+const addPatientToGrid = async (patient) => {
+  try {
+    const patientId = patient.PATIENT_CD
+    
+    // Check if patient is already in grid
+    if (props.patientIds.includes(patientId)) {
+      $q.notify({
+        type: 'info',
+        message: t('dataGrid.patientAlreadyInGrid', { name: patient.NAME_CHAR || patientId }),
+        position: 'top',
+      })
+      return
+    }
+
+    // Add patient to local settings
+    const localSettings = useLocalSettingsStore()
+    const currentPatients = localSettings.getDataGridSelectedPatients()
+    const updatedPatients = [...currentPatients, patientId]
+    localSettings.setDataGridSelectedPatients(updatedPatients)
+
+    showAddPatientDialog.value = false
+    
+    // Refresh grid data
+    await refreshData()
+    
+    $q.notify({
+      type: 'positive',
+      message: t('dataGrid.patientAddedToGrid', { name: patient.NAME_CHAR || patientId }),
+      position: 'top',
+    })
+  } catch (error) {
+    logger.error('Failed to add patient to grid', error)
+    $q.notify({
+      type: 'negative',
+      message: t('dataGrid.failedToAddPatient'),
+      position: 'top',
+    })
+  }
+}
+
+// Handle concept added
+const handleConceptAdded = (concept) => {
+  logger.info('Concept added to grid', { concept })
+  showAddObservationDialog.value = false
+  
+  // Refresh grid data to show new column
+  refreshData()
+  
+  $q.notify({
+    type: 'positive',
+    message: t('dataGrid.columnAddedSuccessfully', { name: concept.name || concept.code }),
+    position: 'top',
+  })
+}
+
 // Watch for view options changes (store handles persistence)
 watch(
   () => dataGridStore.viewOptions,
@@ -796,6 +1168,21 @@ onMounted(async () => {
 .editor-header {
   flex-shrink: 0;
   border-bottom: 1px solid $grey-4;
+
+  .zoom-controls {
+    background: rgba($primary, 0.05);
+    border-radius: 6px;
+    padding: 4px;
+    border: 1px solid rgba($primary, 0.1);
+
+    .q-btn {
+      margin: 0 2px;
+      
+      &:hover {
+        background: rgba($primary, 0.1);
+      }
+    }
+  }
 }
 
 .excel-table-container {
@@ -806,6 +1193,17 @@ onMounted(async () => {
 
 .excel-scroll-area {
   height: 100%;
+  overflow: auto;
+}
+
+.excel-table-wrapper {
+  display: inline-block;
+  will-change: transform;
+  
+  // Ensure proper scaling and maintain table structure
+  .excel-table {
+    transform-origin: top left;
+  }
 }
 
 .excel-table {

@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- [2025-01-XX] Added zoom functionality to Data Grid Editor
+  - Added Zoom In, Zoom Out, and Reset Zoom buttons in editor header
+  - Zoom range from 0.5x to 2.0x with 0.1x step increments
+  - Smooth CSS transform scaling with automatic table width adjustment
+  - Buttons grouped with subtle color styling (light blue background) positioned on right side of header
+  - Zoom controls disabled at min/max limits and when at default zoom level
+  - Added I18n translations for zoom controls (German and English)
+
+- [2025-01-XX] Comprehensive localization for Data Grid Editor
+  - Localized Refresh and View Options buttons in editor header
+  - Fully localized Column Management dialog (title, subtitle, all buttons, tooltips, empty states, footer)
+  - Localized GridLayout header (editor title, patient/observation counts, navigation hints, back button tooltip)
+  - Localized GridFooter status section (saved/unsaved changes, update time)
+  - Localized GridFooter statistics labels (cols, visible, hidden, filled, cells)
+  - All translations added for German and English
+  - Removed CSS text-transform lowercase rule to properly display capitalized labels
+
 - [2025-01-XX] Enhanced Visit Summary dialog with questionnaires section
   - Added dedicated "Questionnaires & Surveys" section at bottom of visit summary
   - Displays all questionnaires (valueType='Q') with full response details using `CompletedQuestionnaireView` component
