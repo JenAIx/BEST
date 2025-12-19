@@ -144,7 +144,6 @@ const statistics = computed(() => dataGridStore?.statistics || null)
 
     .stat-label {
       color: #7f8c8d;
-      text-transform: lowercase;
       font-weight: 500;
     }
   }
