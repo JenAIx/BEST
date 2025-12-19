@@ -191,6 +191,7 @@
     "patientId": "Patienten-ID",
     "patientSearch": "Patientensuche",
     "searchPlaceholder": "Nach Patienten-ID, Name oder Geburtsdatum suchen...",
+    "searchFailed": "Patientensuche fehlgeschlagen",
     "demographics": "Demografische Daten",
     "visits": "Besuche",
     "observations": "Beobachtungen",

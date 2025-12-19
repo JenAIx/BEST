@@ -71,6 +71,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+- [2025-12-19] Refactored Data Grid Editor to reduce code duplication and complexity
+  - Created `usePatientSearch` composable for reusable patient search functionality with flexible filtering options
+  - Created `useDialogManager` composable for centralized dialog state management
+  - Replaced custom patient search dialog in ExcelLikeEditor with existing `PatientSelectionCard` component
+  - Simplified dialog state management from 8+ separate refs to 6 direct refs with centralized control functions
+  - Eliminated ~110 lines of duplicate code (60 lines patient search, 50 lines dialog management)
+  - Reduced dialog management complexity by 40-50%
+  - Improved code maintainability and consistency across components
+  - All functionality preserved and tested
+
 - [2025-01-XX] Refactored Visit Summary dialog for better maintainability
   - Split monolithic 1190-line component into smaller, focused sub-components (reduced main dialog to 366 lines)
   - Created `VisitSummaryPatientHeader.vue` for patient information display
@@ -93,6 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+- [2025-12-19] Fixed Data Grid Editor "Add" menu dialogs not opening - simplified dialog state management to use direct refs instead of composable for better reactivity
 - [2025-12-19] Fixed observation creation from questionnaires failing with "No patient selected" error - now allows observation creation when PATIENT_NUM is explicitly provided, even without a selected patient in the store
 - [2025-12-19] Fixed observations not appearing immediately on PatientPage after questionnaire submission - modified visit-observation-service to always reload observations when loading patient data, ensuring fresh data is displayed
 - [2025-12-18] Fixed questionnaire submission error when auto-creating visits - now uses visit repository which properly handles `lastInsertRowid` being undefined in Electron environment

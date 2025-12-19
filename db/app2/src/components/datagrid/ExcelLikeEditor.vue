@@ -10,7 +10,7 @@
           <q-btn flat icon="add" :label="$t('common.add')" color="dark">
             <q-menu anchor="bottom left" self="top left">
               <q-list style="min-width: 200px">
-                <q-item clickable v-close-popup @click="openAddObservationDialog">
+                <q-item clickable @click="openAddObservationDialog" v-close-popup>
                   <q-item-section avatar>
                     <q-icon name="table_chart" color="primary" />
                   </q-item-section>
@@ -19,7 +19,7 @@
                     <q-item-label caption>{{ $t('dataGrid.addObservationColumnHint') }}</q-item-label>
                   </q-item-section>
                 </q-item>
-                <q-item clickable v-close-popup @click="openAddVisitDialog">
+                <q-item clickable @click="openAddVisitDialog" v-close-popup>
                   <q-item-section avatar>
                     <q-icon name="event" color="secondary" />
                   </q-item-section>
@@ -28,7 +28,7 @@
                     <q-item-label caption>{{ $t('dataGrid.addVisitHint') }}</q-item-label>
                   </q-item-section>
                 </q-item>
-                <q-item clickable v-close-popup @click="openAddPatientDialog">
+                <q-item clickable @click="openAddPatientDialog" v-close-popup>
                   <q-item-section avatar>
                     <q-icon name="person_add" color="positive" />
                   </q-item-section>
@@ -245,7 +245,7 @@
           </div>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat :label="$t('common.cancel')" @click="showAddVisitDialog = false" />
+          <q-btn flat :label="$t('common.cancel')" @click="closeDialog('addVisit')" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -256,7 +256,7 @@
         <q-card-section class="row items-center q-pb-none">
           <div class="text-h6">{{ $t('visit.newVisit') }}</div>
           <q-space />
-          <q-btn icon="close" flat round dense @click="showNewVisitDialog = false" />
+          <q-btn icon="close" flat round dense @click="closeDialog('newVisit')" />
         </q-card-section>
         <q-card-section>
           <div class="patient-info q-mb-md">
@@ -281,7 +281,7 @@
           </q-input>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat :label="$t('common.cancel')" @click="showNewVisitDialog = false" />
+          <q-btn flat :label="$t('common.cancel')" @click="closeDialog('newVisit')" />
           <q-btn color="primary" :label="$t('visit.createVisit')" @click="createSimpleVisit" :loading="creatingVisit" :disable="!newVisitDate" />
         </q-card-actions>
       </q-card>
@@ -292,50 +292,18 @@
       <q-card style="min-width: 500px">
         <q-card-section>
           <div class="text-h6">{{ $t('dataGrid.addPatientToGrid') }}</div>
+          <div class="text-caption text-grey-6 q-mt-xs">{{ $t('dataGrid.addPatientHint') }}</div>
         </q-card-section>
-        <q-card-section>
-          <q-input
-            v-model="patientSearchTermForAdd"
-            :label="$t('patient.patientSearch')"
-            outlined
-            dense
-            @update:model-value="searchPatientsForAdd"
-          >
-            <template v-slot:prepend>
-              <q-icon name="search" />
-            </template>
-          </q-input>
-          <q-list v-if="patientSearchResultsForAdd.length > 0" class="q-mt-md">
-            <q-item
-              v-for="patient in patientSearchResultsForAdd"
-              :key="patient.PATIENT_CD"
-              clickable
-              @click="addPatientToGrid(patient)"
-            >
-              <q-item-section avatar>
-                <q-avatar color="primary" text-color="white">
-                  {{ getPatientInitials(patient.NAME_CHAR || patient.PATIENT_CD) }}
-                </q-avatar>
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ patient.NAME_CHAR || patient.PATIENT_CD }}</q-item-label>
-                <q-item-label caption>{{ patient.PATIENT_CD }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-icon
-                  v-if="props.patientIds.includes(patient.PATIENT_CD)"
-                  name="check_circle"
-                  color="positive"
-                />
-              </q-item-section>
-            </q-item>
-          </q-list>
-          <div v-else-if="patientSearchTermForAdd && !searchingPatientsForAdd" class="text-center text-grey-6 q-mt-md">
-            {{ $t('patient.noPatientsFound') }}
-          </div>
+        <q-card-section class="q-pa-none">
+          <PatientSelectionCard
+            title=""
+            description=""
+            :search-label="$t('patient.patientSearch')"
+            @patient-selected="handlePatientSelected"
+          />
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn flat :label="$t('common.cancel')" @click="showAddPatientDialog = false" />
+          <q-btn flat :label="$t('common.cancel')" @click="closeDialog('addPatient')" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -422,6 +390,7 @@ import AddObservationDialog from './AddObservationDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
+import PatientSelectionCard from 'src/components/shared/PatientSelectionCard.vue'
 import { useI18n } from 'vue-i18n'
 import { useVisitStore } from 'src/stores/visit-store'
 
@@ -459,22 +428,71 @@ const zoomStep = 0.1
 const zoomLevel = ref(defaultZoom)
 
 // Questionnaire dialogs state
-const showQuestionnairePreview = ref(false)
 const selectedQuestionnaireData = ref(null)
-const showQuestionnaireFillDialog = ref(false)
 const selectedQuestionnaireFillData = ref(null)
 
-// Add menu and dialogs state
+// Dialog state management - using direct refs for better reactivity
 const showAddObservationDialog = ref(false)
 const showAddVisitDialog = ref(false)
 const showAddPatientDialog = ref(false)
 const showNewVisitDialog = ref(false)
+const showQuestionnairePreview = ref(false)
+const showQuestionnaireFillDialog = ref(false)
+
+// Dialog control functions
+const openDialog = (name) => {
+  switch (name) {
+    case 'addObservation':
+      showAddObservationDialog.value = true
+      break
+    case 'addVisit':
+      showAddVisitDialog.value = true
+      break
+    case 'addPatient':
+      showAddPatientDialog.value = true
+      break
+    case 'newVisit':
+      showNewVisitDialog.value = true
+      break
+    case 'questionnairePreview':
+      showQuestionnairePreview.value = true
+      break
+    case 'questionnaireFill':
+      showQuestionnaireFillDialog.value = true
+      break
+  }
+}
+
+const closeDialog = (name) => {
+  switch (name) {
+    case 'addObservation':
+      showAddObservationDialog.value = false
+      break
+    case 'addVisit':
+      showAddVisitDialog.value = false
+      break
+    case 'addPatient':
+      showAddPatientDialog.value = false
+      break
+    case 'newVisit':
+      showNewVisitDialog.value = false
+      break
+    case 'questionnairePreview':
+      showQuestionnairePreview.value = false
+      break
+    case 'questionnaireFill':
+      showQuestionnaireFillDialog.value = false
+      break
+  }
+}
+
+// Visit creation state
 const selectedPatientForVisit = ref(null)
 const newVisitDate = ref(new Date().toISOString().split('T')[0]) // Today's date
 const creatingVisit = ref(false)
-const patientSearchTermForAdd = ref('')
-const patientSearchResultsForAdd = ref([])
-const searchingPatientsForAdd = ref(false)
+
+// Patient search is now handled by PatientSelectionCard component
+// No need for usePatientSearch here since PatientSelectionCard has its own search
 
 // Manage patient dialog state
 const showManagePatientDialog = ref(false)
@@ -1047,7 +1065,7 @@ const openQuestionnaireFillDialog = async (row, concept) => {
       visitDate: row.visitDate,
     }
 
-    showQuestionnaireFillDialog.value = true
+    openDialog('questionnaireFill')
 
     logger.debug('Prepared questionnaire fill data', {
       patientId: row.patientId,
@@ -1110,7 +1128,7 @@ const openQuestionnairePreview = async (row, concept) => {
       value: cellValue,
     }
 
-    showQuestionnairePreview.value = true
+    openDialog('questionnairePreview')
 
     logger.debug('Prepared questionnaire data for preview', {
       observationId: observationId,
@@ -1134,40 +1152,18 @@ const openQuestionnairePreview = async (row, concept) => {
 
 // Add menu functions
 const openAddObservationDialog = () => {
-  showAddObservationDialog.value = true
+  openDialog('addObservation')
 }
 
 const openAddVisitDialog = () => {
-  showAddVisitDialog.value = true
+  openDialog('addVisit')
 }
 
 const openAddPatientDialog = () => {
-  showAddPatientDialog.value = true
-  patientSearchTermForAdd.value = ''
-  patientSearchResultsForAdd.value = []
+  openDialog('addPatient')
 }
 
-// Patient search functions for add patient dialog
-const searchPatientsForAdd = async () => {
-  if (!patientSearchTermForAdd.value || patientSearchTermForAdd.value.length < 2) {
-    patientSearchResultsForAdd.value = []
-    return
-  }
-
-  try {
-    searchingPatientsForAdd.value = true
-    const patientRepo = databaseStore.getRepository('patient')
-    const result = await patientRepo.getPatientsPaginated(1, 20, {
-      searchTerm: patientSearchTermForAdd.value.trim(),
-    })
-    patientSearchResultsForAdd.value = result.patients || []
-  } catch (error) {
-    logger.error('Failed to search patients', error)
-    patientSearchResultsForAdd.value = []
-  } finally {
-    searchingPatientsForAdd.value = false
-  }
-}
+// Patient search is now handled by PatientSelectionCard component
 
 // Select patient for visit creation
 const selectPatientForVisit = (patient) => {
@@ -1178,8 +1174,8 @@ const selectPatientForVisit = (patient) => {
     patientName: patient.patientName,
   }
   newVisitDate.value = new Date().toISOString().split('T')[0] // Reset to today
-  showAddVisitDialog.value = false
-  showNewVisitDialog.value = true
+  closeDialog('addVisit')
+  openDialog('newVisit')
 }
 
 // Create simple visit with just start date
@@ -1221,7 +1217,7 @@ const createSimpleVisit = async () => {
 
     // Reset and close
     selectedPatientForVisit.value = null
-    showNewVisitDialog.value = false
+    closeDialog('newVisit')
     newVisitDate.value = new Date().toISOString().split('T')[0]
     
     // Refresh grid data to show new visit
@@ -1242,6 +1238,27 @@ const createSimpleVisit = async () => {
   } finally {
     creatingVisit.value = false
   }
+}
+
+// Handle patient selection from PatientSelectionCard
+const handlePatientSelected = async (patient) => {
+  // PatientSelectionCard emits patient with PATIENT_CD or PATIENT_NUM
+  const patientId = patient.PATIENT_CD || patient.id
+  if (!patientId) {
+    logger.warn('Patient selected but no ID found', { patient })
+    return
+  }
+  
+  // Create patient object in expected format
+  const patientForAdd = {
+    PATIENT_CD: patientId,
+    PATIENT_NUM: patient.PATIENT_NUM,
+    NAME_CHAR: patient.NAME_CHAR || patient.name || patientId,
+    ...patient,
+  }
+  
+  await addPatientToGrid(patientForAdd)
+  closeDialog('addPatient')
 }
 
 // Add patient to grid
@@ -1265,7 +1282,7 @@ const addPatientToGrid = async (patient) => {
     const updatedPatients = [...currentPatients, patientId]
     localSettings.setDataGridSelectedPatients(updatedPatients)
 
-    showAddPatientDialog.value = false
+    closeDialog('addPatient')
     
     // Refresh grid data with updated patient list
     if (dataGridStore?.refreshData) {
@@ -1290,7 +1307,7 @@ const addPatientToGrid = async (patient) => {
 // Handle concept added
 const handleConceptAdded = (concept) => {
   logger.info('Concept added to grid', { concept })
-  showAddObservationDialog.value = false
+  closeDialog('addObservation')
   
   // Refresh grid data to show new column
   refreshData()
