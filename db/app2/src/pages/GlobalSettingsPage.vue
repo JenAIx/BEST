@@ -60,7 +60,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 
@@ -73,6 +74,7 @@ import JsonViewerDialog from 'src/components/globalsettings/JsonViewerDialog.vue
 import QuestionnairePreviewDialog from 'src/components/globalsettings/QuestionnairePreviewDialog.vue'
 
 const $q = useQuasar()
+const route = useRoute()
 const globalSettingsStore = useGlobalSettingsStore()
 
 // State
@@ -423,19 +425,56 @@ onMounted(async () => {
   // Initialize the store if not already done
   await globalSettingsStore.initialize()
 
-  // Default to CONCEPT_DIMENSION table
-  selectedTable.value = 'CONCEPT_DIMENSION'
-  loadingTables.value = false
+  // Check for query parameters
+  const tableParam = route.query.table
+  const columnParam = route.query.column
 
-  // Load columns for the default table
-  await loadColumnOptions()
+  if (tableParam && columnParam) {
+    // Use query parameters
+    selectedTable.value = tableParam
+    loadingTables.value = false
+    await loadColumnOptions()
+    
+    // Set column after options are loaded
+    const columnOption = columnOptions.value.find((opt) => opt.value === columnParam)
+    if (columnOption) {
+      selectedColumn.value = columnParam
+      await loadLookupValues()
+    }
+  } else {
+    // Default to CONCEPT_DIMENSION table
+    selectedTable.value = 'CONCEPT_DIMENSION'
+    loadingTables.value = false
 
-  // Then default to categories if available
-  if (columnOptions.value.length > 0) {
-    // Try to find CATEGORY_CHAR, otherwise use first option
-    const categoryOption = columnOptions.value.find((opt) => opt.value === 'CATEGORY_CHAR')
-    selectedColumn.value = categoryOption ? 'CATEGORY_CHAR' : columnOptions.value[0].value
-    await loadLookupValues()
+    // Load columns for the default table
+    await loadColumnOptions()
+
+    // Then default to categories if available
+    if (columnOptions.value.length > 0) {
+      // Try to find CATEGORY_CHAR, otherwise use first option
+      const categoryOption = columnOptions.value.find((opt) => opt.value === 'CATEGORY_CHAR')
+      selectedColumn.value = categoryOption ? 'CATEGORY_CHAR' : columnOptions.value[0].value
+      await loadLookupValues()
+    }
   }
 })
+
+// Watch for route query changes
+watch(
+  () => route.query,
+  async (newQuery) => {
+    if (newQuery.table && newQuery.column) {
+      if (selectedTable.value !== newQuery.table) {
+        selectedTable.value = newQuery.table
+        await loadColumnOptions()
+      }
+      
+      const columnOption = columnOptions.value.find((opt) => opt.value === newQuery.column)
+      if (columnOption && selectedColumn.value !== newQuery.column) {
+        selectedColumn.value = newQuery.column
+        await loadLookupValues()
+      }
+    }
+  },
+)
 </script>
