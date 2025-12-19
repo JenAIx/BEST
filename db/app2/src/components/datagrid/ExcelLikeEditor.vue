@@ -1159,8 +1159,10 @@ const addPatientToGrid = async (patient) => {
 
     showAddPatientDialog.value = false
     
-    // Refresh grid data
-    await refreshData()
+    // Refresh grid data with updated patient list
+    if (dataGridStore?.refreshData) {
+      await dataGridStore.refreshData(updatedPatients)
+    }
     
     $q.notify({
       type: 'positive',

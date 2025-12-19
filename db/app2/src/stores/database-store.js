@@ -665,6 +665,36 @@ export const useDatabaseStore = defineStore('database', () => {
       const conceptMap = new Map()
       const patientVisitMap = new Map()
 
+      // First, create rows for ALL visits from patientData (including empty visits)
+      patientData.forEach((patientInfo) => {
+        if (!patientInfo.patient) return
+
+        const patientCd = patientInfo.patient.PATIENT_CD
+        if (!patientCd) return // Skip if no patient code
+
+        const patientName = getPatientNameFromData(patientInfo.patient)
+
+        // Create a row for each visit, even if it has no observations
+        if (patientInfo.visits && Array.isArray(patientInfo.visits)) {
+          patientInfo.visits.forEach((visit) => {
+            // Skip visits without encounter number
+            if (!visit || visit.ENCOUNTER_NUM == null) return
+
+            const key = `${patientCd}-${visit.ENCOUNTER_NUM}`
+            if (!patientVisitMap.has(key)) {
+              patientVisitMap.set(key, {
+                patientId: patientCd,
+                patientName: patientName,
+                encounterNum: visit.ENCOUNTER_NUM,
+                visitDate: visit.START_DATE || null,
+                observations: {},
+              })
+            }
+          })
+        }
+      })
+
+      // Now, populate observations into the existing rows
       observations.forEach((obs) => {
         // Track concepts for columns
         if (!conceptMap.has(obs.CONCEPT_CD)) {
@@ -675,18 +705,23 @@ export const useDatabaseStore = defineStore('database', () => {
           })
         }
 
+        // Skip observations without required fields
+        if (!obs.PATIENT_CD || obs.ENCOUNTER_NUM == null) return
+
         // Group by patient and encounter
         const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
+        
+        // If row doesn't exist (shouldn't happen, but handle gracefully)
         if (!patientVisitMap.has(key)) {
           // Find patient data
           const patientInfo = patientData.find((p) => p.patient?.PATIENT_CD === obs.PATIENT_CD)
-          const visitInfo = patientInfo?.visits.find((v) => v.ENCOUNTER_NUM === obs.ENCOUNTER_NUM)
+          const visitInfo = patientInfo?.visits?.find((v) => v.ENCOUNTER_NUM === obs.ENCOUNTER_NUM)
 
           patientVisitMap.set(key, {
             patientId: obs.PATIENT_CD,
             patientName: getPatientNameFromData(patientInfo?.patient),
             encounterNum: obs.ENCOUNTER_NUM,
-            visitDate: visitInfo?.START_DATE || obs.START_DATE,
+            visitDate: visitInfo?.START_DATE || obs.START_DATE || null,
             observations: {},
           })
         }
