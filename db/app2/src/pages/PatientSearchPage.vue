@@ -105,8 +105,8 @@
       <div class="text-h6 q-mb-md">Recent Patients</div>
       <div class="row q-gutter-md justify-center">
         <div v-for="patient in recentPatients" :key="patient.PATIENT_NUM" class="col-12 col-sm-6 col-md-4 col-lg-3">
-          <q-card flat bordered class="patient-card cursor-pointer" @click="onSelectPatient(patient)" @mouseenter="hoveredPatient = patient.PATIENT_NUM" @mouseleave="hoveredPatient = null">
-            <q-card-section class="q-pa-md">
+          <q-card flat bordered class="patient-card cursor-pointer" @mouseenter="hoveredPatient = patient.PATIENT_NUM" @mouseleave="hoveredPatient = null">
+            <q-card-section class="q-pa-md" @click="onSelectPatient(patient)">
               <div class="row items-center q-gutter-md">
                 <PatientAvatar :patient="patient" size="48px" />
                 <div class="col">
@@ -114,14 +114,14 @@
                   <div class="text-caption text-grey-6">{{ patient.PATIENT_CD }}</div>
                   <div class="text-caption text-grey-6">{{ getPatientAge(patient) }} • {{ getPatientGender(patient) }}</div>
                 </div>
-                <!-- Delete Button -->
-                <div v-if="hoveredPatient === patient.PATIENT_NUM" class="patient-delete-btn">
-                  <q-btn flat round icon="delete" size="sm" color="negative" @click.stop="confirmDeletePatient(patient)">
-                    <q-tooltip>Delete Patient</q-tooltip>
-                  </q-btn>
-                </div>
               </div>
             </q-card-section>
+            <!-- Delete Button (outside card-section to prevent click interference) -->
+            <div v-if="hoveredPatient === patient.PATIENT_NUM" class="patient-delete-btn-overlay">
+              <AppRemoveConfirmationButton
+                @remove-confirmed="confirmDeletePatient(patient)"
+              />
+            </div>
             <q-tooltip class="bg-grey-9 text-white" style="max-width: 400px; white-space: pre-wrap">
               {{ formatPatientRawData(patient) }}
             </q-tooltip>
@@ -151,8 +151,8 @@
       <!-- Card View -->
       <div v-else-if="viewMode === 'cards'" class="row q-gutter-md justify-center">
         <div v-for="patient in patients" :key="patient.PATIENT_NUM" class="col-12 col-sm-6 col-md-4 col-lg-3">
-          <q-card flat bordered class="patient-card cursor-pointer" @click="onSelectPatient(patient)" @mouseenter="hoveredPatient = patient.PATIENT_NUM" @mouseleave="hoveredPatient = null">
-            <q-card-section class="q-pa-md">
+          <q-card flat bordered class="patient-card cursor-pointer" @mouseenter="hoveredPatient = patient.PATIENT_NUM" @mouseleave="hoveredPatient = null">
+            <q-card-section class="q-pa-md" @click="onSelectPatient(patient)">
               <div class="row items-start q-gutter-md">
                 <PatientAvatar :patient="patient" size="48px" />
                 <div class="col">
@@ -164,14 +164,14 @@
                     {{ patient.STATECITYZIP_PATH }}
                   </div>
                 </div>
-                <!-- Delete Button -->
-                <div v-if="hoveredPatient === patient.PATIENT_NUM" class="patient-delete-btn">
-                  <q-btn flat round icon="delete" size="sm" color="negative" @click.stop="confirmDeletePatient(patient)">
-                    <q-tooltip>Delete Patient</q-tooltip>
-                  </q-btn>
-                </div>
               </div>
             </q-card-section>
+            <!-- Delete Button (outside card-section to prevent click interference) -->
+            <div v-if="hoveredPatient === patient.PATIENT_NUM" class="patient-delete-btn-overlay">
+              <AppRemoveConfirmationButton
+                @remove-confirmed="confirmDeletePatient(patient)"
+              />
+            </div>
             <q-tooltip class="bg-grey-9 text-white" style="max-width: 400px; white-space: pre-wrap">
               {{ formatPatientRawData(patient) }}
             </q-tooltip>
@@ -251,31 +251,11 @@
     <!-- Create Patient Dialog -->
     <CreatePatientDialog v-model="showCreatePatientDialog" @patient-created="onPatientCreated" />
 
-    <!-- Delete Confirmation Dialogs -->
-    <AppDialog
-      v-model="showDeleteConfirmDialog"
-      :title="deleteDialogTitle"
-      :message="deleteDialogMessage"
-      size="md"
-      persistent
-      ok-label="Delete"
-      ok-color="negative"
-      cancel-label="Cancel"
-      @ok="onDeleteConfirmed"
+    <!-- Delete Patient Dialog -->
+    <DeletePatientDialog
+      ref="deletePatientDialog"
+      @deleted="onPatientDeleted"
       @cancel="onDeleteCancelled"
-    />
-
-    <AppDialog
-      v-model="showDeleteWarningDialog"
-      title="Patient Has Data"
-      :message="deleteWarningMessage"
-      size="md"
-      persistent
-      ok-label="Delete All"
-      ok-color="negative"
-      cancel-label="Cancel"
-      @ok="onDeleteWarningConfirmed"
-      @cancel="onDeleteWarningCancelled"
     />
   </q-page>
 </template>
@@ -289,7 +269,8 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
 import PatientAvatar from '../components/shared/PatientAvatar.vue'
 import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
-import AppDialog from '../components/shared/AppDialog.vue'
+import DeletePatientDialog from '../components/patient/DeletePatientDialog.vue'
+import AppRemoveConfirmationButton from '../components/shared/AppRemoveConfirmationButton.vue'
 
 const $q = useQuasar()
 const router = useRouter()
@@ -312,12 +293,7 @@ const hasSearched = ref(false)
 const showCreatePatientDialog = ref(false)
 
 // Delete dialog states
-const showDeleteConfirmDialog = ref(false)
-const showDeleteWarningDialog = ref(false)
-const deleteDialogTitle = ref('')
-const deleteDialogMessage = ref('')
-const deleteWarningMessage = ref('')
-const patientToDelete = ref(null)
+const deletePatientDialog = ref(null)
 
 // Hover state
 const hoveredPatient = ref(null)
@@ -864,162 +840,38 @@ const onPatientCreated = async (createdPatient) => {
 }
 
 // Patient deletion methods
+// Prevent double-call of confirmDeletePatient
+let isDeleting = false
+
 const confirmDeletePatient = (patient) => {
-  patientToDelete.value = patient
-  const patientName = getPatientName(patient)
-
-  // Set up first confirmation dialog
-  deleteDialogTitle.value = 'Delete Patient'
-  deleteDialogMessage.value = `Are you sure you want to delete patient <strong>${patientName}</strong> (${patient.PATIENT_CD})?`
-
-  // Show first confirmation dialog
-  showDeleteConfirmDialog.value = true
+  // Prevent double execution
+  if (isDeleting) return
+  
+  isDeleting = true
+  
+  if (deletePatientDialog.value) {
+    const patientName = getPatientName(patient)
+    deletePatientDialog.value.show(patient, patientName)
+  }
+  
+  // Reset flag after a short delay
+  setTimeout(() => {
+    isDeleting = false
+  }, 500)
 }
 
-// Dialog event handlers
-const onDeleteConfirmed = async () => {
-  if (!patientToDelete.value) return
+const onPatientDeleted = async () => {
+  // Refresh patient data
+  await Promise.all([loadRecentPatients(), loadTotalAvailablePatients()])
 
-  try {
-    // Check if database is available
-    if (!dbStore.canPerformOperations) {
-      throw new Error('Database not available')
-    }
-
-    // Get patient statistics to check for data
-    const visitRepo = dbStore.getRepository('visit')
-    const observationRepo = dbStore.getRepository('observation')
-
-    let hasData = false
-    let dataDescription = ''
-
-    if (visitRepo && observationRepo) {
-      const [visits, observations] = await Promise.all([visitRepo.findByPatientNum(patientToDelete.value.PATIENT_NUM), observationRepo.findByPatientNum(patientToDelete.value.PATIENT_NUM)])
-
-      const visitCount = visits?.length || 0
-      const observationCount = observations?.length || 0
-
-      if (visitCount > 0 || observationCount > 0) {
-        hasData = true
-
-        const parts = []
-        if (visitCount > 0) parts.push(`${visitCount} visit${visitCount > 1 ? 's' : ''}`)
-        if (observationCount > 0) parts.push(`${observationCount} observation${observationCount > 1 ? 's' : ''}`)
-        dataDescription = parts.join(' and ')
-      }
-    }
-
-    if (hasData) {
-      // Set up warning dialog
-      deleteWarningMessage.value = `This patient has <strong>${dataDescription}</strong>. Deleting the patient will also delete all associated data.<br><br><strong>This action cannot be undone.</strong>`
-
-      // Show warning dialog
-      showDeleteWarningDialog.value = true
-    } else {
-      // No data, proceed with deletion
-      performDeletePatient()
-    }
-  } catch (error) {
-    console.error('Error checking patient data:', error)
-    // Proceed with deletion anyway
-    performDeletePatient()
+  // If we're currently searching, refresh search results
+  if (searchQuery.value || hasActiveFilters.value) {
+    await loadPatients()
   }
 }
 
 const onDeleteCancelled = () => {
-  patientToDelete.value = null
-}
-
-const onDeleteWarningConfirmed = () => {
-  performDeletePatient()
-}
-
-const onDeleteWarningCancelled = () => {
-  patientToDelete.value = null
-}
-
-// Perform the actual patient deletion
-const performDeletePatient = async () => {
-  if (!patientToDelete.value) return
-
-  const loadingDialog = $q.dialog({
-    title: 'Deleting Patient',
-    message: 'Please wait while the patient is being deleted...',
-    progress: true,
-    persistent: true,
-    ok: false,
-    cancel: false,
-  })
-
-  try {
-    // Check if database is available
-    if (!dbStore.canPerformOperations) {
-      throw new Error('Database not available')
-    }
-
-    // Delete the patient using database store (cascade delete will handle visits/observations)
-    await dbStore.deletePatient(patientToDelete.value.PATIENT_NUM)
-
-    loadingDialog.hide()
-
-    const patientName = getPatientName(patientToDelete.value)
-
-    $q.notify({
-      type: 'positive',
-      message: `Patient ${patientName} deleted successfully`,
-      position: 'top',
-      timeout: 3000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          handler: () => {
-            /* dismiss */
-          },
-        },
-      ],
-    })
-
-    // Clean up state
-    showDeleteConfirmDialog.value = false
-    showDeleteWarningDialog.value = false
-    patientToDelete.value = null
-
-    // Small delay to ensure database operation completes
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    // Refresh patient data
-    await Promise.all([loadRecentPatients(), loadTotalAvailablePatients()])
-
-    // If we're currently searching, refresh search results
-    if (searchQuery.value || hasActiveFilters.value) {
-      await loadPatients()
-    }
-  } catch (error) {
-    loadingDialog.hide()
-    console.error('Error deleting patient:', error)
-
-    // Clean up state on error
-    showDeleteConfirmDialog.value = false
-    showDeleteWarningDialog.value = false
-    patientToDelete.value = null
-
-    $q.notify({
-      type: 'negative',
-      message: `Failed to delete patient: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          handler: () => {
-            /* dismiss */
-          },
-        },
-      ],
-    })
-  }
+  // No cleanup needed
 }
 
 // Initialize
@@ -1104,22 +956,13 @@ watch(
   }
 }
 
-.patient-delete-btn {
+.patient-delete-btn-overlay {
   position: absolute;
   top: 8px;
   right: 8px;
   animation: fadeInRight 0.3s ease;
-
-  .q-btn {
-    transition: all 0.2s ease;
-    background-color: rgba(244, 67, 54, 0.1);
-
-    &:hover {
-      transform: translateY(-1px) scale(1.1);
-      box-shadow: 0 3px 8px rgba(244, 67, 54, 0.3);
-      background-color: rgba(244, 67, 54, 0.2);
-    }
-  }
+  z-index: 10;
+  pointer-events: all;
 }
 
 @keyframes fadeInRight {

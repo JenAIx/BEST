@@ -65,51 +65,11 @@
       <q-btn color="primary" label="Back to Patient Search" @click="goToPatientSearch" class="q-mt-md" />
     </div>
 
-    <!-- Delete Confirmation Dialog -->
-    <q-dialog v-model="showDeleteDialog" persistent>
-      <q-card style="min-width: 400px">
-        <q-card-section class="row items-center">
-          <q-avatar icon="warning" color="negative" text-color="white" />
-          <span class="q-ml-sm text-h6">Confirm Patient Deletion</span>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <div class="text-body1 q-mb-md">
-            Are you sure you want to delete patient <strong>{{ getPatientName(patient) }}</strong> ({{ patient?.PATIENT_CD }})?
-          </div>
-          <div class="text-body2 text-grey-7" v-if="patientDataSummary">
-            {{ patientDataSummary }}
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="cancelDelete" :disable="deleteLoading" />
-          <q-btn unelevated label="Delete Patient" color="negative" icon="delete" @click="confirmDelete" :loading="deleteLoading" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
-
-    <!-- Delete Warning Dialog (for patients with data) -->
-    <q-dialog v-model="showDeleteWarningDialog" persistent>
-      <q-card style="min-width: 500px">
-        <q-card-section class="row items-center">
-          <q-avatar icon="error" color="negative" text-color="white" />
-          <span class="q-ml-sm text-h6">Warning: Patient Has Data</span>
-        </q-card-section>
-
-        <q-card-section class="q-pt-none">
-          <div class="text-body1 q-mb-md" v-html="deleteWarningMessage"></div>
-          <div class="text-body2 text-negative">
-            <strong>This action cannot be undone.</strong>
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat label="Cancel" color="grey-7" @click="cancelDeleteWarning" :disable="deleteLoading" />
-          <q-btn unelevated label="Delete Anyway" color="negative" icon="delete_forever" @click="performDelete" :loading="deleteLoading" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
+    <!-- Delete Patient Dialog -->
+    <DeletePatientDialog
+      ref="deletePatientDialog"
+      @deleted="onPatientDeleted"
+    />
   </q-page>
 </template>
 
@@ -126,6 +86,7 @@ import PatientDemographicsCard from '../components/patient/PatientDemographicsCa
 import PatientAdditionalInfoCard from '../components/patient/PatientAdditionalInfoCard.vue'
 import PatientStatisticsCard from '../components/patient/PatientStatisticsCard.vue'
 import PatientVisitsSummary from '../components/patient/PatientVisitsSummary.vue'
+import DeletePatientDialog from '../components/patient/DeletePatientDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -146,132 +107,27 @@ const observations = computed(() => observationStore.allObservations) // Use all
 
 // Delete functionality state
 const deleteLoading = ref(false)
-const showDeleteDialog = ref(false)
-const showDeleteWarningDialog = ref(false)
-const deleteWarningMessage = ref('')
-const patientDataSummary = ref('')
+const deletePatientDialog = ref(null)
 
 // Get patient ID from route params
 const patientId = route.params.patientId
 
 // Delete Methods
-const showDeleteConfirmation = async () => {
+const showDeleteConfirmation = () => {
   if (!patient.value) return
-
-  try {
-    // Check if patient has associated data
-    const visitCount = visits.value?.length || 0
-    const observationCount = observations.value?.length || 0
-
-    if (visitCount > 0 || observationCount > 0) {
-      const parts = []
-      if (visitCount > 0) parts.push(`${visitCount} visit${visitCount > 1 ? 's' : ''}`)
-      if (observationCount > 0) parts.push(`${observationCount} observation${observationCount > 1 ? 's' : ''}`)
-      patientDataSummary.value = `This patient has ${parts.join(' and ')}.`
-    } else {
-      patientDataSummary.value = ''
-    }
-
-    showDeleteDialog.value = true
-  } catch (error) {
-    console.error('Error checking patient data:', error)
-    showDeleteDialog.value = true
-  }
-}
-
-const cancelDelete = () => {
-  showDeleteDialog.value = false
-  patientDataSummary.value = ''
-}
-
-const confirmDelete = async () => {
-  if (!patient.value) return
-
-  try {
-    // Check if patient has data that requires additional warning
-    const visitCount = visits.value?.length || 0
-    const observationCount = observations.value?.length || 0
-
-    if (visitCount > 0 || observationCount > 0) {
-      // Show additional warning for patients with data
-      const parts = []
-      if (visitCount > 0) parts.push(`${visitCount} visit${visitCount > 1 ? 's' : ''}`)
-      if (observationCount > 0) parts.push(`${observationCount} observation${observationCount > 1 ? 's' : ''}`)
-
-      deleteWarningMessage.value = `This patient has <strong>${parts.join(' and ')}</strong>. Deleting the patient will also delete all associated data.<br><br><strong>This action cannot be undone.</strong>`
-
-      showDeleteDialog.value = false
-      showDeleteWarningDialog.value = true
-    } else {
-      // No data, proceed with deletion
-      await performDelete()
-    }
-  } catch (error) {
-    console.error('Error checking patient data:', error)
-    // Proceed with deletion anyway
-    await performDelete()
-  }
-}
-
-const cancelDeleteWarning = () => {
-  showDeleteWarningDialog.value = false
-  deleteWarningMessage.value = ''
-}
-
-const performDelete = async () => {
-  if (!patient.value) return
-
-  deleteLoading.value = true
-
-  try {
-    // Check if database is available
-    if (!dbStore.canPerformOperations) {
-      throw new Error('Database not available')
-    }
-
-    // Delete the patient using database store (cascade delete will handle visits/observations)
-    await dbStore.deletePatient(patient.value.PATIENT_NUM)
-
+  
+  if (deletePatientDialog.value) {
     const patientName = getPatientName(patient.value)
-
-    $q.notify({
-      type: 'positive',
-      message: `Patient ${patientName} deleted successfully`,
-      position: 'top',
-      timeout: 3000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          handler: () => {
-            /* dismiss */
-          },
-        },
-      ],
-    })
-
-    // Clean up dialogs
-    showDeleteDialog.value = false
-    showDeleteWarningDialog.value = false
-    deleteWarningMessage.value = ''
-    patientDataSummary.value = ''
-
-    // Small delay to ensure database operation completes
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    // Navigate back to patient search
-    router.replace('/patients')
-  } catch (error) {
-    console.error('Error deleting patient:', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to delete patient: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
-  } finally {
-    deleteLoading.value = false
+    deletePatientDialog.value.show(patient.value, patientName)
   }
+}
+
+const onPatientDeleted = async () => {
+  // Small delay to ensure database operation completes
+  await new Promise((resolve) => setTimeout(resolve, 100))
+
+  // Navigate back to patient search
+  router.replace('/patients')
 }
 
 // Methods
@@ -308,6 +164,8 @@ const loadPatient = async () => {
 
 // Helper methods for header display
 const getPatientName = (patient) => {
+  if (!patient) return 'Unknown Patient'
+  
   if (patient.PATIENT_BLOB) {
     try {
       const blob = JSON.parse(patient.PATIENT_BLOB)

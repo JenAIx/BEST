@@ -1,16 +1,16 @@
 <template>
   <div class="remove-confirmation-container">
     <!-- Single Remove Button -->
-    <q-btn v-if="!showRemoveConfirmation" flat round icon="clear" size="xs" color="grey-6" :disabled="disabled" @click="showConfirmation">
+    <q-btn v-if="!showRemoveConfirmation" flat round icon="clear" size="xs" color="grey-6" :disabled="disabled" @click.stop="showConfirmation">
       <q-tooltip>{{ $t('common.remove') }}</q-tooltip>
     </q-btn>
 
     <!-- Remove Confirmation Buttons -->
     <div v-else class="remove-confirmation-buttons">
-      <q-btn flat round icon="clear" size="xs" color="grey-6" @click="cancelRemove" class="cancel-remove-btn" :disabled="loading">
+      <q-btn flat round icon="clear" size="xs" color="grey-6" @click.stop="cancelRemove" class="cancel-remove-btn" :disabled="loading">
         <q-tooltip>{{ $t('common.cancel') }}</q-tooltip>
       </q-btn>
-      <q-btn flat round icon="check" size="xs" color="negative" @click="confirmRemove" class="confirm-remove-btn" :loading="loading" :disabled="loading">
+      <q-btn flat round icon="check" size="xs" color="negative" @click.stop="confirmRemove" class="confirm-remove-btn" :loading="loading" :disabled="loading">
         <q-tooltip>{{ $t('common.confirmRemove') }}</q-tooltip>
       </q-btn>
     </div>
@@ -55,8 +55,11 @@ const showConfirmation = () => {
 
 const confirmRemove = () => {
   clearConfirmationTimeout()
-  showRemoveConfirmation.value = false
   emit('remove-confirmed')
+  // Reset state after a small delay to allow event to propagate
+  setTimeout(() => {
+    showRemoveConfirmation.value = false
+  }, 0)
 }
 
 const cancelRemove = () => {

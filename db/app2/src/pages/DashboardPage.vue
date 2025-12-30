@@ -292,11 +292,11 @@
             class="cursor-pointer"
           >
             <template v-slot:body-cell-actions="props">
-              <q-td :props="props">
+              <q-td :props="props" @click.stop>
                 <div class="patient-delete-btn">
-                  <q-btn flat round icon="delete" size="sm" color="negative" @click.stop="confirmDeletePatient(props.row)">
-                    <q-tooltip>{{ $t('patient.deletePatient') }}</q-tooltip>
-                  </q-btn>
+                  <AppRemoveConfirmationButton
+                    @remove-confirmed="confirmDeletePatient(props.row)"
+                  />
                 </div>
               </q-td>
             </template>
@@ -308,31 +308,11 @@
     <!-- Create Patient Dialog -->
     <CreatePatientDialog v-model="showCreatePatientDialog" @patient-created="onPatientCreated" />
 
-    <!-- Delete Confirmation Dialogs -->
-    <AppDialog
-      v-model="showDeleteConfirmDialog"
-      :title="deleteDialogTitle"
-      :message="deleteDialogMessage"
-      size="md"
-      persistent
-      ok-label="Delete"
-      ok-color="negative"
-      cancel-label="Cancel"
-      @ok="onDeleteConfirmed"
+    <!-- Delete Patient Dialog -->
+    <DeletePatientDialog
+      ref="deletePatientDialog"
+      @deleted="onPatientDeleted"
       @cancel="onDeleteCancelled"
-    />
-
-    <AppDialog
-      v-model="showDeleteWarningDialog"
-      title="Patient Has Data"
-      :message="deleteWarningMessage"
-      size="md"
-      persistent
-      ok-label="Delete All"
-      ok-color="negative"
-      cancel-label="Cancel"
-      @ok="onDeleteWarningConfirmed"
-      @cancel="onDeleteWarningCancelled"
     />
   </q-page>
 </template>
@@ -345,7 +325,8 @@ import { useI18n } from 'vue-i18n'
 import DashboardCard from '../components/shared/DashboardCard.vue'
 import PatientAvatar from '../components/shared/PatientAvatar.vue'
 import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
-import AppDialog from '../components/shared/AppDialog.vue'
+import DeletePatientDialog from '../components/patient/DeletePatientDialog.vue'
+import AppRemoveConfirmationButton from '../components/shared/AppRemoveConfirmationButton.vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
@@ -371,12 +352,7 @@ const loadingStudies = ref(false)
 const showCreatePatientDialog = ref(false)
 
 // Delete dialog states
-const showDeleteConfirmDialog = ref(false)
-const showDeleteWarningDialog = ref(false)
-const deleteDialogTitle = ref('')
-const deleteDialogMessage = ref('')
-const deleteWarningMessage = ref('')
-const patientToDelete = ref(null)
+const deletePatientDialog = ref(null)
 
 const stats = ref({
   patientsToday: 0,
@@ -837,157 +813,38 @@ const clearFilters = async () => {
 }
 
 // Patient deletion methods
+// Prevent double-call of confirmDeletePatient
+let isDeleting = false
+
 const confirmDeletePatient = (patient) => {
-  patientToDelete.value = patient
-  const patientName = patient.name || 'Unknown Patient'
-
-  // Set up first confirmation dialog
-  deleteDialogTitle.value = 'Delete Patient'
-  deleteDialogMessage.value = `Are you sure you want to delete patient <strong>${patientName}</strong> (${patient.id})?`
-
-  // Show first confirmation dialog
-  showDeleteConfirmDialog.value = true
+  // Prevent double execution
+  if (isDeleting) return
+  
+  isDeleting = true
+  
+  if (deletePatientDialog.value) {
+    // Convert dashboard patient format to standard format
+    const standardPatient = {
+      PATIENT_NUM: patient.patient_num,
+      PATIENT_CD: patient.id,
+    }
+    const patientName = patient.name || 'Unknown Patient'
+    deletePatientDialog.value.show(standardPatient, patientName)
+  }
+  
+  // Reset flag after a short delay
+  setTimeout(() => {
+    isDeleting = false
+  }, 500)
 }
 
-// Dialog event handlers
-const onDeleteConfirmed = async () => {
-  if (!patientToDelete.value) return
-
-  try {
-    // Check if database is available
-    if (!dbStore.canPerformOperations) {
-      throw new Error('Database not available')
-    }
-
-    // Get patient statistics to check for data
-    const visitRepo = dbStore.getRepository('visit')
-    const observationRepo = dbStore.getRepository('observation')
-
-    let hasData = false
-    let dataDescription = ''
-
-    if (visitRepo && observationRepo) {
-      const [visits, observations] = await Promise.all([visitRepo.findByPatientNum(patientToDelete.value.patient_num), observationRepo.findByPatientNum(patientToDelete.value.patient_num)])
-
-      const visitCount = visits?.length || 0
-      const observationCount = observations?.length || 0
-
-      if (visitCount > 0 || observationCount > 0) {
-        hasData = true
-
-        const parts = []
-        if (visitCount > 0) parts.push(`${visitCount} visit${visitCount > 1 ? 's' : ''}`)
-        if (observationCount > 0) parts.push(`${observationCount} observation${observationCount > 1 ? 's' : ''}`)
-        dataDescription = parts.join(' and ')
-      }
-    }
-
-    if (hasData) {
-      // Set up warning dialog
-      deleteWarningMessage.value = `This patient has <strong>${dataDescription}</strong>. Deleting the patient will also delete all associated data.<br><br><strong>This action cannot be undone.</strong>`
-
-      // Show warning dialog
-      showDeleteWarningDialog.value = true
-    } else {
-      // No data, proceed with deletion
-      performDeletePatient()
-    }
-  } catch (error) {
-    console.error('Error checking patient data:', error)
-    // Proceed with deletion anyway
-    performDeletePatient()
-  }
+const onPatientDeleted = async () => {
+  // Refresh patient data and statistics
+  await Promise.all([loadRecentPatients(), loadDashboardStatistics(), loadTableData()])
 }
 
 const onDeleteCancelled = () => {
-  patientToDelete.value = null
-}
-
-const onDeleteWarningConfirmed = () => {
-  performDeletePatient()
-}
-
-const onDeleteWarningCancelled = () => {
-  patientToDelete.value = null
-}
-
-// Perform the actual patient deletion
-const performDeletePatient = async () => {
-  if (!patientToDelete.value) return
-
-  const loadingDialog = $q.dialog({
-    title: 'Deleting Patient',
-    message: 'Please wait while the patient is being deleted...',
-    progress: true,
-    persistent: true,
-    ok: false,
-    cancel: false,
-  })
-
-  try {
-    // Check if database is available
-    if (!dbStore.canPerformOperations) {
-      throw new Error('Database not available')
-    }
-
-    // Delete the patient using database store (cascade delete will handle visits/observations)
-    await dbStore.deletePatient(patientToDelete.value.patient_num)
-
-    loadingDialog.hide()
-
-    const patientName = patientToDelete.value.name || 'Unknown Patient'
-
-    $q.notify({
-      type: 'positive',
-      message: `Patient ${patientName} deleted successfully`,
-      position: 'top',
-      timeout: 3000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          handler: () => {
-            /* dismiss */
-          },
-        },
-      ],
-    })
-
-    // Clean up state
-    showDeleteConfirmDialog.value = false
-    showDeleteWarningDialog.value = false
-    patientToDelete.value = null
-
-    // Small delay to ensure database operation completes
-    await new Promise((resolve) => setTimeout(resolve, 100))
-
-    // Refresh patient data and statistics
-    await Promise.all([loadRecentPatients(), loadDashboardStatistics(), loadTableData()])
-  } catch (error) {
-    loadingDialog.hide()
-    console.error('Error deleting patient:', error)
-
-    // Clean up state on error
-    showDeleteConfirmDialog.value = false
-    showDeleteWarningDialog.value = false
-    patientToDelete.value = null
-
-    $q.notify({
-      type: 'negative',
-      message: `Failed to delete patient: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          handler: () => {
-            /* dismiss */
-          },
-        },
-      ],
-    })
-  }
+  // No cleanup needed
 }
 
 // Load filter options from concept store
@@ -1124,17 +981,7 @@ watch(
   opacity: 0;
   transition: opacity 0.2s ease;
   animation: fadeInRight 0.3s ease;
-
-  .q-btn {
-    transition: all 0.2s ease;
-    background-color: rgba(244, 67, 54, 0.1);
-
-    &:hover {
-      transform: translateY(-1px) scale(1.1);
-      box-shadow: 0 3px 8px rgba(244, 67, 54, 0.3);
-      background-color: rgba(244, 67, 54, 0.2);
-    }
-  }
+  pointer-events: all;
 }
 
 @keyframes fadeInRight {
