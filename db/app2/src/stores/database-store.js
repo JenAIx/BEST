@@ -202,8 +202,64 @@ export const useDatabaseStore = defineStore('database', () => {
 
   // Patient operations
   const createPatient = async (patientData) => {
+    const loggingStore = useLoggingStore()
     const patientRepo = getPatientRepository()
-    return await patientRepo.createPatient(patientData)
+    
+    // Create the patient first
+    const createdPatient = await patientRepo.createPatient(patientData)
+    
+    // Auto-create USER_PATIENT_LOOKUP entry for creator (but import auth-store dynamically to avoid circular dependency)
+    try {
+      const { useAuthStore } = await import('./auth-store')
+      const authStore = useAuthStore()
+      const currentUserId = authStore.currentUser?.USER_ID
+      
+      if (currentUserId && createdPatient.PATIENT_NUM) {
+        // Check if association already exists (e.g., from import or previous creation)
+        const checkQuery = `
+          SELECT COUNT(*) as count
+          FROM USER_PATIENT_LOOKUP
+          WHERE USER_ID = ? AND PATIENT_NUM = ?
+        `
+        const checkResult = await executeQuery(checkQuery, [currentUserId, createdPatient.PATIENT_NUM])
+        
+        if (checkResult.success && checkResult.data[0]?.count > 0) {
+          loggingStore.info('DatabaseStore', 'USER_PATIENT_LOOKUP entry already exists, skipping', {
+            userId: currentUserId,
+            patientNum: createdPatient.PATIENT_NUM,
+          })
+        } else {
+          loggingStore.info('DatabaseStore', 'Auto-creating USER_PATIENT_LOOKUP entry for creator', {
+            userId: currentUserId,
+            patientNum: createdPatient.PATIENT_NUM,
+          })
+          
+          const insertAccessSql = `
+            INSERT INTO USER_PATIENT_LOOKUP 
+              (USER_ID, PATIENT_NUM, NAME_CHAR, UPDATE_DATE, IMPORT_DATE)
+            VALUES (?, ?, ?, datetime('now'), datetime('now'))
+          `
+          
+          const result = await executeCommand(insertAccessSql, [
+            currentUserId,
+            createdPatient.PATIENT_NUM,
+            'Creator access - auto-assigned'
+          ])
+          
+          if (result.success) {
+            loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry created', {
+              userId: currentUserId,
+              patientNum: createdPatient.PATIENT_NUM,
+            })
+          }
+        }
+      }
+    } catch (error) {
+      // Don't fail patient creation if access assignment fails
+      loggingStore.error('DatabaseStore', 'Failed to create USER_PATIENT_LOOKUP entry', error)
+    }
+    
+    return createdPatient
   }
 
   const findPatient = async (id) => {
@@ -216,9 +272,32 @@ export const useDatabaseStore = defineStore('database', () => {
     return await patientRepo.findByPatientCode(patientCode)
   }
 
-  const findPatients = async (criteria = {}, options = {}) => {
+  const findPatients = async (criteria = {}) => {
+    // Get current user context for access control
+    let currentUserId = null
+    let isAdmin = false
+    
+    try {
+      const { useAuthStore } = await import('./auth-store')
+      const authStore = useAuthStore()
+      currentUserId = authStore.currentUser?.USER_ID
+      isAdmin = authStore.isAdmin
+    } catch (error) {
+      console.warn('Could not get auth context for patient query:', error)
+    }
+    
     const patientRepo = getPatientRepository()
-    return await patientRepo.findPatientsByCriteria(criteria, options)
+    
+    // Add user access control to criteria
+    const enhancedCriteria = {
+      ...criteria,
+      _userAccess: {
+        userId: currentUserId,
+        isAdmin: isAdmin,
+      },
+    }
+    
+    return await patientRepo.findPatientsByCriteriaWithConcepts(enhancedCriteria)
   }
 
   const updatePatient = async (id, updateData) => {
@@ -237,13 +316,42 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const searchPatients = async (searchTerm) => {
+    // Get current user context for access control
+    let currentUserId = null
+    let isAdmin = false
+    
+    try {
+      const { useAuthStore } = await import('./auth-store')
+      const authStore = useAuthStore()
+      currentUserId = authStore.currentUser?.USER_ID
+      isAdmin = authStore.isAdmin
+    } catch (error) {
+      console.warn('Could not get auth context for patient search:', error)
+    }
+    
     const patientRepo = getPatientRepository()
-    return await patientRepo.searchPatients(searchTerm)
+    
+    // Use the search method with user access control
+    const userAccess = currentUserId ? { userId: currentUserId, isAdmin: isAdmin } : null
+    return await patientRepo.searchPatientsWithConcepts(searchTerm, userAccess)
   }
 
   const getPatientsPaginated = async (page = 1, pageSize = 20, criteria = {}) => {
+    // Get current user context for access control (dynamic import to avoid circular dependency)
+    let currentUserId = null
+    let isAdmin = false
+    
+    try {
+      const { useAuthStore } = await import('./auth-store')
+      const authStore = useAuthStore()
+      currentUserId = authStore.currentUser?.USER_ID
+      isAdmin = authStore.isAdmin
+    } catch (error) {
+      console.warn('Could not get auth context for patient query:', error)
+    }
+    
     const patientRepo = getPatientRepository()
-    return await patientRepo.getPatientsPaginated(page, pageSize, criteria)
+    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, currentUserId, isAdmin)
   }
 
   // Raw data/file upload operations

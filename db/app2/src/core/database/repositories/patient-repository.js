@@ -186,6 +186,11 @@ class PatientRepository extends BaseRepository {
    */
   async findPatientsByCriteriaWithConcepts(criteria) {
     const searchCriteria = {}
+    
+    // Preserve user access control
+    if (criteria._userAccess) {
+      searchCriteria._userAccess = criteria._userAccess
+    }
 
     if (criteria.VITAL_STATUS_CD) {
       searchCriteria.VITAL_STATUS_CD = criteria.VITAL_STATUS_CD
@@ -254,24 +259,28 @@ class PatientRepository extends BaseRepository {
 
     // Handle searchTerm with view-based search
     if (criteria.searchTerm) {
-      const searchResults = await this.searchPatientsWithConcepts(criteria.searchTerm)
+      // Pass user access control to search
+      const searchResults = await this.searchPatientsWithConcepts(criteria.searchTerm, criteria._userAccess)
       // Apply additional filters to search results if any other criteria exist
-      if (Object.keys(searchCriteria).length > 0) {
+      const otherCriteria = { ...searchCriteria }
+      delete otherCriteria._userAccess // Don't include _userAccess in filter logic
+      
+      if (Object.keys(otherCriteria).length > 0) {
         return searchResults.filter((patient) => {
           // Apply filters to search results
           // Filter by patient numbers (for study enrollment)
-          if (searchCriteria.PATIENT_NUM && searchCriteria.PATIENT_NUM.operator === 'IN') {
-            if (!searchCriteria.PATIENT_NUM.value.includes(patient.PATIENT_NUM)) return false
+          if (otherCriteria.PATIENT_NUM && otherCriteria.PATIENT_NUM.operator === 'IN') {
+            if (!otherCriteria.PATIENT_NUM.value.includes(patient.PATIENT_NUM)) return false
           }
-          if (searchCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== searchCriteria.VITAL_STATUS_CD) return false
-          if (searchCriteria.SEX_CD && patient.SEX_CD !== searchCriteria.SEX_CD) return false
-          if (searchCriteria.AGE_IN_YEARS && searchCriteria.AGE_IN_YEARS.operator === 'BETWEEN') {
+          if (otherCriteria.VITAL_STATUS_CD && patient.VITAL_STATUS_CD !== otherCriteria.VITAL_STATUS_CD) return false
+          if (otherCriteria.SEX_CD && patient.SEX_CD !== otherCriteria.SEX_CD) return false
+          if (otherCriteria.AGE_IN_YEARS && otherCriteria.AGE_IN_YEARS.operator === 'BETWEEN') {
             const age = patient.AGE_IN_YEARS
             // Skip patients with null/undefined age if age filter is active
             if (age == null) return false
-            if (age < searchCriteria.AGE_IN_YEARS.value[0] || age > searchCriteria.AGE_IN_YEARS.value[1]) return false
+            if (age < otherCriteria.AGE_IN_YEARS.value[0] || age > otherCriteria.AGE_IN_YEARS.value[1]) return false
           }
-          if (searchCriteria.STATECITYZIP_PATH && !patient.STATECITYZIP_PATH?.includes(searchCriteria.STATECITYZIP_PATH)) return false
+          if (otherCriteria.STATECITYZIP_PATH && !patient.STATECITYZIP_PATH?.includes(otherCriteria.STATECITYZIP_PATH)) return false
           return true
         })
       }
@@ -285,25 +294,52 @@ class PatientRepository extends BaseRepository {
   /**
    * Search patients with resolved concepts by text (name, code, location)
    * @param {string} searchTerm - Search term
+   * @param {Object} userAccess - User access control (optional)
    * @returns {Promise<Array>} - Array of matching patients with resolved concepts
    */
-  async searchPatientsWithConcepts(searchTerm) {
-    const sql = `
-      SELECT * FROM ${this.viewName}
-      WHERE PATIENT_CD LIKE ?
-         OR PATIENT_BLOB LIKE ?
-         OR STATECITYZIP_PATH LIKE ?
-         OR SEX_RESOLVED LIKE ?
-         OR VITAL_STATUS_RESOLVED LIKE ?
-         OR LANGUAGE_RESOLVED LIKE ?
-         OR RACE_RESOLVED LIKE ?
-         OR MARITAL_STATUS_RESOLVED LIKE ?
-         OR RELIGION_RESOLVED LIKE ?
-      ORDER BY PATIENT_CD
-    `
+  async searchPatientsWithConcepts(searchTerm, userAccess = null) {
     const searchPattern = `%${searchTerm}%`
-    const result = await this.connection.executeQuery(sql, [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern])
-
+    let sql
+    let params
+    
+    if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+      // Regular user - filter by USER_PATIENT_LOOKUP
+      // User sees patient if assigned to this user OR to public user (USER_ID = 0)
+      sql = `
+        SELECT DISTINCT p.* FROM ${this.viewName} p
+        INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM
+        WHERE (upl.USER_ID = ? OR upl.USER_ID = 0)
+          AND (p.PATIENT_CD LIKE ?
+             OR p.PATIENT_BLOB LIKE ?
+             OR p.STATECITYZIP_PATH LIKE ?
+             OR p.SEX_RESOLVED LIKE ?
+             OR p.VITAL_STATUS_RESOLVED LIKE ?
+             OR p.LANGUAGE_RESOLVED LIKE ?
+             OR p.RACE_RESOLVED LIKE ?
+             OR p.MARITAL_STATUS_RESOLVED LIKE ?
+             OR p.RELIGION_RESOLVED LIKE ?)
+        ORDER BY p.PATIENT_CD
+      `
+      params = [userAccess.userId, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern]
+    } else {
+      // Admin or no user context - show all
+      sql = `
+        SELECT * FROM ${this.viewName}
+        WHERE PATIENT_CD LIKE ?
+           OR PATIENT_BLOB LIKE ?
+           OR STATECITYZIP_PATH LIKE ?
+           OR SEX_RESOLVED LIKE ?
+           OR VITAL_STATUS_RESOLVED LIKE ?
+           OR LANGUAGE_RESOLVED LIKE ?
+           OR RACE_RESOLVED LIKE ?
+           OR MARITAL_STATUS_RESOLVED LIKE ?
+           OR RELIGION_RESOLVED LIKE ?
+        ORDER BY PATIENT_CD
+      `
+      params = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern]
+    }
+    
+    const result = await this.connection.executeQuery(sql, params)
     return result.success ? result.data : []
   }
 
@@ -316,38 +352,64 @@ class PatientRepository extends BaseRepository {
   async findByCriteriaFromView(searchCriteria, options = {}) {
     const conditions = []
     const params = []
+    
+    // Extract user access control (if present)
+    const userAccess = searchCriteria._userAccess
+    delete searchCriteria._userAccess // Remove from actual search criteria
 
-    // Build WHERE clause
+    // Build base query with user access control FIRST (to know if we need table alias)
+    // Note: public user (USER_ID = 0) grants access to all users
+    let sql
+    let tableAlias = ''
+    
+    if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+      // Regular user - filter by USER_PATIENT_LOOKUP
+      // User sees patient if:
+      // 1. Patient is assigned to this user, OR
+      // 2. Patient is assigned to public user (USER_ID = 0) - grants access to all
+      tableAlias = 'p.'
+      sql = `
+        SELECT DISTINCT p.* 
+        FROM ${this.viewName} p
+        INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM
+      `
+      conditions.push('(upl.USER_ID = ? OR upl.USER_ID = 0)')
+      params.push(userAccess.userId)
+    } else {
+      // Admin or no user context - show all
+      sql = `SELECT * FROM ${this.viewName}`
+    }
+
+    // Build WHERE clause (with table alias if needed)
     for (const [field, value] of Object.entries(searchCriteria)) {
       if (value !== undefined && value !== null) {
+        const fieldName = tableAlias ? `${tableAlias}${field}` : field
+        
         if (typeof value === 'object' && value.operator) {
           // Handle special operators like BETWEEN, IN, etc.
           if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
             // For age filtering, exclude NULL values explicitly
             if (field === 'AGE_IN_YEARS') {
-              conditions.push(`${field} IS NOT NULL AND ${field} BETWEEN ? AND ?`)
+              conditions.push(`${fieldName} IS NOT NULL AND ${fieldName} BETWEEN ? AND ?`)
             } else {
-              conditions.push(`${field} BETWEEN ? AND ?`)
+              conditions.push(`${fieldName} BETWEEN ? AND ?`)
             }
             params.push(value.value[0], value.value[1])
           } else if (value.operator === 'IN' && Array.isArray(value.value)) {
             const placeholders = value.value.map(() => '?').join(', ')
-            conditions.push(`${field} IN (${placeholders})`)
+            conditions.push(`${fieldName} IN (${placeholders})`)
             params.push(...value.value)
           } else if (value.operator === 'LIKE') {
-            conditions.push(`${field} LIKE ?`)
+            conditions.push(`${fieldName} LIKE ?`)
             params.push(value.value)
           }
         } else {
           // Simple equality check
-          conditions.push(`${field} = ?`)
+          conditions.push(`${fieldName} = ?`)
           params.push(value)
         }
       }
     }
-
-    // Build base query
-    let sql = `SELECT * FROM ${this.viewName}`
 
     // Add WHERE clause
     if (conditions.length > 0) {
@@ -360,7 +422,16 @@ class PatientRepository extends BaseRepository {
 
     if (orderBy === 'UPDATE_DATE_WITH_FALLBACK') {
       // Use UPDATE_DATE as default, IMPORT_DATE as fallback
-      orderBy = 'COALESCE(UPDATE_DATE, IMPORT_DATE)'
+      if (tableAlias) {
+        // If we have a table alias (user filter), prefix both fields
+        orderBy = `COALESCE(${tableAlias}UPDATE_DATE, ${tableAlias}IMPORT_DATE)`
+      } else {
+        // No alias, use as-is
+        orderBy = 'COALESCE(UPDATE_DATE, IMPORT_DATE)'
+      }
+    } else if (tableAlias && !orderBy.includes('(')) {
+      // Only add alias if orderBy is a simple field name (not a function/expression)
+      orderBy = `${tableAlias}${orderBy}`
     }
 
     sql += ` ORDER BY ${orderBy} ${orderDirection}`
@@ -488,9 +559,11 @@ class PatientRepository extends BaseRepository {
    * @param {number} page - Page number (1-based)
    * @param {number} pageSize - Page size
    * @param {Object} criteria - Search criteria
+   * @param {number|null} currentUserId - Current user ID for access control
+   * @param {boolean} isAdmin - Whether current user is admin
    * @returns {Promise<Object>} - Paginated results with metadata
    */
-  async getPatientsPaginated(page = 1, pageSize = 20, criteria = {}) {
+  async getPatientsPaginated(page = 1, pageSize = 20, criteria = {}, currentUserId = null, isAdmin = false) {
     const offset = (page - 1) * pageSize
 
     // Merge pagination options with any existing options
@@ -502,13 +575,20 @@ class PatientRepository extends BaseRepository {
       ...criteria.options,
     }
 
-    const patients = await this.findPatientsByCriteriaWithConcepts({
+    // Add user access control to criteria
+    const enhancedCriteria = {
       ...criteria,
       options: mergedOptions,
-    })
+      _userAccess: {
+        userId: currentUserId,
+        isAdmin: isAdmin,
+      },
+    }
+
+    const patients = await this.findPatientsByCriteriaWithConcepts(enhancedCriteria)
 
     // Filter out options from criteria for count query
-    const countCriteria = { ...criteria }
+    const countCriteria = { ...criteria, _userAccess: enhancedCriteria._userAccess }
     delete countCriteria.options
     const totalCount = await this.countByCriteriaFromView(countCriteria)
     const totalPages = Math.ceil(totalCount / pageSize)
@@ -532,6 +612,10 @@ class PatientRepository extends BaseRepository {
    * @returns {Promise<number>} - Total count
    */
   async countByCriteriaFromView(criteria = {}) {
+    // Extract user access control
+    const userAccess = criteria._userAccess
+    delete criteria._userAccess
+    
     // Convert criteria to searchCriteria format (same as findPatientsByCriteriaWithConcepts)
     const searchCriteria = {}
 
@@ -654,11 +738,26 @@ class PatientRepository extends BaseRepository {
     }
 
     // Build count query using the view
-    let sql = `SELECT COUNT(*) as count FROM ${this.viewName}`
-
-    // Add WHERE clause
-    if (conditions.length > 0) {
-      sql += ` WHERE ${conditions.join(' AND ')}`
+    // Add user access control
+    // Note: public user (USER_ID = 0) grants access to all users
+    let sql
+    if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+      // Regular user - filter by USER_PATIENT_LOOKUP
+      // User sees patient if assigned to this user OR to public user (USER_ID = 0)
+      conditions.push('(upl.USER_ID = ? OR upl.USER_ID = 0)')
+      params.push(userAccess.userId)
+      
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+      sql = `
+        SELECT COUNT(DISTINCT p.PATIENT_NUM) as count 
+        FROM ${this.viewName} p
+        INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM
+        ${whereClause}
+      `
+    } else {
+      // Admin or no user context - show all
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+      sql = `SELECT COUNT(*) as count FROM ${this.viewName} ${whereClause}`
     }
 
     const result = await this.connection.executeQuery(sql, params)

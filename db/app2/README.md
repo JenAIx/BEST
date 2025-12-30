@@ -666,7 +666,12 @@ node tests/scripts/run-seed-data-test.js
 - **Parameterized Queries**: Prevents SQL injection
 - **Input Validation**: Comprehensive data validation
 - **Transaction Support**: ACID-compliant operations
-- **Access Control**: User-based permissions (planned)
+- **Access Control**: User-based patient access control with `USER_PATIENT_LOOKUP` table
+  - Automatic assignment: New patients automatically assigned to creator
+  - Repository-level filtering: Regular users see only their assigned patients
+  - Admin bypass: Admins have full access to all patients
+  - Public access: Special `public` user grants access to all users
+  - Admin UI: Manage user-patient associations via `/users` → "Patient Access"
 
 ## Current Status & Future Enhancements
 

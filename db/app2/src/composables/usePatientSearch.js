@@ -65,11 +65,6 @@ export function usePatientSearch(options = {}) {
         throw new Error('Database not available')
       }
 
-      const patientRepo = dbStore.getRepository('patient')
-      if (!patientRepo) {
-        throw new Error('Patient repository not available')
-      }
-
       // Build search criteria
       const criteria = {
         searchTerm: searchValue.trim(),
@@ -79,8 +74,8 @@ export function usePatientSearch(options = {}) {
         },
       }
 
-      // Get paginated results
-      const result = await patientRepo.getPatientsPaginated(1, maxResults, criteria)
+      // Use dbStore.getPatientsPaginated() to ensure user access control is applied
+      const result = await dbStore.getPatientsPaginated(1, maxResults, criteria)
       let patients = result.patients || []
 
       // Filter out excluded patients

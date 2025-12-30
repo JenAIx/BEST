@@ -169,8 +169,13 @@ VALUES (1, 42, 'Access granted for study XYZ', datetime('now'));
 - ✅ Table exists in schema
 - ✅ Repository methods available (`UserRepository.getUserWithPatientAccess()`)
 - ✅ Store methods available (`userStore.createUserPatientAssociation()`)
-- ⚠️ **Not enforced in UI yet** - all users can see all patients currently
-- 🔜 Future: Can be activated for row-level security
+- ✅ **FULLY IMPLEMENTED** - User-based access control is now active!
+- ✅ Auto-assignment: New patients automatically assigned to creator
+- ✅ Repository-level filtering: Regular users see only their patients
+- ✅ Admin bypass: Admins see all patients
+- ✅ Admin UI: `/users` → "Patient Access" tab for management
+- ✅ All query paths secured: pagination, search, direct lookup
+- ✅ Bug fixed: Consistent filtering across all methods (2025-12-30)
 
 **Relationship Diagram**:
 

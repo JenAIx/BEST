@@ -11,6 +11,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- [2025-12-30] **User-Patient Access Control System**
+  - Implemented comprehensive row-level security for patient data
+  - Automatic assignment: New patients automatically assigned to creator via `USER_PATIENT_LOOKUP` table
+  - Repository-level filtering: Regular users see only their assigned patients
+  - Admin bypass: Admins have full access to all patients regardless of assignments
+  - Public access: Special `public` user (USER_ID=0) grants access to all users
+  - Created new `PatientAccessManagement.vue` component with patient-centric UI
+  - Patient table shows assigned users as chips with tooltips (name, username, role)
+  - Inline user management with add/remove functionality
+  - Remove confirmation using `AppRemoveConfirmationButton` with styled buttons for chip context
+  - Duplicate prevention for both create and update operations
+  - Graceful error handling with automatic switch to edit mode for existing associations
+  - Comprehensive filtering across all patient query paths (pagination, search, direct lookup)
+  - Dashboard, Data Grid, and all patient lists respect user access rights
+  - Admin UI at `/users` → "Patient Access" tab for managing user-patient associations
+  - Added I18n translations for access control UI elements (German and English)
+
 - [2025-12-19] Added medication handling to Data Grid Editor
   - Icon-based medication display showing medication icon with count (e.g., "💊 2") in 120px columns
   - Created `MedicationOverviewDialog` for managing all medications in a visit with inline editing
@@ -85,6 +102,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+- [2025-12-30] **Refactored User-Patient Association Management**
+  - Replaced association-centric view with patient-centric approach
+  - Users now displayed as chips in patient table for better overview
+  - Edit dialog provides focused management interface for each patient
+  - Simplified workflow: Find patient → Edit → Add/Remove users
+  - Improved visual design with color-coded chips (blue for regular users, green for public)
+  - Enhanced tooltips showing complete user information on hover
+
 - [2025-12-19] Optimized Data Grid column widths for better space utilization
   - Date columns (D): Reduced from 150px to 120px (-30px)
   - Numeric columns (N): Reduced from 150px to 100px (-50px)
@@ -138,6 +163,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - This ensures accurate age filtering even when AGE_IN_YEARS is not directly stored
 
 #### Fixed
+
+- [2025-12-30] Fixed Dashboard showing patients without access rights - now uses `dbStore.getPatientsPaginated()` for proper filtering
+- [2025-12-30] Fixed SQL syntax error in user-filtered queries - corrected ORDER BY handling for complex expressions like `COALESCE()`
+- [2025-12-30] Fixed patient detail page access - added user context to `loadPatientByCode()` method
+- [2025-12-30] Fixed search and filter functions - all patient queries now respect user access rights
+- [2025-12-30] Fixed Data Grid page patient list - now properly filters patients based on user access
+- [2025-12-30] Fixed patient search composable - integrated user context for consistent filtering
+- [2025-12-30] Fixed duplicate association error handling - now gracefully switches to edit mode instead of showing error
+- [2025-12-30] Fixed remove button visibility in chips - styled with contrasting colors (black on light background, white on confirmation)
 
 - [2025-12-19] Fixed Data Grid Editor "Add" menu dialogs not opening - simplified dialog state management to use direct refs instead of composable for better reactivity
 - [2025-12-19] Fixed observation creation from questionnaires failing with "No patient selected" error - now allows observation creation when PATIENT_NUM is explicitly provided, even without a selected patient in the store

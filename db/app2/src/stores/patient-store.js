@@ -70,8 +70,40 @@ export const usePatientStore = defineStore('patient', () => {
 
       logger.info('Loading patient by code', { patientCode })
 
-      // Use patient_list view for resolved concepts
-      const result = await dbStore.executeQuery('SELECT * FROM patient_list WHERE PATIENT_CD = ?', [patientCode])
+      // Get current user context for access control
+      let currentUserId = null
+      let isAdmin = false
+      
+      try {
+        const { useAuthStore } = await import('./auth-store')
+        const authStore = useAuthStore()
+        currentUserId = authStore.currentUser?.USER_ID
+        isAdmin = authStore.isAdmin
+      } catch (error) {
+        console.warn('Could not get auth context for patient lookup:', error)
+      }
+
+      // Use patient_list view for resolved concepts with user access control
+      let sql
+      let params
+      
+      if (currentUserId && !isAdmin) {
+        // Regular user - check access via USER_PATIENT_LOOKUP
+        // User sees patient if assigned to this user OR to public user (USER_ID = 0)
+        sql = `
+          SELECT DISTINCT p.* 
+          FROM patient_list p
+          INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM
+          WHERE p.PATIENT_CD = ? AND (upl.USER_ID = ? OR upl.USER_ID = 0)
+        `
+        params = [patientCode, currentUserId]
+      } else {
+        // Admin or no user context - show all
+        sql = 'SELECT * FROM patient_list WHERE PATIENT_CD = ?'
+        params = [patientCode]
+      }
+      
+      const result = await dbStore.executeQuery(sql, params)
 
       if (result.success && result.data.length > 0) {
         const rawPatient = result.data[0]
@@ -87,7 +119,7 @@ export const usePatientStore = defineStore('patient', () => {
         const isNewPatient = await setSelectedPatient(normalizedPatient)
         return { patient: normalizedPatient, isNewPatient }
       } else {
-        logger.warn('Patient not found', { patientCode })
+        logger.warn('Patient not found or access denied', { patientCode, currentUserId, isAdmin })
         clearPatient()
         return null
       }

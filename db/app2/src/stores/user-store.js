@@ -507,15 +507,14 @@ export const useUserStore = defineStore('user', () => {
     saving.value = true
     error.value = null
 
+    // Extract primitive values from objects if needed (outside try block for error logging)
+    const userId = typeof associationData.USER_ID === 'object' ? associationData.USER_ID?.USER_ID : associationData.USER_ID
+    const patientNum = typeof associationData.PATIENT_NUM === 'object' ? associationData.PATIENT_NUM?.PATIENT_NUM : associationData.PATIENT_NUM
+    const nameChar = associationData.NAME_CHAR || null
+    const userPatientBlob = associationData.USER_PATIENT_BLOB || null
+
     try {
       logger.info('Creating user-patient association', associationData)
-
-      // Extract primitive values from objects if needed
-      const userId = typeof associationData.USER_ID === 'object' ? associationData.USER_ID?.USER_ID : associationData.USER_ID
-      const patientNum = typeof associationData.PATIENT_NUM === 'object' ? associationData.PATIENT_NUM?.PATIENT_NUM : associationData.PATIENT_NUM
-      const nameChar = associationData.NAME_CHAR || null
-      const userPatientBlob = associationData.USER_PATIENT_BLOB || null
-
       logger.info('Extracted values', { userId, patientNum, nameChar, userPatientBlob })
 
       // Validate required fields
@@ -525,14 +524,19 @@ export const useUserStore = defineStore('user', () => {
 
       // Check for existing association
       const checkQuery = `
-        SELECT COUNT(*) as count
+        SELECT USER_PATIENT_ID, USER_ID, PATIENT_NUM, NAME_CHAR, USER_PATIENT_BLOB
         FROM USER_PATIENT_LOOKUP
         WHERE USER_ID = ? AND PATIENT_NUM = ?
+        LIMIT 1
       `
       const checkResult = await dbStore.executeQuery(checkQuery, [userId, patientNum])
 
-      if (checkResult.success && checkResult.data[0].count > 0) {
-        throw new Error('This user-patient association already exists')
+      if (checkResult.success && checkResult.data.length > 0) {
+        const existingAssociation = checkResult.data[0]
+        const error = new Error('This user-patient association already exists')
+        error.code = 'DUPLICATE_ASSOCIATION'
+        error.existingAssociation = existingAssociation
+        throw error
       }
 
       // Create new association
@@ -556,8 +560,17 @@ export const useUserStore = defineStore('user', () => {
       // Reload associations to show the new one
       await loadUserPatientAssociations()
     } catch (err) {
-      error.value = err.message || 'Failed to create user-patient association'
-      logger.error('Failed to create user-patient association', err)
+      // Don't log duplicate associations as errors - they're handled gracefully in UI
+      if (err.code === 'DUPLICATE_ASSOCIATION') {
+        logger.info('Duplicate user-patient association detected', {
+          userId,
+          patientNum,
+          existingAssociation: err.existingAssociation,
+        })
+      } else {
+        error.value = err.message || 'Failed to create user-patient association'
+        logger.error('Failed to create user-patient association', err)
+      }
       throw err
     } finally {
       saving.value = false
@@ -568,14 +581,36 @@ export const useUserStore = defineStore('user', () => {
     saving.value = true
     error.value = null
 
+    // Extract primitive values from objects if needed (outside try block for error logging)
+    const userId = typeof updates.USER_ID === 'object' ? updates.USER_ID?.USER_ID : updates.USER_ID
+    const patientNum = typeof updates.PATIENT_NUM === 'object' ? updates.PATIENT_NUM?.PATIENT_NUM : updates.PATIENT_NUM
+    const nameChar = updates.NAME_CHAR || null
+    const userPatientBlob = updates.USER_PATIENT_BLOB || null
+
     try {
       logger.info('Updating user-patient association', { associationId, updates })
 
-      // Extract primitive values from objects if needed
-      const userId = typeof updates.USER_ID === 'object' ? updates.USER_ID?.USER_ID : updates.USER_ID
-      const patientNum = typeof updates.PATIENT_NUM === 'object' ? updates.PATIENT_NUM?.PATIENT_NUM : updates.PATIENT_NUM
-      const nameChar = updates.NAME_CHAR || null
-      const userPatientBlob = updates.USER_PATIENT_BLOB || null
+      // Validate required fields
+      if (!userId || !patientNum) {
+        throw new Error('User ID and Patient Number are required')
+      }
+
+      // Check for duplicate with different ID (i.e., another association with same user+patient)
+      const checkQuery = `
+        SELECT USER_PATIENT_ID, USER_ID, PATIENT_NUM, NAME_CHAR, USER_PATIENT_BLOB
+        FROM USER_PATIENT_LOOKUP
+        WHERE USER_ID = ? AND PATIENT_NUM = ? AND USER_PATIENT_ID != ?
+        LIMIT 1
+      `
+      const checkResult = await dbStore.executeQuery(checkQuery, [userId, patientNum, associationId])
+
+      if (checkResult.success && checkResult.data.length > 0) {
+        const existingAssociation = checkResult.data[0]
+        const error = new Error('This user-patient association already exists')
+        error.code = 'DUPLICATE_ASSOCIATION'
+        error.existingAssociation = existingAssociation
+        throw error
+      }
 
       const updateQuery = `
         UPDATE USER_PATIENT_LOOKUP
@@ -594,8 +629,18 @@ export const useUserStore = defineStore('user', () => {
       // Reload associations to show the changes
       await loadUserPatientAssociations()
     } catch (err) {
-      error.value = err.message || 'Failed to update user-patient association'
-      logger.error('Failed to update user-patient association', err)
+      // Don't log duplicate associations as errors - they're handled gracefully in UI
+      if (err.code === 'DUPLICATE_ASSOCIATION') {
+        logger.info('Duplicate user-patient association detected during update', {
+          associationId,
+          userId,
+          patientNum,
+          existingAssociation: err.existingAssociation,
+        })
+      } else {
+        error.value = err.message || 'Failed to update user-patient association'
+        logger.error('Failed to update user-patient association', err)
+      }
       throw err
     } finally {
       saving.value = false

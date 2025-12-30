@@ -24,8 +24,8 @@
       <!-- User Management -->
       <UserManager v-if="selectedTab === 'users'" ref="userManagerRef" class="tab-content" />
 
-      <!-- User-Patient Associations -->
-      <UserPatientAssociations v-if="selectedTab === 'associations'" ref="associationsManagerRef" class="tab-content" />
+      <!-- Patient Access Management -->
+      <PatientAccessManagement v-if="selectedTab === 'associations'" ref="associationsManagerRef" class="tab-content" />
     </div>
   </q-page>
 </template>
@@ -34,7 +34,7 @@
 import { ref, onMounted } from 'vue'
 import { useUserStore } from 'src/stores/user-store'
 import UserManager from 'src/components/users/UserManager.vue'
-import UserPatientAssociations from 'src/components/users/UserPatientAssociations.vue'
+import PatientAccessManagement from 'src/components/users/PatientAccessManagement.vue'
 
 const userStore = useUserStore()
 
@@ -73,7 +73,7 @@ const onTabChange = (newTab) => {
   if (newTab === 'users' && userManagerRef.value) {
     userManagerRef.value.loadUsers()
   } else if (newTab === 'associations' && associationsManagerRef.value) {
-    associationsManagerRef.value.loadAssociations()
+    // PatientAccessManagement loads automatically on mount
   }
 }
 

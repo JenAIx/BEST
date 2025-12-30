@@ -104,6 +104,7 @@
               :loading="loadingUsers"
               :rules="[(val) => !!val || 'User is required']"
               clearable
+              hint="Select 'public' user to grant access to all users"
             >
               <template v-slot:no-option>
                 <q-item>
@@ -335,18 +336,66 @@ const onCreateAssociation = () => {
   loadPatientOptions()
 }
 
-const onEditAssociation = (association) => {
+const onEditAssociation = async (association) => {
   selectedAssociation.value = association
   dialogMode.value = 'edit'
+  
+  // Load options first to ensure we have the full objects
+  await Promise.all([loadUserOptions(), loadPatientOptions()])
+  
+  // Find the matching user and patient objects from the options
+  const userObj = userOptions.value.find((u) => u.USER_ID === association.USER_ID)
+  const patientObj = patientOptions.value.find((p) => p.PATIENT_NUM === association.PATIENT_NUM)
+  
+  // If not found in current options, try to load them
+  if (!userObj) {
+    try {
+      const userResult = await dbStore.executeQuery(
+        `SELECT USER_ID, USER_CD, NAME_CHAR FROM USER_MANAGEMENT WHERE USER_ID = ?`,
+        [association.USER_ID]
+      )
+      if (userResult.success && userResult.data.length > 0) {
+        const user = userResult.data[0]
+        const userOption = {
+          ...user,
+          display: `${user.NAME_CHAR || user.USER_CD} (${user.USER_CD})`,
+        }
+        userOptions.value.push(userOption)
+        usersCache.value.push(user)
+      }
+    } catch (error) {
+      logger.error('Failed to load user for edit', error)
+    }
+  }
+  
+  if (!patientObj) {
+    try {
+      const patientResult = await dbStore.executeQuery(
+        `SELECT PATIENT_NUM, PATIENT_CD FROM PATIENT_DIMENSION WHERE PATIENT_NUM = ?`,
+        [association.PATIENT_NUM]
+      )
+      if (patientResult.success && patientResult.data.length > 0) {
+        const patient = patientResult.data[0]
+        const patientOption = {
+          ...patient,
+          display: `${patient.PATIENT_CD} (ID: ${patient.PATIENT_NUM})`,
+        }
+        patientOptions.value.push(patientOption)
+        patientsCache.value.push(patient)
+      }
+    } catch (error) {
+      logger.error('Failed to load patient for edit', error)
+    }
+  }
+  
+  // Set form data with the full objects (not just IDs)
   formData.value = {
-    USER_ID: association.USER_ID,
-    PATIENT_NUM: association.PATIENT_NUM,
+    USER_ID: userOptions.value.find((u) => u.USER_ID === association.USER_ID) || association.USER_ID,
+    PATIENT_NUM: patientOptions.value.find((p) => p.PATIENT_NUM === association.PATIENT_NUM) || association.PATIENT_NUM,
     NAME_CHAR: association.NAME_CHAR || '',
     USER_PATIENT_BLOB: association.USER_PATIENT_BLOB || '',
   }
   showAssociationDialog.value = true
-  loadUserOptions()
-  loadPatientOptions()
 }
 
 const onCancelAssociation = () => {
@@ -384,12 +433,93 @@ const onSaveAssociation = async () => {
 
     showAssociationDialog.value = false
   } catch (error) {
-    logger.error('Failed to save association', error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || userStore.error || 'Failed to save association',
-      position: 'top',
-    })
+    // Handle duplicate association gracefully
+    if (error.code === 'DUPLICATE_ASSOCIATION' && error.existingAssociation) {
+      // Don't log as error - this is expected behavior
+      logger.info('Duplicate association detected, switching to edit mode', {
+        existingAssociation: error.existingAssociation,
+      })
+      // Switch to edit mode with existing association
+      selectedAssociation.value = error.existingAssociation
+      dialogMode.value = 'edit'
+      
+      // Load options and set form data
+      await Promise.all([loadUserOptions(), loadPatientOptions()])
+      
+      const userObj = userOptions.value.find((u) => u.USER_ID === error.existingAssociation.USER_ID)
+      const patientObj = patientOptions.value.find((p) => p.PATIENT_NUM === error.existingAssociation.PATIENT_NUM)
+      
+      // Load missing options if needed
+      if (!userObj) {
+        try {
+          const userResult = await dbStore.executeQuery(
+            `SELECT USER_ID, USER_CD, NAME_CHAR FROM USER_MANAGEMENT WHERE USER_ID = ?`,
+            [error.existingAssociation.USER_ID]
+          )
+          if (userResult.success && userResult.data.length > 0) {
+            const user = userResult.data[0]
+            const userOption = {
+              ...user,
+              display: `${user.NAME_CHAR || user.USER_CD} (${user.USER_CD})`,
+            }
+            userOptions.value.push(userOption)
+            usersCache.value.push(user)
+          }
+        } catch (err) {
+          logger.error('Failed to load user for edit', err)
+        }
+      }
+      
+      if (!patientObj) {
+        try {
+          const patientResult = await dbStore.executeQuery(
+            `SELECT PATIENT_NUM, PATIENT_CD FROM PATIENT_DIMENSION WHERE PATIENT_NUM = ?`,
+            [error.existingAssociation.PATIENT_NUM]
+          )
+          if (patientResult.success && patientResult.data.length > 0) {
+            const patient = patientResult.data[0]
+            const patientOption = {
+              ...patient,
+              display: `${patient.PATIENT_CD} (ID: ${patient.PATIENT_NUM})`,
+            }
+            patientOptions.value.push(patientOption)
+            patientsCache.value.push(patient)
+          }
+        } catch (err) {
+          logger.error('Failed to load patient for edit', err)
+        }
+      }
+      
+      // Set form data
+      formData.value = {
+        USER_ID: userOptions.value.find((u) => u.USER_ID === error.existingAssociation.USER_ID) || error.existingAssociation.USER_ID,
+        PATIENT_NUM: patientOptions.value.find((p) => p.PATIENT_NUM === error.existingAssociation.PATIENT_NUM) || error.existingAssociation.PATIENT_NUM,
+        NAME_CHAR: error.existingAssociation.NAME_CHAR || '',
+        USER_PATIENT_BLOB: error.existingAssociation.USER_PATIENT_BLOB || '',
+      }
+      
+      // Show friendly notification
+      $q.notify({
+        type: 'info',
+        message: 'This association already exists. You can edit it below.',
+        position: 'top',
+        timeout: 4000,
+        actions: [
+          {
+            label: 'OK',
+            color: 'white',
+          },
+        ],
+      })
+    } else {
+      // Other errors - log and show error message
+      logger.error('Failed to save association', error)
+      $q.notify({
+        type: 'negative',
+        message: error.message || userStore.error || 'Failed to save association',
+        position: 'top',
+      })
+    }
   }
 }
 
