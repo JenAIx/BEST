@@ -162,6 +162,8 @@
     "patientsSeen": "Patients Seen",
     "pendingReports": "Pending Reports",
     "activeStudies": "Active Studies",
+    "visiblePatients": "Visible Patients",
+    "hiddenPatients": "Hidden Patients",
     "recentActivities": "Recent Activities",
     "activityTracking": "Activity Tracking",
     "comingSoon": "Coming soon - patient activity monitoring",

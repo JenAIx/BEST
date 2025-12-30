@@ -644,17 +644,15 @@ const onFileCleared = () => {
 }
 
 /**
- * Select all concepts (filtered ones that aren't already selected)
+ * Select all concepts (filtered ones without errors)
  */
 const selectAll = () => {
-  const selectableFiltered = filteredConcepts.value.filter((c) => !c.hasError && !isSelected(c))
-  // Add filtered concepts to selection (find original in parsedConcepts to maintain reference)
-  selectableFiltered.forEach((filteredConcept) => {
-    const original = parsedConcepts.value.find((p) => p.rowIndex === filteredConcept.rowIndex)
-    if (original && !isSelected(original)) {
-      selectedConcepts.value.push({ ...original })
-    }
-  })
+  // Replace entire selection array with all selectable filtered concepts
+  const selectableFiltered = filteredConcepts.value.filter((c) => !c.hasError)
+  // Map to original concepts from parsedConcepts to maintain consistency
+  selectedConcepts.value = selectableFiltered
+    .map((filteredConcept) => parsedConcepts.value.find((p) => p.rowIndex === filteredConcept.rowIndex))
+    .filter(Boolean) // Remove any undefined values
 }
 
 /**

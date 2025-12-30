@@ -162,6 +162,8 @@
     "patientsSeen": "Patienten gesehen",
     "pendingReports": "Ausstehende Berichte",
     "activeStudies": "Aktive Studien",
+    "visiblePatients": "Sichtbare Patienten",
+    "hiddenPatients": "Versteckte Patienten",
     "recentActivities": "Aktuelle Aktivitäten",
     "activityTracking": "Aktivitätsverfolgung",
     "comingSoon": "Demnächst - Patientenaktivitätsüberwachung",

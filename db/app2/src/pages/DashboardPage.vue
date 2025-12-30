@@ -162,6 +162,21 @@
                     <div class="text-caption text-grey-6">{{ $t('dashboard.activeStudies') }}</div>
                   </div>
                 </div>
+                <!-- Patient Access Stats (only for non-admin users) -->
+                <template v-if="!authStore.isAdmin">
+                  <div class="col-6 q-mt-md">
+                    <div class="stat-item">
+                      <div class="text-h4 text-positive">{{ stats.visiblePatients }}</div>
+                      <div class="text-caption text-grey-6">{{ $t('dashboard.visiblePatients') }}</div>
+                    </div>
+                  </div>
+                  <div class="col-6 q-mt-md">
+                    <div class="stat-item">
+                      <div class="text-h4 text-grey-6">{{ stats.hiddenPatients }}</div>
+                      <div class="text-caption text-grey-6">{{ $t('dashboard.hiddenPatients') }}</div>
+                    </div>
+                  </div>
+                </template>
               </div>
             </q-card-section>
           </q-card>
@@ -294,9 +309,7 @@
             <template v-slot:body-cell-actions="props">
               <q-td :props="props" @click.stop>
                 <div class="patient-delete-btn">
-                  <AppRemoveConfirmationButton
-                    @remove-confirmed="confirmDeletePatient(props.row)"
-                  />
+                  <AppRemoveConfirmationButton @remove-confirmed="confirmDeletePatient(props.row)" />
                 </div>
               </q-td>
             </template>
@@ -309,11 +322,7 @@
     <CreatePatientDialog v-model="showCreatePatientDialog" @patient-created="onPatientCreated" />
 
     <!-- Delete Patient Dialog -->
-    <DeletePatientDialog
-      ref="deletePatientDialog"
-      @deleted="onPatientDeleted"
-      @cancel="onDeleteCancelled"
-    />
+    <DeletePatientDialog ref="deletePatientDialog" @deleted="onPatientDeleted" @cancel="onDeleteCancelled" />
   </q-page>
 </template>
 
@@ -330,6 +339,7 @@ import AppRemoveConfirmationButton from '../components/shared/AppRemoveConfirmat
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
+import { useAuthStore } from 'src/stores/auth-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 
 const $q = useQuasar()
@@ -338,6 +348,7 @@ const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 const studyStore = useStudyStore()
+const authStore = useAuthStore()
 
 // View mode
 const viewMode = ref('visit')
@@ -360,6 +371,8 @@ const stats = ref({
   pendingReports: 0,
   activeStudies: 0,
   totalPatients: 0,
+  visiblePatients: 0,
+  hiddenPatients: 0,
 })
 
 // Deep Work Mode Data
@@ -574,12 +587,37 @@ const loadDashboardStatistics = async () => {
     // Count observations created today
     const todayObsResult = await dbStore.executeQuery(`SELECT COUNT(*) as count FROM OBSERVATION_FACT WHERE DATE(IMPORT_DATE) = ?`, [today])
 
+    // Get user access statistics (for non-admin users)
+    let visiblePatients = 0
+    let hiddenPatients = 0
+
+    if (!authStore.isAdmin && authStore.currentUser?.USER_ID) {
+      // Count all patients in database
+      const totalPatientsResult = await dbStore.executeQuery('SELECT COUNT(*) as count FROM PATIENT_DIMENSION')
+      const totalPatientsCount = totalPatientsResult.success ? totalPatientsResult.data[0]?.count || 0 : 0
+
+      // Count patients visible to current user
+      const visiblePatientsResult = await dbStore.executeQuery(
+        `
+        SELECT COUNT(DISTINCT PATIENT_NUM) as count
+        FROM USER_PATIENT_LOOKUP
+        WHERE USER_ID = ? OR USER_ID = 0
+      `,
+        [authStore.currentUser.USER_ID],
+      )
+
+      visiblePatients = visiblePatientsResult.success ? visiblePatientsResult.data[0]?.count || 0 : 0
+      hiddenPatients = totalPatientsCount - visiblePatients
+    }
+
     stats.value = {
       patientsToday: todayPatientsResult.success ? todayPatientsResult.data[0]?.count || 0 : 0,
       visitsToday: visitsResult.success ? visitsResult.data[0]?.count || 0 : 0,
       pendingReports: 0, // Not implemented yet
       activeStudies: 0, // Not implemented yet
       totalPatients: patientStats.totalPatients || 0,
+      visiblePatients,
+      hiddenPatients,
     }
 
     // Update data overview for deep work mode
@@ -819,9 +857,9 @@ let isDeleting = false
 const confirmDeletePatient = (patient) => {
   // Prevent double execution
   if (isDeleting) return
-  
+
   isDeleting = true
-  
+
   if (deletePatientDialog.value) {
     // Convert dashboard patient format to standard format
     const standardPatient = {
@@ -831,7 +869,7 @@ const confirmDeletePatient = (patient) => {
     const patientName = patient.name || 'Unknown Patient'
     deletePatientDialog.value.show(standardPatient, patientName)
   }
-  
+
   // Reset flag after a short delay
   setTimeout(() => {
     isDeleting = false

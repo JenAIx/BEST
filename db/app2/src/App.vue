@@ -8,7 +8,6 @@
 import { computed, onMounted } from 'vue'
 import SmartButton from 'src/components/smartbtn/SmartButton.vue'
 import { useAuthStore } from 'src/stores/auth-store'
-import 'src/components/smartbtn'
 
 const authStore = useAuthStore()
 const isAuthenticated = computed(() => authStore.isAuthenticated)

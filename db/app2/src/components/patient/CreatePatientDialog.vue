@@ -407,39 +407,6 @@ const loadConceptOptions = async () => {
   }
 }
 
-const createNameObservation = async (patientNum, patientName) => {
-  try {
-    const observationRepo = databaseStore.getRepository('observation')
-    if (!observationRepo || !patientName.trim()) return
-
-    // Get default values from global settings
-    const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('PATIENT')
-    const defaultCategory = await globalSettingsStore.getDefaultCategory('DEMOGRAPHICS')
-
-    // Create a name observation with SCTID: 371484003
-    const nameObservation = {
-      ENCOUNTER_NUM: null, // No specific visit/encounter
-      PATIENT_NUM: patientNum,
-      CONCEPT_CD: 'SCTID: 371484003', // Patient name concept
-      CATEGORY_CHAR: defaultCategory,
-      PROVIDER_ID: 'SYSTEM',
-      START_DATE: new Date().toISOString().split('T')[0],
-      INSTANCE_NUM: 1,
-      VALTYPE_CD: 'T', // Text value
-      TVAL_CHAR: patientName.trim(),
-      LOCATION_CD: 'SYSTEM',
-      SOURCESYSTEM_CD: formData.value.SOURCESYSTEM_CD || defaultSourceSystem,
-      UPLOAD_ID: formData.value.UPLOAD_ID || 1,
-    }
-
-    await observationRepo.create(nameObservation)
-    logger.info('Created name observation for patient', { patientName })
-  } catch (error) {
-    logger.error('Failed to create name observation', error)
-    // Don't fail patient creation if name observation fails
-  }
-}
-
 const handleSubmit = async () => {
   if (!isFormValid.value) {
     $q.notify({
@@ -484,11 +451,6 @@ const handleSubmit = async () => {
 
     // Create the patient using database store
     const createdPatient = await databaseStore.createPatient(patientData)
-
-    // Create name observation if patient name is provided
-    if (patientName.value.trim()) {
-      await createNameObservation(createdPatient.PATIENT_NUM, patientName.value)
-    }
 
     $q.notify({
       type: 'positive',

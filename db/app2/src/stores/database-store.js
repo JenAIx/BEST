@@ -306,6 +306,18 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const deletePatient = async (id) => {
+    // First, delete USER_PATIENT_LOOKUP entries (no CASCADE on PATIENT_NUM FK)
+    try {
+      await executeCommand(
+        'DELETE FROM USER_PATIENT_LOOKUP WHERE PATIENT_NUM = ?',
+        [id]
+      )
+    } catch (error) {
+      console.warn('Failed to delete user-patient associations:', error)
+      // Continue with patient deletion even if this fails
+    }
+
+    // Then delete the patient (will CASCADE to VISIT_DIMENSION, OBSERVATION_FACT, NOTE_FACT)
     const patientRepo = getPatientRepository()
     return await patientRepo.delete(id)
   }

@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive filtering across all patient query paths (pagination, search, direct lookup)
   - Dashboard, Data Grid, and all patient lists respect user access rights
   - Admin UI at `/users` → "Patient Access" tab for managing user-patient associations
+  - Dashboard statistics for non-admin users: Shows "Visible Patients" and "Hidden Patients" counts under "Today's Statistics"
   - Added I18n translations for access control UI elements (German and English)
 
 - [2025-12-19] Added medication handling to Data Grid Editor
@@ -105,8 +106,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [2025-12-30] **Code Cleanup and Optimization**
   - Removed all debug console.log statements from production code
   - Cleaned up `AppRemoveConfirmationButton.vue`, `DeletePatientDialog.vue`, and page components
+  - Removed redundant `createNameObservation()` function from `CreatePatientDialog.vue` (~30 lines)
+  - Eliminated circular dependency risk in `App.vue` by removing redundant directory import
+  - Refactored `ConceptsImportDialog.selectAll()` for simpler, more robust implementation
   - Maintained essential functionality (isDeleting flag, event propagation prevention)
-  - Improved code readability and performance by eliminating unnecessary logging
+  - Improved code readability and performance by eliminating unnecessary logging and redundant code
+
+- [2025-12-30] **Improved Patient Data Architecture**
+  - Patient names now stored exclusively in `PATIENT_BLOB` instead of as separate observations
+  - Eliminated architectural inconsistency where observations were created without visit context
+  - Observations now strictly require `ENCOUNTER_NUM` (visit context) as per database schema
+  - Simplified patient creation workflow by removing redundant name observation logic
 
 - [2025-12-30] **Refactored User-Patient Association Management**
   - Replaced association-centric view with patient-centric approach
@@ -178,6 +188,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [2025-12-30] Fixed patient search composable - integrated user context for consistent filtering
 - [2025-12-30] Fixed duplicate association error handling - now gracefully switches to edit mode instead of showing error
 - [2025-12-30] Fixed remove button visibility in chips - styled with contrasting colors (black on light background, white on confirmation)
+- [2025-12-30] Fixed patient deletion requiring multiple clicks - standardized delete dialog across all pages using shared `DeletePatientDialog` component
+- [2025-12-30] Fixed click event propagation on delete buttons - added `@click.stop` to prevent card/row click handlers from triggering
+- [2025-12-30] Fixed dialog initialization timing issue - patient data now passed directly as parameters to `show()` method instead of relying on props
+- [2025-12-30] Fixed Foreign Key Constraint error when deleting patients - `USER_PATIENT_LOOKUP` entries are now deleted before patient deletion
+- [2025-12-30] Fixed redundant module import in `App.vue` - removed circular dependency risk by eliminating unnecessary directory import alongside direct component import
+- [2025-12-30] Fixed duplicate selections in Concepts Import Dialog - `selectAll()` now replaces array instead of appending, preventing duplicate concept imports
+- [2025-12-30] Fixed `SQLITE_CONSTRAINT: NOT NULL constraint failed: OBSERVATION_FACT.ENCOUNTER_NUM` error when creating patients - removed redundant `createNameObservation()` function that attempted to create observations without a visit context; patient names are now properly stored in `PATIENT_BLOB` only
 
 #### Changed
 
@@ -188,9 +205,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Improved code maintainability by centralizing deletion logic in single component
   - Enhanced user experience with consistent deletion workflow across application
   - Removed duplicate code (~200 lines) from individual page components
-- [2025-12-30] Fixed patient deletion requiring multiple clicks - standardized delete dialog across all pages using shared `DeletePatientDialog` component
-- [2025-12-30] Fixed click event propagation on delete buttons - added `@click.stop` to prevent card/row click handlers from triggering
-- [2025-12-30] Fixed dialog initialization timing issue - patient data now passed directly as parameters to `show()` method instead of relying on props
 
 - [2025-12-19] Fixed Data Grid Editor "Add" menu dialogs not opening - simplified dialog state management to use direct refs instead of composable for better reactivity
 - [2025-12-19] Fixed observation creation from questionnaires failing with "No patient selected" error - now allows observation creation when PATIENT_NUM is explicitly provided, even without a selected patient in the store

@@ -113,7 +113,8 @@ STUDY (M) ◄─────► (N) PATIENT    [via STUDY_PATIENT_LOOKUP]
 CONCEPT (M) ◄───► (N) CQL_RULES  [via CONCEPT_CQL_LOOKUP]
 
 CASCADE DELETE:
-  Delete Patient → Auto-deletes Visits, Observations, Notes
+  Delete Patient → Manual delete USER_PATIENT_LOOKUP (no CASCADE)
+               → Auto-deletes Visits, Observations, Notes, Study Enrollments (CASCADE)
   Delete Visit → Auto-deletes related Observations
   Delete Study → Auto-deletes Enrollments
 ```
