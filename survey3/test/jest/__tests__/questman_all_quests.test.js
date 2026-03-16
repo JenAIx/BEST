@@ -1,7 +1,7 @@
 // Run Test with:
 // npm run test:unit test/jest/__tests__/questman_all_quests.test.js 
 
-import { QUESTMAN } from "../../../src/tools/QuestMan"
+import { QUESTMAN } from "../../../src/tools/questman"
 
 describe('QuestMAN: all', () => {
 

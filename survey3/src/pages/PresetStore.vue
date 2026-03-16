@@ -32,15 +32,15 @@
                       <q-list>
                         <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="edit_preset(index)">
                           <q-item-section avatar>
-                            <q-icon :name="TEXT.btn.edit_new.icon" />
+                            <q-icon :name="$t('btn.edit_new.icon')" />
                           </q-item-section>
-                          <q-item-section >{{TEXT.btn.edit_new.label}}</q-item-section>
+                          <q-item-section >{{$t('btn.edit_new.label')}}</q-item-section>
                         </q-item>
                         <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="delete_preset(index)">
                           <q-item-section avatar>
-                            <q-icon :name="TEXT.btn.delete.icon" />
+                            <q-icon :name="$t('btn.delete.icon')" />
                           </q-item-section>
-                          <q-item-section >{{TEXT.btn.delete.label}}</q-item-section>
+                          <q-item-section >{{$t('btn.delete.label')}}</q-item-section>
                         </q-item>
                         
                       </q-list>
@@ -56,7 +56,7 @@
 
       <!-- BUTTONS -->
       <div class="col-2 text-center">
-        <MYBUTTON :label="TEXT.btn.make_preset" @click="$router.push('preset')" />
+        <MYBUTTON :label="$t('btn.make_preset')" @click="$router.push('preset')" />
       </div>
 
     </div>
@@ -85,7 +85,6 @@
     mixins: [myMixins],
     data() {
       return {
-        TEXT: this.$store.state.TEXT,
         needToSave: [],
         PresetStoreEdit_item: undefined,
         PresetStoreEdit_show: false,
@@ -103,13 +102,13 @@
         this.needToSave[index] = true
       },
       start_preset(index) {
-        var answer = window.confirm(this.TEXT.btn.confirm_start);
+        var answer = window.confirm(this.$t('btn.confirm_start'));
         if (!answer) return
         this.$router.push(
           `preset/${JSON.stringify({presets: this.$store.getters.PRESET_STORE[index].value, mode: 'protected'})}`)
       },
       delete_preset(index) {
-        var answer = window.confirm(this.TEXT.btn.confirm_delete);
+        var answer = window.confirm(this.$t('btn.confirm_delete'));
         if (answer) this.$store.dispatch('deletePreset', index);
       },
       // clear_preset() {

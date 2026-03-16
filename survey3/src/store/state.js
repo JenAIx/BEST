@@ -7,7 +7,6 @@ import { STORAGE } from 'src/tools/Storage'
 STORAGE.load()
 STORAGE.load_presets()
 
-import { QUESTS } from 'src/assets/questionnaires/list_quest'
 import { QuestMan } from 'src/tools/questman'
 
 export default function () {
@@ -15,7 +14,7 @@ export default function () {
     ENV: TEXT.ENV,
     TEXT: TEXT,
     leftDrawerOpen: true,
-    QuestMan: new QuestMan({ QUESTS: QUESTS }),
+    QuestMan: new QuestMan(),
     STORAGE: STORAGE,
     SETTINGS: SETTINGS,
     debug: false,

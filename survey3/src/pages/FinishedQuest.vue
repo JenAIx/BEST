@@ -39,9 +39,7 @@ export default {
     name: 'FinishedQuest',
 
     data() {
-        return {
-            TEXT: this.$store.state.TEXT,
-        }
+        return {}
     },
 
     mounted() {
@@ -54,7 +52,7 @@ export default {
         sendMail() {
             // SEND MAIL
             this.$store.dispatch('mail_exported_data')
-            .then(() => this.$q.notify({message: this.TEXT.quest.export_success,color: 'green'}))
+            .then(() => this.$q.notify({message: this.$t('quest.export_success'),color: 'green'}))
         }
     }
 }

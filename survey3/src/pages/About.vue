@@ -25,9 +25,7 @@
     components: {BACKBUTTON
     },
     data() {
-      return {
-        TEXT: this.$store.state.TEXT
-      }
+      return {}
     },
     mounted() {
       this.$store.dispatch('setProtectedMode', true);

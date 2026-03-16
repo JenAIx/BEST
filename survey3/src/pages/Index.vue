@@ -8,8 +8,8 @@
               <q-icon name="summarize" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>{{TEXT.index.btn_select}}</q-item-label>
-              <q-item-label caption>{{TEXT.index.text_select}}</q-item-label>
+              <q-item-label>{{$t('index.btn_select')}}</q-item-label>
+              <q-item-label caption>{{$t('index.text_select')}}</q-item-label>
             </q-item-section>
           </q-item>
       </div>
@@ -21,8 +21,8 @@
               <q-icon name="archive" />
             </q-item-section>
             <q-item-section>
-              <q-item-label>{{TEXT.index.btn_preset}}</q-item-label>
-              <q-item-label caption>{{TEXT.index.text_preset}}</q-item-label>
+              <q-item-label>{{$t('index.btn_preset')}}</q-item-label>
+              <q-item-label caption>{{$t('index.text_preset')}}</q-item-label>
             </q-item-section>
           </q-item>
       </div>
@@ -37,9 +37,7 @@
     name: 'PageIndex',
     mixins: [myMixins],
     data() {
-      return {
-        TEXT: this.$store.state.TEXT
-      }
+      return {}
     },
     mounted() {
       this.$store.dispatch('setProtectedMode', false);

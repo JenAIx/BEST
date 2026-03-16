@@ -6,7 +6,7 @@
          <q-banner inline-actions class="text-white bg-red">
             {{this.noPARAMStxt}}
             <template v-slot:action>
-            <q-btn flat color="white" :label="TEXT.btn.back" @click="$router.push('/')" />
+            <q-btn flat color="white" :label="$t('btn.back.label')" @click="$router.push('/')" />
             </template>
         </q-banner>
       </div>
@@ -19,7 +19,7 @@
       <!-- RETURN BUTTON -->
       <div v-else class="col text-center">
         <div>
-          {{TEXT.quest.not_found}}: {{PARAMS}}
+          {{$t('quest.not_found')}}: {{PARAMS}}
         </div>
       </div>
     </div>
@@ -37,7 +37,6 @@ export default {
   components: {BACKBUTTON, RenderQuest},
   data() {
     return {
-      TEXT: this.$store.state.TEXT,
       noPARAMStxt: undefined,
       timenow: Date.now(), 
       status: true
@@ -76,7 +75,7 @@ export default {
         this.timenow = Date.now() // rerender renderquest
         this.$store.dispatch('storage_add', val)
         this.$q.notify({
-          message: this.TEXT.quest.export_success,
+          message: this.$t('quest.export_success'),
           color: 'green'
         })
         // encrypted mode?
@@ -89,7 +88,7 @@ export default {
 
       } else {
         this.$q.notify({
-          message: this.TEXT.quest.export_failed,
+          message: this.$t('quest.export_failed'),
           color: 'warning'
         })
       }

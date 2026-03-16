@@ -68,7 +68,6 @@
     components: {BACKBUTTON},
     data() {
       return {
-        TEXT: this.$store.getters.TEXT,
         file: null,
         data: 'some text ...',
         encrypted_data: '',

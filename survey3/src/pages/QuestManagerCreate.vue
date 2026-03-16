@@ -2,12 +2,12 @@
   <q-page data-cy="questman_create" class="page-size">
     <div class="column items-center" style="height: 100%">
       <div class="col-1 q-pt-md text-h6">
-       {{ TEXT.settings.questman.create.label }}
+       {{ $t('settings.questman.create.label') }}
       </div>
 
       <div v-if="content !== null" class="col q-py-md text-center">
         <!-- AUSWAHL FRAGEBÖGEN -->
-        <div class="text-caption text-grey">{{ TEXT.settings.questman.create.description }}</div>
+        <div class="text-caption text-grey">{{ $t('settings.questman.create.description') }}</div>
         <q-scroll-area class="shadow-1 my-form" >
           <q-list bordered separator class="quest_list" data-cy="questlistRoot">
             <!-- DESCRIPITON -->
@@ -15,8 +15,8 @@
               data-cy="btn_description"
               expand-separator
               icon="description"
-              :label="content.title || TEXT.settings.questman.create.please_fill"
-              :caption="TEXT.settings.questman.create.general_information"
+              :label="content.title || $t('settings.questman.create.please_fill')"
+              :caption="$t('settings.questman.create.general_information')"
               class="bg-grey-1 q-pa-sm"
             >
               <q-input data-cy="quest_title" v-model="content.title" dense label="Titel" />
@@ -53,7 +53,7 @@
               expand-separator
               icon="border_color"
               :label="`Items (${content.items.length})`"
-              :caption="TEXT.settings.questman.create.single_items"
+              :caption="$t('settings.questman.create.single_items')"
               class="bg-grey-1"
               data-cy="btn_items"
             >
@@ -76,17 +76,17 @@
                     <q-menu cover auto-close>
                       <q-list>
                         <q-item v-if="inditem > 0" class="my-btn text-center" data-cy="back_root" clickable @click="moveItem('up', inditem)">
-                          <q-item-section >{{TEXT.btn.up.label}}</q-item-section>
+                          <q-item-section >{{$t('btn.up.label')}}</q-item-section>
                         </q-item>
                         <q-separator/>
                         <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="removeItem(inditem)">
-                          <q-item-section >{{TEXT.btn.delete.label}}</q-item-section>
+                          <q-item-section >{{$t('btn.delete.label')}}</q-item-section>
                         </q-item>
                         <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="copyItem(inditem)">
-                          <q-item-section >{{TEXT.btn.duplicate.label}}</q-item-section>
+                          <q-item-section >{{$t('btn.duplicate.label')}}</q-item-section>
                         </q-item>
                         <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="previewItem(item)">
-                          <q-item-section >{{TEXT.btn.preview.label}}</q-item-section>
+                          <q-item-section >{{$t('btn.preview.label')}}</q-item-section>
                         </q-item>
                       </q-list>
                     </q-menu>
@@ -103,8 +103,8 @@
             <q-expansion-item
               expand-separator
               icon="poll"
-              :label="TEXT.settings.questman.create.results"
-              :caption="TEXT.settings.questman.create.results_details"
+              :label="$t('settings.questman.create.results')"
+              :caption="$t('settings.questman.create.results_details')"
               class="bg-grey-1"
             >
               <CREATERESULTS :results="content.results" @updateResult="updateResult($event)"/>
@@ -119,10 +119,10 @@
 
       <!-- ACTIONBTTNS -->
       <div class="col-2 text-center q-gutter-md justify-around" style="width: 100%">
-          <MYBUTTON data-cy="btn_preview" :icon="TEXT.btn.preview.icon"  @click="preview" :label="TEXT.btn.preview.label" />
+          <MYBUTTON data-cy="btn_preview" :icon="$t('btn.preview.icon')"  @click="preview" :label="$t('btn.preview.label')" />
           <br>
-          <MYBUTTON @click="saveQuest()" :label="TEXT.btn.save.label" />
-          <MYBUTTON @click="exportQuest()" :label="TEXT.btn.export.label_short" />
+          <MYBUTTON @click="saveQuest()" :label="$t('btn.save.label')" />
+          <MYBUTTON @click="exportQuest()" :label="$t('btn.export.label_short')" />
       </div>
 
       <!-- END COLUMN -->
@@ -140,7 +140,7 @@
         </div>
 
         <div class="col-1">
-           <MYBUTTON :label="TEXT.btn.close.label" @click="show_preview = false" />
+           <MYBUTTON :label="$t('btn.close.label')" @click="show_preview = false" />
         </div>
 
       </div>
@@ -163,7 +163,7 @@
           <q-input filled autogrow v-model="content_export" readonly />
         </q-card-section>
         <q-card-actions>
-          <MYBUTTON :label="TEXT.btn.close.label" @click="show_export = false" />
+          <MYBUTTON :label="$t('btn.close.label')" @click="show_export = false" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -195,7 +195,6 @@ export default {
   components: {BACKBUTTON, CREATEITEM, CREATERESULTS, PREVIEWITEM, MYBUTTON},
   data () {
     return {
-      TEXT: this.$store.getters.TEXT,
       content: null,
       content_single_item: null,
       content_export: null,
@@ -329,7 +328,7 @@ export default {
       }
 
       this.$store.getters.QUESTMAN.add(JSON.stringify(this.content))
-      this.$q.notify({ message: this.TEXT.quest.export_success, color: 'green' })
+      this.$q.notify({ message: this.$t('quest.export_success'), color: 'green' })
     },
     exportQuest() {
       this.content_export = JSON.stringify(this.content)

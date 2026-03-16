@@ -5,56 +5,136 @@ import { calc_results, evaluate } from './scoring'
 // Eagerly load all questionnaire JSON files via Vite's glob import
 const questModules = import.meta.glob('/src/assets/questionnaires/quest_*.json', { eager: true })
 
-function loadQuestJson(name) {
-  const key = `/src/assets/questionnaires/quest_${name}.json`
-  const mod = questModules[key]
-  if (!mod) return undefined
-  return mod.default || mod
+function getAllBundledQuests() {
+  const quests = {}
+  for (const [path, mod] of Object.entries(questModules)) {
+    const json = mod.default || mod
+    if (json && json.short_title) {
+      quests[json.short_title] = json
+    }
+  }
+  return quests
 }
 
 export class QuestMan {
-  _QUESTS = undefined
+  _bundledQuests = {}
+  _userQuests = {}
+  _deletedBundled = []
+  _QUESTS = {}
   _activeQuest = undefined
   _presets = []
-  _fieldname = 'surveyBEST_QUESTS'
 
-  constructor(payload) {
-    if (!payload) return log({ debug: "QuestMan>constructor: no payload" })
+  _fieldUserQuests = 'surveyBEST_USER_QUESTS'
+  _fieldDeletedBundled = 'surveyBEST_DELETED_BUNDLED'
+  _fieldLegacy = 'surveyBEST_QUESTS'
+
+  constructor() {
     log({ debug: 'QuestMan initializing ...' })
-    if (payload && payload.init === false) {
-      //no init
+    this._load()
+  }
+
+  _load() {
+    log({ debug: 'load quest' })
+    this._bundledQuests = getAllBundledQuests()
+
+    // One-time migration from old localStorage key
+    const legacyData = localStorage.getItem(this._fieldLegacy)
+    if (legacyData !== null) {
+      this._migrate(legacyData)
     }
-    else {
-      if (payload.QUESTS) this._LIST_QUESTS = payload.QUESTS
-      this._load()
+
+    // Load user quests
+    try {
+      const userRaw = localStorage.getItem(this._fieldUserQuests)
+      this._userQuests = userRaw ? JSON.parse(userRaw) : {}
+    } catch (e) {
+      log({ error: 'QuestMan>_load: failed to parse user quests', data: e })
+      this._userQuests = {}
+    }
+
+    // Load deleted bundled list
+    try {
+      const deletedRaw = localStorage.getItem(this._fieldDeletedBundled)
+      this._deletedBundled = deletedRaw ? JSON.parse(deletedRaw) : []
+    } catch (e) {
+      log({ error: 'QuestMan>_load: failed to parse deleted bundled', data: e })
+      this._deletedBundled = []
+    }
+
+    this._rebuild()
+  }
+
+  _migrate(legacyData) {
+    log({ debug: 'QuestMan>_migrate: migrating from legacy localStorage' })
+    try {
+      const oldQuests = JSON.parse(legacyData)
+      if (!oldQuests || typeof oldQuests !== 'object') {
+        localStorage.removeItem(this._fieldLegacy)
+        return
+      }
+
+      const userQuests = {}
+      const deletedBundled = []
+
+      // Identify user-created or user-modified quests
+      for (const [name, quest] of Object.entries(oldQuests)) {
+        if (this._bundledQuests[name]) {
+          // Entry matches a bundled quest by short_title — check if content differs
+          if (JSON.stringify(quest) !== JSON.stringify(this._bundledQuests[name])) {
+            userQuests[name] = quest // user edited it
+          }
+          // else: identical to bundled, skip
+        } else {
+          // Not in bundled — user created it
+          userQuests[name] = quest
+        }
+      }
+
+      // Bundled quests missing from old blob — user deleted them
+      for (const name of Object.keys(this._bundledQuests)) {
+        if (!(name in oldQuests)) {
+          deletedBundled.push(name)
+        }
+      }
+
+      // Write new keys
+      localStorage.setItem(this._fieldUserQuests, JSON.stringify(userQuests))
+      localStorage.setItem(this._fieldDeletedBundled, JSON.stringify(deletedBundled))
+      localStorage.removeItem(this._fieldLegacy)
+
+      log({ debug: `QuestMan>_migrate: ${Object.keys(userQuests).length} user quests, ${deletedBundled.length} deleted bundled` })
+    } catch (e) {
+      log({ error: 'QuestMan>_migrate: migration failed', data: e })
+      localStorage.removeItem(this._fieldLegacy)
     }
   }
 
-  _load(QUESTS) {
-    log({ debug: 'load quest' })
-    const data = JSON.parse(localStorage.getItem(this._fieldname))
-    if (data === null || data === undefined) return this._init(QUESTS)
-    this._QUESTS = data
+  _rebuild() {
+    const merged = {}
+    // Start with bundled quests
+    for (const [name, quest] of Object.entries(this._bundledQuests)) {
+      if (!this._deletedBundled.includes(name)) {
+        merged[name] = quest
+      }
+    }
+    // Add user quests (overrides bundled if same name)
+    for (const [name, quest] of Object.entries(this._userQuests)) {
+      merged[name] = quest
+    }
+    this._QUESTS = merged
   }
 
   _save() {
     log({ debug: 'save quest' })
-    localStorage.setItem(this._fieldname, JSON.stringify(this._QUESTS))
+    localStorage.setItem(this._fieldUserQuests, JSON.stringify(this._userQuests))
+    localStorage.setItem(this._fieldDeletedBundled, JSON.stringify(this._deletedBundled))
+    this._rebuild()
   }
 
   _init() {
-    log({ debug: 'init quest' })
-    this._QUESTS = {}
-    const quests = this._LIST_QUESTS()
-    quests.forEach(q => {
-      try {
-        let Q = loadQuestJson(q)
-        if (Q) this._add(Q)
-        else log({ warn: `QuestMan>_init: quest_${q}.json not found` })
-      } catch (e) {
-        log({ error: "QuestMan>_init", data: e })
-      }
-    })
+    log({ debug: 'init quest — reset to defaults' })
+    this._userQuests = {}
+    this._deletedBundled = []
     this._save()
   }
 
@@ -82,7 +162,7 @@ export class QuestMan {
   }
 
   _add(quest) {
-    this._QUESTS[quest.short_title] = quest
+    this._userQuests[quest.short_title] = quest
   }
 
   add(quest_txt) {
@@ -102,16 +182,21 @@ export class QuestMan {
   }
 
   remove_by_index(index) {
-    if (index < 0 || index > this._QUESTS.length) return false
-    const quest = this.quest_list[index]
-    log({ debug: 'remove quest: ' + quest })
-    delete this._QUESTS[quest]
-    this._save()
+    const names = Object.keys(this._QUESTS)
+    if (index < 0 || index >= names.length) return false
+    const name = names[index]
+    log({ debug: 'remove quest: ' + name })
+    this.remove_by_name(name)
   }
 
   remove_by_name(name) {
     if (!this.quest_list.includes(name)) return false
-    delete this._QUESTS[name]
+    if (name in this._userQuests) {
+      delete this._userQuests[name]
+    }
+    if (name in this._bundledQuests && !this._deletedBundled.includes(name)) {
+      this._deletedBundled.push(name)
+    }
     this._save()
   }
 

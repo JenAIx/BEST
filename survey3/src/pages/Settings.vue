@@ -3,15 +3,15 @@
     <div class="column items-center" style="height: 100%">
       <!-- TITLE -->
       <div class="col-1 q-py-md text-h6">
-        {{ TEXT.storage.settings }}
+        {{ $t('storage.settings') }}
       </div>
 
       <div class="col">
         <q-scroll-area class="my-form">
           <div class="row q-pa-md justify-around q-gutter-sm">
             <!-- FONT -->
-            <q-expansion-item data-cy="btn_description" expand-separator :icon="TEXT.settings.font.icon"
-              :label="TEXT.settings.font.label" :caption="`Größe: ${$store.getters.SETTINGS.size}`"
+            <q-expansion-item data-cy="btn_description" expand-separator :icon="$t('settings.font.icon')"
+              :label="$t('settings.font.label')" :caption="`Größe: ${$store.getters.SETTINGS.size}`"
               class="my-settings-item">
               <div class="row text-center">
                 <div class="col">
@@ -23,35 +23,35 @@
                 </div>
               </div>
               <div class="q-ma-sm text-center">
-                "{{ TEXT.settings.font.sample }}"
+                "{{ $t('settings.font.sample') }}"
               </div>
             </q-expansion-item>
 
             <!-- EXPORT -->
-            <q-expansion-item data-cy="btn_description" expand-separator :icon="TEXT.settings.export.icon"
-              :label="TEXT.settings.export.label" :caption="`Format: ${export_format}`" class="my-settings-item">
+            <q-expansion-item data-cy="btn_description" expand-separator :icon="$t('settings.export.icon')"
+              :label="$t('settings.export.label')" :caption="`Format: ${export_format}`" class="my-settings-item">
               <div class="row text-center">
                 <div class="col-12">
                   <q-btn-toggle flat v-model="export_format" toggle-color="primary"
-                    :options="TEXT.settings.export.options" />
+                    :options="exportOptions" />
                 </div>
                 <div class="col-12 text-caption">
                   <span v-if="export_format === 'html'">{{
-                    TEXT.settings.export.description.html
+                    $t('settings.export.description.html')
                   }}</span>
                   <span v-else-if="export_format === 'json'">{{
-                    TEXT.settings.export.description.json
+                    $t('settings.export.description.json')
                   }}</span>
                   <span v-else-if="export_format === 'CDA'">{{
-                    TEXT.settings.export.description.cda
+                    $t('settings.export.description.cda')
                   }}</span>
                 </div>
               </div>
             </q-expansion-item>
 
             <!-- USER SETTINGS -->
-            <q-expansion-item data-cy="btn_description" expand-separator :icon="TEXT.settings.user.icon"
-              :label="TEXT.settings.user.label" :caption="`eMail: ${$store.getters.SETTINGS.email_export || ''} `"
+            <q-expansion-item data-cy="btn_description" expand-separator :icon="$t('settings.user.icon')"
+              :label="$t('settings.user.label')" :caption="`eMail: ${$store.getters.SETTINGS.email_export || ''} `"
               class="my-settings-item">
               <!-- MAIL -->
               <div class="row q-pa-xs">
@@ -68,12 +68,12 @@
 
                 <div class="col-12 text-center q-my-md">
                   <q-toggle v-model="user_details" class="text-caption" color="green" data-cy="show_user_details"
-                    :label="TEXT.btn.more_details" />
+                    :label="$t('btn.more_details')" />
                 </div>
               </div>
               <!-- MORE DETAILS` -->
               <div v-if="user_details" class="row q-ma-xs shadow-1 q-pa-sm">
-                <div class="text-caption my-annotation-text" v-html="TEXT.settings.user.uid_description"></div>
+                <div class="text-caption my-annotation-text" v-html="$t('settings.user.uid_description')"></div>
                 <q-input class="col-12" dense disable borderless v-model="$store.getters.SETTINGS.user_uid"
                   input-class="text-center" label="uid" />
                 <q-input class="col-12" dense readonly borderless v-model="keyPair.privateKey"
@@ -97,11 +97,11 @@
               <!-- IMPORT&EXPORT -->
               <div v-if="user_details" class="row justify-right text-grey-8 q-mt-md">
                 <q-btn no-caps icon="file_upload" flat size="xs" class="col" @click="view_import = true">{{
-                  TEXT.btn.user.label_import }}</q-btn>
-                <q-btn no-caps icon="refresh" flat size="xs" class="col" @click="user_new()">{{ TEXT.btn.user.label_new
+                  $t('btn.user.label_import') }}</q-btn>
+                <q-btn no-caps icon="refresh" flat size="xs" class="col" @click="user_new()">{{ $t('btn.user.label_new')
                 }}</q-btn>
                 <q-btn no-caps icon="file_download" flat size="xs" class="col" @click="view_export = true">{{
-                  TEXT.btn.user.label_export }}</q-btn>
+                  $t('btn.user.label_export') }}</q-btn>
               </div>
             </q-expansion-item>
 
@@ -111,12 +111,12 @@
             <!-- QUESTMANAGER -->
             <q-item clickable v-ripple class="my-settings-item" @click="$router.push({ name: 'questman' })">
               <q-item-section avatar>
-                <q-icon :name="TEXT.settings.questman.icon" />
+                <q-icon :name="$t('settings.questman.icon')" />
               </q-item-section>
               <q-item-section>
-                <q-item-label>{{ TEXT.settings.questman.label }}</q-item-label>
+                <q-item-label>{{ $t('settings.questman.label') }}</q-item-label>
                 <q-item-label caption>{{
-                  TEXT.settings.questman.description
+                  $t('settings.questman.description')
                 }}</q-item-label>
               </q-item-section>
             </q-item>
@@ -127,14 +127,14 @@
             <!-- ENCRYPT -->
             <q-item clickable v-ripple class="my-settings-item" @click="$router.push({ name: 'encrypt' })">
               <q-item-section avatar>
-                <q-icon :name="TEXT.settings.encryption.icon" />
+                <q-icon :name="$t('settings.encryption.icon')" />
               </q-item-section>
               <q-item-section>
                 <q-item-label>{{
-                  TEXT.settings.encryption.label
+                  $t('settings.encryption.label')
                 }}</q-item-label>
                 <q-item-label caption>{{
-                  TEXT.settings.encryption.description
+                  $t('settings.encryption.description')
                 }}</q-item-label>
               </q-item-section>
             </q-item>
@@ -173,7 +173,6 @@ export default {
   mixins: [myMixins],
   data() {
     return {
-      TEXT: this.$store.getters.TEXT,
       isPwd_priv: false,
       isPwd_pub: false,
       user_details: false,
@@ -192,6 +191,13 @@ export default {
     });
   },
   computed: {
+    exportOptions() {
+      return [
+        { label: this.$t('settings.export.options.html'), value: 'html' },
+        { label: this.$t('settings.export.options.json'), value: 'json' },
+        { label: this.$t('settings.export.options.CDA'), value: 'CDA' },
+      ]
+    },
     keyPair() {
       if (this.$store.getters.SETTINGS.user_keyPair === undefined)
         this.$store.getters.SETTINGS._USER.create();
@@ -212,7 +218,7 @@ export default {
   },
   methods: {
     user_new() {
-      const answ = confirm(this.TEXT.btn.confirm.new_user);
+      const answ = confirm(this.$t('btn.confirm.new_user'));
       if (!answ) return;
       this.$store.getters.SETTINGS._USER.create();
     },
@@ -226,7 +232,7 @@ export default {
         this.$store.getters.SETTINGS._USER.import(data);
       } catch {
         this.$q.notify({
-          message: this.TEXT.error.format_wrong,
+          message: this.$t('error.format_wrong'),
           color: "warning",
         });
       }

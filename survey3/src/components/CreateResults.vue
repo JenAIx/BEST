@@ -46,7 +46,6 @@ export default {
   components: {RESULTSITEM},
   data() {
     return {
-      TEXT: this.$store.state.TEXT,
       date_str: Date.now(),
       results_copy: undefined
     }

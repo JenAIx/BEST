@@ -102,7 +102,6 @@ export default {
 
   data() {
     return {
-      TEXT: this.$store.state.TEXT,
       date_str: Date.now(),
       item_copy: undefined
     }

@@ -17,10 +17,10 @@
             v-if="item.exported"
             color="green"
             :data-cy="'exported_' + index"
-            >{{ TEXT.storage.export_finished }}</q-badge
+            >{{ $t('storage.export_finished') }}</q-badge
           >
           <q-badge v-else color="warning" size="xs">{{
-            TEXT.storage.export_open
+            $t('storage.export_open')
           }}</q-badge>
         </q-item-label>
         <q-item-label caption class="overflow-hidden" style="max-height: 2.8em">
@@ -55,7 +55,7 @@
             @click="view_item(index)"
             :data-cy="'btn_preview_' + index"
           >
-            <q-tooltip>{{ TEXT.btn.preview }}</q-tooltip>
+            <q-tooltip>{{ $t('btn.preview.label') }}</q-tooltip>
           </q-btn>
           <q-btn
             size="12px"
@@ -75,9 +75,9 @@
                   @click="export_item(index)"
                 >
                   <q-item-section avatar>
-                    <q-icon :name="TEXT.btn.export.icon" />
+                    <q-icon :name="$t('btn.export.icon')" />
                   </q-item-section>
-                  <q-item-section>{{ TEXT.btn.export.label }}</q-item-section>
+                  <q-item-section>{{ $t('btn.export.label') }}</q-item-section>
                 </q-item>
                 <!-- EXPORT -->
                 <q-item
@@ -87,11 +87,11 @@
                   @click="export_item_encrypted(index)"
                 >
                   <q-item-section avatar>
-                    <q-icon :name="TEXT.btn.export.icon2" />
+                    <q-icon :name="$t('btn.export.icon2')" />
                   </q-item-section>
                   <q-item-section
-                    >{{ TEXT.btn.export.label }} ({{
-                      TEXT.btn.export.encrypt
+                    >{{ $t('btn.export.label') }} ({{
+                      $t('btn.export.encrypt')
                     }})</q-item-section
                   >
                 </q-item>
@@ -104,9 +104,9 @@
                   @click="remove(index)"
                 >
                   <q-item-section avatar>
-                    <q-icon :name="TEXT.btn.delete.icon" />
+                    <q-icon :name="$t('btn.delete.icon')" />
                   </q-item-section>
-                  <q-item-section>{{ TEXT.btn.delete.label }}</q-item-section>
+                  <q-item-section>{{ $t('btn.delete.label') }}</q-item-section>
                 </q-item>
               </q-list>
             </q-menu>
@@ -124,7 +124,6 @@ export default {
   data() {
     return {
       checked: false,
-      TEXT: this.$store.getters.TEXT,
     };
   },
   watch: {

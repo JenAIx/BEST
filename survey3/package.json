@@ -28,9 +28,11 @@
     "dateformat": "^5.0.3",
     "jsencrypt": "^3.5.4",
     "jsrsasign": "^10.6.1",
+    "pinia": "^3.0.4",
     "quasar": "^2.6.0",
     "showdown": "^2.1.0",
     "vue": "^3.0.0",
+    "vue-i18n": "^11.3.0",
     "vue-router": "^4.0.0",
     "vuex": "^4.0.1"
   },

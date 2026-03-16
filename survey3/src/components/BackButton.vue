@@ -4,7 +4,7 @@
       <q-menu cover auto-close>
         <q-list>
           <q-item class="my-btn text-center" data-cy="back_root" clickable @click="quitForm">
-            <q-item-section>{{TEXT.btn.back.label}}</q-item-section>
+            <q-item-section>{{$t('btn.back.label')}}</q-item-section>
           </q-item>
         </q-list>
       </q-menu>
@@ -20,9 +20,7 @@ export default {
   props: ["ask", "go_back", "go_location"],
 
   data() {
-    return {
-      TEXT: this.$store.state.TEXT,
-    }
+    return {}
   },
 
   computed: {

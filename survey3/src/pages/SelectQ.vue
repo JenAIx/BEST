@@ -2,7 +2,7 @@
   <q-page data-cy="selectquest" class="page-size">
     <div class="column items-center" style="height: 100%">
       <div class="col-1 text-h6 q-pa-md">
-        {{ TEXT.select_quest.label }}
+        {{ $t('select_quest.label') }}
       </div>
 
       <div class="col-1" style="min-height: 50px">
@@ -49,19 +49,19 @@
         <span
           v-if="count_selected === 0"
           class="text-grey text-center"
-          v-html="TEXT.select_quest.empty"
+          v-html="$t('select_quest.empty')"
         ></span>
         <!-- DESELCT -->
         <MYBUTTON
           v-if="count_selected > 0"
-          :label="TEXT.btn.deselect.label"
+          :label="$t('btn.deselect.label')"
           @click="deselectAll"
           data-cy="deselect"
         />
         <!-- GOTOQUEST -->
         <MYBUTTON
           v-if="count_selected === 1"
-          :label="TEXT.btn.toquest"
+          :label="$t('btn.toquest')"
           @click="gotoquest"
           data-cy="btn_gotoquest"
         />
@@ -69,7 +69,7 @@
         <MYBUTTON
           v-if="count_selected > 1"
           data-cy="btn_gotopreset"
-          :label="TEXT.btn.make_preset"
+          :label="$t('btn.make_preset')"
           @click="gotopreset()"
         />
       </div>
@@ -96,7 +96,6 @@ export default {
   props: ["MODE"],
   data() {
     return {
-      TEXT: this.$store.getters.TEXT,
       filter_value: null,
       date_str: Date.now(),
       INDEX: [],

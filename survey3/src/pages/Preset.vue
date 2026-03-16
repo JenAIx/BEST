@@ -8,7 +8,7 @@
      
       <!-- PARAMETER WURDEN FEFINIERT -->
       <div class="col-1 text-center q-ma-md text-h6">
-        {{TEXT.quest.presets}}
+        {{$t('quest.presets')}}
       </div>
 
       <div class="col">
@@ -29,14 +29,14 @@
         <q-card>
           <q-card-section class="my-card">
             <q-input :disable="ISENCRYPTED" data-cy="PID" filled v-model="subject_pid" :label="PID_HINT_TEXT"
-              :rules="[ val => val && val.length > 0 || TEXT.quest.pid_hint]" />
+              :rules="[ val => val && val.length > 0 || $t('quest.pid_hint')]" />
           </q-card-section>
         </q-card>
-        <MYBUTTON :colored="true" data-cy="btn_preset_start"  @click="startQuest" :label="TEXT.btn.start_preset"/>
+        <MYBUTTON :colored="true" data-cy="btn_preset_start"  @click="startQuest" :label="$t('btn.start_preset')"/>
                 
         <div v-if="!ISPROTECTED" class="col-1 text-center q-mt-md">
           <q-btn v-if="show_store_btn" flat size="xl" icon="save" color="primary" @click="save_preset" />
-          <span class="text-caption text-grey-7">{{TEXT.btn.preset_save}}</span>
+          <span class="text-caption text-grey-7">{{$t('btn.preset_save')}}</span>
         </div>
       </div>
 
@@ -67,7 +67,6 @@ export default {
   components: {BACKBUTTON, MYBUTTON},
   data() {
     return {
-      TEXT: this.$store.state.TEXT,
       subject_pid: null,
       show_store_btn: true
     }
@@ -84,7 +83,7 @@ export default {
   computed: {
     PID_HINT_TEXT() {
       if (this.ISENCRYPTED) return ''
-      return this.TEXT.quest.pid
+      return this.$t('quest.pid')
     },
     QUESTMAN() {
       return this.$store.getters.QUESTMAN
@@ -112,7 +111,7 @@ export default {
     save_preset(){
       this.$q.dialog({
         // title: 'Preset',
-        message: this.TEXT.quest.save_preset,
+        message: this.$t('quest.save_preset'),
         prompt: {
           model: 'Preset 1',
           type: 'text' // optional
@@ -123,7 +122,7 @@ export default {
         this.$store.dispatch('storePreset', {label: label, value: this.PARAMS.presets});
         this.show_store_btn = false
         this.$q.notify({
-          message: this.TEXT.quest.save_success,
+          message: this.$t('quest.save_success'),
           color: 'green'
         }) 
       })
@@ -131,7 +130,7 @@ export default {
     startQuest() {
       if (this.subject_pid === null) {
         this.$q.notify({
-          message: this.TEXT.quest.PID_missing,
+          message: this.$t('quest.PID_missing'),
           color: 'warning'
         })
         return false

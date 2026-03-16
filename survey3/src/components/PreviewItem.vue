@@ -13,9 +13,7 @@ export default {
   props: ["content", "content_single_item"],
   components: {RENDERQUEST},
   data() {
-    return {
-      TEXT: this.$store.state.TEXT
-    }
+    return {}
   },
   computed: {
     CONTENT() {

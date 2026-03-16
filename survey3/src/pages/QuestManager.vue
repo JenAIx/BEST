@@ -2,7 +2,7 @@
   <q-page data-cy="questman" class="page-size">
     <div class="column items-center" style="height: 100%">
       <div class="col-1 q-pt-md text-h6">
-        {{ TEXT.settings.questman.label }}
+        {{ $t('settings.questman.label') }}
       </div>
 
       <div class="col q-py-md">
@@ -29,17 +29,17 @@
       <!-- ACTIONBTTNS -->
       <div class="col-2 text-center q-gutter-md  justify-around" style="width: 100%">
         <!-- deleteSelected -->
-        <MYBUTTON v-if="count_selected > 0" @clicked="deleteSelected()" :label="TEXT.btn.delete.label" />
+        <MYBUTTON v-if="count_selected > 0" @clicked="deleteSelected()" :label="$t('btn.delete.label')" />
         <!-- deselectAll -->
-        <MYBUTTON v-if="count_selected > 0" @clicked="deselectAll()" :label="TEXT.btn.deselect2" />
+        <MYBUTTON v-if="count_selected > 0" @clicked="deselectAll()" :label="$t('btn.deselect2')" />
         <!-- editSelected -->
-        <MYBUTTON v-if="count_selected === 1" @clicked="editSelected()" :label="TEXT.btn.edit" />
+        <MYBUTTON v-if="count_selected === 1" @clicked="editSelected()" :label="$t('btn.edit')" />
         <!-- importQuest -->
-        <MYBUTTON v-if="count_selected === 0" @clicked="importQuest()" :label="TEXT.btn.import" />
+        <MYBUTTON v-if="count_selected === 0" @clicked="importQuest()" :label="$t('btn.import')" />
         <!-- createQuest -->
-        <MYBUTTON v-if="count_selected === 0" @clicked="createQuest()" :label="TEXT.btn.create" />
+        <MYBUTTON v-if="count_selected === 0" @clicked="createQuest()" :label="$t('btn.create')" />
         <!-- resetQuest -->
-        <MYBUTTON v-if="count_selected === 0" @clicked="resetQuest()" :label="TEXT.btn.reset" />
+        <MYBUTTON v-if="count_selected === 0" @clicked="resetQuest()" :label="$t('btn.reset')" />
       </div>
       <!-- END COLUMN -->
     </div>
@@ -62,7 +62,6 @@ export default {
   props: ["MODE"],
   data() {
     return {
-      TEXT: this.$store.getters.TEXT,
       INDEX: []
     }
   },
@@ -98,7 +97,7 @@ export default {
       }
     },
     deleteSelected() {
-      const answ = confirm(this.TEXT.btn.confirm_delete)
+      const answ = confirm(this.$t('btn.confirm_delete'))
       if (!answ) return
       // else
       var idx = this.INDEX.indexOf(true)
@@ -121,7 +120,7 @@ export default {
       this.$router.push({ name: "questmanagercreate" })
     },
     resetQuest() {
-      const answ = confirm(this.TEXT.btn.reset_confirm)
+      const answ = confirm(this.$t('btn.reset_confirm'))
       if (!answ) return
       //else
       this.QUESTMAN._init()

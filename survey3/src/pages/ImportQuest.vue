@@ -3,7 +3,7 @@
     <div class="column items-center" style="height: 100%">
       <!-- TITLE -->
       <div class="col-1 q-pt-md text-h6">
-        {{ TEXT.storage.import.label }}
+        {{ $t('storage.import.label') }}
       </div>
 
       <!-- PICK A FILE -->
@@ -11,17 +11,17 @@
         <q-file
           v-model="file"
           accept=".json, .html"
-          :label="TEXT.storage.import.fileselect"
+          :label="$t('storage.import.fileselect')"
           filled
           style="max-width: 300px"
         />
       </div>
 
       <div class="col text-center" v-if="file !== null">
-        <q-btn class="my-btn" @click="loadFile()" :label="TEXT.btn.import" />
+        <q-btn class="my-btn" @click="loadFile()" :label="$t('btn.import')" />
 
         <div class="q-mt-md my-annotation-text">
-          {{ TEXT.storage.import.info }}
+          {{ $t('storage.import.info') }}
         </div>
       </div>
     </div>
@@ -40,7 +40,6 @@ export default {
   components: { BACKBUTTON },
   data() {
     return {
-      TEXT: this.$store.getters.TEXT,
       file: null,
     };
   },
@@ -90,7 +89,7 @@ export default {
 
     show_error(err) {
       this.$q.notify({
-        message: `${this.TEXT.quest.import_failed}: ${err}`,
+        message: `${this.$t('quest.import_failed')}: ${err}`,
         color: "warning",
       });
     },
@@ -148,7 +147,7 @@ export default {
     importDocument(document) {
       this.$store.dispatch("storage_add_from_file", document).then((res) => {
         this.$q.notify({
-          message: this.TEXT.quest.import_success,
+          message: this.$t('quest.import_success'),
           color: "green",
         });
         this.$router.go(-1);

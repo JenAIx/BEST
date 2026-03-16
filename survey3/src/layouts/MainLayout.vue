@@ -14,10 +14,10 @@
         />
 
         <q-toolbar-title @click="$router.push('/').catch(()=>{})" class="text-black">
-          {{ TEXT.label }}
+          {{ $t('label') }}
         </q-toolbar-title>
 
-        <div @click="$router.push('about').catch(()=>{})" class="text-grey-6"> {{ app_version }}</div>
+        <div @click="$router.push('about').catch(()=>{})" class="text-grey-6"> {{ appVersion }}</div>
       </q-toolbar>
     </q-header>
 
@@ -72,14 +72,34 @@ export default {
     this.$store.state.leftDrawerOpen = false
   },
   data() {
-    return {
-      TEXT: this.$store.state.TEXT,
-      essentialLinks: this.$store.state.TEXT.essentialLinks,
-      app_title: this.$store.getters.ENV.APP_NAME,
-      app_version: `${this.$store.getters.ENV.APP_VERSION}-${this.$store.getters.ENV.APP_UPDATED}`
-    }
+    return {}
   },
   computed: {
+    appVersion() {
+      return `${process.env.APP_VERSION}-${process.env.APP_UPDATED}`
+    },
+    essentialLinks() {
+      const links = [
+        { key: 'start', icon: 'home', link: '/', name: 'start' },
+        { key: 'select', icon: 'assignment', link: 'select', name: 'select' },
+        { key: 'store_preset', icon: 'archive', link: 'store_preset', name: 'store_preset' },
+        { key: 'storage', icon: 'inventory_2', link: 'storage', name: 'storage' },
+        { key: 'separator' },
+        { key: 'settings', icon: 'settings', link: 'settings', name: 'settings' },
+        { key: 'about', icon: 'info', link: 'about', name: 'about' },
+        { key: 'changelog', icon: 'update', link: 'changelog', name: 'changelog' },
+      ]
+      return links.map(l => {
+        if (l.key === 'separator') return { title: 'separator' }
+        return {
+          title: this.$t(`nav.${l.key}.title`),
+          caption: this.$t(`nav.${l.key}.caption`),
+          icon: l.icon,
+          link: l.link,
+          name: l.name,
+        }
+      })
+    },
     bodysize() {
       return {
         'body-normal': this.$store.getters.SETTINGS.size === 'normal',

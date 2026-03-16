@@ -40,8 +40,8 @@
 
     <!-- PID -->
     <q-card-section>
-      <q-input data-cy="PID" filled v-model="subject_pid" :label="TEXT.quest.pid" :hint="PID_HINT_TEXT"
-        :rules="[ val => val && val.length > 0 || TEXT.quest.pid_hint]" :disable="PARAMS.PID !== undefined" />
+      <q-input data-cy="PID" filled v-model="subject_pid" :label="$t('quest.pid')" :hint="PID_HINT_TEXT"
+        :rules="[ val => val && val.length > 0 || $t('quest.pid_hint')]" :disable="PARAMS.PID !== undefined" />
         <!-- INVISIBLE ELEMENT TO DO THE AUTOFOCUS -->
         <q-input style="height: 0px; width: 0px" autofocus />
     </q-card-section>
@@ -96,7 +96,7 @@
             <q-item-label v-if="submit_clicked && CHECK_FORM !== true && CHECK_FORM[indQ] === false"
               class="text-red"
             >
-              {{TEXT.quest.please_complete}}
+              {{$t('quest.please_complete')}}
             </q-item-label>
           </q-item-section>
         </q-item>
@@ -106,7 +106,7 @@
     <!-- FORM BUTTON -->
     <q-card-section v-if="PREVIEWQUEST === undefined">
       <div class="text-center q-pb-xl">
-          <q-btn rounded :label="TEXT.btn.submit" type="submit" color="primary" @click="emitEvent()" data-cy="submitquest" class="my-btn" />
+          <q-btn rounded :label="$t('btn.submit')" type="submit" color="primary" @click="emitEvent()" data-cy="submitquest" class="my-btn" />
       </div>
     </q-card-section>
 
@@ -143,7 +143,6 @@ export default {
   data() {
     return {
       TEST: 0,
-      TEXT: this.$store.state.TEXT,
         check_pid: false,
         check_form: undefined,
         submit_clicked: false,
@@ -161,7 +160,7 @@ export default {
   computed: {
     PID_HINT_TEXT() {
       if (this.PARAMS.PID !== undefined) return ''
-      return this.TEXT.quest.pid_hint
+      return this.$t('quest.pid_hint')
     },
     PARAMS() {
       if (this.PREVIEWQUEST !== undefined) return {}
@@ -199,7 +198,7 @@ export default {
       this.key_suffix = this.subject_pid
     },
     rebuildQuests() {
-      const answ = confirm(this.TEXT.btn.reset_confirm)
+      const answ = confirm(this.$t('btn.reset_confirm'))
       if (!answ) return
       //else
       this.$store.getters.QUESTMAN._init()
@@ -214,8 +213,8 @@ export default {
 
       // console.log(this.$store.getters.QUESTMAN.summary)
 
-      if (this.CHECK_PID === false) str += this.TEXT.quest.PID_missing;
-      if (this.check_form !== true) str += this.TEXT.quest.check_failed;
+      if (this.CHECK_PID === false) str += this.$t('quest.PID_missing');
+      if (this.check_form !== true) str += this.$t('quest.check_failed');
       if (str.length > 0) {this.$q.notify({
           message: str,
           color: 'warning'

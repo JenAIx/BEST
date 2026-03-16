@@ -3,7 +3,7 @@
     <div class="column items-center" style="height: 100%">
       <!-- HEADING -->
       <div class="col-1 q-pt-md text-h6">
-        {{ TEXT.storage.label }}
+        {{ $t('storage.label') }}
       </div>
 
       <div class="col-1" style="max-height: 50px">
@@ -35,19 +35,19 @@
       <!-- ACTIONBTTNS -->
       <div v-if="QUEST_LIST.length > 0" class="col-3 col-md-2 text-center q-gutter-md justify-around" style="width: 100%">
         <!-- SELECTALL -->
-        <MYBUTTON v-if="!somethingselected" :icon="TEXT.btn.select_all.icon" :label="TEXT.btn.select_all.label"
+        <MYBUTTON v-if="!somethingselected" :icon="$t('btn.select_all.icon')" :label="$t('btn.select_all.label')"
           @click="selectall(true)" />
-        <MYBUTTON v-if="!somethingselected" :icon="TEXT.btn.import2.icon" :label="TEXT.btn.import2.label"
+        <MYBUTTON v-if="!somethingselected" :icon="$t('btn.import2.icon')" :label="$t('btn.import2.label')"
           @click="$router.push({ name: 'importQuest' })" />
         <!-- DESELECT -->
-        <MYBUTTON v-if="somethingselected" :icon="TEXT.btn.deselect.icon" @click="selectall(false)"
-          :label="TEXT.btn.deselect.label" />
+        <MYBUTTON v-if="somethingselected" :icon="$t('btn.deselect.icon')" @click="selectall(false)"
+          :label="$t('btn.deselect.label')" />
         <!-- EXPORT SELECTION -->
-        <MYBUTTON v-if="QUEST_LIST.length > 0 && somethingselected" :icon="TEXT.btn.selection_export.icon"
-          @clicked="exportselection" data-cy="btn_export_all" :label="TEXT.btn.selection_export.label" />
+        <MYBUTTON v-if="QUEST_LIST.length > 0 && somethingselected" :icon="$t('btn.selection_export.icon')"
+          @clicked="exportselection" data-cy="btn_export_all" :label="$t('btn.selection_export.label')" />
         <!-- DELETE SELCTON -->
-        <MYBUTTON v-if="QUEST_LIST.length > 0 && somethingselected" :icon="TEXT.btn.selection_delete.icon"
-          @clicked="deleteselection(selected)" :label="TEXT.btn.selection_delete.label" />
+        <MYBUTTON v-if="QUEST_LIST.length > 0 && somethingselected" :icon="$t('btn.selection_delete.icon')"
+          @clicked="deleteselection(selected)" :label="$t('btn.selection_delete.label')" />
         <!-- DEBUG PRINT  -->
         <MYBUTTON v-if="$store.state.debug" @click="printStorageToConsole" />
       </div>
@@ -55,10 +55,10 @@
       <!-- SOME FALLBACK message -->
       <div v-else class="col-2 text-center" data-cy="no_entry">
         <div class="text-grey">
-          {{ TEXT.storage.no_entry }}
+          {{ $t('storage.no_entry') }}
         </div>
         <div>
-          <MYBUTTON :icon="TEXT.btn.import2.icon" :label="TEXT.btn.import2.label"
+          <MYBUTTON :icon="$t('btn.import2.icon')" :label="$t('btn.import2.label')"
             @click="$router.push({ name: 'importQuest' })" />
         </div>
       </div>
@@ -94,7 +94,6 @@ export default {
       medium: false,
       selected: [],
 
-      TEXT: this.$store.getters.TEXT,
       view_QUEST: undefined,
       FILTER_ON: false,
     };
@@ -197,13 +196,13 @@ export default {
       this.$store.dispatch("storage_export", this.selected);
       this.selected = [];
       this.$q.notify({
-        message: `${this.TEXT.quest.export_success}`,
+        message: `${this.$t('quest.export_success')}`,
         color: "green",
       });
     },
     deleteselection(SELECTED_ITEMS) {
       if (SELECTED_ITEMS.length < 1) return false;
-      const answ = confirm(this.TEXT.btn.confirm_delete);
+      const answ = confirm(this.$t('btn.confirm_delete'));
       if (!answ) return;
       SELECTED_ITEMS.forEach((uid) => {
         this.$store.commit("STORAGE_REMOVE", uid);

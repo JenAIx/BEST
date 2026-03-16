@@ -2,13 +2,13 @@
   <q-page data-cy="questman" :style="pageSize">
     <div class="column items-center" style="height: 100%">
       <div class="col-1 q-pt-md text-h6">
-        {{ TEXT.settings.questman.label }}
+        {{ $t('settings.questman.label') }}
       </div>
 
       <div class="col q-py-md text-center" style="width: 350px">
         <!-- AUSWAHL FRAGEBÖGEN -->
         <div class="text-caption text-grey">
-          {{ TEXT.settings.questman.import.description }}
+          {{ $t('settings.questman.import.description') }}
         </div>
         <q-input v-model="content" filled type="textarea" />
       </div>
@@ -21,7 +21,7 @@
         <MYBUTTON
           v-if="content !== null && content.length > 0"
           @click="importQuest"
-          :label="TEXT.btn.import"
+          :label="$t('btn.import')"
         />
       </div>
       <!-- END COLUMN -->
@@ -44,7 +44,6 @@ export default {
   mixins: [myMixins],
   data() {
     return {
-      TEXT: this.$store.getters.TEXT,
       content: null,
     };
   },
@@ -59,7 +58,7 @@ export default {
       const status = this.QUESTMAN.add(this.content);
       if (status) {
         this.$q.notify({
-          message: `${this.TEXT.quest.import_success}`,
+          message: `${this.$t('quest.import_success')}`,
           color: "green",
         });
         this.content = null;

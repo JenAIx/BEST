@@ -26,7 +26,7 @@
     </q-card-section>
 
     <q-card-actions align="center">
-      <MYBUTTON :label="TEXT.btn.save.label" @clicked="saveElement(ITEM)" />
+      <MYBUTTON :label="$t('btn.save.label')" @clicked="saveElement(ITEM)" />
     </q-card-actions>
 
   </q-card>
@@ -46,7 +46,6 @@ export default {
 
   data() {
     return {
-      TEXT: this.$store.state.TEXT,
       ITEM: undefined
     }
   },

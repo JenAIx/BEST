@@ -66,7 +66,6 @@ export default {
   components: {ITEMARRAY},
   data() {
     return {
-      TEXT: this.$store.state.TEXT,
       date_str: Date.now(),
       items_copy: undefined,
       METHODS: ["sum", "avg"]
