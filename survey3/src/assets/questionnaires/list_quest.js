@@ -50,6 +50,7 @@ const quest = [
   "iqcode",
   "klein",
   "mcgill",
+  "mdt",
   "mfq",
   "mna",
   "moca",
@@ -76,10 +77,12 @@ const quest = [
   "quiprs",
   "fact",
   "ptss14", "ptss14_cov2",
+  "rbd_sq",
   "sf36",
   "sf36_mod",
   "sams_1",
   "sams_2",
+  "schwab_england",
   "shapsd",
   "sss",
   "sus",
@@ -95,6 +98,7 @@ const quest = [
   "vr_evaluation",
   "whoqol",
   "whodas2",
+  "woq9",
   "test"
 ]
 

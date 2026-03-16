@@ -1,0 +1,84 @@
+{
+    "title": "WOQ-9 (Wearing-off Fragebogen)",
+    "short_title": "woq9",
+    "coding": {
+        "system": "http://snomed.info/sct",
+        "code": "443679007",
+        "display": "Wearing-off Questionnaire 9",
+        "version": "20240101"
+    },
+    "description": "WOQ-9 - Wearing-off Fragebogen",
+    "manual": "Kreuzen Sie bitte in <b>Spalte A &bdquo;Ja&ldquo;</b> f\u00fcr alle Symptome an, die bei Ihnen an einem typischen Tag im vergangenen Monat aufgetreten sind.<br><br>Kreuzen Sie in <b>Spalte B &bdquo;Ja&ldquo;</b> an, wenn sich dieses Symptom normalerweise verbessert oder verschwindet, nachdem Sie die n\u00e4chste Dosis Ihrer Parkinson-Medikation eingenommen haben.<br><br>Kreuzen Sie in <b>Spalte B &bdquo;Nein&ldquo;</b> an, wenn sich das Symptom nach Einnahme der n\u00e4chsten Dosis Ihrer Parkinson-Medikation nicht verbessert oder verschwindet.",
+    "keywords": "wearing-off, WOQ, Parkinson, Medikation, Fluktuation, Wirkungsschwankung",
+    "ref": null,
+    "items": [
+        {
+            "label": "A - Symptom tritt auf",
+            "id": [1, 2, 3, 4, 5, 6, 7, 8, 9],
+            "tag": "symptom_A",
+            "value": [],
+            "type": "multiple_radio",
+            "inline": false,
+            "force": true,
+            "options": {
+                "questions": [
+                    {"label": "1. Tremor (z.B. zitternde H\u00e4nde, Arme oder Beine)", "tag": "A_tremor", "id": 1},
+                    {"label": "2. Verlangsamung der Bewegungen (z.B. beim Gehen, Essen oder Anziehen)", "tag": "A_bradykinese", "id": 2},
+                    {"label": "3. Stimmungsschwankungen", "tag": "A_stimmung", "id": 3},
+                    {"label": "4. Allgemeines Steifigkeitsgef\u00fchl (z.B. steife Arme oder Beine)", "tag": "A_steifigkeit", "id": 4},
+                    {"label": "5. Schmerzen/Gliederschmerzen", "tag": "A_schmerzen", "id": 5},
+                    {"label": "6. Verminderte Geschicklichkeit (z.B. Schwierigkeiten beim Schreiben oder beim Auf- oder Zumachen von Kn\u00f6pfen)", "tag": "A_geschicklichkeit", "id": 6},
+                    {"label": "7. Benommenheit/verlangsamtes Denken", "tag": "A_benommenheit", "id": 7},
+                    {"label": "8. Angstgef\u00fchle/Panikattacken", "tag": "A_angst", "id": 8},
+                    {"label": "9. Muskelkr\u00e4mpfe (z.B. der Arme, Beine oder F\u00fc\u00dfe)", "tag": "A_muskelkraempfe", "id": 9}
+                ],
+                "answers": [
+                    {"label": "Ja", "value": 1},
+                    {"label": "Nein", "value": 0}
+                ]
+            }
+        },
+        {
+            "label": "B - Symptom verbessert sich nach Einnahme der n\u00e4chsten Dosis meiner Parkinson-Medikation",
+            "id": [10, 11, 12, 13, 14, 15, 16, 17, 18],
+            "tag": "symptom_B",
+            "value": [],
+            "type": "multiple_radio",
+            "inline": false,
+            "force": true,
+            "options": {
+                "questions": [
+                    {"label": "1. Tremor (z.B. zitternde H\u00e4nde, Arme oder Beine)", "tag": "B_tremor", "id": 10},
+                    {"label": "2. Verlangsamung der Bewegungen (z.B. beim Gehen, Essen oder Anziehen)", "tag": "B_bradykinese", "id": 11},
+                    {"label": "3. Stimmungsschwankungen", "tag": "B_stimmung", "id": 12},
+                    {"label": "4. Allgemeines Steifigkeitsgef\u00fchl (z.B. steife Arme oder Beine)", "tag": "B_steifigkeit", "id": 13},
+                    {"label": "5. Schmerzen/Gliederschmerzen", "tag": "B_schmerzen", "id": 14},
+                    {"label": "6. Verminderte Geschicklichkeit (z.B. Schwierigkeiten beim Schreiben oder beim Auf- oder Zumachen von Kn\u00f6pfen)", "tag": "B_geschicklichkeit", "id": 15},
+                    {"label": "7. Benommenheit/verlangsamtes Denken", "tag": "B_benommenheit", "id": 16},
+                    {"label": "8. Angstgef\u00fchle/Panikattacken", "tag": "B_angst", "id": 17},
+                    {"label": "9. Muskelkr\u00e4mpfe (z.B. der Arme, Beine oder F\u00fc\u00dfe)", "tag": "B_muskelkraempfe", "id": 18}
+                ],
+                "answers": [
+                    {"label": "Ja", "value": 1},
+                    {"label": "Nein", "value": 0}
+                ]
+            }
+        }
+    ],
+    "results": {
+        "method": "ids",
+        "scoring": [
+            {"id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18], "value": [0, 1], "score": [0, 1]}
+        ],
+        "domaine": [
+            {"label": "Symptome vorhanden (A)", "id": [1, 2, 3, 4, 5, 6, 7, 8, 9], "method": "sum"},
+            {"label": "Symptome verbessert (B)", "id": [10, 11, 12, 13, 14, 15, 16, 17, 18], "method": "sum"},
+            {"label": "sum", "id": ["Symptome vorhanden (A)", "Symptome verbessert (B)"], "method": "sum"}
+        ],
+        "coding": {
+            "display": "WOQ-9 Score",
+            "code": "443679007",
+            "system": "http://snomed.info/sct"
+        }
+    }
+}

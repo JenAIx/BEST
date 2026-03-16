@@ -1,0 +1,120 @@
+{
+    "title": "RBD-SQ",
+    "short_title": "rbd_sq",
+    "coding": {
+        "system": "http://snomed.info/sct",
+        "code": "446004",
+        "display": "REM Sleep Behavior Disorder Screening Questionnaire",
+        "version": "20070101"
+    },
+    "description": "RBD-SQ – REM Sleep Behavior Disorder Screening Questionnaire",
+    "manual": "Bitte beantworten Sie die folgenden Fragen mit <b>Ja</b> oder <b>Nein</b>.",
+    "keywords": "RBD, REM, Schlaf, sleep, behavior, disorder, screening, Traum",
+    "ref": "Stiasny-Kolster K et al. (2007). The REM sleep behavior disorder screening questionnaire. Movement Disorders, 22(16), 2386-2393.",
+    "items": [
+        {
+            "label": "Fragen zum Schlafverhalten",
+            "id": [1, 2, 3, 4, 5],
+            "tag": "block_1",
+            "value": [],
+            "type": "multiple_radio",
+            "inline": false,
+            "force": true,
+            "options": {
+                "questions": [
+                    {"label": "Q1: Ich habe teilweise sehr lebhafte Träume.", "tag": "Q1", "id": 1},
+                    {"label": "Q2: Meine Träume haben des öfteren aggressiven oder aktionsgeladenen Inhalt.", "tag": "Q2", "id": 2},
+                    {"label": "Q3: Die Trauminhalte stimmen meist mit meinem nächtlichen Verhalten überein.", "tag": "Q3", "id": 3},
+                    {"label": "Q4: Mir ist bekannt, dass ich meine Arme und Beine im Schlaf bewege.", "tag": "Q4", "id": 4},
+                    {"label": "Q5: Es ist dabei vorgekommen, dass ich meinen Partner oder mich selbst (beinahe) verletzt habe.", "tag": "Q5", "id": 5}
+                ],
+                "answers": [
+                    {"label": "Ja", "value": 1},
+                    {"label": "Nein", "value": 0}
+                ]
+            }
+        },
+        {
+            "label": "Q6: Bei mir treten oder traten während des Träumens folgende Erscheinungen auf:",
+            "id": [6, 7, 8, 9],
+            "tag": "block_Q6",
+            "value": [],
+            "type": "multiple_radio",
+            "inline": false,
+            "force": true,
+            "options": {
+                "questions": [
+                    {"label": "Q6.1 laut Sprechen, Schreien, Schimpfen, Lachen", "tag": "Q6_1", "id": 6},
+                    {"label": "Q6.2 plötzliche Bewegungen der Gliedmaßen/\"Kämpfen\"", "tag": "Q6_2", "id": 7},
+                    {"label": "Q6.3 Gesten, Bewegungsabläufe, die im Schlaf sinnlos sind, wie z.B. Winken, Salutieren, Mücken verscheuchen, Stürze aus dem Bett.", "tag": "Q6_3", "id": 8},
+                    {"label": "Q6.4 um das Bett herum umgefallene Gegenstände, wie z.B. Nachttischlampe, Buch, Brille", "tag": "Q6_4", "id": 9}
+                ],
+                "answers": [
+                    {"label": "Ja", "value": 1},
+                    {"label": "Nein", "value": 0}
+                ]
+            }
+        },
+        {
+            "label": "Weitere Fragen",
+            "id": [10, 11, 12],
+            "tag": "block_2",
+            "value": [],
+            "type": "multiple_radio",
+            "inline": false,
+            "force": true,
+            "options": {
+                "questions": [
+                    {"label": "Q7: Es kommt vor, dass ich durch meine eigenen Bewegungen wach werde.", "tag": "Q7", "id": 10},
+                    {"label": "Q8: Nach dem Erwachen kann ich mich an den Inhalt meiner Träume meist gut erinnern.", "tag": "Q8", "id": 11},
+                    {"label": "Q9: Mein Schlaf ist häufiger gestört.", "tag": "Q9", "id": 12}
+                ],
+                "answers": [
+                    {"label": "Ja", "value": 1},
+                    {"label": "Nein", "value": 0}
+                ]
+            }
+        },
+        {
+            "label": "Q10: Bei mir liegt/lag eine Erkrankung des Nervensystems vor (z.B. Schlaganfall, Gehirnerschütterung, Parkinson, RLS, Narkolepsie, Depression)",
+            "id": 13,
+            "tag": "Q10",
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "force": true,
+            "ignore_for_result": true,
+            "options": [
+                {"label": "Ja", "value": 1},
+                {"label": "Nein", "value": 0}
+            ]
+        },
+        {
+            "label": "Wenn ja welche:",
+            "tag": "Q10_detail",
+            "value": null,
+            "type": "text",
+            "inline": false,
+            "force": false,
+            "ignore_for_result": true
+        }
+    ],
+    "results": {
+        "method": "ids",
+        "scoring": [
+            {"id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], "value": [0, 1], "score": [0, 1]}
+        ],
+        "domaine": [
+            {"label": "sum", "id": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], "method": "sum"}
+        ],
+        "evaluation": [
+            {"range": [0, 4], "label": "unauffällig"},
+            {"range": [5, 12], "label": "Hinweis auf REM-Schlaf-Verhaltensstörung"}
+        ],
+        "coding": {
+            "display": "RBD-SQ Score",
+            "code": "446004",
+            "system": "http://snomed.info/sct"
+        }
+    }
+}

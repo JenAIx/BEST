@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- [2026-03-16] Added new quests: MDT-PD, RBD-SQ, Schwab-England Skala, WOQ-9
 - [2025-10-30] Added new quests: WHODAS 2.0, EQ-5D-5L
 - [2025-04-23] Added a new questionnaire: PDSS
 - [2025-04-04] Added a new questionnaire: PD On/Demand for documenting on-demand therapy in Parkinson's disease, MNA
