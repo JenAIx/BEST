@@ -95,19 +95,6 @@
                     }})</q-item-section
                   >
                 </q-item>
-                <!-- EXPORT CLOUD/NOTION -->
-                <q-item
-                  v-if="$store.getters.SETTINGS.use_notion"
-                  class="my-btn text-center"
-                  data-cy="back_root"
-                  clickable
-                  @click="export_cloud(index)"
-                >
-                  <q-item-section avatar>
-                    <q-icon name="cloud" />
-                  </q-item-section>
-                  <q-item-section>{{ TEXT.btn.export_cloud }}</q-item-section>
-                </q-item>
                 <q-separator></q-separator>
                 <!-- DELETE -->
                 <q-item
@@ -152,9 +139,6 @@ export default {
   methods: {
     changeSel(val) {
       this.$emit("change_selection", !val);
-    },
-    export_cloud(index) {
-      this.$emit("export_cloud", index);
     },
     export_item(index) {
       this.$emit("export_item", index);

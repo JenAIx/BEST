@@ -127,6 +127,7 @@
 
 
 <script>
+import { log } from 'src/tools/Logger'
 import RenderSlider from './RenderQuest_slider.vue'
 import RenderMultipleRadio from './RenderQuest_multipleradio.vue'
 import RenderDate from './RenderQuest_date.vue'
@@ -153,7 +154,7 @@ export default {
   },
 
   mounted() {
-    console.log('QUEST mounted')
+    log({ debug: 'QUEST mounted' })
     if (this.PARAMS.PID !== undefined) this.subject_pid = this.PARAMS.PID
   },
 
@@ -185,7 +186,7 @@ export default {
           this.QUEST.items[index]['value'] = value
           break
         default:
-          console.log(`updateData: ${action} not found!`)
+          log({ warn: `updateData: ${action} not found!` })
           return
       }
 

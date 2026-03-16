@@ -1,8 +1,7 @@
 import { log } from "src/tools/Logger"
 
-// sendgrid key
-const api_key = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhcHBfaWQiOiJqMzMyMTg0XzAtc3VydmV5IiwiaWF0IjoxNjI0NjU0NjQyLCJleHAiO'
-const api_url = 'https://www.surveybest.de/mail/sendEmail'
+const api_key = process.env.MAIL_API_KEY
+const api_url = process.env.MAIL_API_URL
 const axios = require('axios');
 
 

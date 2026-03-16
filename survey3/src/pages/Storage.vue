@@ -24,7 +24,7 @@
                 item.info.PID.includes(FILTER.text) > 0 ||
                 item.info.title.includes(FILTER.text) > 0
                 " :item="item" :index="index" :selected="selected.indexOf(item.info.uid) > -1"
-                @change_selection="select_item($event, item.info.uid)" @export_cloud="export_cloud(item.info.uid)"
+                @change_selection="select_item($event, item.info.uid)"
                 @export_item="export_item(item.info.uid)" @export_item_encrypted="export_item_encrypted(item.info.uid)"
                 @remove="deleteselection([item.info.uid])" @view_item="view_item(item.info.uid)" />
             </div>
@@ -166,24 +166,6 @@ export default {
       this.view_QUEST = this.$store.getters.STORAGE.get_by_uid(uid);
       this.medium = true;
     },
-    export_cloud(uid) {
-      // NOTION EXPORT
-      this.$store.dispatch("storage_export_notion", uid).then((res) => {
-        if (res)
-          this.$q.notify({
-            message: `${this.TEXT.quest.export_success}`,
-            color: "green",
-          });
-        else {
-          const err = this.$store.getters.STORAGE.error;
-          this.$q.notify({
-            message: `${err}`,
-            color: "warning",
-          });
-        }
-      });
-    },
-
     export_item(uid) {
       this.$store
         .dispatch("storage_export", [uid])

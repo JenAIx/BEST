@@ -1,8 +1,8 @@
-
+import { log } from './Logger'
 
 export function write_csv(filename, data_csv) {
 
-    console.log('write_csv')
+    log({ message: 'write_csv' })
     return new Promise((res, rej) => resolveURL(filename, data_csv).then(result => res(result)))
 }
 function fail(error) {

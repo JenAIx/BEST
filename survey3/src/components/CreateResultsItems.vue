@@ -58,6 +58,7 @@
 <script>
 import {result_method_templates} from 'assets/questionnaires/list_quest'
 import ITEMARRAY from 'src/components/CreateResultsItemsArray.vue'
+import { log } from 'src/tools/Logger'
 
 export default {
   name: 'CreateResultsItems',
@@ -92,7 +93,7 @@ export default {
           this.items_copy.splice(ind,1)
           break
         default:
-          console.log(`nicht unterstützt: ${action}`)
+          log({ warn: `nicht unterstützt: ${action}` })
           break
       }
       // update parent
@@ -114,7 +115,7 @@ export default {
           this.items_copy.push(JSON.parse(JSON.stringify(result_method_templates.evaluation)))
           break
         default:
-          console.log(`nicht unterstützt: ${action}`)
+          log({ warn: `nicht unterstützt: ${action}` })
           break
       }
       // update parent > CreateResults

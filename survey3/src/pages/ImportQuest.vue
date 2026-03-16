@@ -33,6 +33,7 @@
 
 <script>
 import { decrypt } from "src/tools/hhash";
+import { log } from "src/tools/Logger";
 import BACKBUTTON from "src/components/BackButton.vue";
 
 export default {
@@ -62,7 +63,7 @@ export default {
             this.readhtml(e);
             break;
           default:
-            console.log("ERROR: type not found");
+            log({ error: "type not found" });
         }
       };
       reader.readAsText(this.file);

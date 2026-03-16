@@ -1,10 +1,6 @@
 import { exportFile } from 'quasar'
 import { write_csv } from './ccordova.js'
-import { NOTION } from 'src/tools/nnotion'
-// import Vue from 'vue'
 import { uuidv4 } from 'src/tools/hhash'
-
-
 import { log } from './Logger.js'
 
 import dateFormat from 'dateformat'
@@ -18,7 +14,7 @@ class Storage {
   _errors = []
 
   constructor() {
-    log({ message: 'storage & presets' })
+    log({ debug: 'storage & presets' })
   }
 
   // PRESETS
@@ -27,12 +23,12 @@ class Storage {
   }
 
   save_presets() {
-    log({ message: 'save presets' })
+    log({ debug: 'save presets' })
     localStorage.setItem(this._fieldname_presets, JSON.stringify(this._PRESETS))
   }
 
   load_presets() {
-    log({ message: 'load presets' })
+    log({ debug: 'load presets' })
     // STORAGE
     const data = JSON.parse(localStorage.getItem(this._fieldname_presets))
     if (data === null || data === undefined) return false
@@ -40,19 +36,19 @@ class Storage {
   }
 
   clear_presets() {
-    log({ message: 'clear presets' })
+    log({ debug: 'clear presets' })
     this._PRESETS = [];
     localStorage.removeItem(this._fieldname_presets)
   }
 
   add_presets(payload) {
-    log({ message: 'add preset', data: payload })
+    log({ debug: 'add preset', data: payload })
     this._PRESETS.push({ 'label': payload.label, 'value': payload.value })
     this.save_presets()
   }
 
   update_presets(payload) {
-    console.log(payload.value)
+    log({ debug: 'update_presets', data: payload.value })
     this._PRESETS[payload.index] = payload.value
     // this.save_presets()
   }
@@ -78,7 +74,7 @@ class Storage {
   add(payload) {
     if (payload.cda === undefined || payload.exported === undefined || payload.hash === undefined) return log({ error: 'Storage>add: payload not valid!', data: payload })
     // else
-    log({ message: 'Storage>add', data: `size: ${JSON.stringify(payload).length} bytes` })
+    log({ debug: 'Storage>add', data: `size: ${JSON.stringify(payload).length} bytes` })
     if (payload.info.uid === undefined) payload.info.uid = uuidv4()
     this.load() //load storage first before loading, make sure no changes are lost
     this._STORAGE.push(payload)
@@ -90,7 +86,7 @@ class Storage {
     if (index === null || index === undefined) return this._STORAGE
     if (index === -1) index = this._STORAGE.length - 1
     if (index < 0 || index > this._STORAGE.length) return undefined
-    log({ message: 'Storage>get', data: `size: ${JSON.stringify(this._STORAGE[index]).length} bytes` })
+    log({ debug: 'Storage>get', data: `size: ${JSON.stringify(this._STORAGE[index]).length} bytes` })
     return this._STORAGE[index]
   }
 
@@ -114,17 +110,17 @@ class Storage {
   }
 
   update() {
-    log({ message: 'Storage>update - comming soon' })
+    log({ debug: 'Storage>update' })
     this.save()
   }
 
   save() {
-    log({ message: 'Storage>save' })
+    log({ debug: 'Storage>save' })
     localStorage.setItem(this._fieldname, JSON.stringify(this._STORAGE))
   }
 
   load() {
-    log({ message: 'Storage>load' })
+    log({ debug: 'Storage>load' })
     // STORAGE
     const data = JSON.parse(localStorage.getItem(this._fieldname))
     if (data === null || data === undefined) return false
@@ -135,7 +131,7 @@ class Storage {
   }
 
   clear() {
-    log({ message: 'Storage>clear' })
+    log({ debug: 'Storage>clear' })
     this._STORAGE = [];
     localStorage.removeItem(this._fieldname)
   }
@@ -157,7 +153,7 @@ class Storage {
       await sleep(1000)//break is necessary for the exportFile routine to work properly
 
       let DOCUMENT = this.get(job[i])
-      log({ message: 'exportiere: ', data: DOCUMENT.info.uid })
+      log({ debug: 'exportiere: ', data: DOCUMENT.info.uid })
       let filename = prepare_filename(DOCUMENT, export_format)
       if (filename !== undefined) {
 
@@ -167,7 +163,7 @@ class Storage {
       }
     }
 
-    log({ message: 'export_tofile', data: status })
+    log({ debug: 'export_tofile', data: status })
     this.save()
     return status
   }
@@ -181,48 +177,6 @@ class Storage {
     })
 
     return job
-  }
-
-  async export_notion(payload) {
-    var status = false
-    // INITIAL CHECKS and prepare DB
-    if (payload === undefined || payload.uid === undefined || payload.token === undefined || payload.db === undefined) return status
-    if (NOTION.check() === false) {
-      await NOTION.init({ link: payload.db, token: payload.token })
-      if (NOTION.check() === false) return log({ error: 'export_notion', data: 'NOTION konnte nicht initialisiert werden' })
-    }
-    log({ message: 'export_notion: NOTION link established' })
-
-    // PREPARE A JOB
-    const job = this._prepare_job(payload.uid) //this will return an array with all indices
-
-    // prepare promises and loop through jobs
-    const promises = []
-    for (let i = 0; i < job.length; i++) {
-      let DOCUMENT = this.get(job[i])
-      let json = {
-        cda: DOCUMENT.cda,
-        hash: DOCUMENT.hash,
-        info: DOCUMENT.info
-      }
-      promises.push(NOTION.post(JSON.stringify(json)))
-    }
-
-    await Promise.all(promises).then(res => {
-      status = true
-    }).catch(err => {
-      status = false
-      this.error = err
-    })
-
-    if (status === false) return false
-
-    // exported => true / success
-    for (let i = 0; i < job.length; i++) this._STORAGE[job[i]].exported = true
-    this.save()
-
-    // FERTIG
-    return status
   }
 
   // * CORDOVA >> EMAIL on IOS

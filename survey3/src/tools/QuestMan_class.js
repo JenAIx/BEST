@@ -1,4 +1,4 @@
-import { log } from '../../../db/app/src/tools/logger'
+import { log } from './Logger'
 
 
 // USAGE:
@@ -30,7 +30,7 @@ export class QuestMan {
 
   constructor(payload) {
     if (!payload) return log({ message: "QuestMan>constructor", data: "no payload" })
-    console.info('QuestMan initializing ...')
+    log({ message: 'QuestMan initializing ...' })
     if (payload && payload.init === false) {
       //no init
     }
@@ -115,14 +115,14 @@ export class QuestMan {
   remove_by_index(index) {
     if (index < 0 || index > this._QUESTS.length) return false
     const quest = this.quest_list[index]
-    console.log('remove quest: ' + quest)
-    Vue.delete(this._QUESTS, quest)
+    log({ message: 'remove quest: ' + quest })
+    delete this._QUESTS[quest]
     this._save()
   }
 
   remove_by_name(name) {
     if (!this.quest_list.includes(name)) return false
-    Vue.delete(this._QUESTS, name)
+    delete this._QUESTS[name]
     this._save()
   }
 
@@ -345,8 +345,7 @@ export class QuestMan {
           break
 
         default:
-          console.info(`random fill: item type: ${item.type} not supported`)
-          console.info(item)
+          log({ warn: `random fill: item type: ${item.type} not supported`, data: item })
           complete = false
           break
       }
@@ -399,7 +398,7 @@ function calc_results(data, methods) {
       break
 
     default:
-      console.info(`calc_results: method ${methods.method} not supprted`)
+      log({ warn: `calc_results: method ${methods.method} not supported` })
       break
   }
 

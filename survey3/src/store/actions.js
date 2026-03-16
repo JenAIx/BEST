@@ -71,7 +71,7 @@ export function storage_add_from_file({state, commit}, payload) {
 }
 
 export function storage_encrypted_export({state}, payload) {
-  log({message: 'storage_encrypted_export'})
+  log({ debug: 'storage_encrypted_export' })
   var document = payload.document
   if (document === undefined) document = state.STORAGE.get(-1)
   const publicKey = payload.pubKey //this is the pubkey as transmitted via the url
@@ -97,7 +97,7 @@ export function storage_encrypted_export({state}, payload) {
 }
 
 export function mail_exported_data({state, commit}) {
-  log({message: 'mail_exported_data'})
+  log({ debug: 'mail_exported_data' })
   return new Promise ((resolve, reject) => {
     //prepare the message
     const data = state.EXPORT_DATA
@@ -110,7 +110,7 @@ export function mail_exported_data({state, commit}) {
 
     data.forEach(d => message.data.push(d.enc))
 
-    console.log(message)
+    log({ debug: 'mail_exported_data', data: message })
 
     sendMail(message)
 
@@ -154,105 +154,8 @@ export function storage_clear({state}) {
 
 export function storage_export({state}, payload) {
 
-  console.log('action: storage_export', payload)
+  log({ debug: 'action: storage_export', data: payload })
   if (Platform.is.cordova ) return state.STORAGE.export_cordova(payload, {email: state.SETTINGS.email_export, subject: state.TEXT.email.subject, body: state.TEXT.email.body, export_format: state.SETTINGS.export_format})
   if (Platform.is.desktop || Platform.is.ios) return state.STORAGE.export_tofile(payload, {export_format: state.SETTINGS.export_format})
 }
 
-export function storage_export_notion({state}, uid) {
-  const payload = {
-    uid: uid,
-    token: state.SETTINGS.notion_token,
-    db: state.SETTINGS.notion_db
-  }
-  
-  return state.STORAGE.export_notion(payload)
-}
-
-// SPACE INVADERS ACTIONS
-export function si_initGame({commit}, payload) {
-  commit('SI_INIT_GAME', payload);
-}
-
-export function si_movePlayer({commit}, direction) {
-  commit('SI_MOVE_PLAYER', direction);
-}
-
-export function si_setPlayerX({commit}, x) {
-  commit('SI_SET_PLAYER_X', x);
-}
-
-export function si_shoot({commit}) {
-  commit('SI_SHOOT');
-}
-
-export function si_updateGame({commit, state}) {
-  if (state.spaceInvaders.gameOver || state.spaceInvaders.isPaused) return;
-  
-  // Update bullets
-  commit('SI_UPDATE_BULLETS');
-  commit('SI_UPDATE_ENEMY_BULLETS');
-  
-  // Check collisions
-  commit('SI_CHECK_COLLISIONS');
-}
-
-export function si_moveEnemies({commit, state}) {
-  if (state.spaceInvaders.gameOver || state.spaceInvaders.isPaused) return;
-  
-  const enemies = state.spaceInvaders.enemies;
-  const currentDirection = state.spaceInvaders.enemyDirection;
-  let shouldMoveDown = false;
-  let newDirection = currentDirection;
-  
-  // Check if any enemy will hit the edge in the NEXT move
-  const aliveEnemies = enemies.filter(e => e.alive);
-  if (aliveEnemies.length > 0) {
-    const rightmost = Math.max(...aliveEnemies.map(e => e.x + e.width));
-    const leftmost = Math.min(...aliveEnemies.map(e => e.x));
-    
-    // Check if moving in current direction would hit edge
-    if (currentDirection > 0 && rightmost + 10 >= 320) {
-      // Moving right and would hit right edge
-      shouldMoveDown = true;
-      newDirection = -1; // Next time move left
-    } else if (currentDirection < 0 && leftmost - 10 <= 0) {
-      // Moving left and would hit left edge
-      shouldMoveDown = true;
-      newDirection = 1; // Next time move right
-    }
-  }
-  
-  commit('SI_MOVE_ENEMIES', { shouldMoveDown, newDirection });
-}
-
-export function si_enemyShoot({commit, state}) {
-  if (state.spaceInvaders.gameOver || state.spaceInvaders.isPaused) return;
-  
-  const aliveEnemies = state.spaceInvaders.enemies.filter(e => e.alive);
-  if (aliveEnemies.length > 0 && Math.random() < 0.02) {
-    const randomEnemy = aliveEnemies[Math.floor(Math.random() * aliveEnemies.length)];
-    commit('SI_ENEMY_SHOOT', randomEnemy);
-  }
-}
-
-export function si_togglePause({commit}) {
-  commit('SI_TOGGLE_PAUSE');
-}
-
-export function si_resetGame({commit}, payload) {
-  commit('SI_RESET_GAME', payload);
-}
-
-export function si_nextLevel({commit}, payload) {
-  commit('SI_NEXT_LEVEL', payload);
-}
-
-export function si_checkLevelComplete({state}) {
-  const aliveEnemies = state.spaceInvaders.enemies.filter(e => e.alive);
-  return aliveEnemies.length === 0 && !state.spaceInvaders.gameOver;
-}
-
-export function si_respawnPlayer({commit}, payload) {
-  commit('SI_RESPAWN_PLAYER', payload);
-}

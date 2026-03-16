@@ -94,26 +94,6 @@
                 </q-input>
               </div>
 
-              <!-- USE NOTION? -->
-              <div v-if="user_details" class="row q-ma-xs shadow-1 q-pa-sm">
-                <div class="col-12 text-center">
-                  <q-toggle v-model="$store.getters.SETTINGS.use_notion" color="green" data-cy="notion_use"
-                    :label="TEXT.storage.use_notion" />
-                </div>
-
-                <div v-if="$store.getters.SETTINGS.get('use_notion')" class="col-12">
-                  <q-input v-model="$store.getters.SETTINGS.notion_db" label="db" input-class="text-center"
-                    data-cy="notion_input_db" />
-                  <q-input v-model="$store.getters.SETTINGS.notion_token" :type="isPwd_notion ? 'true' : 'password'"
-                    label="token" input-class="text-center" data-cy="notion_input_token">
-                    <template v-slot:append>
-                      <q-icon :name="isPwd_notion ? 'visibility_off' : 'visibility'" class="cursor-pointer"
-                        @click="isPwd_notion = !isPwd_notion" />
-                    </template>
-                  </q-input>
-                </div>
-              </div>
-
               <!-- IMPORT&EXPORT -->
               <div v-if="user_details" class="row justify-right text-grey-8 q-mt-md">
                 <q-btn no-caps icon="file_upload" flat size="xs" class="col" @click="view_import = true">{{
@@ -194,7 +174,6 @@ export default {
   data() {
     return {
       TEXT: this.$store.getters.TEXT,
-      isPwd_notion: false,
       isPwd_priv: false,
       isPwd_pub: false,
       user_details: false,
