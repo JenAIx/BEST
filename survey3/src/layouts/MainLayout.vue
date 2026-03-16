@@ -46,7 +46,7 @@
 
       <div class="fixed-bottom text-center q-mb-xl" style="opacity: 0.5;">
         <q-img 
-            src="~assets/favicon.svg"
+            src="assets/favicon.svg"
             style="height: 100px; width: 100px; "
             @click="$store.state.leftDrawerOpen = false, $router.push({name: 'about'}).catch(() => {})"
           />

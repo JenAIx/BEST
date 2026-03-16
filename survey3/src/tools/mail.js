@@ -2,7 +2,7 @@ import { log } from "src/tools/Logger"
 
 const api_key = process.env.MAIL_API_KEY
 const api_url = process.env.MAIL_API_URL
-const axios = require('axios');
+import axios from 'axios'
 
 
 export async function sendMail(message) {

@@ -4,7 +4,7 @@
 // https://www.npmjs.com/package/jsrsasign
 
 import rs from 'jsrsasign'
-import JSEncrypt from './jsencrypt.min'
+import JSEncrypt from 'jsencrypt'
 import CryptoJS from 'crypto-js'
 
 const LENGTH = 512

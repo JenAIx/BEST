@@ -6,7 +6,7 @@
         <p v-html="missionTxt" class=" standard_text"></p>
       </div>
       <div class="col">
-        <q-img src="~assets/favicon.svg" style="height: 300px; width: 300px; " />
+        <q-img src="assets/favicon.svg" style="height: 300px; width: 300px; " />
       </div>
       <div class="col q-mt-md">
         <q-btn 
@@ -25,7 +25,7 @@
 
 <script>
 import showdown from "showdown"
-import MD_TEXT from 'raw-loader!../../CHANGELOG.md'
+import MD_TEXT from '../../CHANGELOG.md?raw'
 import BACKBUTTON from 'src/components/BackButton.vue'
 
 export default {

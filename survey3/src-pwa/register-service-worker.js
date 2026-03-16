@@ -1,41 +1,19 @@
-import { register } from 'register-service-worker'
+import { Workbox } from 'workbox-window'
 
-// The ready(), registered(), cached(), updatefound() and updated()
-// events passes a ServiceWorkerRegistration instance in their arguments.
-// ServiceWorkerRegistration: https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration
+let wb
 
-register(process.env.SERVICE_WORKER_FILE, {
-  // The registrationOptions object will be passed as the second argument
-  // to ServiceWorkerContainer.register()
-  // https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register#Parameter
+if ('serviceWorker' in navigator) {
+  wb = new Workbox(process.env.SERVICE_WORKER_FILE)
 
-  // registrationOptions: { scope: './' },
+  wb.addEventListener('activated', (event) => {
+    // event.isUpdate will be true if another version of the
+    // service worker was controlling the page when this version was registered
+    if (event.isUpdate) {
+      // Optional: prompt user to reload
+    }
+  })
 
-  ready (/* registration */) {
-    // console.log('Service worker is active.')
-  },
+  wb.register()
+}
 
-  registered (/* registration */) {
-    // console.log('Service worker has been registered.')
-  },
-
-  cached (/* registration */) {
-    // console.log('Content has been cached for offline use.')
-  },
-
-  updatefound (/* registration */) {
-    // console.log('New content is downloading.')
-  },
-
-  updated (/* registration */) {
-    // console.log('New content is available; please refresh.')
-  },
-
-  offline () {
-    // console.log('No internet connection found. App is running in offline mode.')
-  },
-
-  error (/* err */) {
-    // console.error('Error during service worker registration:', err)
-  }
-})
+export { wb }

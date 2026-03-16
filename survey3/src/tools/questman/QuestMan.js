@@ -2,6 +2,16 @@ import { log } from '../Logger'
 import { RANDOM, RANDOMWORD } from './helpers'
 import { calc_results, evaluate } from './scoring'
 
+// Eagerly load all questionnaire JSON files via Vite's glob import
+const questModules = import.meta.glob('/src/assets/questionnaires/quest_*.json', { eager: true })
+
+function loadQuestJson(name) {
+  const key = `/src/assets/questionnaires/quest_${name}.json`
+  const mod = questModules[key]
+  if (!mod) return undefined
+  return mod.default || mod
+}
+
 export class QuestMan {
   _QUESTS = undefined
   _activeQuest = undefined
@@ -38,8 +48,9 @@ export class QuestMan {
     const quests = this._LIST_QUESTS()
     quests.forEach(q => {
       try {
-        let Q = require(`assets/questionnaires/quest_${q}.json`)
-        this._add(Q)
+        let Q = loadQuestJson(q)
+        if (Q) this._add(Q)
+        else log({ warn: `QuestMan>_init: quest_${q}.json not found` })
       } catch (e) {
         log({ error: "QuestMan>_init", data: e })
       }
