@@ -6,7 +6,8 @@ const i18n = createI18n({
   locale: 'de',
   fallbackLocale: 'de',
   messages: { de },
-  legacy: true,
+  legacy: false,
+  warnHtmlMessage: false,
 })
 
 export default boot(({ app }) => {
