@@ -49,7 +49,7 @@
         <MYBUTTON v-if="QUEST_LIST.length > 0 && somethingselected" :icon="$t('btn.selection_delete.icon')"
           @clicked="deleteselection(selected)" :label="$t('btn.selection_delete.label')" />
         <!-- DEBUG PRINT  -->
-        <MYBUTTON v-if="$store.state.debug" @click="printStorageToConsole" />
+        <MYBUTTON v-if="mainStore.debug" @click="printStorageToConsole" />
       </div>
 
       <!-- SOME FALLBACK message -->
@@ -78,6 +78,7 @@
 <script>
 import { log } from "src/tools/Logger";
 import myMixins from "src/mixins/modes";
+import { useMainStore } from "src/stores/main";
 
 import BACKBUTTON from "src/components/BackButton.vue";
 import TABLEVIEW from "src/components/TableView.vue";
@@ -89,6 +90,9 @@ export default {
   name: "PageStorage",
   mixins: [myMixins],
   components: { BACKBUTTON, TABLEVIEW, StorageCard, MYBUTTON, FILTERSTORAGE },
+  setup() {
+    return { mainStore: useMainStore() };
+  },
   data() {
     return {
       medium: false,
@@ -100,8 +104,8 @@ export default {
   },
   mounted() {
     this.selected = [];
-    this.$store.state.leftDrawerOpen = false;
-    this.$store.dispatch("setProtectedMode", true);
+    this.mainStore.leftDrawerOpen = false;
+    this.mainStore.setProtectedMode(true);
   },
   computed: {
     somethingselected() {
@@ -109,11 +113,11 @@ export default {
     },
 
     FILTER() {
-      return this.$store.getters.SETTINGS.get("filter_storage");
+      return this.mainStore.SETTINGS.get("filter_storage");
     },
 
     QUEST_LIST() {
-      const LISTE = this.$store.getters.STORAGE.get();
+      const LISTE = this.mainStore.STORAGE.get();
       // first sort by the ORDERING SET
       const ORDERING = this.FILTER.order.value;
       switch (ORDERING) {
@@ -147,7 +151,7 @@ export default {
     printStorageToConsole() {
       log({
         message: "printStorageToConsole",
-        data: this.$store.state.STORAGE.get(),
+        data: this.mainStore.STORAGE.get(),
       });
     },
     // neu
@@ -161,12 +165,12 @@ export default {
     },
     // neu
     view_item(uid) {
-      this.view_QUEST = this.$store.getters.STORAGE.get_by_uid(uid);
+      this.view_QUEST = this.mainStore.STORAGE.get_by_uid(uid);
       this.medium = true;
     },
     export_item(uid) {
-      this.$store
-        .dispatch("storage_export", [uid])
+      this.mainStore
+        .storage_export([uid])
         .then((val) => { })
         .catch((err) => {
           log({
@@ -177,11 +181,11 @@ export default {
     },
     export_item_encrypted(uid) {
       const payload = {
-        pubKey: this.$store.state.SETTINGS.user_keyPair.publicKey,
-        document: this.$store.state.STORAGE.get_by_uid(uid),
+        pubKey: this.mainStore.SETTINGS.user_keyPair.publicKey,
+        document: this.mainStore.STORAGE.get_by_uid(uid),
       };
-      this.$store
-        .dispatch("storage_encrypted_export", payload)
+      this.mainStore
+        .storage_encrypted_export(payload)
         .then((val) => { })
         .catch((err) => {
           log({
@@ -192,7 +196,7 @@ export default {
     },
     exportselection() {
       if (this.selected.length < 1) return false;
-      this.$store.dispatch("storage_export", this.selected);
+      this.mainStore.storage_export(this.selected);
       this.selected = [];
       this.$q.notify({
         message: `${this.$t('quest.export_success')}`,
@@ -204,8 +208,8 @@ export default {
       const answ = confirm(this.$t('btn.confirm_delete'));
       if (!answ) return;
       SELECTED_ITEMS.forEach((uid) => {
-        this.$store.commit("STORAGE_REMOVE", uid);
-        
+        this.mainStore.storageRemove(uid);
+
       });
       this.selected = [];
     },

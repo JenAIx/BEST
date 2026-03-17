@@ -16,19 +16,23 @@
 </template>
 
 <script>
+  import { useMainStore } from 'src/stores/main'
   import showdown from "showdown"
   import MD_TEXT from '../statics/About_Text.md?raw'
   import BACKBUTTON from 'src/components/BackButton.vue'
 
   export default {
     name: 'About',
+    setup() {
+      return { mainStore: useMainStore() }
+    },
     components: {BACKBUTTON
     },
     data() {
       return {}
     },
     mounted() {
-      this.$store.dispatch('setProtectedMode', true);
+      this.mainStore.setProtectedMode(true);
     },
     computed: {
       missionTxt() {

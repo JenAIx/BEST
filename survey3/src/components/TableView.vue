@@ -112,9 +112,13 @@
 
 <script>
 import { exportFile } from 'quasar'
+import { useMainStore } from 'src/stores/main'
 
 export default {
   props: ["QUEST", "medium"],
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   data() {
     return {
       state: this.medium,
@@ -184,7 +188,7 @@ export default {
   },
   methods: {
     checkQuest() {
-      this.$store.dispatch('verify_quest_signature', this.QUEST)
+      this.mainStore.verify_quest_signature(this.QUEST)
         .then(() => this.$q.notify({ message: "Das Dokument ist valide.", color: 'green' }))
         .catch(err => this.$q.notify({ message: `Überprüfung nicht erfolgreich: ${err}`, color: 'warning' }))
     },

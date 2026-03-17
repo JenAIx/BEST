@@ -10,7 +10,7 @@
     <q-card-section>
       <div class="row items-center no-wrap">
 
-        <div class="col-auto" v-if="$store.getters.DEBUG_MODE || subject_pid==='DEMO'">
+        <div class="col-auto" v-if="mainStore.DEBUG_MODE || subject_pid==='DEMO'">
           <q-btn  color="grey-7" round flat icon="more_vert" data-cy="btn_hidden_options">
             <q-menu cover auto-close>
               <q-list>
@@ -129,6 +129,7 @@
 <script>
 import { log } from 'src/tools/Logger'
 import { parseRouteParams } from 'src/tools/routeParams'
+import { useMainStore } from 'src/stores/main'
 import RenderSlider from './RenderQuest_slider.vue'
 import RenderMultipleRadio from './RenderQuest_multipleradio.vue'
 import RenderDate from './RenderQuest_date.vue'
@@ -140,6 +141,9 @@ export default {
   name: 'RenderQuest',
   components: { RenderSlider, RenderMultipleRadio, RenderDate, RenderTime, RenderText, RenderRadio },
   props: ["QUEST_LABEL", "saved", "PID", "PREVIEWQUEST"],
+  setup() {
+    return { mainStore: useMainStore() }
+  },
 
   data() {
     return {
@@ -168,7 +172,7 @@ export default {
     },
     QUEST() {
       if (this.PREVIEWQUEST !== undefined) return this.PREVIEWQUEST
-      return this.$store.getters.ACTIVE_QUEST
+      return this.mainStore.ACTIVE_QUEST
     },
     CHECK_PID() {
       return (this.subject_pid.length > 0)
@@ -179,7 +183,7 @@ export default {
   },
   methods: {
     randomFill() {
-      this.$store.state.QuestMan.random_fill()
+      this.mainStore.QuestMan.random_fill()
       // refresh
       this.subject_pid = this.subject_pid || Date.now().toString()
     },
@@ -187,13 +191,13 @@ export default {
       const answ = confirm(this.$t('btn.reset_confirm'))
       if (!answ) return
       //else
-      this.$store.getters.QUESTMAN._init()
+      this.mainStore.QUESTMAN._init()
     },
     emitEvent() {
       // FIRST CHECK THE FORM
 
       this.submit_clicked = true;
-      this.check_form = this.$store.getters.QUESTMAN.check_activeQuest();
+      this.check_form = this.mainStore.QUESTMAN.check_activeQuest();
       const errors = []
 
       if (!this.CHECK_PID) errors.push(this.$t('quest.PID_missing'))
@@ -208,7 +212,7 @@ export default {
 
       this.$emit('emitForm', {
         "PID": this.subject_pid,
-        "quest": this.$store.getters.QUESTMAN.summary
+        "quest": this.mainStore.QUESTMAN.summary
       })
     }
 

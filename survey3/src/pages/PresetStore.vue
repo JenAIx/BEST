@@ -11,7 +11,7 @@
         <q-scroll-area class="shadow-1 my-form">
           <div class="row q-pa-md justify-around q-gutter-md">
             <q-item class="my-btn-item"
-              v-for="(item, index) in $store.getters.PRESET_STORE" :key="item+'_'+index" flat bordered
+              v-for="(item, index) in mainStore.PRESET_STORE" :key="item+'_'+index" flat bordered
             >
               <q-item-section>
                 <q-item-label contenteditable @blur="actionStr($event, index)"
@@ -77,12 +77,16 @@
 <script>
   // import Vue from 'vue'
   import myMixins from 'src/mixins/modes'
+  import { useMainStore } from 'src/stores/main'
   import BACKBUTTON from 'src/components/BackButton.vue'
   import MYBUTTON from 'src/components/MyButton.vue'
   import PRESET_STORE_EDIT from 'src/components/PresetStore_Edit.vue'
   export default {
     name: 'PRESETSTORE',
     mixins: [myMixins],
+    setup() {
+      return { mainStore: useMainStore() }
+    },
     data() {
       return {
         needToSave: [],
@@ -91,13 +95,13 @@
       }
     },
     mounted() {
-      this.$store.dispatch('setProtectedMode', true);
+      this.mainStore.setProtectedMode(true);
     },
     components: {BACKBUTTON, MYBUTTON, PRESET_STORE_EDIT},
     methods: {
       actionStr(ev, index) {
         var text = ev.target.innerText.replace(/[\n\r]/g, '')
-        this.$store.getters.PRESET_STORE[index].label = text
+        this.mainStore.PRESET_STORE[index].label = text
         ev.target.innerText = text
         this.needToSave[index] = true
       },
@@ -105,38 +109,38 @@
         var answer = window.confirm(this.$t('btn.confirm_start'));
         if (!answer) return
         this.$router.push(
-          `preset/${JSON.stringify({presets: this.$store.getters.PRESET_STORE[index].value, mode: 'protected'})}`)
+          `preset/${JSON.stringify({presets: this.mainStore.PRESET_STORE[index].value, mode: 'protected'})}`)
       },
       delete_preset(index) {
         var answer = window.confirm(this.$t('btn.confirm_delete'));
-        if (answer) this.$store.dispatch('deletePreset', index);
+        if (answer) this.mainStore.deletePreset(index);
       },
       // clear_preset() {
       //    var answer = window.confirm(this.TEXT.btn.confirm_delete);
-      //   if (answer) this.$store.dispatch('clearPreset');
+      //   if (answer) this.mainStore.clearPreset();
       // },
 
       edit_preset(index) {
         this.PresetStoreEdit_show = true
-        this.PresetStoreEdit_item = this.$store.getters.PRESET_STORE[index]
+        this.PresetStoreEdit_item = this.mainStore.PRESET_STORE[index]
       },
 
       save_item(index) {
         this.needToSave[index] = false
-        this.$store.dispatch('updatePreset', {
+        this.mainStore.updatePreset({
           index: index,
-          value: this.$store.getters.PRESET_STORE[index]
+          value: this.mainStore.PRESET_STORE[index]
         });
       },
 
       updateItem(item) {
-        var index = this.$store.getters.PRESET_STORE.findIndex((el) => el.label === item.label)
-        this.$store.dispatch('updatePreset', {index: index, value: item});
+        var index = this.mainStore.PRESET_STORE.findIndex((el) => el.label === item.label)
+        this.mainStore.updatePreset({index: index, value: item});
         this.PresetStoreEdit_show = false
         this.PresetStoreEdit_item = undefined
       }
       // onInputLabel(event, index) {
-      //   this.$store.getters.PRESET_STORE[index].label = event.target.innerText      
+      //   this.mainStore.PRESET_STORE[index].label = event.target.innerText
       //   Vue.set(this.needToSave, index,  true)
       // }
     }

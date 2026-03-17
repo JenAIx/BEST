@@ -1,6 +1,6 @@
 <template>
   <q-layout view="lHh Lpr lFf" >
-    <q-header  v-if="!$store.getters.PROTECTED_MODE" class="bg-grey-2 " bordered >
+    <q-header  v-if="!mainStore.PROTECTED_MODE" class="bg-grey-2 " bordered >
       <q-toolbar>
         <q-btn
           flat
@@ -9,7 +9,7 @@
           color="black"
           icon="menu"
           aria-label="Menu"
-          @click="$store.state.leftDrawerOpen = !$store.state.leftDrawerOpen"
+          @click="mainStore.leftDrawerOpen = !mainStore.leftDrawerOpen"
           data-cy="main_drawer"
         />
 
@@ -22,7 +22,7 @@
     </q-header>
 
     <q-drawer
-      v-model="$store.state.leftDrawerOpen"
+      v-model="mainStore.leftDrawerOpen"
       show-if-above
       bordered
       content-class="bg-grey-1"
@@ -48,7 +48,7 @@
         <q-img 
             src="assets/favicon.svg"
             style="height: 100px; width: 100px; "
-            @click="$store.state.leftDrawerOpen = false, $router.push({name: 'about'}).catch(() => {})"
+            @click="mainStore.leftDrawerOpen = false, $router.push({name: 'about'}).catch(() => {})"
           />
 
       </div>
@@ -62,14 +62,18 @@
 
 <script>
 import EssentialLink from 'components/EssentialLink.vue'
+import { useMainStore } from 'src/stores/main'
 
 export default {
   name: 'MainLayout',
   components: {
     EssentialLink
   },
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   mounted() {
-    this.$store.state.leftDrawerOpen = false
+    this.mainStore.leftDrawerOpen = false
   },
   data() {
     return {}
@@ -102,9 +106,9 @@ export default {
     },
     bodysize() {
       return {
-        'body-normal': this.$store.getters.SETTINGS.size === 'normal',
-        'body-bigger': this.$store.getters.SETTINGS.size === 'bigger',
-        'body-biggest': this.$store.getters.SETTINGS.size === 'biggest'
+        'body-normal': this.mainStore.SETTINGS.size === 'normal',
+        'body-bigger': this.mainStore.SETTINGS.size === 'bigger',
+        'body-biggest': this.mainStore.SETTINGS.size === 'biggest'
       }
     }
   }

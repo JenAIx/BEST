@@ -27,9 +27,13 @@
 </template>
 
 <script>
+  import { useMainStore } from 'src/stores/main'
   const filter_options = [{label: 'Datum↑', value: 'date_up'}, {label: 'Datum↓', value: 'date_down'}, {label: 'PID↑', value: 'pid_up'}, {label: 'PID↓', value: 'pid_down'}, {label: 'export open', value: 'export_open'}]
   export default {
     name: 'FilterStorage',
+    setup() {
+      return { mainStore: useMainStore() }
+    },
     data() {
       return {
         filter_on: false,
@@ -39,7 +43,7 @@
     },
     watch: {
       FILTER(val){
-        this.$store.commit('SETTINGS_SET', {field: 'filter_storage', value: {order: this.ACTIVE_FILTER.order, text: val}})
+        this.mainStore.settingsSet({field: 'filter_storage', value: {order: this.ACTIVE_FILTER.order, text: val}})
         if (val === null) this.$emit('filterCleared')
         else this.$emit('filterSet')
       }
@@ -52,7 +56,7 @@
       },
 
       ACTIVE_FILTER() {
-        const AF = this.$store.getters.SETTINGS.get('filter_storage')
+        const AF = this.mainStore.SETTINGS.get('filter_storage')
         if (AF && AF.order) return AF
         else return {text: null, order: filter_options[0]}
       }
@@ -60,7 +64,7 @@
 
     methods: {
       clicked(val) {
-        this.$store.commit('SETTINGS_SET', {field: 'filter_storage', value: {order: this.filter_button_options[val], text: this.filter_str}})
+        this.mainStore.settingsSet({field: 'filter_storage', value: {order: this.filter_button_options[val], text: this.filter_str}})
         this.$emit('filterSet')
       }
     }

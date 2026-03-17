@@ -26,7 +26,7 @@
 
       <!-- QUESTS -->
       <div class="col-2">
-          <q-item data-cy="btn_quest" clickable v-ripple class="my-btn-item q-my-sm" @click="$store.state.leftDrawerOpen = false, $router.push('select')">
+          <q-item data-cy="btn_quest" clickable v-ripple class="my-btn-item q-my-sm" @click="mainStore.leftDrawerOpen = false, $router.push('select')">
             <q-item-section avatar>
               <q-icon name="summarize" />
             </q-item-section>
@@ -39,7 +39,7 @@
 
       <!-- PRESETS -->
       <div class="col-2">
-          <q-item data-cy="btn_presets" clickable v-ripple class="my-btn-item q-my-sm" @click="$store.state.leftDrawerOpen = false, $router.push('store_preset')">
+          <q-item data-cy="btn_presets" clickable v-ripple class="my-btn-item q-my-sm" @click="mainStore.leftDrawerOpen = false, $router.push('store_preset')">
             <q-item-section avatar>
               <q-icon name="archive" />
             </q-item-section>
@@ -63,34 +63,38 @@
 
 <script>
   import myMixins from 'src/mixins/modes'
+  import { useMainStore } from 'src/stores/main'
 
   export default {
     name: 'PageIndex',
     mixins: [myMixins],
+    setup() {
+      return { mainStore: useMainStore() }
+    },
     data() {
       return {}
     },
     mounted() {
-      this.$store.dispatch('setProtectedMode', false);
+      this.mainStore.setProtectedMode(false);
     },
     computed: {
       questCount() {
-        return this.$store.getters.QUEST_LIST?.length || 0
+        return this.mainStore.QUEST_LIST?.length || 0
       },
       storageCount() {
-        const items = this.$store.getters.STORAGE?.get()
+        const items = this.mainStore.STORAGE?.get()
         return items?.length || 0
       },
       presetCount() {
-        const presets = this.$store.getters.PRESET_STORE
+        const presets = this.mainStore.PRESET_STORE
         return presets?.length || 0
       },
       openExports() {
-        const items = this.$store.getters.STORAGE?.get() || []
+        const items = this.mainStore.STORAGE?.get() || []
         return items.filter(i => !i.exported).length
       },
       lastEntry() {
-        const items = this.$store.getters.STORAGE?.get() || []
+        const items = this.mainStore.STORAGE?.get() || []
         if (items.length === 0) return null
         const sorted = [...items].sort((a, b) => {
           const da = a.info?.date || ''

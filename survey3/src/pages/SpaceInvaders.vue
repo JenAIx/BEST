@@ -150,10 +150,14 @@
 </template>
 
 <script>
-import { mapState } from 'vuex';
+import { useMainStore } from 'src/stores/main'
+import { useSpaceInvadersStore } from 'src/stores/spaceInvaders'
 
 export default {
   name: 'SpaceInvaders',
+  setup() {
+    return { mainStore: useMainStore(), siStore: useSpaceInvadersStore() }
+  },
   data() {
     return {
       canvasWidth: 320,
@@ -169,9 +173,9 @@ export default {
     };
   },
   computed: {
-    ...mapState({
-      game: state => state.spaceInvaders
-    }),
+    game() {
+      return this.siStore.$state
+    },
     respawnCountdownNumber() {
       // 240 frames total (4 seconds)
       // First 60 frames (1 sec): show message (return -1)
@@ -192,7 +196,7 @@ export default {
     }
   },
   mounted() {
-    this.$store.dispatch('setProtectedMode', true);
+    this.mainStore.setProtectedMode(true);
     this.initCanvas();
     this.initGame();
     this.startGame();
@@ -209,7 +213,7 @@ export default {
     },
     
     initGame() {
-      this.$store.dispatch('si_initGame', {
+      this.siStore.si_initGame({
         canvasWidth: this.canvasWidth,
         canvasHeight: this.canvasHeight
       });
@@ -221,10 +225,10 @@ export default {
         if (!this.game.isPaused && !this.game.gameOver && !this.levelTransition) {
           // Only update game if not in respawn countdown
           if (!this.game.isRespawning) {
-            this.$store.dispatch('si_updateGame');
+            this.siStore.si_updateGame();
           } else {
             // During respawn, still update collisions for countdown timer
-            this.$store.dispatch('si_updateGame');
+            this.siStore.si_updateGame();
           }
           this.draw();
           this.checkLevelComplete();
@@ -236,7 +240,7 @@ export default {
       const moveSpeed = Math.max(400, 800 - (this.game.level - 1) * 50);
       this.enemyMoveInterval = setInterval(() => {
         if (!this.levelTransition && !this.game.isRespawning) {
-          this.$store.dispatch('si_moveEnemies');
+          this.siStore.si_moveEnemies();
         }
       }, moveSpeed);
       
@@ -244,7 +248,7 @@ export default {
       const shootSpeed = Math.max(800, 1500 - (this.game.level - 1) * 100);
       this.enemyShootInterval = setInterval(() => {
         if (!this.levelTransition && !this.game.isRespawning) {
-          this.$store.dispatch('si_enemyShoot');
+          this.siStore.si_enemyShoot();
         }
       }, shootSpeed);
     },
@@ -374,24 +378,24 @@ export default {
     shoot() {
       // Can't shoot while dying
       if (this.game.isDying) return;
-      this.$store.dispatch('si_shoot');
+      this.siStore.si_shoot();
     },
     
     startMoveLeft() {
       this.stopMove();
       this.moveDirection = 'left';
-      this.$store.dispatch('si_movePlayer', 'left');
+      this.siStore.si_movePlayer('left');
       this.moveInterval = setInterval(() => {
-        this.$store.dispatch('si_movePlayer', 'left');
+        this.siStore.si_movePlayer('left');
       }, 50);
     },
     
     startMoveRight() {
       this.stopMove();
       this.moveDirection = 'right';
-      this.$store.dispatch('si_movePlayer', 'right');
+      this.siStore.si_movePlayer('right');
       this.moveInterval = setInterval(() => {
-        this.$store.dispatch('si_movePlayer', 'right');
+        this.siStore.si_movePlayer('right');
       }, 50);
     },
     
@@ -409,7 +413,7 @@ export default {
       const rect = this.$refs.gameCanvas.getBoundingClientRect();
       const x = touch.clientX - rect.left;
       
-      this.$store.dispatch('si_setPlayerX', x);
+      this.siStore.si_setPlayerX(x);
     },
     
     handleTouchMove(event) {
@@ -418,7 +422,7 @@ export default {
       const rect = this.$refs.gameCanvas.getBoundingClientRect();
       const x = touch.clientX - rect.left;
       
-      this.$store.dispatch('si_setPlayerX', x);
+      this.siStore.si_setPlayerX(x);
     },
     
     handleTouchEnd(event) {
@@ -432,7 +436,7 @@ export default {
       const rect = this.$refs.gameCanvas.getBoundingClientRect();
       const x = event.clientX - rect.left;
       
-      this.$store.dispatch('si_setPlayerX', x);
+      this.siStore.si_setPlayerX(x);
     },
     
     handleClick(event) {
@@ -441,7 +445,7 @@ export default {
     },
     
     togglePause() {
-      this.$store.dispatch('si_togglePause');
+      this.siStore.si_togglePause();
     },
     
     resetGame() {
@@ -465,7 +469,7 @@ export default {
     
     nextLevel() {
       this.stopGame();
-      this.$store.dispatch('si_nextLevel', {
+      this.siStore.si_nextLevel({
         canvasWidth: this.canvasWidth,
         canvasHeight: this.canvasHeight
       });
@@ -477,7 +481,7 @@ export default {
       // If respawn countdown just finished
       if (this.game.isRespawning && this.game.respawnCountdown === 1) {
         // Respawn player
-        this.$store.dispatch('si_respawnPlayer', {
+        this.siStore.si_respawnPlayer({
           canvasWidth: this.canvasWidth,
           canvasHeight: this.canvasHeight
         });

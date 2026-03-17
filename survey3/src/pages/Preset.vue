@@ -58,6 +58,7 @@
 
 <script>
 import myMixins from 'src/mixins/modes'
+import { useMainStore } from 'src/stores/main'
 import BACKBUTTON from 'src/components/BackButton.vue'
 import MYBUTTON from 'src/components/MyButton.vue'
 import { parseRouteParams } from 'src/tools/routeParams'
@@ -66,6 +67,9 @@ export default {
   name: 'Preset',
   mixins: [myMixins],
   components: {BACKBUTTON, MYBUTTON},
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   data() {
     return {
       subject_pid: null,
@@ -74,8 +78,8 @@ export default {
   },
   mounted() {
     // WURDE EINE PRESET ANGEGEBEN?
-    this.$store.dispatch('setProtectedMode', true);
-    this.$store.state.leftDrawerOpen = false
+    this.mainStore.setProtectedMode(true);
+    this.mainStore.leftDrawerOpen = false
     if (this.PARAMS === null || this.PARAMS === undefined) return this.$router.push({name: 'select'})
     // PROTECTED MODE?
     if (this.PARAMS.PID !== undefined) this.subject_pid = this.PARAMS.PID
@@ -87,7 +91,7 @@ export default {
       return this.$t('quest.pid')
     },
     QUESTMAN() {
-      return this.$store.getters.QUESTMAN
+      return this.mainStore.QUESTMAN
     },
     PARAMS() {
       return parseRouteParams(this.$route.params.id)
@@ -103,10 +107,10 @@ export default {
       if (this.PARAMS === undefined) return false
       if (this.PARAMS.PID === undefined) return false
       return this.PARAMS.mode === 'encrypted'
-      
+
     }
   },
-  
+
   methods: {
     save_preset(){
       this.$q.dialog({
@@ -119,12 +123,12 @@ export default {
         cancel: true,
         persistent: true
       }).onOk(label => {
-        this.$store.dispatch('storePreset', {label: label, value: this.PARAMS.presets});
+        this.mainStore.storePreset({label: label, value: this.PARAMS.presets});
         this.show_store_btn = false
         this.$q.notify({
           message: this.$t('quest.save_success'),
           color: 'green'
-        }) 
+        })
       })
     },
     startQuest() {
@@ -148,8 +152,8 @@ export default {
       var params = { ...this.PARAMS }
       params.mode = 'encrypted';
       params.PID = this.subject_pid
-      params.email = this.$store.state.SETTINGS.email_export
-      params.pubKey = this.$store.state.SETTINGS.user_keyPair.publicKey
+      params.email = this.mainStore.SETTINGS.email_export
+      params.pubKey = this.mainStore.SETTINGS.user_keyPair.publicKey
       this.$router.push(`/preset/${encodeURIComponent(JSON.stringify(params))}`)
     }
   }

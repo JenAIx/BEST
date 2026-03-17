@@ -5,12 +5,12 @@
             <q-icon class="cursor-pointer" color="grey-8" name="list_alt" @click="$router.push({name: 'storage'})"><q-tooltip>Zu den gespeicherten Fragebogendaten wechseln</q-tooltip></q-icon>
         </div>
 
-        <div v-if="$store.state.EXPORT_DATA.length>0">
-            <q-card class="my-form" v-if="$store.state.EXPORT_DATA[0].email">
+        <div v-if="mainStore.EXPORT_DATA.length>0">
+            <q-card class="my-form" v-if="mainStore.EXPORT_DATA[0].email">
                 <q-card-section class="text-center text-h6">
-                    Versenden der Daten an: 
+                    Versenden der Daten an:
                     <br>
-                    {{$store.state.EXPORT_DATA[0].email}}
+                    {{mainStore.EXPORT_DATA[0].email}}
                 </q-card-section>
 
                 <q-card-section class="text-caption">
@@ -33,17 +33,21 @@
 </template>
 
 <script>
+import { useMainStore } from 'src/stores/main'
 import BACKBUTTON from 'src/components/BackButton.vue'
 
 export default {
     name: 'FinishedQuest',
+    setup() {
+        return { mainStore: useMainStore() }
+    },
 
     data() {
         return {}
     },
 
     mounted() {
-        // console.log(this.$store.state.EXPORT_DATA)
+        // console.log(this.mainStore.EXPORT_DATA)
     },
     
     components: {BACKBUTTON},
@@ -51,7 +55,7 @@ export default {
     methods: {
         sendMail() {
             // SEND MAIL
-            this.$store.dispatch('mail_exported_data')
+            this.mainStore.mail_exported_data()
             .then(() => this.$q.notify({message: this.$t('quest.export_success'),color: 'green'}))
         }
     }

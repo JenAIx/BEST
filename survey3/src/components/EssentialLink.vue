@@ -30,6 +30,8 @@
 </template>
 
 <script>
+import { useMainStore } from 'src/stores/main'
+
 export default {
   name: 'EssentialLink',
   props: {
@@ -57,9 +59,12 @@ export default {
       default: ''
     }
   },
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   methods: {
     reroute() {
-      this.$store.state.leftDrawerOpen = false
+      this.mainStore.leftDrawerOpen = false
       this.$router.push({name: this.name}).catch(() => {})
     }
   },

@@ -37,9 +37,7 @@ export default {
   props: ["label", "icon", "colored"],
 
   data() {
-    return {
-      // TEXT: this.$store.state.TEXT,
-    };
+    return {};
   },
 
   mounted() {

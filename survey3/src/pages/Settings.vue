@@ -11,11 +11,11 @@
           <div class="row q-pa-md justify-around q-gutter-sm">
             <!-- FONT -->
             <q-expansion-item data-cy="btn_description" expand-separator :icon="$t('settings.font.icon')"
-              :label="$t('settings.font.label')" :caption="`Größe: ${$store.getters.SETTINGS.size}`"
+              :label="$t('settings.font.label')" :caption="`Größe: ${mainStore.SETTINGS.size}`"
               class="my-settings-item">
               <div class="row text-center">
                 <div class="col">
-                  <q-btn-toggle v-model="$store.getters.SETTINGS.size" flat :options="[
+                  <q-btn-toggle v-model="mainStore.SETTINGS.size" flat :options="[
                     { label: 'normal', value: 'normal' },
                     { label: 'größer', value: 'bigger' },
                     { label: 'sehr groß', value: 'biggest' },
@@ -51,11 +51,11 @@
 
             <!-- USER SETTINGS -->
             <q-expansion-item data-cy="btn_description" expand-separator :icon="$t('settings.user.icon')"
-              :label="$t('settings.user.label')" :caption="`eMail: ${$store.getters.SETTINGS.email_export || ''} `"
+              :label="$t('settings.user.label')" :caption="`eMail: ${mainStore.SETTINGS.email_export || ''} `"
               class="my-settings-item">
               <!-- MAIL -->
               <div class="row q-pa-xs">
-                <q-input class="col-12" dense v-model="$store.getters.SETTINGS.email_export" input-class="text-center"
+                <q-input class="col-12" dense v-model="mainStore.SETTINGS.email_export" input-class="text-center"
                   label="eMail" />
                 <!-- CHECK THE EMAIL CLIENT -->
                 <div class="">
@@ -74,7 +74,7 @@
               <!-- MORE DETAILS` -->
               <div v-if="user_details" class="row q-ma-xs shadow-1 q-pa-sm">
                 <div class="text-caption my-annotation-text" v-html="$t('settings.user.uid_description')"></div>
-                <q-input class="col-12" dense disable borderless v-model="$store.getters.SETTINGS.user_uid"
+                <q-input class="col-12" dense disable borderless v-model="mainStore.SETTINGS.user_uid"
                   input-class="text-center" label="uid" />
                 <q-input class="col-12" dense readonly borderless v-model="keyPair.privateKey"
                   :type="isPwd_priv ? 'true' : 'password'" label="privateKey" input-class="text-center"
@@ -151,7 +151,7 @@
     <BACKBUTTON />
 
     <!-- USEREXPORT -->
-    <USEREXPORT v-if="view_export === true" :DATA="$store.getters.SETTINGS._USER" :view_export="view_export"
+    <USEREXPORT v-if="view_export === true" :DATA="mainStore.SETTINGS._USER" :view_export="view_export"
       @closeClick="view_export = false" />
 
     <!-- USERIMPORT -->
@@ -162,6 +162,7 @@
 
 <script>
 import myMixins from "src/mixins/modes";
+import { useMainStore } from "src/stores/main";
 import BACKBUTTON from "src/components/BackButton.vue";
 import USEREXPORT from "src/components/User_export.vue";
 import USERIMPORT from "src/components/User_import.vue";
@@ -171,6 +172,9 @@ export default {
   name: "Settings",
   components: { BACKBUTTON, USEREXPORT, USERIMPORT },
   mixins: [myMixins],
+  setup() {
+    return { mainStore: useMainStore() };
+  },
   data() {
     return {
       isPwd_priv: false,
@@ -183,10 +187,10 @@ export default {
     };
   },
   mounted() {
-    this.$store.dispatch("setProtectedMode", true);
+    this.mainStore.setProtectedMode(true);
 
     // CHECK IF MAIL SERVER IS AVAILABLE
-    checkMail(this.$store.getters.SETTINGS.email_export).then((res) => {
+    checkMail(this.mainStore.SETTINGS.email_export).then((res) => {
       this.email_server_available = res;
     });
   },
@@ -199,17 +203,17 @@ export default {
       ]
     },
     keyPair() {
-      if (this.$store.getters.SETTINGS.user_keyPair === undefined)
-        this.$store.getters.SETTINGS._USER.create();
-      return this.$store.getters.SETTINGS.user_keyPair;
+      if (this.mainStore.SETTINGS.user_keyPair === undefined)
+        this.mainStore.SETTINGS._USER.create();
+      return this.mainStore.SETTINGS.user_keyPair;
     },
 
     export_format: {
       get() {
-        return this.$store.getters.SETTINGS.export_format;
+        return this.mainStore.SETTINGS.export_format;
       },
       set(val) {
-        this.$store.commit("SETTINGS_SET", {
+        this.mainStore.settingsSet({
           field: "export_format",
           value: val,
         });
@@ -220,7 +224,7 @@ export default {
     user_new() {
       const answ = confirm(this.$t('btn.confirm.new_user'));
       if (!answ) return;
-      this.$store.getters.SETTINGS._USER.create();
+      this.mainStore.SETTINGS._USER.create();
     },
     doImportData(data) {
       this.view_import = false;
@@ -229,7 +233,7 @@ export default {
       try {
         const json = JSON.parse(data);
         if (json === undefined || json === null) return;
-        this.$store.getters.SETTINGS._USER.import(data);
+        this.mainStore.SETTINGS._USER.import(data);
       } catch {
         this.$q.notify({
           message: this.$t('error.format_wrong'),

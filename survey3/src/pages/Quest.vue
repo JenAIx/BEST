@@ -33,20 +33,24 @@
 import BACKBUTTON from 'src/components/BackButton.vue'
 import RenderQuest from 'src/components/RenderQuest.vue'
 import { parseRouteParams } from 'src/tools/routeParams'
+import { useMainStore } from 'src/stores/main'
 export default {
   name: 'Questionnaire',
   components: {BACKBUTTON, RenderQuest},
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   data() {
     return {
       noPARAMStxt: undefined,
-      timenow: Date.now(), 
+      timenow: Date.now(),
       status: true
     }
   },
   mounted() {
-    this.$store.state.leftDrawerOpen = false
-    this.$store.state.PROTECTED_MODE = true
-    this.$store.commit('EXPORT_CLEAR')
+    this.mainStore.leftDrawerOpen = false
+    this.mainStore.PROTECTED_MODE = true
+    this.mainStore.exportClear()
     this.loadQuest()
   },
 
@@ -65,7 +69,7 @@ export default {
       const status = this.QUESTMAN.next()
       if (!status) return
     },
-    
+
     gotoselect() {
       this.$router.push('/select')
     },
@@ -74,7 +78,7 @@ export default {
     questAction(val) {
       if (val !== undefined) {
         this.timenow = Date.now() // rerender renderquest
-        this.$store.dispatch('storage_add', val)
+        this.mainStore.storage_add(val)
         this.$q.notify({
           message: this.$t('quest.export_success'),
           color: 'green'
@@ -85,7 +89,7 @@ export default {
         this.status = this.QUESTMAN.next()
 
         if (this.status !== true) this.$router.push({path: '/finished_quest'}).catch(err => this.$router.push('/finished_quest'))
-        
+
 
       } else {
         this.$q.notify({
@@ -97,7 +101,7 @@ export default {
 
     // EXPORT A QUEST IN ENCRYPTION MODE
     export_encrypted() {
-      this.$store.dispatch('storage_encrypted_export', this.PARAMS)
+      this.mainStore.storage_encrypted_export(this.PARAMS)
     }
   },
 
@@ -106,10 +110,10 @@ export default {
       return parseRouteParams(this.$route.params.id)
     },
     QUEST_LABEL() {
-      return this.$store.getters.ACTIVE_QUEST_LABEL
+      return this.mainStore.ACTIVE_QUEST_LABEL
     },
     QUESTMAN() {
-      return this.$store.getters.QUESTMAN
+      return this.mainStore.QUESTMAN
     }
   }
 }

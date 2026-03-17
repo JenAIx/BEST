@@ -177,6 +177,7 @@
 
 <script>
 
+import { useMainStore } from 'src/stores/main'
 import { quest_template, item_template } from 'assets/questionnaires/list_quest'
 import { uuidv4 } from 'src/tools/hhash'
 import {log} from 'src/tools/Logger'
@@ -191,6 +192,9 @@ import MYBUTTON from 'src/components/MyButton.vue'
 
 export default {
   name: 'QuestManagerCreate',
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   mixins: [myMixins],
   components: {BACKBUTTON, CREATEITEM, CREATERESULTS, PREVIEWITEM, MYBUTTON},
   data () {
@@ -205,11 +209,11 @@ export default {
     }
   },
   mounted() {
-    this.$store.dispatch('setProtectedMode', true);
-    if (this.$store.state.editquest === undefined) {
+    this.mainStore.setProtectedMode(true);
+    if (this.mainStore.editquest === undefined) {
       this.content = JSON.parse(JSON.stringify(quest_template))
-      this.$store.state.editquest = this.content
-    } else this.content = this.$store.state.editquest
+      this.mainStore.editquest = this.content
+    } else this.content = this.mainStore.editquest
 
   },
   computed: {
@@ -321,13 +325,13 @@ export default {
       if (this.content.short_title === null || this.content.short_title === "") {confirm("ShortTitle muss vergeben werden!"); log({error: 'kein Shorttitle'});return}
 
       // check if short_title exists
-      if (this.$store.getters.QUEST_LIST.includes(this.content.short_title)) {
+      if (this.mainStore.QUEST_LIST.includes(this.content.short_title)) {
         const answ = confirm("Fragebogen/ShortTitle existiert schon. Vorhandenen überschreiben?")
         if (!answ) return
-        this.$store.getters.QUESTMAN.remove_by_name(this.content.short_title)
+        this.mainStore.QUESTMAN.remove_by_name(this.content.short_title)
       }
 
-      this.$store.getters.QUESTMAN.add(JSON.stringify(this.content))
+      this.mainStore.QUESTMAN.add(JSON.stringify(this.content))
       this.$q.notify({ message: this.$t('quest.export_success'), color: 'green' })
     },
     exportQuest() {

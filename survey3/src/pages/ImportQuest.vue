@@ -32,12 +32,16 @@
 </template>
 
 <script>
+import { useMainStore } from 'src/stores/main'
 import { decrypt } from "src/tools/hhash";
 import { log } from "src/tools/Logger";
 import BACKBUTTON from "src/components/BackButton.vue";
 
 export default {
   components: { BACKBUTTON },
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   data() {
     return {
       file: null,
@@ -45,9 +49,9 @@ export default {
   },
   computed: {
     keyPair() {
-      if (this.$store.getters.SETTINGS.user_keyPair === undefined)
-        this.$store.getters.SETTINGS._USER.create();
-      return this.$store.getters.SETTINGS.user_keyPair;
+      if (this.mainStore.SETTINGS.user_keyPair === undefined)
+        this.mainStore.SETTINGS._USER.create();
+      return this.mainStore.SETTINGS.user_keyPair;
     },
   },
   methods: {
@@ -145,7 +149,7 @@ export default {
     },
 
     importDocument(document) {
-      this.$store.dispatch("storage_add_from_file", document).then((res) => {
+      this.mainStore.storage_add_from_file(document).then((res) => {
         this.$q.notify({
           message: this.$t('quest.import_success'),
           color: "green",

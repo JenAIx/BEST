@@ -85,6 +85,7 @@
 <script>
 // import Vue from 'vue'
 import myMixins from "src/mixins/modes";
+import { useMainStore } from "src/stores/main";
 import BACKBUTTON from "src/components/BackButton.vue";
 import FilterQuest from "src/components/Filter.vue";
 import MYBUTTON from "src/components/MyButton.vue";
@@ -94,6 +95,9 @@ export default {
   components: { BACKBUTTON, FilterQuest, MYBUTTON },
   mixins: [myMixins],
   props: ["MODE"],
+  setup() {
+    return { mainStore: useMainStore() };
+  },
   data() {
     return {
       filter_value: null,
@@ -102,20 +106,20 @@ export default {
     };
   },
   mounted() {
-    this.$store.dispatch("setProtectedMode", true);
+    this.mainStore.setProtectedMode(true);
     for (let i = 0; i < this.QUEST_LIST.length; i++) {
       this.INDEX[i] = false;
     }
   },
   computed: {
     QUEST_LIST() {
-      return this.$store.getters.QUEST_LIST;
+      return this.mainStore.QUEST_LIST;
     },
     FILTERED_LIST() {
       return this.QUESTMAN.quest_list_filtered(this.filter_value);
     },
     QUESTMAN() {
-      return this.$store.getters.QUESTMAN;
+      return this.mainStore.QUESTMAN;
     },
     count_selected() {
       var count = 0;

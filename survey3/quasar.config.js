@@ -8,7 +8,7 @@ import { configure } from "quasar/wrappers";
 export default configure(function (/* ctx */) {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ["db", "i18n", "vuex-compat", "axios", "errorHandler"],
+    boot: ["db", "i18n", "axios", "errorHandler"],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ["app.sass"],

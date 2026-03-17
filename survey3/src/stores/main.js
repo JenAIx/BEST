@@ -47,20 +47,8 @@ export const useMainStore = defineStore('main', {
     QUESTMAN(state) {
       return state.QuestMan
     },
-    getEnv(state) {
-      return state.ENV
-    },
-    getSettings(state) {
-      return state.SETTINGS
-    },
-    getProtectedMode(state) {
-      return state.PROTECTED_MODE
-    },
     PRESET_STORE(state) {
       return state.STORAGE.get_presets()
-    },
-    getStorage(state) {
-      return state.STORAGE
     },
     DEBUG_MODE(state) {
       return state.debug

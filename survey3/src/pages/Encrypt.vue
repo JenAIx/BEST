@@ -61,11 +61,15 @@
 </template>
 
 <script>
+  import { useMainStore } from 'src/stores/main'
   import {encrypt, decrypt} from 'src/tools/hhash'
   import BACKBUTTON from 'src/components/BackButton.vue'
 
   export default {
     components: {BACKBUTTON},
+    setup() {
+      return { mainStore: useMainStore() }
+    },
     data() {
       return {
         file: null,
@@ -77,8 +81,8 @@
     },
     computed: {
       keyPair() {
-        if (this.$store.getters.SETTINGS.user_keyPair === undefined) this.$store.getters.SETTINGS._USER.create()
-        return this.$store.getters.SETTINGS.user_keyPair
+        if (this.mainStore.SETTINGS.user_keyPair === undefined) this.mainStore.SETTINGS._USER.create()
+        return this.mainStore.SETTINGS.user_keyPair
       }
     },
     methods: {

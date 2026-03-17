@@ -30,10 +30,14 @@
 
 
 <script>
+import { useMainStore } from 'src/stores/main'
 
 export default {
   name: 'BACKBUTTON',
   props: ["ask", "go_back", "go_location", "hidden"],
+  setup() {
+    return { mainStore: useMainStore() }
+  },
 
   data() {
     return {}
@@ -59,7 +63,7 @@ export default {
         if (!answer) return
       }
 
-      this.$store.state.PROTECTED_MODE = false;
+      this.mainStore.PROTECTED_MODE = false;
       this.$router.push('/')
     }
 

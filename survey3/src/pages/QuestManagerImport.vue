@@ -33,12 +33,16 @@
 </template>
 
 <script>
+import { useMainStore } from 'src/stores/main'
 import myMixins from "src/mixins/modes";
 import BACKBUTTON from "src/components/BackButton.vue";
 import MYBUTTON from "src/components/MyButton.vue";
 
 export default {
   name: "QuestManagerImport",
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   components: { BACKBUTTON, MYBUTTON },
   props: ["MODE"],
   mixins: [myMixins],
@@ -49,7 +53,7 @@ export default {
   },
   computed: {
     QUESTMAN() {
-      return this.$store.getters.QUESTMAN;
+      return this.mainStore.QUESTMAN;
     },
   },
 

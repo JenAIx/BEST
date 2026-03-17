@@ -52,6 +52,7 @@
 <script>
 // import Vue from 'vue'
 import myMixins from 'src/mixins/modes'
+import { useMainStore } from 'src/stores/main'
 import BACKBUTTON from 'src/components/BackButton.vue'
 import MYBUTTON from 'src/components/MyButton.vue'
 
@@ -60,23 +61,26 @@ export default {
   mixins: [myMixins],
   components: { BACKBUTTON, MYBUTTON },
   props: ["MODE"],
+  setup() {
+    return { mainStore: useMainStore() }
+  },
   data() {
     return {
       INDEX: []
     }
   },
   mounted() {
-    this.$store.dispatch('setProtectedMode', true);
+    this.mainStore.setProtectedMode(true);
     for (let i = 0; i < this.QUEST_LIST.length; i++) {
       this.INDEX[i] = false
     }
   },
   computed: {
     QUEST_LIST() {
-      return this.$store.getters.QUEST_LIST
+      return this.mainStore.QUEST_LIST
     },
     QUESTMAN() {
-      return this.$store.getters.QUESTMAN
+      return this.mainStore.QUESTMAN
     },
     count_selected() {
       var count = 0
@@ -111,12 +115,12 @@ export default {
       this.$router.push({ name: "questmanagerimport" })
     },
     createQuest() {
-      this.$store.state.editquest = undefined
+      this.mainStore.editquest = undefined
       this.$router.push({ name: "questmanagercreate" })
     },
     editSelected() {
       var idx = this.INDEX.indexOf(true)
-      this.$store.state.editquest = JSON.parse(JSON.stringify(this.QUESTMAN.get(this.QUEST_LIST[idx])))
+      this.mainStore.editquest = JSON.parse(JSON.stringify(this.QUESTMAN.get(this.QUEST_LIST[idx])))
       this.$router.push({ name: "questmanagercreate" })
     },
     resetQuest() {
