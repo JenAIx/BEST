@@ -5,7 +5,7 @@
       <q-item-section avatar>
         <q-checkbox
           v-model="checked"
-          @blur="changeSel(checked)"
+          @update:model-value="changeSel"
           :data-cy="'check_' + index"
         />
       </q-item-section>
@@ -137,7 +137,7 @@ export default {
 
   methods: {
     changeSel(val) {
-      this.$emit("change_selection", !val);
+      this.$emit("change_selection", val);
     },
     export_item(index) {
       this.$emit("export_item", index);

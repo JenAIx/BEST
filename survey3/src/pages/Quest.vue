@@ -25,7 +25,7 @@
     </div>
 
     <!-- BACKBUTTON -->
-    <BACKBUTTON :ask="true" />
+    <BACKBUTTON :ask="true" :hidden="true" />
   </q-page>
 </template>
 

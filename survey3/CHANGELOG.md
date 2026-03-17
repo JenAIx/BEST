@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.7.4
+
+#### Fixed
+
+- [2026-03-17] Fixed StorageCard checkbox selection: changed `@blur` to `@update:model-value` and removed inverted emit — selections now apply immediately on click
+- [2026-03-17] Fixed `Storage.remove()` loop-splice bug — used `findIndex` instead of iterating with splice
+- [2026-03-17] Fixed filter comparison in Storage page: `.includes() > 0` replaced with `.includes()` (boolean, not number)
+- [2026-03-17] Fixed date parsing in TableView for `dateformat` output (strips `GMT` prefix, inserts timezone colon, pads single-digit hours)
+
+#### Changed
+
+- [2026-03-17] Redesigned TableView (Vorschau): full-screen dialog with structured layout — condensed header, prominent result cards, numbered items table, evaluation section
+- [2026-03-17] Added CSV export and print buttons to TableView
+- [2026-03-17] TableView now reads structured CDA section data instead of rendering raw HTML div
+- [2026-03-17] TableView styles use Quasar Sass variables (`$primary`, `$secondary`, `$grey-*`, `$dark`) matching app theme
+- [2026-03-17] BackButton: added visible arrow-back mode (default) for standard navigation; quest page keeps hidden 3-dot menu via `:hidden="true"` prop
+
 ### v1.7.3
 
 #### Fixed

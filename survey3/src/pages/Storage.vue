@@ -21,8 +21,8 @@
             <div class="col-auto" v-for="(item, index) in QUEST_LIST" :key="'item_' + index" :data-cy="'item_' + index">
               <StorageCard v-if="FILTER_ON === false ||
                 FILTER.text === null ||
-                item.info.PID.includes(FILTER.text) > 0 ||
-                item.info.title.includes(FILTER.text) > 0
+                item.info.PID.includes(FILTER.text) ||
+                item.info.title.includes(FILTER.text)
                 " :item="item" :index="index" :selected="selected.indexOf(item.info.uid) > -1"
                 @change_selection="select_item($event, item.info.uid)"
                 @export_item="export_item(item.info.uid)" @export_item_encrypted="export_item_encrypted(item.info.uid)"

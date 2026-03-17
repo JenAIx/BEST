@@ -106,13 +106,11 @@ class Storage {
   }
 
   remove(uid) {
-    for (let i = 0; i < this._STORAGE.length; i++) {
-      if (this._STORAGE[i].info.uid === uid) {
-        this._STORAGE.splice(i, 1)
-        this.save()
-      }
+    const index = this._STORAGE.findIndex(item => item.info.uid === uid)
+    if (index > -1) {
+      this._STORAGE.splice(index, 1)
+      this.save()
     }
-
   }
 
   update() {

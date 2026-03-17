@@ -27,30 +27,43 @@ Diese App sendet keine Daten zu einem Server, alle erhobenen Daten bleiben auf d
 
 ## Disclaimer
 
-Diese App ist ein **Prototyp** und wurde im Rahmen eines Forschungsprojektes entwickelt. Die App ist nicht für den produktiven Einsatz gedacht. Die App wird ohne jegliche Garantie zur Verfügung gestellt. Der Autor übernimmt keine Haftung für Schäden, die durch die Verwendung der App entstehen.
+### Allgemeines
 
-## Allgemein
+Die Web-App "surveyBEST" wurde im Rahmen eines Forschungsprojektes entwickelt und dient ausschliesslich als Hilfsmittel zur digitalen Erfassung und Auswertung von Fragebögen. Die App wird "as is" (ohne jegliche Garantie) zur Verfügung gestellt.
 
-Die Web-App "surveyBEST" wurde entwickelt, um Fragebögen abzufragen und gegebenenfalls auszuwerten. Wir bemühen uns, korrekte und aktuelle Informationen bereitzustellen, können jedoch keine Garantie für die Richtigkeit, Vollständigkeit, Aktualität oder Eignung der Inhalte dieser App für einen bestimmten Zweck übernehmen.
+Wir bemühen uns, korrekte und aktuelle Funktionalität bereitzustellen, übernehmen jedoch keine Garantie für die Richtigkeit, Vollständigkeit, Aktualität oder Eignung der Inhalte und Ergebnisse dieser App für einen bestimmten Zweck.
 
-## Datenspeicherung
+### Kein Medizinprodukt
 
-"surveyBEST" speichert alle eingegebenen Daten im lokalen Browser-Speicher im CDA JSON-Format. Diese Daten werden zu keinem Zeitpunkt an unsere Server oder Dritte gesendet, außer wenn dies auf ausdrücklichen Wunsch des Nutzers geschieht.
+Diese App ist **kein zugelassenes Medizinprodukt** im Sinne der EU-Medizinprodukteverordnung (MDR 2017/745) oder vergleichbarer nationaler Regelungen. Sie darf **nicht** als alleinige Grundlage für klinische Entscheidungen, Diagnosen oder Therapieempfehlungen verwendet werden. Ergebnisse und Auswertungen sind stets durch qualifiziertes Fachpersonal zu überprüfen und im klinischen Kontext zu bewerten.
 
-## Keine Links zu anderen Websites
+### Datenspeicherung und Datenschutz
 
-"surveyBEST" enthält keine Links zu anderen Websites und leitet Nutzer nicht zu externen Webdiensten weiter. Nutzer können sicher sein, dass sie innerhalb der App bleiben, solange sie "surveyBEST" nutzen.
+"surveyBEST" speichert alle eingegebenen Daten ausschliesslich im lokalen Browser-Speicher (localStorage) des Endgeräts im CDA-JSON-Format. Es werden **zu keinem Zeitpunkt** Daten an Server oder Dritte übertragen, es sei denn, der Nutzer veranlasst einen Export ausdrücklich selbst.
 
-## Haftungsbeschränkung
+Der Nutzer ist eigenverantwortlich für die sichere Aufbewahrung, den Export und die Löschung der auf dem Gerät gespeicherten Daten. Beim Löschen des Browser-Speichers oder bei Deinstallation der App gehen alle lokal gespeicherten Daten unwiderruflich verloren.
 
-Die Nutzung von "surveyBEST" erfolgt auf eigenes Risiko des Nutzers. Wir übernehmen keine Haftung für Schäden oder Verluste, die direkt oder indirekt durch die Nutzung dieser App entstehen könnten, einschließlich, aber nicht beschränkt auf, den Verlust von Daten oder Informationen, die in der App gespeichert sind.
+### Urheberrecht bei Fragebogeninhalten
 
-## Kontakt
+Die in dieser App verwendeten oder importierten Fragebogentemplates können urheberrechtlich geschütztem Material Dritter unterliegen. Der Nutzer ist selbst dafür verantwortlich, die erforderlichen Nutzungsrechte und Lizenzen bei den jeweiligen Rechteinhabern einzuholen, bevor ein Fragebogen eingesetzt wird.
 
-Bei Fragen oder Anmerkungen zum Datenschutz oder anderen relevanten Themen in Bezug auf "surveyBEST" kontaktieren Sie uns bitte unter
+### Haftungsbeschränkung
 
-surveybest@info.de
+Die Nutzung von "surveyBEST" erfolgt auf eigenes Risiko. Die Autoren und Mitwirkenden übernehmen keinerlei Haftung für Schäden oder Verluste, die direkt oder indirekt durch die Nutzung dieser App entstehen. Dies umfasst insbesondere, aber nicht ausschliesslich:
 
-## Lizenz
+- Verlust oder Beschädigung von lokal gespeicherten Daten
+- fehlerhafte Auswertungen oder Berechnungen
+- Folgen klinischer Entscheidungen, die auf Grundlage der App-Ergebnisse getroffen werden
+- Ausfälle oder Inkompatibilitäten auf bestimmten Endgeräten oder Browsern
 
-"surveyBEST" ist unter der MIT-Lizenz veröffentlicht.
+### Keine externen Verbindungen
+
+"surveyBEST" enthält keine Tracking-Mechanismen, setzt keine Cookies und stellt keine Verbindungen zu externen Diensten oder Websites her.
+
+### Kontakt
+
+Bei Fragen oder Anmerkungen kontaktieren Sie uns bitte unter: surveybest@info.de
+
+### Lizenz
+
+"surveyBEST" ist unter der MIT-Lizenz veröffentlicht. Den vollständigen Lizenztext finden Sie im Quellcode-Repository des Projekts.
