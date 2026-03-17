@@ -21,26 +21,13 @@
 <script>
 
 export default {
-  name: 'RenderDate',
+  name: 'RenderTime',
   props: ["ITEM"],
-  data() {
-    return {
-      item: this.ITEM,
-      val: null
-
-    }
-  },
-  watch: {
-    val(value) {
-      this.$emit('emitValue', value)
-    }
-  },
-  methods: {
-    changedVal(value){
-      if (this.ITEM.type === 'time') this.val = value.year
-    }
-  },
   computed: {
+    val: {
+      get() { return this.ITEM.value },
+      set(v) { this.$emit('emitValue', v) }
+    },
     date_rule() {
       if (this.ITEM.type === 'time') return '12:00'
       return '12:00'
@@ -57,7 +44,11 @@ export default {
       if (this.ITEM.type === 'time') return 'Years'
       return ''
     }
+  },
+  methods: {
+    changedVal(value){
+      if (this.ITEM.type === 'time') this.val = value.year
+    }
   }
-  
 }
 </script>

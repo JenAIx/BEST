@@ -8,7 +8,7 @@
       </template>
     </q-input>
     <!-- ELSE -->
-    <q-input v-else filled v-model.number="val" :label="ITEM.hint" :type="ITEM.type" data-cy="number" />
+    <q-input v-else filled v-model="val" :label="ITEM.hint" :type="ITEM.type" data-cy="number" />
   </div>
 </template>
 
@@ -19,18 +19,20 @@ export default {
   props: ["ITEM"],
   data() {
     return {
-      val: this.ITEM.value,
       mode: true
     }
   },
-  watch: {
-    val(value) {
-      if (this.ITEM.type === 'number') value = parseFloat(value)
-      this.$emit('emitValue', value)
-    }
-  },
-
   computed: {
+    val: {
+      get() { return this.ITEM.value },
+      set(v) {
+        if (this.ITEM.type === 'number') {
+          const parsed = parseFloat(v)
+          v = Number.isNaN(parsed) ? null : parsed
+        }
+        this.$emit('emitValue', v)
+      }
+    },
     TEXT_TYPE() {
       if (this.mode === true) return 'text'
       else return 'textarea'

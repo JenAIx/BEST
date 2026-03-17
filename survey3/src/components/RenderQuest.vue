@@ -52,7 +52,7 @@
       <!-- QUEST ITEMS -->
       <q-list bordered separator data-cy="list_entries">
 
-        <q-item v-for="(item, indQ) in QUEST.items" :key="item.label + indQ + key_suffix" data-cy="item_entry">
+        <q-item v-for="(item, indQ) in QUEST.items" :key="item.label + indQ" data-cy="item_entry">
           <q-item-section>
             <!-- DESCRIPTION -->
             <q-item-label title><span v-html="item.label"/></q-item-label>
@@ -81,7 +81,7 @@
             </q-item-label>
 
             <q-item-label v-else-if="(item.type === 'multiple_radio')">
-              <RenderMultipleRadio :ITEM="item" :VALUE="QUEST.items[indQ].value" @emitValue="updateData('multiple_radio', indQ, $event)" data-cy="multiple_radio" />
+              <RenderMultipleRadio :ITEM="item" @emitValue="item.value = $event" data-cy="multiple_radio" />
             </q-item-label>
 
             <q-item-label v-else-if="(item.type === 'image')">
@@ -149,7 +149,6 @@ export default {
         submit_clicked: false,
       subject_pid: '',
       age: null,
-      key_suffix: Date.now()
     }
   },
 
@@ -179,23 +178,10 @@ export default {
     }
   },
   methods: {
-    updateData(action, index, value) {
-      switch (action) {
-        case 'multiple_radio':
-          this.QUEST.items[index]['value'] = value
-          break
-        default:
-          log({ warn: `updateData: ${action} not found!` })
-          return
-      }
-
-    },
-
     randomFill() {
       this.$store.state.QuestMan.random_fill()
       // refresh
       this.subject_pid = this.subject_pid || Date.now().toString()
-      this.key_suffix = this.subject_pid
     },
     rebuildQuests() {
       const answ = confirm(this.$t('btn.reset_confirm'))
@@ -208,7 +194,6 @@ export default {
 
       this.submit_clicked = true;
       this.check_form = this.$store.getters.QUESTMAN.check_activeQuest();
-      this.key_suffix = Date.now() //update the quest for
       const errors = []
 
       if (!this.CHECK_PID) errors.push(this.$t('quest.PID_missing'))

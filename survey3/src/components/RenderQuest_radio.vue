@@ -10,17 +10,11 @@
 export default {
   name: 'RenderRadio',
   props: ["ITEM"],
-  data() {
-    return {
-      val: this.ITEM.value
-
-    }
-  },
-  watch: {
-    val(value) {
-      this.$emit('emitValue', value)
+  computed: {
+    val: {
+      get() { return this.ITEM.value },
+      set(v) { this.$emit('emitValue', v) }
     }
   }
-  
 }
 </script>

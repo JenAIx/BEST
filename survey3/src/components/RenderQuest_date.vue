@@ -3,7 +3,7 @@
       <template v-slot:append>
         <q-icon name="event" class="cursor-pointer">
           <q-popup-proxy ref="qDateProxy" transition-show="scale" transition-hide="scale">
-            <q-date v-model="val" :mask="mask_date" :default-view="default_view" default-year-month="1964/01" 
+            <q-date v-model="val" :mask="mask_date" :default-view="default_view" default-year-month="1964/01"
             navigation-min-year-month="1901/01"
             navigation-max-year-month="2022/01"
             @navigation="changedVal"
@@ -24,24 +24,11 @@
 export default {
   name: 'RenderDate',
   props: ["ITEM"],
-  data() {
-    return {
-      item: this.ITEM,
-      val: null
-
-    }
-  },
-  watch: {
-    val(value) {
-      this.$emit('emitValue', value)
-    }
-  },
-  methods: {
-    changedVal(value){
-      if (this.ITEM.type === 'date_year') this.val = value.year
-    }
-  },
   computed: {
+    val: {
+      get() { return this.ITEM.value },
+      set(v) { this.$emit('emitValue', v) }
+    },
     date_rule() {
       if (this.ITEM.type === 'date_year') return '1970'
       return '01.01.1970'
@@ -58,7 +45,11 @@ export default {
       if (this.ITEM.type === 'date_year') return 'Years'
       return ''
     }
+  },
+  methods: {
+    changedVal(value){
+      if (this.ITEM.type === 'date_year') this.val = value.year
+    }
   }
-  
 }
 </script>

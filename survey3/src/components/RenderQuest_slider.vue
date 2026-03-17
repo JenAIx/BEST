@@ -2,7 +2,7 @@
   <div class="column items-center">
     <div class="col q-ma-md">
       <q-badge color="green">
-      {{item.options.top.label}}
+      {{ITEM.options.top.label}}
     </q-badge>
     </div>
     <div class="col q-ma-md "> <q-slider
@@ -12,8 +12,8 @@
       snap
       :min="min"
       :max="max"
-      :vertical="item.vertical"
-      :step="parseInt(item.options.steps)"
+      :vertical="ITEM.vertical"
+      :step="parseInt(ITEM.options.steps)"
       label
       label-always
       label-color="yellow"
@@ -25,12 +25,12 @@
     </div>
     <div class="col q-ma-md">
       <q-badge color="blue">
-      {{item.options.bottom.label}}
+      {{ITEM.options.bottom.label}}
     </q-badge>
     </div>
-     
+
     </div>
-   
+
 </template>
 
 <script>
@@ -38,23 +38,13 @@
 export default {
   name: 'RenderSlider',
   props: ["ITEM"],
-  data() {
-    return {
-      val: null,
-      item: this.ITEM,
-      max: parseInt(this.ITEM.options.top.value),
-      min: parseInt(this.ITEM.options.bottom.value)
-    }
-  },
-  mounted() {
-    // this.val = Math.round(this.item.options.top.value / 2)
-  },
-  watch: {
-    val(value) {
-      this.$emit('emitValue', value)
-    }
-  },
   computed: {
+    val: {
+      get() { return this.ITEM.value },
+      set(v) { this.$emit('emitValue', v) }
+    },
+    max() { return parseInt(this.ITEM.options.top.value) },
+    min() { return parseInt(this.ITEM.options.bottom.value) },
     meinWert() {
       if (this.val === null) return "bitte einen Wert auswählen"
       else return "Mein Wert: " + this.val
