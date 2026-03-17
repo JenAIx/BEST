@@ -7,6 +7,17 @@
           <q-item class="my-btn text-center" data-cy="back_root" clickable @click="quitForm">
             <q-item-section>{{$t('btn.back.label')}}</q-item-section>
           </q-item>
+          <template v-if="showPdfExport">
+            <q-separator />
+            <q-item class="my-btn text-center" clickable @click="$emit('pdfExport')">
+              <q-item-section>
+                <div class="row items-center justify-center no-wrap" style="gap:8px">
+                  <q-icon name="picture_as_pdf" size="xs" />
+                  <span>PDF Export</span>
+                </div>
+              </q-item-section>
+            </q-item>
+          </template>
         </q-list>
       </q-menu>
     </q-btn>
@@ -34,7 +45,8 @@ import { useMainStore } from 'src/stores/main'
 
 export default {
   name: 'BACKBUTTON',
-  props: ["ask", "go_back", "go_location", "hidden"],
+  props: ["ask", "go_back", "go_location", "hidden", "showPdfExport"],
+  emits: ['pdfExport'],
   setup() {
     return { mainStore: useMainStore() }
   },
