@@ -7,7 +7,7 @@ describe('QuestMAN: DEX, IQCODE', () => {
 
     // FILL QUESTS
     it('can fill a DEX with random data', () => {
-      QUESTMAN.activeQuest = 'dex_self';
+      QUESTMAN.activeQuest = 'dex';
       expect(QUESTMAN.activeQuest).not.toBe(undefined)
       expect(QUESTMAN.random_fill()).toBeTruthy()
       const summary = QUESTMAN.summary

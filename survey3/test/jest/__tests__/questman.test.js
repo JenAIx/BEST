@@ -31,11 +31,11 @@ describe('QuestMAN Class', () => {
       QUESTMAN.presets = 'bdi'
       expect(QUESTMAN.presets.length).toBe(1)
       QUESTMAN.clear_preset()
-      QUESTMAN.presets = ['bdi2', 'bdi', 'nihss']
+      QUESTMAN.presets = ['bdi2', 'bdi', 'nihs']
       expect(QUESTMAN.presets.length).toBe(2)
       expect(QUESTMAN.next_preset).toBe('bdi2')
       expect(QUESTMAN.presets.length).toBe(1)
-      expect(QUESTMAN.next_preset).toBe('nihss')
+      expect(QUESTMAN.next_preset).toBe('nihs')
       expect(QUESTMAN.next_preset).toBe(undefined)
     });
 
@@ -57,15 +57,15 @@ describe('QuestMAN Class', () => {
     });
 
     // FILL QUESTS
-    it('can fill a NIHS with random data', () => {
-      QUESTMAN.activeQuest = 'nihss';
+    it('can fill a NIHS (nihs) with random data', () => {
+      QUESTMAN.activeQuest = 'nihs';
       expect(QUESTMAN.activeQuest).not.toBe(undefined)
       expect(QUESTMAN.random_fill()).toBeTruthy()
       expect(QUESTMAN.summary.results[0].value > 0).toBeTruthy()
     });
 
-    it('can fill HANDEDNESS with random data', () => {
-      QUESTMAN.activeQuest = 'handedness';
+    it('can fill biomag_handedness with random data', () => {
+      QUESTMAN.activeQuest = 'biomag_handedness';
       expect(QUESTMAN.activeQuest).not.toBe(undefined)
       expect(QUESTMAN.random_fill()).toBeTruthy()
       const summary = QUESTMAN.summary
@@ -82,8 +82,8 @@ describe('QuestMAN Class', () => {
       expect(QUESTMAN.summary.results[0].label).toBe('Physical functioning')
     });
 
-    it('can fill hadsd with random data', () => {
-      QUESTMAN.activeQuest = 'hadsd';
+    it('can fill hads_d with random data', () => {
+      QUESTMAN.activeQuest = 'hads_d';
       expect(QUESTMAN.activeQuest).not.toBe(undefined)
       expect(QUESTMAN.random_fill()).toBeTruthy()
       const summary = QUESTMAN.summary

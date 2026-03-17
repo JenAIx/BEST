@@ -1,6 +1,17 @@
 <template>
   <q-page class="flex flex-center" style="background: #000;">
     <div class="game-container">
+      <!-- Back Button (upper left) -->
+      <q-btn
+        flat
+        round
+        dense
+        color="grey-6"
+        icon="arrow_back"
+        class="back-btn"
+        @click="goBack"
+      />
+
       <!-- Game Info -->
       <div class="game-info">
         <div class="info-item">Level: {{ game.level }}</div>
@@ -47,13 +58,22 @@
       <div v-if="game.isPaused && !game.gameOver" class="pause-overlay">
         <div class="pause-content">
           <h2 class="text-h3 text-green">PAUSE</h2>
-          <q-btn 
-            color="primary" 
-            label="Fortsetzen" 
+          <q-btn
+            color="primary"
+            label="Fortsetzen"
             size="lg"
             @click="togglePause"
             class="q-mt-md"
           />
+          <div class="q-mt-lg">
+            <q-btn
+              flat
+              color="red-4"
+              label="Abbrechen"
+              icon="close"
+              @click="goBack"
+            />
+          </div>
         </div>
       </div>
 
@@ -136,15 +156,6 @@
         </div>
       </div>
 
-      <!-- Back Button -->
-      <div class="q-mt-md">
-        <q-btn 
-          flat
-          color="white" 
-          label="← Zurück" 
-          @click="$router.push('/changelog')"
-        />
-      </div>
     </div>
   </q-page>
 </template>
@@ -223,13 +234,7 @@ export default {
       // Main game loop
       this.gameLoop = setInterval(() => {
         if (!this.game.isPaused && !this.game.gameOver && !this.levelTransition) {
-          // Only update game if not in respawn countdown
-          if (!this.game.isRespawning) {
-            this.siStore.si_updateGame();
-          } else {
-            // During respawn, still update collisions for countdown timer
-            this.siStore.si_updateGame();
-          }
+          this.siStore.si_updateGame();
           this.draw();
           this.checkLevelComplete();
           this.checkRespawn();
@@ -447,6 +452,15 @@ export default {
     togglePause() {
       this.siStore.si_togglePause();
     },
+
+    goBack() {
+      if (!this.game.isPaused && !this.game.gameOver) {
+        this.siStore.si_togglePause();
+        return;
+      }
+      this.stopGame();
+      this.$router.push('/');
+    },
     
     resetGame() {
       this.levelTransition = false;
@@ -552,6 +566,19 @@ export default {
   align-items: center;
   padding: 20px;
   position: relative;
+}
+
+.back-btn {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  opacity: 0.5;
+  transition: opacity 0.3s;
+}
+
+.back-btn:hover {
+  opacity: 1;
 }
 
 .game-info {

@@ -1,5 +1,5 @@
 // Run Test with:
-// npm run test:unit test/jest/__tests__/notion_api.test.js 
+// npm run test:unit test/jest/__tests__/notion_api.test.js
 
 import {
   NOTION

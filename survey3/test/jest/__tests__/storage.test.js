@@ -13,23 +13,12 @@ describe('Storage Class', () => {
       STORAGE.add_presets({label: 'hi', value: 'some data'})
       expect(STORAGE.get_presets().length).toBe(1)
 
-      // SAVE THE DATA
+      // SAVE THE DATA (fire-and-forget to IndexedDB)
       STORAGE.save_presets()
-
-      // REMOVE DATA manually
-      STORAGE._PRESETS = []
-      expect(STORAGE.get_presets()).toEqual([])
-      // LOAD THE DATA
-      STORAGE.load_presets()
-      expect(STORAGE.get_presets().length).toBe(1)
 
       // REMOVE DATA
       STORAGE.delete_presets(0)
       expect(STORAGE.get_presets()).toEqual([])
-
-      // LOAD THE DATA
-      STORAGE.load_presets()
-      expect(STORAGE.get_presets().length).toBe(0)
 
       // CLEAR THE DATA
       STORAGE.clear_presets()

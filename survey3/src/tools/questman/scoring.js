@@ -101,7 +101,11 @@ export function getScore(scoring, val) {
   var score = 0
   scoring.forEach(s => {
     if (s.id.includes(val.id)) {
-      if (Array.isArray(val.value)) {
+      if (s.method !== undefined && s.method === 'count') score = Array.isArray(val.value) ? val.value.length : 0
+      else if (s.method !== undefined && s.method === 'raw') score = val.value
+      else if (s.method !== undefined && s.method === 'multiply') score = val.value * s.value
+      else if (s.method !== undefined && s.method === 'range') score = calc_range(val.value, s.range)
+      else if (Array.isArray(val.value) && Array.isArray(s.value)) {
         val.value.forEach(v => {
           let pos = s.value.indexOf(v)
           if (pos !== -1) score += s.score[pos];
@@ -111,10 +115,6 @@ export function getScore(scoring, val) {
         let pos = s.value.indexOf(val.value)
         if (pos !== -1) score += s.score[pos];
       }
-      else if (s.method !== undefined && s.method === 'raw') score = val.value
-      else if (s.method !== undefined && s.method === 'multiply') score = val.value * s.value
-      else if (s.method !== undefined && s.method === 'range') score = calc_range(val.value, s.range)
-      else if (s.method !== undefined && s.method === 'count') score = val.value.length
     }
   })
   return score

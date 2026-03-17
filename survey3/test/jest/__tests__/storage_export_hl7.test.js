@@ -3,7 +3,7 @@
 // * npm run test:unit test/jest/__tests__/storage_export_hl7.test.js 
 
 import { STORAGE } from "../../../src/tools/Storage"
-import { QUESTMAN } from "../../../src/tools/QuestMan"
+import { QUESTMAN } from "../../../src/tools/questman"
 import { USER } from "../../../src/tools/User"
 
 import * as CDA from "../../../src/tools/CDA_H7_JSON"
@@ -12,7 +12,7 @@ import * as CDA from "../../../src/tools/CDA_H7_JSON"
 describe('Test the CDA-HL7-JSON Export', () => {
 
   it('Perform hl7 json export', () => {
-    QUESTMAN.activeQuest = 'biomag1'; // sf36
+    QUESTMAN.activeQuest = 'sf36';
     expect(QUESTMAN.activeQuest).not.toBe(undefined)
     expect(QUESTMAN.random_fill()).toBeTruthy()
 
