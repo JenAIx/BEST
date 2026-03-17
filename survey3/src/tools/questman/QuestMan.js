@@ -1,6 +1,7 @@
 import { log } from '../Logger'
 import { RANDOM, RANDOMWORD } from './helpers'
 import { calc_results, evaluate } from './scoring'
+import { db } from '../db'
 
 // Eagerly load all questionnaire JSON files via Vite's glob import
 const questModules = import.meta.glob('/src/assets/questionnaires/quest_*.json', { eager: true })
@@ -24,89 +25,38 @@ export class QuestMan {
   _activeQuest = undefined
   _presets = []
 
-  _fieldUserQuests = 'surveyBEST_USER_QUESTS'
-  _fieldDeletedBundled = 'surveyBEST_DELETED_BUNDLED'
-  _fieldLegacy = 'surveyBEST_QUESTS'
-
   constructor() {
     log({ debug: 'QuestMan initializing ...' })
-    this._load()
+    this._bundledQuests = getAllBundledQuests()
+    this._rebuild()
   }
 
-  _load() {
-    log({ debug: 'load quest' })
-    this._bundledQuests = getAllBundledQuests()
-
-    // One-time migration from old localStorage key
-    const legacyData = localStorage.getItem(this._fieldLegacy)
-    if (legacyData !== null) {
-      this._migrate(legacyData)
-    }
+  async init() {
+    log({ debug: 'QuestMan>init: loading from IndexedDB' })
 
     // Load user quests
     try {
-      const userRaw = localStorage.getItem(this._fieldUserQuests)
-      this._userQuests = userRaw ? JSON.parse(userRaw) : {}
+      const rows = await db.userQuests.toArray()
+      const userQuests = {}
+      for (const row of rows) {
+        userQuests[row.short_title] = row.data
+      }
+      this._userQuests = userQuests
     } catch (e) {
-      log({ error: 'QuestMan>_load: failed to parse user quests', data: e })
+      log({ error: 'QuestMan>init: failed to load user quests', data: e })
       this._userQuests = {}
     }
 
     // Load deleted bundled list
     try {
-      const deletedRaw = localStorage.getItem(this._fieldDeletedBundled)
-      this._deletedBundled = deletedRaw ? JSON.parse(deletedRaw) : []
+      const rows = await db.deletedBundled.toArray()
+      this._deletedBundled = rows.map(r => r.name)
     } catch (e) {
-      log({ error: 'QuestMan>_load: failed to parse deleted bundled', data: e })
+      log({ error: 'QuestMan>init: failed to load deleted bundled', data: e })
       this._deletedBundled = []
     }
 
     this._rebuild()
-  }
-
-  _migrate(legacyData) {
-    log({ debug: 'QuestMan>_migrate: migrating from legacy localStorage' })
-    try {
-      const oldQuests = JSON.parse(legacyData)
-      if (!oldQuests || typeof oldQuests !== 'object') {
-        localStorage.removeItem(this._fieldLegacy)
-        return
-      }
-
-      const userQuests = {}
-      const deletedBundled = []
-
-      // Identify user-created or user-modified quests
-      for (const [name, quest] of Object.entries(oldQuests)) {
-        if (this._bundledQuests[name]) {
-          // Entry matches a bundled quest by short_title — check if content differs
-          if (JSON.stringify(quest) !== JSON.stringify(this._bundledQuests[name])) {
-            userQuests[name] = quest // user edited it
-          }
-          // else: identical to bundled, skip
-        } else {
-          // Not in bundled — user created it
-          userQuests[name] = quest
-        }
-      }
-
-      // Bundled quests missing from old blob — user deleted them
-      for (const name of Object.keys(this._bundledQuests)) {
-        if (!(name in oldQuests)) {
-          deletedBundled.push(name)
-        }
-      }
-
-      // Write new keys
-      localStorage.setItem(this._fieldUserQuests, JSON.stringify(userQuests))
-      localStorage.setItem(this._fieldDeletedBundled, JSON.stringify(deletedBundled))
-      localStorage.removeItem(this._fieldLegacy)
-
-      log({ debug: `QuestMan>_migrate: ${Object.keys(userQuests).length} user quests, ${deletedBundled.length} deleted bundled` })
-    } catch (e) {
-      log({ error: 'QuestMan>_migrate: migration failed', data: e })
-      localStorage.removeItem(this._fieldLegacy)
-    }
   }
 
   _rebuild() {
@@ -126,8 +76,21 @@ export class QuestMan {
 
   _save() {
     log({ debug: 'save quest' })
-    localStorage.setItem(this._fieldUserQuests, JSON.stringify(this._userQuests))
-    localStorage.setItem(this._fieldDeletedBundled, JSON.stringify(this._deletedBundled))
+    // Fire-and-forget write to IndexedDB
+    Promise.all([
+      db.userQuests.clear().then(() =>
+        db.userQuests.bulkAdd(
+          Object.entries(this._userQuests).map(([name, quest]) => ({ short_title: name, data: quest }))
+        )
+      ),
+      db.deletedBundled.clear().then(() =>
+        db.deletedBundled.bulkAdd(
+          this._deletedBundled.map(name => ({ name }))
+        )
+      ),
+    ]).catch(e => {
+      log({ error: 'QuestMan>_save: IndexedDB write failed', data: e })
+    })
     this._rebuild()
   }
 

@@ -101,7 +101,6 @@ export default {
   mounted() {
     this.selected = [];
     this.$store.state.leftDrawerOpen = false;
-    this.$store.commit('STORAGE_LOAD')
     this.$store.dispatch("setProtectedMode", true);
   },
   computed: {

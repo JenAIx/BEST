@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { SETTINGS } from 'src/tools/settings'
 import { STORAGE } from 'src/tools/Storage'
 import { QuestMan } from 'src/tools/questman'
+import { initQuestMan } from 'src/boot/db'
 import { Platform } from 'quasar'
 import * as CDA from 'src/tools/CDA_H7_JSON'
 import { log } from 'src/tools/Logger'
@@ -9,8 +10,8 @@ import { encrypt, verify } from 'src/tools/hhash'
 import { sendMail } from 'src/tools/mail'
 import { i18n } from 'src/boot/i18n'
 
-STORAGE.load()
-STORAGE.load_presets()
+const _questMan = new QuestMan()
+const _questManReady = initQuestMan(_questMan)
 
 export const useMainStore = defineStore('main', {
   state: () => ({
@@ -20,7 +21,7 @@ export const useMainStore = defineStore('main', {
       APP_UPDATED: process.env.APP_UPDATED,
     },
     leftDrawerOpen: true,
-    QuestMan: new QuestMan(),
+    QuestMan: _questMan,
     STORAGE: STORAGE,
     SETTINGS: SETTINGS,
     debug: false,

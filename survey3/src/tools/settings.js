@@ -1,5 +1,6 @@
 import { USER } from "src/tools/User";
 import { log } from "./Logger";
+import { db } from "./db";
 
 const emptySettings = {
   size: "normal", // 'bigger', 'biggest'
@@ -8,13 +9,25 @@ const emptySettings = {
 };
 
 class settings {
-  _DATA = undefined;
+  _DATA = emptySettings;
   _USER = USER;
-  _fieldname = "surveyBEST_SETTINGS";
 
   constructor() {
     log({ debug: "settings initializing ..." });
-    this.load();
+  }
+
+  async init() {
+    log({ debug: "settings: init from IndexedDB" });
+    const row = await db.settings.get("main");
+    if (row) {
+      const { key, ...data } = row;
+      this._DATA = data;
+      this._USER.import(this._DATA.userdata);
+    } else {
+      this._DATA = { ...emptySettings };
+      this._USER.create();
+      this.save();
+    }
   }
 
   // GETTER / SETTER
@@ -81,19 +94,13 @@ class settings {
   save() {
     log({ debug: "settings: save" });
     this._DATA.userdata = this._USER.export();
-    localStorage.setItem(this._fieldname, JSON.stringify(this._DATA));
+    db.settings.put({ key: "main", ...this._DATA }).catch((e) => {
+      log({ error: "settings: IndexedDB write failed", data: e });
+    });
   }
 
   load() {
-    const data = localStorage.getItem(this._fieldname);
-    if (data === null || data === undefined) {
-      this._DATA = emptySettings;
-      this._USER.create();
-      this.save()
-    } else {
-      this._DATA = JSON.parse(data);
-      this._USER.import(this._DATA.userdata);
-    }
+    // No-op: init() handles loading from IndexedDB
   }
 }
 

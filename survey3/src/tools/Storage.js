@@ -2,6 +2,7 @@ import { exportFile } from 'quasar'
 import { write_csv } from './ccordova.js'
 import { uuidv4 } from 'src/tools/hhash'
 import { log } from './Logger.js'
+import { db } from './db'
 
 import dateFormat from 'dateformat'
 
@@ -9,12 +10,22 @@ class Storage {
 
   _STORAGE = []
   _PRESETS = []
-  _fieldname = 'surveyBEST_STORAGE'
-  _fieldname_presets = 'surveyBEST_PRESETS'
   _errors = []
 
   constructor() {
     log({ debug: 'storage & presets' })
+  }
+
+  async init() {
+    log({ debug: 'Storage>init: loading from IndexedDB' })
+    const responses = await db.responses.toArray()
+    responses.forEach(d => {
+      if (d.info.uid === undefined) d.info.uid = uuidv4()
+    })
+    this._STORAGE = responses
+
+    const presets = await db.presets.toArray()
+    this._PRESETS = presets || []
   }
 
   // PRESETS
@@ -24,27 +35,21 @@ class Storage {
 
   save_presets() {
     log({ debug: 'save presets' })
-    localStorage.setItem(this._fieldname_presets, JSON.stringify(this._PRESETS))
+    db.presets.clear().then(() => db.presets.bulkAdd(this._PRESETS.map(p => ({ label: p.label, value: p.value })))).catch(e => {
+      log({ error: 'Storage>save_presets: IndexedDB write failed', data: e })
+    })
   }
 
   load_presets() {
-    log({ debug: 'load presets' })
-    // STORAGE
-    let data
-    try {
-      data = JSON.parse(localStorage.getItem(this._fieldname_presets))
-    } catch (e) {
-      log({ error: 'Storage>load_presets: failed to parse presets', data: e })
-      return false
-    }
-    if (data === null || data === undefined) return false
-    this._PRESETS = data
+    // No-op: init() handles loading from IndexedDB
   }
 
   clear_presets() {
     log({ debug: 'clear presets' })
     this._PRESETS = [];
-    localStorage.removeItem(this._fieldname_presets)
+    db.presets.clear().catch(e => {
+      log({ error: 'Storage>clear_presets: IndexedDB clear failed', data: e })
+    })
   }
 
   add_presets(payload) {
@@ -82,10 +87,12 @@ class Storage {
     // else
     log({ debug: 'Storage>add', data: `size: ${JSON.stringify(payload).length} bytes` })
     if (payload.info.uid === undefined) payload.info.uid = uuidv4()
-    this.load() //load storage first before loading, make sure no changes are lost
     this._STORAGE.push(payload)
 
-    this.save()
+    // Fire-and-forget write to IndexedDB
+    db.responses.add({ ...payload }).catch(e => {
+      log({ error: 'Storage>add: IndexedDB write failed', data: e })
+    })
   }
 
   get(index) {
@@ -109,7 +116,10 @@ class Storage {
     const index = this._STORAGE.findIndex(item => item.info.uid === uid)
     if (index > -1) {
       this._STORAGE.splice(index, 1)
-      this.save()
+      // Fire-and-forget delete from IndexedDB
+      db.responses.where('info.uid').equals(uid).delete().catch(e => {
+        log({ error: 'Storage>remove: IndexedDB delete failed', data: e })
+      })
     }
   }
 
@@ -120,30 +130,22 @@ class Storage {
 
   save() {
     log({ debug: 'Storage>save' })
-    localStorage.setItem(this._fieldname, JSON.stringify(this._STORAGE))
+    // Re-sync entire collection to IndexedDB
+    db.responses.clear().then(() => db.responses.bulkAdd(this._STORAGE.map(item => ({ ...item })))).catch(e => {
+      log({ error: 'Storage>save: IndexedDB write failed', data: e })
+    })
   }
 
   load() {
-    log({ debug: 'Storage>load' })
-    // STORAGE
-    let data
-    try {
-      data = JSON.parse(localStorage.getItem(this._fieldname))
-    } catch (e) {
-      log({ error: 'Storage>load: failed to parse storage', data: e })
-      return false
-    }
-    if (data === null || data === undefined) return false
-    data.forEach(d => {
-      if (d.info.uid === undefined) d.info.uid = uuidv4() //added to support a UID for each entry
-    })
-    this._STORAGE = data
+    // No-op: init() handles loading from IndexedDB
   }
 
   clear() {
     log({ debug: 'Storage>clear' })
     this._STORAGE = [];
-    localStorage.removeItem(this._fieldname)
+    db.responses.clear().catch(e => {
+      log({ error: 'Storage>clear: IndexedDB clear failed', data: e })
+    })
   }
 
   //* EXPORT FUNCTIONS

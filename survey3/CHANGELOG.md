@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.8.0
+
+#### Changed
+
+- [2026-03-17] Migrated storage backend from localStorage to IndexedDB via Dexie.js — removes the 5-10 MB cap, enables indexed lookups, and adds schema versioning for future upgrades
+- [2026-03-17] All reads remain synchronous (in-memory cache); only writes go async to IndexedDB (fire-and-forget)
+- [2026-03-17] Added async Quasar boot file (`src/boot/db.js`) that runs before app render to hydrate caches
+- [2026-03-17] Removed all `localStorage` usage from Storage, Settings, and QuestMan classes
+
+#### Added
+
+- [2026-03-17] Added `dexie` dependency (~16 KB gzipped) for IndexedDB access with versioned schema migrations
+- [2026-03-17] Added `src/tools/db.js` — Dexie database definition (6 tables: responses, presets, settings, userQuests, deletedBundled, meta)
+- [2026-03-17] Added `src/tools/db-migrate.js` — automatic one-time migration from localStorage to IndexedDB (atomic transaction, no data loss)
+
 ### v1.7.4
 
 #### Fixed

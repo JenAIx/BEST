@@ -8,7 +8,7 @@ import { configure } from "quasar/wrappers";
 export default configure(function (/* ctx */) {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/boot-files
-    boot: ["i18n", "vuex-compat", "axios", "errorHandler"],
+    boot: ["db", "i18n", "vuex-compat", "axios", "errorHandler"],
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#css
     css: ["app.sass"],
@@ -26,8 +26,8 @@ export default configure(function (/* ctx */) {
         MAIL_API_KEY: process.env.MAIL_API_KEY,
         LOG_LEVEL: process.env.LOG_LEVEL || 'warn',
         APP_NAME: process.env.APP_NAME || 'surveyBEST',
-        APP_VERSION: process.env.APP_VERSION || 'v1.7.3',
-        APP_UPDATED: process.env.APP_UPDATED || '2026-03-16'
+        APP_VERSION: process.env.APP_VERSION || 'v1.8.0',
+        APP_UPDATED: process.env.APP_UPDATED || '2026-03-17'
       },
 
       target: {

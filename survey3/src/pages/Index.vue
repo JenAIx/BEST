@@ -72,7 +72,6 @@
     },
     mounted() {
       this.$store.dispatch('setProtectedMode', false);
-      this.$store.commit('STORAGE_LOAD')
     },
     computed: {
       questCount() {
