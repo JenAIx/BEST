@@ -10,7 +10,12 @@
     "btn_select": "zur Fragebogenauswahl",
     "btn_preset": "zu den Vorlagen",
     "text_select": "direkt einen Fragebogen auswählen und starten",
-    "text_preset": "vordefinierte Zusammenstellung von verschiedenen Fragebögen"
+    "text_preset": "vordefinierte Zusammenstellung von verschiedenen Fragebögen",
+    "stat_quests": "Fragebögen",
+    "stat_stored": "Gespeichert",
+    "stat_presets": "Vorlagen",
+    "stat_open_exports": "Offen",
+    "last_entry": "Letzter Eintrag"
   },
   "email": {
     "subject": "surveyBEST quests",
