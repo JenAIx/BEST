@@ -1,120 +1,84 @@
 <template>
-  <div>
-    <q-item class="my-btn-item" :class="{ 'bg-grey-4': checked }">
+  <q-card
+    class="storage-card cursor-pointer"
+    :class="{ 'storage-card--selected': checked }"
+    flat
+    bordered
+    @click="view_item(index)"
+  >
+    <div class="storage-card__accent" :class="item.exported ? 'bg-green' : 'bg-warning'" />
+
+    <q-card-section horizontal class="items-center no-wrap q-py-sm q-pl-sm q-pr-none">
       <!-- CHECKBOX -->
-      <q-item-section avatar>
-        <q-checkbox
-          v-model="checked"
-          @update:model-value="changeSel"
-          :data-cy="'check_' + index"
-        />
-      </q-item-section>
-      <q-item-section no-wrap>
-        <q-item-label>
-          <span class="text-caption">PID: </span>
-          {{ item.cda.subject.display }}
+      <q-checkbox
+        v-model="checked"
+        @update:model-value="changeSel"
+        :data-cy="'check_' + index"
+        class="q-mr-xs"
+        @click.stop
+      />
+
+      <!-- INFO -->
+      <div class="col storage-card__info">
+        <div class="row items-center q-gutter-x-xs">
+          <span class="text-weight-medium text-body2 ellipsis">{{ item.cda.subject.display }}</span>
           <q-badge
             v-if="item.exported"
             color="green"
+            text-color="white"
+            rounded
             :data-cy="'exported_' + index"
-            >{{ $t('storage.export_finished') }}</q-badge
-          >
-          <q-badge v-else color="warning" size="xs">{{
+          >{{ $t('storage.export_finished') }}</q-badge>
+          <q-badge v-else color="warning" text-color="white" rounded>{{
             $t('storage.export_open')
           }}</q-badge>
-        </q-item-label>
-        <q-item-label caption class="overflow-hidden" style="max-height: 2.8em">
-          <span class="text-caption">Fragebogen: </span>
-          {{ item.info.title }}
-        </q-item-label>
-        <q-item-label
-          caption
-          style="font-size: 10px; max-height: 1em"
-          class="overflow-hidden"
-        >
-          {{ item.cda.date }}
-        </q-item-label>
-
-        <q-item-label
-          caption
-          style="font-size: 10px; max-height: 1em"
-          class="overflow-hidden"
-        >
-          {{ item.info.uid }}
-        </q-item-label>
-      </q-item-section>
-
-      <!-- RECHTS -->
-      <q-item-section side>
-        <div class="text-grey-8 q-gutter-xs">
-          <q-btn
-            flat
-            dense
-            round
-            icon="preview"
-            @click="view_item(index)"
-            :data-cy="'btn_preview_' + index"
-          >
-            <q-tooltip>{{ $t('btn.preview.label') }}</q-tooltip>
-          </q-btn>
-          <q-btn
-            size="12px"
-            flat
-            dense
-            round
-            icon="more_vert"
-            data-cy="btn_options"
-          >
-            <q-menu cover auto-close>
-              <q-list>
-                <!-- EXPORT -->
-                <q-item
-                  class="my-btn text-center"
-                  data-cy="back_root"
-                  clickable
-                  @click="export_item(index)"
-                >
-                  <q-item-section avatar>
-                    <q-icon :name="$t('btn.export.icon')" />
-                  </q-item-section>
-                  <q-item-section>{{ $t('btn.export.label') }}</q-item-section>
-                </q-item>
-                <!-- EXPORT -->
-                <q-item
-                  class="my-btn text-center"
-                  data-cy="back_root"
-                  clickable
-                  @click="export_item_encrypted(index)"
-                >
-                  <q-item-section avatar>
-                    <q-icon :name="$t('btn.export.icon2')" />
-                  </q-item-section>
-                  <q-item-section
-                    >{{ $t('btn.export.label') }} ({{
-                      $t('btn.export.encrypt')
-                    }})</q-item-section
-                  >
-                </q-item>
-                <q-separator></q-separator>
-                <!-- DELETE -->
-                <q-item
-                  class="my-btn text-center"
-                  data-cy="back_root"
-                  clickable
-                  @click="remove(index)"
-                >
-                  <q-item-section avatar>
-                    <q-icon :name="$t('btn.delete.icon')" />
-                  </q-item-section>
-                  <q-item-section>{{ $t('btn.delete.label') }}</q-item-section>
-                </q-item>
-              </q-list>
-            </q-menu>
-          </q-btn>
         </div>
-      </q-item-section>
-    </q-item>
-  </div>
+        <div class="text-caption text-grey-7 ellipsis q-mt-xs">
+          {{ item.info.title }}
+        </div>
+        <div class="text-caption text-grey-5" style="font-size: 10px">
+          {{ item.cda.date }}
+        </div>
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="storage-card__actions q-mr-xs" @click.stop>
+        <q-btn
+          flat
+          dense
+          round
+          icon="more_vert"
+          color="grey-7"
+          size="sm"
+          data-cy="btn_options"
+        >
+          <q-menu cover auto-close>
+            <q-list>
+              <q-item clickable @click="export_item(index)" data-cy="back_root">
+                <q-item-section avatar>
+                  <q-icon :name="$t('btn.export.icon')" />
+                </q-item-section>
+                <q-item-section>{{ $t('btn.export.label') }}</q-item-section>
+              </q-item>
+              <q-item clickable @click="export_item_encrypted(index)" data-cy="back_root">
+                <q-item-section avatar>
+                  <q-icon :name="$t('btn.export.icon2')" />
+                </q-item-section>
+                <q-item-section>{{ $t('btn.export.label') }} ({{ $t('btn.export.encrypt') }})</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item clickable @click="remove(index)" data-cy="back_root" class="text-negative">
+                <q-item-section avatar>
+                  <q-icon :name="$t('btn.delete.icon')" color="negative" />
+                </q-item-section>
+                <q-item-section>{{ $t('btn.delete.label') }}</q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
+        </q-btn>
+      </div>
+    </q-card-section>
+  </q-card>
 </template>
 
 <script>
@@ -130,9 +94,6 @@ export default {
     selected(val) {
       if (val !== this.checked) this.checked = val;
     },
-  },
-  mounted() {
-    // console.log(this.item)
   },
 
   methods: {
@@ -154,3 +115,39 @@ export default {
   },
 };
 </script>
+
+<style lang="sass" scoped>
+.storage-card
+  width: 340px
+  border-radius: 10px
+  overflow: hidden
+  position: relative
+  transition: box-shadow 0.2s ease, transform 0.15s ease
+  background: white
+  border-color: $grey-3
+
+  &:hover
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1)
+    transform: translateY(-1px)
+
+  &--selected
+    background: $grey-2
+    border-color: $primary
+
+.storage-card__accent
+  position: absolute
+  left: 0
+  top: 0
+  bottom: 0
+  width: 4px
+
+.storage-card__info
+  min-width: 0
+  padding-right: 4px
+
+.storage-card__actions
+  display: flex
+  flex-direction: column
+  align-items: center
+  gap: 2px
+</style>

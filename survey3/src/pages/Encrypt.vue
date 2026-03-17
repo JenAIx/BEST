@@ -1,57 +1,60 @@
 <template>
   <q-page data-cy="page_settigns">
-    <div class="column items-center">
+    <div class="column items-center q-pt-xl q-pb-lg q-px-md">
+
       <!-- TITLE -->
-      <div class="col q-ma-md text-caption">
-        Nachrichten ver- und entschlüsseln
-        <table>
-          <tr><td>Motivation:</td><td>RSA mit priv/pub Key nur für kleine Nachrichten sinnvoll</td></tr>
-          <tr><td>Prinzip:</td><td>1. erzeuge eine AES Key (128bit) 2. Verschluessele Nachricht mit AES Key 3. Verschluessele AES Key mit RSA-public Key 4. zum Enschluesseln muss dann der AES-Key mit RSA-priv entschlüsselt werden; dann kann mit dem AES Key die Nachricht enschlüsselt werdne</td></tr>
-        </table>
+      <div class="col text-center q-mb-lg" style="max-width: 500px">
+        <div class="text-h6 q-mb-sm">Nachrichten ver- und entschlüsseln</div>
+        <div class="text-caption text-grey-7">
+          <p><strong>Motivation:</strong> RSA mit priv/pub Key nur für kleine Nachrichten sinnvoll</p>
+          <p><strong>Prinzip:</strong> 1. Erzeuge einen AES Key (128bit) 2. Verschlüssele Nachricht mit AES Key
+            3. Verschlüssele AES Key mit RSA-public Key 4. Zum Entschlüsseln muss der AES-Key mit RSA-priv
+            entschlüsselt werden; dann kann mit dem AES Key die Nachricht entschlüsselt werden</p>
+        </div>
       </div>
 
-      <!-- Verschluesseln -->
-      <div class="col text-center shadow-1 q-pa-md my-form">
-        <div class="text-caption">unverschlüsselte Nachricht</div>
-        <q-input dense v-model="data" input-class="text-center"/>
-      </div>
+      <!-- Encrypt Section -->
+      <q-card flat bordered class="col q-mb-md" style="max-width: 500px; width: 100%">
+        <q-card-section>
+          <div class="text-subtitle2 text-grey-8 q-mb-sm">Verschlüsseln</div>
+          <q-input v-model="data" label="Unverschlüsselte Nachricht" outlined dense />
+        </q-card-section>
+        <q-card-actions align="center">
+          <q-btn flat color="primary" icon="lock" label="Encrypt" @click="do_encrypt" />
+        </q-card-actions>
+      </q-card>
 
-      <div class="col q-mt-md">
-        <q-btn flat @click="do_encrypt">ENCRYPT</q-btn>
-      </div>
+      <!-- Encrypted Output -->
+      <q-card flat bordered class="col q-mb-md" style="max-width: 500px; width: 100%">
+        <q-card-section>
+          <div class="text-subtitle2 text-grey-8 q-mb-sm">Verschlüsselte Daten</div>
+          <q-input v-model="encrypted_data" outlined dense label="Verschlüsselte Nachricht (AES 128bit)" class="q-mb-sm" />
+          <q-input v-model="encrypted_key" outlined dense label="Verschlüsselter AES Key (RSA publicKey)" />
+        </q-card-section>
+        <q-card-actions align="center">
+          <q-btn flat color="primary" icon="lock_open" label="Decrypt" @click="do_decrypt" />
+        </q-card-actions>
+      </q-card>
 
-      <!-- Encrypted Text -->
-      <div class="col text-center shadow-1 q-pa-md my-form q-mt-md">
-        
-        <q-input dense v-model="encrypted_data" input-class="text-center" hint="verschlüsselte Nachricht (mit AES Key - 128 BIT)" />
-        
-        <q-input dense v-model="encrypted_key" input-class="text-center" hint="verschlüsselte AES Key mit RSA encryption (publicKey)" />
-      </div>
+      <!-- Decrypted Output -->
+      <q-card flat bordered class="col q-mb-md" style="max-width: 500px; width: 100%">
+        <q-card-section>
+          <div class="text-subtitle2 text-grey-8 q-mb-sm">Entschlüsselte Nachricht</div>
+          <q-input v-model="decrypted_text" outlined dense readonly hint="Entschlüsselt mit RSA-priv AES Key" />
+        </q-card-section>
+      </q-card>
 
-      <div class="col q-mt-md">
-        <q-btn flat @click="do_decrypt">DECRYPT</q-btn>
-      </div>
+      <!-- File Import -->
+      <q-card flat bordered class="col" style="max-width: 500px; width: 100%">
+        <q-card-section>
+          <div class="text-subtitle2 text-grey-8 q-mb-sm">Datei importieren</div>
+          <q-file v-model="file" label="Datei auswählen" outlined dense />
+        </q-card-section>
+        <q-card-actions v-if="file !== null" align="center">
+          <q-btn flat color="primary" icon="upload_file" label="Load" @click="loadFile()" />
+        </q-card-actions>
+      </q-card>
 
-        <!-- decrypted Text -->
-      <div class="col text-center shadow-1 q-pa-md my-form q-mt-md">
-        <div class="text-caption">entschlüsselte Nachricht</div>
-        <q-input dense readonly v-model="decrypted_text" input-class="text-center" hint="enschlüsselt mit durch RSA-decrypt entschlüsselten AES Key" />
-        
-      </div>
-
-      <!-- PICK A FILE -->
-      <div class="col q-mt-md" style="width: 300px">
-        <q-file
-          v-model="file"
-          label="Pick one file"
-          filled
-          style="max-width: 300px"
-        />
-        <q-btn v-if="file !== null" @click="loadFile()">
-          LOAD
-        </q-btn>
-      </div>
-    
     </div>
 
     <!-- BACKBUTTON -->

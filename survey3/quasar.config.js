@@ -22,8 +22,6 @@ export default configure(function (/* ctx */) {
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#build
     build: {
       env: {
-        MAIL_API_URL: process.env.MAIL_API_URL,
-        MAIL_API_KEY: process.env.MAIL_API_KEY,
         LOG_LEVEL: process.env.LOG_LEVEL || 'warn',
         APP_NAME: process.env.APP_NAME || 'surveyBEST',
         APP_VERSION: process.env.APP_VERSION || 'v1.8.0',

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.8.1
+
+#### Fixed
+
+- [2026-03-17] Fixed Storage reactivity: internal `_STORAGE` and `_PRESETS` arrays are now Vue `reactive()` — Pinia computed properties correctly update on data changes
+- [2026-03-17] Fixed IndexedDB `DataCloneError` when writing reactive proxy objects — all writes now deep-clone data before persisting
+- [2026-03-17] Fixed `MAIL_API_URL` and `MAIL_API_KEY` being `undefined` at runtime — removed redundant entries from `quasar.config.js` `build.env` that were overriding the `.env` file values
+- [2026-03-17] Fixed HTML spec warning in Encrypt page — wrapped `<tr>` elements in `<tbody>`
+
+#### Changed
+
+- [2026-03-17] Redesigned StorageCard: replaced `q-item` with `q-card` layout — color accent bar (green/warning), hover lift effect, rounded status badges, selected state highlight
+- [2026-03-17] StorageCard: clicking the card now opens preview; removed dedicated preview button
+- [2026-03-17] Redesigned Encrypt page: card-based sections, outlined inputs, action buttons with icons, added top padding to avoid back button overlap
+
 ### v1.8.0
 
 #### Changed

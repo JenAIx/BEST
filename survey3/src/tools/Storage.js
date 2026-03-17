@@ -3,13 +3,14 @@ import { write_csv } from './ccordova.js'
 import { uuidv4 } from 'src/tools/hhash'
 import { log } from './Logger.js'
 import { db } from './db'
+import { reactive, toRaw } from 'vue'
 
 import dateFormat from 'dateformat'
 
 class Storage {
 
-  _STORAGE = []
-  _PRESETS = []
+  _STORAGE = reactive([])
+  _PRESETS = reactive([])
   _errors = []
 
   constructor() {
@@ -22,10 +23,10 @@ class Storage {
     responses.forEach(d => {
       if (d.info.uid === undefined) d.info.uid = uuidv4()
     })
-    this._STORAGE = responses
+    this._STORAGE.splice(0, this._STORAGE.length, ...responses)
 
     const presets = await db.presets.toArray()
-    this._PRESETS = presets || []
+    this._PRESETS.splice(0, this._PRESETS.length, ...(presets || []))
   }
 
   // PRESETS
@@ -35,7 +36,8 @@ class Storage {
 
   save_presets() {
     log({ debug: 'save presets' })
-    db.presets.clear().then(() => db.presets.bulkAdd(this._PRESETS.map(p => ({ label: p.label, value: p.value })))).catch(e => {
+    const raw = JSON.parse(JSON.stringify(this._PRESETS.map(p => ({ label: p.label, value: p.value }))))
+    db.presets.clear().then(() => db.presets.bulkAdd(raw)).catch(e => {
       log({ error: 'Storage>save_presets: IndexedDB write failed', data: e })
     })
   }
@@ -46,7 +48,7 @@ class Storage {
 
   clear_presets() {
     log({ debug: 'clear presets' })
-    this._PRESETS = [];
+    this._PRESETS.splice(0, this._PRESETS.length)
     db.presets.clear().catch(e => {
       log({ error: 'Storage>clear_presets: IndexedDB clear failed', data: e })
     })
@@ -89,8 +91,8 @@ class Storage {
     if (payload.info.uid === undefined) payload.info.uid = uuidv4()
     this._STORAGE.push(payload)
 
-    // Fire-and-forget write to IndexedDB
-    db.responses.add({ ...payload }).catch(e => {
+    // Fire-and-forget write to IndexedDB (toRaw to strip reactive proxy)
+    db.responses.add(JSON.parse(JSON.stringify(payload))).catch(e => {
       log({ error: 'Storage>add: IndexedDB write failed', data: e })
     })
   }
@@ -130,8 +132,9 @@ class Storage {
 
   save() {
     log({ debug: 'Storage>save' })
-    // Re-sync entire collection to IndexedDB
-    db.responses.clear().then(() => db.responses.bulkAdd(this._STORAGE.map(item => ({ ...item })))).catch(e => {
+    // Re-sync entire collection to IndexedDB (deep clone to strip reactive proxies)
+    const raw = JSON.parse(JSON.stringify(this._STORAGE))
+    db.responses.clear().then(() => db.responses.bulkAdd(raw)).catch(e => {
       log({ error: 'Storage>save: IndexedDB write failed', data: e })
     })
   }
@@ -142,7 +145,7 @@ class Storage {
 
   clear() {
     log({ debug: 'Storage>clear' })
-    this._STORAGE = [];
+    this._STORAGE.splice(0, this._STORAGE.length)
     db.responses.clear().catch(e => {
       log({ error: 'Storage>clear: IndexedDB clear failed', data: e })
     })
