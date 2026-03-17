@@ -128,6 +128,7 @@
 
 <script>
 import { log } from 'src/tools/Logger'
+import { parseRouteParams } from 'src/tools/routeParams'
 import RenderSlider from './RenderQuest_slider.vue'
 import RenderMultipleRadio from './RenderQuest_multipleradio.vue'
 import RenderDate from './RenderQuest_date.vue'
@@ -164,8 +165,7 @@ export default {
     },
     PARAMS() {
       if (this.PREVIEWQUEST !== undefined) return {}
-      if (this.$route.params.id === undefined) return undefined
-      return JSON.parse(this.$route.params.id)
+      return parseRouteParams(this.$route.params.id)
     },
     QUEST() {
       if (this.PREVIEWQUEST !== undefined) return this.PREVIEWQUEST
@@ -209,12 +209,11 @@ export default {
       this.submit_clicked = true;
       this.check_form = this.$store.getters.QUESTMAN.check_activeQuest();
       this.key_suffix = Date.now() //update the quest for
-      var str = ''
+      const errors = []
 
-      // console.log(this.$store.getters.QUESTMAN.summary)
-
-      if (this.CHECK_PID === false) str += this.$t('quest.PID_missing');
-      if (this.check_form !== true) str += this.$t('quest.check_failed');
+      if (!this.CHECK_PID) errors.push(this.$t('quest.PID_missing'))
+      if (this.check_form !== true) errors.push(this.$t('quest.check_failed'))
+      const str = errors.join(' ')
       if (str.length > 0) {this.$q.notify({
           message: str,
           color: 'warning'

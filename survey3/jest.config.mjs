@@ -1,16 +1,14 @@
 /** @type {import('jest').Config} */
 export default {
-  preset: '@quasar/quasar-app-extension-testing-unit-jest',
-  // collectCoverage: true,
-  // coverageThreshold: {
-  //   global: {
-  //      branches: 50,
-  //      functions: 50,
-  //      lines: 50,
-  //      statements: 50
-  //   },
-  // },
+  testEnvironment: 'node',
+  moduleNameMapper: {
+    '^src/(.*)$': '<rootDir>/src/$1',
+  },
   transform: {
     '.*\\.js$': 'babel-jest',
+    '.*\\.mjs$': 'babel-jest',
   },
+  transformIgnorePatterns: [
+    'node_modules/(?!quasar|@quasar)',
+  ],
 };

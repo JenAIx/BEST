@@ -60,6 +60,7 @@
 import myMixins from 'src/mixins/modes'
 import BACKBUTTON from 'src/components/BackButton.vue'
 import MYBUTTON from 'src/components/MyButton.vue'
+import { parseRouteParams } from 'src/tools/routeParams'
 
 export default {
   name: 'Preset',
@@ -89,8 +90,7 @@ export default {
       return this.$store.getters.QUESTMAN
     },
     PARAMS() {
-      if (this.$route.params.id === undefined) return undefined
-      else return JSON.parse(this.$route.params.id)
+      return parseRouteParams(this.$route.params.id)
     },
     CURRENTROUT() {
       return location.origin + location.pathname+ '#'+ this.$route.path
@@ -137,7 +137,7 @@ export default {
       }
 
       // COLLECT DATA
-      const params = this.PARAMS
+      const params = { ...this.PARAMS }
       params.PID = this.subject_pid
 
       // ENTER THE QUEST
@@ -145,7 +145,7 @@ export default {
     },
 
     make_route_encrypted() {
-      var params = this.PARAMS
+      var params = { ...this.PARAMS }
       params.mode = 'encrypted';
       params.PID = this.subject_pid
       params.email = this.$store.state.SETTINGS.email_export

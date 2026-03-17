@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.7.3
+
+#### Fixed
+
+- [2026-03-16] Fixed `indexOf` bug in scoring: `indexOf` returns `-1` not `undefined` — scores were silently wrong when a value wasn't found; also fixed `=` → `+=` for score accumulation
+- [2026-03-16] Fixed division-by-zero in `calc_simple_avg` (empty items) and `getDomaineScore` (all zeros with `ignore_zeros`)
+- [2026-03-16] Fixed missing `this.` in `Storage.export_cordova` causing ReferenceError at runtime
+- [2026-03-16] Fixed `update_presets` not persisting changes (uncommented `save_presets()` call)
+- [2026-03-16] Fixed `Storage._export_file` invalid `return status = ...` statement
+- [2026-03-16] Fixed unsafe `JSON.parse` on route params in Quest, RenderQuest, and Preset pages — malformed URLs no longer crash the app
+- [2026-03-16] Fixed unsafe `JSON.parse` in `Storage.load` and `Storage.load_presets` — corrupted localStorage no longer crashes
+- [2026-03-16] Fixed error message concatenation in RenderQuest (missing space between PID and form errors)
+- [2026-03-16] Fixed reference mutation in Preset.vue — `PARAMS` computed property was being mutated via object reference
+- [2026-03-16] Fixed `quest_list_filtered` returning `undefined` instead of `[]` when no results match
+- [2026-03-16] Fixed validation not recognizing `'separator'` (correct spelling) in `check_activeQuest`
+
+#### Changed
+
+- [2026-03-16] Extracted scoring helper functions (`getScore`, `calc_range`, `getDomaineScore`, `substract`) to module-level exports for testability
+- [2026-03-16] Removed dead code (unused time-parsing variables) in `substract` function
+- [2026-03-16] Added shared `parseRouteParams` helper (`src/tools/routeParams.js`) used by Quest, RenderQuest, and Preset pages
+- [2026-03-16] Updated Jest configuration to work without the missing `@quasar/quasar-app-extension-testing-unit-jest` preset
+
+#### Added
+
+- [2026-03-16] Added 34 unit tests for scoring functions (`test/jest/__tests__/scoring.test.js`)
+- [2026-03-16] Added 14 unit tests for questionnaire validation logic (`test/jest/__tests__/questman_validation.test.js`)
+
 ### v1.7.2
 
 #### Added

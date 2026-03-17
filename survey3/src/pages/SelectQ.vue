@@ -13,7 +13,7 @@
         <!-- AUSWAHL FRAGEBÖGEN -->
         <q-scroll-area class="q-ma-xs shadow-1 my-form">
           <q-list
-            v-if="FILTERED_LIST !== undefined && FILTERED_LIST !== null"
+            v-if="FILTERED_LIST.length > 0"
             bordered
             separator
             class="quest_list"

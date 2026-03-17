@@ -32,6 +32,7 @@
 <script>
 import BACKBUTTON from 'src/components/BackButton.vue'
 import RenderQuest from 'src/components/RenderQuest.vue'
+import { parseRouteParams } from 'src/tools/routeParams'
 export default {
   name: 'Questionnaire',
   components: {BACKBUTTON, RenderQuest},
@@ -102,8 +103,7 @@ export default {
 
   computed: {
     PARAMS() {
-      if (this.$route.params.id === undefined) return undefined
-      return JSON.parse(this.$route.params.id)
+      return parseRouteParams(this.$route.params.id)
     },
     QUEST_LABEL() {
       return this.$store.getters.ACTIVE_QUEST_LABEL

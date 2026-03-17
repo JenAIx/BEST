@@ -30,7 +30,13 @@ class Storage {
   load_presets() {
     log({ debug: 'load presets' })
     // STORAGE
-    const data = JSON.parse(localStorage.getItem(this._fieldname_presets))
+    let data
+    try {
+      data = JSON.parse(localStorage.getItem(this._fieldname_presets))
+    } catch (e) {
+      log({ error: 'Storage>load_presets: failed to parse presets', data: e })
+      return false
+    }
     if (data === null || data === undefined) return false
     this._PRESETS = data
   }
@@ -50,7 +56,7 @@ class Storage {
   update_presets(payload) {
     log({ debug: 'update_presets', data: payload.value })
     this._PRESETS[payload.index] = payload.value
-    // this.save_presets()
+    this.save_presets()
   }
 
   delete_presets(payload) {
@@ -122,7 +128,13 @@ class Storage {
   load() {
     log({ debug: 'Storage>load' })
     // STORAGE
-    const data = JSON.parse(localStorage.getItem(this._fieldname))
+    let data
+    try {
+      data = JSON.parse(localStorage.getItem(this._fieldname))
+    } catch (e) {
+      log({ error: 'Storage>load: failed to parse storage', data: e })
+      return false
+    }
     if (data === null || data === undefined) return false
     data.forEach(d => {
       if (d.info.uid === undefined) d.info.uid = uuidv4() //added to support a UID for each entry
@@ -184,7 +196,7 @@ class Storage {
     // first check the data
     if (uid === null || uid === undefined) return false
     // now prepare a job
-    const job = _prepare_job(uid) //this will return an array with all indices
+    const job = this._prepare_job(uid) //this will return an array with all indices
 
     // prepare promises and loop through jobs
     const promises = []
@@ -226,7 +238,7 @@ class Storage {
   }
 
   _export_file(filename, DATA) {
-    return status = exportFile(filename, DATA)
+    return exportFile(filename, DATA)
   }
 }
 

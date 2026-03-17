@@ -152,7 +152,7 @@ export class QuestMan {
       else if (value.description !== null && value.description !== undefined && value.description.toLowerCase().includes(filter_value.toLowerCase())) list.push(key)
       else if (value.title.toLowerCase().includes(filter_value.toLowerCase())) list.push(key)
     })
-    if (list.length === 0) return undefined
+    if (list.length === 0) return []
     return list
   }
 
@@ -233,7 +233,7 @@ export class QuestMan {
 
     this.activeQuest.value.items.forEach(item => {
       if (item.force === false) index.push(true)
-      else if (item.type === 'textbox' || item.type === 'seperator' || item.type === undefined) index.push(null)
+      else if (item.type === 'textbox' || item.type === 'seperator' || item.type === 'separator' || item.type === undefined) index.push(null)
       else if (item.type === 'multiple_radio') {
         if (item.value === undefined || item.value === null) index.push(false)
         else {
