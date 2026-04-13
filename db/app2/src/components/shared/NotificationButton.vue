@@ -1,53 +1,61 @@
 <template>
   <div>
-    <!-- Notifications Button -->
-    <q-btn flat dense round icon="notifications" class="q-mr-sm" @click="openNotificationDialog">
-      <q-badge v-if="showNotificationBadge" color="red" floating>{{ notificationCount }}</q-badge>
-      <q-tooltip>{{ notificationCount > 0 ? $t('notifications.countNotifications', { count: notificationCount }) : $t('notifications.noNewNotifications') }}</q-tooltip>
+    <q-btn flat dense round icon="notifications" class="q-mr-sm" @click="openDialog">
+      <q-badge v-if="badgeCount > 0" color="red" floating>{{ badgeCount }}</q-badge>
     </q-btn>
 
-    <!-- Notification Dialog -->
-    <q-dialog v-model="showNotificationDialog" position="right" :maximized="$q.screen.lt.sm">
-      <q-card style="width: 500px; max-width: 90vw; height: 600px; max-height: 90vh">
-        <!-- Header -->
+    <q-dialog v-model="dialogOpen" position="right" :maximized="$q.screen.lt.sm">
+      <q-card class="notification-card">
         <q-card-section class="row items-center q-pb-none">
-          <div class="text-h6">{{ $t('notifications.recentNotifications') }}</div>
+          <div class="text-h6">Benachrichtigungen</div>
           <q-space />
           <q-btn icon="close" flat round dense v-close-popup />
         </q-card-section>
 
-        <!-- Content -->
-        <q-card-section class="q-pt-none" style="height: calc(100% - 120px); overflow-y: auto">
-          <div v-if="loggingStore.recentLogs.length === 0" class="text-center text-grey-6 q-mt-lg">
+        <q-card-section class="notification-content q-pt-sm">
+          <div v-if="entries.length === 0" class="text-center text-grey-5 q-pa-xl">
             <q-icon name="notifications_none" size="48px" class="q-mb-md" />
-            <div>{{ $t('notifications.noRecentNotifications') }}</div>
+            <div>Keine Benachrichtigungen</div>
           </div>
 
-          <q-list v-else separator>
-            <q-item v-for="log in loggingStore.recentLogs.slice().reverse()" :key="`${log.timestamp}-${log.context}`" class="q-pa-md">
-              <q-item-section avatar>
-                <q-icon :name="getLogIcon(log.level)" :color="getLogColor(log.level)" size="24px" />
-              </q-item-section>
+          <template v-else>
+            <div class="row items-center q-mb-sm">
+              <q-btn-toggle
+                v-model="filter"
+                flat dense no-caps rounded
+                toggle-color="primary"
+                size="sm"
+                :options="[
+                  { label: 'Wichtig', value: 'important' },
+                  { label: 'Alle', value: 'all' },
+                ]"
+              />
+              <q-space />
+              <span class="text-caption text-grey-5">{{ visibleEntries.length }} Eintr.</span>
+            </div>
 
-              <q-item-section>
-                <q-item-label class="text-weight-medium">{{ log.message }}</q-item-label>
-                <q-item-label caption class="text-grey-6"> {{ log.context }} • {{ formatLogTime(log.timestamp) }} </q-item-label>
-                <q-item-label v-if="log.data" caption class="text-grey-7 q-mt-xs">
-                  {{ formatLogData(log.data) }}
-                </q-item-label>
-              </q-item-section>
+            <div v-if="visibleEntries.length === 0" class="text-center text-grey-5 q-pa-lg">
+              Keine Eintr&auml;ge in dieser Ansicht
+            </div>
 
-              <q-item-section side>
-                <q-chip :color="getLogColor(log.level)" text-color="white" size="sm" :label="log.level" />
-              </q-item-section>
-            </q-item>
-          </q-list>
+            <div v-for="(e, i) in visibleEntries" :key="i" class="notification-row" :class="'notification-row--' + e.level.toLowerCase()">
+              <div class="notification-icon">
+                <q-icon :name="e.icon" :color="e.color" size="18px" />
+              </div>
+              <div class="notification-body">
+                <div class="notification-msg">{{ e.msg }}</div>
+                <div class="notification-meta">{{ e.src }} &middot; {{ e.time }}</div>
+              </div>
+              <div class="notification-badge">
+                <q-badge :color="e.color" :label="e.tag" />
+              </div>
+            </div>
+          </template>
         </q-card-section>
 
-        <!-- Actions -->
         <q-card-actions align="between" class="q-pa-md">
-          <q-btn flat color="grey-7" :label="$t('notifications.clearAllLogs')" @click="clearAllLogs" :disable="loggingStore.recentLogs.length === 0" />
-          <q-btn flat color="primary" :label="$t('notifications.exportLogs')" @click="exportLogs" :disable="loggingStore.recentLogs.length === 0" />
+          <q-btn flat color="grey-7" label="Leeren" @click="clearLogs" :disable="entries.length === 0" size="sm" />
+          <q-btn flat color="primary" label="Exportieren" @click="loggingStore.exportLogs()" :disable="entries.length === 0" size="sm" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -62,137 +70,228 @@ import { useLoggingStore } from 'src/stores/logging-store'
 const $q = useQuasar()
 const loggingStore = useLoggingStore()
 
-// UI State
-const showNotificationDialog = ref(false)
-const lastNotificationCount = ref(0)
+const dialogOpen = ref(false)
+const seenCount = ref(0)
+const filter = ref('important')
 
-// Notification badge count - show errors and warnings
-const notificationCount = computed(() => {
-  const errors = loggingStore.errorLogs.length
-  const warnings = loggingStore.warningLogs.length
-  return errors + warnings
+// --- Badge ---
+const badgeCount = computed(() => {
+  const n = loggingStore.errorLogs.length + loggingStore.warningLogs.length
+  return n > seenCount.value ? n - seenCount.value : 0
 })
 
-// Show badge only if there are new notifications since last view
-const showNotificationBadge = computed(() => {
-  return notificationCount.value > lastNotificationCount.value
+const openDialog = () => {
+  dialogOpen.value = true
+  seenCount.value = loggingStore.errorLogs.length + loggingStore.warningLogs.length
+}
+
+// --- Formatting helpers (pure functions, no reactivity) ---
+
+const ICONS = { ERROR: 'error', WARN: 'warning', SUCCESS: 'check_circle', INFO: 'info', DEBUG: 'bug_report' }
+const COLORS = { ERROR: 'negative', WARN: 'warning', SUCCESS: 'positive', INFO: 'info', DEBUG: 'grey-6' }
+const TAGS = { ERROR: 'Fehler', WARN: 'Warnung', SUCCESS: 'OK', INFO: 'Info', DEBUG: 'Debug' }
+
+const SOURCES = {
+  ObservationStore: 'Beobachtungen',
+  VisitStore: 'Visiten',
+  PatientStore: 'Patienten',
+  DatabaseStore: 'Datenbank',
+  DatabaseService: 'Datenbank',
+  MigrationManager: 'Migration',
+  AuthStore: 'Anmeldung',
+  QuestionnaireStore: 'Frageboegen',
+  ImportStore: 'Import',
+  Router: 'Navigation',
+}
+
+const MSG = {
+  'Patient data loaded successfully': 'Patientendaten geladen',
+  'All observations loaded successfully': 'Beobachtungen geladen',
+  'Loading all observations for patient': 'Lade Beobachtungen',
+  'Visits loaded successfully': 'Visiten geladen',
+  'Loading visits for patient': 'Lade Visiten',
+  'Patient selected': 'Patient ausgewaehlt',
+  'Setting selected patient': 'Patient wird gesetzt',
+  'Patient loaded successfully': 'Patient geladen',
+  'Loading patient by code': 'Lade Patient',
+  'Loading patient with data': 'Lade Patientendaten',
+  'Observation created successfully': 'Beobachtung erstellt',
+  'Observation updated successfully': 'Beobachtung aktualisiert',
+  'Observation deleted successfully': 'Beobachtung geloescht',
+  'Visit created successfully': 'Visite erstellt',
+  'Visit updated successfully': 'Visite aktualisiert',
+  'Visit deleted successfully': 'Visite geloescht',
+  'Database initialized successfully': 'Datenbank verbunden',
+  'Database Service initialized successfully': 'Datenbank-Service gestartet',
+  'Successfully connected to database': 'Datenbankverbindung hergestellt',
+  'Database initialization completed successfully': 'Datenbank initialisiert',
+  'Repositories initialized': 'Repositories initialisiert',
+  'Foreign key constraints enabled': 'Foreign Keys aktiviert',
+  'Initializing database': 'Datenbank wird initialisiert',
+  'Initializing Database Service': 'Starte Datenbank-Service',
+  'Found previous observation': 'Vorherige Beobachtung gefunden',
+}
+
+const DETAIL_KEYS = [
+  ['patientName', ''],
+  ['patientCode', ''],
+  ['patientId', 'Patient'],
+  ['patientNum', '#'],
+  ['visitId', 'Visite'],
+  ['encounterNum', 'Visite'],
+  ['observationId', 'Obs.'],
+  ['observationCount', 'Beobachtungen'],
+  ['visitCount', 'Visiten'],
+  ['count', 'Anzahl'],
+  ['conceptCode', 'Konzept'],
+  ['username', 'Benutzer'],
+  ['database', 'DB'],
+  ['databasePath', 'Pfad'],
+  ['path', 'Pfad'],
+]
+
+function buildDetails(data) {
+  if (!data || typeof data !== 'object') return ''
+  var parts = []
+  for (var i = 0; i < DETAIL_KEYS.length; i++) {
+    var key = DETAIL_KEYS[i][0]
+    var label = DETAIL_KEYS[i][1]
+    var v = data[key]
+    if (v === undefined || v === null) continue
+    var s = typeof v === 'string' && v.length > 35 ? v.substring(0, 32) + '...' : String(v)
+    parts.push(label ? label + ': ' + s : s)
+  }
+  return parts.join(', ')
+}
+
+function buildMsg(message, data) {
+  var base = MSG[message] || message || ''
+  var detail = ''
+  if (data && typeof data === 'object') {
+    detail = buildDetails(data)
+  } else if (typeof data === 'string') {
+    try { detail = buildDetails(JSON.parse(data)) } catch { /* ignore */ }
+  }
+  if (detail) return base + ' \u2014 ' + detail
+  return base
+}
+
+function buildTime(ts) {
+  try {
+    var d = new Date(ts)
+    var diff = Math.floor((Date.now() - d.getTime()) / 60000)
+    if (diff < 1) return 'Gerade eben'
+    if (diff < 60) return 'vor ' + diff + 'm'
+    var h = Math.floor(diff / 60)
+    if (h < 24) return 'vor ' + h + 'h'
+    var days = Math.floor(h / 24)
+    if (days < 7) return 'vor ' + days + 'd'
+    return d.toLocaleDateString('de-DE')
+  } catch {
+    return ''
+  }
+}
+
+// --- Entries: plain array of plain objects, no proxy leaks ---
+
+const entries = computed(() => {
+  var raw = loggingStore.recentLogs
+  if (!raw || !raw.length) return []
+  var out = []
+  for (var i = raw.length - 1; i >= 0; i--) {
+    var r = raw[i]
+    out.push({
+      level: r.level || 'INFO',
+      msg: buildMsg(r.message, r.data),
+      src: SOURCES[r.context] || r.context || '',
+      time: buildTime(r.timestamp),
+      icon: ICONS[r.level] || 'info',
+      color: COLORS[r.level] || 'info',
+      tag: TAGS[r.level] || r.level,
+    })
+  }
+  return out
 })
 
-// Notification methods
-const openNotificationDialog = () => {
-  showNotificationDialog.value = true
-  // Mark current count as "seen" to hide badge
-  lastNotificationCount.value = notificationCount.value
-}
+const visibleEntries = computed(() => {
+  if (filter.value === 'all') return entries.value
+  return entries.value.filter(function (e) {
+    return e.level === 'SUCCESS' || e.level === 'WARN' || e.level === 'ERROR'
+  })
+})
 
-const getLogIcon = (level) => {
-  const icons = {
-    ERROR: 'error',
-    WARN: 'warning',
-    SUCCESS: 'check_circle',
-    INFO: 'info',
-    DEBUG: 'bug_report',
-  }
-  return icons[level] || 'info'
-}
+// --- Actions ---
 
-const getLogColor = (level) => {
-  const colors = {
-    ERROR: 'negative',
-    WARN: 'warning',
-    SUCCESS: 'positive',
-    INFO: 'info',
-    DEBUG: 'grey-6',
-  }
-  return colors[level] || 'info'
-}
-
-const formatLogTime = (timestamp) => {
-  const date = new Date(timestamp)
-  const now = new Date()
-  const diffMs = now - date
-  const diffMins = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMins / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
-
-  return date.toLocaleDateString()
-}
-
-const formatLogData = (data) => {
-  if (!data) return ''
-  if (typeof data === 'string') return data
-  if (typeof data === 'object') {
-    try {
-      return JSON.stringify(data, null, 2).substring(0, 100) + (JSON.stringify(data).length > 100 ? '...' : '')
-    } catch {
-      return String(data)
-    }
-  }
-  return String(data)
-}
-
-const clearAllLogs = () => {
+const clearLogs = () => {
   $q.dialog({
-    title: 'Clear All Logs',
-    message: 'Are you sure you want to clear all logs? This action cannot be undone.',
-    cancel: true,
+    title: 'Logs leeren',
+    message: 'Alle Logs werden entfernt. Fortfahren?',
+    cancel: { label: 'Abbrechen', flat: true },
+    ok: { label: 'Leeren', color: 'negative' },
     persistent: true,
   }).onOk(() => {
     loggingStore.clearLogs()
-    lastNotificationCount.value = 0
-    $q.notify({
-      type: 'success',
-      message: 'All logs cleared',
-      position: 'top',
-    })
+    seenCount.value = 0
   })
-}
-
-const exportLogs = () => {
-  loggingStore.exportLogs()
 }
 </script>
 
-<style lang="scss" scoped>
-// Custom scrollbar for dialog content
-:deep(.q-card-section) {
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: $grey-2;
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: $grey-5;
-    border-radius: 4px;
-
-    &:hover {
-      background: $grey-6;
-    }
-  }
+<style scoped>
+.notification-card {
+  width: 460px;
+  max-width: 90vw;
+  height: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
 }
 
-// Log item styling
-.q-item {
-  border-radius: 8px;
-  margin: 4px 0;
-
-  &:hover {
-    background-color: rgba(25, 118, 210, 0.04);
-  }
+.notification-content {
+  flex: 1;
+  overflow-y: auto;
 }
 
-// Chip styling for log levels
-.q-chip {
-  font-size: 0.7rem;
-  font-weight: 500;
+.notification-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 4px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.notification-row:last-child {
+  border-bottom: none;
+}
+
+.notification-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.notification-icon {
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.notification-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.notification-msg {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #333;
+  word-break: break-word;
+}
+
+.notification-meta {
+  font-size: 11px;
+  color: #999;
+  margin-top: 2px;
+}
+
+.notification-badge {
+  flex-shrink: 0;
+  padding-top: 2px;
 }
 </style>

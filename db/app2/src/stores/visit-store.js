@@ -179,8 +179,10 @@ export const useVisitStore = defineStore('visit', () => {
       loading.value = true
       error.value = null
 
-      logger.info('Deleting visit', { visitId })
+      logger.info('Deleting visit and associated observations', { visitId })
 
+      // DB has ON DELETE CASCADE for OBSERVATION_FACT.ENCOUNTER_NUM,
+      // but we also need to clear app-layer state
       const visitRepo = dbStore.getRepository('visit')
       await visitRepo.delete(visitId)
 
@@ -190,6 +192,17 @@ export const useVisitStore = defineStore('visit', () => {
       // Clear selected visit if it was deleted
       if (selectedVisit.value?.id === visitId) {
         selectedVisit.value = null
+      }
+
+      // Clear observation store to remove stale references (DB cascade already deleted them)
+      try {
+        const { useObservationStore } = await import('./observation-store.js')
+        const observationStore = useObservationStore()
+        // Remove observations for deleted visit from store
+        observationStore.observations = observationStore.observations.filter((obs) => obs.encounterNum !== visitId)
+        logger.debug('Cleared observations for deleted visit from store', { visitId })
+      } catch (cleanupErr) {
+        logger.warn('Failed to clear observation store after visit deletion', cleanupErr)
       }
 
       logger.success('Visit deleted successfully', { visitId })

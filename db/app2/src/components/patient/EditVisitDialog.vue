@@ -533,18 +533,26 @@ const handleSubmit = async () => {
     const notesChanged = formData.value.VISIT_BLOB !== originalData.value.VISIT_BLOB
 
     if (visitTypeChanged || notesChanged) {
-      // Parse existing VISIT_BLOB from the original visit data to preserve other fields
+      // Parse existing VISIT_BLOB to preserve ALL existing fields (createdBy, metadata, etc.)
       let blobData = {}
       try {
         const visitData = props.visit.visit || props.visit
         if (visitData.VISIT_BLOB) {
-          blobData = JSON.parse(visitData.VISIT_BLOB)
+          const parsed = JSON.parse(visitData.VISIT_BLOB)
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            blobData = parsed
+          }
         }
-      } catch {
-        // If parsing fails, start with empty object
+      } catch (parseErr) {
+        // Preserve raw blob as notes if it's not valid JSON
+        logger.warn('VISIT_BLOB is not valid JSON, preserving as notes', { error: parseErr.message })
+        const visitData = props.visit.visit || props.visit
+        if (visitData.VISIT_BLOB) {
+          blobData = { notes: visitData.VISIT_BLOB }
+        }
       }
 
-      // Update the fields that changed
+      // Update only the fields that changed — everything else is preserved
       if (visitTypeChanged) {
         blobData.visitType = formData.value.VISIT_TYPE_CD || ''
       }
@@ -552,10 +560,8 @@ const handleSubmit = async () => {
         blobData.notes = formData.value.VISIT_BLOB || ''
       }
 
-      // Always update the timestamp
       blobData.updatedAt = new Date().toISOString()
 
-      // Store the updated blob
       updateData.VISIT_BLOB = JSON.stringify(blobData)
 
       logger.debug('Updated VISIT_BLOB', {

@@ -1,0 +1,46 @@
+{
+    "title": "Schwab-England Skala",
+    "short_title": "schwab_england",
+    "coding": {
+        "system": "http://snomed.info/sct",
+        "code": "273544001",
+        "display": "Schwab and England Activities of Daily Living Scale",
+        "version": "20240101"
+    },
+    "description": "Schwab-England Skala – Aktivitäten des täglichen Lebens",
+    "manual": "<b>Anleitung</b>: Bitte wählen Sie den Prozentsatz, der den aktuellen Zustand des Patienten am besten beschreibt.",
+    "keywords": "Schwab, England, ADL, Aktivitäten, tägliches Leben, Parkinson, Unabhängigkeit",
+    "ref": "Schwab RS, England AC (1969). Projection technique for evaluating surgery in Parkinson's disease.",
+    "items": [
+        {
+            "label": "Schwab-England Skala",
+            "id": 1,
+            "tag": "schwab_england",
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "force": true,
+            "options": [
+                {"label": "100 % – Völlig unabhängig. Kann sämtliche Verrichtungen ohne Verlangsamung, Schwierigkeiten oder Behinderung ausführen. Völlig gesund. Keine Schwierigkeiten wahrgenommen.", "value": 100},
+                {"label": "90 % – Völlig unabhängig. Kann sämtliche Verrichtungen mit geringer Verlangsamung, Schwierigkeiten und Behinderung ausführen. Kann doppelt so lange dazu brauchen. Schwierigkeiten werden bewusst.", "value": 90},
+                {"label": "80 % – Bei den meisten Verrichtungen völlig unabhängig. Braucht dafür doppelt so viel Zeit. Ist sich der Schwierigkeiten und Verlangsamung bewusst.", "value": 80},
+                {"label": "70 % – Nicht völlig unabhängig. Bei manchen Verrichtungen größere Schwierigkeiten, braucht für einige drei- bis viermal so lange. Muss einen großen Teil des Tages auf die Verrichtungen verwenden.", "value": 70},
+                {"label": "60 % – Leichte Abhängigkeit. Kann die meisten Verrichtungen ausführen, jedoch äußerst langsam und unter viel Anstrengung; manchmal unmöglich; Fehler.", "value": 60},
+                {"label": "50 % – Stärker abhängig. Hilfe bei der Hälfte der Verrichtungen, langsamer usw.; Schwierigkeiten bei allem.", "value": 50},
+                {"label": "40 % – Sehr abhängig. Braucht bei vielen Verrichtungen Hilfe, nur einige alleine sehr langsam.", "value": 40},
+                {"label": "30 % – Kann bei Anstrengungen hier und da einige Verrichtungen alleine ausführen oder beginnen. Benötigt sehr viel Hilfe.", "value": 30},
+                {"label": "20 % – Kann nichts alleine tun. Kann bei manchen Verrichtungen etwas mithelfen. Stark behindert.", "value": 20},
+                {"label": "10 % – Völlig abhängig, hilflos. Völlig behindert.", "value": 10},
+                {"label": "0 % – Vegetative Funktionen wie Schlucken, Blasen- und Stuhlentleerung sind ausgefallen. Bettlägerig.", "value": 0}
+            ]
+        }
+    ],
+    "results": {
+        "method": "sum",
+        "coding": {
+            "display": "Schwab-England Score (%)",
+            "code": "273544001",
+            "system": "http://snomed.info/sct"
+        }
+    }
+}

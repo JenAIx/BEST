@@ -9,6 +9,7 @@
 const isBrowser = typeof window !== 'undefined'
 
 let conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData
+let questionnaireFiles = []
 
 if (isBrowser) {
   // Browser/Vite environment - use dynamic imports with ?raw
@@ -18,13 +19,21 @@ if (isBrowser) {
     conceptCqlLookupsData = await import('./concept_cql_lookup_data.csv?raw').then((m) => m.default)
     standardUsersData = await import('./standard-users.csv?raw').then((m) => m.default)
     codeLookupData = await import('./code_lookup_data.csv?raw').then((m) => m.default)
+
+    // Load questionnaire JSON files from questionnaires/ subdirectory
+    const questModules = import.meta.glob('./questionnaires/quest_*.json', { eager: true, query: '?raw' })
+    questionnaireFiles = Object.entries(questModules).map(([path, mod]) => ({
+      filename: path.split('/').pop(),
+      content: mod.default,
+    }))
+    console.log(`✅ Loaded ${questionnaireFiles.length} questionnaire files via Vite`)
   } catch (error) {
     console.warn('Failed to load CSV files via Vite, falling back to embedded data:', error)
   }
 } else {
   // Node.js environment - use dynamic imports to avoid browser issues
   try {
-    const { readFileSync } = await import('fs')
+    const { readFileSync, readdirSync, existsSync } = await import('fs')
     const { join, dirname } = await import('path')
     const { fileURLToPath } = await import('url')
 
@@ -37,6 +46,18 @@ if (isBrowser) {
     conceptCqlLookupsData = readFileSync(join(__dirname, 'concept_cql_lookup_data.csv'), 'utf-8')
     standardUsersData = readFileSync(join(__dirname, 'standard-users.csv'), 'utf-8')
     codeLookupData = readFileSync(join(__dirname, 'code_lookup_data.csv'), 'utf-8')
+
+    // Load questionnaire JSON files from questionnaires/ subdirectory
+    const questDir = join(__dirname, 'questionnaires')
+    if (existsSync(questDir)) {
+      const files = readdirSync(questDir).filter((f) => f.startsWith('quest_') && f.endsWith('.json'))
+      questionnaireFiles = files.map((filename) => ({
+        filename,
+        content: readFileSync(join(questDir, filename), 'utf-8'),
+      }))
+      console.log(`✅ Loaded ${questionnaireFiles.length} questionnaire files from filesystem`)
+    }
+
     console.log('✅ Successfully loaded CSV files from filesystem')
   } catch (error) {
     console.warn('Failed to load CSV files from filesystem, falling back to embedded data:', error)
@@ -135,4 +156,4 @@ CONCEPT_DIMENSION,SOURCESYSTEM_CD,ICD10-*,ICD10-*,,2024-01-01,,2024-01-01,SYSTEM
 CONCEPT_DIMENSION,SOURCESYSTEM_CD,other,other,,2024-01-01,,2024-01-01,SYSTEM,1`
 }
 
-export { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData }
+export { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData, questionnaireFiles }

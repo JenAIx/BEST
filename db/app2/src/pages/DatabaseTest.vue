@@ -91,6 +91,51 @@
       </q-card-section>
     </q-card>
 
+    <!-- Questionnaire Operations Section -->
+    <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
+      <q-card-section>
+        <div class="text-h6">Questionnaire Operations</div>
+
+        <div class="row q-gutter-md q-mt-md items-center">
+          <q-btn :loading="isSeedingQuests" color="purple" icon="quiz" @click="seedQuestionnaires" class="col-auto">
+            Seed Questionnaires
+          </q-btn>
+
+          <q-btn :loading="isLoadingQuests" color="secondary" icon="refresh" @click="loadQuestionnaires" class="col-auto">
+            Refresh List
+          </q-btn>
+
+          <q-chip v-if="questStats.available > 0" color="purple" text-color="white" icon="folder">
+            {{ questStats.available }} available in seed folder
+          </q-chip>
+
+          <q-chip v-if="questStats.inDb > 0" color="positive" text-color="white" icon="storage">
+            {{ questStats.inDb }} in database
+          </q-chip>
+
+          <q-chip v-if="questStats.new > 0" color="warning" text-color="white" icon="fiber_new">
+            {{ questStats.new }} new to import
+          </q-chip>
+        </div>
+
+        <!-- Questionnaire List -->
+        <div v-if="questionnaires.length > 0" class="q-mt-md">
+          <div class="text-subtitle1 q-mb-sm">Questionnaires in DB ({{ questionnaires.length }})</div>
+          <q-list bordered dense>
+            <q-item v-for="quest in questionnaires" :key="quest.CODE_CD">
+              <q-item-section avatar>
+                <q-icon name="quiz" :color="quest.SOURCESYSTEM_CD === 'SURVEY3' ? 'purple' : 'grey'" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label>{{ quest.NAME_CHAR }}</q-item-label>
+                <q-item-label caption>{{ quest.CODE_CD }} | Source: {{ quest.SOURCESYSTEM_CD }} | Updated: {{ quest.UPDATE_DATE }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </q-list>
+        </div>
+      </q-card-section>
+    </q-card>
+
     <!-- Database Statistics Section -->
     <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
       <q-card-section>
@@ -206,15 +251,18 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useDatabaseStore } from '../stores/database-store.js'
+import { useAuthStore } from '../stores/auth-store.js'
 import { useQuasar } from 'quasar'
 import { createDemoPatients as createDemoPatientsUtil } from '../core/services/demo-patient-service.js'
 import { deleteDemoPatients as deleteDemoPatientsUtil, countDemoData } from '../core/services/delete-demo-patients-service.js'
+import { questionnaireFiles } from '../core/database/seeds/csv-loader.js'
 
 const $q = useQuasar()
 const databaseStore = useDatabaseStore()
+const authStore = useAuthStore()
 
-// Local state
-const databasePath = ref('./test.db')
+// Local state — use active database path if available
+const databasePath = ref(authStore.selectedDatabase || databaseStore.databasePath || './test.db')
 const newPatient = ref({
   PATIENT_CD: '',
   SEX_CD: '',
@@ -227,6 +275,10 @@ const isCreatingDemoPatients = ref(false)
 const isDeletingDemoPatients = ref(false)
 const isSearching = ref(false)
 const isLoadingPatients = ref(false)
+const isSeedingQuests = ref(false)
+const isLoadingQuests = ref(false)
+const questionnaires = ref([])
+const questStats = ref({ available: 0, inDb: 0, new: 0 })
 
 // Methods
 const initializeDatabase = async () => {
@@ -547,6 +599,91 @@ const loadAllPatients = async () => {
   }
 }
 
+const loadQuestionnaires = async () => {
+  try {
+    isLoadingQuests.value = true
+    const result = await databaseStore.executeQuery(
+      `SELECT CODE_CD, NAME_CHAR, SOURCESYSTEM_CD, UPDATE_DATE FROM CODE_LOOKUP WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE' ORDER BY NAME_CHAR`
+    )
+    questionnaires.value = result.success ? result.data : []
+
+    // Parse available questionnaire files from seed folder
+    const availableQuests = (questionnaireFiles || []).map(({ filename, content }) => {
+      try {
+        const json = JSON.parse(content)
+        return (json.short_title || filename.replace('quest_', '').replace('.json', '')).toUpperCase()
+      } catch {
+        return null
+      }
+    }).filter(Boolean)
+
+    const dbCodes = new Set(questionnaires.value.map((q) => q.CODE_CD))
+    const newCount = availableQuests.filter((code) => !dbCodes.has(code)).length
+
+    questStats.value = {
+      available: availableQuests.length,
+      inDb: questionnaires.value.length,
+      new: newCount,
+    }
+  } catch (error) {
+    console.error('Failed to load questionnaires:', error)
+  } finally {
+    isLoadingQuests.value = false
+  }
+}
+
+const seedQuestionnaires = async () => {
+  try {
+    isSeedingQuests.value = true
+
+    // Get existing codes from DB to check what's new
+    const existingResult = await databaseStore.executeQuery(
+      `SELECT CODE_CD FROM CODE_LOOKUP WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE'`
+    )
+    const existingCodes = new Set((existingResult.success ? existingResult.data : []).map((r) => r.CODE_CD))
+
+    const today = new Date().toISOString().split('T')[0]
+    let seeded = 0
+    let skipped = 0
+
+    for (const { filename, content } of questionnaireFiles || []) {
+      try {
+        const json = JSON.parse(content)
+        const code = (json.short_title || filename.replace('quest_', '').replace('.json', '')).toUpperCase()
+        const title = json.title || code
+
+        if (existingCodes.has(code)) {
+          skipped++
+          continue
+        }
+
+        await databaseStore.executeCommand(
+          `INSERT OR IGNORE INTO CODE_LOOKUP (TABLE_CD, COLUMN_CD, CODE_CD, NAME_CHAR, LOOKUP_BLOB, UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD, UPLOAD_ID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          ['SURVEY_BEST', 'QUESTIONNAIRE', code, title, content, today, today, 'SURVEY3', 1]
+        )
+        seeded++
+      } catch (error) {
+        console.error(`Failed to seed questionnaire ${filename}:`, error)
+      }
+    }
+
+    await loadQuestionnaires()
+
+    $q.notify({
+      type: 'positive',
+      message: `Questionnaires: ${seeded} neu importiert, ${skipped} bereits vorhanden`,
+      timeout: 5000,
+    })
+  } catch (error) {
+    $q.notify({
+      type: 'negative',
+      message: `Failed to seed questionnaires: ${error.message}`,
+    })
+  } finally {
+    isSeedingQuests.value = false
+  }
+}
+
 const formatDate = (dateString) => {
   if (!dateString) return 'N/A'
   try {
@@ -557,9 +694,14 @@ const formatDate = (dateString) => {
 }
 
 // Lifecycle
-onMounted(() => {
-  // Set default database path
-  databasePath.value = './test.db'
+onMounted(async () => {
+  // Use active database path, fall back to default
+  databasePath.value = authStore.selectedDatabase || databaseStore.databasePath || './test.db'
+
+  // Auto-load questionnaire list if DB is connected
+  if (databaseStore.canPerformOperations) {
+    await loadQuestionnaires()
+  }
 })
 </script>
 

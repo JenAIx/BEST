@@ -356,7 +356,7 @@ const getFieldSetConceptOrder = () => {
 const findBestMatchingConcept = (observation) => {
   const obsConceptCode = observation.conceptCode
 
-  // Find all potential matching concepts
+  // Find all potential matching concepts by code
   const matches = fieldSetConcepts.value.filter((concept) => {
     // Skip medications
     if (concept.valueType === 'M') return false
@@ -372,18 +372,24 @@ const findBestMatchingConcept = (observation) => {
     return false
   })
 
-  if (matches.length === 0) {
-    logger.warn('No matching concept found for observation', {
-      observationId: observation.observationId,
-      obsConceptCode,
-      availableConcepts: fieldSetConcepts.value.map((c) => c.code),
-    })
-    return null
+  if (matches.length > 0) {
+    // Prefer exact matches first, then numeric matches
+    const exactMatch = matches.find((concept) => concept.code === obsConceptCode)
+    return exactMatch || matches[0]
   }
 
-  // Prefer exact matches first, then numeric matches
-  const exactMatch = matches.find((concept) => concept.code === obsConceptCode)
-  return exactMatch || matches[0]
+  // Fallback: CATEGORY_CHAR match — create a pseudo-concept for display
+  if (props.fieldSet.categories && observation.category && props.fieldSet.categories.includes(observation.category)) {
+    return {
+      code: obsConceptCode,
+      name: observation.conceptName || observation.conceptCode,
+      valueType: observation.valueType || observation.valTypeCode || 'T',
+      unit: observation.unit || '',
+      _categoryMatch: true,
+    }
+  }
+
+  return null
 }
 
 const getConceptName = (conceptCode) => {

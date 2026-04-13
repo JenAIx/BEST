@@ -375,10 +375,13 @@ onUnmounted(() => {
 
   .action-cell {
     /* Action buttons styling handled by ObservationRowActions component */
-
-    &:hover :deep(.remove-button-container) {
-      opacity: 1;
-    }
   }
+}
+</style>
+
+<!-- Unscoped style to target q-table row hover for delete button visibility -->
+<style lang="scss">
+.observations-table tbody tr:hover .action-cell .remove-button-container {
+  opacity: 1 !important;
 }
 </style>

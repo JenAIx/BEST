@@ -20,6 +20,8 @@ import { coreSchema } from '../database/migrations/001-core-schema.js'
 import { databaseViews } from '../database/migrations/002-views.js'
 // import { databaseTriggers } from '../database/migrations/003-triggers.js'
 import { studyTables } from '../database/migrations/004-study-tables.js'
+import { questionnaireFieldSet } from '../database/migrations/005-questionnaire-fieldset.js'
+import { fieldsetCategories } from '../database/migrations/006-fieldset-categories.js'
 
 class DatabaseService {
   constructor() {
@@ -66,6 +68,8 @@ class DatabaseService {
       // TODO: Fix trigger SQL syntax and re-enable
       // this.migrationManager.registerMigration(databaseTriggers)
       this.migrationManager.registerMigration(studyTables)
+      this.migrationManager.registerMigration(questionnaireFieldSet)
+      this.migrationManager.registerMigration(fieldsetCategories)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()

@@ -675,6 +675,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
             description: metadata.description || '',
             icon: metadata.icon || 'assignment',
             concepts: metadata.concepts || [],
+            categories: metadata.categories || [],
           }
         })
 

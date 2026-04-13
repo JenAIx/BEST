@@ -17,24 +17,36 @@
 
       <!-- Add Observation Button -->
       <div v-if="selectedVisit" class="add-observation-section">
-        <q-btn flat icon="add" :label="$t('observation.addObservation').toUpperCase()" @click="showAddCustomDialog = true" class="add-observation-btn full-width" style="border: 2px dashed #ccc">
-          <q-tooltip>{{ $t('observation.addCustomObservation') }}</q-tooltip>
-        </q-btn>
+        <q-btn flat icon="add" :label="$t('observation.addObservation').toUpperCase()" @click="showAddCustomDialog = true" class="add-observation-btn full-width" style="border: 2px dashed #ccc" :title="$t('observation.addCustomObservation')" />
       </div>
 
       <!-- Observation Forms -->
       <div v-if="selectedVisit && activeFieldSets.length > 0" class="observation-forms">
-        <ObservationFieldSet
-          v-for="fieldSet in activeFieldSetsList"
-          :key="`${selectedVisit.id}-${fieldSet.id}`"
-          :field-set="fieldSet"
-          :visit="selectedVisit"
-          :patient="patient"
-          :previous-visits="previousVisits"
-          :existing-observations="getFieldSetObservations(fieldSet.id)"
-          @observation-updated="onObservationUpdated"
-          @clone-from-previous="onCloneFromPrevious"
-        />
+        <template v-for="fieldSet in activeFieldSetsList" :key="`${selectedVisit.id}-${fieldSet.id}`">
+          <!-- Questionnaire FieldSet (special rendering) -->
+          <VisitQuestionnaireSection
+            v-if="fieldSet.id === 'questionnaires'"
+            :visit="selectedVisit"
+            :patient="patient"
+            :field-set="fieldSet"
+            :questionnaires="visitQuestionnaires"
+            @add-questionnaire="showAddQuestionnaireDialog = true"
+            @fill-questionnaire="onFillQuestionnaire"
+            @view-questionnaire="onViewQuestionnaire"
+            @remove-questionnaire="onRemoveQuestionnaire"
+          />
+          <!-- Regular FieldSet -->
+          <ObservationFieldSet
+            v-else
+            :field-set="fieldSet"
+            :visit="selectedVisit"
+            :patient="patient"
+            :previous-visits="previousVisits"
+            :existing-observations="getFieldSetObservations(fieldSet.id)"
+            @observation-updated="onObservationUpdated"
+            @clone-from-previous="onCloneFromPrevious"
+          />
+        </template>
 
         <!-- Uncategorized Observations Section -->
         <ObservationFieldSet
@@ -97,10 +109,32 @@
       :field-set-name="'Custom'"
       :field-set-id="'custom'"
       @observation-added="onCustomObservationAdded"
+      @questionnaire-added="onQuestionnaireAddedFromSearch"
     />
 
     <!-- Visit Summary Dialog -->
     <VisitSummaryDialog v-model="showVisitSummaryDialog" :visit="visitForPreview" />
+
+    <!-- Add Questionnaire to Visit Dialog -->
+    <AddQuestionnaireToVisitDialog
+      v-model="showAddQuestionnaireDialog"
+      :existing-questionnaire-codes="existingQuestionnaireCodes"
+      @questionnaire-selected="onQuestionnaireSelected"
+    />
+
+    <!-- Questionnaire Fill Dialog -->
+    <VisitQuestionnaireFillDialog
+      v-if="activeQuestionnaire"
+      v-model="showQuestionnaireFillDialog"
+      :visit="selectedVisit"
+      :patient="patient"
+      :questionnaire-code="activeQuestionnaire.questionnaireCode"
+      :observation-id="activeQuestionnaire.observationId"
+      :observation-blob="activeQuestionnaire.observationBlob"
+      :is-completed="activeQuestionnaire.isCompleted"
+      @questionnaire-completed="onQuestionnaireCompleted"
+      @close="onQuestionnaireFillClose"
+    />
   </div>
 </template>
 
@@ -115,6 +149,7 @@ import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useDatabaseStore } from 'src/stores/database-store'
 import { useUncategorizedObservations } from 'src/composables/useUncategorizedObservations'
 import { useFieldSetStatistics } from 'src/composables/useFieldSetStatistics'
 // NOTE: Field sets are now loaded exclusively from database via global-settings-store
@@ -126,6 +161,9 @@ import EditVisitDialog from '../patient/EditVisitDialog.vue'
 import VisitSelector from './VisitSelector.vue'
 import CustomObservationDialog from './CustomObservationDialog.vue'
 import VisitSummaryDialog from './VisitSummaryDialog.vue'
+import VisitQuestionnaireSection from './VisitQuestionnaireSection.vue'
+import AddQuestionnaireToVisitDialog from './AddQuestionnaireToVisitDialog.vue'
+import VisitQuestionnaireFillDialog from './VisitQuestionnaireFillDialog.vue'
 
 const props = defineProps({
   patient: {
@@ -148,6 +186,7 @@ const observationStore = useObservationStore()
 const localSettings = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
+const databaseStore = useDatabaseStore()
 const logger = loggingStore.createLogger('VisitDataEntry')
 
 // State
@@ -156,6 +195,9 @@ const showNewVisitDialog = ref(false)
 const showEditVisitDialog = ref(false)
 const showAddCustomDialog = ref(false)
 const showVisitSummaryDialog = ref(false)
+const showAddQuestionnaireDialog = ref(false)
+const showQuestionnaireFillDialog = ref(false)
+const activeQuestionnaire = ref(null)
 const visitForPreview = ref(null)
 const loadingFieldSets = ref(false)
 
@@ -232,6 +274,10 @@ const getFieldSetObservationCount = (fieldSetId) => {
   if (!fieldSetId) {
     logger.warn('getFieldSetObservationCount called with undefined fieldSetId')
     return 0
+  }
+  // Special case: questionnaires count Q-type observations
+  if (fieldSetId === 'questionnaires') {
+    return visitQuestionnaires.value.length
   }
   return getFieldSetObservations(fieldSetId).length
 }
@@ -565,6 +611,276 @@ const onCustomObservationAdded = (data) => {
     message: t('notifications.customObservationAdded'),
     position: 'top',
   })
+}
+
+// ========== Questionnaire Integration ==========
+
+/**
+ * Get questionnaires attached to the current visit from observations
+ * Looks for VALTYPE_CD='Q' observations and pending questionnaire placeholders
+ */
+const visitQuestionnaires = computed(() => {
+  if (!selectedVisit.value || !observationStore.observations) return []
+
+  return observationStore.observations
+    .filter((obs) => obs.valueType === 'Q')
+    .map((obs) => {
+      let isCompleted = false
+      let title = obs.value || obs.originalValue || 'Fragebogen'
+      let questionnaireCode = null
+      let shortTitle = null
+      let score = null
+      let progress = null
+      let blobData = null
+
+      // Parse OBSERVATION_BLOB to check status
+      if (obs.rawData?.OBSERVATION_BLOB) {
+        try {
+          blobData = JSON.parse(obs.rawData.OBSERVATION_BLOB)
+
+          if (blobData && typeof blobData === 'object' && blobData._status === 'pending') {
+            // Pending/incomplete questionnaire
+            isCompleted = false
+            questionnaireCode = blobData._questionnaireCode || null
+            title = blobData.title || title
+            shortTitle = blobData.short_title || null
+
+            // Calculate progress from saved responses
+            if (blobData._savedResponses && typeof blobData._savedResponses === 'object') {
+              const entries = Object.values(blobData._savedResponses)
+              const filledCount = entries.filter((v) => v !== null && v !== undefined && v !== '').length
+              const totalEstimate = entries.length
+              progress = totalEstimate > 0 ? filledCount / totalEstimate : 0
+            } else {
+              progress = 0
+            }
+          } else if (blobData && typeof blobData === 'object') {
+            // Completed questionnaire (has full results)
+            isCompleted = true
+            // Handle both field name conventions: _questionnaireCode (pending) and questionnaire_code (completed)
+            questionnaireCode = blobData.questionnaire_code || blobData._questionnaireCode || null
+            title = blobData.title || title
+            shortTitle = blobData.short_title || null
+
+            // Extract score from results array
+            if (Array.isArray(blobData.results) && blobData.results.length > 0) {
+              score = blobData.results[0].value
+            }
+          } else {
+            isCompleted = true
+          }
+        } catch (e) {
+          logger.warn('Failed to parse questionnaire blob', { observationId: obs.observationId, error: e.message })
+          isCompleted = true
+        }
+      } else {
+        // No blob data but is Q type - assume completed (legacy data)
+        isCompleted = true
+      }
+
+      return {
+        observationId: obs.observationId,
+        title,
+        shortTitle,
+        questionnaireCode,
+        isCompleted,
+        score,
+        progress,
+        observationBlob: obs.rawData?.OBSERVATION_BLOB || null,
+        rawObservation: obs,
+      }
+    })
+})
+
+/**
+ * Get codes of questionnaires already in this visit (for duplicate prevention)
+ */
+const existingQuestionnaireCodes = computed(() => {
+  return visitQuestionnaires.value.map((q) => q.questionnaireCode).filter(Boolean)
+})
+
+/**
+ * Handle questionnaire selection from the add dialog
+ * Creates a pending Q-type observation placeholder
+ */
+const onQuestionnaireSelected = async (selectedQ) => {
+  try {
+    logger.info('Adding questionnaire to visit', { code: selectedQ.code, title: selectedQ.title })
+
+    const encounterNum = selectedVisit.value.id
+    const patientNum = props.patient.PATIENT_NUM
+
+    // Create a pending placeholder observation
+    const blob = JSON.stringify({
+      _status: 'pending',
+      _questionnaireCode: selectedQ.code,
+      _savedResponses: {},
+      _createdAt: new Date().toISOString(),
+      title: selectedQ.title,
+      short_title: selectedQ.shortTitle,
+    })
+
+    await databaseStore.executeQuery(
+      `INSERT INTO OBSERVATION_FACT (
+        ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, PROVIDER_ID,
+        START_DATE, VALTYPE_CD, TVAL_CHAR, OBSERVATION_BLOB,
+        UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD, CATEGORY_CHAR, INSTANCE_NUM
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'), ?, ?, ?)`,
+      [
+        encounterNum,
+        patientNum,
+        'CUSTOM: QUESTIONNAIRE',
+        '@',
+        new Date().toISOString(),
+        'Q',
+        selectedQ.title,
+        blob,
+        'SURVEY_SYSTEM',
+        'SURVEY_BEST',
+        1,
+      ],
+    )
+
+    // Reload observations to show the new questionnaire
+    await visitObservationService.selectVisitAndLoadObservations(selectedVisit.value)
+
+    // Ensure questionnaires field set is available and active
+    await ensureQuestionnaireFieldSetActive()
+
+    $q.notify({
+      type: 'positive',
+      message: `Fragebogen "${selectedQ.title}" zur Visite hinzugefügt`,
+      position: 'top',
+    })
+
+    logger.info('Questionnaire placeholder added to visit', { code: selectedQ.code })
+  } catch (error) {
+    logger.error('Failed to add questionnaire to visit', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Fragebogen konnte nicht hinzugefügt werden',
+      position: 'top',
+    })
+  }
+}
+
+/**
+ * Open fill dialog for incomplete questionnaire
+ */
+const onFillQuestionnaire = (q) => {
+  activeQuestionnaire.value = {
+    questionnaireCode: q.questionnaireCode,
+    observationId: q.observationId,
+    observationBlob: q.observationBlob,
+    isCompleted: false,
+  }
+  showQuestionnaireFillDialog.value = true
+  logger.info('Opening questionnaire fill dialog', { code: q.questionnaireCode, observationId: q.observationId })
+}
+
+/**
+ * Open view dialog for completed questionnaire
+ */
+const onViewQuestionnaire = (q) => {
+  activeQuestionnaire.value = {
+    questionnaireCode: q.questionnaireCode,
+    observationId: q.observationId,
+    observationBlob: q.observationBlob,
+    isCompleted: true,
+  }
+  showQuestionnaireFillDialog.value = true
+  logger.info('Opening completed questionnaire view', { code: q.questionnaireCode })
+}
+
+/**
+ * Handle questionnaire completion
+ */
+const onQuestionnaireCompleted = async (data) => {
+  logger.info('Questionnaire completed', { code: data.questionnaireCode, title: data.title })
+  activeQuestionnaire.value = null
+
+  // Reload to get updated observations
+  if (selectedVisit.value) {
+    await visitObservationService.selectVisitAndLoadObservations(selectedVisit.value)
+  }
+}
+
+const onQuestionnaireFillClose = () => {
+  // Reload observations to reflect any saved partial state
+  if (selectedVisit.value) {
+    visitObservationService.selectVisitAndLoadObservations(selectedVisit.value)
+  }
+  activeQuestionnaire.value = null
+}
+
+/**
+ * Delete a questionnaire observation from the visit
+ */
+const onRemoveQuestionnaire = async (q) => {
+  try {
+    logger.info('Removing questionnaire from visit', { observationId: q.observationId, title: q.title })
+
+    await visitObservationService.deleteObservation(q.observationId)
+
+    $q.notify({
+      type: 'positive',
+      message: `Fragebogen "${q.title}" entfernt`,
+      position: 'top',
+      timeout: 2000,
+    })
+  } catch (error) {
+    logger.error('Failed to remove questionnaire', error)
+    $q.notify({
+      type: 'negative',
+      message: 'Fragebogen konnte nicht entfernt werden',
+      position: 'top',
+    })
+  }
+}
+
+/**
+ * Ensure the questionnaires field set exists in availableFieldSets and is active.
+ * If it's not in availableFieldSets (e.g., DB was just updated), add it dynamically.
+ */
+const ensureQuestionnaireFieldSetActive = async () => {
+  // Check if questionnaires field set exists in available sets
+  const exists = availableFieldSets.value.some((fs) => fs.id === 'questionnaires')
+  if (!exists) {
+    // Reload from DB (migration may have just added it)
+    globalSettingsStore.clearCache()
+    const freshFieldSets = await globalSettingsStore.getFieldSetOptions(true)
+    if (freshFieldSets && freshFieldSets.length > 0) {
+      availableFieldSets.value = freshFieldSets
+    }
+
+    // If still not there, add it dynamically
+    if (!availableFieldSets.value.some((fs) => fs.id === 'questionnaires')) {
+      availableFieldSets.value.push({
+        id: 'questionnaires',
+        name: 'Fragebögen',
+        description: 'Fragebögen und Surveys (MoCA, BDI, etc.)',
+        icon: 'quiz',
+        concepts: ['CUSTOM: QUESTIONNAIRE'],
+      })
+      logger.info('Dynamically added questionnaires field set to available sets')
+    }
+  }
+
+  // Activate
+  if (!activeFieldSets.value.includes('questionnaires')) {
+    activeFieldSets.value.push('questionnaires')
+    localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
+    logger.info('Auto-activated questionnaires field set')
+  }
+}
+
+/**
+ * Handle questionnaire added from CustomObservationDialog search
+ * Creates a pending observation and activates the questionnaires FieldSet
+ */
+const onQuestionnaireAddedFromSearch = async (data) => {
+  logger.info('Questionnaire added from search dialog', { code: data.code, title: data.title })
+  await onQuestionnaireSelected({ code: data.code, title: data.title, shortTitle: data.shortTitle })
 }
 
 // Helper Methods use store methods

@@ -94,7 +94,8 @@ export const useObservationStore = defineStore('observation', () => {
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
           CONCEPT_DESCRIPTION,
           TVAL_RESOLVED,
-          ENCOUNTER_NUM
+          ENCOUNTER_NUM,
+          OBSERVATION_BLOB
         FROM patient_observations
         WHERE ENCOUNTER_NUM = ?
         ORDER BY CATEGORY_CHAR, CONCEPT_NAME_CHAR
@@ -525,6 +526,8 @@ export const useObservationStore = defineStore('observation', () => {
       value: obs.TVAL_CHAR,
       numericValue: obs.NVAL_NUM,
       valTypeCode: obs.VALTYPE_CD,
+      // Preserve raw data for components that need OBSERVATION_BLOB etc.
+      rawData: obs,
     }
 
     // Process different value types
@@ -587,6 +590,25 @@ export const useObservationStore = defineStore('observation', () => {
     }
   }
 
+  /**
+   * Check if a concept code matches against a list of concept codes
+   */
+  const matchesConceptCode = (obsConceptCode, conceptList) => {
+    if (!conceptList) return false
+    return conceptList.some((concept) => {
+      if (obsConceptCode === concept) return true
+
+      const conceptNumMatch = concept.match(/[:\s]([0-9-]+)$/)
+      const obsNumMatch = obsConceptCode.match(/[:\s]([0-9-]+)$/)
+      if (conceptNumMatch && obsNumMatch && conceptNumMatch[1] === obsNumMatch[1]) return true
+
+      if (concept.includes(obsConceptCode) || obsConceptCode.includes(concept)) return true
+      if (obsConceptCode.toLowerCase().includes(concept.toLowerCase())) return true
+
+      return false
+    })
+  }
+
   const getFieldSetObservations = (fieldSetId, fieldSets) => {
     if (!fieldSetId || !fieldSets || !observations.value) {
       return []
@@ -598,29 +620,24 @@ export const useObservationStore = defineStore('observation', () => {
     }
 
     return observations.value.filter((obs) => {
-      return fieldSet.concepts.some((concept) => {
-        // Multiple matching strategies
-        if (obs.conceptCode === concept) return true
+      // Exclude Q-type observations — they belong to the questionnaire section
+      if (obs.valueType === 'Q' || obs.valTypeCode === 'Q') return false
 
-        // Extract numeric codes and compare
-        const conceptMatch = concept.match(/[:\s]([0-9-]+)$/)
-        const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
-        if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) {
-          return true
-        }
+      // Strategy 1: Concept-code matching (primary, always wins)
+      if (matchesConceptCode(obs.conceptCode, fieldSet.concepts)) return true
 
-        // Partial matches
-        if (concept.includes(obs.conceptCode) || obs.conceptCode.includes(concept)) {
-          return true
-        }
+      // Strategy 2: CATEGORY_CHAR fallback — only if no OTHER FieldSet claims this observation by concept-code
+      if (fieldSet.categories?.length > 0 && obs.category && fieldSet.categories.includes(obs.category)) {
+        // Check if another FieldSet already claims this observation by concept-code (concept-code match takes priority)
+        const claimedByConceptCode = fieldSets.some((otherFs) => {
+          if (otherFs.id === fieldSetId) return false
+          return matchesConceptCode(obs.conceptCode, otherFs.concepts)
+        })
+        // Only claim by category if no other FieldSet has a concept-code match
+        return !claimedByConceptCode
+      }
 
-        // Case-insensitive match
-        if (obs.conceptCode.toLowerCase().includes(concept.toLowerCase())) {
-          return true
-        }
-
-        return false
-      })
+      return false
     })
   }
 

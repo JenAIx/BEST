@@ -5,7 +5,7 @@
  * Works in both browser (via Vite) and Node.js (tests) environments.
  */
 
-import { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData } from './csv-loader.js'
+import { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData, questionnaireFiles } from './csv-loader.js'
 
 class SeedManager {
   constructor(connection) {
@@ -18,12 +18,25 @@ class SeedManager {
     this.conceptCqlLookups = this.parseCSV(conceptCqlLookupsData)
     this.codeLookups = this.parseCSV(codeLookupData)
 
+    // Parse questionnaire JSON files into seed-ready objects
+    this.questionnaires = (questionnaireFiles || []).map(({ filename, content }) => {
+      try {
+        const json = JSON.parse(content)
+        const code = (json.short_title || filename.replace('quest_', '').replace('.json', '')).toUpperCase()
+        return { code, title: json.title || code, content }
+      } catch (error) {
+        console.warn(`⚠️  Failed to parse questionnaire ${filename}:`, error.message)
+        return null
+      }
+    }).filter(Boolean)
+
     console.log(`📊 Loaded seed data:
       - ${this.standardUsers.length} users
       - ${this.concepts.length} concepts
       - ${this.cqlRules.length} CQL rules
       - ${this.conceptCqlLookups.length} concept-CQL lookups
-      - ${this.codeLookups.length} code lookups`)
+      - ${this.codeLookups.length} code lookups
+      - ${this.questionnaires.length} questionnaires`)
   }
 
   /**
@@ -109,6 +122,7 @@ class SeedManager {
         conceptCqlLookups: 0,
         users: 0,
         codeLookups: 0,
+        questionnaires: 0,
         errors: [],
       }
 
@@ -150,7 +164,16 @@ class SeedManager {
         console.error('❌ Error seeding code lookups:', error)
       }
 
-      // 5. Seed users (independent)
+      // 5. Seed questionnaires from JSON files
+      try {
+        results.questionnaires = await this.seedQuestionnaires()
+        console.log(`✅ Seeded ${results.questionnaires} questionnaires`)
+      } catch (error) {
+        results.errors.push(`Questionnaires: ${error.message}`)
+        console.error('❌ Error seeding questionnaires:', error)
+      }
+
+      // 6. Seed users (independent)
       try {
         results.users = await this.seedStandardUsers()
         console.log(`✅ Seeded ${results.users} standard users`)
@@ -315,6 +338,45 @@ class SeedManager {
         seededCount++
       } catch (error) {
         console.error(`❌ Error seeding code lookup ${lookup.CODE_CD}:`, error.message)
+      }
+    }
+
+    return seededCount
+  }
+
+  /**
+   * Seed questionnaires from JSON files into CODE_LOOKUP
+   * @returns {Promise<number>} - Number of questionnaires seeded
+   */
+  async seedQuestionnaires() {
+    if (!this.questionnaires || this.questionnaires.length === 0) {
+      console.log('⚠️  No questionnaires to seed')
+      return 0
+    }
+
+    console.log(`🌱 Seeding ${this.questionnaires.length} questionnaires...`)
+
+    const today = new Date().toISOString().split('T')[0]
+    let seededCount = 0
+
+    for (const quest of this.questionnaires) {
+      try {
+        const sql = `INSERT OR IGNORE INTO CODE_LOOKUP (TABLE_CD, COLUMN_CD, CODE_CD, NAME_CHAR, LOOKUP_BLOB, UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD, UPLOAD_ID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        await this.connection.executeCommand(sql, [
+          'SURVEY_BEST',
+          'QUESTIONNAIRE',
+          quest.code,
+          quest.title,
+          quest.content,
+          today,
+          today,
+          'SURVEY3',
+          1,
+        ])
+        seededCount++
+        console.log(`  📋 Seeded questionnaire: ${quest.code} (${quest.title})`)
+      } catch (error) {
+        console.error(`❌ Error seeding questionnaire ${quest.code}:`, error.message)
       }
     }
 

@@ -51,21 +51,25 @@
           {{ $t('messages.found') }} {{ searchResults.length }} {{ searchResults.length === 1 ? $t('observation.conceptFound') : $t('observation.conceptsFound') }}
         </div>
         <div class="concept-list">
-          <q-card v-for="concept in searchResults" :key="concept.CONCEPT_CD" flat bordered class="concept-item cursor-pointer" @click="selectConcept(concept)">
+          <q-card v-for="concept in searchResults" :key="concept.CONCEPT_CD" flat bordered class="concept-item cursor-pointer" :class="{ 'questionnaire-item': concept._isQuestionnaire }" @click="selectConcept(concept)">
             <q-card-section class="q-pa-sm">
               <div class="concept-header">
                 <div class="concept-name-container">
+                  <q-icon v-if="concept._isQuestionnaire" name="quiz" color="purple" size="18px" class="q-mr-xs" />
                   <div class="concept-name">{{ concept.NAME_CHAR }}</div>
-                  <q-icon v-if="isConceptInCurrentVisit(concept.CONCEPT_CD)" name="warning" color="amber-7" size="18px" class="existing-observation-icon">
+                  <q-icon v-if="!concept._isQuestionnaire && isConceptInCurrentVisit(concept.CONCEPT_CD)" name="warning" color="amber-7" size="18px" class="existing-observation-icon">
                     <q-tooltip class="bg-amber-7 text-black"> This observation already exists in the current visit </q-tooltip>
                   </q-icon>
                 </div>
-                <q-chip size="xs" :color="getValueTypeColor(concept.VALTYPE_CD)" text-color="white" class="value-type-chip">
+                <q-chip v-if="concept._isQuestionnaire" size="xs" color="purple" text-color="white" class="value-type-chip" icon="quiz">
+                  Fragebogen
+                </q-chip>
+                <q-chip v-else size="xs" :color="getValueTypeColor(concept.VALTYPE_CD)" text-color="white" class="value-type-chip">
                   {{ concept.VALTYPE_CD }}
                 </q-chip>
               </div>
               <div class="concept-code text-caption text-grey-6">
-                {{ concept.CONCEPT_CD }}
+                {{ concept._isQuestionnaire ? concept._questionnaireCode : concept.CONCEPT_CD }}
               </div>
               <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">Unit: {{ concept.UNIT_CD }}</div>
             </q-card-section>
@@ -246,7 +250,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update:modelValue', 'observation-added'])
+const emit = defineEmits(['update:modelValue', 'observation-added', 'questionnaire-added'])
 
 const $q = useQuasar()
 const observationStore = useObservationStore()
@@ -341,12 +345,19 @@ const searchConcepts = async () => {
 
     const results = await conceptStore.searchConcepts(searchTerm.value, searchOptions)
     // Filter out concepts with VALTYPE_CD = 'A'
-    searchResults.value = results.filter((concept) => concept.VALTYPE_CD !== 'A')
+    const conceptResults = results.filter((concept) => concept.VALTYPE_CD !== 'A')
+
+    // Also search CODE_LOOKUP for questionnaires
+    const questionnaireResults = await searchQuestionnaires(searchTerm.value)
+
+    // Merge: questionnaires first, then concepts
+    searchResults.value = [...questionnaireResults, ...conceptResults]
     showSearchResults.value = true
 
     logger.info('Concept search completed', {
       searchTerm: searchTerm.value,
-      resultsCount: results.length,
+      conceptCount: conceptResults.length,
+      questionnaireCount: questionnaireResults.length,
     })
   } catch (error) {
     logger.error('Concept search failed', error)
@@ -434,7 +445,60 @@ const loadUnitOptions = async () => {
   }
 }
 
+/**
+ * Search CODE_LOOKUP for questionnaires matching the search term
+ */
+const searchQuestionnaires = async (term) => {
+  try {
+    const searchPattern = `%${term}%`
+    const result = await dbStore.executeQuery(
+      `SELECT CODE_CD, NAME_CHAR FROM CODE_LOOKUP
+       WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE'
+       AND (NAME_CHAR LIKE ? OR CODE_CD LIKE ?)
+       ORDER BY NAME_CHAR LIMIT 5`,
+      [searchPattern, searchPattern],
+    )
+
+    if (result.success && result.data) {
+      return result.data.map((row) => ({
+        CONCEPT_CD: `QUEST:${row.CODE_CD}`,
+        NAME_CHAR: row.NAME_CHAR,
+        VALTYPE_CD: 'Q',
+        SOURCESYSTEM_CD: 'SURVEY_BEST',
+        UNIT_CD: null,
+        _isQuestionnaire: true,
+        _questionnaireCode: row.CODE_CD,
+      }))
+    }
+    return []
+  } catch (error) {
+    logger.warn('Questionnaire search failed', error)
+    return []
+  }
+}
+
 const selectConcept = async (concept) => {
+  // Special handling for questionnaire selection
+  if (concept._isQuestionnaire) {
+    logger.info('Questionnaire selected from search', { code: concept._questionnaireCode, name: concept.NAME_CHAR })
+
+    emit('questionnaire-added', {
+      code: concept._questionnaireCode,
+      title: concept.NAME_CHAR,
+      shortTitle: concept._questionnaireCode,
+    })
+
+    resetState()
+    showDialog.value = false
+
+    $q.notify({
+      type: 'positive',
+      message: `Fragebogen "${concept.NAME_CHAR}" zur Visite hinzugefügt`,
+      position: 'top',
+    })
+    return
+  }
+
   selectedConcept.value = concept
   customObservation.value.unit = concept.UNIT_CD || ''
 
@@ -557,6 +621,7 @@ const getValueTypeColor = (valueType) => {
     S: 'purple',
     F: 'teal',
     A: 'indigo',
+    Q: 'purple',
     M: 'deep-purple',
   }
   return colorMap[valueType] || 'grey'
@@ -747,6 +812,16 @@ const resetState = () => {
         &:hover {
           background: rgba($primary, 0.05);
           border-left: 3px solid $primary;
+        }
+
+        &.questionnaire-item {
+          background: rgba($purple, 0.03);
+          border-left: 3px solid $purple;
+
+          &:hover {
+            background: rgba($purple, 0.08);
+            border-left: 3px solid $purple;
+          }
         }
 
         .concept-header {

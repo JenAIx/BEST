@@ -18,27 +18,34 @@ export function useUncategorizedObservations(visitStore, availableFieldSets, sel
     // Get all observations for the current visit
     const allVisitObservations = visitStore.observations || []
 
-    // Get all concept codes that are covered by any field set (active or inactive)
+    // Get all concept codes and categories covered by any field set
     const allCoveredConcepts = new Set()
+    const allCoveredCategories = new Set()
     availableFieldSets.value?.forEach((fieldSet) => {
       if (fieldSet.concepts) {
         fieldSet.concepts.forEach((concept) => allCoveredConcepts.add(concept))
       }
+      if (fieldSet.categories) {
+        fieldSet.categories.forEach((cat) => allCoveredCategories.add(cat))
+      }
     })
 
-    // Find observations that don't match any field set concept
+    // Find observations that don't match any field set (by concept code OR category)
     const uncategorized = allVisitObservations.filter((obs) => {
-      // Check if this observation concept matches any field set concept
+      // Exclude Q-type (questionnaire) observations - they belong to the questionnaire section
+      if (obs.valueType === 'Q' || obs.valTypeCode === 'Q') return false
+
+      // Check CATEGORY_CHAR match first (fast path)
+      if (obs.category && allCoveredCategories.has(obs.category)) return false
+
+      // Check concept code match against all field set concepts
       for (const concept of allCoveredConcepts) {
-        // Use the same matching logic as getFieldSetObservations
         if (obs.conceptCode === concept) return false
 
-        // Extract numeric codes and compare
         const conceptMatch = concept.match(/[:\s]([0-9-]+)$/)
         const obsMatch = obs.conceptCode.match(/[:\s]([0-9-]+)$/)
         if (conceptMatch && obsMatch && conceptMatch[1] === obsMatch[1]) return false
 
-        // Other matching strategies
         if (concept.includes(obs.conceptCode)) return false
         if (obs.conceptCode.includes(concept)) return false
 
@@ -48,7 +55,6 @@ export function useUncategorizedObservations(visitStore, availableFieldSets, sel
         if (obs.conceptCode.toLowerCase().includes(concept.toLowerCase())) return false
       }
 
-      // If no matches found, it's uncategorized
       return true
     })
 
