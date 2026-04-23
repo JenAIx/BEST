@@ -25,42 +25,87 @@
       <div class="text-body2 q-mt-md text-grey-6">Fragebögen werden geladen...</div>
     </div>
 
-    <!-- Questionnaire List -->
-    <div v-else-if="filteredQuestionnaires.length > 0" class="questionnaire-list">
-      <q-list bordered separator>
-        <q-item
-          v-for="q in filteredQuestionnaires"
-          :key="q.code"
-          clickable
-          v-ripple
-          @click="selectQuestionnaire(q)"
-          :class="{ 'already-added': isAlreadyAdded(q.code) }"
-        >
-          <q-item-section avatar>
-            <q-avatar :color="isAlreadyAdded(q.code) ? 'grey-4' : 'purple'" text-color="white" icon="quiz" />
-          </q-item-section>
+    <template v-else>
+      <!-- Suggested Questionnaires -->
+      <div v-if="suggestedQuestionnaires.length > 0 && !searchTerm" class="q-mb-md">
+        <div class="text-caption text-weight-bold text-purple q-mb-xs q-px-sm">
+          <q-icon name="star" size="14px" class="q-mr-xs" />
+          Empfohlen für diesen Visitentyp
+        </div>
+        <q-list bordered separator class="questionnaire-list suggested-list">
+          <q-item
+            v-for="q in suggestedQuestionnaires"
+            :key="'suggested-' + q.code"
+            clickable
+            v-ripple
+            @click="selectQuestionnaire(q)"
+            :class="{ 'already-added': isAlreadyAdded(q.code) }"
+          >
+            <q-item-section avatar>
+              <q-avatar :color="isAlreadyAdded(q.code) ? 'grey-4' : 'deep-purple'" text-color="white" icon="quiz" />
+            </q-item-section>
 
-          <q-item-section>
-            <q-item-label class="text-weight-medium">{{ q.title }}</q-item-label>
-            <q-item-label caption class="text-grey-6">{{ q.description }}</q-item-label>
-            <q-item-label caption class="text-grey-5">Code: {{ q.code }}</q-item-label>
-          </q-item-section>
+            <q-item-section>
+              <q-item-label class="text-weight-medium">
+                {{ q.title }}
+                <q-chip size="xs" color="purple-1" text-color="purple" dense class="q-ml-sm">Empfohlen</q-chip>
+              </q-item-label>
+              <q-item-label caption class="text-grey-6">{{ q.description }}</q-item-label>
+              <q-item-label caption class="text-grey-5">Code: {{ q.code }}</q-item-label>
+            </q-item-section>
 
-          <q-item-section side>
-            <q-chip v-if="isAlreadyAdded(q.code)" size="sm" color="grey-4" text-color="grey-7" icon="check">
-              Bereits hinzugefügt
-            </q-chip>
-            <q-icon v-else name="add_circle" color="primary" size="24px" />
-          </q-item-section>
-        </q-item>
-      </q-list>
-    </div>
+            <q-item-section side>
+              <q-chip v-if="isAlreadyAdded(q.code)" size="sm" color="grey-4" text-color="grey-7" icon="check">
+                Bereits hinzugefügt
+              </q-chip>
+              <q-icon v-else name="add_circle" color="deep-purple" size="24px" />
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </div>
 
-    <!-- Empty State -->
-    <div v-else class="text-center q-pa-lg">
-      <q-icon name="quiz" size="48px" color="grey-4" />
-      <div class="text-body1 text-grey-6 q-mt-md">Keine Fragebögen gefunden</div>
-    </div>
+      <!-- Separator -->
+      <div v-if="suggestedQuestionnaires.length > 0 && !searchTerm && remainingQuestionnaires.length > 0" class="text-caption text-grey-6 q-mb-xs q-px-sm">
+        Alle Fragebögen
+      </div>
+
+      <!-- Remaining / All Questionnaires -->
+      <div v-if="displayedQuestionnaires.length > 0" class="questionnaire-list">
+        <q-list bordered separator>
+          <q-item
+            v-for="q in displayedQuestionnaires"
+            :key="q.code"
+            clickable
+            v-ripple
+            @click="selectQuestionnaire(q)"
+            :class="{ 'already-added': isAlreadyAdded(q.code) }"
+          >
+            <q-item-section avatar>
+              <q-avatar :color="isAlreadyAdded(q.code) ? 'grey-4' : 'purple'" text-color="white" icon="quiz" />
+            </q-item-section>
+
+            <q-item-section>
+              <q-item-label class="text-weight-medium">{{ q.title }}</q-item-label>
+              <q-item-label caption class="text-grey-6">{{ q.description }}</q-item-label>
+              <q-item-label caption class="text-grey-5">Code: {{ q.code }}</q-item-label>
+            </q-item-section>
+
+            <q-item-section side>
+              <q-chip v-if="isAlreadyAdded(q.code)" size="sm" color="grey-4" text-color="grey-7" icon="check">
+                Bereits hinzugefügt
+              </q-chip>
+              <q-icon v-else name="add_circle" color="primary" size="24px" />
+            </q-item-section>
+          </q-item>
+        </q-list>
+      </div>
+
+      <!-- Empty State -->
+      <div v-if="filteredQuestionnaires.length === 0" class="text-center q-pa-lg">
+        <q-icon name="quiz" size="48px" color="grey-4" />
+        <div class="text-body1 text-grey-6 q-mt-md">Keine Fragebögen gefunden</div>
+      </div>
+    </template>
   </AppDialog>
 </template>
 
@@ -68,6 +113,7 @@
 import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useQuestionnaireStore } from 'src/stores/questionnaire-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 
@@ -80,18 +126,24 @@ const props = defineProps({
     type: Array,
     default: () => [],
   },
+  visitTypeCode: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'questionnaire-selected'])
 
 const $q = useQuasar()
 const questionnaireStore = useQuestionnaireStore()
+const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('AddQuestionnaireToVisitDialog')
 
 // State
 const loading = ref(false)
 const searchTerm = ref('')
+const suggestedCodes = ref([])
 
 // Computed
 const showDialog = computed({
@@ -110,6 +162,22 @@ const filteredQuestionnaires = computed(() => {
       q.description?.toLowerCase().includes(term) ||
       q.code?.toLowerCase().includes(term),
   )
+})
+
+const suggestedQuestionnaires = computed(() => {
+  if (!suggestedCodes.value.length) return []
+  return questionnaireStore.questionnaireList.filter((q) => suggestedCodes.value.includes(q.code))
+})
+
+const remainingQuestionnaires = computed(() => {
+  if (!suggestedCodes.value.length) return questionnaireStore.questionnaireList
+  const suggestedSet = new Set(suggestedCodes.value)
+  return questionnaireStore.questionnaireList.filter((q) => !suggestedSet.has(q.code))
+})
+
+const displayedQuestionnaires = computed(() => {
+  if (searchTerm.value) return filteredQuestionnaires.value
+  return remainingQuestionnaires.value
 })
 
 // Methods
@@ -154,10 +222,16 @@ const loadQuestionnaires = async () => {
 }
 
 // Load when dialog opens
-watch(showDialog, (val) => {
+watch(showDialog, async (val) => {
   if (val) {
     loadQuestionnaires()
     searchTerm.value = ''
+    if (props.visitTypeCode) {
+      suggestedCodes.value = await globalSettingsStore.getSuggestedQuestionnairesForVisitType(props.visitTypeCode)
+      logger.debug('Loaded suggested questionnaires', { visitType: props.visitTypeCode, codes: suggestedCodes.value })
+    } else {
+      suggestedCodes.value = []
+    }
   }
 })
 </script>
@@ -180,6 +254,10 @@ watch(showDialog, (val) => {
       background: $grey-1;
     }
   }
+}
+
+.suggested-list {
+  max-height: 300px;
 }
 
 .search-section {

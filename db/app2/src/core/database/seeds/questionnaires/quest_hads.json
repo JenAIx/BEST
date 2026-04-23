@@ -1,0 +1,220 @@
+{
+    "title": "HADS - Hospital Anxiety and Depression Scale",
+    "short_title": "hads",
+    "coding": {
+        "system": "http://snomed.info/sct",
+        "code": "SCTID: 273547007",
+        "display": "Hospital Anxiety and Depression Scale",
+        "version": "20240101"
+    },
+    "description": "Screening-Fragebogen für Angst und Depressivität",
+    "manual": "<b>Anleitung:</b> Bitte beantworten Sie jede der folgenden Fragen so, wie es für Sie persönlich <b>in der letzten Woche</b> am ehesten zutraf. Kreuzen Sie bitte nur <b>eine Antwort</b> pro Frage an.",
+    "keywords": "psych depression angst anxiety parkinson screening",
+    "items": [
+        {
+            "label": "1. Ich fühle mich angespannt oder überreizt",
+            "id": 1,
+            "coding": { "display": "Angespannt/überreizt", "code": "SCTID: 48694002", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Meistens", "value": 3 },
+                { "label": "Oft", "value": 2 },
+                { "label": "Von Zeit zu Zeit / gelegentlich", "value": 1 },
+                { "label": "Überhaupt nicht", "value": 0 }
+            ]
+        },
+        {
+            "label": "2. Ich kann mich heute noch so freuen wie früher",
+            "id": 2,
+            "coding": { "display": "Freude empfinden", "code": "SCTID: 247750002", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ganz genau so", "value": 0 },
+                { "label": "Nicht ganz so sehr", "value": 1 },
+                { "label": "Nur noch ein wenig", "value": 2 },
+                { "label": "Kaum oder gar nicht", "value": 3 }
+            ]
+        },
+        {
+            "label": "3. Mich überkommt eine ängstliche Vorahnung, dass etwas Schreckliches passieren könnte",
+            "id": 3,
+            "coding": { "display": "Ängstliche Vorahnung", "code": "SCTID: 419868008", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ja, sehr stark", "value": 3 },
+                { "label": "Ja, aber nicht allzu stark", "value": 2 },
+                { "label": "Etwas, aber es macht mir keine Sorgen", "value": 1 },
+                { "label": "Überhaupt nicht", "value": 0 }
+            ]
+        },
+        {
+            "label": "4. Ich kann lachen und die lustige Seite der Dinge sehen",
+            "id": 4,
+            "coding": { "display": "Lachen können", "code": "SCTID: 247749002", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ja, so viel wie immer", "value": 0 },
+                { "label": "Nicht mehr ganz so viel", "value": 1 },
+                { "label": "Inzwischen viel weniger", "value": 2 },
+                { "label": "Überhaupt nicht", "value": 3 }
+            ]
+        },
+        {
+            "label": "5. Mir gehen beunruhigende Gedanken durch den Kopf",
+            "id": 5,
+            "coding": { "display": "Beunruhigende Gedanken", "code": "SCTID: 3879003", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Einen Großteil der Zeit", "value": 3 },
+                { "label": "Verhältnismäßig oft", "value": 2 },
+                { "label": "Von Zeit zu Zeit, aber nicht allzu oft", "value": 1 },
+                { "label": "Nur gelegentlich / nie", "value": 0 }
+            ]
+        },
+        {
+            "label": "6. Ich fühle mich glücklich",
+            "id": 6,
+            "coding": { "display": "Glücklich fühlen", "code": "SCTID: 112080002", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Überhaupt nicht", "value": 3 },
+                { "label": "Selten", "value": 2 },
+                { "label": "Manchmal", "value": 1 },
+                { "label": "Meistens", "value": 0 }
+            ]
+        },
+        {
+            "label": "7. Ich kann behaglich dasitzen und mich entspannen",
+            "id": 7,
+            "coding": { "display": "Entspannen können", "code": "SCTID: 276177002", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ja, natürlich", "value": 0 },
+                { "label": "Gewöhnlich schon", "value": 1 },
+                { "label": "Nicht oft", "value": 2 },
+                { "label": "Überhaupt nicht", "value": 3 }
+            ]
+        },
+        {
+            "label": "8. Ich fühle mich in meinen Aktivitäten gebremst",
+            "id": 8,
+            "coding": { "display": "Aktivitäten gebremst", "code": "SCTID: 38382006", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Fast immer", "value": 3 },
+                { "label": "Sehr oft", "value": 2 },
+                { "label": "Manchmal", "value": 1 },
+                { "label": "Überhaupt nicht", "value": 0 }
+            ]
+        },
+        {
+            "label": "9. Ich habe manchmal ein ängstliches Gefühl in der Magengegend",
+            "id": 9,
+            "coding": { "display": "Ängstliches Gefühl im Magen", "code": "SCTID: 139394000", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Überhaupt nicht", "value": 0 },
+                { "label": "Gelegentlich", "value": 1 },
+                { "label": "Ziemlich oft", "value": 2 },
+                { "label": "Sehr oft", "value": 3 }
+            ]
+        },
+        {
+            "label": "10. Ich habe das Interesse an meiner äußeren Erscheinung verloren",
+            "id": 10,
+            "coding": { "display": "Interesse an Erscheinung", "code": "SCTID: 247592009", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ja, stimmt genau", "value": 3 },
+                { "label": "Ich kümmere mich nicht so sehr darum, wie ich sollte", "value": 2 },
+                { "label": "Möglicherweise kümmere ich mich zu wenig darum", "value": 1 },
+                { "label": "Ich kümmere mich so viel darum wie immer", "value": 0 }
+            ]
+        },
+        {
+            "label": "11. Ich fühle mich rastlos, muss immer in Bewegung sein",
+            "id": 11,
+            "coding": { "display": "Rastlosigkeit", "code": "SCTID: 162221009", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ja, tatsächlich sehr", "value": 3 },
+                { "label": "Ziemlich", "value": 2 },
+                { "label": "Nicht sehr", "value": 1 },
+                { "label": "Überhaupt nicht", "value": 0 }
+            ]
+        },
+        {
+            "label": "12. Ich blicke mit Freude in die Zukunft",
+            "id": 12,
+            "coding": { "display": "Freude an Zukunft", "code": "SCTID: 247748005", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ja, sehr", "value": 0 },
+                { "label": "Eher weniger als früher", "value": 1 },
+                { "label": "Viel weniger als früher", "value": 2 },
+                { "label": "Kaum bis gar nicht", "value": 3 }
+            ]
+        },
+        {
+            "label": "13. Mich überkommt plötzlich ein panikartiger Zustand",
+            "id": 13,
+            "coding": { "display": "Panikartiger Zustand", "code": "SCTID: 371631005", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Ja, tatsächlich sehr oft", "value": 3 },
+                { "label": "Ziemlich oft", "value": 2 },
+                { "label": "Nicht sehr oft", "value": 1 },
+                { "label": "Überhaupt nicht", "value": 0 }
+            ]
+        },
+        {
+            "label": "14. Ich kann mich an einem guten Buch, einer Radio- oder Fernsehsendung freuen",
+            "id": 14,
+            "coding": { "display": "Freude an Unterhaltung", "code": "SCTID: 247747000", "system": "http://snomed.info/sct" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Oft", "value": 0 },
+                { "label": "Manchmal", "value": 1 },
+                { "label": "Eher selten", "value": 2 },
+                { "label": "Sehr selten", "value": 3 }
+            ]
+        }
+    ],
+    "results": {
+        "method": "sum",
+        "coding": { "display": "HADS Total Score", "code": "CUSTOM: SCORES_HADS_TOTAL", "system": "CUSTOM" },
+        "evaluation": [
+            { "min": 0, "max": 14, "label": "Unauffällig" },
+            { "min": 15, "max": 20, "label": "Grenzwertig" },
+            { "min": 21, "max": 42, "label": "Auffällig" }
+        ]
+    }
+}

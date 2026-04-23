@@ -1172,6 +1172,24 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   }
 
   /**
+   * Get suggested questionnaire codes for a visit type
+   * @param {string} visitTypeCode - Visit type code (e.g. 'parkinson_erst')
+   * @returns {Promise<Array<string>>} Array of questionnaire CODE_CDs
+   */
+  const getSuggestedQuestionnairesForVisitType = async (visitTypeCode) => {
+    if (!visitTypeCode) return []
+    try {
+      const visitType = await getLookupValue('VISIT_TYPE_CD', visitTypeCode, 'VISIT_DIMENSION')
+      if (!visitType?.LOOKUP_BLOB) return []
+      const metadata = parseMetadata(visitType.LOOKUP_BLOB)
+      return Array.isArray(metadata.suggestedQuestionnaires) ? metadata.suggestedQuestionnaires : []
+    } catch (error) {
+      logger.error(`Failed to get suggested questionnaires for ${visitTypeCode}`, error)
+      return []
+    }
+  }
+
+  /**
    * Get default visit templates when database lookup fails
    * @returns {Array} Default visit templates
    */
@@ -1205,13 +1223,22 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
         color: 'info',
       },
       {
-        id: 'parkinson-assessment',
-        name: 'Parkinson Assessment',
-        type: 'parkinson',
-        location: 'Neurology Clinic',
-        notes: 'Parkinson disease assessment including motor function evaluation, UPDRS scoring, medication review, and symptom monitoring',
+        id: 'parkinson-erstvorstellung',
+        name: 'Parkinson Erstvorstellung',
+        type: 'parkinson_erst',
+        location: 'Neurologie-Ambulanz',
+        notes: 'Erstdiagnose Parkinson: Diagnosestellung, Anamnese, Medikationsplanung, initiale Scores',
         icon: 'psychology',
         color: 'deep-purple',
+      },
+      {
+        id: 'parkinson-verlaufskontrolle',
+        name: 'Parkinson Verlaufskontrolle',
+        type: 'parkinson_verlauf',
+        location: 'Neurologie-Ambulanz',
+        notes: 'Verlaufsvisite: Medikationsanpassung, Verlaufsscores, Therapiemonitoring',
+        icon: 'update',
+        color: 'teal',
       },
       {
         id: 'emergency-visit',
@@ -1314,5 +1341,6 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     // Visit type field set methods
     getFieldSetsForVisitType,
+    getSuggestedQuestionnairesForVisitType,
   }
 })

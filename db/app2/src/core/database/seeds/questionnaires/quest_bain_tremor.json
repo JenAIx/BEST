@@ -1,0 +1,214 @@
+{
+    "title": "Bain Tremor Assessment Scale",
+    "short_title": "bain_tremor",
+    "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: SCORES_BAIN_TREMOR",
+        "display": "Bain Tremor Assessment Scale",
+        "version": "20240101"
+    },
+    "description": "Klinische Beurteilung des Tremors in verschiedenen Positionen und bei Aufgaben",
+    "manual": "<b>Anleitung:</b> Bewerten Sie den Tremor des Patienten in jeder Position bzw. bei jeder Aufgabe auf einer Skala von 0 bis 10.<br><br><b>Bewertung:</b><ul><li>0 = Kein Tremor</li><li>1 = Kaum wahrnehmbarer Tremor</li><li>2 = Tremor mit Amplitude < 1 cm</li><li>3 = Tremor mit Amplitude 1–2 cm</li><li>4 = Tremor mit Amplitude 2–4 cm</li><li>5 = Tremor mit Amplitude > 4 cm</li><li>6–10 = Zunehmende Schwere mit funktioneller Beeinträchtigung</li></ul>",
+    "keywords": "tremor parkinson essential ruhetremor haltetremor intentionstremor",
+    "items": [
+        {
+            "label": "Ruhetremor rechte obere Extremität",
+            "id": 1,
+            "coding": { "display": "Ruhetremor rechts", "code": "CUSTOM: BAIN_REST_R", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Ruhetremor linke obere Extremität",
+            "id": 2,
+            "coding": { "display": "Ruhetremor links", "code": "CUSTOM: BAIN_REST_L", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Haltetremor rechte obere Extremität",
+            "id": 3,
+            "coding": { "display": "Haltetremor rechts", "code": "CUSTOM: BAIN_POSTURAL_R", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Haltetremor linke obere Extremität",
+            "id": 4,
+            "coding": { "display": "Haltetremor links", "code": "CUSTOM: BAIN_POSTURAL_L", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Intentionstremor rechte obere Extremität (Finger-Nase-Versuch)",
+            "id": 5,
+            "coding": { "display": "Intentionstremor rechts", "code": "CUSTOM: BAIN_INTENTION_R", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Intentionstremor linke obere Extremität (Finger-Nase-Versuch)",
+            "id": 6,
+            "coding": { "display": "Intentionstremor links", "code": "CUSTOM: BAIN_INTENTION_L", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Schriftprobe (dominante Hand)",
+            "id": 7,
+            "coding": { "display": "Schriftprobe", "code": "CUSTOM: BAIN_WRITING", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Spirale zeichnen (dominante Hand)",
+            "id": 8,
+            "coding": { "display": "Spirale zeichnen", "code": "CUSTOM: BAIN_SPIRAL", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        },
+        {
+            "label": "Wasser umgießen / Wasser einschenken",
+            "id": 9,
+            "coding": { "display": "Wasser einschenken", "code": "CUSTOM: BAIN_POURING", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                { "label": "0", "value": 0 },
+                { "label": "1", "value": 1 },
+                { "label": "2", "value": 2 },
+                { "label": "3", "value": 3 },
+                { "label": "4", "value": 4 },
+                { "label": "5", "value": 5 },
+                { "label": "6", "value": 6 },
+                { "label": "7", "value": 7 },
+                { "label": "8", "value": 8 },
+                { "label": "9", "value": 9 },
+                { "label": "10", "value": 10 }
+            ]
+        }
+    ],
+    "results": {
+        "method": "sum",
+        "coding": { "display": "Bain Tremor Total Score", "code": "CUSTOM: SCORES_BAIN_TREMOR_TOTAL", "system": "CUSTOM" },
+        "evaluation": [
+            { "min": 0, "max": 9, "label": "Leichter Tremor" },
+            { "min": 10, "max": 30, "label": "Mäßiger Tremor" },
+            { "min": 31, "max": 60, "label": "Starker Tremor" },
+            { "min": 61, "max": 90, "label": "Sehr starker Tremor" }
+        ]
+    }
+}

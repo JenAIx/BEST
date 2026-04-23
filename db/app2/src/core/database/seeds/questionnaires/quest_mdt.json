@@ -1,0 +1,204 @@
+{
+    "title": "MDT - Münchner Dysphagie Test",
+    "short_title": "mdt",
+    "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: SCORES_MDT",
+        "display": "Münchner Dysphagie Test",
+        "version": "20240101"
+    },
+    "description": "Screening-Fragebogen zur Erfassung von Schluckstörungen bei Parkinson",
+    "manual": "<b>Anleitung:</b> Der folgende Fragebogen dient der Erfassung von Schluckstörungen (Dysphagie). Bitte beantworten Sie die Fragen bezogen auf die <b>letzten 4 Wochen</b>.",
+    "keywords": "dysphagie schlucken parkinson swallowing screening",
+    "items": [
+        {
+            "label": "1. Haben Sie Schwierigkeiten beim Schlucken von festen Speisen?",
+            "id": 1,
+            "coding": { "display": "Schlucken feste Speisen", "code": "CUSTOM: MDT_SOLID", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "2. Haben Sie Schwierigkeiten beim Schlucken von weichen Speisen (z.B. Brei)?",
+            "id": 2,
+            "coding": { "display": "Schlucken weiche Speisen", "code": "CUSTOM: MDT_SOFT", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "3. Haben Sie Schwierigkeiten beim Schlucken von Flüssigkeiten?",
+            "id": 3,
+            "coding": { "display": "Schlucken Flüssigkeiten", "code": "CUSTOM: MDT_LIQUID", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "4. Müssen Sie beim Essen oder Trinken husten?",
+            "id": 4,
+            "coding": { "display": "Husten bei Nahrungsaufnahme", "code": "CUSTOM: MDT_COUGH", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "5. Verschlucken Sie sich häufig?",
+            "id": 5,
+            "coding": { "display": "Verschlucken", "code": "CUSTOM: MDT_CHOKE", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "6. Haben Sie das Gefühl, dass Essen im Hals stecken bleibt?",
+            "id": 6,
+            "coding": { "display": "Globusgefühl", "code": "CUSTOM: MDT_GLOBUS", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "7. Verändert sich Ihre Stimme während oder nach dem Essen/Trinken (z.B. gurgelnd, heiser)?",
+            "id": 7,
+            "coding": { "display": "Stimmveränderung", "code": "CUSTOM: MDT_VOICE", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "8. Tritt Nahrung oder Flüssigkeit aus der Nase aus?",
+            "id": 8,
+            "coding": { "display": "Nasale Regurgitation", "code": "CUSTOM: MDT_NASAL", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "9. Brauchen Sie länger als andere zum Essen?",
+            "id": 9,
+            "coding": { "display": "Verlängerte Essenszeit", "code": "CUSTOM: MDT_TIME", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "10. Vermeiden Sie bestimmte Lebensmittel wegen Schluckproblemen?",
+            "id": 10,
+            "coding": { "display": "Vermeidung Lebensmittel", "code": "CUSTOM: MDT_AVOID", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        },
+        {
+            "label": "11. Haben Sie durch Schluckprobleme an Gewicht verloren?",
+            "id": 11,
+            "coding": { "display": "Gewichtsverlust", "code": "CUSTOM: MDT_WEIGHT", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nein", "value": 0 },
+                { "label": "Leicht (1-2 kg)", "value": 1 },
+                { "label": "Mäßig (3-5 kg)", "value": 2 },
+                { "label": "Deutlich (> 5 kg)", "value": 3 }
+            ]
+        },
+        {
+            "label": "12. Haben Sie Probleme mit vermehrtem Speichelfluss (Drooling)?",
+            "id": 12,
+            "coding": { "display": "Speichelfluss", "code": "CUSTOM: MDT_DROOL", "system": "CUSTOM" },
+            "value": null,
+            "type": "radio",
+            "inline": false,
+            "options": [
+                { "label": "Nie", "value": 0 },
+                { "label": "Selten", "value": 1 },
+                { "label": "Manchmal", "value": 2 },
+                { "label": "Oft", "value": 3 },
+                { "label": "Immer", "value": 4 }
+            ]
+        }
+    ],
+    "results": {
+        "method": "sum",
+        "coding": { "display": "MDT Gesamtscore", "code": "CUSTOM: SCORES_MDT_TOTAL", "system": "CUSTOM" },
+        "evaluation": [
+            { "min": 0, "max": 5, "label": "Keine relevante Dysphagie" },
+            { "min": 6, "max": 15, "label": "Leichte Dysphagie" },
+            { "min": 16, "max": 30, "label": "Mäßige Dysphagie" },
+            { "min": 31, "max": 47, "label": "Schwere Dysphagie" }
+        ]
+    }
+}

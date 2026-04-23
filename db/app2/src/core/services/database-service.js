@@ -22,6 +22,7 @@ import { databaseViews } from '../database/migrations/002-views.js'
 import { studyTables } from '../database/migrations/004-study-tables.js'
 import { questionnaireFieldSet } from '../database/migrations/005-questionnaire-fieldset.js'
 import { fieldsetCategories } from '../database/migrations/006-fieldset-categories.js'
+import { parkinsonVisitTypes } from '../database/migrations/007-parkinson-visit-types.js'
 
 class DatabaseService {
   constructor() {
@@ -70,6 +71,7 @@ class DatabaseService {
       this.migrationManager.registerMigration(studyTables)
       this.migrationManager.registerMigration(questionnaireFieldSet)
       this.migrationManager.registerMigration(fieldsetCategories)
+      this.migrationManager.registerMigration(parkinsonVisitTypes)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()

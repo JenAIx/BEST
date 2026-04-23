@@ -119,6 +119,7 @@
     <AddQuestionnaireToVisitDialog
       v-model="showAddQuestionnaireDialog"
       :existing-questionnaire-codes="existingQuestionnaireCodes"
+      :visit-type-code="selectedVisit?.visitType || ''"
       @questionnaire-selected="onQuestionnaireSelected"
     />
 
@@ -422,7 +423,7 @@ const activateFieldSetsForVisitType = async (visit) => {
       })
 
       // Special logging for Parkinson visits
-      if (visitType === 'parkinson') {
+      if (visitType === 'parkinson_erst' || visitType === 'parkinson_verlauf') {
         logger.info('PARKINSON VISIT FIELD SETS', {
           requestedFieldSets: visitTypeFieldSets,
           validatedFieldSets: validFieldSets,
