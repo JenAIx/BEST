@@ -370,11 +370,68 @@ This will:
 dist\electron\Packaged\Best - Scientific DB Manager-win32-x64\Best - Scientific DB Manager.exe
 ```
 
+#### Spezifische Anmerkungen: `npm run package:win-x64`
+
+Das Skript `package:win-x64` (siehe `package.json`) produziert ein portables EXE
+unter `dist\electron\Packaged\best-win-x64-<version>-portable.exe` sowie den
+entpackten Ordner `dist\electron\Packaged\win-unpacked\`.
+
+**Host = Windows x64 (nativer Build, der Normalfall):**
+
+```powershell
+npm.cmd install
+npm.cmd run package:win-x64
+```
+
+Keine weiteren Einstellungen erforderlich — `sqlite3` lädt das vorgebaute
+`win32-x64`-Binary automatisch und `electron-builder` packt für `win32-x64`.
+
+**Host = Windows arm64 (Cross-Compile nach x64):**
+
+Auf einem arm64-Host wählt `prebuild-install` per Default das arm64-Binary von
+`sqlite3` — das existiert aber nicht und der Fallback auf `node-gyp rebuild`
+scheitert (Visual Studio 18 BuildTools werden von `node-gyp` aktuell nicht als
+gültige Toolchain erkannt, unterstützt sind nur VS 2017–2022). Damit sowohl der
+Root-Install als auch der interne `npm install` von Quasar in
+`dist\electron\UnPackaged\` die `win32-x64`-Prebuilts ziehen, werden folgende
+Einträge in `.npmrc` benötigt (bereits gesetzt):
+
+```ini
+arch=x64
+target_arch=x64
+target_platform=win32
+```
+
+Zusätzlich sollte Cypress beim Install übersprungen werden, da das Cypress-Binary
+auf `win32-arm64` nicht installiert werden kann (Cypress wird nur für E2E-Tests
+gebraucht, nicht für das Packaging):
+
+```powershell
+$env:CYPRESS_INSTALL_BINARY = "0"
+npm.cmd install
+npm.cmd run package:win-x64
+```
+
+Nach erfolgreichem Build erzeugt `@electron/rebuild` die nativen Module direkt
+für `arch=x64` — das läuft auch auf dem arm64-Host, weil es auf die Prebuilts
+zurückgreift, nicht auf `node-gyp`.
+
 #### Troubleshooting on Windows
 
 - Execution policy error (when running npm scripts):
   - Symptom: “Ausführung von Skripts auf diesem System deaktiviert” / `PSSecurityException`
   - Fix: Run step 1 above (temporary policy bypass).
+
+- `sqlite3` build schlägt fehl mit „No prebuilt binaries found (arch=arm64)“ oder
+  „Could not find any Visual Studio installation to use“:
+  - Ursache: Host ist `win32-arm64`, `prebuild-install` versucht das falsche
+    Binary, und `node-gyp` erkennt VS 18 BuildTools nicht.
+  - Fix: `.npmrc` auf `arch=x64 / target_arch=x64 / target_platform=win32`
+    setzen (siehe Abschnitt oben) und neu installieren.
+
+- Cypress-Install bricht mit „Platform: win32-arm64 … does not meet the
+  operating system requirements“:
+  - Fix: `CYPRESS_INSTALL_BINARY=0` vor `npm install` setzen.
 
 - Cannot find module 'sqlite3' (at runtime):
   - Ensure `sqlite3` is installed as a runtime dependency (already configured in `package.json`).
