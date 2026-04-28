@@ -225,19 +225,10 @@ export const useDatabaseStore = defineStore('database', () => {
       const createdPatient = await patientRepo.createPatient(patientData)
 
       if (currentUserId && createdPatient.PATIENT_NUM) {
-        const insertAccessSql = `
-          INSERT OR IGNORE INTO USER_PATIENT_LOOKUP
-            (USER_ID, PATIENT_NUM, NAME_CHAR, UPDATE_DATE, IMPORT_DATE)
-          VALUES (?, ?, ?, datetime('now'), datetime('now'))
-        `
-        const result = await executeCommand(insertAccessSql, [
-          currentUserId,
-          createdPatient.PATIENT_NUM,
-          'Creator access - auto-assigned',
-        ])
-        if (!result.success) {
-          throw new Error(`Failed to assign creator access: ${result.error || 'unknown error'}`)
-        }
+        const lookupRepo = getRepository('userPatientLookup')
+        await lookupRepo.addAssociationIfMissing(currentUserId, createdPatient.PATIENT_NUM, {
+          nameChar: 'Creator access - auto-assigned',
+        })
         loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
           userId: currentUserId,
           patientNum: createdPatient.PATIENT_NUM,
@@ -304,18 +295,9 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const deletePatient = async (id) => {
-    // First, delete USER_PATIENT_LOOKUP entries (no CASCADE on PATIENT_NUM FK)
-    try {
-      await executeCommand(
-        'DELETE FROM USER_PATIENT_LOOKUP WHERE PATIENT_NUM = ?',
-        [id]
-      )
-    } catch (error) {
-      console.warn('Failed to delete user-patient associations:', error)
-      // Continue with patient deletion even if this fails
-    }
-
-    // Then delete the patient (will CASCADE to VISIT_DIMENSION, OBSERVATION_FACT, NOTE_FACT)
+    // delete_patient_cascade trigger (migration 003) handles VISIT_DIMENSION
+    // and USER_PATIENT_LOOKUP cleanup; the visit trigger then cascades to
+    // OBSERVATION_FACT/NOTE_FACT. No manual pre-delete needed.
     const patientRepo = getPatientRepository()
     return await patientRepo.delete(id)
   }

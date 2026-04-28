@@ -35,6 +35,7 @@
     "unknown": "Unbekannt",
     "remove": "Entfernen",
     "confirmRemove": "Entfernen bestätigen",
+    "confirmDelete": "Löschen bestätigen",
     "expand": "Erweitern",
     "collapse": "Einklappen",
     "refresh": "Aktualisieren",
@@ -347,7 +348,9 @@
     "unfilledObservations": "{count} nicht ausgefüllte Beobachtung(en)",
     "noObservationsYet": "Noch keine Beobachtungen",
     "addObservationsHint": "Beobachtungen aus den verfügbaren Optionen unten hinzufügen",
-    "observationCategories": "Feldgruppen"
+    "observationCategories": "Feldgruppen",
+    "alreadyInVisit": "Diese Beobachtung existiert bereits in dieser Visite",
+    "questionnaire": "Fragebogen"
   },
   "questionnaire": {
     "questionnaire": "Fragebogen",
@@ -498,6 +501,11 @@
     "profileUpdateFailed": "Profil-Update fehlgeschlagen: {error}",
     "passwordUpdatedSuccess": "Passwort erfolgreich aktualisiert",
     "passwordUpdateFailed": "Passwort-Update fehlgeschlagen: {error}",
+    "passwordResetRequired": "Ihr Passwort muss zurückgesetzt werden, bevor Sie fortfahren können. Bitte vergeben Sie ein neues Passwort, um wieder Zugriff auf die Anwendung zu erhalten.",
+    "changePassword": "Passwort ändern",
+    "confirmDeleteLookup": "Möchten Sie \"{name}\" wirklich löschen?",
+    "lookupDeleted": "Wert erfolgreich gelöscht",
+    "lookupDeleteFailed": "Löschen fehlgeschlagen",
     "apiKeys": "API-Schlüssel",
     "apiKeysHint": "API-Schlüssel für externe Dienste konfigurieren. Schlüssel werden lokal in Ihrem Browser gespeichert.",
     "saved": "Gespeichert",

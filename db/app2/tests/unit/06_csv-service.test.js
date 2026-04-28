@@ -634,6 +634,18 @@ Data1,Data2`
       expect(textObs.TVAL_CHAR).toBe('Normal')
     })
 
+    it('should reject overflow dates like 2024-13-45 instead of parsing them as VALTYPE D', () => {
+      const obs = csvService.createObservationFromField('TEST:DATE', '2024-13-45', 1, 1)
+      expect(obs.VALTYPE_CD).not.toBe('D')
+      expect(obs.TVAL_CHAR).toBe('2024-13-45')
+    })
+
+    it('should accept a valid YYYY-MM-DD date as VALTYPE D', () => {
+      const obs = csvService.createObservationFromField('TEST:DATE', '2024-03-15', 1, 1)
+      expect(obs.VALTYPE_CD).toBe('D')
+      expect(obs.START_DATE).toBe('2024-03-15')
+    })
+
     it('should infer observation value types correctly', () => {
       // Numeric value
       const numericObs = csvService.createObservationFromField('TEST:001', '180', 1, 1)

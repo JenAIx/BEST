@@ -35,6 +35,7 @@
     "unknown": "Unknown",
     "remove": "Remove",
     "confirmRemove": "Confirm Remove",
+    "confirmDelete": "Confirm Delete",
     "expand": "Expand",
     "collapse": "Collapse",
     "refresh": "Refresh",
@@ -347,7 +348,9 @@
     "unfilledObservations": "{count} unfilled observation(s)",
     "noObservationsYet": "No observations yet",
     "addObservationsHint": "Add observations from the available options below",
-    "observationCategories": "Field Groups"
+    "observationCategories": "Field Groups",
+    "alreadyInVisit": "This observation already exists in the current visit",
+    "questionnaire": "Questionnaire"
   },
   "questionnaire": {
     "questionnaire": "Questionnaire",
@@ -498,6 +501,11 @@
     "profileUpdateFailed": "Failed to update profile: {error}",
     "passwordUpdatedSuccess": "Password updated successfully",
     "passwordUpdateFailed": "Failed to update password: {error}",
+    "passwordResetRequired": "Your password must be reset before continuing. Please set a new password to regain access to the application.",
+    "changePassword": "Change password",
+    "confirmDeleteLookup": "Are you sure you want to delete \"{name}\"?",
+    "lookupDeleted": "Value deleted successfully",
+    "lookupDeleteFailed": "Failed to delete value",
     "apiKeys": "API Keys",
     "apiKeysHint": "Configure API keys for external services. Keys are stored locally in your browser.",
     "saved": "Saved",

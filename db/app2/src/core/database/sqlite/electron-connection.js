@@ -25,20 +25,13 @@ export default class ElectronConnection {
 
       this.logger.info('Connecting to database via Electron', { databasePath })
 
-      const success = window.electron.dbman.connect(databasePath)
+      // dbman.connect now applies durability PRAGMAs (journal/sync/foreign_keys)
+      // before resolving, so we don't need to re-issue them from the renderer.
+      const success = await window.electron.dbman.connect(databasePath)
 
       if (success) {
         this.isConnected = true
         this.databasePath = databasePath
-
-        // Enable foreign keys for data integrity
-        try {
-          await this.executeCommand('PRAGMA foreign_keys = ON')
-          this.logger.info('Foreign key constraints enabled')
-        } catch (error) {
-          this.logger.warn('Failed to enable foreign keys', error)
-        }
-
         this.logger.success('Successfully connected to database', { databasePath })
         return true
       } else {

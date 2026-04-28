@@ -58,11 +58,11 @@
                   <q-icon v-if="concept._isQuestionnaire" name="quiz" color="purple" size="18px" class="q-mr-xs" />
                   <div class="concept-name">{{ concept.NAME_CHAR }}</div>
                   <q-icon v-if="!concept._isQuestionnaire && isConceptInCurrentVisit(concept.CONCEPT_CD)" name="warning" color="amber-7" size="18px" class="existing-observation-icon">
-                    <q-tooltip class="bg-amber-7 text-black"> This observation already exists in the current visit </q-tooltip>
+                    <q-tooltip class="bg-amber-7 text-black">{{ $t('observation.alreadyInVisit') }}</q-tooltip>
                   </q-icon>
                 </div>
                 <q-chip v-if="concept._isQuestionnaire" size="xs" color="purple" text-color="white" class="value-type-chip" icon="quiz">
-                  Fragebogen
+                  {{ $t('observation.questionnaire') }}
                 </q-chip>
                 <q-chip v-else size="xs" :color="getValueTypeColor(concept.VALTYPE_CD)" text-color="white" class="value-type-chip">
                   {{ concept.VALTYPE_CD }}
@@ -71,7 +71,7 @@
               <div class="concept-code text-caption text-grey-6">
                 {{ concept._isQuestionnaire ? concept._questionnaireCode : concept.CONCEPT_CD }}
               </div>
-              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">Unit: {{ concept.UNIT_CD }}</div>
+              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">{{ $t('observation.unit') }}: {{ concept.UNIT_CD }}</div>
             </q-card-section>
           </q-card>
         </div>
@@ -80,7 +80,7 @@
       <!-- No Results Message -->
       <div v-else-if="showSearchResults && searchTerm.length >= 2 && !searching && searchAttempted" class="no-results">
         <q-icon name="search_off" color="grey-5" size="24px" />
-        <div class="text-caption text-grey-6">No concepts found matching your search.</div>
+        <div class="text-caption text-grey-6">{{ $t('observation.noConceptsFound') }}</div>
       </div>
     </div>
 

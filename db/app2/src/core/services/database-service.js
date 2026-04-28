@@ -16,6 +16,7 @@ import CqlRepository from '../database/repositories/cql-repository.js'
 import VisitRepository from '../database/repositories/visit-repository.js'
 import ObservationRepository from '../database/repositories/observation-repository.js'
 import StudyRepository from '../database/repositories/study-repository.js'
+import UserPatientLookupRepository from '../database/repositories/user-patient-lookup-repository.js'
 import { coreSchema } from '../database/migrations/001-core-schema.js'
 import { databaseViews } from '../database/migrations/002-views.js'
 import { databaseTriggers } from '../database/migrations/003-triggers.js'
@@ -139,6 +140,7 @@ class DatabaseService {
     this.repositories.visit = new VisitRepository(this.connection)
     this.repositories.observation = new ObservationRepository(this.connection)
     this.repositories.study = new StudyRepository(this.connection)
+    this.repositories.userPatientLookup = new UserPatientLookupRepository(this.connection)
 
     // TODO: Add other repositories as they are implemented
     // this.repositories.provider = new ProviderRepository(this.connection)

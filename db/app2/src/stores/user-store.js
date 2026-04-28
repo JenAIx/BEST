@@ -532,34 +532,11 @@ export const useUserStore = defineStore('user', () => {
         throw new Error('User ID and Patient Number are required')
       }
 
-      // Check for existing association
-      const checkQuery = `
-        SELECT USER_PATIENT_ID, USER_ID, PATIENT_NUM, NAME_CHAR, USER_PATIENT_BLOB
-        FROM USER_PATIENT_LOOKUP
-        WHERE USER_ID = ? AND PATIENT_NUM = ?
-        LIMIT 1
-      `
-      const checkResult = await dbStore.executeQuery(checkQuery, [userId, patientNum])
-
-      if (checkResult.success && checkResult.data.length > 0) {
-        const existingAssociation = checkResult.data[0]
-        const error = new Error('This user-patient association already exists')
-        error.code = 'DUPLICATE_ASSOCIATION'
-        error.existingAssociation = existingAssociation
-        throw error
-      }
-
-      // Create new association
-      const insertQuery = `
-        INSERT INTO USER_PATIENT_LOOKUP (USER_ID, PATIENT_NUM, NAME_CHAR, USER_PATIENT_BLOB, UPDATE_DATE, IMPORT_DATE)
-        VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-      `
-
-      const insertResult = await dbStore.executeCommand(insertQuery, [userId, patientNum, nameChar, userPatientBlob])
-
-      if (!insertResult.success) {
-        throw new Error(insertResult.error || 'Failed to create association')
-      }
+      const lookupRepo = dbStore.getRepository('userPatientLookup')
+      const insertResult = await lookupRepo.addAssociation(userId, patientNum, {
+        nameChar,
+        blob: userPatientBlob,
+      })
 
       logger.success('User-Patient association created', {
         userId: associationData.USER_ID,
@@ -664,12 +641,8 @@ export const useUserStore = defineStore('user', () => {
     try {
       logger.info('Deleting user-patient association', { associationId })
 
-      const deleteQuery = `DELETE FROM USER_PATIENT_LOOKUP WHERE USER_PATIENT_ID = ?`
-      const deleteResult = await dbStore.executeCommand(deleteQuery, [associationId])
-
-      if (!deleteResult.success) {
-        throw new Error(deleteResult.error || 'Failed to delete association')
-      }
+      const lookupRepo = dbStore.getRepository('userPatientLookup')
+      await lookupRepo.removeById(associationId)
 
       // Remove from local state
       const index = userPatientAssociations.value.findIndex((assoc) => assoc.USER_PATIENT_ID === associationId)

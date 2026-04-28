@@ -2,6 +2,16 @@
   <q-page class="q-pa-md">
     <div class="text-h4 q-mb-md">{{ $t('common.settings') }}</div>
 
+    <q-banner v-if="mustChangePassword" class="bg-warning text-dark q-mb-md" rounded>
+      <template v-slot:avatar>
+        <q-icon name="lock_reset" />
+      </template>
+      {{ $t('settings.passwordResetRequired') }}
+      <template v-slot:action>
+        <q-btn flat color="dark" :label="$t('settings.changePassword')" @click="onResetPassword" />
+      </template>
+    </q-banner>
+
     <div class="row q-col-gutter-md">
       <!-- User Profile Settings -->
       <div class="col-12 col-md-6">
@@ -79,9 +89,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth-store'
 import SettingsForm from 'components/SettingsForm.vue'
 import PasswordResetDialog from 'components/PasswordResetDialog.vue'
@@ -89,10 +100,19 @@ import LocalSettingsForm from 'components/LocalSettingsForm.vue'
 
 const $q = useQuasar()
 const { t } = useI18n()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const currentUser = computed(() => authStore.currentUser)
+const mustChangePassword = computed(() => authStore.mustChangePassword)
 const showPasswordDialog = ref(false)
+
+// Auto-open the password dialog when the auth-guard forced a redirect here
+onMounted(() => {
+  if (mustChangePassword.value || route.query.forceReset === 'true') {
+    showPasswordDialog.value = true
+  }
+})
 
 const formatDate = (dateString) => {
   if (!dateString) return t('settings.never')

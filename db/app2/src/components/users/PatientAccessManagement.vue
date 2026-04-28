@@ -409,30 +409,19 @@ const onConfirmAddUser = async () => {
 
     logger.info('Adding user access', { userId, patientNum })
 
-    // Check for duplicate
-    const checkResult = await dbStore.executeQuery(
-      `SELECT COUNT(*) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?`,
-      [userId, patientNum]
-    )
-
-    if (checkResult.success && checkResult.data[0].count > 0) {
-      $q.notify({
-        type: 'warning',
-        message: 'This user already has access to this patient',
-        position: 'top',
-      })
-      return
-    }
-
-    // Create association
-    const insertResult = await dbStore.executeCommand(
-      `INSERT INTO USER_PATIENT_LOOKUP (USER_ID, PATIENT_NUM, NAME_CHAR, UPDATE_DATE, IMPORT_DATE)
-       VALUES (?, ?, ?, datetime('now'), datetime('now'))`,
-      [userId, patientNum, newUserNote.value || null]
-    )
-
-    if (!insertResult.success) {
-      throw new Error('Failed to create association')
+    const lookupRepo = dbStore.getRepository('userPatientLookup')
+    try {
+      await lookupRepo.addAssociation(userId, patientNum, { nameChar: newUserNote.value || null })
+    } catch (err) {
+      if (err.code === 'DUPLICATE_ASSOCIATION') {
+        $q.notify({
+          type: 'warning',
+          message: 'This user already has access to this patient',
+          position: 'top',
+        })
+        return
+      }
+      throw err
     }
 
     $q.notify({
@@ -470,14 +459,8 @@ const onRemoveUser = async (patientNum, userId) => {
   try {
     logger.info('Removing user access', { userId, patientNum })
 
-    const deleteResult = await dbStore.executeCommand(
-      `DELETE FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?`,
-      [userId, patientNum]
-    )
-
-    if (!deleteResult.success) {
-      throw new Error('Failed to remove access')
-    }
+    const lookupRepo = dbStore.getRepository('userPatientLookup')
+    await lookupRepo.removeByUserAndPatient(userId, patientNum)
 
     $q.notify({
       type: 'positive',

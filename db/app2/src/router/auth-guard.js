@@ -40,6 +40,13 @@ export const requireAuth = (to, from, next) => {
   // Update activity timestamp
   authStore.updateActivity()
 
+  // Hard-Reset enforcement: if the user must change their password, /settings
+  // is the only authenticated route they can reach until they do.
+  if (authStore.mustChangePassword && to.path !== '/settings') {
+    next({ path: '/settings', query: { forceReset: 'true' } })
+    return
+  }
+
   // Check route-specific permissions
   if (to.meta.requiresAdmin && !authStore.isAdmin) {
     next({
@@ -109,6 +116,12 @@ export const setupAuthGuard = (router) => {
     // Update activity for authenticated users
     if (authStore.isAuthenticated) {
       authStore.updateActivity()
+
+      // Hard-Reset enforcement (mirrors requireAuth for routes that don't use it)
+      if (authStore.mustChangePassword && to.path !== '/settings' && to.path !== '/login') {
+        next({ path: '/settings', query: { forceReset: 'true' } })
+        return
+      }
     }
 
     next()

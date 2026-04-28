@@ -680,10 +680,20 @@ export class CsvService {
       tval = null
     }
 
-    // Try to parse as date (YYYY-MM-DD format)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const date = new Date(value)
-      if (!isNaN(date.getTime())) {
+    // Try to parse as date (YYYY-MM-DD format). new Date() rolls overflow values
+    // (e.g. "2024-13-45" → 2025-02-14) silently, so we validate each component.
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+    if (dateMatch) {
+      const [, yearStr, monthStr, dayStr] = dateMatch
+      const year = Number(yearStr)
+      const month = Number(monthStr)
+      const day = Number(dayStr)
+      const date = new Date(Date.UTC(year, month - 1, day))
+      const matchesInput =
+        date.getUTCFullYear() === year &&
+        date.getUTCMonth() === month - 1 &&
+        date.getUTCDate() === day
+      if (matchesInput) {
         valtype = 'D'
         tval = null
         // For date observations, we store the date in START_DATE field

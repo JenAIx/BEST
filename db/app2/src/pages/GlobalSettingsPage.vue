@@ -63,6 +63,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useI18n } from 'vue-i18n'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 
 // Component imports
@@ -74,6 +75,7 @@ import JsonViewerDialog from 'src/components/globalsettings/JsonViewerDialog.vue
 import QuestionnairePreviewDialog from 'src/components/globalsettings/QuestionnairePreviewDialog.vue'
 
 const $q = useQuasar()
+const { t } = useI18n()
 const route = useRoute()
 const globalSettingsStore = useGlobalSettingsStore()
 
@@ -386,8 +388,8 @@ const importQuestionnaire = async (questionnaireData) => {
 
 const deleteValue = async (row) => {
   $q.dialog({
-    title: 'Confirm Delete',
-    message: `Are you sure you want to delete "${row.NAME_CHAR}"?`,
+    title: t('common.confirmDelete'),
+    message: t('settings.confirmDeleteLookup', { name: row.NAME_CHAR }),
     cancel: true,
     persistent: true,
   }).onOk(async () => {
@@ -396,14 +398,14 @@ const deleteValue = async (row) => {
 
       $q.notify({
         type: 'positive',
-        message: 'Value deleted successfully',
+        message: t('settings.lookupDeleted'),
       })
       await loadLookupValues()
     } catch (error) {
       console.error('Error deleting value:', error)
       $q.notify({
         type: 'negative',
-        message: 'Failed to delete value',
+        message: t('settings.lookupDeleteFailed'),
         caption: error.message,
       })
     }
