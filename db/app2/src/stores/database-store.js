@@ -204,62 +204,60 @@ export const useDatabaseStore = defineStore('database', () => {
   const createPatient = async (patientData) => {
     const loggingStore = useLoggingStore()
     const patientRepo = getPatientRepository()
-    
-    // Create the patient first
-    const createdPatient = await patientRepo.createPatient(patientData)
-    
-    // Auto-create USER_PATIENT_LOOKUP entry for creator (but import auth-store dynamically to avoid circular dependency)
+
+    // Resolve creator before opening the transaction so a circular-import failure
+    // doesn't leave us holding an orphan BEGIN.
+    let currentUserId = null
     try {
       const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      const currentUserId = authStore.currentUser?.USER_ID
-      
+      currentUserId = useAuthStore().currentUser?.USER_ID ?? null
+    } catch (error) {
+      loggingStore.warn('DatabaseStore', 'Could not resolve current user for patient access', error)
+    }
+
+    // Atomic: patient INSERT + USER_PATIENT_LOOKUP INSERT must commit or rollback together,
+    // otherwise a regular (non-admin) user would be locked out of patients they just created.
+    let inTransaction = false
+    try {
+      await executeCommand('BEGIN TRANSACTION')
+      inTransaction = true
+
+      const createdPatient = await patientRepo.createPatient(patientData)
+
       if (currentUserId && createdPatient.PATIENT_NUM) {
-        // Check if association already exists (e.g., from import or previous creation)
-        const checkQuery = `
-          SELECT COUNT(*) as count
-          FROM USER_PATIENT_LOOKUP
-          WHERE USER_ID = ? AND PATIENT_NUM = ?
+        const insertAccessSql = `
+          INSERT OR IGNORE INTO USER_PATIENT_LOOKUP
+            (USER_ID, PATIENT_NUM, NAME_CHAR, UPDATE_DATE, IMPORT_DATE)
+          VALUES (?, ?, ?, datetime('now'), datetime('now'))
         `
-        const checkResult = await executeQuery(checkQuery, [currentUserId, createdPatient.PATIENT_NUM])
-        
-        if (checkResult.success && checkResult.data[0]?.count > 0) {
-          loggingStore.info('DatabaseStore', 'USER_PATIENT_LOOKUP entry already exists, skipping', {
-            userId: currentUserId,
-            patientNum: createdPatient.PATIENT_NUM,
-          })
-        } else {
-          loggingStore.info('DatabaseStore', 'Auto-creating USER_PATIENT_LOOKUP entry for creator', {
-            userId: currentUserId,
-            patientNum: createdPatient.PATIENT_NUM,
-          })
-          
-          const insertAccessSql = `
-            INSERT INTO USER_PATIENT_LOOKUP 
-              (USER_ID, PATIENT_NUM, NAME_CHAR, UPDATE_DATE, IMPORT_DATE)
-            VALUES (?, ?, ?, datetime('now'), datetime('now'))
-          `
-          
-          const result = await executeCommand(insertAccessSql, [
-            currentUserId,
-            createdPatient.PATIENT_NUM,
-            'Creator access - auto-assigned'
-          ])
-          
-          if (result.success) {
-            loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry created', {
-              userId: currentUserId,
-              patientNum: createdPatient.PATIENT_NUM,
-            })
-          }
+        const result = await executeCommand(insertAccessSql, [
+          currentUserId,
+          createdPatient.PATIENT_NUM,
+          'Creator access - auto-assigned',
+        ])
+        if (!result.success) {
+          throw new Error(`Failed to assign creator access: ${result.error || 'unknown error'}`)
+        }
+        loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
+          userId: currentUserId,
+          patientNum: createdPatient.PATIENT_NUM,
+        })
+      }
+
+      await executeCommand('COMMIT')
+      inTransaction = false
+      return createdPatient
+    } catch (error) {
+      if (inTransaction) {
+        try {
+          await executeCommand('ROLLBACK')
+        } catch (rollbackError) {
+          loggingStore.error('DatabaseStore', 'Rollback after createPatient failure failed', rollbackError)
         }
       }
-    } catch (error) {
-      // Don't fail patient creation if access assignment fails
-      loggingStore.error('DatabaseStore', 'Failed to create USER_PATIENT_LOOKUP entry', error)
+      loggingStore.error('DatabaseStore', 'createPatient transaction failed', error)
+      throw error
     }
-    
-    return createdPatient
   }
 
   const findPatient = async (id) => {
@@ -670,24 +668,55 @@ export const useDatabaseStore = defineStore('database', () => {
         count: cleanPatientIds.length,
       })
 
-      const patientRepo = getRepository('patient')
-      const visitRepo = getRepository('visit')
-
-      // Get patient details
-      const patientDetails = await Promise.all(
-        cleanPatientIds.map(async (patientId) => {
-          const patient = await patientRepo.findByPatientCode(patientId)
-          if (!patient) {
-            loggingStore.warn('DatabaseStore', 'Patient not found', { patientId })
-            return { patient: null, visits: [] }
-          }
-          const visits = await visitRepo.getPatientVisitTimeline(patient.PATIENT_NUM)
-          return { patient, visits }
-        }),
+      // Two bulk queries instead of 2*N round-trips: one for the patients, one for
+      // their visits joined to observation counts. We then bucket visits in JS.
+      const placeholders = cleanPatientIds.map(() => '?').join(',')
+      const patientResult = await executeQuery(
+        `SELECT * FROM PATIENT_DIMENSION WHERE PATIENT_CD IN (${placeholders})`,
+        cleanPatientIds,
       )
+      const patients = patientResult.success ? patientResult.data : []
 
-      // Filter out null patients
-      const validPatientData = patientDetails.filter((p) => p.patient !== null)
+      const missing = cleanPatientIds.filter(
+        (id) => !patients.some((p) => String(p.PATIENT_CD) === id),
+      )
+      for (const id of missing) {
+        loggingStore.warn('DatabaseStore', 'Patient not found', { patientId: id })
+      }
+
+      const visitsByPatient = new Map()
+      if (patients.length > 0) {
+        const numPlaceholders = patients.map(() => '?').join(',')
+        const visitResult = await executeQuery(
+          `SELECT v.*, COUNT(o.OBSERVATION_ID) AS observationCount
+           FROM VISIT_DIMENSION v
+           LEFT JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
+           WHERE v.PATIENT_NUM IN (${numPlaceholders})
+           GROUP BY v.ENCOUNTER_NUM
+           ORDER BY v.START_DATE DESC`,
+          patients.map((p) => p.PATIENT_NUM),
+        )
+        if (visitResult.success) {
+          for (const visit of visitResult.data) {
+            if (!visitsByPatient.has(visit.PATIENT_NUM)) {
+              visitsByPatient.set(visit.PATIENT_NUM, [])
+            }
+            visitsByPatient.get(visit.PATIENT_NUM).push(visit)
+          }
+        }
+      }
+
+      // Preserve the order requested by the caller
+      const validPatientData = cleanPatientIds
+        .map((id) => {
+          const patient = patients.find((p) => String(p.PATIENT_CD) === id)
+          if (!patient) return null
+          return {
+            patient,
+            visits: visitsByPatient.get(patient.PATIENT_NUM) || [],
+          }
+        })
+        .filter(Boolean)
 
       if (validPatientData.length === 0) {
         throw new Error('No valid patients found with the provided IDs')

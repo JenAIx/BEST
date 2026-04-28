@@ -260,6 +260,8 @@ All users are seeded automatically during database initialization.
 | `db`     | `123`    | user  | ❌ No  | Database User       |
 | `public` | `public` | user  | ❌ No  | Public User         |
 
+**Password storage**: Stored as bcrypt hashes in `USER_MANAGEMENT.PASSWORD_CHAR` (migration 008). The plaintext column never persists. After running migration 008 against a pre-existing database, every user has `MUST_CHANGE_PASSWORD = 1` (Hard-Reset) and the seeded credentials above remain valid for one final login. The `auth-store.mustChangePassword` flag exposes this state to the UI; `verifyPassword` (`src/core/services/password-service.js`) accepts both bcrypt hashes and legacy plaintext for the transition.
+
 ### User Permissions
 
 - **Admin Users** (`COLUMN_CD = 'admin'`):
@@ -423,7 +425,7 @@ authStore.login(username, password, databasePath)
 **Data import from various formats**
 
 - CSV import with two-header row support
-- HL7 CDA import with digital signatures
+- HL7 FHIR Composition (JSON) import — **no digital signature verification** is performed
 - Data validation and preview
 - Batch import operations
 

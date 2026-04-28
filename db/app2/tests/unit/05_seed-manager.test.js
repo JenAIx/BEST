@@ -211,10 +211,14 @@ describe('SeedManager', () => {
 
       await seedManager.insertUser(user)
 
-      expect(mockConnection.executeCommand).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT OR IGNORE INTO USER_MANAGEMENT'),
-        expect.arrayContaining([1, 'admin', 'admin', 'Administrator', 'admin']),
-      )
+      const call = mockConnection.executeCommand.mock.calls.at(-1)
+      expect(call[0]).toContain('INSERT OR IGNORE INTO USER_MANAGEMENT')
+      // PASSWORD_CHAR is hashed before insert; rest of the values pass through
+      expect(call[1]).toEqual(expect.arrayContaining([1, 'admin', 'admin', 'Administrator']))
+      const passwordValue = call[1][4]
+      expect(typeof passwordValue).toBe('string')
+      expect(passwordValue).not.toBe('admin')
+      expect(passwordValue).toMatch(/^\$2[aby]\$\d{2}\$/)
     })
   })
 

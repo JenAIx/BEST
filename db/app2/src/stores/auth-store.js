@@ -15,6 +15,14 @@
 import { defineStore } from 'pinia'
 import { useDatabaseStore } from './database-store'
 import { useLoggingStore } from './logging-store'
+import { hashPassword, verifyPassword } from '../core/services/password-service.js'
+
+function stripPassword(user) {
+  if (!user) return user
+  const clone = { ...user }
+  delete clone.PASSWORD_CHAR
+  return clone
+}
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -25,6 +33,7 @@ export const useAuthStore = defineStore('auth', {
     rememberMe: false,
     loginError: null,
     selectedDatabase: null,
+    mustChangePassword: false,
   }),
 
   getters: {
@@ -86,8 +95,8 @@ export const useAuthStore = defineStore('auth', {
         try {
           const authData = JSON.parse(savedAuth)
           if (!this.isSessionExpired(authData.lastActivity)) {
-            // Set initial auth state from localStorage
-            this.user = authData.user
+            // Set initial auth state from localStorage; strip any legacy PASSWORD_CHAR
+            this.user = stripPassword(authData.user)
             this.isAuthenticated = true
             this.lastActivity = Date.now()
             this.selectedDatabase = authData.selectedDatabase
@@ -107,9 +116,10 @@ export const useAuthStore = defineStore('auth', {
                 if (freshUser) {
                   const loggingStore = useLoggingStore()
                   loggingStore.debug('AuthStore', 'Refreshed user data from database', {
-                    freshUser,
+                    userId: freshUser.USER_ID,
                   })
-                  this.user = freshUser
+                  this.user = stripPassword(freshUser)
+                  this.mustChangePassword = freshUser.MUST_CHANGE_PASSWORD === 1
                   // Save the refreshed data back to localStorage
                   this.saveAuth()
                 }
@@ -168,8 +178,9 @@ export const useAuthStore = defineStore('auth', {
           return false
         }
 
-        // Check password (in real app, this should be hashed)
-        if (user.PASSWORD_CHAR !== credentials.password) {
+        // bcrypt-compare; legacy plaintext rows still accepted once via fallback in verifyPassword
+        const passwordOk = await verifyPassword(credentials.password, user.PASSWORD_CHAR)
+        if (!passwordOk) {
           this.loginError = 'Invalid username or password'
           loggingStore.warn('AuthStore', 'Login failed: Invalid password', {
             username: credentials.username,
@@ -184,12 +195,13 @@ export const useAuthStore = defineStore('auth', {
         //   return false
         // }
 
-        // Set authentication state
-        this.user = user
+        // Set authentication state — never keep PASSWORD_CHAR in memory state
+        this.user = stripPassword(user)
         this.isAuthenticated = true
         this.lastActivity = Date.now()
         this.selectedDatabase = credentials.database
         this.rememberMe = credentials.rememberMe || false
+        this.mustChangePassword = user.MUST_CHANGE_PASSWORD === 1
 
         // Save to localStorage if remember me is checked
         if (this.rememberMe) {
@@ -248,6 +260,7 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false
       this.lastActivity = null
       this.loginError = null
+      this.mustChangePassword = false
       this.clearAuth()
 
       loggingStore.debug('AuthStore', 'Authentication cleared from localStorage')
@@ -286,8 +299,9 @@ export const useAuthStore = defineStore('auth', {
      * Save auth state to localStorage
      */
     saveAuth() {
+      // Defensive: never leak PASSWORD_CHAR (or any future password fields) to localStorage
       const authData = {
-        user: this.user,
+        user: stripPassword(this.user),
         lastActivity: this.lastActivity,
         selectedDatabase: this.selectedDatabase,
       }
@@ -428,23 +442,25 @@ export const useAuthStore = defineStore('auth', {
         // Get database store and update user password
         const dbStore = useDatabaseStore()
 
-        // Use transaction to ensure changes are committed
+        // Hash before persisting; clear MUST_CHANGE_PASSWORD on success
+        const passwordHash = await hashPassword(newPassword)
         const commands = [
           {
-            sql: `UPDATE USER_MANAGEMENT SET PASSWORD_CHAR = ?, UPDATE_DATE = ? WHERE USER_ID = ?`,
-            params: [newPassword, new Date().toISOString(), userId],
+            sql: `UPDATE USER_MANAGEMENT SET PASSWORD_CHAR = ?, MUST_CHANGE_PASSWORD = 0, UPDATE_DATE = ? WHERE USER_ID = ?`,
+            params: [passwordHash, new Date().toISOString(), userId],
           },
         ]
 
         const transactionResult = await dbStore.executeTransaction(commands)
 
         if (transactionResult && Array.isArray(transactionResult) && transactionResult.length > 0) {
-          // Update local user state
-          this.user = { ...this.user, PASSWORD_CHAR: newPassword }
+          // Local state mirrors DB (PASSWORD_CHAR is never kept in memory)
+          this.user = stripPassword(this.user)
+          this.mustChangePassword = false
 
           // Save updated auth state
           this.saveAuth()
-          loggingStore.debug('AuthStore', 'Updated password saved to localStorage')
+          loggingStore.debug('AuthStore', 'Password update persisted')
 
           loggingStore.success('AuthStore', `Password updated successfully for user: ${username}`, {
             username,

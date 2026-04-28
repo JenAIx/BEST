@@ -35,6 +35,7 @@
     "@dbbest/clinical-schema": "file:../../clinical-schema/js",
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
+    "bcryptjs": "^3.0.3",
     "cql-execution": "^2.4.0",
     "openai": "^5.20.0",
     "pinia": "^3.0.1",

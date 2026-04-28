@@ -18,11 +18,12 @@ import ObservationRepository from '../database/repositories/observation-reposito
 import StudyRepository from '../database/repositories/study-repository.js'
 import { coreSchema } from '../database/migrations/001-core-schema.js'
 import { databaseViews } from '../database/migrations/002-views.js'
-// import { databaseTriggers } from '../database/migrations/003-triggers.js'
+import { databaseTriggers } from '../database/migrations/003-triggers.js'
 import { studyTables } from '../database/migrations/004-study-tables.js'
 import { questionnaireFieldSet } from '../database/migrations/005-questionnaire-fieldset.js'
 import { fieldsetCategories } from '../database/migrations/006-fieldset-categories.js'
 import { parkinsonVisitTypes } from '../database/migrations/007-parkinson-visit-types.js'
+import { passwordHashing } from '../database/migrations/008-password-hashing.js'
 
 class DatabaseService {
   constructor() {
@@ -66,12 +67,12 @@ class DatabaseService {
       // Register consolidated migrations
       this.migrationManager.registerMigration(coreSchema)
       this.migrationManager.registerMigration(databaseViews)
-      // TODO: Fix trigger SQL syntax and re-enable
-      // this.migrationManager.registerMigration(databaseTriggers)
+      this.migrationManager.registerMigration(databaseTriggers)
       this.migrationManager.registerMigration(studyTables)
       this.migrationManager.registerMigration(questionnaireFieldSet)
       this.migrationManager.registerMigration(fieldsetCategories)
       this.migrationManager.registerMigration(parkinsonVisitTypes)
+      this.migrationManager.registerMigration(passwordHashing)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()

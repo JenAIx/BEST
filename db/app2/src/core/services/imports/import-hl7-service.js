@@ -6,6 +6,11 @@
  * - Clinical data extraction and transformation
  * - Metadata preservation
  * - Proper handling of questionnaire observations with ValType='Q'
+ *
+ * NOTE: This service does NOT verify digital signatures on incoming HL7 documents.
+ * Callers must establish trust through other means (transport security, manual review,
+ * trusted source channels). If signature verification is required, add a Crypto-based
+ * pre-check before parseHl7Content().
  */
 
 import { createImportStructure } from './import-structure.js'
@@ -86,7 +91,8 @@ export class ImportHl7Service {
    */
   parseHl7Content(hl7Content) {
     try {
-      const cleanContent = hl7Content.trim()
+      // Strip UTF-8 BOM before trimming so files saved by Excel/Notepad still parse
+      const cleanContent = hl7Content.replace(/^\uFEFF/, '').trim()
 
       if (!cleanContent.startsWith('{')) {
         throw new Error('HL7 content must be JSON format')

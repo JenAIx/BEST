@@ -312,12 +312,19 @@ export class CsvService {
       // Transform to clinical objects
       const clinicalData = await this.transformCsvToClinical(parsedData, importOptions)
 
+      const warnings = (clinicalData.skippedRows || []).map((s) => ({
+        code: 'ROW_SKIPPED',
+        message: `Row ${s.rowIndex + 1} skipped: ${s.reason}`,
+      }))
+
       return {
         success: true,
         data: clinicalData,
+        warnings,
         metadata: {
-          ...parsedData.metadata, // Include extracted metadata from CSV comments
+          ...parsedData.metadata,
           rowsProcessed: parsedData.dataRows.length,
+          rowsSkipped: clinicalData.skippedRows ? clinicalData.skippedRows.length : 0,
           patients: clinicalData.patients.length,
           visits: clinicalData.visits.length,
           observations: clinicalData.observations.length,
@@ -344,7 +351,9 @@ export class CsvService {
    * @returns {Object} Parsed CSV structure
    */
   parseCsvContent(csvContent) {
-    const lines = csvContent.split(/\r?\n/)
+    // Strip UTF-8 BOM so the first header column doesn't end up named "\ufeffPATIENT_CD"
+    const normalized = typeof csvContent === 'string' ? csvContent.replace(/^\uFEFF/, '') : csvContent
+    const lines = normalized.split(/\r?\n/)
     const commentLines = lines.filter((line) => line.trim().startsWith('#'))
     const dataLines = lines.filter((line) => line.trim() && !line.startsWith('#'))
 
@@ -523,15 +532,20 @@ export class CsvService {
       visits: [],
       observations: [],
     }
+    const skippedRows = []
 
     const patientMap = new Map()
     const visitMap = new Map()
 
-    for (const row of parsedData.dataRows) {
-      const rowData = this.mapRowToObject(row, parsedData.conceptHeaders)
+    parsedData.dataRows.forEach((row, index) => {
+      try {
+        const rowData = this.mapRowToObject(row, parsedData.conceptHeaders)
 
-      // Create or update patient
-      if (rowData.PATIENT_CD) {
+        if (!rowData.PATIENT_CD) {
+          skippedRows.push({ rowIndex: index, reason: 'missing PATIENT_CD' })
+          return
+        }
+
         let patient = patientMap.get(rowData.PATIENT_CD)
         if (!patient) {
           patient = this.createPatientFromRow(rowData)
@@ -539,23 +553,29 @@ export class CsvService {
           clinicalData.patients.push(patient)
         }
 
-        // Create or update visit
         if (rowData.START_DATE || rowData.LOCATION_CD) {
           const visitKey = `${rowData.PATIENT_CD}_${rowData.START_DATE || 'unknown'}`
           let visit = visitMap.get(visitKey)
           if (!visit) {
-            visit = this.createVisitFromRow(rowData, patient.PATIENT_NUM)
+            // Unique placeholder ENCOUNTER_NUM per visit so the importer's idMap can
+            // route each row's observations to its own visit (DB autoincrements the real id).
+            const placeholderEncounterNum = visitMap.size + 1
+            visit = this.createVisitFromRow(rowData, patient.PATIENT_NUM, placeholderEncounterNum)
             visitMap.set(visitKey, visit)
             clinicalData.visits.push(visit)
           }
 
-          // Create observations
           const observations = this.createObservationsFromRow(rowData, patient.PATIENT_NUM, visit.ENCOUNTER_NUM)
           clinicalData.observations.push(...observations)
         }
+      } catch (rowError) {
+        skippedRows.push({ rowIndex: index, reason: rowError.message })
       }
-    }
+    })
 
+    if (skippedRows.length > 0) {
+      clinicalData.skippedRows = skippedRows
+    }
     return clinicalData
   }
 
@@ -599,10 +619,10 @@ export class CsvService {
    * @param {number} patientNum - Patient number
    * @returns {Object} Visit object
    */
-  createVisitFromRow(rowData, patientNum) {
+  createVisitFromRow(rowData, patientNum, encounterNum = 1) {
     return {
       PATIENT_NUM: patientNum,
-      ENCOUNTER_NUM: 1, // Default encounter number for CSV import
+      ENCOUNTER_NUM: encounterNum,
       START_DATE: rowData.START_DATE || null,
       LOCATION_CD: rowData.LOCATION_CD || 'UNKNOWN',
       INOUT_CD: rowData.INOUT_CD || 'O',

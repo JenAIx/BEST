@@ -430,6 +430,13 @@ TEST002,2024-01-16,165,60`
       expect(result.metadata.author).toBe('Test User')
     })
 
+    it('should strip UTF-8 BOM from CSV content', () => {
+      const bomCsv = '\uFEFFPatient ID\nPATIENT_CD\nTEST001'
+      const parsed = csvService.parseCsvContent(bomCsv)
+      expect(parsed.descriptionHeaders[0]).toBe('Patient ID')
+      expect(parsed.conceptHeaders[0]).toBe('PATIENT_CD')
+    })
+
     it('should parse CSV content correctly', () => {
       const parsed = csvService.parseCsvContent(mockCsvContent)
 
@@ -538,6 +545,32 @@ Data1,Data2`
       expect(result.observations[0].CONCEPT_CD).toBe('TEST:001')
     })
 
+    it('should assign unique ENCOUNTER_NUMs to multiple visits of the same patient', async () => {
+      const parsedData = {
+        descriptionHeaders: ['Patient ID', 'Visit Date', 'Height'],
+        conceptHeaders: ['PATIENT_CD', 'START_DATE', 'TEST:001'],
+        dataRows: [
+          ['PAT001', '2024-01-15', '180'],
+          ['PAT001', '2024-02-20', '181'],
+          ['PAT001', '2024-03-25', '182'],
+          ['PAT002', '2024-01-15', '170'],
+        ],
+      }
+
+      const result = await csvService.transformCsvToClinical(parsedData, { validateData: false })
+
+      expect(result.patients.length).toBe(2)
+      expect(result.visits.length).toBe(4)
+      const encounterNums = result.visits.map((v) => v.ENCOUNTER_NUM)
+      expect(new Set(encounterNums).size).toBe(4)
+      // Each observation routes to its own visit's placeholder ENCOUNTER_NUM
+      const obsByVisit = new Map()
+      for (const obs of result.observations) {
+        obsByVisit.set(obs.ENCOUNTER_NUM, (obsByVisit.get(obs.ENCOUNTER_NUM) || 0) + 1)
+      }
+      expect(obsByVisit.size).toBe(4)
+    })
+
     it('should map row data to objects', () => {
       const row = ['TEST001', '2024-01-15', '180', 'Normal']
       const conceptHeaders = ['PATIENT_CD', 'START_DATE', 'TEST:001', 'TEST:002']
@@ -644,20 +677,26 @@ Data1,Data2`
       expect(result.errors.some((error) => error.message === 'Required field missing: PATIENT_CD')).toBe(true)
     })
 
-    it('should handle transformation errors', async () => {
+    it('should record per-row failures as skippedRows instead of aborting the import', async () => {
       const parsedData = {
-        descriptionHeaders: ['Patient ID'],
-        conceptHeaders: ['PATIENT_CD'],
-        dataRows: [['TEST001']],
+        descriptionHeaders: ['Patient ID', 'Visit Date', 'Height'],
+        conceptHeaders: ['PATIENT_CD', 'START_DATE', 'TEST:001'],
+        dataRows: [
+          ['TEST001', '2024-01-15', '180'],
+          ['TEST_BAD', '2024-01-16', '170'],
+          ['TEST002', '2024-01-17', '160'],
+        ],
       }
 
-      // Mock a method to throw an error
-      vi.spyOn(csvService, 'createPatientFromRow').mockImplementation(() => {
-        throw new Error('Test error')
+      vi.spyOn(csvService, 'createPatientFromRow').mockImplementation((rowData) => {
+        if (rowData.PATIENT_CD === 'TEST_BAD') throw new Error('boom')
+        return { PATIENT_CD: rowData.PATIENT_CD, SOURCESYSTEM_CD: 'CSV_IMPORT', UPLOAD_ID: 1 }
       })
 
-      const importOptions = { validateData: false }
-      await expect(csvService.transformCsvToClinical(parsedData, importOptions)).rejects.toThrow('Test error')
+      const result = await csvService.transformCsvToClinical(parsedData, { validateData: false })
+
+      expect(result.patients.length).toBe(2)
+      expect(result.skippedRows).toEqual([{ rowIndex: 1, reason: 'boom' }])
     })
   })
 })

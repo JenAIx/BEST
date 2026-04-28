@@ -290,9 +290,10 @@ class RealSQLiteConnection {
       throw new Error('Database not connected')
     }
 
+    let inTransaction = false
     try {
-      // Start transaction
       await this.executeCommand('BEGIN TRANSACTION')
+      inTransaction = true
 
       const results = []
       for (const command of commands) {
@@ -300,8 +301,8 @@ class RealSQLiteConnection {
         results.push(result)
       }
 
-      // Commit transaction
       await this.executeCommand('COMMIT')
+      inTransaction = false
 
       return {
         success: true,
@@ -309,8 +310,14 @@ class RealSQLiteConnection {
         message: 'Transaction completed successfully',
       }
     } catch (error) {
-      // Rollback on error
-      await this.executeCommand('ROLLBACK')
+      if (inTransaction) {
+        // Wrap ROLLBACK so a secondary failure here doesn't mask the real error
+        try {
+          await this.executeCommand('ROLLBACK')
+        } catch (rollbackError) {
+          console.error('Rollback failed after transaction error:', rollbackError)
+        }
+      }
       throw error
     }
   }
