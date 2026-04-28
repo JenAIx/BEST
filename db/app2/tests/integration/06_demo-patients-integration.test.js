@@ -59,10 +59,7 @@ describe('Demo Patient Creation Integration Tests', () => {
     migrationManager = new MigrationManager(connection)
     seedManager = new SeedManager(connection)
 
-    migrationManager.registerMigration(currentSchema)
-    migrationManager.registerMigration(addNoteFactColumns)
-    // TODO: Re-enable cascade triggers once SQL parsing issues are resolved
-    // migrationManager.registerMigration(addCascadeTriggers)
+    migrationManager.registerMigration(coreSchema)
 
     // Initialize database with migrations and seed data
     await migrationManager.initializeDatabaseWithSeeds(seedManager)

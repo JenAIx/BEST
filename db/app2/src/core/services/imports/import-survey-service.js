@@ -112,8 +112,9 @@ export class ImportSurveyService extends BaseImportService {
         // Use eval in a safe way to parse JavaScript object literal
         // Create a safe context for evaluation
         const safeEval = (code) => {
-          // Remove any potential unsafe code
-          if (code.includes('function') || code.includes('=>') || code.includes('eval') || code.includes('require')) {
+          // Reject hostile JS — but match whole tokens, not substrings
+          // (e.g. the word "evaluation" inside CDA HTML content is safe).
+          if (/\bfunction\b|=>|\beval\s*\(|\brequire\s*\(/.test(code)) {
             throw new Error('Unsafe code detected')
           }
 

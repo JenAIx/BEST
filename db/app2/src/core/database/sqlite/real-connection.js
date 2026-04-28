@@ -8,6 +8,92 @@ import fs from 'fs'
 import path from 'path'
 import { createLogger } from '../../services/logging-service.js'
 
+/**
+ * Split a multi-statement SQL string into individual statements.
+ * Respects:
+ *   - single-quoted string literals ('...''escape...')
+ *   - double-quoted identifiers ("...""escape...")
+ *   - line comments (-- ... \n) and block comments (/* ... *\/)
+ *   - BEGIN…END blocks (CASE…END as well), so semicolons inside trigger bodies
+ *     are not treated as statement terminators.
+ */
+function splitSqlStatements(sql) {
+  const statements = []
+  const len = sql.length
+  let buf = ''
+  let i = 0
+  let depth = 0 // BEGIN/CASE nesting depth
+
+  const isWordChar = (c) => /[A-Za-z0-9_]/.test(c)
+
+  while (i < len) {
+    const c = sql[i]
+    const next = sql[i + 1]
+
+    // Line comment
+    if (c === '-' && next === '-') {
+      while (i < len && sql[i] !== '\n') { buf += sql[i]; i++ }
+      continue
+    }
+    // Block comment
+    if (c === '/' && next === '*') {
+      buf += c; buf += next; i += 2
+      while (i < len && !(sql[i] === '*' && sql[i + 1] === '/')) { buf += sql[i]; i++ }
+      if (i < len) { buf += sql[i]; buf += sql[i + 1]; i += 2 }
+      continue
+    }
+    // Single-quoted literal
+    if (c === "'") {
+      buf += c; i++
+      while (i < len) {
+        if (sql[i] === "'" && sql[i + 1] === "'") { buf += "''"; i += 2; continue }
+        buf += sql[i]
+        if (sql[i] === "'") { i++; break }
+        i++
+      }
+      continue
+    }
+    // Double-quoted identifier
+    if (c === '"') {
+      buf += c; i++
+      while (i < len) {
+        if (sql[i] === '"' && sql[i + 1] === '"') { buf += '""'; i += 2; continue }
+        buf += sql[i]
+        if (sql[i] === '"') { i++; break }
+        i++
+      }
+      continue
+    }
+
+    // Word-boundary keyword detection for BEGIN / CASE / END
+    const prevChar = i === 0 ? '\0' : sql[i - 1]
+    if (!isWordChar(prevChar)) {
+      const rest = sql.slice(i, i + 6).toUpperCase()
+      if ((rest.startsWith('BEGIN') && !isWordChar(sql[i + 5] || '')) ||
+          (rest.startsWith('CASE')  && !isWordChar(sql[i + 4] || ''))) {
+        depth++
+      } else if (rest.startsWith('END') && !isWordChar(sql[i + 3] || '')) {
+        if (depth > 0) depth--
+      }
+    }
+
+    if (c === ';' && depth === 0) {
+      const trimmed = buf.trim()
+      if (trimmed.length > 0) statements.push(trimmed)
+      buf = ''
+      i++
+      continue
+    }
+
+    buf += c
+    i++
+  }
+
+  const tail = buf.trim()
+  if (tail.length > 0) statements.push(tail)
+  return statements
+}
+
 class RealSQLiteConnection {
   constructor() {
     this.database = null
@@ -138,8 +224,9 @@ class RealSQLiteConnection {
       }
     }
 
-    // Split SQL into individual statements if it contains multiple statements
-    const statements = sql.split(';').filter((stmt) => stmt.trim().length > 0)
+    // Split SQL into individual statements while respecting string literals
+    // and BEGIN…END blocks (e.g. inside CREATE TRIGGER bodies).
+    const statements = splitSqlStatements(sql)
 
     if (statements.length === 1) {
       // Single statement - execute normally

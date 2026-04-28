@@ -9,6 +9,7 @@
  */
 
 import { createImportStructure } from './import-structure.js'
+import { parseSimpleJson } from '@dbbest/clinical-schema'
 import { logger } from '../logging-service.js'
 
 export class ImportJsonService {
@@ -158,23 +159,11 @@ export class ImportJsonService {
       },
     })
 
-    // Transform data sections
-    const data = jsonData.data || {}
-
-    // Process patients
-    if (data.patients && Array.isArray(data.patients)) {
-      importStructure.data.patients = data.patients.map((patient) => this.transformPatient(patient))
-    }
-
-    // Process visits
-    if (data.visits && Array.isArray(data.visits)) {
-      importStructure.data.visits = data.visits.map((visit) => this.transformVisit(visit))
-    }
-
-    // Process observations
-    if (data.observations && Array.isArray(data.observations)) {
-      importStructure.data.observations = data.observations.map((obs) => this.transformObservation(obs))
-    }
+    // Transform data sections via shared clinical-schema parser
+    const records = parseSimpleJson(jsonData)
+    importStructure.data.patients = records.patients
+    importStructure.data.visits = records.visits
+    importStructure.data.observations = records.observations
 
     // Update statistics
     importStructure.statistics.patientCount = importStructure.data.patients.length
@@ -191,152 +180,4 @@ export class ImportJsonService {
     return importStructure
   }
 
-  /**
-   * Transform patient data
-   * @param {Object} patientData - Patient data from JSON
-   * @returns {Object} Transformed patient
-   */
-  transformPatient(patientData) {
-    return {
-      PATIENT_NUM: patientData.PATIENT_NUM || patientData.id || null,
-      PATIENT_CD: patientData.PATIENT_CD || patientData.patientId || patientData.patient_cd || null,
-      VITAL_STATUS_CD: patientData.VITAL_STATUS_CD || null,
-      BIRTH_DATE: patientData.BIRTH_DATE || patientData.birthDate || patientData.dob || null,
-      DEATH_DATE: patientData.DEATH_DATE || patientData.deathDate || null,
-      AGE_IN_YEARS: patientData.AGE_IN_YEARS || patientData.age || null,
-      SEX_CD: patientData.SEX_CD || patientData.sex || patientData.gender || null,
-      LANGUAGE_CD: patientData.LANGUAGE_CD || patientData.language || null,
-      RACE_CD: patientData.RACE_CD || patientData.race || null,
-      MARITAL_STATUS_CD: patientData.MARITAL_STATUS_CD || patientData.maritalStatus || null,
-      RELIGION_CD: patientData.RELIGION_CD || patientData.religion || null,
-      STATECITYZIP_PATH: patientData.STATECITYZIP_PATH || patientData.address || null,
-      PATIENT_BLOB: patientData.PATIENT_BLOB || null,
-      UPDATE_DATE: patientData.UPDATE_DATE || new Date().toISOString().split('T')[0],
-      DOWNLOAD_DATE: patientData.DOWNLOAD_DATE || null,
-      IMPORT_DATE: patientData.IMPORT_DATE || new Date().toISOString(),
-      SOURCESYSTEM_CD: patientData.SOURCESYSTEM_CD || patientData.sourceSystem || 'JSON_IMPORT',
-      UPLOAD_ID: patientData.UPLOAD_ID || 1,
-      CREATED_AT: patientData.CREATED_AT || new Date().toISOString(),
-      UPDATED_AT: patientData.UPDATED_AT || new Date().toISOString(),
-    }
-  }
-
-  /**
-   * Transform visit data
-   * @param {Object} visitData - Visit data from JSON
-   * @returns {Object} Transformed visit
-   */
-  transformVisit(visitData) {
-    return {
-      ENCOUNTER_NUM: visitData.ENCOUNTER_NUM || visitData.id || null,
-      PATIENT_NUM: visitData.PATIENT_NUM || visitData.patientId || null,
-      ACTIVE_STATUS_CD: visitData.ACTIVE_STATUS_CD || 'SCTID: 55561003', // Default to active
-      START_DATE: visitData.START_DATE || visitData.startDate || visitData.visitDate || null,
-      END_DATE: visitData.END_DATE || visitData.endDate || null,
-      INOUT_CD: visitData.INOUT_CD || visitData.inOut || visitData.visitType || 'O',
-      LOCATION_CD: visitData.LOCATION_CD || visitData.location || null,
-      VISIT_BLOB: visitData.VISIT_BLOB || null,
-      UPDATE_DATE: visitData.UPDATE_DATE || null,
-      DOWNLOAD_DATE: visitData.DOWNLOAD_DATE || null,
-      IMPORT_DATE: visitData.IMPORT_DATE || null,
-      SOURCESYSTEM_CD: visitData.SOURCESYSTEM_CD || visitData.sourceSystem || 'JSON_IMPORT',
-      UPLOAD_ID: visitData.UPLOAD_ID || 1,
-      CREATED_AT: visitData.CREATED_AT || new Date().toISOString().split('T')[0],
-    }
-  }
-
-  /**
-   * Transform observation data
-   * @param {Object} obsData - Observation data from JSON
-   * @returns {Object} Transformed observation
-   */
-  transformObservation(obsData) {
-    // Handle questionnaire observations specially
-    if (obsData.VALTYPE_CD === 'Q' || obsData.valtypeCd === 'Q') {
-      return this.transformQuestionnaireObservation(obsData)
-    }
-
-    // Handle regular observations
-    return {
-      OBSERVATION_ID: obsData.OBSERVATION_ID || obsData.id || null,
-      ENCOUNTER_NUM: obsData.ENCOUNTER_NUM || obsData.encounterId || obsData.visitId || null,
-      PATIENT_NUM: obsData.PATIENT_NUM || obsData.patientId || null,
-      CATEGORY_CHAR: obsData.CATEGORY_CHAR || obsData.category || null,
-      CONCEPT_CD: obsData.CONCEPT_CD || obsData.conceptCode || obsData.concept_cd || null,
-      PROVIDER_ID: obsData.PROVIDER_ID || obsData.providerId || '@',
-      START_DATE: obsData.START_DATE || obsData.startDate || obsData.observationDate || new Date().toISOString(),
-      INSTANCE_NUM: obsData.INSTANCE_NUM || obsData.instanceNum || 1,
-      VALTYPE_CD: obsData.VALTYPE_CD || obsData.valtypeCd || obsData.valueType || 'T',
-      TVAL_CHAR: obsData.TVAL_CHAR || obsData.textValue || obsData.value || null,
-      NVAL_NUM: obsData.NVAL_NUM || obsData.numericValue || (typeof obsData.value === 'number' ? obsData.value : null),
-      VALUEFLAG_CD: obsData.VALUEFLAG_CD || obsData.valueFlag || null,
-      QUANTITY_NUM: obsData.QUANTITY_NUM || obsData.quantity || null,
-      UNIT_CD: obsData.UNIT_CD || obsData.unit || null,
-      END_DATE: obsData.END_DATE || obsData.endDate || null,
-      LOCATION_CD: obsData.LOCATION_CD || obsData.location || null,
-      CONFIDENCE_NUM: obsData.CONFIDENCE_NUM || obsData.confidence || null,
-      OBSERVATION_BLOB: obsData.OBSERVATION_BLOB || obsData.blob || null,
-      UPDATE_DATE: obsData.UPDATE_DATE || null,
-      DOWNLOAD_DATE: obsData.DOWNLOAD_DATE || null,
-      IMPORT_DATE: obsData.IMPORT_DATE || null,
-      SOURCESYSTEM_CD: obsData.SOURCESYSTEM_CD || obsData.sourceSystem || 'JSON_IMPORT',
-      UPLOAD_ID: obsData.UPLOAD_ID || 1,
-      CREATED_AT: obsData.CREATED_AT || new Date().toISOString().split('T')[0],
-    }
-  }
-
-  /**
-   * Transform questionnaire observation (ValType='Q')
-   * @param {Object} obsData - Questionnaire observation data
-   * @returns {Object} Transformed questionnaire observation
-   */
-  transformQuestionnaireObservation(obsData) {
-    // Extract questionnaire title from TVAL_CHAR or OBSERVATION_BLOB
-    let questionnaireTitle = obsData.TVAL_CHAR || obsData.textValue || 'Unknown Questionnaire'
-
-    // Try to extract title from OBSERVATION_BLOB if it's JSON
-    if (obsData.OBSERVATION_BLOB) {
-      try {
-        const blob = typeof obsData.OBSERVATION_BLOB === 'string' ? JSON.parse(obsData.OBSERVATION_BLOB) : obsData.OBSERVATION_BLOB
-
-        if (blob.title) {
-          questionnaireTitle = blob.title
-        } else if (blob.label) {
-          questionnaireTitle = blob.label
-        } else if (blob.questionnaireReference?.questionnaireCode) {
-          questionnaireTitle = blob.questionnaireReference.questionnaireCode
-        }
-      } catch (error) {
-        // If parsing fails, use the original TVAL_CHAR
-        logger.warn('Failed to parse OBSERVATION_BLOB for questionnaire title', { error: error.message })
-      }
-    }
-
-    return {
-      OBSERVATION_ID: obsData.OBSERVATION_ID || obsData.id || null,
-      ENCOUNTER_NUM: obsData.ENCOUNTER_NUM || obsData.encounterId || obsData.visitId || null,
-      PATIENT_NUM: obsData.PATIENT_NUM || obsData.patientId || null,
-      CATEGORY_CHAR: obsData.CATEGORY_CHAR || obsData.category || 'SURVEY_BEST',
-      CONCEPT_CD: obsData.CONCEPT_CD || obsData.conceptCode || 'CUSTOM: QUESTIONNAIRE',
-      PROVIDER_ID: obsData.PROVIDER_ID || obsData.providerId || '@',
-      START_DATE: obsData.START_DATE || obsData.startDate || obsData.observationDate || new Date().toISOString(),
-      INSTANCE_NUM: obsData.INSTANCE_NUM || obsData.instanceNum || 1,
-      VALTYPE_CD: 'Q', // Always 'Q' for questionnaire observations
-      TVAL_CHAR: questionnaireTitle, // Questionnaire title
-      NVAL_NUM: null, // Questionnaires don't have numeric values
-      VALUEFLAG_CD: null,
-      QUANTITY_NUM: null,
-      UNIT_CD: null,
-      END_DATE: obsData.END_DATE || obsData.endDate || null,
-      LOCATION_CD: obsData.LOCATION_CD || obsData.location || null,
-      CONFIDENCE_NUM: null,
-      OBSERVATION_BLOB: obsData.OBSERVATION_BLOB || obsData.blob || null, // Store full questionnaire data
-      UPDATE_DATE: obsData.UPDATE_DATE || new Date().toISOString().split('T')[0],
-      DOWNLOAD_DATE: obsData.DOWNLOAD_DATE || null,
-      IMPORT_DATE: obsData.IMPORT_DATE || new Date().toISOString().split('T')[0],
-      SOURCESYSTEM_CD: obsData.SOURCESYSTEM_CD || obsData.sourceSystem || 'SURVEY_SYSTEM',
-      UPLOAD_ID: obsData.UPLOAD_ID || null,
-      CREATED_AT: obsData.CREATED_AT || new Date().toISOString().split('T')[0],
-    }
-  }
 }

@@ -234,20 +234,16 @@ export class ExportService {
    */
   async exportToJson(exportData, metadata) {
     try {
-      const jsonData = {
-        metadata,
-        exportInfo: {
-          format: 'json',
-          version: '1.0',
-          exportedAt: new Date().toISOString(),
-          source: 'BEST Medical System',
-        },
-        data: {
-          patients: exportData.patients,
-          visits: exportData.visits,
-          observations: exportData.observations,
-        },
-        statistics: exportData.metadata,
+      const { buildSimpleJsonExport } = await import('@dbbest/clinical-schema')
+      const jsonData = buildSimpleJsonExport({
+        patients: exportData.patients,
+        visits: exportData.visits,
+        observations: exportData.observations,
+        metadata: { ...metadata, source: metadata?.source || 'BEST Medical System' },
+      })
+      // Preserve dbBEST-specific statistics (fetchedAt etc.) from the repo layer
+      if (exportData.metadata) {
+        jsonData.statistics = { ...jsonData.statistics, ...exportData.metadata }
       }
 
       const jsonContent = JSON.stringify(jsonData, null, 2)

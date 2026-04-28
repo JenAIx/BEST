@@ -32,6 +32,7 @@
     "icon": "icongenie g -i ./public/icons/app_logo.png"
   },
   "dependencies": {
+    "@dbbest/clinical-schema": "file:../../clinical-schema/js",
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
     "cql-execution": "^2.4.0",

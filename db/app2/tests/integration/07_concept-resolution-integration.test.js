@@ -61,8 +61,7 @@ describe('Concept Resolution Store Integration Tests', () => {
 
     // Initialize migration manager
     migrationManager = new MigrationManager(connection)
-    migrationManager.registerMigration(currentSchema)
-    migrationManager.registerMigration(addNoteFactColumns)
+    migrationManager.registerMigration(coreSchema)
 
     // Initialize seed manager
     seedManager = new SeedManager(connection)

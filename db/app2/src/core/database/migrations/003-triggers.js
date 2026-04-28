@@ -61,11 +61,12 @@ export const databaseTriggers = {
     END;
 
     -- PATIENT UPDATE TRACKING TRIGGERS
-    CREATE TRIGGER update_patient_on_patient_update 
-    AFTER UPDATE ON PATIENT_DIMENSION 
-    FOR EACH ROW 
-    BEGIN 
-      UPDATE PATIENT_DIMENSION SET UPDATE_DATE = datetime('now') WHERE PATIENT_NUM = NEW.PATIENT_NUM; 
+    CREATE TRIGGER update_patient_on_patient_update
+    AFTER UPDATE ON PATIENT_DIMENSION
+    FOR EACH ROW
+    WHEN OLD.UPDATE_DATE IS NEW.UPDATE_DATE
+    BEGIN
+      UPDATE PATIENT_DIMENSION SET UPDATE_DATE = datetime('now') WHERE PATIENT_NUM = NEW.PATIENT_NUM;
     END;
 
     CREATE TRIGGER update_patient_on_visit_insert 
