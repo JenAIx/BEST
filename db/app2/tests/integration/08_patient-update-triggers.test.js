@@ -16,7 +16,7 @@ import VisitRepository from '../../src/core/database/repositories/visit-reposito
 import ObservationRepository from '../../src/core/database/repositories/observation-repository.js'
 import { coreSchema } from '../../src/core/database/migrations/001-core-schema.js'
 import { databaseViews } from '../../src/core/database/migrations/002-views.js'
-// Triggers are now consolidated in 003-triggers.js but disabled for now
+import { databaseTriggers } from '../../src/core/database/migrations/003-triggers.js'
 
 describe('Patient UPDATE_DATE Triggers Integration', () => {
   let connection
@@ -43,11 +43,9 @@ describe('Patient UPDATE_DATE Triggers Integration', () => {
 
     // Set up migrations
     migrationManager = new MigrationManager(connection)
-    migrationManager.registerMigration(currentSchema)
-    migrationManager.registerMigration(addNoteFactColumns)
-    migrationManager.registerMigration(createPatientListView)
-    migrationManager.registerMigration(createPatientObservationsView)
-    migrationManager.registerMigration(patientUpdateTriggers)
+    migrationManager.registerMigration(coreSchema)
+    migrationManager.registerMigration(databaseViews)
+    migrationManager.registerMigration(databaseTriggers)
 
     // Run migrations
     await migrationManager.initializeDatabase()
