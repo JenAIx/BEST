@@ -10,6 +10,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
+import { buildHl7CompositionExport } from '@dbbest/clinical-schema'
 
 export class Hl7Service {
   constructor(conceptRepository, cqlRepository) {
@@ -174,56 +175,42 @@ export class Hl7Service {
    * @returns {Object} CDA document
    */
   async createCdaDocument(patients, visits, observations, metadata = {}) {
-    // Start with base template
-    const cda = JSON.parse(JSON.stringify(this.defaultTemplate))
+    // Build the FHIR Composition skeleton + Patient/Visit sections via the
+    // shared @dbbest/clinical-schema library. Anything dbBEST-specific
+    // (richer HTML summary, observation-grouped sections, deterministic id
+    // format) is layered on top as post-processing.
+    const { cda } = buildHl7CompositionExport({
+      patients: patients || [],
+      visits: visits || [],
+      observations: observations || [],
+      metadata: {
+        ...metadata,
+        title: metadata.title || 'Clinical Data Export from dbBEST',
+        source: metadata.source || 'https://github.com/stebro01/dbBEST.git',
+      },
+    })
 
-    // Prepare document metadata
-    this.prepareDocumentMetadata(cda, metadata)
+    // dbBEST-specific identifiers / metadata overrides expected by callers
+    cda.id = metadata.id || 'dbBEST-' + uuidv4()
+    cda.meta.versionId = metadata.version || 'v1.0'
+    cda.identifier.value = 'urn:uuid:' + uuidv4()
+    cda.date = metadata.exportDate || new Date().toISOString()
 
-    // Prepare document text (HTML summary)
+    // Apply optional document type override
+    if (metadata.documentType) {
+      cda.type.coding[0].code = metadata.documentType.code
+      cda.type.coding[0].display = metadata.documentType.display
+    }
+
+    // Replace the lib's terse text.div with dbBEST's richer HTML summary
     this.prepareDocumentText(cda, patients, visits, observations, metadata)
 
-    // Prepare sections based on data
-    cda.section = []
-
-    // Add patient section
-    if (patients && patients.length > 0) {
-      this.preparePatientSections(cda, patients)
-    }
-
-    // Add visit sections
-    if (visits && visits.length > 0) {
-      this.prepareVisitSections(cda, visits, observations)
-    }
-
-    // Add observation sections
+    // Append observation-grouped sections (dbBEST extension on top of lib output)
     if (observations && observations.length > 0) {
       this.prepareObservationSections(cda, observations)
     }
 
     return cda
-  }
-
-  /**
-   * Prepare document metadata
-   * @param {Object} cda - CDA document
-   * @param {Object} metadata - Export metadata
-   */
-  prepareDocumentMetadata(cda, metadata) {
-    cda.id = metadata.id || 'dbBEST-' + uuidv4()
-    cda.meta.versionId = metadata.version || 'v1.0'
-    cda.meta.lastUpdated = new Date().toISOString()
-    cda.meta.source = metadata.source || 'https://github.com/stebro01/dbBEST.git'
-
-    cda.identifier.value = 'urn:uuid:' + uuidv4()
-    cda.date = metadata.exportDate || new Date().toISOString()
-    cda.title = metadata.title || 'Clinical Data Export from dbBEST'
-
-    // Set document type based on content
-    if (metadata.documentType) {
-      cda.type.coding[0].code = metadata.documentType.code
-      cda.type.coding[0].display = metadata.documentType.display
-    }
   }
 
   /**
@@ -358,204 +345,6 @@ export class Hl7Service {
     html += '</body></html>'
 
     return html
-  }
-
-  /**
-   * Prepare patient sections
-   * @param {Object} cda - CDA document
-   * @param {Array} patients - Patient data
-   */
-  preparePatientSections(cda, patients) {
-    const patientSection = {
-      title: 'Patient Information',
-      code: [
-        {
-          coding: [
-            {
-              system: 'http://snomed.info/sct',
-              code: '422549004',
-              display: 'Patient Information',
-            },
-          ],
-        },
-      ],
-      entry: [],
-    }
-
-    for (const patient of patients) {
-      const entry = {
-        title: 'Patient: ' + patient.PATIENT_CD,
-        code: [
-          {
-            coding: [
-              {
-                system: 'http://snomed.info/sct',
-                code: '422549004',
-                display: 'Patient Code',
-              },
-            ],
-          },
-        ],
-        value: patient.PATIENT_CD,
-        text: {
-          status: 'generated',
-          div: '<table><tbody><tr><td>Patient ID:</td></tr><tr><td>' + patient.PATIENT_CD + '</td></tr></tbody></table>',
-        },
-      }
-
-      patientSection.entry.push(entry)
-
-      // Add patient demographics
-      if (patient.SEX_CD) {
-        patientSection.entry.push({
-          title: 'Gender',
-          code: [
-            {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '263495000',
-                  display: 'Gender',
-                },
-              ],
-            },
-          ],
-          value: patient.SEX_CD,
-          text: {
-            status: 'generated',
-            div: '<table><tbody><tr><td>Gender:</td></tr><tr><td>' + patient.SEX_CD + '</td></tr></tbody></table>',
-          },
-        })
-      }
-
-      if (patient.AGE_IN_YEARS) {
-        patientSection.entry.push({
-          title: 'Age',
-          code: [
-            {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '63900-5',
-                  display: 'Age',
-                },
-              ],
-            },
-          ],
-          value: patient.AGE_IN_YEARS,
-          text: {
-            status: 'generated',
-            div: '<table><tbody><tr><td>Age:</td></tr><tr><td>' + patient.AGE_IN_YEARS + '</td></tr></tbody></table>',
-          },
-        })
-      }
-    }
-
-    cda.section.push(patientSection)
-  }
-
-  /**
-   * Prepare visit sections
-   * @param {Object} cda - CDA document
-   * @param {Array} visits - Visit data
-   * @param {Array} observations - Observation data
-   */
-  prepareVisitSections(cda, visits, observations) {
-    for (let i = 0; i < visits.length; i++) {
-      const visit = visits[i]
-      const visitObservations = (observations && observations.filter((o) => o.ENCOUNTER_NUM === visit.ENCOUNTER_NUM)) || []
-
-      const visitSection = {
-        title: 'Visit ' + (i + 1),
-        code: [
-          {
-            coding: [
-              {
-                system: 'http://snomed.info/sct',
-                code: '308335008',
-                display: 'Visit',
-              },
-            ],
-          },
-        ],
-        text: {
-          status: 'generated',
-          div: '<h3>Visit ' + (i + 1) + '</h3>',
-        },
-        entry: [],
-      }
-
-      // Add visit details
-      if (visit.START_DATE) {
-        visitSection.entry.push({
-          title: 'Visit Date',
-          code: [
-            {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '184099003',
-                  display: 'Date of Visit',
-                },
-              ],
-            },
-          ],
-          value: visit.START_DATE,
-          text: {
-            status: 'generated',
-            div: '<table><tbody><tr><td>Visit Date:</td></tr><tr><td>' + visit.START_DATE + '</td></tr></tbody></table>',
-          },
-        })
-      }
-
-      if (visit.LOCATION_CD) {
-        visitSection.entry.push({
-          title: 'Location',
-          code: [
-            {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: '442724003',
-                  display: 'Location',
-                },
-              ],
-            },
-          ],
-          value: visit.LOCATION_CD,
-          text: {
-            status: 'generated',
-            div: '<table><tbody><tr><td>Location:</td></tr><tr><td>' + visit.LOCATION_CD + '</td></tr></tbody></table>',
-          },
-        })
-      }
-
-      // Add observations for this visit
-      for (const obs of visitObservations) {
-        const conceptInfo = this.getConceptInfo(obs.CONCEPT_CD)
-        visitSection.entry.push({
-          title: conceptInfo.displayName,
-          code: [
-            {
-              coding: [
-                {
-                  system: 'http://snomed.info/sct',
-                  code: obs.CONCEPT_CD,
-                  display: conceptInfo.displayName,
-                },
-              ],
-            },
-          ],
-          value: this.formatObservationValue(obs),
-          text: {
-            status: 'generated',
-            div: '<h3>' + conceptInfo.displayName + '</h3>',
-          },
-        })
-      }
-
-      cda.section.push(visitSection)
-    }
   }
 
   /**
