@@ -225,6 +225,7 @@
                   @save="onCellSave"
                   @error="onCellError"
                   @edit-recorded="onEditRecorded"
+                  @fill-down-request="onFillDownRequest(row, concept)"
                 />
               </td>
             </tr>
@@ -913,6 +914,54 @@ const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
 const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
 const onEditRecorded = (entry) => dataGridStore?.recordEdit?.(entry)
+
+// Fill-down: copy the value from the cell directly above (same column,
+// previous row in tableRows order) into the current cell. Records the edit
+// for undo. Skips placeholder rows and empty source values.
+const onFillDownRequest = async (currentRow, concept) => {
+  const rows = tableRows.value || []
+  const idx = rows.indexOf(currentRow)
+  if (idx <= 0) {
+    notify.warning(t('dataGrid.fillDownNoSource'))
+    return
+  }
+  const sourceRow = rows[idx - 1]
+  if (sourceRow.isPlaceholder) {
+    notify.warning(t('dataGrid.fillDownNoSource'))
+    return
+  }
+  const sourceValue = sourceRow.observations?.[concept.code]?.value
+  if (sourceValue === null || sourceValue === undefined || sourceValue === '') {
+    notify.warning(t('dataGrid.fillDownNoSource'))
+    return
+  }
+
+  const currentObs = currentRow.observations?.[concept.code] || {}
+  const oldValue = currentObs.value ?? ''
+  if (oldValue === sourceValue) return // nothing to do
+
+  try {
+    const newObservationId = await dataGridStore.applyCellValue({
+      patientId: currentRow.patientId,
+      encounterNum: currentRow.encounterNum,
+      conceptCode: concept.code,
+      value: sourceValue,
+      observationId: currentObs.observationId ?? null,
+      valueType: concept.valueType,
+    })
+    dataGridStore.recordEdit({
+      patientId: currentRow.patientId,
+      encounterNum: currentRow.encounterNum,
+      conceptCode: concept.code,
+      oldValue,
+      newValue: sourceValue,
+      observationId: newObservationId,
+      valueType: concept.valueType,
+    })
+  } catch (error) {
+    notify.error(t('dataGrid.fillDownFailed', { msg: error.message }))
+  }
+}
 
 const onUndo = async () => {
   if (!dataGridStore?.canUndo) return
