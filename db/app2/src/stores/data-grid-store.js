@@ -306,60 +306,20 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     redoStack.value = []
   }
 
-  // INSERT a fresh OBSERVATION_FACT row from a value-only context. Used by
-  // applyCellValue when fill-down (or future bulk ops) target a cell that
-  // doesn't have an observation yet. Mirrors EditableCell.createObservation
-  // but with simpler defaults — keeping the duplication contained until a
-  // shared cell-write service is justified.
-  const createCellObservation = async ({ patientId, encounterNum, conceptCode, value, valueType }) => {
-    const patientResult = await dbStore.executeQuery('SELECT PATIENT_NUM FROM PATIENT_DIMENSION WHERE PATIENT_CD = ?', [patientId])
-    if (!patientResult.success || !patientResult.data.length) {
-      throw new Error(`Patient not found: ${patientId}`)
-    }
-    const patientNum = patientResult.data[0].PATIENT_NUM
-
-    const visitResult = await dbStore.executeQuery('SELECT START_DATE FROM VISIT_DIMENSION WHERE ENCOUNTER_NUM = ?', [encounterNum])
-    const startDate = visitResult.success && visitResult.data.length > 0 ? visitResult.data[0].START_DATE : new Date().toISOString().split('T')[0]
-
-    const observationData = {
-      PATIENT_NUM: patientNum,
-      ENCOUNTER_NUM: encounterNum,
-      CONCEPT_CD: conceptCode,
-      VALTYPE_CD: valueType,
-      START_DATE: startDate,
-      CATEGORY_CHAR: 'CLINICAL',
-      PROVIDER_ID: 'SYSTEM',
-      LOCATION_CD: 'DATAGRID',
-      SOURCESYSTEM_CD: 'DATAGRID_EDITOR',
-      INSTANCE_NUM: 1,
-      UPLOAD_ID: 1,
-    }
-    if (valueType === 'N') {
-      observationData.NVAL_NUM = parseFloat(value) || 0
-    } else {
-      observationData.TVAL_CHAR = String(value)
-    }
-
-    const observationRepo = dbStore.getRepository('observation')
-    const result = await observationRepo.createObservation(observationData)
-    if (!result || !result.OBSERVATION_ID) {
-      throw new Error('Failed to create observation - no ID returned')
-    }
-    return result.OBSERVATION_ID
-  }
-
   // Persist a value into a specific cell — used by undo/redo and fill-down.
-  // UPDATE path when observationId is known; INSERT path when it isn't and
-  // the new value is non-empty. Observation rows are never deleted —
-  // clearing a value just nulls TVAL_CHAR/NVAL_NUM.
+  // Mirrors EditableCell's UPDATE path; never deletes observations. If
+  // observationId is missing, only the local view updates (the value would
+  // need INSERT, which is the EditableCell's job on initial creation).
   const applyCellValue = async ({ patientId, encounterNum, conceptCode, value, observationId, valueType }) => {
+    // 1. Update local state immediately for snappy UX
     const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
     if (row) {
       if (!row.observations[conceptCode]) row.observations[conceptCode] = {}
       row.observations[conceptCode].value = value
     }
 
-    let resolvedObservationId = observationId
+    // 2. Persist to DB if we have an observationId. value can be empty/null —
+    // we set TVAL_CHAR/NVAL_NUM to null, observation row stays.
     if (observationId != null) {
       const updates = {}
       if (valueType === 'N') {
@@ -376,15 +336,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       if (!result.success) {
         throw new Error(result.error || 'Failed to update observation')
       }
-    } else if (value !== null && value !== undefined && value !== '') {
-      // No observation yet, but we want to write a value — create it.
-      resolvedObservationId = await createCellObservation({ patientId, encounterNum, conceptCode, value, valueType })
-      if (row && row.observations[conceptCode]) {
-        row.observations[conceptCode].observationId = resolvedObservationId
-      }
     }
     lastUpdateTime.value = new Date().toLocaleTimeString()
-    return resolvedObservationId
   }
 
   const undo = async () => {

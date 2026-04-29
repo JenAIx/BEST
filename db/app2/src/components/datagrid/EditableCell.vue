@@ -149,7 +149,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update', 'save', 'error', 'edit-recorded', 'fill-down-request'])
+const emit = defineEmits(['update', 'save', 'error', 'edit-recorded'])
 
 const notify = useNotify()
 const dbStore = useDatabaseStore()
@@ -524,14 +524,6 @@ const moveFocus = (direction) => {
 
 const onKeyDown = (event) => {
   if (isEditing.value) return // let the input handle keys natively while editing
-
-  // Ctrl/Cmd+D: fill from cell directly above. Parent owns the row+column
-  // context, so we just request — it will call back into the store.
-  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'd') {
-    event.preventDefault()
-    emit('fill-down-request')
-    return
-  }
 
   // Arrow-key navigation between cells (when not editing)
   const arrowMap = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
