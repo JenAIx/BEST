@@ -124,7 +124,18 @@
               </td>
 
               <td class="fixed-col visit-col">
-                <div class="visit-date-container">
+                <div v-if="row.isPlaceholder" class="visit-date-container visit-placeholder">
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    color="primary"
+                    icon="event_available"
+                    :label="$t('dataGrid.addVisit')"
+                    @click="quickAddVisitForPatient(row)"
+                  />
+                </div>
+                <div v-else class="visit-date-container">
                   <div class="visit-date">
                     {{ formatDate(row.visitDate) }}
                   </div>
@@ -144,21 +155,24 @@
               </td>
 
               <!-- Observation cells -->
-              <td 
-                v-for="concept in visibleObservationConcepts" 
-                :key="concept.code" 
-                class="obs-cell" 
+              <td
+                v-for="concept in visibleObservationConcepts"
+                :key="concept.code"
+                class="obs-cell"
                 :class="[
                   getCellClass(row, concept),
                   {
                     'value-type-d': concept.valueType === 'D',
                     'value-type-n': concept.valueType === 'N',
-                    'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept)
+                    'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
+                    'obs-cell-placeholder': row.isPlaceholder
                   }
                 ]"
               >
+                <!-- Placeholder row: no visit yet, observations not editable -->
+                <div v-if="row.isPlaceholder" class="obs-placeholder">—</div>
                 <!-- Custom questionnaire cell for Q type -->
-                <div v-if="concept.valueType === 'Q'" class="questionnaire-cell">
+                <div v-else-if="concept.valueType === 'Q'" class="questionnaire-cell">
                   <!-- Filled questionnaire -->
                   <div v-if="getCellValue(row, concept)" class="questionnaire-content" @click="openQuestionnairePreview(row, concept)">
                     {{ getCellValue(row, concept) }}
@@ -1384,6 +1398,11 @@ const selectPatientForVisit = (patient) => {
   openDialog('newVisit')
 }
 
+// Quick-add visit from a placeholder row in the grid (patient has no visits yet)
+const quickAddVisitForPatient = (row) => {
+  selectPatientForVisit({ patientId: row.patientId, patientName: row.patientName })
+}
+
 // Create simple visit with just start date
 const createSimpleVisit = async () => {
   if (!newVisitDate.value || !selectedPatientForVisit.value) return
@@ -2071,6 +2090,23 @@ onMounted(async () => {
     opacity: 1;
     visibility: visible;
   }
+
+  &.visit-placeholder {
+    cursor: default;
+    background: rgba(25, 118, 210, 0.04);
+  }
+}
+
+.obs-cell-placeholder {
+  background: rgba(0, 0, 0, 0.02);
+  cursor: not-allowed;
+}
+
+.obs-placeholder {
+  text-align: center;
+  color: $grey-5;
+  font-size: 0.9rem;
+  user-select: none;
 }
 
 .visit-date {

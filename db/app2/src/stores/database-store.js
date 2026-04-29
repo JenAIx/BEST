@@ -808,7 +808,8 @@ export const useDatabaseStore = defineStore('database', () => {
         const patientName = getPatientNameFromData(patientInfo.patient)
 
         // Create a row for each visit, even if it has no observations
-        if (patientInfo.visits && Array.isArray(patientInfo.visits)) {
+        const hasVisits = patientInfo.visits && Array.isArray(patientInfo.visits) && patientInfo.visits.length > 0
+        if (hasVisits) {
           patientInfo.visits.forEach((visit) => {
             // Skip visits without encounter number
             if (!visit || visit.ENCOUNTER_NUM == null) return
@@ -823,6 +824,18 @@ export const useDatabaseStore = defineStore('database', () => {
                 observations: {},
               })
             }
+          })
+        } else {
+          // Patient has no visits — render a placeholder row so the grid still
+          // shows the patient. The user can trigger "Add Visit" from there;
+          // observation cells are non-editable until a real visit exists.
+          patientVisitMap.set(`${patientCd}-placeholder`, {
+            patientId: patientCd,
+            patientName: patientName,
+            encounterNum: null,
+            visitDate: null,
+            observations: {},
+            isPlaceholder: true,
           })
         }
       })
@@ -900,6 +913,9 @@ export const useDatabaseStore = defineStore('database', () => {
         if (a.patientId !== b.patientId) {
           return a.patientId.localeCompare(b.patientId)
         }
+        // Placeholder rows (encounterNum=null) sort first within the same patient
+        if (a.encounterNum == null) return -1
+        if (b.encounterNum == null) return 1
         return a.encounterNum - b.encounterNum
       })
 
