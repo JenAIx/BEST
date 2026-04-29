@@ -46,7 +46,7 @@
         borderless
         class="cell-input numeric-input"
         @blur="saveEdit"
-        @keydown.enter="saveEdit"
+        @keydown.enter="saveAndMoveDown"
         @keydown.escape="cancelEdit"
         @keydown.tab="saveAndNavigate"
         step="any"
@@ -62,7 +62,7 @@
         borderless
         class="cell-input date-input"
         @blur="saveEdit"
-        @keydown.enter="saveEdit"
+        @keydown.enter="saveAndMoveDown"
         @keydown.escape="cancelEdit"
         @keydown.tab="saveAndNavigate"
       />
@@ -79,7 +79,7 @@
         map-options
         class="cell-input selection-input"
         @blur="saveEdit"
-        @keydown.enter="saveEdit"
+        @keydown.enter="saveAndMoveDown"
         @keydown.escape="cancelEdit"
         @keydown.tab="saveAndNavigate"
         :loading="loadingOptions"
@@ -95,7 +95,7 @@
         borderless
         class="cell-input text-input"
         @blur="saveEdit"
-        @keydown.enter="saveEdit"
+        @keydown.enter="saveAndMoveDown"
         @keydown.escape="cancelEdit"
         @keydown.tab="saveAndNavigate"
       />
@@ -456,56 +456,84 @@ const cancelEdit = () => {
 
 const saveAndNavigate = (event) => {
   event.preventDefault()
+  // Tab → right, Shift+Tab → left
+  const direction = event.shiftKey ? 'left' : 'right'
   saveEdit()
     .then(() => {
-      // Navigate to next cell (could be enhanced with proper navigation logic)
-      const nextCell = findNextCell()
-      if (nextCell) {
-        nextCell.focus()
-      }
+      moveFocus(direction)
     })
     .catch(() => {
       /* intentionally ignored */
     })
 }
 
-const findNextCell = () => {
-  // Simple navigation logic - find next editable cell
-  const currentCell = editInput.value?.$el || editInput.value
-  if (!currentCell) return null
+// Enter while editing: Excel-style — save and move down to the next row
+const saveAndMoveDown = (event) => {
+  event.preventDefault()
+  saveEdit()
+    .then(() => {
+      moveFocus('down')
+    })
+    .catch(() => {
+      /* intentionally ignored */
+    })
+}
 
-  const table = currentCell.closest('table')
-  if (!table) return null
+const moveFocus = (direction) => {
+  // Find this cell's wrapper element (the .editable-cell with tabindex)
+  const wrapper = document.activeElement?.classList?.contains('editable-cell')
+    ? document.activeElement
+    : editInput.value?.$el?.closest?.('.editable-cell')
+  if (!wrapper) return
 
-  const cells = Array.from(table.querySelectorAll('.editable-cell'))
-  const currentIndex = cells.indexOf(currentCell.closest('.editable-cell'))
+  const td = wrapper.closest('td')
+  const tr = td?.closest('tr')
+  if (!td || !tr) return
 
-  if (currentIndex >= 0 && currentIndex < cells.length - 1) {
-    return cells[currentIndex + 1]
+  let target = null
+  if (direction === 'left') {
+    target = td.previousElementSibling?.querySelector('.editable-cell')
+  } else if (direction === 'right') {
+    target = td.nextElementSibling?.querySelector('.editable-cell')
+  } else if (direction === 'up' || direction === 'down') {
+    const tdIdx = Array.from(tr.children).indexOf(td)
+    const sibling = direction === 'up' ? tr.previousElementSibling : tr.nextElementSibling
+    target = sibling?.children[tdIdx]?.querySelector('.editable-cell')
   }
 
-  return null
+  if (target) {
+    target.focus()
+  }
 }
 
 const onKeyDown = (event) => {
-  if (!isEditing.value) {
-    // For R type (file) observations, open preview on Enter or Space
-    if (props.valueType === 'R') {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault()
-        openFilePreview()
-      }
-    } else {
-      // Start editing on Enter, Space, or any alphanumeric key for other types
-      if (event.key === 'Enter' || event.key === ' ' || (event.key.length === 1 && /[a-zA-Z0-9]/.test(event.key))) {
-        event.preventDefault()
-        startEdit()
+  if (isEditing.value) return // let the input handle keys natively while editing
 
-        // If it's a character key, set it as the initial value
-        if (event.key.length === 1 && /[a-zA-Z0-9]/.test(event.key)) {
-          editValue.value = event.key
-        }
-      }
+  // Arrow-key navigation between cells (when not editing)
+  const arrowMap = { ArrowLeft: 'left', ArrowRight: 'right', ArrowUp: 'up', ArrowDown: 'down' }
+  if (arrowMap[event.key]) {
+    event.preventDefault()
+    moveFocus(arrowMap[event.key])
+    return
+  }
+
+  // For R type (file) observations, open preview on Enter or Space
+  if (props.valueType === 'R') {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openFilePreview()
+    }
+    return
+  }
+
+  // F2 / Enter / Space / alphanumeric → start edit
+  if (event.key === 'F2' || event.key === 'Enter' || event.key === ' ' || (event.key.length === 1 && /[a-zA-Z0-9]/.test(event.key))) {
+    event.preventDefault()
+    startEdit()
+
+    // If it's a character key, set it as the initial value
+    if (event.key.length === 1 && /[a-zA-Z0-9]/.test(event.key)) {
+      editValue.value = event.key
     }
   }
 }
