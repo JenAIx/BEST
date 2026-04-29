@@ -117,16 +117,9 @@
           <!-- Patient Management -->
           <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.patientManagement') }}</q-item-label>
 
-          <q-item clickable v-ripple to="/patients" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="people" />
-            </q-item-section>
-            <q-item-section>{{ $t('navigation.patientSearch') }}</q-item-section>
-          </q-item>
-
           <q-item clickable v-ripple to="/visits" active-class="bg-primary text-white">
             <q-item-section avatar>
-              <q-icon name="event" />
+              <q-icon name="people" />
             </q-item-section>
             <q-item-section>{{ $t('navigation.patientVisits') }}</q-item-section>
           </q-item>
@@ -346,12 +339,11 @@ const breadcrumbs = computed(() => {
     const path = paths[i]
     currentPath += `/${path}`
 
-    // Special handling for patient routes
+    // Legacy /patient/:id route is redirected to /visits/:id; collapse the breadcrumb accordingly.
     if (path === 'patient' && i < paths.length - 1) {
-      // For individual patient pages, link back to patients list
       crumbs.push({
-        label: 'Patients',
-        path: '/patients',
+        label: t('navigation.patientVisits'),
+        path: '/visits',
       })
     } else {
       crumbs.push({

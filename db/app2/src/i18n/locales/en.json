@@ -59,7 +59,6 @@
   "navigation": {
     "dashboard": "Dashboard",
     "patientManagement": "Patient Management",
-    "patientSearch": "Patient Search",
     "newPatient": "New Patient",
     "patientVisits": "Patient Visits",
     "questionnaires": "Questionnaires",
@@ -269,6 +268,8 @@
     "timeline": "Timeline",
     "changeVisit": "Change Visit",
     "dataEntry": "Data Entry",
+    "patientData": "Patient Data",
+    "viewPatientData": "View patient data",
     "addMedication": "Add Medication",
     "exportPdf": "Export PDF",
     "loadingSummary": "Loading visit summary...",
@@ -292,6 +293,7 @@
     "endDate": "End Date",
     "startDateRequired": "Start date is required",
     "recentPatients": "Recent Patients",
+    "latestPatients": "Recently Added",
     "searchResults": "Search Results ({count})",
     "noPatientsFound": "No patients found",
     "tryDifferentSearch": "Try a different search term",
@@ -851,6 +853,7 @@
     "selectPatientHint": "Select a patient to view and manage their visit history",
     "findPatient": "Find Patient",
     "searchPatientPlaceholder": "Search by name or Patient ID...",
+    "advancedFilters": "Advanced Filters",
     "dragToResize": "Drag to resize observation column"
   },
   "notifications": {

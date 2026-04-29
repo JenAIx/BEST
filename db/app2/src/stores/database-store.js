@@ -295,11 +295,17 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const deletePatient = async (id) => {
-    // delete_patient_cascade trigger (migration 003) handles VISIT_DIMENSION
-    // and USER_PATIENT_LOOKUP cleanup; the visit trigger then cascades to
-    // OBSERVATION_FACT/NOTE_FACT. No manual pre-delete needed.
-    const patientRepo = getPatientRepository()
-    return await patientRepo.delete(id)
+    // Defensive cascade in JS: NOTE_FACT.PATIENT_NUM and USER_PATIENT_LOOKUP.PATIENT_NUM
+    // have FKs without ON DELETE CASCADE, and the trigger-based cascade leaves
+    // patient-only NOTE_FACT rows behind. Clearing children explicitly inside a
+    // transaction makes the delete work regardless of trigger state.
+    return await executeTransaction([
+      { sql: 'DELETE FROM NOTE_FACT WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM OBSERVATION_FACT WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM VISIT_DIMENSION WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM USER_PATIENT_LOOKUP WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM PATIENT_DIMENSION WHERE PATIENT_NUM = ?', params: [id] },
+    ])
   }
 
   const getPatientStatistics = async () => {

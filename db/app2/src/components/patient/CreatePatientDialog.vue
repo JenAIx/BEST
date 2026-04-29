@@ -470,8 +470,8 @@ const handleSubmit = async () => {
     // Close dialog
     showDialog.value = false
 
-    // Navigate to the patient page
-    router.push(`/patient/${createdPatient.PATIENT_CD}`)
+    // Navigate to the patient visits page (consolidated patient hub)
+    router.push(`/visits/${createdPatient.PATIENT_CD}`)
   } catch (error) {
     logger.error('Error creating patient', error)
     notify.error(`Failed to create patient: ${error.message}`, { timeout: 5000 })
