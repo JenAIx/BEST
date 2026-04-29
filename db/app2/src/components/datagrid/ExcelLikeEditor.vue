@@ -6,6 +6,12 @@
         <!-- Left side: Main actions -->
         <div class="row items-center q-gutter-sm">
           <q-btn flat icon="refresh" :label="$t('common.refresh')" @click="refreshData" :loading="loading" />
+          <q-btn flat dense icon="undo" :disable="!dataGridStore?.canUndo" @click="onUndo">
+            <q-tooltip>{{ $t('dataGrid.undoTooltip') }}</q-tooltip>
+          </q-btn>
+          <q-btn flat dense icon="redo" :disable="!dataGridStore?.canRedo" @click="onRedo">
+            <q-tooltip>{{ $t('dataGrid.redoTooltip') }}</q-tooltip>
+          </q-btn>
           <q-btn flat icon="settings" :label="$t('dataGrid.viewOptions')" @click="showViewOptions = true" />
           <q-btn flat icon="add" :label="$t('common.add')" color="dark">
             <q-menu anchor="bottom left" self="top left">
@@ -218,6 +224,7 @@
                   @update="onCellUpdate"
                   @save="onCellSave"
                   @error="onCellError"
+                  @edit-recorded="onEditRecorded"
                 />
               </td>
             </tr>
@@ -447,7 +454,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -905,6 +912,43 @@ const getObservationCount = async (encounterNum) => {
 const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
 const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
+const onEditRecorded = (entry) => dataGridStore?.recordEdit?.(entry)
+
+const onUndo = async () => {
+  if (!dataGridStore?.canUndo) return
+  try {
+    await dataGridStore.undo()
+  } catch (error) {
+    notify.error(t('dataGrid.undoFailed', { msg: error.message }))
+  }
+}
+
+const onRedo = async () => {
+  if (!dataGridStore?.canRedo) return
+  try {
+    await dataGridStore.redo()
+  } catch (error) {
+    notify.error(t('dataGrid.redoFailed', { msg: error.message }))
+  }
+}
+
+// Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z keyboard shortcuts (window-level, only fire
+// when no input is focused — text editing keeps native undo behaviour).
+const onGridKeydown = (event) => {
+  const tag = event.target?.tagName
+  const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable
+  if (isTyping) return
+  if (!(event.ctrlKey || event.metaKey)) return
+
+  const k = event.key.toLowerCase()
+  if (k === 'z' && !event.shiftKey) {
+    event.preventDefault()
+    onUndo()
+  } else if (k === 'y' || (k === 'z' && event.shiftKey)) {
+    event.preventDefault()
+    onRedo()
+  }
+}
 
 // Batch operations (using store functions) - with defensive checks
 const refreshData = () => {
@@ -1606,6 +1650,12 @@ onMounted(async () => {
   }
 
   await loadPatientData()
+
+  window.addEventListener('keydown', onGridKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGridKeydown)
 })
 </script>
 

@@ -36,6 +36,15 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   const pendingChanges = ref(new Map())
   const lastUpdateTime = ref(new Date().toLocaleTimeString())
 
+  // Undo/redo: each entry is a recorded cell edit with both old and new value.
+  // Once a cell is saved (DB write done by EditableCell), an entry is pushed
+  // here; undo/redo replay the same UPDATE OBSERVATION_FACT path via
+  // applyCellValue. We deliberately keep stack state local — no persistence —
+  // so a refresh resets history.
+  const undoStack = ref([])
+  const redoStack = ref([])
+  const MAX_UNDO_HISTORY = 100
+
   // View options
   const viewOptions = ref(getDefaultViewOptions())
 
@@ -59,6 +68,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   const unsavedChangesCount = computed(() => {
     return pendingChanges.value.size
   })
+
+  const canUndo = computed(() => undoStack.value.length > 0)
+  const canRedo = computed(() => redoStack.value.length > 0)
 
   // Visible observation concepts based on column visibility and order
   const getVisibleObservationConcepts = computed(() => {
@@ -268,14 +280,98 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       timestamp: new Date(),
     })
 
-    // Update the local data
+    // Update the local data — propagate observationId so subsequent edits
+    // know the observation already exists (otherwise EditableCell would try
+    // to INSERT again instead of UPDATE).
     const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
     if (row) {
       if (!row.observations[conceptCode]) {
         row.observations[conceptCode] = {}
       }
       row.observations[conceptCode].value = value
+      if (observationId != null) {
+        row.observations[conceptCode].observationId = observationId
+      }
     }
+  }
+
+  // Undo/redo support — record a completed cell edit so it can be replayed.
+  // Called by EditableCell after a successful save (UPDATE or INSERT). Old/new
+  // values come from the cell's pre-edit and post-edit state. observationId is
+  // captured AFTER any INSERT, so undo can target the same row via UPDATE.
+  const recordEdit = (entry) => {
+    if (!entry || entry.oldValue === entry.newValue) return
+    undoStack.value.push(entry)
+    if (undoStack.value.length > MAX_UNDO_HISTORY) undoStack.value.shift()
+    redoStack.value = []
+  }
+
+  // Persist a value into a specific cell — used by undo/redo and fill-down.
+  // Mirrors EditableCell's UPDATE path; never deletes observations. If
+  // observationId is missing, only the local view updates (the value would
+  // need INSERT, which is the EditableCell's job on initial creation).
+  const applyCellValue = async ({ patientId, encounterNum, conceptCode, value, observationId, valueType }) => {
+    // 1. Update local state immediately for snappy UX
+    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+    if (row) {
+      if (!row.observations[conceptCode]) row.observations[conceptCode] = {}
+      row.observations[conceptCode].value = value
+    }
+
+    // 2. Persist to DB if we have an observationId. value can be empty/null —
+    // we set TVAL_CHAR/NVAL_NUM to null, observation row stays.
+    if (observationId != null) {
+      const updates = {}
+      if (valueType === 'N') {
+        updates.NVAL_NUM = value === null || value === '' ? null : Number(value)
+        updates.TVAL_CHAR = null
+      } else {
+        updates.TVAL_CHAR = value === null || value === '' ? null : String(value)
+        updates.NVAL_NUM = null
+      }
+      const setClause = Object.keys(updates).map((k) => `${k} = ?`).join(', ')
+      const params = [...Object.values(updates), observationId]
+      const sql = `UPDATE OBSERVATION_FACT SET ${setClause}, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?`
+      const result = await dbStore.executeQuery(sql, params)
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to update observation')
+      }
+    }
+    lastUpdateTime.value = new Date().toLocaleTimeString()
+  }
+
+  const undo = async () => {
+    if (!canUndo.value) return
+    const entry = undoStack.value.pop()
+    try {
+      await applyCellValue({ ...entry, value: entry.oldValue })
+      redoStack.value.push(entry)
+      logger.debug('Undo applied', { conceptCode: entry.conceptCode })
+    } catch (error) {
+      // Restore stack on failure so user can retry
+      undoStack.value.push(entry)
+      logger.error('Undo failed', error)
+      throw error
+    }
+  }
+
+  const redo = async () => {
+    if (!canRedo.value) return
+    const entry = redoStack.value.pop()
+    try {
+      await applyCellValue({ ...entry, value: entry.newValue })
+      undoStack.value.push(entry)
+      logger.debug('Redo applied', { conceptCode: entry.conceptCode })
+    } catch (error) {
+      redoStack.value.push(entry)
+      logger.error('Redo failed', error)
+      throw error
+    }
+  }
+
+  const clearUndoHistory = () => {
+    undoStack.value = []
+    redoStack.value = []
   }
 
   const handleCellSave = async (data) => {
@@ -543,6 +639,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     observationConcepts.value = []
     tableRows.value = []
     pendingChanges.value.clear()
+    undoStack.value = []
+    redoStack.value = []
     lastUpdateTime.value = new Date().toLocaleTimeString()
     logger.info('Grid data reset')
   }
@@ -651,6 +749,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     totalObservations,
     hasUnsavedChanges,
     unsavedChangesCount,
+    canUndo,
+    canRedo,
     getVisibleObservationConcepts,
     statistics,
 
@@ -674,6 +774,13 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     handleCellUpdate,
     handleCellSave,
     handleCellError,
+
+    // Undo/redo
+    recordEdit,
+    applyCellValue,
+    undo,
+    redo,
+    clearUndoHistory,
 
     // View options
     updateViewOptions,

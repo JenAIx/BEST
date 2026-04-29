@@ -149,7 +149,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['update', 'save', 'error'])
+const emit = defineEmits(['update', 'save', 'error', 'edit-recorded'])
 
 const notify = useNotify()
 const dbStore = useDatabaseStore()
@@ -278,6 +278,10 @@ const saveEdit = async () => {
     return
   }
 
+  // Snapshot pre-edit state for undo recording. originalValue is in the
+  // same representation as displayValue (label for S/F, raw for others).
+  const oldValueForUndo = originalValue.value
+
   try {
     isSaving.value = true
 
@@ -300,8 +304,9 @@ const saveEdit = async () => {
       valueType: props.valueType,
     })
 
-    // Save to database
-    await saveToDatabase()
+    // Save to database — returns the resulting observationId (existing on
+    // UPDATE, new on INSERT) so undo can target it later.
+    const savedObservationId = await saveToDatabase()
 
     // Mark as saved
     hasUnsavedChanges.value = false
@@ -312,6 +317,16 @@ const saveEdit = async () => {
       encounterNum: props.encounterNum,
       conceptCode: props.conceptCode,
       value: editValue.value,
+    })
+
+    emit('edit-recorded', {
+      patientId: props.patientId,
+      encounterNum: props.encounterNum,
+      conceptCode: props.conceptCode,
+      oldValue: oldValueForUndo,
+      newValue: emitValue,
+      observationId: savedObservationId,
+      valueType: props.valueType,
     })
   } catch (error) {
     logger.error('Failed to save cell', error)
@@ -326,12 +341,11 @@ const saveEdit = async () => {
 const saveToDatabase = async () => {
   try {
     if (props.observationId) {
-      // Update existing observation
       await updateObservation()
-    } else {
-      // Create new observation
-      await createObservation()
+      return props.observationId
     }
+    // Create new observation, return its new id
+    return await createObservation()
   } catch (error) {
     logger.error('Database save error', error)
     throw error
@@ -432,6 +446,8 @@ const createObservation = async () => {
     observationId: result.OBSERVATION_ID,
     valueType: props.valueType,
   })
+
+  return result.OBSERVATION_ID
 }
 
 const cancelEdit = () => {
