@@ -115,7 +115,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -151,7 +151,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update', 'save', 'error'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 const globalSettingsStore = useGlobalSettingsStore()
@@ -317,12 +317,7 @@ const saveEdit = async () => {
     logger.error('Failed to save cell', error)
     emit('error', error)
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to save: ${error.message}`,
-      position: 'top-right',
-      timeout: 3000,
-    })
+    notify.error(`Failed to save: ${error.message}`, { position: 'top-right', timeout: 3000 })
   } finally {
     isSaving.value = false
   }

@@ -150,12 +150,12 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import draggable from 'vuedraggable'
 import AppDialog from '../shared/AppDialog.vue'
 
-const $q = useQuasar()
+const notify = useNotify()
 const globalSettingsStore = useGlobalSettingsStore()
 
 // Props
@@ -264,11 +264,7 @@ const loadFieldSets = async () => {
     allFieldSets.value = fieldSets || []
   } catch (error) {
     console.error('Failed to load field sets:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load field sets',
-      caption: error.message,
-    })
+    notify.error('Failed to load field sets', { caption: error.message })
   }
 }
 
@@ -278,10 +274,7 @@ const isFieldSetSelected = (fieldSetId) => {
 
 const addFieldSet = (fieldSet) => {
   if (isFieldSetSelected(fieldSet.id)) {
-    $q.notify({
-      type: 'warning',
-      message: 'Field set already added to visit type',
-    })
+    notify.warning('Field set already added to visit type')
     return
   }
 
@@ -294,10 +287,7 @@ const addFieldSet = (fieldSet) => {
     active: false, // Not active by default
   })
 
-  $q.notify({
-    type: 'positive',
-    message: `Added "${fieldSet.name}" to visit type`,
-  })
+  notify.success(`Added "${fieldSet.name}" to visit type`)
 }
 
 const removeFieldSet = (fieldSetId) => {
@@ -306,27 +296,18 @@ const removeFieldSet = (fieldSetId) => {
     const removedFieldSet = localVisitTypeData.value.fieldSets[index]
     localVisitTypeData.value.fieldSets.splice(index, 1)
 
-    $q.notify({
-      type: 'info',
-      message: `Removed "${removedFieldSet.name}" from visit type`,
-    })
+    notify.info(`Removed "${removedFieldSet.name}" from visit type`)
   }
 }
 
 const onFieldSetActiveToggle = (fieldSet) => {
   const status = fieldSet.active ? 'active by default' : 'available but not active'
-  $q.notify({
-    type: 'info',
-    message: `"${fieldSet.name}" is now ${status}`,
-  })
+  notify.info(`"${fieldSet.name}" is now ${status}`)
 }
 
 const onSave = async () => {
   if (!isFormValid.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please fill in all required fields',
-    })
+    notify.warning('Please fill in all required fields')
     return
   }
 
@@ -348,11 +329,7 @@ const onSave = async () => {
     localShow.value = false
   } catch (error) {
     console.error('Failed to save visit type:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save visit type',
-      caption: error.message,
-    })
+    notify.error('Failed to save visit type', { caption: error.message })
   } finally {
     saving.value = false
   }

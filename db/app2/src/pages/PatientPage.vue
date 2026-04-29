@@ -77,6 +77,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
@@ -91,6 +92,7 @@ import DeletePatientDialog from '../components/patient/DeletePatientDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const visitStore = useVisitStore()
 const observationStore = useObservationStore()
@@ -152,11 +154,7 @@ const loadPatient = async () => {
     }
   } catch (error) {
     console.error('Failed to load patient:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load patient details',
-      position: 'top',
-    })
+    notify.error('Failed to load patient details')
   } finally {
     loading.value = false
   }

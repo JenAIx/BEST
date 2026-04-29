@@ -114,10 +114,13 @@
 import { ref, computed, onMounted, nextTick, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useOpenAIStore } from 'src/stores/openai-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const router = useRouter()
 const openAIStore = useOpenAIStore()
 const localSettingsStore = useLocalSettingsStore()
@@ -585,10 +588,7 @@ onBeforeUnmount(() => {
  */
 onMounted(() => {
   if (!hasApiKey.value) {
-    $q.notify({
-      type: 'info',
-      message: 'Please configure your OpenAI API key in Settings to use the AI assistant',
-      position: 'top',
+    notify.info('Please configure your OpenAI API key in Settings to use the AI assistant', {
       timeout: 5000,
       actions: [
         {

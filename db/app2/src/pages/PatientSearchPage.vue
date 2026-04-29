@@ -262,7 +262,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useRouter } from 'vue-router'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -272,7 +272,7 @@ import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
 import DeletePatientDialog from '../components/patient/DeletePatientDialog.vue'
 import AppRemoveConfirmationButton from '../components/shared/AppRemoveConfirmationButton.vue'
 
-const $q = useQuasar()
+const notify = useNotify()
 const router = useRouter()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
@@ -434,11 +434,7 @@ const loadPatients = async () => {
     totalPatients.value = result.pagination?.totalCount || 0
   } catch (error) {
     console.error('Failed to load patients:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load patients',
-      position: 'top',
-    })
+    notify.error('Failed to load patients')
   } finally {
     loading.value = false
   }
@@ -798,11 +794,7 @@ const formatPatientRawData = (patient) => {
 const onSelectPatient = (patient) => {
   // Navigate to patient details page (same as DashboardPage)
   router.push({ path: `/patient/${patient.PATIENT_CD}` })
-  $q.notify({
-    type: 'positive',
-    message: `Selected patient: ${getPatientName(patient)}`,
-    position: 'top',
-  })
+  notify.success(`Selected patient: ${getPatientName(patient)}`)
 }
 
 const onTableRowClick = (evt, row) => {
@@ -822,10 +814,7 @@ const onPatientCreated = async (createdPatient) => {
     await loadPatients()
   }
 
-  $q.notify({
-    type: 'positive',
-    message: `Patient ${createdPatient.PATIENT_CD} created successfully!`,
-    position: 'top',
+  notify.success(`Patient ${createdPatient.PATIENT_CD} created successfully!`, {
     timeout: 3000,
     actions: [
       {

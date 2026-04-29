@@ -39,11 +39,14 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import GridFooter from 'src/components/datagrid/GridFooter.vue'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const router = useRouter()
 const dataGridStore = useDataGridStore()
 const { t } = useI18n()
@@ -81,11 +84,7 @@ const exitDataGrid = () => {
     // Keep stored patient selection for reopen capability
     // Don't clear - just navigate back
 
-    $q.notify({
-      type: 'info',
-      message: t('dataGrid.returnedToPatientSelection'),
-      position: 'top',
-    })
+    notify.info(t('dataGrid.returnedToPatientSelection'))
 
     router.push('/data-grid')
   }

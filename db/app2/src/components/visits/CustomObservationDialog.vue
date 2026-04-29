@@ -217,7 +217,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useObservationStore } from 'src/stores/observation-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -252,7 +252,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'observation-added', 'questionnaire-added'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const observationStore = useObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
@@ -361,11 +361,7 @@ const searchConcepts = async () => {
     })
   } catch (error) {
     logger.error('Concept search failed', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to search concepts',
-      position: 'top',
-    })
+    notify.error('Failed to search concepts')
     searchResults.value = []
   } finally {
     searching.value = false
@@ -491,11 +487,7 @@ const selectConcept = async (concept) => {
     resetState()
     showDialog.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: `Fragebogen "${concept.NAME_CHAR}" zur Visite hinzugefügt`,
-      position: 'top',
-    })
+    notify.success(`Fragebogen "${concept.NAME_CHAR}" zur Visite hinzugefügt`)
     return
   }
 
@@ -734,18 +726,10 @@ const saveCustomObservation = async () => {
     resetState()
     showDialog.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: 'Observation added successfully',
-      position: 'top',
-    })
+    notify.success('Observation added successfully')
   } catch (error) {
     logger.error('Failed to save observation', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save observation',
-      position: 'top',
-    })
+    notify.error('Failed to save observation')
   } finally {
     saving.value = false
   }

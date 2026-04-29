@@ -72,7 +72,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useMedicationsStore } from 'src/stores/medications-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -108,7 +108,7 @@ const props = defineProps({
 
 const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh-requested'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const conceptStore = useConceptResolutionStore()
@@ -606,11 +606,7 @@ const onMedicationEditSave = async (medicationData) => {
     logger.success('Medication updated successfully', { rowId: row.id })
   } catch (error) {
     logger.error('Failed to save medication edit', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save medication',
-      position: 'top',
-    })
+    notify.error('Failed to save medication')
   }
 }
 
@@ -750,11 +746,7 @@ const saveRow = async (row) => {
       observationId: row.observationId,
     })
 
-    $q.notify({
-      type: 'positive',
-      message: 'Observation saved successfully',
-      position: 'top',
-    })
+    notify.success('Observation saved successfully')
 
     logger.success('Row saved successfully', { rowId: row.id })
 
@@ -762,11 +754,7 @@ const saveRow = async (row) => {
     // when pendingChanges is cleared
   } catch (error) {
     logger.error('Failed to save row', error, { rowId: row.id })
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save observation',
-      position: 'top',
-    })
+    notify.error('Failed to save observation')
   } finally {
     row.saving = false
   }
@@ -805,20 +793,12 @@ const removeRow = async (row) => {
       observationId: row.observationId,
     })
 
-    $q.notify({
-      type: 'positive',
-      message: 'Observation removed successfully',
-      position: 'top',
-    })
+    notify.success('Observation removed successfully')
 
     logger.success('Row removed successfully', { rowId: row.id })
   } catch (error) {
     logger.error('Failed to remove row', error, { rowId: row.id })
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to remove observation',
-      position: 'top',
-    })
+    notify.error('Failed to remove observation')
   } finally {
     row.saving = false
   }
@@ -863,11 +843,7 @@ const onDuplicateValue = async (data) => {
         rowId: row.id,
       })
 
-      $q.notify({
-        type: 'positive',
-        message: `Value duplicated from previous visit (${new Date(data.fromVisit.date).toLocaleDateString()})`,
-        position: 'top',
-      })
+      notify.success(`Value duplicated from previous visit (${new Date(data.fromVisit.date).toLocaleDateString()})`)
     } else {
       logger.warn('Could not find row to update with duplicated value', {
         conceptCode: data.conceptCode,
@@ -875,11 +851,7 @@ const onDuplicateValue = async (data) => {
     }
   } catch (error) {
     logger.error('Failed to duplicate previous value', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to duplicate previous value',
-      position: 'top',
-    })
+    notify.error('Failed to duplicate previous value')
   }
 }
 
@@ -917,11 +889,7 @@ const createObservationFromChip = async (concept) => {
     })
 
     const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
-    $q.notify({
-      type: 'positive',
-      message: `${displayName} observation added`,
-      position: 'top',
-    })
+    notify.success(`${displayName} observation added`)
 
     logger.success('Observation created from chip successfully', {
       conceptCode: concept.code,
@@ -932,11 +900,7 @@ const createObservationFromChip = async (concept) => {
     })
 
     const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
-    $q.notify({
-      type: 'negative',
-      message: `Failed to add ${displayName}`,
-      position: 'top',
-    })
+    notify.error(`Failed to add ${displayName}`)
   }
 }
 
@@ -968,18 +932,10 @@ const addEmptyMedication = async () => {
 
     logger.info('Empty medication added successfully')
 
-    $q.notify({
-      type: 'positive',
-      message: 'Empty medication slot added',
-      position: 'top',
-    })
+    notify.success('Empty medication slot added')
   } catch (error) {
     logger.error('Failed to add empty medication', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to add medication',
-      position: 'top',
-    })
+    notify.error('Failed to add medication')
   }
 }
 </script>

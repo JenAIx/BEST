@@ -156,14 +156,14 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const router = useRouter()
 const dbStore = useDatabaseStore()
@@ -335,11 +335,7 @@ const loadTableData = async () => {
     pagination.value.rowsNumber = result.pagination?.totalCount || 0
   } catch (error) {
     logger.error('Failed to load table data', error)
-    $q.notify({
-      type: 'negative',
-      message: t('notifications.failedToLoadTableData'),
-      position: 'top',
-    })
+    notify.error(t('notifications.failedToLoadTableData'))
   } finally {
     loading.value = false
   }
@@ -399,12 +395,7 @@ const getVisitsAndObservationCounts = async (patientIds) => {
     return counts
   } catch (error) {
     logger.error('Failed to get visits and observation counts', error)
-    $q.notify({
-      type: 'warning',
-      message: t('dataGrid.failedToLoadCounts'),
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.warning(t('dataGrid.failedToLoadCounts'), { timeout: 2000 })
   }
 
   return {}
@@ -496,38 +487,22 @@ const clearFilters = async () => {
   pagination.value.sortBy = 'id'
   pagination.value.descending = false
   await loadTableData()
-  $q.notify({
-    type: 'info',
-    message: t('notifications.filtersCleared'),
-    position: 'top',
-  })
+  notify.info(t('notifications.filtersCleared'))
 }
 
 const clearSelection = () => {
   selectedPatients.value = []
-  $q.notify({
-    type: 'info',
-    message: t('dataGrid.selectionCleared'),
-    position: 'top',
-  })
+  notify.info(t('dataGrid.selectionCleared'))
 }
 
 const clearStoredSelection = () => {
   localSettings.clearDataGridSelectedPatients()
-  $q.notify({
-    type: 'info',
-    message: t('dataGrid.storedSelectionCleared'),
-    position: 'top',
-  })
+  notify.info(t('dataGrid.storedSelectionCleared'))
 }
 
 const openDataGrid = async () => {
   if (selectedPatients.value.length === 0) {
-    $q.notify({
-      type: 'warning',
-      message: t('dataGrid.selectAtLeastOnePatient'),
-      position: 'top',
-    })
+    notify.warning(t('dataGrid.selectAtLeastOnePatient'))
     return
   }
 
@@ -538,21 +513,13 @@ const openDataGrid = async () => {
     const patientIds = selectedPatients.value.map((p) => p.id)
     localSettings.setDataGridSelectedPatients(patientIds)
 
-    $q.notify({
-      type: 'positive',
-      message: t('dataGrid.openingGridWithPatients', { count: patientIds.length }),
-      position: 'top',
-    })
+    notify.success(t('dataGrid.openingGridWithPatients', { count: patientIds.length }))
 
     // Navigate to the data grid editor
     router.push('/data-grid/editor')
   } catch (error) {
     logger.error('Failed to open data grid', error)
-    $q.notify({
-      type: 'negative',
-      message: t('dataGrid.failedToOpenGrid'),
-      position: 'top',
-    })
+    notify.error(t('dataGrid.failedToOpenGrid'))
   } finally {
     isNavigating.value = false
   }
@@ -562,21 +529,13 @@ const goToDataGrid = async () => {
   try {
     loadingStoredSelection.value = true
 
-    $q.notify({
-      type: 'positive',
-      message: t('dataGrid.openingGridWithStoredPatients', { count: storedPatientIds.value.length }),
-      position: 'top',
-    })
+    notify.success(t('dataGrid.openingGridWithStoredPatients', { count: storedPatientIds.value.length }))
 
     // Navigate to the data grid editor with stored selection
     router.push('/data-grid/editor')
   } catch (error) {
     logger.error('Failed to open data grid', error)
-    $q.notify({
-      type: 'negative',
-      message: t('dataGrid.failedToOpenGrid'),
-      position: 'top',
-    })
+    notify.error(t('dataGrid.failedToOpenGrid'))
   } finally {
     loadingStoredSelection.value = false
   }
@@ -594,11 +553,7 @@ const initializeDataGridPage = async () => {
     await Promise.all([loadFilterOptions(), loadTotalPatients(), loadTableData()])
   } catch (error) {
     logger.error('Failed to initialize data grid page', error)
-    $q.notify({
-      type: 'negative',
-      message: t('dataGrid.failedToLoadPageData'),
-      position: 'top',
-    })
+    notify.error(t('dataGrid.failedToLoadPageData'))
   } finally {
     loading.value = false
   }

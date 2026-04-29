@@ -434,7 +434,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useDatabaseStore } from 'src/stores/database-store'
@@ -464,7 +464,7 @@ const props = defineProps({
 
 // No longer need to emit events - store handles reactivity
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const dataGridStore = useDataGridStore()
 const conceptStore = useConceptResolutionStore()
@@ -834,11 +834,7 @@ const openMedicationOverviewDialog = async (row) => {
     showMedicationOverviewDialog.value = true
   } catch (error) {
     logger.error('Failed to open medication overview dialog', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to open medication overview',
-      position: 'top',
-    })
+    notify.error('Failed to open medication overview')
   }
 }
 
@@ -1041,11 +1037,7 @@ const openVisitEditDialog = async (row) => {
       encounterNum: row.encounterNum,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to load visit data: ${error.message}`,
-      position: 'top',
-    })
+    notify.error(`Failed to load visit data: ${error.message}`)
   }
 }
 
@@ -1055,11 +1047,7 @@ const handleVisitUpdated = (updatedVisit) => {
   // Refresh the data grid to show the updated visit information
   refreshData()
 
-  $q.notify({
-    type: 'positive',
-    message: `Visit ${updatedVisit.ENCOUNTER_NUM} updated successfully`,
-    position: 'top',
-  })
+  notify.success(`Visit ${updatedVisit.ENCOUNTER_NUM} updated successfully`)
 }
 
 // Questionnaire fill dialog methods
@@ -1072,12 +1060,7 @@ const handleQuestionnaireCompleted = (completedData) => {
   // Refresh the data grid to show the new questionnaire data
   refreshData()
 
-  $q.notify({
-    type: 'positive',
-    message: 'Questionnaire completed and saved successfully',
-    position: 'top',
-    timeout: 3000,
-  })
+  notify.success('Questionnaire completed and saved successfully', { timeout: 3000 })
 }
 
 const handleQuestionnaireClosed = () => {
@@ -1262,11 +1245,7 @@ const openQuestionnaireFillDialog = async (row, concept) => {
       const availableQuestionnaires = await getAvailableQuestionnaires()
 
       if (availableQuestionnaires.length === 0) {
-        $q.notify({
-          type: 'warning',
-          message: 'No questionnaire templates available',
-          position: 'top',
-        })
+        notify.warning('No questionnaire templates available')
         return
       }
 
@@ -1288,11 +1267,7 @@ const openQuestionnaireFillDialog = async (row, concept) => {
     const questionnaireBlob = await getQuestionnaireTemplateByName(questionnaireName)
 
     if (!questionnaireBlob) {
-      $q.notify({
-        type: 'warning',
-        message: `No template found for questionnaire: ${questionnaireName}`,
-        position: 'top',
-      })
+      notify.warning(`No template found for questionnaire: ${questionnaireName}`)
       return
     }
 
@@ -1326,11 +1301,7 @@ const openQuestionnaireFillDialog = async (row, concept) => {
       conceptCode: concept.code,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to open questionnaire dialog',
-      position: 'top',
-    })
+    notify.error('Failed to open questionnaire dialog')
   }
 }
 
@@ -1353,11 +1324,7 @@ const openQuestionnairePreview = async (row, concept) => {
         encounterNum: row.encounterNum,
         conceptCode: concept.code,
       })
-      $q.notify({
-        type: 'warning',
-        message: 'No questionnaire data available for this cell',
-        position: 'top',
-      })
+      notify.warning('No questionnaire data available for this cell')
       return
     }
 
@@ -1385,11 +1352,7 @@ const openQuestionnairePreview = async (row, concept) => {
       conceptCode: concept.code,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to open questionnaire preview',
-      position: 'top',
-    })
+    notify.error('Failed to open questionnaire preview')
   }
 }
 
@@ -1466,18 +1429,10 @@ const createSimpleVisit = async () => {
     // Refresh grid data to show new visit
     await refreshData()
     
-    $q.notify({
-      type: 'positive',
-      message: t('visit.visitCreated'),
-      position: 'top',
-    })
+    notify.success(t('visit.visitCreated'))
   } catch (error) {
     logger.error('Failed to create visit', error)
-    $q.notify({
-      type: 'negative',
-      message: t('visit.failedToCreateVisit'),
-      position: 'top',
-    })
+    notify.error(t('visit.failedToCreateVisit'))
   } finally {
     creatingVisit.value = false
   }
@@ -1511,11 +1466,7 @@ const addPatientToGrid = async (patient) => {
     
     // Check if patient is already in grid
     if (props.patientIds.includes(patientId)) {
-      $q.notify({
-        type: 'info',
-        message: t('dataGrid.patientAlreadyInGrid', { name: patient.NAME_CHAR || patientId }),
-        position: 'top',
-      })
+      notify.info(t('dataGrid.patientAlreadyInGrid', { name: patient.NAME_CHAR || patientId }))
       return
     }
 
@@ -1532,18 +1483,10 @@ const addPatientToGrid = async (patient) => {
       await dataGridStore.refreshData(updatedPatients)
     }
     
-    $q.notify({
-      type: 'positive',
-      message: t('dataGrid.patientAddedToGrid', { name: patient.NAME_CHAR || patientId }),
-      position: 'top',
-    })
+    notify.success(t('dataGrid.patientAddedToGrid', { name: patient.NAME_CHAR || patientId }))
   } catch (error) {
     logger.error('Failed to add patient to grid', error)
-    $q.notify({
-      type: 'negative',
-      message: t('dataGrid.failedToAddPatient'),
-      position: 'top',
-    })
+    notify.error(t('dataGrid.failedToAddPatient'))
   }
 }
 
@@ -1555,11 +1498,7 @@ const handleConceptAdded = (concept) => {
   // Refresh grid data to show new column
   refreshData()
   
-  $q.notify({
-    type: 'positive',
-    message: t('dataGrid.columnAddedSuccessfully', { name: concept.name || concept.code }),
-    position: 'top',
-  })
+  notify.success(t('dataGrid.columnAddedSuccessfully', { name: concept.name || concept.code }))
 }
 
 // Manage patient functions
@@ -1618,18 +1557,10 @@ const removePatientFromGrid = async () => {
       await dataGridStore.refreshData(updatedPatients)
     }
 
-    $q.notify({
-      type: 'positive',
-      message: t('dataGrid.patientRemovedFromGrid', { name: selectedPatientForManagement.value.patientName }),
-      position: 'top',
-    })
+    notify.success(t('dataGrid.patientRemovedFromGrid', { name: selectedPatientForManagement.value.patientName }))
   } catch (error) {
     logger.error('Failed to remove patient from grid', error)
-    $q.notify({
-      type: 'negative',
-      message: t('dataGrid.failedToRemovePatient'),
-      position: 'top',
-    })
+    notify.error(t('dataGrid.failedToRemovePatient'))
   }
 }
 

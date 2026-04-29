@@ -33,7 +33,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import AppDialog from '../shared/AppDialog.vue'
 
 const props = defineProps({
@@ -42,8 +42,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'import-success', 'cancel'])
 
-const $q = useQuasar()
-
+const notify = useNotify()
 // Local state
 const localShow = ref(false)
 const importFile = ref(null)
@@ -62,11 +61,7 @@ const onFileSelected = async (file) => {
     const questionnaire = JSON.parse(text)
     importPreview.value = questionnaire
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: 'Invalid JSON file',
-      caption: error.message,
-    })
+    notify.error('Invalid JSON file', { caption: error.message })
     importPreview.value = null
   }
 }
@@ -91,11 +86,7 @@ const onImport = () => {
     // Reset state
     cancelImport()
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to import questionnaire',
-      caption: error.message,
-    })
+    notify.error('Failed to import questionnaire', { caption: error.message })
   } finally {
     importing.value = false
   }

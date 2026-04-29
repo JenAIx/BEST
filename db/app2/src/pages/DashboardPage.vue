@@ -328,7 +328,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import DashboardCard from '../components/shared/DashboardCard.vue'
@@ -342,7 +342,7 @@ import { useStudyStore } from 'src/stores/study-store'
 import { useAuthStore } from 'src/stores/auth-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 
-const $q = useQuasar()
+const notify = useNotify()
 const router = useRouter()
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
@@ -531,11 +531,7 @@ const loadRecentPatients = async () => {
     }))
   } catch (error) {
     console.error('Failed to load recent patients:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load recent patients',
-      position: 'top',
-    })
+    notify.error('Failed to load recent patients')
   }
 }
 
@@ -631,11 +627,7 @@ const loadDashboardStatistics = async () => {
     }
   } catch (error) {
     console.error('Failed to load dashboard statistics:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load dashboard statistics',
-      position: 'top',
-    })
+    notify.error('Failed to load dashboard statistics')
   }
 }
 
@@ -700,11 +692,7 @@ const loadTableData = async () => {
     pagination.value.rowsNumber = result.pagination?.totalCount || 0
   } catch (error) {
     console.error('Failed to load table data:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load table data',
-      position: 'top',
-    })
+    notify.error('Failed to load table data')
   } finally {
     loading.value = false
   }
@@ -816,10 +804,7 @@ const onPatientCreated = async (createdPatient) => {
   // Refresh recent patients and statistics
   await Promise.all([loadRecentPatients(), loadDashboardStatistics()])
 
-  $q.notify({
-    type: 'positive',
-    message: `Patient ${createdPatient.PATIENT_CD} created successfully!`,
-    position: 'top',
+  notify.success(`Patient ${createdPatient.PATIENT_CD} created successfully!`, {
     timeout: 3000,
     actions: [
       {
@@ -843,11 +828,7 @@ const clearFilters = async () => {
   pagination.value.sortBy = 'lastChanged'
   pagination.value.descending = true
   await loadTableData()
-  $q.notify({
-    type: 'info',
-    message: 'Filters cleared',
-    position: 'top',
-  })
+  notify.info('Filters cleared')
 }
 
 // Patient deletion methods
@@ -922,11 +903,7 @@ const initializeDashboard = async () => {
     }
   } catch (error) {
     console.error('Failed to initialize dashboard:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load dashboard data',
-      position: 'top',
-    })
+    notify.error('Failed to load dashboard data')
   } finally {
     loading.value = false
   }

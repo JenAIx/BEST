@@ -169,7 +169,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useRouter } from 'vue-router'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -185,7 +185,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'patientCreated'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const router = useRouter()
 const databaseStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
@@ -304,12 +304,7 @@ const generatePatientId = async () => {
 
     formData.value.PATIENT_CD = patientId
 
-    $q.notify({
-      type: 'positive',
-      message: `Generated Patient ID: ${patientId}`,
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.success(`Generated Patient ID: ${patientId}`, { timeout: 2000 })
   } catch (error) {
     logger.error('Failed to generate patient ID', error)
     // Fallback to simple generation
@@ -319,12 +314,7 @@ const generatePatientId = async () => {
     patientId = `PAT-${dateStr}-${seqStr}`
     formData.value.PATIENT_CD = patientId
 
-    $q.notify({
-      type: 'info',
-      message: `Generated Patient ID: ${patientId} (random)`,
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.info(`Generated Patient ID: ${patientId} (random)`, { timeout: 2000 })
   }
 }
 
@@ -419,11 +409,7 @@ const loadConceptOptions = async () => {
 
 const handleSubmit = async () => {
   if (!isFormValid.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please fill in all required fields',
-      position: 'top',
-    })
+    notify.warning('Please fill in all required fields')
     return
   }
 
@@ -462,10 +448,7 @@ const handleSubmit = async () => {
     // Create the patient using database store
     const createdPatient = await databaseStore.createPatient(patientData)
 
-    $q.notify({
-      type: 'positive',
-      message: `Patient created successfully (ID: ${createdPatient.PATIENT_CD})`,
-      position: 'top',
+    notify.success(`Patient created successfully (ID: ${createdPatient.PATIENT_CD})`, {
       timeout: 3000,
       actions: [
         {
@@ -491,12 +474,7 @@ const handleSubmit = async () => {
     router.push(`/patient/${createdPatient.PATIENT_CD}`)
   } catch (error) {
     logger.error('Error creating patient', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to create patient: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(`Failed to create patient: ${error.message}`, { timeout: 5000 })
   } finally {
     loading.value = false
   }

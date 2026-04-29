@@ -256,6 +256,7 @@
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useDatabaseStore } from 'src/stores/database-store'
@@ -264,6 +265,8 @@ import NotificationButton from 'src/components/shared/NotificationButton.vue'
 import SmartSearch from 'src/components/shared/SmartSearch.vue'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -321,19 +324,12 @@ const toggleLanguage = () => {
       console.warn('Error saving locale to localStorage:', storageError)
     }
 
-    $q.notify({
-      message: newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English',
-      type: 'info',
-      position: 'top',
+    notify.info(newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English', {
       timeout: 1500,
     })
   } catch (error) {
     console.error('Error in toggleLanguage:', error)
-    $q.notify({
-      message: 'Error switching language',
-      type: 'negative',
-      position: 'top',
-    })
+    notify.error('Error switching language')
   }
 }
 
@@ -398,11 +394,7 @@ const onLogout = async () => {
   }).onOk(async () => {
     await authStore.logout()
     router.push('/login')
-    $q.notify({
-      type: 'info',
-      message: t('auth.loggedOut'),
-      position: 'top',
-    })
+    notify.info(t('auth.loggedOut'))
   })
 }
 

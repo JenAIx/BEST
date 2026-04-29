@@ -116,7 +116,7 @@
 
 <script setup>
 import { ref, computed, watch, onUnmounted, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -146,7 +146,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const logger = useLoggingStore().createLogger('FilePreviewDialog')
@@ -348,12 +348,7 @@ const downloadFile = async () => {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
 
-      $q.notify({
-        type: 'positive',
-        message: `File "${result.fileInfo.filename}" downloaded successfully`,
-        position: 'top',
-        timeout: 3000,
-      })
+      notify.success(`File "${result.fileInfo.filename}" downloaded successfully`, { timeout: 3000 })
 
       logger.success('File downloaded successfully from preview', {
         filename: result.fileInfo.filename,
@@ -367,12 +362,7 @@ const downloadFile = async () => {
       observationId: props.observationId,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to download file: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(`Failed to download file: ${error.message}`, { timeout: 5000 })
   } finally {
     isDownloading.value = false
   }

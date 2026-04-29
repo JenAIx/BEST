@@ -103,13 +103,13 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ExportService from 'src/core/services/export-service.js'
 import ExportDialog from 'src/components/export/ExportDialog.vue'
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 
@@ -253,11 +253,7 @@ const loadTableData = async () => {
     pagination.value.rowsNumber = result.pagination?.totalCount || 0
   } catch (error) {
     console.error('Failed to load table data:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load table data',
-      position: 'top',
-    })
+    notify.error('Failed to load table data')
   } finally {
     loading.value = false
   }
@@ -334,29 +330,17 @@ const clearFilters = async () => {
   pagination.value.sortBy = 'id'
   pagination.value.descending = false
   await loadTableData()
-  $q.notify({
-    type: 'info',
-    message: 'Filters cleared',
-    position: 'top',
-  })
+  notify.info('Filters cleared')
 }
 
 const clearSelection = () => {
   selectedPatients.value = []
-  $q.notify({
-    type: 'info',
-    message: 'Selection cleared',
-    position: 'top',
-  })
+  notify.info('Selection cleared')
 }
 
 const onExportDialogConfirm = async (exportOptions) => {
   if (selectedPatients.value.length === 0) {
-    $q.notify({
-      type: 'warning',
-      message: 'No patients selected for export',
-      position: 'top',
-    })
+    notify.warning('No patients selected for export')
     return
   }
 
@@ -369,11 +353,7 @@ const onExportDialogConfirm = async (exportOptions) => {
     showExportDialog.value = false
   } catch (error) {
     console.error('Export failed:', error)
-    $q.notify({
-      type: 'negative',
-      message: `Export failed: ${error.message}`,
-      position: 'top',
-    })
+    notify.error(`Export failed: ${error.message}`)
   } finally {
     isExporting.value = false
   }
@@ -391,11 +371,7 @@ const performExport = async (patients, exportOptions) => {
 
   const { format, includeVisits, includeObservations } = exportOptions
 
-  $q.notify({
-    type: 'info',
-    message: `Starting ${format.toUpperCase()} export of ${patients.length} patients...`,
-    position: 'top',
-  })
+  notify.info(`Starting ${format.toUpperCase()} export of ${patients.length} patients...`)
 
   // Perform the export
   const exportResult = await exportService.value.exportPatients(patients, format, {
@@ -406,11 +382,8 @@ const performExport = async (patients, exportOptions) => {
   // Download the file
   exportService.value.downloadExportedData(exportResult)
 
-  $q.notify({
-    type: 'positive',
-    message: `✅ Export Complete: ${patients.length} patients exported to ${format.toUpperCase()}`,
+  notify.success(`✅ Export Complete: ${patients.length} patients exported to ${format.toUpperCase()}`, {
     caption: `File: ${exportResult.filename} (${(exportResult.size / 1024).toFixed(2)} KB)`,
-    position: 'top',
     timeout: 6000,
     actions: [
       {
@@ -418,11 +391,7 @@ const performExport = async (patients, exportOptions) => {
         color: 'white',
         handler: () => {
           console.log('Export result:', exportResult)
-          $q.notify({
-            type: 'info',
-            message: 'Export details logged to console',
-            position: 'top',
-          })
+          notify.info('Export details logged to console')
         },
       },
     ],
@@ -458,11 +427,7 @@ const initializeExportPage = async () => {
     await Promise.all([loadFilterOptions(), loadTotalPatients(), loadTableData(), initializeExportService()])
   } catch (error) {
     console.error('Failed to initialize export page:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load export page data',
-      position: 'top',
-    })
+    notify.error('Failed to load export page data')
   } finally {
     loading.value = false
   }

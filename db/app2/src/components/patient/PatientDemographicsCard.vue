@@ -56,7 +56,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -70,7 +70,7 @@ const props = defineProps({
 
 const emit = defineEmits(['updated'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
@@ -207,11 +207,7 @@ const save = async () => {
       const result = await dbStore.executeQuery(updateQuery, values)
 
       if (result.success) {
-        $q.notify({
-          type: 'positive',
-          message: 'Demographics updated successfully',
-          position: 'top',
-        })
+        notify.success('Demographics updated successfully')
         emit('updated')
       } else {
         throw new Error('Update failed')
@@ -221,11 +217,7 @@ const save = async () => {
     editing.value = false
   } catch (error) {
     logger.error('Failed to save demographics', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update demographics',
-      position: 'top',
-    })
+    notify.error('Failed to update demographics')
   }
 }
 

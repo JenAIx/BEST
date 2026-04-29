@@ -67,12 +67,15 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useUserStore } from 'src/stores/user-store'
 import UserDialog from 'components/UserDialog.vue'
 import PasswordResetDialog from 'components/PasswordResetDialog.vue'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const authStore = useAuthStore()
 const userStore = useUserStore()
 
@@ -131,11 +134,7 @@ const loadUsers = async () => {
   try {
     await userStore.loadUsers()
   } catch {
-    $q.notify({
-      type: 'negative',
-      message: userStore.error || 'Failed to load users',
-      position: 'top',
-    })
+    notify.error(userStore.error || 'Failed to load users')
   }
 }
 
@@ -198,17 +197,9 @@ const onDeleteUser = (user) => {
     try {
       await userStore.deleteUser(user.USER_ID)
 
-      $q.notify({
-        type: 'positive',
-        message: 'User deleted successfully',
-        position: 'top',
-      })
+      notify.success('User deleted successfully')
     } catch {
-      $q.notify({
-        type: 'negative',
-        message: userStore.error || 'Failed to delete user',
-        position: 'top',
-      })
+      notify.error(userStore.error || 'Failed to delete user')
     }
   })
 }
@@ -229,19 +220,11 @@ const onPasswordSave = async (passwordData) => {
   try {
     await userStore.updatePassword(selectedUser.value.USER_ID, passwordData.newPassword)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Password updated successfully',
-      position: 'top',
-    })
+    notify.success('Password updated successfully')
 
     showPasswordDialog.value = false
   } catch {
-    $q.notify({
-      type: 'negative',
-      message: userStore.error || 'Failed to update password',
-      position: 'top',
-    })
+    notify.error(userStore.error || 'Failed to update password')
   }
 }
 

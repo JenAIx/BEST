@@ -201,12 +201,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const logger = useLoggingStore().createLogger('PatientAccessManagement')
 
@@ -342,11 +342,7 @@ const loadPatients = async () => {
     logger.success('Patients loaded with access data', { count: patients.value.length })
   } catch (error) {
     logger.error('Failed to load patients', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load patient data',
-      position: 'top',
-    })
+    notify.error('Failed to load patient data')
   } finally {
     loading.value = false
   }
@@ -414,21 +410,13 @@ const onConfirmAddUser = async () => {
       await lookupRepo.addAssociation(userId, patientNum, { nameChar: newUserNote.value || null })
     } catch (err) {
       if (err.code === 'DUPLICATE_ASSOCIATION') {
-        $q.notify({
-          type: 'warning',
-          message: 'This user already has access to this patient',
-          position: 'top',
-        })
+        notify.warning('This user already has access to this patient')
         return
       }
       throw err
     }
 
-    $q.notify({
-      type: 'positive',
-      message: 'User access granted successfully',
-      position: 'top',
-    })
+    notify.success('User access granted successfully')
 
     showAddUserDialog.value = false
     await loadPatients()
@@ -442,11 +430,7 @@ const onConfirmAddUser = async () => {
     }
   } catch (error) {
     logger.error('Failed to add user access', error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || 'Failed to grant user access',
-      position: 'top',
-    })
+    notify.error(error.message || 'Failed to grant user access')
   } finally {
     saving.value = false
   }
@@ -462,11 +446,7 @@ const onRemoveUser = async (patientNum, userId) => {
     const lookupRepo = dbStore.getRepository('userPatientLookup')
     await lookupRepo.removeByUserAndPatient(userId, patientNum)
 
-    $q.notify({
-      type: 'positive',
-      message: 'User access removed successfully',
-      position: 'top',
-    })
+    notify.success('User access removed successfully')
 
     await loadPatients()
 
@@ -479,11 +459,7 @@ const onRemoveUser = async (patientNum, userId) => {
     }
   } catch (error) {
     logger.error('Failed to remove user access', error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || 'Failed to remove user access',
-      position: 'top',
-    })
+    notify.error(error.message || 'Failed to remove user access')
   } finally {
     removingUserId.value = null
     removingPatientNum.value = null

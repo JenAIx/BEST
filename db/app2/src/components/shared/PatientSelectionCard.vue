@@ -80,7 +80,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from '../../stores/database-store.js'
 import { useLocalSettingsStore } from '../../stores/local-settings-store.js'
 import { logger } from '../../core/services/logging-service.js'
@@ -110,7 +110,7 @@ defineProps({
 
 const emit = defineEmits(['patient-selected', 'patient-search'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const localSettings = useLocalSettingsStore()
 
@@ -161,10 +161,7 @@ const searchPatients = async () => {
     emit('patient-search', { patients: patients.value, searchTerm: patientSearch.value })
   } catch (error) {
     logger.error('Failed to search patients', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to search patients',
-    })
+    notify.error('Failed to search patients')
   }
 }
 

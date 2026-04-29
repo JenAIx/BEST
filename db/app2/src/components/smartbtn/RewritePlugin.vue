@@ -41,11 +41,11 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useOpenAIStore } from 'src/stores/openai-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 
-const $q = useQuasar()
+const notify = useNotify()
 const ai = useOpenAIStore()
 const localSettingsStore = useLocalSettingsStore()
 
@@ -128,7 +128,7 @@ Rewritten text (same language, same terminology):`
 const rewrite = async () => {
   if (!canRewrite.value) return
   if (!hasApiKey.value) {
-    $q.notify({ type: 'warning', message: 'Configure OpenAI API key first (Local Settings).', position: 'top' })
+    notify.warning('Configure OpenAI API key first (Local Settings).')
     return
   }
   try {
@@ -138,7 +138,7 @@ const rewrite = async () => {
     outputText.value = result
   } catch (e) {
     console.error('Rewrite failed:', e)
-    $q.notify({ type: 'negative', message: 'Rewrite failed', position: 'top' })
+    notify.error('Rewrite failed')
   }
 }
 
@@ -146,10 +146,10 @@ const copyOutput = async () => {
   try {
     if (!outputText.value) return
     await navigator.clipboard.writeText(outputText.value)
-    $q.notify({ type: 'positive', message: 'Copied', position: 'top' })
+    notify.success('Copied')
   } catch (e) {
     console.error('Copy failed:', e)
-    $q.notify({ type: 'negative', message: 'Copy failed', position: 'top' })
+    notify.error('Copy failed')
   }
 }
 

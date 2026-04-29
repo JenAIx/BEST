@@ -149,6 +149,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useExportStore } from 'src/stores/export-store'
@@ -158,6 +159,8 @@ import ConceptsImportDialog from 'components/ConceptsImportDialog.vue'
 import ValueTypeIcon from 'components/shared/ValueTypeIcon.vue'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const exportStore = useExportStore()
@@ -278,11 +281,7 @@ const loadConcepts = async () => {
     }
   } catch (error) {
     console.error('Failed to load concepts:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load concepts',
-      position: 'top',
-    })
+    notify.error('Failed to load concepts')
   } finally {
     loading.value = false
   }
@@ -387,20 +386,12 @@ const onDeleteConcept = (concept) => {
       const conceptRepo = dbStore.getRepository('concept')
       await conceptRepo.deleteConcept(concept.CONCEPT_CD)
 
-      $q.notify({
-        type: 'positive',
-        message: 'Concept deleted successfully',
-        position: 'top',
-      })
+      notify.success('Concept deleted successfully')
 
       await loadConcepts()
     } catch (error) {
       console.error('Failed to delete concept:', error)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to delete concept',
-        position: 'top',
-      })
+      notify.error('Failed to delete concept')
     }
   })
 }
@@ -446,20 +437,13 @@ const onExportConcepts = async () => {
       duration: result.duration,
     })
 
-    $q.notify({
-      type: 'positive',
-      message: result.message,
+    notify.success(result.message, {
       caption: `File size: ${result.fileSize}KB • Export time: ${result.duration}ms`,
-      position: 'top',
       timeout: 5000,
     })
   } catch (error) {
     logger.error('Concept CSV export failed', error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || 'Failed to export concepts',
-      position: 'top',
-    })
+    notify.error(error.message || 'Failed to export concepts')
   } finally {
     exportLoading.value = false
   }

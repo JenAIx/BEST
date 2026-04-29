@@ -100,6 +100,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useQuasar, copyToClipboard } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import BaseEntityDialog from './shared/BaseEntityDialog.vue'
 import CqlTestDialog from './CqlTestDialog.vue'
 import { useCqlStore } from 'src/stores/cql-store'
@@ -125,6 +126,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'saved', 'cancelled'])
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const cqlStore = useCqlStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('CqlDialog')
@@ -240,17 +243,9 @@ Example Patterns:
 const copyTemplate = async () => {
   try {
     await copyToClipboard(cqlTemplate.value)
-    $q.notify({
-      type: 'positive',
-      message: 'CQL template copied to clipboard',
-      position: 'top',
-    })
+    notify.success('CQL template copied to clipboard')
   } catch {
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to copy template',
-      position: 'top',
-    })
+    notify.error('Failed to copy template')
   }
 }
 
@@ -267,11 +262,7 @@ const handleSubmit = async ({ mode, data, changes }) => {
 
       await cqlStore.createCqlRule(cqlData)
 
-      $q.notify({
-        type: 'positive',
-        message: 'CQL rule created successfully',
-        position: 'top',
-      })
+      notify.success('CQL rule created successfully')
 
       emit('saved', { mode: 'create', rule: cqlData })
       dialogVisible.value = false
@@ -294,11 +285,7 @@ const handleSubmit = async ({ mode, data, changes }) => {
       if (Object.keys(updates).length > 0) {
         await cqlStore.updateCqlRule(props.cqlRule.CQL_ID, updates)
 
-        $q.notify({
-          type: 'positive',
-          message: 'CQL rule updated successfully',
-          position: 'top',
-        })
+        notify.success('CQL rule updated successfully')
 
         emit('saved', { mode: 'edit', rule: { ...props.cqlRule, ...data } })
         dialogVisible.value = false
@@ -306,11 +293,7 @@ const handleSubmit = async ({ mode, data, changes }) => {
     }
   } catch (error) {
     logger.error(`Failed to ${mode} CQL rule`, error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || cqlStore.error || `Failed to ${mode} CQL rule`,
-      position: 'top',
-    })
+    notify.error(error.message || cqlStore.error || `Failed to ${mode} CQL rule`)
   }
 }
 
@@ -343,11 +326,7 @@ watch(
         })
       } catch (error) {
         logger.error('Failed to load CQL rule for editing', error)
-        $q.notify({
-          type: 'negative',
-          message: 'Failed to load CQL rule data',
-          position: 'top',
-        })
+        notify.error('Failed to load CQL rule data')
         // Fallback to provided data
         localFormData.value = {
           CODE_CD: newRule.CODE_CD || '',
