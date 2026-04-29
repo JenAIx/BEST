@@ -29,6 +29,7 @@
     "select": "Select",
     "apply": "Apply",
     "retry": "Retry",
+    "reload": "Reload",
     "goHome": "Go Home",
     "goBack": "Go Back",
     "ok": "OK",
@@ -734,7 +735,10 @@
   },
   "errors": {
     "nothingHere": "Oops. Nothing here...",
-    "accessForbidden": "Access Forbidden"
+    "accessForbidden": "Access Forbidden",
+    "unexpectedTitle": "Something went wrong",
+    "unexpectedHint": "An unexpected error occurred. You can reload the app or return to the home page.",
+    "detail": "Error details"
   },
   "search": {
     "searchPatientsPlaceholder": "Search patients: P001, John Doe...",

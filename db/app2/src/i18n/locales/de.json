@@ -29,6 +29,7 @@
     "select": "Auswählen",
     "apply": "Anwenden",
     "retry": "Wiederholen",
+    "reload": "Neu laden",
     "goHome": "Zur Startseite",
     "goBack": "Zurück",
     "ok": "OK",
@@ -734,7 +735,10 @@
   },
   "errors": {
     "nothingHere": "Ups. Hier ist nichts...",
-    "accessForbidden": "Zugriff verweigert"
+    "accessForbidden": "Zugriff verweigert",
+    "unexpectedTitle": "Etwas ist schiefgelaufen",
+    "unexpectedHint": "Ein unerwarteter Fehler ist aufgetreten. Sie können die App neu laden oder zur Startseite zurückkehren.",
+    "detail": "Fehlerdetails"
   },
   "search": {
     "searchPatientsPlaceholder": "Patienten suchen: P001, Max Mustermann...",

@@ -34,6 +34,7 @@ export const useAuthStore = defineStore('auth', {
     loginError: null,
     selectedDatabase: null,
     mustChangePassword: false,
+    _sessionMonitorId: null,
   }),
 
   getters: {
@@ -141,23 +142,33 @@ export const useAuthStore = defineStore('auth', {
     },
 
     /**
-     * Login user with credentials
+     * Login user with credentials. Throws on any failure (invalid credentials,
+     * DB connection, etc.); the thrown Error message mirrors `loginError` so
+     * the UI can surface either via $store or via catch.
      * @param {Object} credentials - { username, password, database }
-     * @returns {Promise<boolean>} - Success status
+     * @returns {Promise<Object>} - The authenticated user (without PASSWORD_CHAR)
      */
     async login(credentials) {
       const loggingStore = useLoggingStore()
       const timer = loggingStore.startTimer('User Login')
+      this.loginError = null
+
+      const fail = (message, level = 'warn') => {
+        this.loginError = message
+        loggingStore[level]('AuthStore', `Login failed: ${message}`, {
+          username: credentials.username,
+        })
+        timer.end()
+        throw new Error(message)
+      }
 
       try {
-        this.loginError = null
         loggingStore.info('AuthStore', `Login attempt for user: ${credentials.username}`, {
           username: credentials.username,
           database: credentials.database,
           rememberMe: credentials.rememberMe,
         })
 
-        // Connect to selected database
         const dbStore = useDatabaseStore()
         if (!dbStore.isConnected.value || dbStore.databasePath.value !== credentials.database) {
           loggingStore.debug('AuthStore', 'Initializing database connection', {
@@ -166,34 +177,12 @@ export const useAuthStore = defineStore('auth', {
           await dbStore.initializeDatabase(credentials.database)
         }
 
-        // Validate user credentials
         const userRepo = dbStore.getUserRepository()
         const user = await userRepo.findByUserCode(credentials.username)
+        if (!user) fail('Invalid username or password')
 
-        if (!user) {
-          this.loginError = 'Invalid username or password'
-          loggingStore.warn('AuthStore', 'Login failed: User not found', {
-            username: credentials.username,
-          })
-          return false
-        }
-
-        // bcrypt-compare; legacy plaintext rows still accepted once via fallback in verifyPassword
         const passwordOk = await verifyPassword(credentials.password, user.PASSWORD_CHAR)
-        if (!passwordOk) {
-          this.loginError = 'Invalid username or password'
-          loggingStore.warn('AuthStore', 'Login failed: Invalid password', {
-            username: credentials.username,
-          })
-          return false
-        }
-
-        // Check if user is active (skip for now since ACTIVE_FLG column doesn't exist)
-        // if (user.ACTIVE_FLG !== 'Y') {
-        //   this.loginError = 'User account is inactive'
-        //   loggingStore.warn('AuthStore', 'Login failed: User account inactive', { username: credentials.username })
-        //   return false
-        // }
+        if (!passwordOk) fail('Invalid username or password')
 
         // Set authentication state — never keep PASSWORD_CHAR in memory state
         this.user = stripPassword(user)
@@ -203,7 +192,6 @@ export const useAuthStore = defineStore('auth', {
         this.rememberMe = credentials.rememberMe || false
         this.mustChangePassword = user.MUST_CHANGE_PASSWORD === 1
 
-        // Save to localStorage if remember me is checked
         if (this.rememberMe) {
           this.saveAuth()
           loggingStore.debug('AuthStore', 'Authentication saved to localStorage')
@@ -217,23 +205,24 @@ export const useAuthStore = defineStore('auth', {
           database: credentials.database,
           duration: `${duration.toFixed(2)}ms`,
         })
-
-        // Log user action
         loggingStore.logUserAction('LOGIN', {
           username: credentials.username,
           userId: user.USER_ID,
           database: credentials.database,
         })
 
-        return true
+        return this.user
       } catch (error) {
+        // Already logged + loginError set by fail(); re-throw unchanged.
+        if (this.loginError) throw error
         timer.end()
+        const message = error.message || 'Login failed. Please check your database connection.'
+        this.loginError = message
         loggingStore.error('AuthStore', 'Login failed with error', error, {
           username: credentials.username,
           database: credentials.database,
         })
-        this.loginError = 'Login failed. Please check your database connection.'
-        return false
+        throw new Error(message)
       }
     },
 
@@ -261,6 +250,7 @@ export const useAuthStore = defineStore('auth', {
       this.lastActivity = null
       this.loginError = null
       this.mustChangePassword = false
+      this.stopSessionMonitor()
       this.clearAuth()
 
       loggingStore.debug('AuthStore', 'Authentication cleared from localStorage')
@@ -293,6 +283,44 @@ export const useAuthStore = defineStore('auth', {
       if (!lastActivity) return true
       const now = Date.now()
       return now - lastActivity > this.sessionTimeout
+    },
+
+    /**
+     * Start a periodic session-expiry check. Called by MainLayout once the user
+     * is authenticated. Idempotent — safe to call multiple times.
+     */
+    startSessionMonitor() {
+      if (this._sessionMonitorId) return
+      this._sessionMonitorId = setInterval(() => {
+        if (this.isAuthenticated && this.sessionExpired) {
+          this.handleSessionExpired()
+        }
+      }, 60_000)
+    },
+
+    stopSessionMonitor() {
+      if (this._sessionMonitorId) {
+        clearInterval(this._sessionMonitorId)
+        this._sessionMonitorId = null
+      }
+    },
+
+    /**
+     * Triggered by the session monitor when sessionTimeout has elapsed.
+     * Clears auth state and bounces the user back to /login?expired=true,
+     * where LoginPage already shows the appropriate banner.
+     */
+    async handleSessionExpired() {
+      const loggingStore = useLoggingStore()
+      loggingStore.warn('AuthStore', 'Session timed out, forcing logout')
+      this.stopSessionMonitor()
+      try {
+        await this.logout()
+      } catch (err) {
+        loggingStore.error('AuthStore', 'Error while logging out after timeout', err)
+      }
+      // Hash router; bypass router.push to avoid re-entrancy with the guard
+      window.location.hash = '#/login?expired=true'
     },
 
     /**

@@ -439,48 +439,25 @@ const onExportConcepts = async () => {
   try {
     const result = await exportStore.exportConceptsToCSV()
 
-    if (result.success) {
-      logger.success('Concept CSV export completed successfully', {
-        recordCount: result.recordCount,
-        filename: result.filename,
-        fileSize: result.fileSize,
-        duration: result.duration,
-      })
+    logger.success('Concept CSV export completed successfully', {
+      recordCount: result.recordCount,
+      filename: result.filename,
+      fileSize: result.fileSize,
+      duration: result.duration,
+    })
 
-      $q.notify({
-        type: 'positive',
-        message: result.message,
-        caption: `File size: ${result.fileSize}KB • Export time: ${result.duration}ms`,
-        position: 'top',
-        timeout: 5000,
-        actions: [
-          {
-            label: 'Dismiss',
-            color: 'white',
-            handler: () => {
-              /* intentionally ignored */
-            },
-          },
-        ],
-      })
-    } else {
-      logger.error('Concept CSV export failed', null, {
-        error: result.error,
-        message: result.message,
-      })
-
-      $q.notify({
-        type: 'negative',
-        message: result.message,
-        position: 'top',
-      })
-    }
+    $q.notify({
+      type: 'positive',
+      message: result.message,
+      caption: `File size: ${result.fileSize}KB • Export time: ${result.duration}ms`,
+      position: 'top',
+      timeout: 5000,
+    })
   } catch (error) {
-    logger.error('Concept CSV export threw exception', error)
-    console.error('Failed to export concepts:', error)
+    logger.error('Concept CSV export failed', error)
     $q.notify({
       type: 'negative',
-      message: 'Failed to export concepts',
+      message: error.message || 'Failed to export concepts',
       position: 'top',
     })
   } finally {

@@ -65,6 +65,7 @@ import { useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import { useNotify } from 'src/composables/useNotify'
 
 // Component imports
 import CategorySelector from 'src/components/globalsettings/CategorySelector.vue'
@@ -75,6 +76,7 @@ import JsonViewerDialog from 'src/components/globalsettings/JsonViewerDialog.vue
 import QuestionnairePreviewDialog from 'src/components/globalsettings/QuestionnairePreviewDialog.vue'
 
 const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const route = useRoute()
 const globalSettingsStore = useGlobalSettingsStore()
@@ -189,11 +191,7 @@ const loadColumnOptions = async () => {
     }
   } catch (error) {
     console.error('Error loading column options:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load configuration types',
-      caption: error.message,
-    })
+    notify.error('Failed to load configuration types', { caption: error.message })
   } finally {
     loadingColumns.value = false
   }
@@ -218,11 +216,7 @@ const loadLookupValues = async () => {
     }
   } catch (error) {
     console.error('Error loading lookup values:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load values',
-      caption: error.message,
-    })
+    notify.error('Failed to load values', { caption: error.message })
   } finally {
     loading.value = false
   }
@@ -248,19 +242,12 @@ const saveEdit = async () => {
   try {
     await globalSettingsStore.updateLookupValue(editingRow.value, editForm.value.NAME_CHAR, editForm.value.LOOKUP_BLOB)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Value updated successfully',
-    })
+    notify.success('Value updated successfully')
     await loadLookupValues()
     cancelEdit()
   } catch (error) {
     console.error('Error updating value:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update value',
-      caption: error.message,
-    })
+    notify.error('Failed to update value', { caption: error.message })
   }
 }
 
@@ -268,18 +255,11 @@ const saveFieldSet = async (data) => {
   try {
     await globalSettingsStore.updateLookupValue(data.code, data.description, data.jsonData)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Field set updated successfully',
-    })
+    notify.success('Field set updated successfully')
     await loadLookupValues()
   } catch (error) {
     console.error('Error updating field set:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update field set',
-      caption: error.message,
-    })
+    notify.error('Failed to update field set', { caption: error.message })
   }
 }
 
@@ -287,18 +267,11 @@ const saveVisitType = async (data) => {
   try {
     await globalSettingsStore.updateLookupValue(data.code, data.label, data.jsonData)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Visit type updated successfully',
-    })
+    notify.success('Visit type updated successfully')
     await loadLookupValues()
   } catch (error) {
     console.error('Error updating visit type:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update visit type',
-      caption: error.message,
-    })
+    notify.error('Failed to update visit type', { caption: error.message })
   }
 }
 
@@ -325,10 +298,7 @@ const addValue = async (formData) => {
         }
       }
 
-      $q.notify({
-        type: 'positive',
-        message: 'Value added successfully',
-      })
+      notify.success('Value added successfully')
       showAddDialog.value = false
       await loadLookupValues()
     } else {
@@ -336,11 +306,7 @@ const addValue = async (formData) => {
     }
   } catch (error) {
     console.error('Error adding value:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to add value',
-      caption: error.message,
-    })
+    notify.error('Failed to add value', { caption: error.message })
   }
 }
 
@@ -365,9 +331,7 @@ const importQuestionnaire = async (questionnaireData) => {
         // Questionnaire store not available, that's fine
       }
 
-      $q.notify({
-        type: 'positive',
-        message: `Questionnaire "${questionnaireData.NAME_CHAR}" imported successfully`,
+      notify.success(`Questionnaire "${questionnaireData.NAME_CHAR}" imported successfully`, {
         caption: `Code: ${questionnaireData.CODE_CD}`,
       })
 
@@ -378,11 +342,7 @@ const importQuestionnaire = async (questionnaireData) => {
     }
   } catch (error) {
     console.error('Error importing questionnaire:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to import questionnaire',
-      caption: error.message,
-    })
+    notify.error('Failed to import questionnaire', { caption: error.message })
   }
 }
 
@@ -396,18 +356,11 @@ const deleteValue = async (row) => {
     try {
       await globalSettingsStore.deleteLookupValue(row.CODE_CD)
 
-      $q.notify({
-        type: 'positive',
-        message: t('settings.lookupDeleted'),
-      })
+      notify.success(t('settings.lookupDeleted'))
       await loadLookupValues()
     } catch (error) {
       console.error('Error deleting value:', error)
-      $q.notify({
-        type: 'negative',
-        message: t('settings.lookupDeleteFailed'),
-        caption: error.message,
-      })
+      notify.error(t('settings.lookupDeleteFailed'), { caption: error.message })
     }
   })
 }

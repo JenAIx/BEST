@@ -253,7 +253,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
@@ -421,9 +421,29 @@ if (savedMode) {
   viewMode.value = savedMode
 }
 
-// Initialize local settings store on app mount
+// --- Session-Timeout enforcement -------------------------------------------
+// Track real user activity (clicks, keys, scroll, touch) so the session-
+// monitor can fire when the user is actually idle. Throttle to 60s so we
+// don't repeatedly write to localStorage on every mousemove.
+const ACTIVITY_EVENTS = ['click', 'keydown', 'scroll', 'touchstart']
+const ACTIVITY_THROTTLE_MS = 60_000
+let lastActivityWrite = 0
+const onUserActivity = () => {
+  const now = Date.now()
+  if (now - lastActivityWrite < ACTIVITY_THROTTLE_MS) return
+  lastActivityWrite = now
+  authStore.updateActivity()
+}
+
 onMounted(() => {
   localSettingsStore.initialize()
+  authStore.startSessionMonitor()
+  ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, onUserActivity, { passive: true }))
+})
+
+onBeforeUnmount(() => {
+  ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, onUserActivity))
+  authStore.stopSessionMonitor()
 })
 </script>
 

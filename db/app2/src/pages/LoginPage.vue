@@ -362,27 +362,25 @@ const onLogin = async () => {
       rememberMe: formData.rememberMe,
     }
 
-    const success = await authStore.login(credentials)
+    await authStore.login(credentials)
 
-    if (success) {
-      const duration = timer.end()
-      logger.success('Login successful', {
-        username: formData.username,
-        database: formData.database.value,
-        duration: `${duration.toFixed(2)}ms`,
-      })
+    const duration = timer.end()
+    logger.success('Login successful', {
+      username: formData.username,
+      database: formData.database.value,
+      duration: `${duration.toFixed(2)}ms`,
+    })
 
-      $q.notify({
-        type: 'positive',
-        message: `Welcome back, ${authStore.userName}!`,
-        position: 'top',
-      })
+    $q.notify({
+      type: 'positive',
+      message: `Welcome back, ${authStore.userName}!`,
+      position: 'top',
+    })
 
-      // Redirect to intended page or dashboard
-      const redirect = route.query.redirect || '/dashboard'
-      logger.logNavigation('/login', redirect, 'redirect')
-      router.push(redirect)
-    }
+    // Redirect to intended page or dashboard
+    const redirect = route.query.redirect || '/dashboard'
+    logger.logNavigation('/login', redirect, 'redirect')
+    router.push(redirect)
   } catch (error) {
     timer.end()
     logger.error('Login form error', error, {
@@ -392,7 +390,7 @@ const onLogin = async () => {
 
     $q.notify({
       type: 'negative',
-      message: 'Login failed. Please try again.',
+      message: error.message || 'Login failed. Please try again.',
       position: 'top',
     })
   } finally {

@@ -9,7 +9,6 @@ import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useLocalSettingsStore } from './local-settings-store'
 import { useLoggingStore } from './logging-store'
-import { useQuasar } from 'quasar'
 import { getPatientInitials, formatDate } from 'src/shared/utils/medical-utils'
 import {
   getCellClass,
@@ -27,7 +26,6 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   const dbStore = useDatabaseStore()
   const localSettings = useLocalSettingsStore()
   const logger = useLoggingStore().createLogger('DataGridStore')
-  const $q = useQuasar()
 
   // State
   const loading = ref(false)
@@ -247,11 +245,6 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       })
     } catch (error) {
       logger.error('Failed to load grid data', error)
-      $q.notify({
-        type: 'negative',
-        message: `Failed to load grid data: ${error.message}`,
-        position: 'top',
-      })
       throw error
     } finally {
       loading.value = false
@@ -303,26 +296,23 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   }
 
   const handleCellError = (error) => {
+    // Caller (ExcelLikeEditor) is responsible for surfacing the error to the user.
     logger.error('Cell error', error)
-    $q.notify({
-      type: 'negative',
-      message: `Cell error: ${error.message}`,
-      position: 'top',
-    })
   }
 
-  // Batch operations
+  // Batch operations. Returns { savedCount, errorCount }; the caller decides
+  // how to surface the result to the user (notify, toast, etc.).
   const saveAllChanges = async () => {
-    if (!hasUnsavedChanges.value) return
+    if (!hasUnsavedChanges.value) return { savedCount: 0, errorCount: 0 }
+
+    savingAll.value = true
+    logger.info('Starting batch save of all changes', { changeCount: pendingChanges.value.size })
+
+    const changes = Array.from(pendingChanges.value.values())
+    let savedCount = 0
+    let errorCount = 0
 
     try {
-      savingAll.value = true
-      logger.info('Starting batch save of all changes', { changeCount: pendingChanges.value.size })
-
-      const changes = Array.from(pendingChanges.value.values())
-      let savedCount = 0
-      let errorCount = 0
-
       for (const change of changes) {
         try {
           // Here you would typically call the database store to save the observation
@@ -341,27 +331,12 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       lastUpdateTime.value = new Date().toLocaleTimeString()
 
       if (errorCount === 0) {
-        $q.notify({
-          type: 'positive',
-          message: `Saved ${savedCount} changes successfully`,
-          position: 'top',
-        })
         logger.success('All changes saved successfully', { savedCount })
       } else {
-        $q.notify({
-          type: 'warning',
-          message: `Saved ${savedCount} changes, ${errorCount} failed`,
-          position: 'top',
-        })
         logger.warn('Some changes failed to save', { savedCount, errorCount })
       }
-    } catch (error) {
-      logger.error('Failed to save all changes', error)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to save some changes',
-        position: 'top',
-      })
+
+      return { savedCount, errorCount }
     } finally {
       savingAll.value = false
     }
@@ -371,12 +346,6 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     logger.info('Refreshing grid data')
     await loadGridData(patientIds)
     lastUpdateTime.value = new Date().toLocaleTimeString()
-
-    $q.notify({
-      type: 'info',
-      message: 'Data refreshed',
-      position: 'top',
-    })
   }
 
   const clearPendingChanges = () => {
