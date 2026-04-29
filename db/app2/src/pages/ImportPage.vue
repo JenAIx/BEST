@@ -52,7 +52,7 @@
               <div v-if="selectedFile" class="file-info q-mt-lg">
                 <q-card flat bordered class="bg-grey-1">
                   <q-card-section>
-                    <div class="text-subtitle1 q-mb-sm">Selected File</div>
+                    <div class="text-subtitle1 q-mb-sm">{{ $t('import.selectedFile') }}</div>
                     <div class="row items-center">
                       <q-icon name="description" size="24px" color="primary" class="q-mr-sm" />
                       <div class="col">
@@ -71,14 +71,14 @@
         <div v-if="currentStep === 'analyze'" class="step-content">
           <q-card flat bordered>
             <q-card-section>
-              <div class="text-h6 q-mb-md">File Analysis</div>
-              <div class="text-body2 text-grey-6 q-mb-lg">Analyzing your file to determine the best import strategy...</div>
+              <div class="text-h6 q-mb-md">{{ $t('import.fileAnalysisTitle') }}</div>
+              <div class="text-body2 text-grey-6 q-mb-lg">{{ $t('import.fileAnalysisHint') }}</div>
 
               <!-- Analyzing State -->
               <div v-if="analyzingFile" class="analyzing-state">
                 <q-spinner-dots size="60px" color="primary" class="q-mb-md" />
-                <div class="text-h5 q-mb-sm">Analyzing File...</div>
-                <div class="text-body1 text-grey-6">Please wait while we analyze your file structure.</div>
+                <div class="text-h5 q-mb-sm">{{ $t('import.analyzingFile') }}</div>
+                <div class="text-body1 text-grey-6">{{ $t('import.analyzingFileHint') }}</div>
               </div>
 
               <!-- Analysis Results -->
@@ -86,20 +86,20 @@
                 <q-card flat bordered class="bg-grey-1 q-mb-lg">
                   <q-card-section>
                     <div class="row items-center justify-between q-mb-md">
-                      <div class="text-subtitle1">File Analysis Results</div>
-                      <q-btn color="primary" icon="preview" label="Preview" size="lg" @click="showPreviewDialog = true" />
+                      <div class="text-subtitle1">{{ $t('import.analysisResults') }}</div>
+                      <q-btn color="primary" icon="preview" :label="$t('import.preview')" size="lg" @click="showPreviewDialog = true" />
                     </div>
 
                     <div class="text-body2 q-mb-sm">
-                      <strong>Patients:</strong> {{ fileAnalysis.patientsCount || 0 }} • <strong>Visits:</strong> {{ fileAnalysis.visitsCount || 0 }} • <strong>Observations:</strong>
-                      {{ fileAnalysis.observationsCount || 0 }} • <strong>Est. Time:</strong> {{ fileAnalysis.estimatedImportTime || 'Unknown' }}
+                      <strong>{{ $t('import.fieldPatients') }}:</strong> {{ fileAnalysis.patientsCount || 0 }} • <strong>{{ $t('import.fieldVisits') }}:</strong> {{ fileAnalysis.visitsCount || 0 }} • <strong>{{ $t('import.fieldObservations') }}:</strong>
+                      {{ fileAnalysis.observationsCount || 0 }} • <strong>{{ $t('import.fieldEstTime') }}:</strong> {{ fileAnalysis.estimatedImportTime || $t('import.fieldUnknown') }}
                     </div>
 
                     <div class="text-body2 q-mb-sm">
-                      <strong>File:</strong> {{ fileAnalysis.filename }} • <strong>Format:</strong> {{ fileAnalysis.format ? fileAnalysis.format.toUpperCase() : 'Unknown' }}
+                      <strong>{{ $t('import.fieldFile') }}:</strong> {{ fileAnalysis.filename }} • <strong>{{ $t('import.fieldFormat') }}:</strong> {{ fileAnalysis.format ? fileAnalysis.format.toUpperCase() : $t('import.fieldUnknown') }}
                     </div>
                     <div class="text-body2 q-mb-sm">
-                      <strong>Recommended Strategy:</strong>
+                      <strong>{{ $t('import.fieldRecommendedStrategy') }}:</strong>
                       <q-chip :color="getStrategyColor(fileAnalysis.recommendedStrategy)" text-color="white" size="sm">
                         {{ getStrategyLabel(fileAnalysis.recommendedStrategy) }}
                       </q-chip>
@@ -133,8 +133,8 @@
 
                 <!-- Action Buttons -->
                 <div class="q-gutter-md">
-                  <q-btn color="primary" icon="arrow_forward" label="Continue to Mode Selection" @click="goToModeSelection" :disable="!fileAnalysis.success" no-caps class="q-px-lg" />
-                  <q-btn flat color="grey-7" label="Upload Different File" @click="goBackToUpload" />
+                  <q-btn color="primary" icon="arrow_forward" :label="$t('import.continueToMode')" @click="goToModeSelection" :disable="!fileAnalysis.success" no-caps class="q-px-lg" />
+                  <q-btn flat color="grey-7" :label="$t('import.uploadDifferent')" @click="goBackToUpload" />
                 </div>
               </div>
 
@@ -144,10 +144,10 @@
                   <q-card-section>
                     <div class="text-subtitle1 q-mb-md text-negative-8">
                       <q-icon name="error" class="q-mr-sm" />
-                      File Analysis Failed
+                      {{ $t('import.analysisFailedTitle') }}
                     </div>
 
-                    <div class="text-body2 text-negative-8 q-mb-md">We encountered an error while analyzing your file. Please check the details below and try again.</div>
+                    <div class="text-body2 text-negative-8 q-mb-md">{{ $t('import.analysisFailedHint') }}</div>
 
                     <!-- Error Details -->
                     <div v-if="fileAnalysis.errors && fileAnalysis.errors.length > 0" class="q-mb-md">
@@ -155,7 +155,7 @@
                         <template v-slot:avatar>
                           <q-icon name="error_outline" />
                         </template>
-                        <div class="text-subtitle2 q-mb-sm">Error Details:</div>
+                        <div class="text-subtitle2 q-mb-sm">{{ $t('import.errorDetails') }}:</div>
                         <div v-for="(error, index) in fileAnalysis.errors" :key="index" class="q-mb-xs">• {{ typeof error === 'string' ? error : error.message || error }}</div>
                       </q-banner>
                     </div>
@@ -163,16 +163,16 @@
                     <!-- Error Details (if available) -->
                     <div v-if="fileAnalysis.errorDetails" class="q-mb-md">
                       <div class="text-caption text-grey-7">
-                        <strong>Timestamp:</strong> {{ fileAnalysis.errorDetails.timestamp }}<br />
-                        <strong>Filename:</strong> {{ fileAnalysis.errorDetails.filename }}<br />
-                        <strong>Message:</strong> {{ fileAnalysis.errorDetails.message }}
+                        <strong>{{ $t('import.fieldTimestamp') }}:</strong> {{ fileAnalysis.errorDetails.timestamp }}<br />
+                        <strong>{{ $t('import.fieldFilename') }}:</strong> {{ fileAnalysis.errorDetails.filename }}<br />
+                        <strong>{{ $t('import.fieldMessage') }}:</strong> {{ fileAnalysis.errorDetails.message }}
                       </div>
                     </div>
 
                     <!-- Action Buttons -->
                     <div class="q-gutter-md">
-                      <q-btn color="primary" icon="refresh" label="Try Again" @click="retryAnalysis" />
-                      <q-btn flat color="grey-7" label="Upload Different File" @click="goBackToUpload" />
+                      <q-btn color="primary" icon="refresh" :label="$t('import.tryAgain')" @click="retryAnalysis" />
+                      <q-btn flat color="grey-7" :label="$t('import.uploadDifferent')" @click="goBackToUpload" />
                     </div>
                   </q-card-section>
                 </q-card>
@@ -185,8 +185,8 @@
         <div v-if="currentStep === 'mode'" class="step-content">
           <q-card flat bordered>
             <q-card-section>
-              <div class="text-h6 q-mb-md">Select Import Mode</div>
-              <div class="text-body2 text-grey-6 q-mb-lg">Choose how you want to import the data based on the file analysis.</div>
+              <div class="text-h6 q-mb-md">{{ $t('import.selectImportMode') }}</div>
+              <div class="text-body2 text-grey-6 q-mb-lg">{{ $t('import.selectImportModeHint') }}</div>
 
               <!-- Mode Selection -->
               <div class="mode-selection q-mb-lg">
@@ -205,19 +205,19 @@
 
               <!-- Patient/Visit Selection for Single Patient Mode -->
               <div v-if="selectedMode === 'single_patient'" class="patient-selection q-mb-lg">
-                <div class="text-subtitle1 q-mb-md">Patient & Visit Selection</div>
+                <div class="text-subtitle1 q-mb-md">{{ $t('import.patientVisitSection') }}</div>
 
                 <!-- Create New Patient Option -->
-                <q-radio v-model="patientMode" val="create" label="Create new patient" class="q-mb-md" />
+                <q-radio v-model="patientMode" val="create" :label="$t('import.createNewPatient')" class="q-mb-md" />
 
                 <!-- Use Existing Patient Option -->
-                <q-radio v-model="patientMode" val="existing" label="Add to existing patient" class="q-mb-md" />
+                <q-radio v-model="patientMode" val="existing" :label="$t('import.addToExisting')" class="q-mb-md" />
 
                 <!-- Patient Selection -->
                 <div v-if="patientMode === 'existing'" class="q-mt-md">
                   <PatientSelectionCard
-                    title="Select Patient"
-                    description="Choose the patient to add the imported data to."
+                    :title="$t('import.selectPatient')"
+                    :description="$t('import.selectPatientHint')"
                     :selected-patient="selectedPatient"
                     @patient-selected="selectPatient"
                     @patient-search="onPatientSearch"
@@ -226,7 +226,7 @@
 
                 <!-- Visit Selection -->
                 <div v-if="patientMode === 'existing' && selectedPatient" class="q-mt-md">
-                  <q-btn flat color="green" label="Select Visit" @click="openVisitSelection" />
+                  <q-btn flat color="green" :label="$t('import.selectVisit')" @click="openVisitSelection" />
                   <div v-if="selectedVisit" class="q-mt-sm">
                     <q-chip color="green" text-color="white" icon="event">
                       {{ getVisitDisplayName() }}
@@ -237,8 +237,8 @@
 
               <!-- Action Buttons -->
               <div class="q-gutter-md">
-                <q-btn color="primary" icon="arrow_forward" label="Continue to Import" @click="goToImport" :disable="!canProceedToImport" no-caps class="q-px-lg" />
-                <q-btn flat color="grey-7" label="Back to Analysis" @click="goBackToAnalysis" />
+                <q-btn color="primary" icon="arrow_forward" :label="$t('import.continueToImport')" @click="goToImport" :disable="!canProceedToImport" no-caps class="q-px-lg" />
+                <q-btn flat color="grey-7" :label="$t('import.backToAnalysis')" @click="goBackToAnalysis" />
               </div>
             </q-card-section>
           </q-card>
@@ -251,7 +251,7 @@
               <!-- Importing State -->
               <div v-if="importStore.isImporting" class="importing-state">
                 <q-spinner-dots size="60px" color="primary" class="q-mb-md" />
-                <div class="text-h5 q-mb-sm">Importing Data...</div>
+                <div class="text-h5 q-mb-sm">{{ $t('import.importingData') }}</div>
                 <div class="text-body1 text-grey-6 q-mb-lg">{{ importStore.importProgress }}</div>
                 <q-linear-progress :value="importStore.importProgressValue / 100" color="primary" class="q-mt-md" />
               </div>
@@ -259,30 +259,30 @@
               <!-- Import Complete -->
               <div v-else-if="importComplete" class="import-complete">
                 <q-icon name="check_circle" size="80px" color="green" class="q-mb-md" />
-                <div class="text-h5 q-mb-sm">Import Completed Successfully!</div>
-                <div class="text-body1 text-grey-6 q-mb-lg">Your data has been imported and saved to the patient's record.</div>
+                <div class="text-h5 q-mb-sm">{{ $t('import.importCompletedTitle') }}</div>
+                <div class="text-body1 text-grey-6 q-mb-lg">{{ $t('import.importCompletedHint') }}</div>
 
                 <!-- Import Summary -->
                 <div v-if="importSummary" class="import-summary q-mb-lg">
                   <q-card flat bordered class="bg-grey-1">
                     <q-card-section>
-                      <div class="text-subtitle1 q-mb-sm">Import Summary</div>
+                      <div class="text-subtitle1 q-mb-sm">{{ $t('import.importSummary') }}</div>
                       <div class="row q-gutter-md justify-center">
                         <div class="text-center">
                           <div class="text-h6">{{ importSummary.totalRecords }}</div>
-                          <div class="text-caption text-grey-6">Records Processed</div>
+                          <div class="text-caption text-grey-6">{{ $t('import.recordsProcessed') }}</div>
                         </div>
                         <div class="text-center">
                           <div class="text-h6">{{ importSummary.successfulImports }}</div>
-                          <div class="text-caption text-grey-6">Successfully Imported</div>
+                          <div class="text-caption text-grey-6">{{ $t('import.successfullyImported') }}</div>
                         </div>
                         <div v-if="importSummary.visits > 1" class="text-center">
                           <div class="text-h6">{{ importSummary.visits }}</div>
-                          <div class="text-caption text-grey-6">Visits Created</div>
+                          <div class="text-caption text-grey-6">{{ $t('import.visitsCreated') }}</div>
                         </div>
                         <div v-if="importSummary.errors > 0" class="text-center">
                           <div class="text-h6 text-negative">{{ importSummary.errors }}</div>
-                          <div class="text-caption text-grey-6">Errors</div>
+                          <div class="text-caption text-grey-6">{{ $t('import.summaryErrors') }}</div>
                         </div>
                       </div>
                     </q-card-section>
@@ -291,11 +291,11 @@
 
                 <!-- Actions -->
                 <div class="q-gutter-md">
-                  <q-btn color="primary" label="Import Another File" @click="startOver" />
-                  <q-btn 
-                    flat 
-                    color="grey-7" 
-                    label="View Patient Record" 
+                  <q-btn color="primary" :label="$t('import.importAnother')" @click="startOver" />
+                  <q-btn
+                    flat
+                    color="grey-7"
+                    :label="$t('import.viewPatient')"
                     @click="goToPatientRecord"
                     :disable="!importedPatientCode && !selectedPatient"
                   />
@@ -305,12 +305,12 @@
               <!-- Import Error -->
               <div v-else-if="importError" class="import-error">
                 <q-icon name="error" size="80px" color="negative" class="q-mb-md" />
-                <div class="text-h5 q-mb-sm">Import Failed</div>
+                <div class="text-h5 q-mb-sm">{{ $t('import.importFailedTitle') }}</div>
                 <div class="text-body1 text-negative q-mb-lg">{{ importError }}</div>
 
                 <div class="q-gutter-md">
-                  <q-btn color="primary" label="Try Again" @click="retryImport" />
-                  <q-btn flat color="grey-7" label="Cancel" @click="goBackToUpload" />
+                  <q-btn color="primary" :label="$t('import.tryAgain')" @click="retryImport" />
+                  <q-btn flat color="grey-7" :label="$t('import.cancel')" @click="goBackToUpload" />
                 </div>
               </div>
             </q-card-section>
@@ -338,10 +338,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
-// import { useVisitObservationStore } from '../stores/visit-observation-store.js' // Not used in new flow
+import { useI18n } from 'vue-i18n'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from '../stores/database-store.js'
 import { useImportStore } from '../stores/import-store.js'
+import { useVisitStore } from '../stores/visit-store.js'
 import { logger } from '../core/services/logging-service.js'
 import FileUploadInput from '../components/shared/FileUploadInput.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
@@ -350,9 +351,11 @@ import ImportPreviewDialog from '../components/shared/ImportPreviewDialog.vue'
 
 // Composables
 const router = useRouter()
-const $q = useQuasar()
+const { t } = useI18n()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const importStore = useImportStore()
+const visitStore = useVisitStore()
 
 // State
 const currentStep = ref('upload') // upload -> analyze -> mode -> import
@@ -367,20 +370,11 @@ const showVisitDialog = ref(false)
 const showPreviewDialog = ref(false)
 const debugLoading = ref(false)
 
-// Patient search handled by PatientSelectionCard component
-
 // Import state (using import store)
 const importComplete = ref(false)
 const importError = ref('')
 const importSummary = ref(null)
 const importedPatientCode = ref(null) // Track the imported patient for navigation
-
-// Import options (currently not used in new flow)
-// const importOptions = ref(['createNewObservations'])
-// const importOptionList = [
-//   { label: 'Create new observations', value: 'createNewObservations' },
-//   { label: 'Validate data before import', value: 'validateData' },
-// ]
 
 // Computed
 const currentStepNumber = computed(() => {
@@ -406,18 +400,18 @@ const availableModes = computed(() => {
   // Only offer single patient mode if there's only one patient
   if (!fileAnalysis.value.hasMultiplePatients) {
     modes.push({
-      label: 'Single Patient Mode',
+      label: t('import.modeSinglePatient'),
       value: 'single_patient',
-      description: 'Import data for one patient',
+      description: t('import.modeSinglePatientDesc'),
     })
   }
 
   // Only offer multiple patients mode if there are multiple patients
   if (fileAnalysis.value.hasMultiplePatients) {
     modes.push({
-      label: 'Multiple Patients Mode',
+      label: t('import.modeMultiplePatients'),
       value: 'multiple_patients',
-      description: 'Import data for multiple patients',
+      description: t('import.modeMultiplePatientsDesc'),
     })
   }
 
@@ -497,26 +491,26 @@ const goToImport = () => {
 const getModeTitle = (mode) => {
   switch (mode) {
     case 'single_patient':
-      return 'Single Patient Mode'
+      return t('import.modeSinglePatient')
     case 'multiple_patients':
-      return 'Multiple Patients Mode'
+      return t('import.modeMultiplePatients')
     case 'batch_import':
-      return 'Batch Import Mode'
+      return t('import.modeBatch')
     default:
-      return 'Unknown Mode'
+      return t('import.modeUnknown')
   }
 }
 
 const getModeDescription = (mode) => {
   switch (mode) {
     case 'single_patient':
-      return 'Import data for a single patient. You can create a new patient or add data to an existing patient.'
+      return t('import.modeSinglePatientLong')
     case 'multiple_patients':
-      return 'Import data for multiple patients. Each patient will be created or updated with their respective data.'
+      return t('import.modeMultiplePatientsLong')
     case 'batch_import':
-      return 'Bulk import mode for large datasets. All patients and visits will be processed automatically.'
+      return t('import.modeBatchLong')
     default:
-      return 'Unknown import mode.'
+      return t('import.modeUnknownLong')
   }
 }
 
@@ -541,68 +535,35 @@ const openVisitSelection = async () => {
       }
     } catch (error) {
       logger.error('Failed to check patient visits', error)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to load patient visits',
-      })
+      notify.error(t('import.errorFailedLoadVisits'))
     }
   }
 }
 
 const createVisitForPatient = async () => {
   try {
-    const visitResult = await dbStore.executeQuery(
-      `INSERT INTO VISIT_DIMENSION (
-        PATIENT_NUM, ACTIVE_STATUS_CD, START_DATE, INOUT_CD,
-        LOCATION_CD, VISIT_BLOB, IMPORT_DATE, SOURCESYSTEM_CD
-      ) VALUES (?, ?, ?, ?, ?, ?, datetime('now'), ?)`,
-      [
-        selectedPatient.value.PATIENT_NUM,
-        'A', // Active
-        new Date().toISOString(),
-        'IMPORT',
-        'Data Import',
-        JSON.stringify({
-          visitNotes: 'Auto-created for data import',
-          createdFor: 'import',
-        }),
-        'IMPORT_SYSTEM',
-      ],
-    )
+    const created = await visitStore.createVisitForImport(selectedPatient.value.PATIENT_NUM)
 
-    if (!visitResult.success) {
-      throw new Error('Failed to create visit')
-    }
-
-    const newVisit = {
-      ENCOUNTER_NUM: visitResult.lastInsertRowid,
+    selectedVisit.value = {
+      ENCOUNTER_NUM: created.ENCOUNTER_NUM,
       PATIENT_NUM: selectedPatient.value.PATIENT_NUM,
       ACTIVE_STATUS_CD: 'A',
-      START_DATE: new Date().toISOString(),
+      START_DATE: created.START_DATE || new Date().toISOString(),
       LOCATION_CD: 'Data Import',
       visitNotes: 'Auto-created for data import',
       isNew: true,
     }
-
-    selectedVisit.value = newVisit
     currentStep.value = 'upload'
 
-    $q.notify({
-      type: 'positive',
-      message: 'Visit created automatically',
-      timeout: 3000,
-    })
+    notify.success(t('import.toastVisitAutoCreated'))
 
     logger.info('Auto-created visit for import', {
-      encounterNum: newVisit.ENCOUNTER_NUM,
+      encounterNum: created.ENCOUNTER_NUM,
       patientNum: selectedPatient.value.PATIENT_NUM,
     })
   } catch (error) {
     logger.error('Failed to create visit for patient', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to create visit for patient',
-    })
+    notify.error(t('import.errorFailedCreateVisit'))
   }
 }
 
@@ -621,46 +582,14 @@ const onVisitDialogCancel = () => {
 }
 
 const getVisitDisplayName = () => {
-  if (!selectedVisit.value) return 'No visit selected'
+  if (!selectedVisit.value) return t('import.noVisitSelected')
 
   if (selectedVisit.value.isNew) {
-    return 'New Visit (Created)'
-  } else {
-    const date = new Date(selectedVisit.value.START_DATE)
-    return `Visit - ${date.toLocaleDateString()}`
+    return t('import.newVisitCreated')
   }
+  const date = new Date(selectedVisit.value.START_DATE)
+  return t('import.visitOnDate', { date: date.toLocaleDateString() })
 }
-
-// Helper functions (currently not used in new flow)
-// const getVisitDetails = () => {
-//   if (!selectedVisit.value) return ''
-//   const details = []
-//   if (selectedVisit.value.LOCATION_CD) {
-//     details.push(`Location: ${selectedVisit.value.LOCATION_CD}`)
-//   }
-//   const statusMap = {
-//     A: 'Active',
-//     C: 'Completed',
-//     S: 'Scheduled',
-//     X: 'Cancelled',
-//   }
-//   const status = statusMap[selectedVisit.value.ACTIVE_STATUS_CD] || selectedVisit.value.ACTIVE_STATUS_CD
-//   if (status) {
-//     details.push(`Status: ${status}`)
-//   }
-//   if (selectedVisit.value.visitNotes) {
-//     details.push(`Notes: ${selectedVisit.value.visitNotes}`)
-//   }
-//   return details.join(' • ')
-// }
-
-// const getPatientName = (patient) => {
-//   if (patient.name) return patient.name
-//   if (patient.firstName && patient.lastName) {
-//     return `${patient.firstName} ${patient.lastName}`
-//   }
-//   return patient.PATIENT_CD || 'Unknown Patient'
-// }
 
 const getStrategyColor = (strategy) => {
   switch (strategy) {
@@ -678,13 +607,13 @@ const getStrategyColor = (strategy) => {
 const getStrategyLabel = (strategy) => {
   switch (strategy) {
     case 'single_patient':
-      return 'SINGLE PATIENT'
+      return t('import.strategySinglePatient')
     case 'multiple_patients':
-      return 'MULTIPLE PATIENTS'
+      return t('import.strategyMultiplePatients')
     case 'batch_import':
-      return 'BATCH IMPORT'
+      return t('import.strategyBatchImport')
     default:
-      return 'UNKNOWN'
+      return t('import.strategyUnknown')
   }
 }
 
@@ -700,11 +629,7 @@ const onFileSelected = async (fileData) => {
   // Validate file data structure
   if (!fileData || !fileData.blob) {
     logger.error('File data is invalid', { fileData })
-    $q.notify({
-      type: 'negative',
-      message: 'File data is invalid or empty',
-      timeout: 3000,
-    })
+    notify.error(t('import.errorFileInvalid'), { timeout: 3000 })
     return
   }
 
@@ -729,31 +654,9 @@ const onFileSelected = async (fileData) => {
       throw new Error('File appears to be empty or contains no readable content.')
     }
 
-    // Use the new import store for analysis
+    // Throws on failure; resolves with a successful analysis result.
     const analysis = await importStore.analyzeFileContent(content, fileData.fileInfo.filename)
-
-    // Ensure we have a valid analysis result
-    if (!analysis) {
-      throw new Error('Analysis returned no result')
-    }
-
     fileAnalysis.value = analysis
-
-    if (!analysis.success) {
-      const errorMessage = analysis.errors?.[0]?.message || analysis.errors?.[0] || 'Unknown analysis error'
-      logger.error('File analysis failed with errors', {
-        filename: fileData.fileInfo.filename,
-        errors: analysis.errors,
-        errorMessage,
-      })
-
-      $q.notify({
-        type: 'negative',
-        message: `File analysis failed: ${errorMessage}`,
-        timeout: 5000,
-      })
-      return
-    }
 
     logger.info('File analysis completed successfully', {
       filename: fileData.fileInfo.filename,
@@ -762,15 +665,9 @@ const onFileSelected = async (fileData) => {
       visitsCount: analysis.visitsCount,
       observationsCount: analysis.observationsCount,
       recommendedStrategy: analysis.recommendedStrategy,
-      hasWarnings: analysis.warnings?.length > 0,
-      hasErrors: analysis.errors?.length > 0,
     })
 
-    $q.notify({
-      type: 'positive',
-      message: 'File analysis completed successfully',
-      timeout: 3000,
-    })
+    notify.success(t('import.toastAnalysisDone'), { timeout: 3000 })
   } catch (error) {
     logger.error('File analysis error occurred', {
       error: error.message,
@@ -797,10 +694,8 @@ const onFileSelected = async (fileData) => {
       },
     }
 
-    $q.notify({
-      type: 'negative',
-      message: `File analysis failed: ${error.message}`,
-      caption: 'Please check the file format and try again',
+    notify.error(t('import.errorAnalysisFailed', { msg: error.message }), {
+      caption: t('import.errorCheckFormat'),
       timeout: 7000,
     })
   } finally {
@@ -875,18 +770,10 @@ const loadDebugFile = async (filename) => {
     // Use the existing file analysis logic
     await onFileSelected(mockFileData)
 
-    $q.notify({
-      type: 'positive',
-      message: `Debug file ${filename} loaded and analysis started`,
-      timeout: 3000,
-    })
+    notify.success(t('import.toastDebugLoaded', { filename }), { timeout: 3000 })
   } catch (error) {
     logger.error('Failed to load debug file', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to load debug file: ${error.message}`,
-      timeout: 5000,
-    })
+    notify.error(t('import.errorDebugLoadFailed', { msg: error.message }), { timeout: 5000 })
   } finally {
     debugLoading.value = false
   }
@@ -908,20 +795,13 @@ const retryAnalysis = () => {
     onFileSelected(selectedFile.value)
   } else {
     logger.warn('Cannot retry analysis: no file selected')
-    $q.notify({
-      type: 'negative',
-      message: 'No file selected for analysis',
-      timeout: 3000,
-    })
+    notify.error(t('import.errorNoFileSelected'), { timeout: 3000 })
   }
 }
 
 const startImport = async () => {
   if (!selectedFile.value || !selectedMode.value) {
-    $q.notify({
-      type: 'negative',
-      message: 'Missing required information for import',
-    })
+    notify.error(t('import.errorMissingInfo'))
     return
   }
 
@@ -995,11 +875,7 @@ const startImport = async () => {
         importedPatientCode.value = fileAnalysis.value.importStructure.data.patients[0].PATIENT_CD
       }
 
-      $q.notify({
-        type: 'positive',
-        message: `Import completed successfully! Imported ${importSummary.value.totalRecords} records.`,
-        timeout: 5000,
-      })
+      notify.success(t('import.toastImportDone', { count: importSummary.value.totalRecords }), { timeout: 5000 })
 
       logger.info('Database import completed successfully', {
         mode: selectedMode.value,
@@ -1014,11 +890,7 @@ const startImport = async () => {
     logger.error('Database import failed', error)
     importError.value = error.message || 'An error occurred during database import'
 
-    $q.notify({
-      type: 'negative',
-      message: `Import failed: ${error.message}`,
-      timeout: 7000,
-    })
+    notify.error(t('import.errorImportFailed', { msg: error.message }), { timeout: 7000 })
   }
 }
 
@@ -1071,36 +943,9 @@ const goToPatientRecord = () => {
       hasImportedCode: !!importedPatientCode.value,
       hasSelectedPatient: !!selectedPatient.value,
     })
-    $q.notify({
-      type: 'warning',
-      message: 'Unable to navigate to patient record - patient information not available',
-      timeout: 3000,
-    })
+    notify.warning(t('import.errorCannotNavigate'), { timeout: 3000 })
   }
 }
-
-// Import preview dialog function (removed in new flow)
-// const proceedWithImport = (selectionData) => {
-//   logger.info('User confirmed import from preview dialog', {
-//     filename: selectedFile.value?.fileInfo?.filename,
-//     patientId: selectedPatient.value?.PATIENT_CD,
-//     visitId: selectedVisit.value?.ENCOUNTER_NUM,
-//     strategy: fileAnalysis.value?.recommendedStrategy,
-//     selectionData: selectionData || null,
-//   })
-//   // Store selection data for the import process
-//   if (selectionData) {
-//     logger.info('Survey items selected for import', {
-//       selectedItems: selectionData.selectedItems?.length || 0,
-//       selectedResults: selectionData.selectedResults?.length || 0,
-//       totalSelected: selectionData.totalSelected || 0,
-//     })
-//   }
-//   // Close the preview dialog
-//   showPreviewDialog.value = false
-//   // Start the actual import process
-//   startImport()
-// }
 
 // Initialize on mount
 onMounted(async () => {
