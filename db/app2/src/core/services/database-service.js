@@ -26,6 +26,7 @@ import { fieldsetCategories } from '../database/migrations/006-fieldset-categori
 import { parkinsonVisitTypes } from '../database/migrations/007-parkinson-visit-types.js'
 import { passwordHashing } from '../database/migrations/008-password-hashing.js'
 import { fixPatientCascade } from '../database/migrations/009-fix-patient-cascade.js'
+import { strokeLipidSeed } from '../database/migrations/010-stroke-lipid-seed.js'
 
 class DatabaseService {
   constructor() {
@@ -76,6 +77,7 @@ class DatabaseService {
       this.migrationManager.registerMigration(parkinsonVisitTypes)
       this.migrationManager.registerMigration(passwordHashing)
       this.migrationManager.registerMigration(fixPatientCascade)
+      this.migrationManager.registerMigration(strokeLipidSeed)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()
