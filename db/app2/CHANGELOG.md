@@ -26,10 +26,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stroke-Lipid XLSX importer** (`scripts/import-fw-lipid/`) — isolated Node module
   that imports research master tables into `production.db` with:
   - Idempotent re-runs (`SOURCESYSTEM_CD` tag, per-patient delete-and-rewrite).
-  - 2 % spot-check tool (`spotcheck.js`) that cell-by-cell verifies imported data
-    against the source XLSX.
-  - NBSP (U+00A0) normalisation on header keys.
+  - Full-coverage verifier `spotcheck.js` (was 2 % sample, now defaults to 100 %).
+    Cell-by-cell field assertions, orphan-observation detection, study-enrollment
+    check, source-row deduplication (last row wins, matching importer behaviour),
+    and `_spotcheck_failures.csv` artefact on any mismatch.
+  - NBSP (U+00A0) normalisation on header keys (explicit ` ` Unicode escape
+    in `spotcheck.js`; `import.js` still uses a literal NBSP byte that's working
+    but fragile — TODO refactor).
   - Auto-computed age-at-stroke from `BIRTH_DATE + Datum_Stroke`.
+
+### Verified
+
+- Full Stroke-Lipid import verified end-to-end against the Mastertabelle
+  (`Mastertabelle_Franzi_LDL_Daten_20260513.xlsx`):
+  - 427 unique patient IDs in source (1 duplicate `10032698`, handled correctly
+    via per-patient delete-and-rewrite).
+  - 425 patients in DB, 2 legitimately skipped (no `Datum_Stroke` in source).
+  - 1037 visits, 21 969 observations.
+  - **34 136 cell-level assertions, 0 mismatches, 0 orphan observations,
+    425/425 study enrolments.**
 
 ### Changed
 

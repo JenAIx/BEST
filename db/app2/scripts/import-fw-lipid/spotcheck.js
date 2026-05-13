@@ -2,19 +2,42 @@
 'use strict'
 
 /**
- * Spot-check ~2% of the imported patients by comparing every relevant XLSX cell
- * against what was written to production.db.
+ * Full-coverage verifier for the Stroke-Lipid import.
  *
- * Verifies for each sampled patient:
- *   - patient row (PATIENT_CD, BIRTH_DATE, SEX_CD, STATECITYZIP_PATH)
+ * Compares every relevant XLSX cell against what was written to production.db,
+ * for every patient by default (or a sample via `--sample N` or `--limit N`).
+ *
+ * Per patient, this script verifies:
+ *   - patient row (BIRTH_DATE, SEX_CD, STATECITYZIP_PATH)
  *   - 3 visits (V0 = strokeDate-1, V1 = strokeDate, V2 = v2Date if present)
- *   - all expected observations (vitals, comorbidities, etiology, event type,
- *     labs, drug 3-states, free text notes, age-at-stroke)
+ *   - patient name observation at V0
+ *   - stroke event date observation at V0
+ *   - age-at-stroke (auto-computed) at V0
+ *   - V0 vitals (Gewicht_kg, Groesse_cm)
+ *   - V0 etiology selection
+ *   - V0 comorbidities (Yes/No findings via TVAL_CHAR)
+ *   - V0/V1/V2 drug 3-state (taking / not-taking / unknown)
+ *   - V1 event type selection
+ *   - V1 findings (statin intolerance, new med, dose increase)
+ *   - V1 + V2 lab observations
+ *   - V1 free-text observations (statin symptoms, notes)
+ *   - V2 findings (reinfarct, new med, dose increase, our clinic)
  *
- * Fails loud on any discrepancy. Prints a per-patient PASS/FAIL summary.
+ * Additionally, two cross-cutting checks per patient:
+ *   - orphan observations (any DB obs not "consumed" by an expected-field check)
+ *   - study enrollment (every imported patient must be in STUDY_PATIENT_LOOKUP)
+ *
+ * CLI:
+ *   node spotcheck.js                # all patients (default)
+ *   node spotcheck.js --limit 50     # first 50 only
+ *   node spotcheck.js --sample 9     # 9 patients evenly spread (legacy 2 % mode)
+ *   node spotcheck.js --verbose      # print per-patient PASS lines (default: failures only)
+ *
+ * On any failure, writes _spotcheck_failures.csv for Excel inspection.
  */
 
 const path = require('node:path')
+const fs = require('node:fs')
 const XLSX = require('xlsx')
 const Database = require('better-sqlite3')
 const M = require('./mapping')
@@ -23,14 +46,31 @@ const P = require('./parsers')
 const XLSX_PATH = path.resolve('../../tmp/import_fw_lipid_202605/Mastertabelle_Franzi_LDL_Daten_20260513.xlsx')
 const DB_PATH = path.resolve('../../database/production.db')
 const SOURCE = 'FW_LIPID_XLSX_2026-05-08'
+const STUDY_CD = 'STROKE_LIPID'
+const FAILURES_CSV = path.resolve('./_spotcheck_failures.csv')
+
+const args = process.argv.slice(2)
+function arg(name) {
+  const i = args.indexOf('--' + name)
+  return i < 0 ? null : args[i + 1]
+}
+function flag(name) {
+  return args.includes('--' + name)
+}
+const LIMIT = arg('limit') ? Number(arg('limit')) : null
+const SAMPLE = arg('sample') ? Number(arg('sample')) : null
+const VERBOSE = flag('verbose')
 
 const wb = XLSX.readFile(XLSX_PATH, { cellDates: true })
 const rowsRaw = XLSX.utils.sheet_to_json(wb.Sheets['Datensammlung'], { defval: null, raw: true })
+
 // Replace U+00A0 (NBSP) with regular space - some XLSX headers carry NBSPs.
+// Use explicit Unicode escape; relying on a literal NBSP byte inside the regex
+// is fragile (editors silently convert it to a regular space).
 function normalizeKey(k) {
   return k.replace(/ /g, ' ')
 }
-const rows = rowsRaw
+const rowsAll = rowsRaw
   .map((r) => {
     const out = {}
     for (const k of Object.keys(r)) out[normalizeKey(k)] = r[k]
@@ -38,19 +78,53 @@ const rows = rowsRaw
   })
   .filter((r) => r[M.PATIENT_COL.ID] != null && String(r[M.PATIENT_COL.ID]).trim() !== '')
 
-console.log(`source XLSX rows: ${rowsRaw.length}, with ID: ${rows.length}`)
+// Deduplicate by PATIENT_CD - if the source has multiple rows for the same patient
+// (it does, e.g. patient 10032698 with two rows), the importer's per-patient
+// delete-and-rewrite means the LAST row wins. The verifier must compare against
+// the same effective state.
+const byId = new Map()
+const dupes = []
+for (const r of rowsAll) {
+  const id = String(r[M.PATIENT_COL.ID]).trim()
+  if (byId.has(id)) dupes.push(id)
+  byId.set(id, r)
+}
+const rows = [...byId.values()]
+
+console.log(`source XLSX rows: ${rowsRaw.length}, with ID: ${rowsAll.length}, unique: ${rows.length}`)
+if (dupes.length) console.log(`duplicate IDs (importer kept the last row for each): ${[...new Set(dupes)].join(', ')}`)
 
 const db = new Database(DB_PATH, { readonly: true })
 
-// Sample 2% spread evenly across the dataset (every ~48th row).
-const sampleCount = Math.max(2, Math.round(rows.length * 0.02))
-const step = Math.floor(rows.length / sampleCount)
-const sampleIds = []
-for (let i = 0; i < sampleCount; i++) {
-  const idx = Math.min(rows.length - 1, i * step)
-  sampleIds.push(String(rows[idx][M.PATIENT_COL.ID]).trim())
+// Pre-flight: study enrollment map.
+const enrolled = new Set(
+  db
+    .prepare(
+      `SELECT p.PATIENT_CD FROM STUDY_PATIENT_LOOKUP spl
+         JOIN STUDY_DIMENSION s   ON s.STUDY_NUM = spl.STUDY_NUM
+         JOIN PATIENT_DIMENSION p ON p.PATIENT_NUM = spl.PATIENT_NUM
+        WHERE s.STUDY_CD = ?`,
+    )
+    .all(STUDY_CD)
+    .map((r) => r.PATIENT_CD),
+)
+console.log(`study enrollments in DB: ${enrolled.size}`)
+
+// Decide which patients to check.
+let targetRows = rows
+if (SAMPLE) {
+  const step = Math.floor(rows.length / SAMPLE)
+  targetRows = []
+  for (let i = 0; i < SAMPLE; i++) {
+    targetRows.push(rows[Math.min(rows.length - 1, i * step)])
+  }
+  console.log(`sampling ${SAMPLE} patients evenly distributed`)
+} else if (LIMIT) {
+  targetRows = rows.slice(0, LIMIT)
+  console.log(`limiting to first ${LIMIT} patients`)
+} else {
+  console.log(`checking ALL ${rows.length} patients`)
 }
-console.log(`sampling ${sampleCount} (≈2%) patients:`, sampleIds)
 console.log()
 
 function shiftDateBackOneDay(isoDate) {
@@ -71,124 +145,168 @@ function calcAgeYears(birthIso, eventIso) {
   return years
 }
 
-let totalFailures = 0
-const failures = []
+const stats = {
+  patientsChecked: 0,
+  patientsPassed: 0,
+  patientsSkippedExpected: 0, // legitimately skipped (no Datum_Stroke in source)
+  cellsAsserted: 0,
+  totalFailures: 0,
+  orphanObs: 0,
+  missingEnrollments: 0,
+  patientsWithFailures: [],
+}
+const csvLines = ['patient_cd,visit,concept_cd,error_kind,expected,actual']
+function csvEscape(s) {
+  if (s == null) return ''
+  const str = String(s)
+  return /[,"\n]/.test(str) ? '"' + str.replace(/"/g, '""') + '"' : str
+}
 
-for (const pid of sampleIds) {
-  const row = rows.find((r) => String(r[M.PATIENT_COL.ID]).trim() === pid)
-  if (!row) {
-    console.log(`[${pid}] FAIL: not in XLSX`)
-    totalFailures += 1
+for (const row of targetRows) {
+  const pid = String(row[M.PATIENT_COL.ID]).trim()
+  stats.patientsChecked += 1
+  const errors = []
+  const consumed = new Set() // tracks "${visit}::${conceptCode}" we've checked
+
+  // Source pre-check: patients without Datum_Stroke are deliberately skipped by the
+  // importer. Verify that they are indeed absent from the DB (and skip the rest).
+  const srcStrokeDate = P.parseDate(row[M.PATIENT_COL.STROKE_DATE])
+  const patProbe = db.prepare('SELECT PATIENT_NUM FROM PATIENT_DIMENSION WHERE PATIENT_CD = ? AND SOURCESYSTEM_CD = ?').get(pid, SOURCE)
+  if (!srcStrokeDate) {
+    if (patProbe) {
+      errors.push({
+        kind: 'unexpected-patient',
+        visit: '-',
+        conceptCode: '-',
+        expected: 'no import (no Datum_Stroke in source)',
+        actual: `present (PATIENT_NUM=${patProbe.PATIENT_NUM})`,
+      })
+      finalize(pid, errors, consumed, 0)
+    } else {
+      stats.patientsSkippedExpected += 1
+      if (VERBOSE) console.log(`[${pid}] SKIPPED (no Datum_Stroke in source, correctly absent from DB)`)
+    }
     continue
   }
-  const errors = []
 
-  // Patient row
+  // Patient row check.
   const pat = db.prepare('SELECT * FROM PATIENT_DIMENSION WHERE PATIENT_CD = ?').get(pid)
   if (!pat) {
-    errors.push('PATIENT_DIMENSION row missing')
-    failures.push({ pid, errors })
-    totalFailures += errors.length
-    console.log(`[${pid}] FAIL ${errors.length}: ${errors.join(' | ')}`)
+    errors.push({ kind: 'patient-missing', visit: '-', conceptCode: '-', expected: pid, actual: 'no row in DB' })
+    finalize(pid, errors, consumed, 0)
     continue
   }
   const expBirth = P.parseDate(row[M.PATIENT_COL.BIRTH])
   const expSex = P.parseSex(row[M.PATIENT_COL.SEX])
   const expPlz = P.parsePLZ(row[M.PATIENT_COL.PLZ])
   const expZip = expPlz ? `\\DE\\${expPlz}` : null
-  if (pat.BIRTH_DATE !== expBirth) errors.push(`BIRTH_DATE: db=${pat.BIRTH_DATE} xlsx=${expBirth}`)
-  if (pat.SEX_CD !== expSex) errors.push(`SEX_CD: db=${pat.SEX_CD} xlsx=${expSex}`)
-  if (pat.STATECITYZIP_PATH !== expZip) errors.push(`STATECITYZIP_PATH: db=${pat.STATECITYZIP_PATH} xlsx=${expZip}`)
-
-  // Visits
-  const strokeDate = P.parseDate(row[M.PATIENT_COL.STROKE_DATE])
-  const v2Date = P.parseDate(row[M.PATIENT_COL.V2_DATE])
-  if (!strokeDate) {
-    errors.push('no stroke date in XLSX - should have been skipped')
-    failures.push({ pid, errors })
-    continue
+  assertEq(errors, '-', 'PATIENT.BIRTH_DATE', expBirth, pat.BIRTH_DATE)
+  assertEq(errors, '-', 'PATIENT.SEX_CD', expSex, pat.SEX_CD)
+  assertEq(errors, '-', 'PATIENT.STATECITYZIP_PATH', expZip, pat.STATECITYZIP_PATH)
+  if (!enrolled.has(pid)) {
+    errors.push({ kind: 'enrollment-missing', visit: '-', conceptCode: STUDY_CD, expected: 'enrolled', actual: 'not enrolled' })
+    stats.missingEnrollments += 1
   }
+  stats.cellsAsserted += 4
+
+  // Visits check.
+  const strokeDate = srcStrokeDate
+  const v2Date = P.parseDate(row[M.PATIENT_COL.V2_DATE])
   const expV0Date = shiftDateBackOneDay(strokeDate)
+
   const visits = db
-    .prepare(`SELECT ENCOUNTER_NUM, START_DATE, json_extract(VISIT_BLOB, '$.visitType') AS vt FROM VISIT_DIMENSION WHERE PATIENT_NUM = ? AND SOURCESYSTEM_CD = ? ORDER BY ENCOUNTER_NUM`)
+    .prepare(
+      `SELECT ENCOUNTER_NUM, START_DATE, json_extract(VISIT_BLOB, '$.visitType') AS vt
+         FROM VISIT_DIMENSION
+        WHERE PATIENT_NUM = ? AND SOURCESYSTEM_CD = ? ORDER BY ENCOUNTER_NUM`,
+    )
     .all(pat.PATIENT_NUM, SOURCE)
   const v0 = visits.find((v) => v.vt === 'stroke_lipid_v0')
   const v1 = visits.find((v) => v.vt === 'stroke_lipid_v1')
   const v2 = visits.find((v) => v.vt === 'stroke_lipid_v2')
-  if (!v0) errors.push('V0 missing')
-  else if (v0.START_DATE !== expV0Date) errors.push(`V0 date: db=${v0.START_DATE} expect=${expV0Date}`)
-  if (!v1) errors.push('V1 missing')
-  else if (v1.START_DATE !== strokeDate) errors.push(`V1 date: db=${v1.START_DATE} expect=${strokeDate}`)
-  if (v2Date && !v2) errors.push('V2 missing despite V2_Datum in XLSX')
-  if (!v2Date && v2) errors.push('V2 present but no V2_Datum in XLSX')
-  if (v2Date && v2 && v2.START_DATE !== v2Date) errors.push(`V2 date: db=${v2.START_DATE} expect=${v2Date}`)
+  assertEq(errors, 'V0', 'VISIT.START_DATE', expV0Date, v0 && v0.START_DATE)
+  assertEq(errors, 'V1', 'VISIT.START_DATE', strokeDate, v1 && v1.START_DATE)
+  if (v2Date) assertEq(errors, 'V2', 'VISIT.START_DATE', v2Date, v2 && v2.START_DATE)
+  else if (v2) errors.push({ kind: 'unexpected-visit', visit: 'V2', conceptCode: '-', expected: 'no V2', actual: `present (${v2.START_DATE})` })
+  stats.cellsAsserted += v2Date ? 3 : 2
 
-  // Observations per concept - compare value
+  // Load all DB observations for this patient.
   const obs = db
     .prepare(
       `SELECT o.CONCEPT_CD, o.VALTYPE_CD, o.NVAL_NUM, o.TVAL_CHAR, o.VALUEFLAG_CD, o.UNIT_CD,
               json_extract(v.VISIT_BLOB, '$.visitType') AS vt
-       FROM OBSERVATION_FACT o JOIN VISIT_DIMENSION v ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
-       WHERE o.PATIENT_NUM = ? AND o.SOURCESYSTEM_CD = ?`,
+         FROM OBSERVATION_FACT o JOIN VISIT_DIMENSION v ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
+        WHERE o.PATIENT_NUM = ? AND o.SOURCESYSTEM_CD = ?`,
     )
     .all(pat.PATIENT_NUM, SOURCE)
   const obsByConcept = {}
-  for (const o of obs) {
-    const k = `${o.vt}::${o.CONCEPT_CD}`
-    obsByConcept[k] = o
-  }
+  for (const o of obs) obsByConcept[`${o.vt}::${o.CONCEPT_CD}`] = o
 
-  function checkObs(visit, conceptCode, expValueDescription, predicate) {
-    const k = `${visit}::${conceptCode}`
-    const o = obsByConcept[k]
-    if (expValueDescription === null && !o) return // no obs expected, none found - OK
-    if (expValueDescription === null && o) {
-      errors.push(`unexpected obs ${k}`)
+  function checkObs(visit, conceptCode, expValueOrNull, predicate) {
+    const key = `${visit}::${conceptCode}`
+    consumed.add(key)
+    stats.cellsAsserted += 1
+    const o = obsByConcept[key]
+    if (expValueOrNull == null) {
+      if (o) {
+        errors.push({
+          kind: 'unexpected-obs',
+          visit,
+          conceptCode,
+          expected: 'no observation (source cell was null/empty)',
+          actual: describeObs(o),
+        })
+      }
       return
     }
     if (!o) {
-      errors.push(`missing obs ${k} (expected ${expValueDescription})`)
+      errors.push({ kind: 'missing-obs', visit, conceptCode, expected: String(expValueOrNull), actual: '(no obs in DB)' })
       return
     }
     const problem = predicate(o)
-    if (problem) errors.push(`${k} mismatch: ${problem}`)
+    if (problem) errors.push({ kind: 'value-mismatch', visit, conceptCode, expected: String(expValueOrNull), actual: problem })
   }
 
-  // Patient name at V0
+  // Patient name (V0)
   const expName = [P.normString(row[M.PATIENT_COL.NAME]), P.normString(row[M.PATIENT_COL.VORNAME])]
     .filter(Boolean)
     .join(', ')
-  if (expName) {
-    checkObs('stroke_lipid_v0', M.PATIENT_NAME_CONCEPT, expName, (o) => (o.TVAL_CHAR !== expName ? `tval ${o.TVAL_CHAR} != ${expName}` : null))
-  }
-  // Stroke event date at V0
-  checkObs('stroke_lipid_v0', M.STROKE_EVENT_DATE_CONCEPT, strokeDate, (o) => (o.TVAL_CHAR !== strokeDate ? `date ${o.TVAL_CHAR} != ${strokeDate}` : null))
-  // Age at V0
+  checkObs('stroke_lipid_v0', M.PATIENT_NAME_CONCEPT, expName || null, (o) =>
+    o.TVAL_CHAR === expName ? null : `tval='${o.TVAL_CHAR}'`,
+  )
+
+  // Stroke event date (V0)
+  checkObs('stroke_lipid_v0', M.STROKE_EVENT_DATE_CONCEPT, strokeDate, (o) =>
+    o.TVAL_CHAR === strokeDate ? null : `tval='${o.TVAL_CHAR}'`,
+  )
+
+  // Age at stroke (V0, computed)
   const expAge = calcAgeYears(expBirth, strokeDate)
-  if (expAge != null) {
-    checkObs('stroke_lipid_v0', M.AGE_AT_STROKE_CONCEPT, expAge, (o) => (o.NVAL_NUM !== expAge ? `age ${o.NVAL_NUM} != ${expAge}` : null))
-  }
+  checkObs('stroke_lipid_v0', M.AGE_AT_STROKE_CONCEPT, expAge, (o) => (o.NVAL_NUM === expAge ? null : `nval=${o.NVAL_NUM}`))
 
   // V0 vitals
   for (const n of M.NUMERIC_V0) {
-    const v = row[n.col]
-    if (v == null || v === '') {
+    const raw = row[n.col]
+    if (raw == null || raw === '') {
       checkObs('stroke_lipid_v0', n.concept, null, () => null)
       continue
     }
-    const expNum = Number(typeof v === 'string' ? v.replace(',', '.') : v)
-    if (!Number.isFinite(expNum)) continue
-    checkObs('stroke_lipid_v0', n.concept, expNum, (o) => (Math.abs(o.NVAL_NUM - expNum) > 0.001 ? `${o.NVAL_NUM} != ${expNum}` : null))
+    const expNum = Number(typeof raw === 'string' ? raw.replace(',', '.') : raw)
+    if (!Number.isFinite(expNum)) {
+      checkObs('stroke_lipid_v0', n.concept, null, () => null)
+      continue
+    }
+    checkObs('stroke_lipid_v0', n.concept, expNum, (o) =>
+      Math.abs(o.NVAL_NUM - expNum) <= 0.001 ? null : `nval=${o.NVAL_NUM}`,
+    )
   }
 
   // V0 etiology
   for (const s of M.SELECTIONS_V0) {
     const expCode = P.parseEtiology(row[s.col])
-    if (!expCode) {
-      checkObs('stroke_lipid_v0', s.concept, null, () => null)
-      continue
-    }
-    checkObs('stroke_lipid_v0', s.concept, expCode, (o) => (o.TVAL_CHAR !== expCode ? `${o.TVAL_CHAR} != ${expCode}` : null))
+    checkObs('stroke_lipid_v0', s.concept, expCode, (o) =>
+      o.TVAL_CHAR === expCode ? null : `tval='${o.TVAL_CHAR}'`,
+    )
   }
 
   // V0 findings
@@ -199,45 +317,53 @@ for (const pid of sampleIds) {
       continue
     }
     const expTval = expVal === 1 ? M.FINDING_YES : M.FINDING_NO
-    checkObs('stroke_lipid_v0', f.concept, expTval, (o) => (o.TVAL_CHAR !== expTval ? `${o.TVAL_CHAR} != ${expTval}` : null))
+    checkObs('stroke_lipid_v0', f.concept, expTval, (o) =>
+      o.TVAL_CHAR === expTval ? null : `tval='${o.TVAL_CHAR}'`,
+    )
   }
 
-  // V0 drugs - 3-state
+  // 3-state drug check (V0/V1/V2)
   function checkDrug(visit, drug, raw) {
-    const k = `${visit}::${drug.concept}`
-    const o = obsByConcept[k]
+    const key = `${visit}::${drug.concept}`
+    consumed.add(key)
+    stats.cellsAsserted += 1
+    const o = obsByConcept[key]
     if (raw == null || raw === '') {
-      if (o) errors.push(`unexpected drug obs ${k} - source was null/unknown`)
+      if (o) errors.push({ kind: 'unexpected-drug', visit, conceptCode: drug.concept, expected: 'no obs (source empty)', actual: describeObs(o) })
       return
     }
     const parsed = P.parseDose(raw)
     if (parsed.value == null) {
-      if (o) errors.push(`unexpected drug obs ${k} - source unparseable`)
+      if (o) errors.push({ kind: 'unexpected-drug', visit, conceptCode: drug.concept, expected: 'no obs (source unparseable)', actual: describeObs(o) })
       return
     }
     if (!o) {
-      errors.push(`missing drug obs ${k} (expected ${parsed.value === 0 ? 'NV' : parsed.value + 'mg'})`)
+      errors.push({
+        kind: 'missing-drug',
+        visit,
+        conceptCode: drug.concept,
+        expected: parsed.value === 0 ? 'NV flag' : `${parsed.value} mg`,
+        actual: '(no obs in DB)',
+      })
       return
     }
     if (parsed.value === 0) {
-      if (o.VALUEFLAG_CD !== 'NV') errors.push(`${k} expected VALUEFLAG_CD=NV got ${o.VALUEFLAG_CD}`)
-      if (o.NVAL_NUM != null) errors.push(`${k} expected NVAL_NUM=NULL got ${o.NVAL_NUM}`)
-    } else {
-      if (Math.abs(o.NVAL_NUM - parsed.value) > 0.001) errors.push(`${k}: ${o.NVAL_NUM} != ${parsed.value}`)
+      if (o.VALUEFLAG_CD !== 'NV')
+        errors.push({ kind: 'drug-3state', visit, conceptCode: drug.concept, expected: 'VALUEFLAG_CD=NV', actual: `flag='${o.VALUEFLAG_CD}'` })
+      if (o.NVAL_NUM != null)
+        errors.push({ kind: 'drug-3state', visit, conceptCode: drug.concept, expected: 'NVAL_NUM=NULL', actual: `nval=${o.NVAL_NUM}` })
+    } else if (Math.abs(o.NVAL_NUM - parsed.value) > 0.001) {
+      errors.push({ kind: 'drug-3state', visit, conceptCode: drug.concept, expected: `${parsed.value} mg`, actual: `nval=${o.NVAL_NUM}` })
     }
   }
-  for (const drug of M.DRUGS) {
-    if (drug.col.V0) checkDrug('stroke_lipid_v0', drug, row[drug.col.V0])
-  }
+  for (const drug of M.DRUGS) if (drug.col.V0) checkDrug('stroke_lipid_v0', drug, row[drug.col.V0])
 
   // V1 event type
   for (const s of M.SELECTIONS_V1) {
     const expCode = P.parseEventType(row[s.col])
-    if (!expCode) {
-      checkObs('stroke_lipid_v1', s.concept, null, () => null)
-      continue
-    }
-    checkObs('stroke_lipid_v1', s.concept, expCode, (o) => (o.TVAL_CHAR !== expCode ? `${o.TVAL_CHAR} != ${expCode}` : null))
+    checkObs('stroke_lipid_v1', s.concept, expCode, (o) =>
+      o.TVAL_CHAR === expCode ? null : `tval='${o.TVAL_CHAR}'`,
+    )
   }
   // V1 findings
   for (const f of M.FINDINGS_V1) {
@@ -247,7 +373,9 @@ for (const pid of sampleIds) {
       continue
     }
     const expTval = expVal === 1 ? M.FINDING_YES : M.FINDING_NO
-    checkObs('stroke_lipid_v1', f.concept, expTval, (o) => (o.TVAL_CHAR !== expTval ? `${o.TVAL_CHAR} != ${expTval}` : null))
+    checkObs('stroke_lipid_v1', f.concept, expTval, (o) =>
+      o.TVAL_CHAR === expTval ? null : `tval='${o.TVAL_CHAR}'`,
+    )
   }
   // V1 labs
   for (const lab of M.LABS) {
@@ -257,23 +385,21 @@ for (const pid of sampleIds) {
       checkObs('stroke_lipid_v1', lab.concept, null, () => null)
       continue
     }
-    checkObs('stroke_lipid_v1', lab.concept, parsed.value, (o) => (Math.abs(o.NVAL_NUM - parsed.value) > 0.001 ? `${o.NVAL_NUM} != ${parsed.value}` : null))
+    checkObs('stroke_lipid_v1', lab.concept, parsed.value, (o) =>
+      Math.abs(o.NVAL_NUM - parsed.value) <= 0.001 ? null : `nval=${o.NVAL_NUM}`,
+    )
   }
   // V1 drugs
-  for (const drug of M.DRUGS) {
-    if (drug.col.V1) checkDrug('stroke_lipid_v1', drug, row[drug.col.V1])
-  }
+  for (const drug of M.DRUGS) if (drug.col.V1) checkDrug('stroke_lipid_v1', drug, row[drug.col.V1])
   // V1 free text
   for (const t of M.TEXTS_V1 || []) {
     const expText = P.normString(row[t.col])
-    if (!expText) {
-      checkObs('stroke_lipid_v1', t.concept, null, () => null)
-      continue
-    }
-    checkObs('stroke_lipid_v1', t.concept, expText, (o) => (o.TVAL_CHAR !== expText ? `${o.TVAL_CHAR} != ${expText}` : null))
+    checkObs('stroke_lipid_v1', t.concept, expText, (o) =>
+      o.TVAL_CHAR === expText ? null : `tval='${o.TVAL_CHAR}'`,
+    )
   }
 
-  // V2 (if present)
+  // V2 (only if v2Date present)
   if (v2Date) {
     for (const f of M.FINDINGS_V2) {
       const expVal = P.parseFinding(row[f.col])
@@ -282,7 +408,9 @@ for (const pid of sampleIds) {
         continue
       }
       const expTval = expVal === 1 ? M.FINDING_YES : M.FINDING_NO
-      checkObs('stroke_lipid_v2', f.concept, expTval, (o) => (o.TVAL_CHAR !== expTval ? `${o.TVAL_CHAR} != ${expTval}` : null))
+      checkObs('stroke_lipid_v2', f.concept, expTval, (o) =>
+        o.TVAL_CHAR === expTval ? null : `tval='${o.TVAL_CHAR}'`,
+      )
     }
     for (const lab of M.LABS) {
       if (!lab.col.V2) continue
@@ -291,28 +419,85 @@ for (const pid of sampleIds) {
         checkObs('stroke_lipid_v2', lab.concept, null, () => null)
         continue
       }
-      checkObs('stroke_lipid_v2', lab.concept, parsed.value, (o) => (Math.abs(o.NVAL_NUM - parsed.value) > 0.001 ? `${o.NVAL_NUM} != ${parsed.value}` : null))
+      checkObs('stroke_lipid_v2', lab.concept, parsed.value, (o) =>
+        Math.abs(o.NVAL_NUM - parsed.value) <= 0.001 ? null : `nval=${o.NVAL_NUM}`,
+      )
     }
-    for (const drug of M.DRUGS) {
-      if (drug.col.V2) checkDrug('stroke_lipid_v2', drug, row[drug.col.V2])
-    }
+    for (const drug of M.DRUGS) if (drug.col.V2) checkDrug('stroke_lipid_v2', drug, row[drug.col.V2])
   }
 
-  if (errors.length === 0) {
-    console.log(`[${pid}] PASS — ${obs.length} obs, visits: V0+V1${v2 ? '+V2' : ''}`)
-  } else {
-    console.log(`[${pid}] FAIL ${errors.length}:`)
-    for (const e of errors) console.log(`    ${e}`)
-    failures.push({ pid, errors })
-    totalFailures += errors.length
+  // Orphan check: every DB obs must have been consumed by an expected-field check.
+  let patientOrphans = 0
+  for (const o of obs) {
+    const key = `${o.vt}::${o.CONCEPT_CD}`
+    if (!consumed.has(key)) {
+      patientOrphans += 1
+      errors.push({
+        kind: 'orphan-obs',
+        visit: o.vt,
+        conceptCode: o.CONCEPT_CD,
+        expected: '(no source field maps here)',
+        actual: describeObs(o),
+      })
+    }
+  }
+  stats.orphanObs += patientOrphans
+
+  finalize(pid, errors, consumed, obs.length)
+}
+
+function describeObs(o) {
+  const parts = []
+  if (o.NVAL_NUM != null) parts.push(`nval=${o.NVAL_NUM}`)
+  if (o.TVAL_CHAR != null) parts.push(`tval='${o.TVAL_CHAR}'`)
+  if (o.UNIT_CD) parts.push(`unit=${o.UNIT_CD}`)
+  if (o.VALUEFLAG_CD) parts.push(`flag=${o.VALUEFLAG_CD}`)
+  return `${o.VALTYPE_CD}{${parts.join(', ')}}`
+}
+
+function assertEq(errors, visit, kind, expected, actual) {
+  stats.cellsAsserted += 1
+  if (expected !== actual) {
+    errors.push({ kind: 'value-mismatch', visit, conceptCode: kind, expected: String(expected), actual: String(actual) })
   }
 }
 
+function finalize(pid, errors, consumed, dbObsCount) {
+  if (errors.length === 0) {
+    stats.patientsPassed += 1
+    if (VERBOSE) console.log(`[${pid}] PASS — ${dbObsCount} obs, ${consumed.size} cells checked`)
+    return
+  }
+  stats.totalFailures += errors.length
+  stats.patientsWithFailures.push(pid)
+  console.log(`[${pid}] FAIL ${errors.length}:`)
+  for (const e of errors) {
+    console.log(`    [${e.visit}] ${e.kind} on ${e.conceptCode}: expected ${e.expected} | actual ${e.actual}`)
+    csvLines.push([pid, e.visit, e.conceptCode, e.kind, e.expected, e.actual].map(csvEscape).join(','))
+  }
+}
+
+// Final report.
 console.log()
-console.log(`Sampled ${sampleIds.length} patients, total failures: ${totalFailures}`)
-if (totalFailures === 0) {
-  console.log('ALL PASS')
-  process.exit(0)
-} else {
+console.log('==============================================')
+console.log('  Stroke-Lipid Import Verification — Summary')
+console.log('==============================================')
+console.log(`  Patients checked:          ${stats.patientsChecked}`)
+console.log(`  Patients passing:          ${stats.patientsPassed}`)
+console.log(`  Patients legitimately skipped (no Datum_Stroke): ${stats.patientsSkippedExpected}`)
+console.log(`  Patients with failures:    ${stats.patientsWithFailures.length}`)
+console.log(`  Cells asserted:            ${stats.cellsAsserted}`)
+console.log(`  Total failures:            ${stats.totalFailures}`)
+console.log(`  Orphan observations:       ${stats.orphanObs}`)
+console.log(`  Missing enrollments:       ${stats.missingEnrollments}`)
+console.log()
+
+if (stats.totalFailures > 0) {
+  fs.writeFileSync(FAILURES_CSV, csvLines.join('\n'))
+  console.log(`✗ Failures detected. Detailed CSV written to:`)
+  console.log(`  ${FAILURES_CSV}`)
   process.exit(1)
+} else {
+  console.log(`✓ ALL PASS — ${stats.cellsAsserted} cell assertions, 0 mismatches.`)
+  process.exit(0)
 }
