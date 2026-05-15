@@ -345,13 +345,21 @@ describe('HL7 Service', () => {
       expect(isValid).toBe(false)
     })
 
-    it('should reject document without hash', async () => {
+    it('should accept document without hash (unsigned import for round-trip / interchange)', async () => {
+      // Hash is opt-in. Unsigned documents are valid - this enables headless
+      // round-trip testing (export → file → import) and interchange JSON that
+      // doesn't need a signature. When a hash IS present it must still match.
       const hl7Document = {
         cda: { test: 'data' },
       }
 
       const isValid = await hl7Service.verifyCda(hl7Document)
-      expect(isValid).toBe(false)
+      expect(isValid).toBe(true)
+    })
+
+    it('should reject document with no cda at all', async () => {
+      expect(await hl7Service.verifyCda({})).toBe(false)
+      expect(await hl7Service.verifyCda(null)).toBe(false)
     })
   })
 

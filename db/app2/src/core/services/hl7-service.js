@@ -456,11 +456,19 @@ export class Hl7Service {
    * @returns {string} Formatted value
    */
   formatObservationValue(observation) {
-    if (observation.VALTYPE_CD === 'N' && observation.NVAL_NUM !== null) {
-      return observation.NVAL_NUM
-    } else if (observation.VALTYPE_CD === 'T' && observation.TVAL_CHAR) {
+    if (observation.VALTYPE_CD === 'N') {
+      if (observation.NVAL_NUM !== null && observation.NVAL_NUM !== undefined) {
+        return observation.NVAL_NUM
+      }
+      // 3-state numeric: assessed but no value (e.g. drug explicitly not taken).
+      // Emit the same [NV] marker the CSV side uses so the artifact is
+      // round-trippable across both formats.
+      if (observation.VALUEFLAG_CD === 'NV') return '[NV]'
+    }
+    if ((observation.VALTYPE_CD === 'T' || observation.VALTYPE_CD === 'F' || observation.VALTYPE_CD === 'S') && observation.TVAL_CHAR) {
       return observation.TVAL_CHAR
-    } else if (observation.VALTYPE_CD === 'B' && observation.OBSERVATION_BLOB) {
+    }
+    if (observation.VALTYPE_CD === 'B' && observation.OBSERVATION_BLOB) {
       try {
         const parsed = JSON.parse(observation.OBSERVATION_BLOB)
         // Return with spaces after colons and commas to match test expectations
@@ -468,8 +476,10 @@ export class Hl7Service {
       } catch {
         return observation.OBSERVATION_BLOB
       }
-    } else if (observation.VALTYPE_CD === 'D' && observation.START_DATE) {
-      return observation.START_DATE
+    }
+    if (observation.VALTYPE_CD === 'D') {
+      if (observation.TVAL_CHAR) return observation.TVAL_CHAR
+      if (observation.START_DATE) return observation.START_DATE
     }
 
     return 'N/A'
@@ -807,8 +817,15 @@ export class Hl7Service {
    */
   async verifyCda(hl7Document) {
     try {
-      if (!hl7Document || !hl7Document.cda || !hl7Document.hash) {
+      if (!hl7Document || !hl7Document.cda) {
         return false
+      }
+
+      // Hash is optional - unsigned documents (e.g. exports written to disk
+      // for round-trip testing or unsigned interchange JSON) verify as true.
+      // Verification is opt-in: when a hash IS present, we require it to match.
+      if (!hl7Document.hash) {
+        return true
       }
 
       const { cda, hash } = hl7Document

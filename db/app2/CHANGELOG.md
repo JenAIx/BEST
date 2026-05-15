@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Export pipeline (CSV + HL7-JSON)
+
+- **Headless export driver** `scripts/import-fw-lipid/export.js` — runs the same
+  `ExportService` the app's UI uses, against `production.db` from a Node CLI:
+
+  ```bash
+  node export.js                     # both formats, all FW_LIPID patients
+  node export.js --format csv        # CSV only
+  node export.js --format hl7        # HL7-JSON only
+  node export.js --limit 10          # first N (smoke)
+  ```
+
+  Mounts a `RealSQLiteConnection` + the five repositories (Patient / Visit /
+  Observation / Concept / Cql) and shims a minimal `DatabaseService.getRepository`
+  facade so the export path runs unchanged outside the Electron/Pinia boot.
+
+- **Artifact-level verifier** `scripts/import-fw-lipid/export-verify.js` — parses
+  the export file directly (no round-trip via import service) and checks every
+  cell / entry against the DB state under the same `SOURCESYSTEM_CD`. Reports
+  per-cell mismatches and writes a CSV diff if any.
+
+- **Export-side fixes** required by the verifier to make all values round-trip
+  safely:
+  - `CsvService.formatObservationValue`: returns `''` (empty) instead of
+    `'Unknown'` for cells with no value, so re-import treats them as "no
+    observation" rather than as T-type `'Unknown'`. Adds explicit handling for
+    `F` / `S` (selection answer ref in `TVAL_CHAR`) and prefers `TVAL_CHAR` over
+    `START_DATE` for `D` (date) observations.
+  - `Hl7Service.formatObservationValue`: same treatment plus emits `[NV]` marker
+    for the 3-state numeric "assessed, explicitly no value" pattern.
+  - **`[NV]` round-trip marker** in both formats: `VALUEFLAG_CD='NV'` numeric
+    observations now serialise to `[NV]` on export; `CsvService.createObservationFromField`
+    restores `VALTYPE='N', NVAL_NUM=NULL, VALUEFLAG_CD='NV'` on re-import.
+  - `Hl7Service.verifyCda`: hash is now opt-in. Documents without an attached
+    hash verify as true (enables headless round-trip / interchange JSON).
+    Verification is still enforced when a hash IS present.
+
+### Verified
+
+- Full Stroke-Lipid export verified end-to-end against `production.db`:
+  - CSV: 425 patients, 1037 visit rows, 53 columns, 21 969 non-empty cells,
+    47 702 cells asserted, **0 mismatches**.
+  - HL7-JSON: 425 patients, 1037 visit sections, 1084 sections total,
+    21 969 concept-grouped entries asserted, **0 mismatches**.
+- Test suite: 723 passing, 3 skipped, 0 failures (up from 717 — added six
+  Stroke-Lipid pattern tests in `tests/unit/06_csv-service.test.js` covering NV
+  3-state round-trip, F/S findings via SCTID Yes/No A-refs, D-type TVAL
+  preference, empty-cell fallback; one HL7 test updated to assert the new
+  opt-in signature behaviour).
+
 ### Grid view improvements
 
 - **Visit-type chip under the visit date** in the Excel-like grid. Each row now

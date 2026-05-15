@@ -206,23 +206,45 @@ export class CsvService {
   }
 
   /**
-   * Format observation value for CSV export
+   * Format observation value for CSV export.
+   *
+   * Decision table:
+   *   - N + NVAL set                         → "<number>"
+   *   - N + NVAL null + VALUEFLAG_CD='NV'    → "[NV]" (round-trippable marker)
+   *   - T / F / S + TVAL set                 → "<tval>" (F/S keep their A-type ref)
+   *   - D + START_DATE set                   → "<date>"
+   *   - B + OBSERVATION_BLOB set             → "<blob>"
+   *   - anything else                        → "" (empty cell, NOT "Unknown")
+   *
+   * Empty-string fallback (previously "Unknown") means: re-import treats this
+   * cell as "no observation for this concept on this visit", which matches the
+   * original DB state when there was no obs row at all.
+   *
    * @param {Object} observation - Observation data
    * @returns {string} Formatted value
    */
   formatObservationValue(observation) {
-    if (observation.VALTYPE_CD === 'N' && observation.NVAL_NUM !== null) {
-      return observation.NVAL_NUM.toString()
-    } else if (observation.VALTYPE_CD === 'T' && observation.TVAL_CHAR) {
-      return observation.TVAL_CHAR
-    } else if (observation.VALTYPE_CD === 'B' && observation.OBSERVATION_BLOB) {
-      // If it's already a string, return it directly; otherwise stringify
-      return typeof observation.OBSERVATION_BLOB === 'string' ? observation.OBSERVATION_BLOB : JSON.stringify(observation.OBSERVATION_BLOB)
-    } else if (observation.VALTYPE_CD === 'D' && observation.START_DATE) {
-      return observation.START_DATE
+    if (observation.VALTYPE_CD === 'N') {
+      if (observation.NVAL_NUM !== null && observation.NVAL_NUM !== undefined) {
+        return observation.NVAL_NUM.toString()
+      }
+      // 3-state numeric: assessed but no value (e.g. medication not taken).
+      // Distinct marker so re-import can restore VALUEFLAG_CD='NV'.
+      if (observation.VALUEFLAG_CD === 'NV') return '[NV]'
     }
-
-    return 'Unknown'
+    if ((observation.VALTYPE_CD === 'T' || observation.VALTYPE_CD === 'F' || observation.VALTYPE_CD === 'S') && observation.TVAL_CHAR) {
+      return observation.TVAL_CHAR
+    }
+    if (observation.VALTYPE_CD === 'B' && observation.OBSERVATION_BLOB) {
+      return typeof observation.OBSERVATION_BLOB === 'string' ? observation.OBSERVATION_BLOB : JSON.stringify(observation.OBSERVATION_BLOB)
+    }
+    if (observation.VALTYPE_CD === 'D') {
+      // Date observations may store the date in TVAL_CHAR (preferred, set by
+      // explicit date imports) or in START_DATE (legacy fallback). Prefer TVAL.
+      if (observation.TVAL_CHAR) return observation.TVAL_CHAR
+      if (observation.START_DATE) return observation.START_DATE
+    }
+    return ''
   }
 
   /**
@@ -672,6 +694,26 @@ export class CsvService {
     let tval = value
     let nval = null
     let observationBlob = null
+    let valueFlag = null
+
+    // 3-state numeric marker emitted by formatObservationValue. Round-trip
+    // restores VALUEFLAG_CD='NV' with no numeric value (= patient was asked,
+    // explicitly no value).
+    if (typeof value === 'string' && value.trim() === '[NV]') {
+      return {
+        PATIENT_NUM: patientNum,
+        ENCOUNTER_NUM: encounterNum,
+        CONCEPT_CD: field,
+        VALTYPE_CD: 'N',
+        TVAL_CHAR: null,
+        NVAL_NUM: null,
+        VALUEFLAG_CD: 'NV',
+        OBSERVATION_BLOB: null,
+        START_DATE: new Date().toISOString().split('T')[0],
+        SOURCESYSTEM_CD: 'CSV_IMPORT',
+        UPLOAD_ID: 1,
+      }
+    }
 
     // Try to parse as number
     if (!isNaN(value) && value.trim() !== '') {
@@ -720,6 +762,7 @@ export class CsvService {
       VALTYPE_CD: valtype,
       TVAL_CHAR: tval,
       NVAL_NUM: nval,
+      VALUEFLAG_CD: valueFlag,
       OBSERVATION_BLOB: observationBlob,
       START_DATE: valtype === 'D' ? value : new Date().toISOString().split('T')[0],
       SOURCESYSTEM_CD: 'CSV_IMPORT',

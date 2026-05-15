@@ -297,24 +297,81 @@ describe('CSV Service', () => {
       expect(value).toBe('2024-01-15')
     })
 
-    it('should handle unknown value types', () => {
+    it('should return empty string for unknown value types (so re-import treats them as no-obs)', () => {
       const observation = {
         VALTYPE_CD: 'X',
-        TVAL_CHAR: 'Unknown',
+        TVAL_CHAR: 'Anything',
       }
 
       const value = csvService.formatObservationValue(observation)
-      expect(value).toBe('Unknown')
+      expect(value).toBe('')
     })
 
-    it('should handle null values', () => {
+    it('should return empty string for null numeric values (so re-import treats them as no-obs)', () => {
       const observation = {
         VALTYPE_CD: 'N',
         NVAL_NUM: null,
       }
 
       const value = csvService.formatObservationValue(observation)
-      expect(value).toBe('Unknown')
+      expect(value).toBe('')
+    })
+
+    it('should emit [NV] marker for 3-state numeric "assessed, explicitly no value"', () => {
+      // VALUEFLAG_CD='NV' is the project-wide marker (see AGENTS.md Data Modelling
+      // Conventions). E.g. "patient was asked, explicitly not taking this drug".
+      const observation = {
+        VALTYPE_CD: 'N',
+        NVAL_NUM: null,
+        VALUEFLAG_CD: 'NV',
+      }
+
+      const value = csvService.formatObservationValue(observation)
+      expect(value).toBe('[NV]')
+    })
+
+    it('should format F-type (Finding) observation as its TVAL_CHAR (SCTID:Yes/No A-ref)', () => {
+      const observation = {
+        VALTYPE_CD: 'F',
+        TVAL_CHAR: 'SCTID: 373066001', // "Yes" A-type concept
+      }
+      expect(csvService.formatObservationValue(observation)).toBe('SCTID: 373066001')
+    })
+
+    it('should format S-type (Selection) observation as its TVAL_CHAR (A-ref)', () => {
+      const observation = {
+        VALTYPE_CD: 'S',
+        TVAL_CHAR: 'STROKE_LIPID:ETIO:CRYPTOGENIC',
+      }
+      expect(csvService.formatObservationValue(observation)).toBe('STROKE_LIPID:ETIO:CRYPTOGENIC')
+    })
+
+    it('should prefer TVAL_CHAR over START_DATE for D-type observations', () => {
+      // Date observations may carry the date in TVAL_CHAR (preferred, set by
+      // explicit date imports like Stroke-Lipid stroke event date) OR in
+      // START_DATE (legacy). TVAL_CHAR must win.
+      const observation = {
+        VALTYPE_CD: 'D',
+        TVAL_CHAR: '2025-02-13',
+        START_DATE: '2025-02-12',
+      }
+      expect(csvService.formatObservationValue(observation)).toBe('2025-02-13')
+    })
+
+    it('should round-trip a 3-state drug observation through export → import', async () => {
+      // Export → re-import: [NV] marker should restore VALUEFLAG_CD='NV' with
+      // no numeric value. See AGENTS.md "3-state pattern for numerics".
+      const exported = csvService.formatObservationValue({
+        VALTYPE_CD: 'N',
+        NVAL_NUM: null,
+        VALUEFLAG_CD: 'NV',
+      })
+      expect(exported).toBe('[NV]')
+      const reimported = csvService.createObservationFromField('STROKE_LIPID:DRUG:ASS', '[NV]', 1, 1)
+      expect(reimported.VALTYPE_CD).toBe('N')
+      expect(reimported.NVAL_NUM).toBeNull()
+      expect(reimported.TVAL_CHAR).toBeNull()
+      expect(reimported.VALUEFLAG_CD).toBe('NV')
     })
   })
 
