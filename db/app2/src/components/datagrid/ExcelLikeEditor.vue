@@ -141,7 +141,13 @@
                   </q-avatar>
                   <div v-else class="avatar-placeholder"></div>
                   <div>
-                    <div class="patient-name">{{ row.patientName }}</div>
+                    <!-- Show patientName + patientId, but skip the duplicate when
+                         the upstream had no resolved name (PATIENT_BLOB empty) and
+                         falls back to PATIENT_CD - we'd otherwise render the same
+                         ID twice in the cell. -->
+                    <div v-if="row.patientName && row.patientName !== row.patientId" class="patient-name">
+                      {{ row.patientName }}
+                    </div>
                     <div class="patient-id">{{ row.patientId }}</div>
                   </div>
                 </div>
@@ -2319,22 +2325,34 @@ onBeforeUnmount(() => {
   }
 }
 
-// Visit-type chip under the date. Colour comes from CODE_LOOKUP blob (`color`
-// property, e.g. 'orange' / 'red' / 'teal' for the stroke_lipid_v0/v1/v2 set).
-// Inline style sets the per-instance accent; defaults to Quasar's primary.
+// Visit-type chip under the date.
+//
+// Kept small + visually quiet so the date stays the primary anchor: text is
+// grey, only a small coloured dot on the left carries the per-visit-type accent
+// (from CODE_LOOKUP blob `color`, e.g. orange/red/teal for stroke_lipid_v0/v1/v2).
 .visit-type-chip {
   display: inline-flex;
   align-items: center;
-  padding: 1px 6px;
-  border-radius: 8px;
-  font-size: 0.65rem;
-  font-weight: 500;
-  line-height: 1.3;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  font-weight: 400;
+  line-height: 1.2;
   white-space: nowrap;
-  border: 1px solid var(--visit-type-color, #1976d2);
-  color: var(--visit-type-color, #1976d2);
-  background: var(--visit-type-bg, rgba(25, 118, 210, 0.08));
+  color: $grey-7;
+  background: transparent;
   max-width: 100%;
+
+  // Coloured accent dot (the only place the per-type colour shows).
+  &::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--visit-type-color, #9e9e9e);
+  }
 
   .visit-type-label {
     overflow: hidden;
