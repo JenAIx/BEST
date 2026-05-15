@@ -74,33 +74,51 @@
       <q-scroll-area class="excel-scroll-area" :thumb-style="thumbStyle" :bar-style="barStyle">
         <div class="excel-table-wrapper" :style="zoomWrapperStyle">
           <table class="excel-table" :style="tableZoomStyle">
-          <!-- Header Row -->
+          <!-- Header Rows: category band + per-concept header -->
           <thead>
+            <!-- Category band: one cell per group spanning its concept columns.
+                 Visually groups e.g. all 'Medications' columns under one label
+                 so a 50+ column grid stays readable. -->
+            <tr v-if="conceptGroups.length" class="category-band-row">
+              <th class="fixed-col patient-col category-band-empty"></th>
+              <th class="fixed-col visit-col category-band-empty"></th>
+              <th
+                v-for="g in conceptGroups"
+                :key="`band-${g.category}`"
+                :colspan="g.concepts.length"
+                class="category-band"
+                :class="`category-band--${(g.category || 'other').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`"
+              >
+                {{ g.category }}
+              </th>
+            </tr>
             <tr class="header-row">
               <!-- Fixed columns -->
               <th class="fixed-col patient-col">Patient</th>
               <th class="fixed-col visit-col">Visit Date</th>
 
-              <!-- Dynamic observation columns -->
-              <th 
-                v-for="concept in visibleObservationConcepts" 
-                :key="concept.code" 
-                class="obs-col" 
-                :class="{
-                  'value-type-d': concept.valueType === 'D',
-                  'value-type-n': concept.valueType === 'N',
-                  'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept)
-                }"
-                :title="concept.name"
-              >
-                <div class="col-header">
-                  <div class="concept-name">{{ concept.name }}</div>
-                  <div class="concept-code">{{ concept.code }}</div>
-                  <!-- Show quiz icon for questionnaire concepts, otherwise use ValueTypeIcon -->
-                  <q-icon v-if="concept.valueType === 'Q'" name="quiz" size="16px" color="deep-purple" />
-                  <ValueTypeIcon v-else :value-type="concept.valueType" size="16px" variant="minimal" />
-                </div>
-              </th>
+              <!-- Dynamic observation columns, rendered in category-grouped order
+                   to align with the category band above. -->
+              <template v-for="g in conceptGroups" :key="`grp-${g.category}`">
+                <th
+                  v-for="concept in g.concepts"
+                  :key="concept.code"
+                  class="obs-col"
+                  :class="{
+                    'value-type-d': concept.valueType === 'D',
+                    'value-type-n': concept.valueType === 'N',
+                    'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
+                  }"
+                  :title="concept.name"
+                >
+                  <div class="col-header">
+                    <div class="concept-name">{{ concept.name }}</div>
+                    <div class="concept-code">{{ concept.code }}</div>
+                    <q-icon v-if="concept.valueType === 'Q'" name="quiz" size="16px" color="deep-purple" />
+                    <ValueTypeIcon v-else :value-type="concept.valueType" size="16px" variant="minimal" />
+                  </div>
+                </th>
+              </template>
             </tr>
           </thead>
 
@@ -145,6 +163,22 @@
                   <div class="visit-date">
                     {{ formatDate(row.visitDate) }}
                   </div>
+                  <!-- Visit-type chip under the date, sourced from VISIT_BLOB.visitType
+                       and CODE_LOOKUP(VISIT_DIMENSION/VISIT_TYPE_CD).LOOKUP_BLOB.
+                       Click bubbles to the row's edit icon below. -->
+                  <div
+                    v-if="getVisitTypeMeta(row.visitTypeCode)"
+                    class="visit-type-chip"
+                    :style="visitTypeChipStyle(row.visitTypeCode)"
+                  >
+                    <q-icon
+                      v-if="getVisitTypeMeta(row.visitTypeCode).icon"
+                      :name="getVisitTypeMeta(row.visitTypeCode).icon"
+                      size="12px"
+                      class="q-mr-xs"
+                    />
+                    <span class="visit-type-label">{{ getVisitTypeMeta(row.visitTypeCode).label }}</span>
+                  </div>
                   <div class="visit-edit-icon" @click="openVisitEditDialog(row)">
                     <q-icon name="edit" size="16px" color="grey-6" />
                   </div>
@@ -154,15 +188,20 @@
                       <div><strong>Patient:</strong> {{ row.patientName }}</div>
                       <div><strong>Encounter:</strong> {{ row.encounterNum }}</div>
                       <div><strong>Date:</strong> {{ formatDate(row.visitDate) }}</div>
+                      <div v-if="getVisitTypeMeta(row.visitTypeCode)">
+                        <strong>Type:</strong> {{ getVisitTypeMeta(row.visitTypeCode).label }}
+                      </div>
                       <div class="text-grey-4 text-caption q-mt-xs">Click edit icon to modify visit</div>
                     </div>
                   </q-tooltip>
                 </div>
               </td>
 
-              <!-- Observation cells -->
+              <!-- Observation cells (rendered in category-grouped order to align
+                   with the category band header). -->
+              <template v-for="g in conceptGroups" :key="`row-grp-${row.patientId}-${row.encounterNum}-${g.category}`">
               <td
-                v-for="concept in visibleObservationConcepts"
+                v-for="concept in g.concepts"
                 :key="concept.code"
                 class="obs-cell"
                 :class="[
@@ -217,6 +256,7 @@
                   v-else
                   :value="getCellValue(row, concept)"
                   :value-type="concept.valueType"
+                  :value-flag="getCellValueFlag(row, concept)"
                   :concept-code="concept.code"
                   :patient-id="row.patientId"
                   :encounter-num="row.encounterNum"
@@ -227,6 +267,7 @@
                   @edit-recorded="onEditRecorded"
                 />
               </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -473,6 +514,7 @@ import { useI18n } from 'vue-i18n'
 import { useVisitStore } from 'src/stores/visit-store'
 import MedicationOverviewDialog from './MedicationOverviewDialog.vue'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
+import { groupConceptsByCategory } from 'src/shared/utils/grid-utils'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -603,6 +645,50 @@ const observationConcepts = computed(() => dataGridStore?.observationConcepts ||
 // Use store's reactive properties for visibility and statistics
 const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObservationConcepts || [])
 
+// Group visible concepts by CATEGORY_CHAR for the two-level header.
+// {category, concepts[]} bands rendered above the per-concept header row;
+// the existing single-row per-concept header still drives the data cells.
+const conceptGroups = computed(() => groupConceptsByCategory(visibleObservationConcepts.value))
+
+// Visit-type metadata loaded once from CODE_LOOKUP. Keyed by CODE_CD (e.g.
+// 'stroke_lipid_v0'), values are {label, icon, color} pulled from LOOKUP_BLOB.
+// This lets every visit row render a chip without per-row DB queries.
+const visitTypeMeta = ref(new Map())
+async function loadVisitTypeMeta() {
+  try {
+    const result = await databaseStore.executeQuery(
+      `SELECT CODE_CD, NAME_CHAR, LOOKUP_BLOB
+         FROM CODE_LOOKUP
+        WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = 'VISIT_TYPE_CD'`,
+    )
+    if (!result?.success) return
+    const map = new Map()
+    for (const r of result.data) {
+      let label = r.NAME_CHAR
+      let icon = null
+      let color = null
+      if (r.LOOKUP_BLOB) {
+        try {
+          const blob = typeof r.LOOKUP_BLOB === 'string' ? JSON.parse(r.LOOKUP_BLOB) : r.LOOKUP_BLOB
+          if (blob?.label) label = blob.label
+          if (blob?.icon) icon = blob.icon
+          if (blob?.color) color = blob.color
+        } catch {
+          // ignore malformed blob - fall back to NAME_CHAR
+        }
+      }
+      map.set(r.CODE_CD, { label, icon, color })
+    }
+    visitTypeMeta.value = map
+  } catch (e) {
+    logger.warn('Failed to load visit-type metadata', e)
+  }
+}
+function getVisitTypeMeta(code) {
+  if (!code) return null
+  return visitTypeMeta.value.get(code) || null
+}
+
 // Filter table rows to exclude hidden visits
 const tableRows = computed(() => {
   const rows = dataGridStore?.tableRows || []
@@ -703,6 +789,40 @@ const getPatientInitials = dataGridStore?.getPatientInitials || (() => 'U')
 const formatDate = dataGridStore?.formatDate || ((date) => date || '')
 const getCellValue = dataGridStore?.getCellValue || (() => '')
 const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
+// Read OBSERVATION_FACT.VALUEFLAG_CD for a cell. Used by EditableCell to render
+// the 3-state numeric pattern: NVAL set -> value shown, VALUEFLAG_CD='NV' -> "no
+// value" indicator, neither -> empty.
+function getCellValueFlag(row, concept) {
+  const obs = row?.observations?.[concept.code]
+  return obs?.valueFlag || null
+}
+
+// Inline style for the visit-type chip. We can't compose Quasar colour tokens
+// into SCSS at runtime, so push the colour through CSS custom properties.
+function visitTypeChipStyle(code) {
+  const meta = getVisitTypeMeta(code)
+  if (!meta || !meta.color) return {}
+  // Map Quasar palette names to hex. Fallback: treat the value as a valid CSS colour.
+  const palette = {
+    primary: '#1976d2', secondary: '#26a69a', accent: '#9c27b0',
+    positive: '#21ba45', negative: '#c10015', info: '#31ccec', warning: '#f2c037',
+    red: '#c10015', pink: '#e91e63', purple: '#9c27b0', 'deep-purple': '#673ab7',
+    indigo: '#3f51b5', blue: '#1976d2', 'light-blue': '#03a9f4', cyan: '#00bcd4',
+    teal: '#009688', green: '#21ba45', 'light-green': '#8bc34a', lime: '#cddc39',
+    yellow: '#ffeb3b', amber: '#ffc107', orange: '#f2c037', 'deep-orange': '#ff5722',
+    brown: '#795548', grey: '#9e9e9e', 'blue-grey': '#607d8b',
+  }
+  const c = palette[meta.color] || meta.color
+  // hex → rgba @ 12% for the soft chip background
+  let bg = 'rgba(25, 118, 210, 0.08)'
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) {
+    const r = parseInt(c.slice(1, 3), 16)
+    const g = parseInt(c.slice(3, 5), 16)
+    const b = parseInt(c.slice(5, 7), 16)
+    bg = `rgba(${r}, ${g}, ${b}, 0.12)`
+  }
+  return { '--visit-type-color': c, '--visit-type-bg': bg }
+}
 const getCellClass = dataGridStore?.getCellClass || (() => '')
 const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
 
@@ -1649,6 +1769,10 @@ onMounted(async () => {
     await conceptStore.initialize()
   }
 
+  // Load visit-type label/icon/color map (one query, ~3-10 rows). Used by
+  // visit-col rendering to show a chip under each visit date.
+  await loadVisitTypeMeta()
+
   await loadPatientData()
 
   window.addEventListener('keydown', onGridKeydown)
@@ -1714,9 +1838,55 @@ onBeforeUnmount(() => {
   border-spacing: 0;
   font-size: 0.875rem;
 
-  .header-row {
+  // Category band: top header row that groups concept columns by CATEGORY_CHAR.
+  // Per-category background tints give visual scanning cues for the dense grid.
+  .category-band-row {
     position: sticky;
     top: 0;
+    z-index: 11;
+    background: $grey-3;
+
+    th {
+      padding: 4px 8px;
+      border: 1px solid $grey-4;
+      border-top: none;
+      border-bottom: 2px solid $grey-5;
+      font-weight: 600;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: $grey-9;
+      background: $grey-3;
+      text-align: center;
+
+      &.fixed-col {
+        position: sticky;
+        left: 0;
+        z-index: 12;
+        background: $grey-3;
+        box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+      }
+
+      &.patient-col { left: 0; }
+      &.visit-col { left: 160px; }
+
+      &.category-band-empty { background: $grey-3; }
+
+      // Subtle per-category tints. Keep them muted so the actual data cells
+      // remain the visual focus.
+      &.category-band--medications { background: rgba(255, 152, 0, 0.12); color: darken(#f57c00, 5%); }
+      &.category-band--laboratory  { background: rgba(33, 150, 243, 0.10); color: darken(#1976d2, 5%); }
+      &.category-band--stroke      { background: rgba(244, 67, 54, 0.10);  color: darken(#d32f2f, 5%); }
+      &.category-band--vital-signs { background: rgba(76, 175, 80, 0.10);  color: darken(#388e3c, 5%); }
+      &.category-band--demographics{ background: rgba(156, 39, 176, 0.10); color: darken(#7b1fa2, 5%); }
+      &.category-band--diagnosis   { background: rgba(96, 125, 139, 0.10); color: darken(#455a64, 5%); }
+      &.category-band--imaging     { background: rgba(0, 188, 212, 0.10);  color: darken(#0097a7, 5%); }
+    }
+  }
+
+  .header-row {
+    position: sticky;
+    top: 28px; // sit below the category band (band ~28px tall)
     z-index: 10;
     background: $grey-2;
 
@@ -2130,11 +2300,13 @@ onBeforeUnmount(() => {
 .visit-date-container {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 4px;
   cursor: help;
   height: 100%;
+  gap: 2px;
 
   &:hover .visit-edit-icon {
     opacity: 1;
@@ -2144,6 +2316,29 @@ onBeforeUnmount(() => {
   &.visit-placeholder {
     cursor: default;
     background: rgba(25, 118, 210, 0.04);
+  }
+}
+
+// Visit-type chip under the date. Colour comes from CODE_LOOKUP blob (`color`
+// property, e.g. 'orange' / 'red' / 'teal' for the stroke_lipid_v0/v1/v2 set).
+// Inline style sets the per-instance accent; defaults to Quasar's primary.
+.visit-type-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  border: 1px solid var(--visit-type-color, #1976d2);
+  color: var(--visit-type-color, #1976d2);
+  background: var(--visit-type-bg, rgba(25, 118, 210, 0.08));
+  max-width: 100%;
+
+  .visit-type-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

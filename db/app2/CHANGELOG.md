@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Grid view improvements
+
+- **Visit-type chip under the visit date** in the Excel-like grid. Each row now
+  shows the resolved visit-type label (e.g. *Stroke-Lipid V0 — Pre-Stroke Baseline*,
+  *Parkinson Verlaufskontrolle*, *Routine Check-up*) with the icon + colour pulled
+  from `CODE_LOOKUP(VISIT_DIMENSION/VISIT_TYPE_CD).LOOKUP_BLOB`. Loaded once per
+  grid session, no per-row DB hit.
+- **Category-banded column headers**: visible observation columns are now grouped
+  by `CONCEPT_DIMENSION.CATEGORY_CHAR` into a top-level header band (Demographics →
+  Vital Signs → Stroke → Laboratory → Medications → …). Helper
+  `groupConceptsByCategory` in `src/shared/utils/grid-utils.js` produces the
+  ordering; well-known clinical categories use a fixed clinical sequence, unknown
+  ones are alphabetised, "Other" trails. Per-category background tints give scan
+  cues on dense (50+ column) grids.
+- **3-state numeric cell rendering** in `EditableCell.vue`: cells with
+  `VALUEFLAG_CD='NV'` (e.g. drug explicitly not taken) now render a small grey
+  `block` icon with tooltip *"Erfasst — kein Wert (nicht eingenommen / nicht
+  zutreffend)"*, visually distinct from both a value cell and an empty cell.
+  Click still opens the numeric editor.
+- Grid-data pipeline (`database-store.processObservationDataForGrid`) now
+  enriches each row with `visitTypeCode` (parsed from `VISIT_BLOB`), each
+  observation cell with `valueFlag` (`VALUEFLAG_CD`), and each concept-column
+  descriptor with `category` (`CATEGORY_CHAR`). Same one-shot batch query, just
+  carrying three more fields downstream.
+
+### Tests
+
+- `tests/unit/14_grid-utils.test.js` — 9 cases covering `groupConceptsByCategory`
+  (ordering, "Other" placement, intra-category stability, unknown-category
+  alphabetisation) and smoke checks for existing helpers.
+
 ### Added
 
 - **Migration `010-stroke-lipid-seed`** — seeds the Stroke-Lipid research study:
