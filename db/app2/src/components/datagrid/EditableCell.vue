@@ -47,21 +47,41 @@
 
     <!-- Edit Mode -->
     <div v-else class="cell-edit">
-      <!-- Numeric Input -->
-      <q-input
-        v-if="valueType === 'N'"
-        ref="editInput"
-        v-model.number="editValue"
-        type="number"
-        dense
-        borderless
-        class="cell-input numeric-input"
-        @blur="saveEdit"
-        @keydown.enter="saveEdit"
-        @keydown.escape="cancelEdit"
-        @keydown.tab="saveAndNavigate"
-        step="any"
-      />
+      <!-- Numeric Input — with optional NV-toggle for the 3-state pattern
+           (CLAUDE.md "3-state pattern for numerics"). Click the side button
+           to flip between entering a numeric value and marking the cell as
+           "assessed but explicitly no value" (e.g. drug not taken). -->
+      <div v-if="valueType === 'N'" class="cell-edit-numeric">
+        <q-input
+          v-if="!editFlagNV"
+          ref="editInput"
+          v-model.number="editValue"
+          type="number"
+          dense
+          borderless
+          class="cell-input numeric-input"
+          @blur="saveEdit"
+          @keydown.enter="saveEdit"
+          @keydown.escape="cancelEdit"
+          @keydown.tab="saveAndNavigate"
+          step="any"
+        />
+        <div v-else class="nv-placeholder" @click.stop="toggleEditFlag">— nicht eingenommen —</div>
+        <q-btn
+          flat
+          dense
+          round
+          size="xs"
+          :icon="editFlagNV ? 'block' : 'do_disturb_alt'"
+          :color="editFlagNV ? 'primary' : 'grey-5'"
+          class="nv-toggle"
+          @click.stop="toggleEditFlag"
+        >
+          <q-tooltip>
+            {{ editFlagNV ? 'Wert eingeben (NV entfernen)' : 'Als "nicht eingenommen / kein Wert" markieren' }}
+          </q-tooltip>
+        </q-btn>
+      </div>
 
       <!-- Date Input -->
       <q-input
@@ -183,6 +203,10 @@ const originalValue = ref('')
 const isSaving = ref(false)
 const hasUnsavedChanges = ref(false)
 const editInput = ref(null)
+// Local edit-time mirror of OBSERVATION_FACT.VALUEFLAG_CD for the 3-state pattern.
+// `true` = the editor is set to "NV" (assessed, explicitly no value). Reset to
+// the cell's current state every time we enter edit mode.
+const editFlagNV = ref(false)
 
 // Selection options for F and S type observations
 const selectionOptions = ref([])
@@ -235,6 +259,9 @@ const startEdit = async () => {
 
   isEditing.value = true
   originalValue.value = props.value || ''
+  // Mirror the current 3-state-numeric flag into the editor so NV cells open
+  // in NV-mode (and a click on the side toggle switches to value-entry mode).
+  editFlagNV.value = props.valueType === 'N' && props.valueFlag === 'NV'
 
   // Load selection options for F and S types
   if (props.valueType === 'F' || props.valueType === 'S') {
@@ -288,11 +315,30 @@ const loadSelectionOptions = async () => {
   }
 }
 
+/**
+ * Toggle the editor between numeric-value mode and "NV" (no value / explicitly
+ * absent) mode. Clears the numeric value when flipping into NV so the next
+ * save persists the NV state cleanly.
+ */
+const toggleEditFlag = () => {
+  if (props.valueType !== 'N') return
+  editFlagNV.value = !editFlagNV.value
+  if (editFlagNV.value) {
+    editValue.value = ''
+  }
+  hasUnsavedChanges.value = true
+}
+
 const saveEdit = async () => {
   if (!isEditing.value) return
 
-  // Check if value actually changed
-  if (editValue.value === originalValue.value) {
+  // 3-state numeric: detect "no change" against the cell's pre-edit state.
+  // For numeric+NV we compare both the numeric value AND the NV-flag intent.
+  const startedAsNV = props.valueType === 'N' && props.valueFlag === 'NV'
+  if (
+    editValue.value === originalValue.value &&
+    (props.valueType !== 'N' || editFlagNV.value === startedAsNV)
+  ) {
     cancelEdit()
     return
   }
@@ -359,6 +405,16 @@ const saveEdit = async () => {
 
 const saveToDatabase = async () => {
   try {
+    // 3-state numeric: an empty value AND the NV-toggle off (= user cleared
+    // the cell without explicitly marking it as "not taken") means "this
+    // observation should no longer exist". Delete the row instead of writing
+    // a half-NULL one. Only meaningful if there *is* an existing obs to delete.
+    const isNumericEmptyClear =
+      props.valueType === 'N' && !editFlagNV.value && (editValue.value === '' || editValue.value == null)
+    if (props.observationId && isNumericEmptyClear) {
+      await deleteObservation()
+      return null
+    }
     if (props.observationId) {
       await updateObservation()
       return props.observationId
@@ -371,12 +427,31 @@ const saveToDatabase = async () => {
   }
 }
 
+const deleteObservation = async () => {
+  const result = await dbStore.executeQuery(
+    'DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?',
+    [props.observationId],
+  )
+  if (!result.success) {
+    throw new Error(result.error || 'Failed to delete observation')
+  }
+}
+
 const updateObservation = async () => {
   const updates = {}
 
   if (props.valueType === 'N') {
-    updates.NVAL_NUM = editValue.value
-    updates.TVAL_CHAR = null // Clear text value for numeric
+    if (editFlagNV.value) {
+      // 3-state "not taken / no value" — clear numeric, set VALUEFLAG_CD='NV'.
+      updates.NVAL_NUM = null
+      updates.TVAL_CHAR = null
+      updates.VALUEFLAG_CD = 'NV'
+    } else {
+      updates.NVAL_NUM = editValue.value === '' || editValue.value == null ? null : editValue.value
+      updates.TVAL_CHAR = null
+      // Explicitly clear any pre-existing NV flag when a real value is entered.
+      updates.VALUEFLAG_CD = null
+    }
   } else {
     updates.TVAL_CHAR = editValue.value
     updates.NVAL_NUM = null // Clear numeric value for text
@@ -434,7 +509,13 @@ const createObservation = async () => {
 
   // Set the value based on type
   if (props.valueType === 'N') {
-    observationData.NVAL_NUM = parseFloat(editValue.value) || 0
+    if (editFlagNV.value) {
+      // 3-state "not taken / no value" - persist as VALUEFLAG_CD='NV' with no numeric value.
+      observationData.NVAL_NUM = null
+      observationData.VALUEFLAG_CD = 'NV'
+    } else {
+      observationData.NVAL_NUM = parseFloat(editValue.value) || 0
+    }
   } else {
     observationData.TVAL_CHAR = String(editValue.value)
   }
@@ -779,6 +860,35 @@ watch(editValue, (newValue) => {
   padding: 2px;
   height: 100%;
   min-width: 200px;
+
+  // Numeric editor with the 3-state NV-toggle button to the right.
+  .cell-edit-numeric {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    width: 100%;
+
+    .cell-input {
+      flex: 1;
+    }
+
+    .nv-placeholder {
+      flex: 1;
+      font-size: 0.75rem;
+      color: $grey-7;
+      font-style: italic;
+      text-align: center;
+      padding: 4px 8px;
+      cursor: pointer;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    .nv-toggle {
+      flex: 0 0 auto;
+    }
+  }
 
   .cell-input {
     height: 100%;
