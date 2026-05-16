@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Cohort Dashboard / Study Insights
+
+- **New "Insights" tab on `StudyDetailsPage.vue`** — for any study, renders
+  six aggregate sections over the enrolled cohort:
+  - **Visit Retention** — enrolled + per-visit-type patient counts as KPI
+    cards (e.g. Stroke-Lipid: 425 enrolled · 425 V0 · 425 V1 · 187 V2).
+  - **Drug Usage** — horizontal bar list with 3-state breakdown
+    (`taking` / `not taking` / `unknown`). Bar fill = taking; buffered bar
+    extends to `taking + not taking` so the gap to 100 % is the "unknown"
+    segment. Reads concepts via `CONCEPT_CD LIKE 'STROKE_LIPID:DRUG:%'`
+    (overrideable via store option).
+  - **Comorbidity Prevalence** — every F-type Finding concept the cohort
+    has at least one observation on, with positive/total counts.
+  - **Etiology (TOAST)** + **Event Type** — distribution of the two
+    Stroke-Lipid Selection concepts.
+  - **Lab Trends (LDL + HDL)** — per-visit-type median (robust against
+    single-cell outliers), min/max, count.
+- **5 new repository methods** in `study-repository.js`:
+  `getCohortPatientCount`, `getCohortDrugUsage`,
+  `getCohortFindingPrevalence`, `getCohortSelectionDistribution`,
+  `getCohortLabSummary`. Median is computed in JS (SQLite has no
+  PERCENTILE_CONT) so a single outlier in a small cohort doesn't blow
+  up the V2 lab trend. 9 integration tests with a hand-seeded
+  4-patient cohort (`tests/integration/14_cohort-insights.test.js`).
+- **`studyStore.loadCohortInsights(studyCd, options?)`** action fires
+  the 7 aggregate queries in parallel (~150 ms wall-time for the
+  425-patient Stroke-Lipid cohort) and caches the result keyed by
+  `cohortInsightsStudyCd`. Re-load on study switch.
+- **3 new components** under `src/components/study/`:
+  `StudyInsights.vue` (container, ~250 LOC), `CohortBarList.vue`
+  (reusable horizontal bar list using `q-linear-progress`),
+  `CohortKpiCard.vue` (reusable KPI tile with optional Δ).
+- **No new chart library** — the project stays Quasar-only.
+  `q-linear-progress` is already used in 5 places and was the
+  cheapest, most-consistent path for our bar/KPI aggregates. If
+  later we need real charts (histograms, box-plots), Chart.js +
+  vue-chartjs are obvious next-step.
+
 ### Last-Mile fixes for v0.2
 
 - **3-State Drug Edit-UI in the grid editor** — clicking a numeric drug cell
