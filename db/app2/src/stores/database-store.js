@@ -915,7 +915,7 @@ export const useDatabaseStore = defineStore('database', () => {
           unit: obs.UNIT_CD,
           // valueFlag carries OBSERVATION_FACT.VALUEFLAG_CD. The grid uses
           // 'NV' (no value / explicit absence, e.g. drug not taken) to render
-          // a distinct cell state. See AGENTS.md "3-state pattern for numerics".
+          // a distinct cell state. See CLAUDE.md "3-state pattern for numerics".
           valueFlag: obs.VALUEFLAG_CD || null,
           originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
           resolvedValue: obs.TVAL_RESOLVED,

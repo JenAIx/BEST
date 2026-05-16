@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### App version
+
+- **`VITE_APP_VERSION` bumped to `0.2_20260516`** (from `0.1_20251219`). This
+  is the first version that ships the Stroke-Lipid data model, the grid view
+  improvements, and the verified export pipeline.
+
+### Documentation
+
+- **`AGENTS.md` renamed to `CLAUDE.md`** (full git history preserved via
+  `git mv`). Aligns with the Claude Code convention. All internal references
+  in `README.md`, `IMPLEMENTATION_STATUS.md`, source comments, and tests
+  updated to point at the new filename.
+- **New section in `CLAUDE.md`: "Building a New Visit Template"** — a
+  step-by-step recipe for introducing new studies / visit-type sets. Covers
+  the mental model (concepts + field sets + visit types in CODE_LOOKUP), the
+  inventory questions to answer before writing code, the migration skeleton,
+  self-healing upserts, importer scaffolding, and a per-step pointer back to
+  the Stroke-Lipid worked example. Future studies can be set up by copying
+  the recipe rather than re-deriving the pattern.
+
+### Grid view (more)
+
+- **Compact column widths** (50+ Stroke-Lipid columns no longer overflow on a
+  standard laptop screen): text columns 150 → 90 px, date 120 → 96 px,
+  numeric 100 → 72 px, medication 120 → 84 px. Header text scaled down to
+  match (0.7 / 0.6 rem).
+- **Focus-column mode**: clicking an observation column header expands that
+  one column to 220 px with a subtle blue tint, leaving the rest of the grid
+  compact. Click again to collapse, click a different header to switch.
+  180 ms transition.
+
 ### Export pipeline (CSV + HL7-JSON)
 
 - **Headless export driver** `scripts/import-fw-lipid/export.js` — runs the same

@@ -85,7 +85,7 @@ The application uses a **star schema** design optimized for clinical research da
 ### Data Modelling Conventions
 
 The project follows a small set of invariants for how clinical data is encoded.
-Full rules (with examples) live in [`AGENTS.md`](./AGENTS.md#-data-modelling-conventions); brief summary:
+Full rules (with examples) live in [`CLAUDE.md`](./CLAUDE.md#-data-modelling-conventions); brief summary:
 
 - **`CATEGORY_CHAR`** stores human-readable labels (`'Stroke'`, `'Laboratory'`,
   `'Demographics'`, …) — never `CAT_*` codes; the field-set matcher relies on labels.

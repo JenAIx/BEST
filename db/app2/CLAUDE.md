@@ -1,6 +1,6 @@
-# AGENTS.md - Quick Reference Guide for AI Assistants
+# CLAUDE.md - Quick Reference Guide for AI Assistants
 
-> **Purpose**: This file provides essential information about the BEST application architecture, database, users, and main pages for quick reference during development and debugging.
+> **Purpose**: This file provides essential information about the BEST application architecture, database, users, and main pages for quick reference during development and debugging. *(Renamed from `AGENTS.md` in May 2026 to align with the Claude Code convention; same content, plus the new "Building a New Visit Template" recipe.)*
 
 ---
 
@@ -412,6 +412,227 @@ For one-off fix-ups of existing rows that this migration doesn't own, add explic
 `UPDATE` statements after the upserts (see `010-stroke-lipid-seed.js`'s
 `categoryFixups` block — that's how `SCTID: 371484003` was moved from `'General'`
 to `'Demographics'`).
+
+---
+
+## 🩺 Building a New Visit Template
+
+This is the project's reference recipe for introducing a new study or
+visit-type set into the system. It captures every decision that went into the
+Stroke-Lipid implementation (May 2026) so the next study can be set up in an
+afternoon instead of a sprint. Concrete files referenced here:
+
+- Migration template: `src/core/database/migrations/010-stroke-lipid-seed.js`
+- Importer template:  `scripts/import-fw-lipid/` (mapping, parsers, import, verify)
+- Earlier templates:  `007-parkinson-visit-types.js`, `006-fieldset-categories.js`
+
+### The mental model
+
+A "visit template" in BEST is the combination of **four artefacts** in
+`CODE_LOOKUP` + `CONCEPT_DIMENSION` that together tell the UI how to render a
+new kind of visit:
+
+```
+CONCEPT_DIMENSION
+  └─ N concept rows (drugs, labs, findings, selections + A-type options, date, …)
+        with CATEGORY_CHAR set to a human-readable label
+
+CODE_LOOKUP (TABLE_CD='VISIT_DIMENSION')
+  ├─ COLUMN_CD='VISIT_TYPE_CD'  → one row per visit type
+  │      LOOKUP_BLOB = { label, icon, color, fieldSets:[{id,name,active}] }
+  └─ COLUMN_CD='FIELD_SET_CD'   → one row per field set referenced above
+         LOOKUP_BLOB = { description, icon, concepts:[…], categories:[…] }
+
+STUDY_DIMENSION
+  └─ optional: one row that identifies the study, used for patient enrolment
+```
+
+When a user creates a visit of type `<your_type>`, the editor reads the visit
+type's `fieldSets[]`, looks each field-set's `concepts[]` + `categories[]` up,
+and renders matching observation inputs. **No code changes are needed in the UI
+to add a new visit type** — everything is data-driven.
+
+### Step 1: Inventory the new study
+
+Before writing any code, answer these on paper (or in a working doc — see the
+plan files in `~/.claude/plans/` for past examples):
+
+1. **Visit timeline** — how many visits per patient? Are they sequential
+   (V0/V1/V2 like Stroke-Lipid) or named (Erstvorstellung / Verlaufskontrolle
+   like Parkinson)? What's each visit's `INOUT_CD` (`I`/`O`/`E`)?
+2. **What observations are recorded at each visit?** Group them into 3–6 buckets
+   (one bucket = one field set). Bucket by semantic family, not by row order.
+3. **For each observation:**
+   - VALTYPE (`N`/`T`/`F`/`S`/`D`/`B`/`R`/`Q`)
+   - For numerics: unit
+   - For F-findings: the answer is always Yes/No (SCTID:373066001 / SCTID:373067005)
+   - For S-selections: write down every option
+   - **Can it be reused from LOINC / SNOMED / ICD-10 / the existing seed?**
+     Walk the concept-reuse hierarchy (Data Modelling Conventions §4).
+4. **3-state numerics?** Mark every numeric where "assessed, explicitly no
+   value" differs from "not assessed" (typically: medications, optional labs).
+   These will use the `VALUEFLAG_CD='NV'` pattern (§3).
+
+The reference Stroke-Lipid inventory (50 concepts, 5 field sets, 3 visit types)
+lives in the data section near the top of `010-stroke-lipid-seed.js`.
+
+### Step 2: Write the migration
+
+Create `src/core/database/migrations/0NN-<study>-seed.js`. Structure:
+
+```js
+// 1. Concept rows (path, code, name, valtype, unit, category)
+const CONCEPTS = [
+  // drugs (N, mg)
+  ['\\STUDY\\DRUG\\X', 'STUDY:DRUG:X', 'Drug X', 'N', 'mg', 'Medications'],
+  // findings (F)
+  ['\\STUDY\\FINDING\\Y', 'STUDY:FINDING:Y', 'Finding Y', 'F', null, 'Stroke'],
+  // selections (S) + their A-type options
+  ['\\STUDY\\SEL\\Z', 'STUDY:SEL:Z', 'Selection Z', 'S', null, 'Stroke'],
+  ['\\STUDY\\SEL\\Z\\OPT1', 'STUDY:Z:OPT1', 'Option 1', 'A', null, 'Stroke'],
+  // dates (D)
+  ['\\STUDY\\EVENT_DATE', 'STUDY:EVENT_DATE', 'Event date', 'D', null, 'Stroke'],
+  // free text (T)
+  ['\\STUDY\\NOTES', 'STUDY:NOTES', 'Notes', 'T', null, 'Stroke'],
+  // re-use existing where possible — don't list these here, just reference them
+  // in field sets by their existing CONCEPT_CD (e.g. 'LID: 22748-8' for LDL).
+]
+
+// 2. Field set rows — one per UI input panel.
+const FIELD_SETS = [
+  {
+    code: 'study_baseline',
+    name: 'Study - Baseline',
+    blob: {
+      description: 'Comorbidities, vitals, etiology',
+      icon: 'monitor_heart',
+      concepts: ['STUDY:FINDING:Y', 'SCTID: 49436004', 'STUDY:SEL:Z'],
+      categories: ['Stroke', 'Vital Signs'], // hybrid matching fallback
+    },
+  },
+  // … one per bucket
+]
+
+// 3. Visit type rows — each referencing its field sets by code.
+const VISIT_TYPES = [
+  {
+    code: 'study_v0',
+    name: 'Study V0 (Baseline)',
+    blob: {
+      label: 'Study V0 - Baseline',
+      icon: 'monitor_heart', color: 'orange',
+      fieldSets: [
+        { id: 'study_baseline', name: 'Baseline', active: true },
+        { id: 'study_drugs',    name: 'Medications', active: true },
+      ],
+    },
+  },
+  // … one per visit type
+]
+
+// 4. Optional: VALUEFLAG_CD codes if you use 3-state numerics.
+//    (NV / NI are already seeded by 010-stroke-lipid-seed; re-seeding is safe.)
+
+// 5. Optional: STUDY_DIMENSION row.
+
+// 6. Optional: category fix-ups for existing CONCEPT_DIMENSION rows that you
+//    want to re-categorise (rare — see categoryFixups in 010).
+```
+
+Use **self-healing upserts** (Data Modelling Conventions §7) so the migration
+can correct earlier mistakes when re-run. Pattern:
+
+```sql
+INSERT INTO CONCEPT_DIMENSION (...)
+VALUES (?, ?, ?, ?, ?, ?, 'STUDY_MIGRATION', NOW, NOW)
+ON CONFLICT(CONCEPT_CD) DO UPDATE SET
+  NAME_CHAR = excluded.NAME_CHAR,
+  CATEGORY_CHAR = excluded.CATEGORY_CHAR,
+  UPDATE_DATE = excluded.UPDATE_DATE;
+```
+
+Register the migration in `src/core/services/database-service.js` alongside the
+existing migrations:
+
+```js
+import { studySeed } from '../database/migrations/0NN-study-seed.js'
+// …
+this.migrationManager.registerMigration(studySeed)
+```
+
+The migration runs automatically on the next app start. To apply it to an
+existing dev DB without restarting the app, copy the `apply-migration.js`
+pattern from `scripts/import-fw-lipid/`:
+
+```bash
+node scripts/import-fw-lipid/apply-migration.js  # idempotent; supports --force
+```
+
+### Step 3: Verify the seed before importing data
+
+```bash
+sqlite3 database/production.db << 'EOF'
+-- Concepts seeded
+SELECT VALTYPE_CD, COUNT(*) FROM CONCEPT_DIMENSION
+WHERE CONCEPT_CD LIKE 'STUDY:%' GROUP BY VALTYPE_CD;
+-- Visit types
+SELECT CODE_CD, NAME_CHAR FROM CODE_LOOKUP
+WHERE TABLE_CD='VISIT_DIMENSION' AND COLUMN_CD='VISIT_TYPE_CD' AND CODE_CD LIKE 'study_%';
+-- Field sets
+SELECT CODE_CD, NAME_CHAR FROM CODE_LOOKUP
+WHERE TABLE_CD='VISIT_DIMENSION' AND COLUMN_CD='FIELD_SET_CD' AND CODE_CD LIKE 'study_%';
+EOF
+```
+
+At this point you can already create a visit of type `study_v0` in the UI; the
+editor will show the correct field sets and accept observations against the
+seeded concepts.
+
+### Step 4: Optional - bulk-import patient data
+
+If the study has historical patient data (XLSX / CSV / JSON), follow the
+**Bulk-import / re-import pattern** (Data Modelling Conventions §6) by copying
+`scripts/import-fw-lipid/` and adapting:
+
+- `mapping.js` — single source of truth: every source column → concept code,
+  visit, valtype, unit. Mark each concept with `existing: true` if it comes
+  from outside the new migration (reuse from LOINC/SNOMED).
+- `parsers.js` — date, PLZ, dose, finding, selection-value parsers. Most of
+  these are study-agnostic and can be reused as-is.
+- `import.js` — per-patient `delete-and-rewrite` keyed on
+  `SOURCESYSTEM_CD='<STUDY>_<DATE>'`. Apply the 3-state logic for medications.
+- `spotcheck.js` — cell-by-cell verifier. The version in the Stroke-Lipid
+  importer checks every patient × every mapped field; copy it and the only
+  thing that should change is the mapping it imports.
+- `export.js` + `export-verify.js` — headless CSV/HL7 round-trip if needed.
+
+### Step 5: Document
+
+Append an entry under `## Recent Milestones` in `IMPLEMENTATION_STATUS.md` and
+under `[Unreleased] > Added` in `CHANGELOG.md` describing what was added and
+linking to the migration / importer paths.
+
+### The Stroke-Lipid worked example
+
+For a concrete reference of every step above, see:
+
+| Step | File |
+|---|---|
+| Inventory | Commit message of `c0557b5` (migration introduction) |
+| Migration | `src/core/database/migrations/010-stroke-lipid-seed.js` (50 concepts, 5 field sets, 3 visit types) |
+| Importer  | `scripts/import-fw-lipid/import.js` (425 patients, 1037 visits, 21 969 observations) |
+| Verifier  | `scripts/import-fw-lipid/spotcheck.js` (34 136 cell assertions, 0 mismatches) |
+| Export    | `scripts/import-fw-lipid/export.js` + `export-verify.js` (CSV + HL7-JSON, 0 mismatches) |
+| Docs      | `scripts/import-fw-lipid/README.md` (the workflow as a runnable how-to) |
+
+The Stroke-Lipid migration introduces 3 visit types (V0 pre-stroke baseline,
+V1 index stroke, V2 follow-up) wired to 5 field sets (`lipid_pre_stroke`,
+`lipid_stroke_event`, `lipid_followup`, `lipid_labor`, `lipid_drugs`). V0
+carries comorbidities + vitals + etiology + age + stroke date; V1 carries
+event-type + labs + drugs + statin intolerance + new-med / dose-increase
+flags + free text; V2 carries follow-up labs + drugs + reinfarct + new-med /
+dose-increase flags + our-clinic flag. Drugs use the 3-state pattern
+(VALUEFLAG_CD='NV') so "asked, not taking" is distinct from "not assessed".
 
 ---
 

@@ -22,7 +22,7 @@
 
       <!-- 3-state numeric: VALUEFLAG_CD='NV' = patient was assessed and explicitly
            has no value (e.g. drug not taken). Distinct visual to separate from
-           "not yet assessed" (which has no observation at all). See AGENTS.md. -->
+           "not yet assessed" (which has no observation at all). See CLAUDE.md. -->
       <div
         v-else-if="valueType === 'N' && valueFlag === 'NV'"
         class="cell-no-value"

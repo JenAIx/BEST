@@ -29,7 +29,9 @@
   425/428 patients from `Mastertabelle_Franzi_LDL_Daten_20260513.xlsx`
   (1037 visits, 21 969 observations, 0 mapping errors).
 
-See `AGENTS.md` "Data Modelling Conventions" for the full set of invariants.
+See `CLAUDE.md` "Data Modelling Conventions" for the full set of invariants,
+and `CLAUDE.md` "Building a New Visit Template" for the step-by-step recipe
+that captures the workflow used here.
 
 ---
 

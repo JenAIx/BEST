@@ -318,7 +318,7 @@ describe('CSV Service', () => {
     })
 
     it('should emit [NV] marker for 3-state numeric "assessed, explicitly no value"', () => {
-      // VALUEFLAG_CD='NV' is the project-wide marker (see AGENTS.md Data Modelling
+      // VALUEFLAG_CD='NV' is the project-wide marker (see CLAUDE.md Data Modelling
       // Conventions). E.g. "patient was asked, explicitly not taking this drug".
       const observation = {
         VALTYPE_CD: 'N',
@@ -360,7 +360,7 @@ describe('CSV Service', () => {
 
     it('should round-trip a 3-state drug observation through export → import', async () => {
       // Export → re-import: [NV] marker should restore VALUEFLAG_CD='NV' with
-      // no numeric value. See AGENTS.md "3-state pattern for numerics".
+      // no numeric value. See CLAUDE.md "3-state pattern for numerics".
       const exported = csvService.formatObservationValue({
         VALTYPE_CD: 'N',
         NVAL_NUM: null,
