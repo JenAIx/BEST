@@ -553,6 +553,32 @@ class StudyRepository extends BaseRepository {
       throw error
     }
   }
+
+  /**
+   * Return all PATIENT_CDs enrolled in a study, identified by STUDY_CD.
+   * Used by the in-app export dialog (export-store.exportStudyPatients) to
+   * fetch the cohort before handing it to ExportService.
+   *
+   * @param {string} studyCd - The study's STUDY_CD (e.g. 'STROKE_LIPID')
+   * @returns {Promise<Array<string>>} Patient codes; empty array if none.
+   */
+  async findEnrolledPatientCds(studyCd) {
+    if (!studyCd) return []
+    const sql = `
+      SELECT p.PATIENT_CD
+        FROM STUDY_PATIENT_LOOKUP spl
+        JOIN STUDY_DIMENSION s   ON s.STUDY_NUM   = spl.STUDY_NUM
+        JOIN PATIENT_DIMENSION p ON p.PATIENT_NUM = spl.PATIENT_NUM
+       WHERE s.STUDY_CD = ?
+         AND (spl.ENROLLMENT_STATUS_CD IS NULL OR spl.ENROLLMENT_STATUS_CD = 'active')
+       ORDER BY p.PATIENT_CD
+    `
+    const result = await this.connection.executeQuery(sql, [studyCd])
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to fetch enrolled patient codes')
+    }
+    return result.data.map((row) => row.PATIENT_CD)
+  }
 }
 
 export default StudyRepository

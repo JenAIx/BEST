@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Last-Mile fixes for v0.2
+
+- **3-State Drug Edit-UI in the grid editor** — clicking a numeric drug cell
+  now opens an editor with a small side-toggle that flips between entering a
+  value and marking the cell as "not taken / no value" (VALUEFLAG_CD='NV').
+  Round-trip across the three states works:
+  - value → value: UPDATE with `NVAL_NUM` set, `VALUEFLAG_CD` cleared
+  - value → NV: UPDATE with `NVAL_NUM=NULL, VALUEFLAG_CD='NV'`
+  - NV → value: UPDATE with `NVAL_NUM` set, `VALUEFLAG_CD` cleared
+  - value → cleared: DELETE the row (back to "not assessed")
+  Covered by 6 unit tests in `tests/unit/15_editable-cell-nv-state.test.js`.
+- **In-App Cohort Export** — new "Export Cohort" button on every Study
+  Details page opens a small dialog (CSV vs HL7-JSON), triggers
+  `exportStore.exportStudyPatients(...)` which runs the same `ExportService`
+  the headless CLI uses, then download via Blob. Backed by a new
+  `study-repository.findEnrolledPatientCds(studyCd)` method and tested in
+  `tests/unit/16_export-store-study.test.js`.
+- **CHANGELOG graduation** — the v0.2_20260516 content moved out of
+  `[Unreleased]` into its own versioned section below; this `[Unreleased]`
+  is the clean staging area for the next release.
+
+## [0.2_20260516] - 2026-05-16
+
 ### App version
 
 - **`VITE_APP_VERSION` bumped to `0.2_20260516`** (from `0.1_20251219`). This
@@ -203,4 +226,5 @@ changes from the recent commit history (see `git log` for full detail).
 - `test(dbBEST)`: smoke tests for UI-prep foundation (notify, session monitor, error boundary).
 - `refactor(dbBEST)`: migrated all `$q.notify` calls to `useNotify` composable.
 
-[Unreleased]: https://github.com/your-org/best/compare/HEAD
+[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.2_20260516...HEAD
+[0.2_20260516]: https://github.com/JenAIx/BEST/releases/tag/v0.2_20260516
