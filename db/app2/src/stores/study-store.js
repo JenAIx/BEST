@@ -30,6 +30,16 @@ export const useStudyStore = defineStore('study', () => {
     activeStudies: 0,
   })
 
+  // Cohort insights — aggregate views over all enrolled patients in a study.
+  // Loaded lazily by StudyInsights.vue via loadCohortInsights(studyCd).
+  // Shape: { counts, drugs, findings, etiology, eventType, ldl, hdl } or null.
+  const cohortInsights = ref(null)
+  const cohortInsightsLoading = ref(false)
+  const cohortInsightsError = ref(null)
+  // Which study the current `cohortInsights` belongs to. Used by the UI to
+  // decide whether to trust the cached payload or re-load for a new study.
+  const cohortInsightsStudyCd = ref(null)
+
   // Getters
   const hasStudies = computed(() => studies.value.length > 0)
 
@@ -527,6 +537,63 @@ export const useStudyStore = defineStore('study', () => {
     }
   }
 
+  /**
+   * Load cohort-level aggregates for the given study and cache them in
+   * `cohortInsights`. Fires 7 small SQL aggregates in parallel (one each for
+   * counts, drugs, findings, two selections, two labs). Result shape is read
+   * by `components/study/StudyInsights.vue`.
+   *
+   * The selection + lab concept codes are hard-coded for Stroke-Lipid for now;
+   * future studies can pass overrides via `options` or carry their own
+   * descriptor in STUDY_DIMENSION.STUDY_BLOB (TODO).
+   */
+  const loadCohortInsights = async (studyCd, options = {}) => {
+    if (!studyCd) {
+      cohortInsights.value = null
+      cohortInsightsStudyCd.value = null
+      return
+    }
+    cohortInsightsLoading.value = true
+    cohortInsightsError.value = null
+    try {
+      const repo = dbStore.getRepository('study')
+      const drugPrefix = options.drugPrefix ?? 'STROKE_LIPID:DRUG:'
+      const selectionCodes = options.selectionCodes ?? ['STROKE_LIPID:ETIOLOGY', 'STROKE_LIPID:EVENT_TYPE']
+      const labCodes = options.labCodes ?? ['LID: 22748-8', 'LID: 14646-4']
+
+      const [counts, drugs, findings, ...rest] = await Promise.all([
+        repo.getCohortPatientCount(studyCd),
+        repo.getCohortDrugUsage(studyCd, drugPrefix),
+        repo.getCohortFindingPrevalence(studyCd),
+        ...selectionCodes.map((c) => repo.getCohortSelectionDistribution(studyCd, c)),
+        ...labCodes.map((c) => repo.getCohortLabSummary(studyCd, c)),
+      ])
+      const selections = rest.slice(0, selectionCodes.length)
+      const labs = rest.slice(selectionCodes.length)
+
+      cohortInsights.value = {
+        counts,
+        drugs,
+        findings,
+        selections: selectionCodes.map((code, i) => ({ code, data: selections[i] || [] })),
+        labs: labCodes.map((code, i) => ({ code, data: labs[i] || [] })),
+      }
+      cohortInsightsStudyCd.value = studyCd
+      logger.info('Cohort insights loaded', {
+        studyCd,
+        enrolled: counts.enrolled,
+        drugCount: drugs.length,
+        findingCount: findings.length,
+      })
+    } catch (err) {
+      cohortInsightsError.value = err.message
+      logger.error('Failed to load cohort insights', err, { studyCd })
+      throw err
+    } finally {
+      cohortInsightsLoading.value = false
+    }
+  }
+
   // Initialize store with mock data
   const initialize = async () => {
     try {
@@ -549,6 +616,10 @@ export const useStudyStore = defineStore('study', () => {
     error,
     totalStudies,
     researchStats,
+    cohortInsights,
+    cohortInsightsLoading,
+    cohortInsightsError,
+    cohortInsightsStudyCd,
 
     // Getters
     hasStudies,
@@ -571,6 +642,7 @@ export const useStudyStore = defineStore('study', () => {
     deleteStudy,
     searchStudies,
     getStudyAnalytics,
+    loadCohortInsights,
     updateResearchStats,
     loadResearchStats,
 

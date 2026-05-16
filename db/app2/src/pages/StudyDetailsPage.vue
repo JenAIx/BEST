@@ -166,6 +166,15 @@
         </div>
       </div>
 
+      <!-- Overview / Insights tabs -->
+      <q-tabs v-model="activeTab" dense align="left" indicator-color="primary" class="q-mb-md">
+        <q-tab name="overview" icon="info" :label="$t('study.tabOverview')" />
+        <q-tab name="insights" icon="insights" :label="$t('study.tabInsights')" />
+      </q-tabs>
+      <q-separator />
+      <q-tab-panels v-model="activeTab" animated class="bg-transparent" keep-alive>
+        <q-tab-panel name="overview" class="q-pa-none q-pt-md">
+
       <!-- Enrolled Patients -->
       <q-card>
         <q-card-section>
@@ -224,6 +233,12 @@
           </div>
         </q-card-section>
       </q-card>
+
+        </q-tab-panel>
+        <q-tab-panel name="insights" class="q-pa-none q-pt-md">
+          <StudyInsights v-if="studyCd" :study-cd="studyCd" />
+        </q-tab-panel>
+      </q-tab-panels>
     </div>
 
     <div v-else class="text-center q-py-xl">
@@ -264,7 +279,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
@@ -272,6 +287,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useStudyStore } from 'src/stores/study-store'
 import { useExportStore } from 'src/stores/export-store'
 import EnrollPatientDialog from 'src/components/study/EnrollPatientDialog.vue'
+import StudyInsights from 'src/components/study/StudyInsights.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -294,6 +310,12 @@ const enrolling = ref(false)
 const showWithdrawDialog = ref(false)
 const patientToWithdraw = ref(null)
 const withdrawing = ref(false)
+
+// Tabs (Overview / Insights)
+const activeTab = ref('overview')
+// study.STUDY_CD is the unprefixed identifier most consumers want; some
+// upstream transforms surface it as `studyCd` instead. Try both.
+const studyCd = computed(() => study.value?.STUDY_CD || study.value?.studyCd || null)
 
 // Cohort export
 const exportDialog = ref(false)
