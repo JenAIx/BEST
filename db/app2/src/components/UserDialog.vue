@@ -84,7 +84,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import AppDialog from './shared/AppDialog.vue'
 import { useUserStore } from 'src/stores/user-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -107,7 +107,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'saved', 'cancelled'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const userStore = useUserStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('UserDialog')
@@ -193,11 +193,7 @@ const loadUserById = async (userId) => {
     })
   } catch (error) {
     logger.error('Failed to load user for editing', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load user data',
-      position: 'top',
-    })
+    notify.error('Failed to load user data')
     resetForm()
   } finally {
     loading.value = false
@@ -231,11 +227,7 @@ const handleSubmit = async () => {
 
       await userStore.createUser(userData)
 
-      $q.notify({
-        type: 'positive',
-        message: 'User created successfully',
-        position: 'top',
-      })
+      notify.success('User created successfully')
 
       emit('saved', { mode: 'create', user: userData })
       dialogVisible.value = false
@@ -251,22 +243,14 @@ const handleSubmit = async () => {
 
       await userStore.updateUser(props.userId, updates)
 
-      $q.notify({
-        type: 'positive',
-        message: 'User updated successfully',
-        position: 'top',
-      })
+      notify.success('User updated successfully')
 
       emit('saved', { mode: 'edit', userId: props.userId })
       dialogVisible.value = false
     }
   } catch (error) {
     logger.error(`Failed to ${props.mode} user`, error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || userStore.error || `Failed to ${props.mode} user`,
-      position: 'top',
-    })
+    notify.error(error.message || userStore.error || `Failed to ${props.mode} user`)
   }
 }
 

@@ -17,30 +17,30 @@
       </div>
 
       <!-- View Mode -->
-      <div v-if="!editing" class="q-gutter-sm">
-        <div class="row">
-          <div class="col-5 text-grey-6">{{ $t('patient.gender') }}:</div>
-          <div class="col-7">{{ getPatientGender(patient) }}</div>
+      <div v-if="!editing" class="info-list">
+        <div class="info-row">
+          <span class="info-label">{{ $t('patient.gender') }}</span>
+          <span class="info-value">{{ getPatientGender(patient) }}</span>
         </div>
-        <div class="row">
-          <div class="col-5 text-grey-6">{{ $t('patient.age') }}:</div>
-          <div class="col-7">{{ getPatientAge(patient) }}</div>
+        <div class="info-row">
+          <span class="info-label">{{ $t('patient.age') }}</span>
+          <span class="info-value">{{ getPatientAge(patient) }}</span>
         </div>
-        <div class="row">
-          <div class="col-5 text-grey-6">{{ $t('user.status') }}:</div>
-          <div class="col-7">
-            <q-chip :color="getStatusColor(patient)" text-color="white" size="sm">
+        <div class="info-row">
+          <span class="info-label">{{ $t('user.status') }}</span>
+          <span class="info-value">
+            <q-chip :color="getStatusColor(patient)" text-color="white" size="sm" class="q-ma-none">
               {{ getStatusLabel(patient) }}
             </q-chip>
-          </div>
+          </span>
         </div>
-        <div v-if="patient.BIRTH_DATE" class="row">
-          <div class="col-5 text-grey-6">{{ $t('patient.dateOfBirth') }}:</div>
-          <div class="col-7">{{ formatDate(patient.BIRTH_DATE) }}</div>
+        <div v-if="patient.BIRTH_DATE" class="info-row">
+          <span class="info-label">{{ $t('patient.dateOfBirth') }}</span>
+          <span class="info-value">{{ formatDate(patient.BIRTH_DATE) }}</span>
         </div>
-        <div v-if="patient.DEATH_DATE" class="row">
-          <div class="col-5 text-grey-6">{{ $t('patient.deathDate') }}:</div>
-          <div class="col-7">{{ formatDate(patient.DEATH_DATE) }}</div>
+        <div v-if="patient.DEATH_DATE" class="info-row">
+          <span class="info-label">{{ $t('patient.deathDate') }}</span>
+          <span class="info-value">{{ formatDate(patient.DEATH_DATE) }}</span>
         </div>
       </div>
 
@@ -56,7 +56,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -70,7 +70,7 @@ const props = defineProps({
 
 const emit = defineEmits(['updated'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
@@ -207,11 +207,7 @@ const save = async () => {
       const result = await dbStore.executeQuery(updateQuery, values)
 
       if (result.success) {
-        $q.notify({
-          type: 'positive',
-          message: 'Demographics updated successfully',
-          position: 'top',
-        })
+        notify.success('Demographics updated successfully')
         emit('updated')
       } else {
         throw new Error('Update failed')
@@ -221,11 +217,7 @@ const save = async () => {
     editing.value = false
   } catch (error) {
     logger.error('Failed to save demographics', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update demographics',
-      position: 'top',
-    })
+    notify.error('Failed to update demographics')
   }
 }
 
@@ -239,5 +231,30 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.info-label {
+  flex: 0 0 auto;
+  color: $grey-7;
+  white-space: nowrap;
+}
+
+.info-value {
+  flex: 1 1 auto;
+  text-align: right;
+  word-break: break-word;
 }
 </style>

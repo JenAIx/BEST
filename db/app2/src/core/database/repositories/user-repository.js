@@ -6,6 +6,7 @@
  */
 
 import BaseRepository from './base-repository.js'
+import { verifyPassword } from '../../services/password-service.js'
 
 class UserRepository extends BaseRepository {
   constructor(connection) {
@@ -295,12 +296,8 @@ class UserRepository extends BaseRepository {
         return null
       }
 
-      // Simple password comparison (in production, use proper hashing)
-      if (user.PASSWORD_CHAR === password) {
-        return user
-      }
-
-      return null
+      const ok = await verifyPassword(password, user.PASSWORD_CHAR)
+      return ok ? user : null
     } catch (error) {
       console.error('Error authenticating user:', error)
       return null

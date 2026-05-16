@@ -108,7 +108,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useDataGridStore } from 'src/stores/data-grid-store'
@@ -128,7 +128,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'concept-added'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const conceptStore = useConceptResolutionStore()
 const dataGridStore = useDataGridStore()
@@ -219,11 +219,7 @@ const searchConcepts = async () => {
     })
   } catch (error) {
     logger.error('Concept search failed', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to search concepts',
-      position: 'top',
-    })
+    notify.error('Failed to search concepts')
     searchResults.value = []
   } finally {
     searching.value = false
@@ -361,11 +357,7 @@ const addConceptToGrid = async () => {
     }
 
     if (result.alreadyExists) {
-      $q.notify({
-        type: 'warning',
-        message: t('dataGrid.conceptAlreadyInGrid'),
-        position: 'top',
-      })
+      notify.warning(t('dataGrid.conceptAlreadyInGrid'))
       return
     }
 
@@ -393,11 +385,7 @@ const addConceptToGrid = async () => {
     })
   } catch (error) {
     logger.error('Failed to add concept to grid', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to add concept to grid',
-      position: 'top',
-    })
+    notify.error('Failed to add concept to grid')
   } finally {
     adding.value = false
   }

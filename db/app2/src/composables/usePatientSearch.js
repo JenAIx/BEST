@@ -7,7 +7,7 @@
 
 import { ref } from 'vue'
 import { useDatabaseStore } from 'src/stores/database-store'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useLoggingStore } from 'src/stores/logging-store'
 
@@ -31,7 +31,7 @@ export function usePatientSearch(options = {}) {
   } = options
 
   const dbStore = useDatabaseStore()
-  const $q = useQuasar()
+  const notify = useNotify()
   const { t } = useI18n()
   const loggingStore = useLoggingStore()
   const logger = loggingStore.createLogger('usePatientSearch')
@@ -102,11 +102,7 @@ export function usePatientSearch(options = {}) {
       logger.error('Patient search failed', err, { searchTerm: searchValue })
 
       if (showNotifications) {
-        $q.notify({
-          type: 'negative',
-          message: t('patient.searchFailed') || 'Failed to search patients',
-          position: 'top',
-        })
+        notify.error(t('patient.searchFailed') || 'Failed to search patients')
       }
 
       results.value = []

@@ -97,7 +97,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useQuestionnaireStore } from 'src/stores/questionnaire-store'
 import { useObservationStore } from 'src/stores/observation-store'
 import { useDatabaseStore } from 'src/stores/database-store'
@@ -138,7 +138,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'questionnaire-saved', 'questionnaire-completed', 'close'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const questionnaireStore = useQuestionnaireStore()
 const observationStore = useObservationStore()
 const databaseStore = useDatabaseStore()
@@ -479,11 +479,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
 
     localShow.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: `Fragebogen "${results.title}" erfolgreich gespeichert und abgeschlossen`,
-      position: 'top',
-    })
+    notify.success(`Fragebogen "${results.title}" erfolgreich gespeichert und abgeschlossen`)
 
     logger.info('Questionnaire saved and completed', {
       title: results.title,
@@ -491,12 +487,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
     })
   } catch (error) {
     logger.error('Failed to submit questionnaire', error)
-    $q.notify({
-      type: 'negative',
-      message: `Fehler beim Speichern: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(`Fehler beim Speichern: ${error.message}`, { timeout: 5000 })
   } finally {
     showSubmissionDialog.value = false
   }

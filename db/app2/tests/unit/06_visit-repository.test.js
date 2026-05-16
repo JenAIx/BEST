@@ -90,6 +90,24 @@ describe('VisitRepository', () => {
       await expect(visitRepository.createVisit(visitData)).rejects.toThrow('PATIENT_NUM is required for visit creation')
     })
 
+    it('should reject END_DATE before START_DATE', async () => {
+      const visitData = { PATIENT_NUM: 1, START_DATE: '2024-03-15', END_DATE: '2024-03-10' }
+
+      await expect(visitRepository.createVisit(visitData)).rejects.toThrow(/must not be before START_DATE/)
+      expect(mockConnection.executeCommand).not.toHaveBeenCalled()
+    })
+
+    it('should accept END_DATE equal to or after START_DATE', async () => {
+      mockConnection.executeCommand.mockResolvedValue({ success: true, lastID: 300, changes: 1 })
+
+      await expect(
+        visitRepository.createVisit({ PATIENT_NUM: 1, START_DATE: '2024-03-15', END_DATE: '2024-03-15' }),
+      ).resolves.toBeTruthy()
+      await expect(
+        visitRepository.createVisit({ PATIENT_NUM: 1, START_DATE: '2024-03-15', END_DATE: '2024-03-20' }),
+      ).resolves.toBeTruthy()
+    })
+
     it('should override defaults with provided values', async () => {
       const visitData = {
         PATIENT_NUM: 74,

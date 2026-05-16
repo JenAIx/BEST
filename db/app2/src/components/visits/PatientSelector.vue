@@ -8,9 +8,12 @@
 
     <q-card class="selection-card" flat bordered>
       <q-card-section>
-        <div class="text-h6 text-center q-mb-md">
-          <q-icon name="person_search" class="q-mr-sm" />
-          {{ $t('visits.findPatient') }}
+        <div class="row items-center justify-between q-mb-md">
+          <div class="text-h6">
+            <q-icon name="person_search" class="q-mr-sm" />
+            {{ $t('visits.findPatient') }}
+          </div>
+          <q-btn color="primary" icon="person_add" :label="$t('patient.addPatient')" @click="showCreateDialog = true" unelevated />
         </div>
 
         <!-- Search Input -->
@@ -18,17 +21,45 @@
           <template v-slot:prepend>
             <q-icon name="search" />
           </template>
-          <template v-slot:append v-if="searchQuery">
-            <q-icon name="close" @click="clearSearch" class="cursor-pointer" />
+          <template v-slot:append>
+            <q-icon v-if="searchQuery" name="close" @click="clearSearch" class="cursor-pointer q-mr-sm" />
+            <q-btn flat round dense icon="tune" :color="hasActiveFilters ? 'primary' : ''" @click="showAdvancedFilters = !showAdvancedFilters">
+              <q-tooltip>{{ $t('visits.advancedFilters') }}</q-tooltip>
+            </q-btn>
           </template>
         </q-input>
+
+        <!-- Advanced Filters -->
+        <q-slide-transition>
+          <div v-show="showAdvancedFilters" class="q-mt-md q-pa-md bg-grey-1 rounded-borders">
+            <div class="text-subtitle2 q-mb-md">{{ $t('visits.advancedFilters') }}</div>
+            <div class="row q-col-gutter-md">
+              <div class="col-12">
+                <q-range v-model="filters.ageRange" :min="0" :max="120" label label-always color="primary" />
+                <div class="text-caption text-grey-6">{{ $t('patient.age') }}: {{ filters.ageRange.min }} - {{ filters.ageRange.max }}</div>
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-select v-model="filters.sex" :options="sexOptions" :label="$t('patient.gender')" outlined dense clearable emit-value map-options />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-select v-model="filters.vitalStatus" :options="vitalStatusOptions" :label="$t('patient.vitalStatus')" outlined dense clearable emit-value map-options />
+              </div>
+              <div class="col-12">
+                <q-select v-model="filters.studies" :options="studyOptions" :label="$t('study.studies')" outlined dense clearable multiple emit-value map-options :loading="loadingStudies" />
+              </div>
+            </div>
+            <div class="row justify-end q-mt-md">
+              <q-btn flat :label="$t('common.cancel')" @click="resetFilters" />
+            </div>
+          </div>
+        </q-slide-transition>
       </q-card-section>
 
-      <!-- Recent Patients -->
-      <q-card-section v-if="!searchQuery && recentPatients.length > 0">
+      <!-- Recent Patients (history) or fallback to latest added -->
+      <q-card-section v-if="!isSearchActive && recentPatients.length > 0">
         <div class="text-subtitle2 text-grey-7 q-mb-sm">
-          <q-icon name="history" size="16px" class="q-mr-xs" />
-          {{ $t('visit.recentPatients') }}
+          <q-icon :name="recentPatientsSource === 'latest' ? 'fiber_new' : 'history'" size="16px" class="q-mr-xs" />
+          {{ recentPatientsSource === 'latest' ? $t('visit.latestPatients') : $t('visit.recentPatients') }}
         </div>
         <div class="recent-patients-grid">
           <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" variant="recent" @select="selectPatient" />
@@ -36,7 +67,7 @@
       </q-card-section>
 
       <!-- Search Results -->
-      <q-card-section v-if="searchQuery && searchResults.length > 0">
+      <q-card-section v-if="isSearchActive && searchResults.length > 0">
         <div class="text-subtitle2 text-grey-7 q-mb-sm">
           <q-icon name="search" size="16px" class="q-mr-xs" />
           {{ $t('visit.searchResults', { count: searchResults.length }) }}
@@ -47,7 +78,7 @@
       </q-card-section>
 
       <!-- No Results -->
-      <q-card-section v-if="searchQuery && searchResults.length === 0 && !searchLoading">
+      <q-card-section v-if="isSearchActive && searchResults.length === 0 && !searchLoading">
         <div class="no-results">
           <q-icon name="search_off" size="48px" color="grey-4" />
           <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noPatientsFound') }}</div>
@@ -63,15 +94,20 @@
         </div>
       </q-card-section>
     </q-card>
+
+    <CreatePatientDialog v-model="showCreateDialog" @patient-created="onPatientCreated" />
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
+import { useStudyStore } from 'src/stores/study-store'
 import PatientCard from './PatientCard.vue'
+import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
 import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['patient-selected'])
@@ -80,6 +116,8 @@ const dbStore = useDatabaseStore()
 const localSettings = useLocalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('PatientSelector')
+const conceptStore = useConceptResolutionStore()
+const studyStore = useStudyStore()
 const router = useRouter()
 
 // State
@@ -87,44 +125,106 @@ const searchQuery = ref('')
 const searchLoading = ref(false)
 const searchResults = ref([])
 const recentPatients = ref([])
+const recentPatientsSource = ref('history')
+const showCreateDialog = ref(false)
+const showAdvancedFilters = ref(false)
+
+const DEFAULT_AGE_RANGE = { min: 0, max: 120 }
+const filters = ref({
+  sex: null,
+  vitalStatus: null,
+  ageRange: { ...DEFAULT_AGE_RANGE },
+  studies: [],
+})
+
+// Filter option lists
+const sexOptions = ref([])
+const vitalStatusOptions = ref([])
+const studyOptions = ref([])
+const loadingStudies = ref(false)
+
+const hasActiveFilters = computed(() =>
+  !!filters.value.sex ||
+  !!filters.value.vitalStatus ||
+  filters.value.ageRange.min !== DEFAULT_AGE_RANGE.min ||
+  filters.value.ageRange.max !== DEFAULT_AGE_RANGE.max ||
+  (filters.value.studies && filters.value.studies.length > 0),
+)
+
+const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.value)
 
 // Methods
+const mapPatientForCard = async (patient) => ({
+  id: patient.PATIENT_CD,
+  name: getPatientName(patient),
+  age: patient.AGE_IN_YEARS,
+  gender: patient.SEX_RESOLVED || patient.SEX_CD,
+  lastVisit: await getLastVisitDate(patient.PATIENT_NUM),
+  visitCount: await getVisitCount(patient.PATIENT_NUM),
+})
+
+const loadLatestAddedPatients = async () => {
+  const result = await dbStore.getPatientsPaginated(1, 3, {
+    options: {
+      orderBy: 'IMPORT_DATE',
+      orderDirection: 'DESC',
+    },
+  })
+  return await Promise.all((result.patients || []).map(mapPatientForCard))
+}
+
 const loadRecentPatients = async () => {
   try {
+    if (!dbStore.canPerformOperations) return
+
     const recent = localSettings.getSetting('visits.recentPatients') || []
 
-    if (recent.length > 0 && dbStore.canPerformOperations) {
+    if (recent.length > 0) {
       const patientRepo = dbStore.getRepository('patient')
       const patientDetails = await Promise.all(
         recent.slice(0, 5).map(async (patientId) => {
           try {
             const patient = await patientRepo.findByPatientCode(patientId)
-            if (patient) {
-              const lastVisitDate = await getLastVisitDate(patient.PATIENT_NUM)
-              return {
-                id: patient.PATIENT_CD,
-                name: getPatientName(patient),
-                age: patient.AGE_IN_YEARS,
-                gender: patient.SEX_RESOLVED || patient.SEX_CD,
-                lastVisit: lastVisitDate,
-                visitCount: await getVisitCount(patient.PATIENT_NUM),
-              }
-            }
+            return patient ? await mapPatientForCard(patient) : null
           } catch (error) {
             logger.warn('Failed to load recent patient', { patientId, error })
+            return null
           }
-          return null
         }),
       )
-      recentPatients.value = patientDetails.filter((p) => p !== null)
+      const filtered = patientDetails.filter((p) => p !== null)
+      if (filtered.length > 0) {
+        recentPatients.value = filtered
+        recentPatientsSource.value = 'history'
+        return
+      }
     }
+
+    // No history yet — fall back to the most recently added patients
+    recentPatients.value = await loadLatestAddedPatients()
+    recentPatientsSource.value = 'latest'
   } catch (error) {
     logger.error('Failed to load recent patients', error)
   }
 }
 
-const onSearchInput = async () => {
-  if (!searchQuery.value.trim()) {
+const buildSearchCriteria = () => {
+  const criteria = {}
+  const term = searchQuery.value?.trim()
+  if (term) criteria.searchTerm = term
+  if (filters.value.sex) criteria.SEX_CD = filters.value.sex
+  if (filters.value.vitalStatus) criteria.VITAL_STATUS_CD = filters.value.vitalStatus
+  if (
+    filters.value.ageRange.min !== DEFAULT_AGE_RANGE.min ||
+    filters.value.ageRange.max !== DEFAULT_AGE_RANGE.max
+  ) {
+    criteria.ageRange = { min: filters.value.ageRange.min, max: filters.value.ageRange.max }
+  }
+  return criteria
+}
+
+const runSearch = async () => {
+  if (!isSearchActive.value) {
     searchResults.value = []
     return
   }
@@ -136,12 +236,33 @@ const onSearchInput = async () => {
       throw new Error('Database not ready')
     }
 
-    const patientRepo = dbStore.getRepository('patient')
-    const results = await patientRepo.searchPatients(searchQuery.value.trim())
+    let enrolledPatientNums = null
+    if (filters.value.studies && filters.value.studies.length > 0) {
+      enrolledPatientNums = new Set()
+      const studyRepo = dbStore.getRepository('study')
+      for (const studyId of filters.value.studies) {
+        try {
+          const enrolled = await studyRepo.getEnrolledPatients(studyId)
+          enrolled.forEach((p) => enrolledPatientNums.add(p.PATIENT_NUM))
+        } catch (error) {
+          logger.warn('Failed to resolve study enrolment', { studyId, error })
+        }
+      }
+      if (enrolledPatientNums.size === 0) {
+        searchResults.value = []
+        return
+      }
+    }
 
-    // Enhance results with additional data
-    const enhancedResults = await Promise.all(
-      results.map(async (patient) => {
+    const criteria = buildSearchCriteria()
+    if (enrolledPatientNums && enrolledPatientNums.size > 0) {
+      criteria.patientNums = Array.from(enrolledPatientNums)
+    }
+
+    const result = await dbStore.getPatientsPaginated(1, 25, criteria)
+
+    const enhanced = await Promise.all(
+      (result.patients || []).map(async (patient) => {
         const visitCount = await getVisitCount(patient.PATIENT_NUM)
         return {
           id: patient.PATIENT_CD,
@@ -154,7 +275,7 @@ const onSearchInput = async () => {
       }),
     )
 
-    searchResults.value = enhancedResults
+    searchResults.value = enhanced
   } catch (error) {
     logger.error('Search failed', error)
     searchResults.value = []
@@ -163,9 +284,62 @@ const onSearchInput = async () => {
   }
 }
 
+const onSearchInput = () => runSearch()
+
 const clearSearch = () => {
   searchQuery.value = ''
   searchResults.value = []
+}
+
+const resetFilters = () => {
+  filters.value = {
+    sex: null,
+    vitalStatus: null,
+    ageRange: { ...DEFAULT_AGE_RANGE },
+    studies: [],
+  }
+}
+
+const onPatientCreated = (createdPatient) => {
+  // CreatePatientDialog also navigates internally; this is a safety net for the Visits flow.
+  if (createdPatient?.PATIENT_CD) {
+    router.push(`/visits/${createdPatient.PATIENT_CD}`)
+  }
+}
+
+const loadFilterOptions = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+    await conceptStore.initialize()
+    const [sexOpts, statusOpts] = await Promise.all([
+      conceptStore.getConceptOptions('gender'),
+      conceptStore.getConceptOptions('vital_status'),
+    ])
+    sexOptions.value = sexOpts
+    vitalStatusOptions.value = statusOpts
+  } catch (error) {
+    logger.warn('Failed to load filter options', error)
+    sexOptions.value = conceptStore.getFallbackOptions('gender')
+    vitalStatusOptions.value = conceptStore.getFallbackOptions('vital_status')
+  }
+}
+
+const loadStudyOptions = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+    loadingStudies.value = true
+    await studyStore.loadStudies()
+    studyOptions.value = studyStore.studies.map((study) => ({
+      label: study.name,
+      value: study.id,
+      subtitle: `${study.category || 'N/A'} • ${study.patientCount || 0} patients`,
+    }))
+  } catch (error) {
+    logger.warn('Failed to load study options', error)
+    studyOptions.value = []
+  } finally {
+    loadingStudies.value = false
+  }
 }
 
 const selectPatient = (patient) => {
@@ -236,7 +410,18 @@ const formatVisitDate = (dateStr) => {
 // Lifecycle
 onMounted(async () => {
   await loadRecentPatients()
+  loadFilterOptions()
+  loadStudyOptions()
 })
+
+watch(
+  filters,
+  () => {
+    if (hasActiveFilters.value) runSearch()
+    else if (!searchQuery.value) searchResults.value = []
+  },
+  { deep: true },
+)
 </script>
 
 <style lang="scss" scoped>

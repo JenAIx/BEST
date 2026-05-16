@@ -155,11 +155,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useUserStore } from 'src/stores/user-store'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const userStore = useUserStore()
 const dbStore = useDatabaseStore()
 const logger = useLoggingStore().createLogger('UserPatientAssociations')
@@ -257,11 +260,7 @@ const loadAssociations = async () => {
   try {
     await userStore.loadUserPatientAssociations()
   } catch {
-    $q.notify({
-      type: 'negative',
-      message: userStore.error || 'Failed to load associations',
-      position: 'top',
-    })
+    notify.error(userStore.error || 'Failed to load associations')
   }
 }
 
@@ -416,19 +415,11 @@ const onSaveAssociation = async () => {
     if (dialogMode.value === 'create') {
       await userStore.createUserPatientAssociation(formData.value)
 
-      $q.notify({
-        type: 'positive',
-        message: 'Association created successfully',
-        position: 'top',
-      })
+      notify.success('Association created successfully')
     } else {
       await userStore.updateUserPatientAssociation(selectedAssociation.value.USER_PATIENT_ID, formData.value)
 
-      $q.notify({
-        type: 'positive',
-        message: 'Association updated successfully',
-        position: 'top',
-      })
+      notify.success('Association updated successfully')
     }
 
     showAssociationDialog.value = false
@@ -499,10 +490,7 @@ const onSaveAssociation = async () => {
       }
       
       // Show friendly notification
-      $q.notify({
-        type: 'info',
-        message: 'This association already exists. You can edit it below.',
-        position: 'top',
+      notify.info('This association already exists. You can edit it below.', {
         timeout: 4000,
         actions: [
           {
@@ -514,11 +502,7 @@ const onSaveAssociation = async () => {
     } else {
       // Other errors - log and show error message
       logger.error('Failed to save association', error)
-      $q.notify({
-        type: 'negative',
-        message: error.message || userStore.error || 'Failed to save association',
-        position: 'top',
-      })
+      notify.error(error.message || userStore.error || 'Failed to save association')
     }
   }
 }
@@ -537,18 +521,10 @@ const onDeleteAssociation = (association) => {
     try {
       await userStore.deleteUserPatientAssociation(association.USER_PATIENT_ID)
 
-      $q.notify({
-        type: 'positive',
-        message: 'Association deleted successfully',
-        position: 'top',
-      })
+      notify.success('Association deleted successfully')
     } catch (error) {
       logger.error('Failed to delete association', error)
-      $q.notify({
-        type: 'negative',
-        message: error.message || userStore.error || 'Failed to delete association',
-        position: 'top',
-      })
+      notify.error(error.message || userStore.error || 'Failed to delete association')
     }
   })
 }

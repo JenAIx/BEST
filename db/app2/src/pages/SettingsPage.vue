@@ -2,6 +2,16 @@
   <q-page class="q-pa-md">
     <div class="text-h4 q-mb-md">{{ $t('common.settings') }}</div>
 
+    <q-banner v-if="mustChangePassword" class="bg-warning text-dark q-mb-md" rounded>
+      <template v-slot:avatar>
+        <q-icon name="lock_reset" />
+      </template>
+      {{ $t('settings.passwordResetRequired') }}
+      <template v-slot:action>
+        <q-btn flat color="dark" :label="$t('settings.changePassword')" @click="onResetPassword" />
+      </template>
+    </q-banner>
+
     <div class="row q-col-gutter-md">
       <!-- User Profile Settings -->
       <div class="col-12 col-md-6">
@@ -79,20 +89,30 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
-import { useQuasar } from 'quasar'
+import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from 'src/stores/auth-store'
+import { useNotify } from 'src/composables/useNotify'
 import SettingsForm from 'components/SettingsForm.vue'
 import PasswordResetDialog from 'components/PasswordResetDialog.vue'
 import LocalSettingsForm from 'components/LocalSettingsForm.vue'
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
+const route = useRoute()
 const authStore = useAuthStore()
 
 const currentUser = computed(() => authStore.currentUser)
+const mustChangePassword = computed(() => authStore.mustChangePassword)
 const showPasswordDialog = ref(false)
+
+// Auto-open the password dialog when the auth-guard forced a redirect here
+onMounted(() => {
+  if (mustChangePassword.value || route.query.forceReset === 'true') {
+    showPasswordDialog.value = true
+  }
+})
 
 const formatDate = (dateString) => {
   if (!dateString) return t('settings.never')
@@ -102,18 +122,10 @@ const formatDate = (dateString) => {
 const onSaveProfile = async (userData) => {
   try {
     await authStore.updateProfile(userData)
-    $q.notify({
-      type: 'positive',
-      message: t('settings.profileUpdatedSuccess'),
-      position: 'top',
-    })
+    notify.success(t('settings.profileUpdatedSuccess'))
   } catch (error) {
     console.error('Profile update error:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('settings.profileUpdateFailed', { error: error.message || t('common.unknownError') }),
-      position: 'top',
-    })
+    notify.error(t('settings.profileUpdateFailed', { error: error.message || t('common.unknownError') }))
   }
 }
 
@@ -124,19 +136,11 @@ const onResetPassword = () => {
 const onPasswordSave = async (passwordData) => {
   try {
     await authStore.updatePassword(passwordData.newPassword)
-    $q.notify({
-      type: 'positive',
-      message: t('settings.passwordUpdatedSuccess'),
-      position: 'top',
-    })
+    notify.success(t('settings.passwordUpdatedSuccess'))
     showPasswordDialog.value = false
   } catch (error) {
     console.error('Password update error:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('settings.passwordUpdateFailed', { error: error.message || t('common.unknownError') }),
-      position: 'top',
-    })
+    notify.error(t('settings.passwordUpdateFailed', { error: error.message || t('common.unknownError') }))
   }
 }
 

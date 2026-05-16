@@ -30,6 +30,12 @@ class VisitRepository extends BaseRepository {
       throw new Error('PATIENT_NUM is required for visit creation')
     }
 
+    // Reject non-coherent date ranges before they reach the DB. SQLite stores dates
+    // as TEXT (YYYY-MM-DD) so lexical comparison matches chronological order.
+    if (visitData.START_DATE && visitData.END_DATE && visitData.END_DATE < visitData.START_DATE) {
+      throw new Error(`Visit END_DATE (${visitData.END_DATE}) must not be before START_DATE (${visitData.START_DATE})`)
+    }
+
     // Set default values for optional fields
     const visitWithDefaults = {
       ACTIVE_STATUS_CD: visitData.ACTIVE_STATUS_CD || 'SCTID: 55561003', // Active (SNOMED-CT) by default

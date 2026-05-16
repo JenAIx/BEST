@@ -170,8 +170,11 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       )
 
       if (result.success) {
-        // Invalidate cache for this column
-        delete lookupData.value[columnCd]
+        // Invalidate the cache entry for this exact (table, column) pair plus any
+        // dependent caches whose totals just shifted.
+        delete lookupData.value[`CONCEPT_DIMENSION_${columnCd}`]
+        columnTypes.value = []
+        lastRefresh.value = null
         logger.success(`Added lookup value ${codeCd} to ${columnCd}`)
         return true
       } else {
@@ -196,8 +199,10 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       )
 
       if (result.success) {
-        // Invalidate all column caches since we don't know which column this belongs to
+        // Invalidate all caches since we don't know which column this belongs to
         lookupData.value = {}
+        columnTypes.value = []
+        lastRefresh.value = null
         logger.success(`Updated lookup value ${codeCd}`)
         return true
       } else {
@@ -217,8 +222,10 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
       const result = await dbStore.executeCommand('DELETE FROM CODE_LOOKUP WHERE CODE_CD = ?', [codeCd])
 
       if (result.success) {
-        // Invalidate all column caches
+        // Invalidate all caches; counts in columnTypes shift after a delete
         lookupData.value = {}
+        columnTypes.value = []
+        lastRefresh.value = null
         logger.success(`Deleted lookup value ${codeCd}`)
         return true
       } else {

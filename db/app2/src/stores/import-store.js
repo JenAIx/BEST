@@ -84,17 +84,8 @@ export const useImportStore = defineStore('import', () => {
 
       if (!analysisResult.success) {
         logger.error('File analysis failed', { filename, errors: analysisResult.errors })
-        return {
-          success: false,
-          errors: analysisResult.errors,
-          format: 'unknown',
-          patientsCount: 0,
-          visitsCount: 0,
-          observationsCount: 0,
-          recommendedStrategy: 'single_patient',
-          warnings: [],
-          estimatedImportTime: 'N/A',
-        }
+        const msg = analysisResult.errors?.[0]?.message || analysisResult.errors?.[0] || 'File analysis failed'
+        throw new Error(msg)
       }
 
       // For supported formats, also get the full import structure for preview
@@ -148,18 +139,7 @@ export const useImportStore = defineStore('import', () => {
         filename,
         contentLength: content.length,
       })
-
-      return {
-        success: false,
-        errors: [`Analysis failed: ${error.message}`],
-        format: 'unknown',
-        patientsCount: 0,
-        visitsCount: 0,
-        observationsCount: 0,
-        recommendedStrategy: 'single_patient',
-        warnings: [],
-        estimatedImportTime: 'N/A',
-      }
+      throw error
     }
   }
 

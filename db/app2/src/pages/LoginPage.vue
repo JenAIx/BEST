@@ -183,6 +183,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
@@ -190,6 +191,8 @@ import { useLogger } from '../shared/composables/useLogger.js'
 // import { useDatabaseStore } from 'src/stores/database-store'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const router = useRouter()
 const route = useRoute()
 const { t, locale } = useI18n()
@@ -292,10 +295,7 @@ const toggleLanguage = () => {
     to: newLocale,
   })
 
-  $q.notify({
-    message: newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English',
-    type: 'info',
-    position: 'top',
+  notify.info(newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English', {
     timeout: 1500,
   })
 }
@@ -362,27 +362,21 @@ const onLogin = async () => {
       rememberMe: formData.rememberMe,
     }
 
-    const success = await authStore.login(credentials)
+    await authStore.login(credentials)
 
-    if (success) {
-      const duration = timer.end()
-      logger.success('Login successful', {
-        username: formData.username,
-        database: formData.database.value,
-        duration: `${duration.toFixed(2)}ms`,
-      })
+    const duration = timer.end()
+    logger.success('Login successful', {
+      username: formData.username,
+      database: formData.database.value,
+      duration: `${duration.toFixed(2)}ms`,
+    })
 
-      $q.notify({
-        type: 'positive',
-        message: `Welcome back, ${authStore.userName}!`,
-        position: 'top',
-      })
+    notify.success(`Welcome back, ${authStore.userName}!`)
 
-      // Redirect to intended page or dashboard
-      const redirect = route.query.redirect || '/dashboard'
-      logger.logNavigation('/login', redirect, 'redirect')
-      router.push(redirect)
-    }
+    // Redirect to intended page or dashboard
+    const redirect = route.query.redirect || '/dashboard'
+    logger.logNavigation('/login', redirect, 'redirect')
+    router.push(redirect)
   } catch (error) {
     timer.end()
     logger.error('Login form error', error, {
@@ -390,11 +384,7 @@ const onLogin = async () => {
       database: formData.database?.value,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: 'Login failed. Please try again.',
-      position: 'top',
-    })
+    notify.error(error.message || 'Login failed. Please try again.')
   } finally {
     loading.value = false
   }
@@ -454,22 +444,14 @@ const onSaveDatabaseConfig = () => {
       customPath: trimmedPath,
     })
 
-    $q.notify({
-      type: 'positive',
-      message: `Custom folder path saved for ${configDatabase.value.label}`,
-      position: 'top',
-    })
+    notify.success(`Custom folder path saved for ${configDatabase.value.label}`)
   } else {
     localSettingsStore.clearDatabaseCustomPath(databaseName)
     logger.info('Database custom path cleared', {
       database: databaseName,
     })
 
-    $q.notify({
-      type: 'info',
-      message: `Using default folder for ${configDatabase.value.label}`,
-      position: 'top',
-    })
+    notify.info(`Using default folder for ${configDatabase.value.label}`)
   }
 
   // Update formData.database with the new path if it's the currently selected database
@@ -538,31 +520,18 @@ const selectCustomFolder = async () => {
           platform: window.electron.platform,
         })
 
-        $q.notify({
-          type: 'positive',
-          message: `Folder selected: ${result.filePaths[0]}`,
-          position: 'top',
-          timeout: 2000,
-        })
+        notify.success(`Folder selected: ${result.filePaths[0]}`, { timeout: 2000 })
       } else {
         logger.debug('Folder selection canceled')
       }
     } else {
       // Fallback for web environment
       logger.warn('Electron dialog API not available, falling back to manual entry')
-      $q.notify({
-        type: 'info',
-        message: 'Please enter the folder path manually',
-        position: 'top',
-      })
+      notify.info('Please enter the folder path manually')
     }
   } catch (error) {
     logger.error('Error selecting folder', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Error opening folder dialog',
-      position: 'top',
-    })
+    notify.error('Error opening folder dialog')
   }
 }
 

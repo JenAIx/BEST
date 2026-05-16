@@ -68,7 +68,7 @@
 
 <script setup>
 import { ref, computed, watch, onUnmounted, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 
@@ -93,7 +93,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'fileSelected', 'fileCleared'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('FileUploadInput')
@@ -205,21 +205,12 @@ const processFile = async (file) => {
     emit('update:modelValue', fileData)
     emit('fileSelected', fileData)
 
-    $q.notify({
-      type: 'positive',
-      message: `File "${file.name}" selected successfully`,
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.success(`File "${file.name}" selected successfully`, { timeout: 2000 })
   } catch (error) {
     logger.error('Error processing file', error)
     validationError.value = 'Error processing file. Please try again.'
 
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to process file',
-      position: 'top',
-    })
+    notify.error('Failed to process file')
   }
 }
 
@@ -247,12 +238,7 @@ const clearFile = () => {
   emit('update:modelValue', null)
   emit('fileCleared')
 
-  $q.notify({
-    type: 'info',
-    message: 'File removed',
-    position: 'top',
-    timeout: 1500,
-  })
+  notify.info('File removed', { timeout: 1500 })
 }
 
 const getFileExtension = (filename) => {

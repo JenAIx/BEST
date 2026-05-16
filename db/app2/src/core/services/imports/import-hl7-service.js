@@ -6,9 +6,15 @@
  * - Clinical data extraction and transformation
  * - Metadata preservation
  * - Proper handling of questionnaire observations with ValType='Q'
+ *
+ * NOTE: This service does NOT verify digital signatures on incoming HL7 documents.
+ * Callers must establish trust through other means (transport security, manual review,
+ * trusted source channels). If signature verification is required, add a Crypto-based
+ * pre-check before parseHl7Content().
  */
 
 import { createImportStructure } from './import-structure.js'
+import { parseHl7Composition } from '@dbbest/clinical-schema'
 import { logger } from '../logging-service.js'
 
 export class ImportHl7Service {
@@ -85,7 +91,8 @@ export class ImportHl7Service {
    */
   parseHl7Content(hl7Content) {
     try {
-      const cleanContent = hl7Content.trim()
+      // Strip UTF-8 BOM before trimming so files saved by Excel/Notepad still parse
+      const cleanContent = hl7Content.replace(/^\uFEFF/, '').trim()
 
       if (!cleanContent.startsWith('{')) {
         throw new Error('HL7 content must be JSON format')
@@ -155,8 +162,13 @@ export class ImportHl7Service {
       },
     })
 
-    // Extract data from sections
-    const { patients, visits, observations } = this.extractDataFromSections(hl7Data.section)
+    // Extract data from sections via shared clinical-schema parser.
+    // Lib leaves CATEGORY_CHAR null; we backfill via determineCategory() to
+    // preserve dbBEST-specific category routing (LAB/DIAGNOSIS/SURVEY_BEST/...).
+    const { patients, visits, observations } = parseHl7Composition(hl7Data)
+    for (const o of observations) {
+      o.CATEGORY_CHAR = this.determineCategory(o.CONCEPT_CD)
+    }
 
     // Populate import structure
     importStructure.data.patients = patients
@@ -173,240 +185,6 @@ export class ImportHl7Service {
     importStructure.metadata.patientIds = patients.map((p) => p.PATIENT_CD || p.id)
 
     return importStructure
-  }
-
-  /**
-   * Extract clinical data from HL7 sections
-   * @param {Array} sections - FHIR Composition sections
-   * @returns {Object} Extracted clinical data
-   */
-  extractDataFromSections(sections) {
-    const patients = []
-    const visits = []
-    const observations = []
-
-    // Track patient and visit mappings
-    const patientMap = new Map()
-    const visitMap = new Map()
-    let patientCounter = 1
-    let visitCounter = 1
-    let observationCounter = 1
-
-    for (const section of sections) {
-      if (!section.entry || !Array.isArray(section.entry)) {
-        continue
-      }
-
-      // Handle different section types
-      if (section.title === 'Patient Information') {
-        this.extractPatientsFromSection(section.entry, patients, patientMap, patientCounter)
-        patientCounter += section.entry.length
-      } else if (section.title?.startsWith('Visit ')) {
-        this.extractVisitFromSection(section, visits, visitMap, visitCounter, patientMap)
-        visitCounter++
-      } else {
-        // Extract observations from other sections
-        this.extractObservationsFromSection(section, observations, observationCounter, patientMap, visitMap)
-        observationCounter += section.entry.length
-      }
-    }
-
-    return { patients, visits, observations }
-  }
-
-  /**
-   * Extract patients from Patient Information section
-   * @param {Array} entries - Section entries
-   * @param {Array} patients - Patients array to populate
-   * @param {Map} patientMap - Patient mapping for references
-   * @param {number} startCounter - Starting patient counter
-   */
-  extractPatientsFromSection(entries, patients, patientMap, startCounter) {
-    let currentPatient = null
-    let patientNum = startCounter
-
-    for (const entry of entries) {
-      if (entry.title?.startsWith('Patient: ')) {
-        // New patient
-        if (currentPatient) {
-          patients.push(currentPatient)
-          patientMap.set(currentPatient.PATIENT_CD, currentPatient)
-        }
-
-        const patientId = entry.value
-        currentPatient = {
-          PATIENT_NUM: patientNum++,
-          PATIENT_CD: patientId,
-          VITAL_STATUS_CD: 'SCTID: 438949009', // Default: alive
-          BIRTH_DATE: null,
-          DEATH_DATE: null,
-          AGE_IN_YEARS: null,
-          SEX_CD: null,
-          LANGUAGE_CD: null,
-          RACE_CD: null,
-          MARITAL_STATUS_CD: null,
-          RELIGION_CD: null,
-          STATECITYZIP_PATH: null,
-          PATIENT_BLOB: null,
-          UPDATE_DATE: new Date().toISOString().split('T')[0],
-          DOWNLOAD_DATE: null,
-          IMPORT_DATE: new Date().toISOString(),
-          SOURCESYSTEM_CD: 'HL7_IMPORT',
-          UPLOAD_ID: 1,
-          CREATED_AT: new Date().toISOString(),
-          UPDATED_AT: new Date().toISOString(),
-        }
-      } else if (currentPatient && entry.title === 'Gender') {
-        currentPatient.SEX_CD = entry.value
-      } else if (currentPatient && entry.title === 'Age') {
-        currentPatient.AGE_IN_YEARS = entry.value
-      }
-    }
-
-    // Add the last patient
-    if (currentPatient) {
-      patients.push(currentPatient)
-      patientMap.set(currentPatient.PATIENT_CD, currentPatient)
-    }
-  }
-
-  /**
-   * Extract visit from Visit section
-   * @param {Object} section - Visit section
-   * @param {Array} visits - Visits array to populate
-   * @param {Map} visitMap - Visit mapping for references
-   * @param {number} visitNum - Visit number
-   * @param {Map} patientMap - Patient mapping
-   */
-  extractVisitFromSection(section, visits, visitMap, visitNum, patientMap) {
-    let visitDate = null
-    let location = null
-
-    // Extract visit details from entries
-    for (const entry of section.entry) {
-      if (entry.title === 'Visit Date') {
-        visitDate = entry.value
-      } else if (entry.title === 'Location') {
-        location = entry.value
-      }
-    }
-
-    // Determine patient for this visit (simple mapping for demo data)
-    const patientIds = Array.from(patientMap.keys())
-    const patientId = patientIds[visitNum <= 2 ? 0 : 1] // First 2 visits to first patient, rest to second
-    const patient = patientMap.get(patientId)
-
-    if (patient) {
-      const visit = {
-        ENCOUNTER_NUM: visitNum,
-        PATIENT_NUM: patient.PATIENT_NUM,
-        ACTIVE_STATUS_CD: 'SCTID: 55561003', // Default: active
-        START_DATE: visitDate || new Date().toISOString().split('T')[0],
-        END_DATE: null,
-        INOUT_CD: this.determineVisitType(location),
-        LOCATION_CD: location || 'HL7_IMPORT',
-        VISIT_BLOB: null,
-        UPDATE_DATE: null,
-        DOWNLOAD_DATE: null,
-        IMPORT_DATE: null,
-        SOURCESYSTEM_CD: 'HL7_IMPORT',
-        UPLOAD_ID: 1,
-        CREATED_AT: new Date().toISOString().split('T')[0],
-      }
-
-      visits.push(visit)
-      visitMap.set(visitNum, visit)
-    }
-  }
-
-  /**
-   * Extract observations from section
-   * @param {Object} section - Section containing observations
-   * @param {Array} observations - Observations array to populate
-   * @param {number} startCounter - Starting observation counter
-   * @param {Map} patientMap - Patient mapping
-   * @param {Map} visitMap - Visit mapping
-   */
-  extractObservationsFromSection(section, observations, startCounter, patientMap, visitMap) {
-    let observationNum = startCounter
-
-    for (const entry of section.entry) {
-      // Skip visit-specific entries (Visit Date, Location)
-      if (entry.title === 'Visit Date' || entry.title === 'Location') {
-        continue
-      }
-
-      // Determine value type and value
-      let valtypeCd = 'T'
-      let tvalChar = null
-      let nvalNum = null
-
-      if (typeof entry.value === 'number') {
-        valtypeCd = 'N'
-        nvalNum = entry.value
-        tvalChar = null // For numeric values, TVAL_CHAR should be null
-      } else if (typeof entry.value === 'string') {
-        valtypeCd = 'T'
-        tvalChar = entry.value
-      } else if (entry.value !== undefined && entry.value !== null) {
-        valtypeCd = 'T'
-        tvalChar = String(entry.value)
-      }
-
-      // Determine patient and visit
-      const patientIds = Array.from(patientMap.keys())
-      const patientId = patientIds[0] // Default to first patient for now
-      const patient = patientMap.get(patientId)
-      const visitIds = Array.from(visitMap.keys())
-      const visitId = visitIds[0] // Default to first visit for now
-
-      if (patient) {
-        const observation = {
-          OBSERVATION_ID: observationNum++,
-          ENCOUNTER_NUM: visitId,
-          PATIENT_NUM: patient.PATIENT_NUM,
-          CATEGORY_CHAR: this.determineCategory(entry.title),
-          CONCEPT_CD: entry.title,
-          PROVIDER_ID: null,
-          START_DATE: new Date().toISOString().split('T')[0],
-          INSTANCE_NUM: 1,
-          VALTYPE_CD: valtypeCd,
-          TVAL_CHAR: tvalChar,
-          NVAL_NUM: nvalNum,
-          VALUEFLAG_CD: null,
-          QUANTITY_NUM: null,
-          UNIT_CD: null,
-          END_DATE: null,
-          LOCATION_CD: null,
-          CONFIDENCE_NUM: null,
-          OBSERVATION_BLOB: null,
-          UPDATE_DATE: null,
-          DOWNLOAD_DATE: null,
-          IMPORT_DATE: null,
-          SOURCESYSTEM_CD: 'HL7_IMPORT',
-          UPLOAD_ID: 1,
-          CREATED_AT: new Date().toISOString().split('T')[0],
-        }
-
-        observations.push(observation)
-      }
-    }
-  }
-
-  /**
-   * Determine visit type from location
-   * @param {string} location - Location string
-   * @returns {string} Visit type code
-   */
-  determineVisitType(location) {
-    if (!location) return 'O' // Outpatient default
-
-    const locationLower = location.toLowerCase()
-    if (locationLower.includes('hospital')) return 'I' // Inpatient
-    if (locationLower.includes('clinic')) return 'O' // Outpatient
-    if (locationLower.includes('emergency')) return 'E' // Emergency
-
-    return 'O' // Default to outpatient
   }
 
   /**

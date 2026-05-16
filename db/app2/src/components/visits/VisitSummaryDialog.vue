@@ -65,7 +65,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
@@ -94,7 +94,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const visitStore = useVisitStore()
 const observationStore = useObservationStore()
 const loggingStore = useLoggingStore()
@@ -255,11 +255,7 @@ const exportToPDF = async () => {
     })
   } catch (error) {
     logger.error('Failed to export PDF', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to export PDF. Please try again.',
-      position: 'top',
-    })
+    notify.error('Failed to export PDF. Please try again.')
   }
 }
 

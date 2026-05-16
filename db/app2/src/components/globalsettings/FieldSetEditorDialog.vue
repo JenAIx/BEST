@@ -134,14 +134,14 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import draggable from 'vuedraggable'
 import AppDialog from '../shared/AppDialog.vue'
 import ValueTypeIcon from '../shared/ValueTypeIcon.vue'
 import AppRemoveConfirmationButton from '../shared/AppRemoveConfirmationButton.vue'
 
-const $q = useQuasar()
+const notify = useNotify()
 const conceptStore = useConceptResolutionStore()
 
 // Props
@@ -284,11 +284,7 @@ const onSearchInput = async () => {
   } catch (error) {
     console.error('Failed to search concepts:', error)
     searchResults.value = []
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to search concepts',
-      caption: error.message,
-    })
+    notify.error('Failed to search concepts', { caption: error.message })
   } finally {
     searching.value = false
   }
@@ -305,10 +301,7 @@ const isConceptSelected = (conceptCode) => {
 
 const addConcept = async (concept) => {
   if (isConceptSelected(concept.CONCEPT_CD)) {
-    $q.notify({
-      type: 'warning',
-      message: 'Concept already added to field set',
-    })
+    notify.warning('Concept already added to field set')
     return
   }
 
@@ -325,10 +318,7 @@ const addConcept = async (concept) => {
       valueType: concept.VALTYPE_CD || '',
     })
 
-    $q.notify({
-      type: 'positive',
-      message: `Added "${resolved.label || concept.NAME_CHAR}" to field set`,
-    })
+    notify.success(`Added "${resolved.label || concept.NAME_CHAR}" to field set`)
   } catch (error) {
     console.error('Failed to resolve concept:', error)
     // Use the basic name if resolution fails
@@ -336,10 +326,7 @@ const addConcept = async (concept) => {
       name: concept.NAME_CHAR,
       valueType: concept.VALTYPE_CD || '',
     })
-    $q.notify({
-      type: 'positive',
-      message: `Added "${concept.NAME_CHAR}" to field set`,
-    })
+    notify.success(`Added "${concept.NAME_CHAR}" to field set`)
   }
 }
 
@@ -348,19 +335,13 @@ const removeConcept = (conceptCode) => {
   if (index > -1) {
     localFieldSetData.value.concepts.splice(index, 1)
     const removedName = resolvedConceptNames.value.get(conceptCode) || conceptCode
-    $q.notify({
-      type: 'info',
-      message: `Removed "${removedName}" from field set`,
-    })
+    notify.info(`Removed "${removedName}" from field set`)
   }
 }
 
 const onSave = async () => {
   if (!localFieldSetData.value.description.trim()) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please enter a description for the field set',
-    })
+    notify.warning('Please enter a description for the field set')
     return
   }
 
@@ -381,11 +362,7 @@ const onSave = async () => {
     localShow.value = false
   } catch (error) {
     console.error('Failed to save field set:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save field set',
-      caption: error.message,
-    })
+    notify.error('Failed to save field set', { caption: error.message })
   } finally {
     saving.value = false
   }

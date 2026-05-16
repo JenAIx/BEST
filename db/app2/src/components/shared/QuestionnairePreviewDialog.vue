@@ -43,7 +43,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useObservationStore } from 'src/stores/observation-store'
 import { usePatientStore } from 'src/stores/patient-store'
@@ -84,7 +84,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'close'])
 
 // Initialize stores
-const $q = useQuasar()
+const notify = useNotify()
 const loggingStore = useLoggingStore()
 const observationStore = useObservationStore()
 const patientStore = usePatientStore()
@@ -222,11 +222,7 @@ const completionDateString = computed(() => {
 
 const exportToPDF = async () => {
   if (!isCompletedQuestionnaire.value || !questionnaire.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Only completed questionnaires can be exported to PDF',
-      position: 'top',
-    })
+    notify.warning('Only completed questionnaires can be exported to PDF')
     return
   }
 
@@ -263,11 +259,7 @@ const exportToPDF = async () => {
     })
   } catch (error) {
     logger.error('Failed to export questionnaire PDF', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to export PDF. Please try again.',
-      position: 'top',
-    })
+    notify.error('Failed to export PDF. Please try again.')
   }
 }
 

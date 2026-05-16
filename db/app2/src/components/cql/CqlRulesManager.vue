@@ -79,11 +79,14 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useCqlStore } from 'src/stores/cql-store'
 import CqlTestDialog from 'components/CqlTestDialog.vue'
 import CqlDialog from 'components/CqlDialog.vue'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const cqlStore = useCqlStore()
 
 // State
@@ -147,11 +150,7 @@ const loadCqlRules = async () => {
   try {
     await cqlStore.loadCqlRules()
   } catch {
-    $q.notify({
-      type: 'negative',
-      message: cqlStore.error || 'Failed to load CQL rules',
-      position: 'top',
-    })
+    notify.error(cqlStore.error || 'Failed to load CQL rules')
   }
 }
 
@@ -220,17 +219,9 @@ const onDeleteRule = (rule) => {
     try {
       await cqlStore.deleteCqlRule(rule.CQL_ID)
 
-      $q.notify({
-        type: 'positive',
-        message: 'CQL rule deleted successfully',
-        position: 'top',
-      })
+      notify.success('CQL rule deleted successfully')
     } catch {
-      $q.notify({
-        type: 'negative',
-        message: cqlStore.error || 'Failed to delete CQL rule',
-        position: 'top',
-      })
+      notify.error(cqlStore.error || 'Failed to delete CQL rule')
     }
   })
 }

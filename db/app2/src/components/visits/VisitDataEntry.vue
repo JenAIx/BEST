@@ -141,7 +141,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useVisitStore } from 'src/stores/visit-store'
@@ -179,7 +179,7 @@ const props = defineProps({
 
 const emit = defineEmits(['visit-created'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const patientStore = usePatientStore()
 const visitStore = useVisitStore()
@@ -320,11 +320,7 @@ const loadFieldSets = async () => {
     // Field sets loaded and ready for use
   } catch (error) {
     logger.error('Failed to load field sets from global settings', error)
-    $q.notify({
-      type: 'warning',
-      message: t('notifications.usingDefaultFieldSets'),
-      position: 'top',
-    })
+    notify.warning(t('notifications.usingDefaultFieldSets'))
 
     // No field sets available - database error
     logger.error('Database field sets unavailable, no fallback provided')
@@ -432,12 +428,7 @@ const activateFieldSetsForVisitType = async (visit) => {
         })
       }
 
-      $q.notify({
-        type: 'info',
-        message: `Activated ${validFieldSets.length} field sets for ${visitType} visit`,
-        position: 'top',
-        timeout: 2000,
-      })
+      notify.info(`Activated ${validFieldSets.length} field sets for ${visitType} visit`, { timeout: 2000 })
     } else {
       logger.warn(`No valid field sets found for visit type: ${visitType}`, {
         visitTypeFieldSets,
@@ -459,11 +450,7 @@ const onVisitSelected = async (visit) => {
     await activateFieldSetsForVisitType(visit)
   } catch (error) {
     logger.error('Failed to select visit', error)
-    $q.notify({
-      type: 'negative',
-      message: t('notifications.failedToLoadVisitData'),
-      position: 'top',
-    })
+    notify.error(t('notifications.failedToLoadVisitData'))
   }
 }
 
@@ -483,11 +470,7 @@ const onFieldSetConfigSave = (selectedFieldSets) => {
   activeFieldSets.value = selectedFieldSets
   localSettings.setSetting('visits.activeFieldSets', activeFieldSets.value)
 
-  $q.notify({
-    type: 'positive',
-    message: t('notifications.fieldSetConfigurationSaved'),
-    position: 'top',
-  })
+  notify.success(t('notifications.fieldSetConfigurationSaved'))
 }
 
 const onFieldSetConfigCancel = () => {
@@ -581,18 +564,10 @@ const onCloneFromPrevious = async (data) => {
 
     await visitObservationService.createObservation(observationData)
 
-    $q.notify({
-      type: 'positive',
-      message: t('notifications.valueClonedFromPrevious'),
-      position: 'top',
-    })
+    notify.success(t('notifications.valueClonedFromPrevious'))
   } catch (error) {
     logger.error('Failed to clone from previous visit', error)
-    $q.notify({
-      type: 'negative',
-      message: t('notifications.failedToCloneValue'),
-      position: 'top',
-    })
+    notify.error(t('notifications.failedToCloneValue'))
   }
 }
 
@@ -607,11 +582,7 @@ const onCustomObservationAdded = (data) => {
   // We just need to notify that an observation was updated to refresh the UI
   onObservationUpdated(data)
 
-  $q.notify({
-    type: 'positive',
-    message: t('notifications.customObservationAdded'),
-    position: 'top',
-  })
+  notify.success(t('notifications.customObservationAdded'))
 }
 
 // ========== Questionnaire Integration ==========
@@ -748,20 +719,12 @@ const onQuestionnaireSelected = async (selectedQ) => {
     // Ensure questionnaires field set is available and active
     await ensureQuestionnaireFieldSetActive()
 
-    $q.notify({
-      type: 'positive',
-      message: `Fragebogen "${selectedQ.title}" zur Visite hinzugefügt`,
-      position: 'top',
-    })
+    notify.success(`Fragebogen "${selectedQ.title}" zur Visite hinzugefügt`)
 
     logger.info('Questionnaire placeholder added to visit', { code: selectedQ.code })
   } catch (error) {
     logger.error('Failed to add questionnaire to visit', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Fragebogen konnte nicht hinzugefügt werden',
-      position: 'top',
-    })
+    notify.error('Fragebogen konnte nicht hinzugefügt werden')
   }
 }
 
@@ -823,19 +786,10 @@ const onRemoveQuestionnaire = async (q) => {
 
     await visitObservationService.deleteObservation(q.observationId)
 
-    $q.notify({
-      type: 'positive',
-      message: `Fragebogen "${q.title}" entfernt`,
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.success(`Fragebogen "${q.title}" entfernt`, { timeout: 2000 })
   } catch (error) {
     logger.error('Failed to remove questionnaire', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Fragebogen konnte nicht entfernt werden',
-      position: 'top',
-    })
+    notify.error('Fragebogen konnte nicht entfernt werden')
   }
 }
 

@@ -68,8 +68,7 @@ describe('SearchService Integration Tests', () => {
     seedManager = new SeedManager(db)
 
     console.log('Initializing database...')
-    migrationManager.registerMigration(currentSchema)
-    migrationManager.registerMigration(addNoteFactColumns)
+    migrationManager.registerMigration(coreSchema)
     await migrationManager.initializeDatabase()
 
     console.log('🌱 Initializing seed data...')

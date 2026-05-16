@@ -201,12 +201,12 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppRemoveConfirmationButton from 'src/components/shared/AppRemoveConfirmationButton.vue'
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const logger = useLoggingStore().createLogger('PatientAccessManagement')
 
@@ -342,11 +342,7 @@ const loadPatients = async () => {
     logger.success('Patients loaded with access data', { count: patients.value.length })
   } catch (error) {
     logger.error('Failed to load patients', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load patient data',
-      position: 'top',
-    })
+    notify.error('Failed to load patient data')
   } finally {
     loading.value = false
   }
@@ -409,37 +405,18 @@ const onConfirmAddUser = async () => {
 
     logger.info('Adding user access', { userId, patientNum })
 
-    // Check for duplicate
-    const checkResult = await dbStore.executeQuery(
-      `SELECT COUNT(*) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?`,
-      [userId, patientNum]
-    )
-
-    if (checkResult.success && checkResult.data[0].count > 0) {
-      $q.notify({
-        type: 'warning',
-        message: 'This user already has access to this patient',
-        position: 'top',
-      })
-      return
+    const lookupRepo = dbStore.getRepository('userPatientLookup')
+    try {
+      await lookupRepo.addAssociation(userId, patientNum, { nameChar: newUserNote.value || null })
+    } catch (err) {
+      if (err.code === 'DUPLICATE_ASSOCIATION') {
+        notify.warning('This user already has access to this patient')
+        return
+      }
+      throw err
     }
 
-    // Create association
-    const insertResult = await dbStore.executeCommand(
-      `INSERT INTO USER_PATIENT_LOOKUP (USER_ID, PATIENT_NUM, NAME_CHAR, UPDATE_DATE, IMPORT_DATE)
-       VALUES (?, ?, ?, datetime('now'), datetime('now'))`,
-      [userId, patientNum, newUserNote.value || null]
-    )
-
-    if (!insertResult.success) {
-      throw new Error('Failed to create association')
-    }
-
-    $q.notify({
-      type: 'positive',
-      message: 'User access granted successfully',
-      position: 'top',
-    })
+    notify.success('User access granted successfully')
 
     showAddUserDialog.value = false
     await loadPatients()
@@ -453,11 +430,7 @@ const onConfirmAddUser = async () => {
     }
   } catch (error) {
     logger.error('Failed to add user access', error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || 'Failed to grant user access',
-      position: 'top',
-    })
+    notify.error(error.message || 'Failed to grant user access')
   } finally {
     saving.value = false
   }
@@ -470,20 +443,10 @@ const onRemoveUser = async (patientNum, userId) => {
   try {
     logger.info('Removing user access', { userId, patientNum })
 
-    const deleteResult = await dbStore.executeCommand(
-      `DELETE FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?`,
-      [userId, patientNum]
-    )
+    const lookupRepo = dbStore.getRepository('userPatientLookup')
+    await lookupRepo.removeByUserAndPatient(userId, patientNum)
 
-    if (!deleteResult.success) {
-      throw new Error('Failed to remove access')
-    }
-
-    $q.notify({
-      type: 'positive',
-      message: 'User access removed successfully',
-      position: 'top',
-    })
+    notify.success('User access removed successfully')
 
     await loadPatients()
 
@@ -496,11 +459,7 @@ const onRemoveUser = async (patientNum, userId) => {
     }
   } catch (error) {
     logger.error('Failed to remove user access', error)
-    $q.notify({
-      type: 'negative',
-      message: error.message || 'Failed to remove user access',
-      position: 'top',
-    })
+    notify.error(error.message || 'Failed to remove user access')
   } finally {
     removingUserId.value = null
     removingPatientNum.value = null

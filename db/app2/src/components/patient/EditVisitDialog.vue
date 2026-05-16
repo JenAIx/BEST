@@ -160,7 +160,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -183,7 +183,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'visitUpdated'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const visitStore = useVisitStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
@@ -418,11 +418,7 @@ const loadOptions = async () => {
     }
   } catch (error) {
     logger.error('Failed to load options from global settings', error)
-    $q.notify({
-      type: 'warning',
-      message: 'Using default options. Some settings may not be available.',
-      position: 'top',
-    })
+    notify.warning('Using default options. Some settings may not be available.')
   } finally {
     loadingOptions.value = false
   }
@@ -505,20 +501,12 @@ onMounted(async () => {
 // Handle form submission
 const handleSubmit = async () => {
   if (!isFormValid.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please fill in all required fields',
-      position: 'top',
-    })
+    notify.warning('Please fill in all required fields')
     return
   }
 
   if (!hasChanges.value) {
-    $q.notify({
-      type: 'info',
-      message: 'No changes to save',
-      position: 'top',
-    })
+    notify.info('No changes to save')
     return
   }
 
@@ -588,10 +576,7 @@ const handleSubmit = async () => {
     const visitData = props.visit.visit || props.visit
     await visitStore.updateVisit(visitData.ENCOUNTER_NUM, updateData)
 
-    $q.notify({
-      type: 'positive',
-      message: `Visit ${visitData.ENCOUNTER_NUM} updated successfully`,
-      position: 'top',
+    notify.success(`Visit ${visitData.ENCOUNTER_NUM} updated successfully`, {
       timeout: 3000,
       actions: [
         {
@@ -614,12 +599,7 @@ const handleSubmit = async () => {
     showDialog.value = false
   } catch (error) {
     logger.error('Error updating visit', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to update visit: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(`Failed to update visit: ${error.message}`, { timeout: 5000 })
   } finally {
     loading.value = false
   }

@@ -225,26 +225,32 @@ describe('Seed Data Integration Tests', () => {
       const users = await userRepo.findAll()
       expect(users.length).toBe(4)
 
-      // Check for specific users
+      // Check for specific users; passwords are bcrypt-hashed, never plaintext
+      const { isHashed, verifyPassword } = await import('../../src/core/services/password-service.js')
+
       const publicUser = await userRepo.findByUserCode('public')
       expect(publicUser).toBeTruthy()
       expect(publicUser.COLUMN_CD).toBe('user')
-      expect(publicUser.PASSWORD_CHAR).toBe('public')
+      expect(isHashed(publicUser.PASSWORD_CHAR)).toBe(true)
+      expect(await verifyPassword('public', publicUser.PASSWORD_CHAR)).toBe(true)
 
       const adminUser = await userRepo.findByUserCode('admin')
       expect(adminUser).toBeTruthy()
       expect(adminUser.COLUMN_CD).toBe('admin')
-      expect(adminUser.PASSWORD_CHAR).toBe('admin')
+      expect(isHashed(adminUser.PASSWORD_CHAR)).toBe(true)
+      expect(await verifyPassword('admin', adminUser.PASSWORD_CHAR)).toBe(true)
 
       const dbUser = await userRepo.findByUserCode('db')
       expect(dbUser).toBeTruthy()
       expect(dbUser.COLUMN_CD).toBe('user')
-      expect(dbUser.PASSWORD_CHAR).toBe('123')
+      expect(isHashed(dbUser.PASSWORD_CHAR)).toBe(true)
+      expect(await verifyPassword('123', dbUser.PASSWORD_CHAR)).toBe(true)
 
       const steUser = await userRepo.findByUserCode('ste')
       expect(steUser).toBeTruthy()
       expect(steUser.COLUMN_CD).toBe('user')
-      expect(steUser.PASSWORD_CHAR).toBe('123')
+      expect(isHashed(steUser.PASSWORD_CHAR)).toBe(true)
+      expect(await verifyPassword('123', steUser.PASSWORD_CHAR)).toBe(true)
     })
 
     it('should handle user authentication', async () => {

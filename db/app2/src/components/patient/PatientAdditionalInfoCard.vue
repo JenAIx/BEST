@@ -17,26 +17,26 @@
       </div>
 
       <!-- View Mode -->
-      <div v-if="!editing" class="q-gutter-sm">
-        <div v-if="patient.LANGUAGE_RESOLVED || patient.LANGUAGE_CD" class="row">
-          <div class="col-5 text-grey-6">Language:</div>
-          <div class="col-7">{{ patient.LANGUAGE_RESOLVED || patient.LANGUAGE_CD }}</div>
+      <div v-if="!editing" class="info-list">
+        <div v-if="patient.LANGUAGE_RESOLVED || patient.LANGUAGE_CD" class="info-row">
+          <span class="info-label">Language</span>
+          <span class="info-value">{{ patient.LANGUAGE_RESOLVED || patient.LANGUAGE_CD }}</span>
         </div>
-        <div v-if="patient.RACE_RESOLVED || patient.RACE_CD" class="row">
-          <div class="col-5 text-grey-6">Race:</div>
-          <div class="col-7">{{ patient.RACE_RESOLVED || patient.RACE_CD }}</div>
+        <div v-if="patient.RACE_RESOLVED || patient.RACE_CD" class="info-row">
+          <span class="info-label">Race</span>
+          <span class="info-value">{{ patient.RACE_RESOLVED || patient.RACE_CD }}</span>
         </div>
-        <div v-if="patient.MARITAL_STATUS_RESOLVED || patient.MARITAL_STATUS_CD" class="row">
-          <div class="col-5 text-grey-6">Marital Status:</div>
-          <div class="col-7">{{ patient.MARITAL_STATUS_RESOLVED || patient.MARITAL_STATUS_CD }}</div>
+        <div v-if="patient.MARITAL_STATUS_RESOLVED || patient.MARITAL_STATUS_CD" class="info-row">
+          <span class="info-label">Marital Status</span>
+          <span class="info-value">{{ patient.MARITAL_STATUS_RESOLVED || patient.MARITAL_STATUS_CD }}</span>
         </div>
-        <div v-if="patient.RELIGION_RESOLVED || patient.RELIGION_CD" class="row">
-          <div class="col-5 text-grey-6">Religion:</div>
-          <div class="col-7">{{ patient.RELIGION_RESOLVED || patient.RELIGION_CD }}</div>
+        <div v-if="patient.RELIGION_RESOLVED || patient.RELIGION_CD" class="info-row">
+          <span class="info-label">Religion</span>
+          <span class="info-value">{{ patient.RELIGION_RESOLVED || patient.RELIGION_CD }}</span>
         </div>
-        <div v-if="patient.STATECITYZIP_PATH" class="row">
-          <div class="col-5 text-grey-6">Location:</div>
-          <div class="col-7">{{ patient.STATECITYZIP_PATH }}</div>
+        <div v-if="patient.STATECITYZIP_PATH" class="info-row">
+          <span class="info-label">Location</span>
+          <span class="info-value">{{ patient.STATECITYZIP_PATH }}</span>
         </div>
       </div>
 
@@ -53,7 +53,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -67,7 +67,7 @@ const props = defineProps({
 
 const emit = defineEmits(['updated'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 const loggingStore = useLoggingStore()
@@ -179,11 +179,7 @@ const save = async () => {
       const result = await dbStore.executeQuery(updateQuery, values)
 
       if (result.success) {
-        $q.notify({
-          type: 'positive',
-          message: 'Additional info updated successfully',
-          position: 'top',
-        })
+        notify.success('Additional info updated successfully')
         emit('updated')
       } else {
         throw new Error('Update failed')
@@ -193,11 +189,7 @@ const save = async () => {
     editing.value = false
   } catch (error) {
     logger.error('Failed to save additional info', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update additional info',
-      position: 'top',
-    })
+    notify.error('Failed to update additional info')
   }
 }
 
@@ -211,5 +203,30 @@ onMounted(() => {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.info-label {
+  flex: 0 0 auto;
+  color: $grey-7;
+  white-space: nowrap;
+}
+
+.info-value {
+  flex: 1 1 auto;
+  text-align: right;
+  word-break: break-word;
 }
 </style>

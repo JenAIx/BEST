@@ -58,11 +58,11 @@
                   <q-icon v-if="concept._isQuestionnaire" name="quiz" color="purple" size="18px" class="q-mr-xs" />
                   <div class="concept-name">{{ concept.NAME_CHAR }}</div>
                   <q-icon v-if="!concept._isQuestionnaire && isConceptInCurrentVisit(concept.CONCEPT_CD)" name="warning" color="amber-7" size="18px" class="existing-observation-icon">
-                    <q-tooltip class="bg-amber-7 text-black"> This observation already exists in the current visit </q-tooltip>
+                    <q-tooltip class="bg-amber-7 text-black">{{ $t('observation.alreadyInVisit') }}</q-tooltip>
                   </q-icon>
                 </div>
                 <q-chip v-if="concept._isQuestionnaire" size="xs" color="purple" text-color="white" class="value-type-chip" icon="quiz">
-                  Fragebogen
+                  {{ $t('observation.questionnaire') }}
                 </q-chip>
                 <q-chip v-else size="xs" :color="getValueTypeColor(concept.VALTYPE_CD)" text-color="white" class="value-type-chip">
                   {{ concept.VALTYPE_CD }}
@@ -71,7 +71,7 @@
               <div class="concept-code text-caption text-grey-6">
                 {{ concept._isQuestionnaire ? concept._questionnaireCode : concept.CONCEPT_CD }}
               </div>
-              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">Unit: {{ concept.UNIT_CD }}</div>
+              <div v-if="concept.UNIT_CD" class="concept-unit text-caption text-grey-5">{{ $t('observation.unit') }}: {{ concept.UNIT_CD }}</div>
             </q-card-section>
           </q-card>
         </div>
@@ -80,7 +80,7 @@
       <!-- No Results Message -->
       <div v-else-if="showSearchResults && searchTerm.length >= 2 && !searching && searchAttempted" class="no-results">
         <q-icon name="search_off" color="grey-5" size="24px" />
-        <div class="text-caption text-grey-6">No concepts found matching your search.</div>
+        <div class="text-caption text-grey-6">{{ $t('observation.noConceptsFound') }}</div>
       </div>
     </div>
 
@@ -217,7 +217,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useObservationStore } from 'src/stores/observation-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -252,7 +252,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'observation-added', 'questionnaire-added'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const observationStore = useObservationStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
@@ -361,11 +361,7 @@ const searchConcepts = async () => {
     })
   } catch (error) {
     logger.error('Concept search failed', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to search concepts',
-      position: 'top',
-    })
+    notify.error('Failed to search concepts')
     searchResults.value = []
   } finally {
     searching.value = false
@@ -491,11 +487,7 @@ const selectConcept = async (concept) => {
     resetState()
     showDialog.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: `Fragebogen "${concept.NAME_CHAR}" zur Visite hinzugefügt`,
-      position: 'top',
-    })
+    notify.success(`Fragebogen "${concept.NAME_CHAR}" zur Visite hinzugefügt`)
     return
   }
 
@@ -734,18 +726,10 @@ const saveCustomObservation = async () => {
     resetState()
     showDialog.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: 'Observation added successfully',
-      position: 'top',
-    })
+    notify.success('Observation added successfully')
   } catch (error) {
     logger.error('Failed to save observation', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save observation',
-      position: 'top',
-    })
+    notify.error('Failed to save observation')
   } finally {
     saving.value = false
   }

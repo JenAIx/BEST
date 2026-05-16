@@ -206,23 +206,45 @@ export class CsvService {
   }
 
   /**
-   * Format observation value for CSV export
+   * Format observation value for CSV export.
+   *
+   * Decision table:
+   *   - N + NVAL set                         → "<number>"
+   *   - N + NVAL null + VALUEFLAG_CD='NV'    → "[NV]" (round-trippable marker)
+   *   - T / F / S + TVAL set                 → "<tval>" (F/S keep their A-type ref)
+   *   - D + START_DATE set                   → "<date>"
+   *   - B + OBSERVATION_BLOB set             → "<blob>"
+   *   - anything else                        → "" (empty cell, NOT "Unknown")
+   *
+   * Empty-string fallback (previously "Unknown") means: re-import treats this
+   * cell as "no observation for this concept on this visit", which matches the
+   * original DB state when there was no obs row at all.
+   *
    * @param {Object} observation - Observation data
    * @returns {string} Formatted value
    */
   formatObservationValue(observation) {
-    if (observation.VALTYPE_CD === 'N' && observation.NVAL_NUM !== null) {
-      return observation.NVAL_NUM.toString()
-    } else if (observation.VALTYPE_CD === 'T' && observation.TVAL_CHAR) {
-      return observation.TVAL_CHAR
-    } else if (observation.VALTYPE_CD === 'B' && observation.OBSERVATION_BLOB) {
-      // If it's already a string, return it directly; otherwise stringify
-      return typeof observation.OBSERVATION_BLOB === 'string' ? observation.OBSERVATION_BLOB : JSON.stringify(observation.OBSERVATION_BLOB)
-    } else if (observation.VALTYPE_CD === 'D' && observation.START_DATE) {
-      return observation.START_DATE
+    if (observation.VALTYPE_CD === 'N') {
+      if (observation.NVAL_NUM !== null && observation.NVAL_NUM !== undefined) {
+        return observation.NVAL_NUM.toString()
+      }
+      // 3-state numeric: assessed but no value (e.g. medication not taken).
+      // Distinct marker so re-import can restore VALUEFLAG_CD='NV'.
+      if (observation.VALUEFLAG_CD === 'NV') return '[NV]'
     }
-
-    return 'Unknown'
+    if ((observation.VALTYPE_CD === 'T' || observation.VALTYPE_CD === 'F' || observation.VALTYPE_CD === 'S') && observation.TVAL_CHAR) {
+      return observation.TVAL_CHAR
+    }
+    if (observation.VALTYPE_CD === 'B' && observation.OBSERVATION_BLOB) {
+      return typeof observation.OBSERVATION_BLOB === 'string' ? observation.OBSERVATION_BLOB : JSON.stringify(observation.OBSERVATION_BLOB)
+    }
+    if (observation.VALTYPE_CD === 'D') {
+      // Date observations may store the date in TVAL_CHAR (preferred, set by
+      // explicit date imports) or in START_DATE (legacy fallback). Prefer TVAL.
+      if (observation.TVAL_CHAR) return observation.TVAL_CHAR
+      if (observation.START_DATE) return observation.START_DATE
+    }
+    return ''
   }
 
   /**
@@ -312,12 +334,19 @@ export class CsvService {
       // Transform to clinical objects
       const clinicalData = await this.transformCsvToClinical(parsedData, importOptions)
 
+      const warnings = (clinicalData.skippedRows || []).map((s) => ({
+        code: 'ROW_SKIPPED',
+        message: `Row ${s.rowIndex + 1} skipped: ${s.reason}`,
+      }))
+
       return {
         success: true,
         data: clinicalData,
+        warnings,
         metadata: {
-          ...parsedData.metadata, // Include extracted metadata from CSV comments
+          ...parsedData.metadata,
           rowsProcessed: parsedData.dataRows.length,
+          rowsSkipped: clinicalData.skippedRows ? clinicalData.skippedRows.length : 0,
           patients: clinicalData.patients.length,
           visits: clinicalData.visits.length,
           observations: clinicalData.observations.length,
@@ -344,7 +373,9 @@ export class CsvService {
    * @returns {Object} Parsed CSV structure
    */
   parseCsvContent(csvContent) {
-    const lines = csvContent.split(/\r?\n/)
+    // Strip UTF-8 BOM so the first header column doesn't end up named "\ufeffPATIENT_CD"
+    const normalized = typeof csvContent === 'string' ? csvContent.replace(/^\uFEFF/, '') : csvContent
+    const lines = normalized.split(/\r?\n/)
     const commentLines = lines.filter((line) => line.trim().startsWith('#'))
     const dataLines = lines.filter((line) => line.trim() && !line.startsWith('#'))
 
@@ -523,15 +554,20 @@ export class CsvService {
       visits: [],
       observations: [],
     }
+    const skippedRows = []
 
     const patientMap = new Map()
     const visitMap = new Map()
 
-    for (const row of parsedData.dataRows) {
-      const rowData = this.mapRowToObject(row, parsedData.conceptHeaders)
+    parsedData.dataRows.forEach((row, index) => {
+      try {
+        const rowData = this.mapRowToObject(row, parsedData.conceptHeaders)
 
-      // Create or update patient
-      if (rowData.PATIENT_CD) {
+        if (!rowData.PATIENT_CD) {
+          skippedRows.push({ rowIndex: index, reason: 'missing PATIENT_CD' })
+          return
+        }
+
         let patient = patientMap.get(rowData.PATIENT_CD)
         if (!patient) {
           patient = this.createPatientFromRow(rowData)
@@ -539,23 +575,29 @@ export class CsvService {
           clinicalData.patients.push(patient)
         }
 
-        // Create or update visit
         if (rowData.START_DATE || rowData.LOCATION_CD) {
           const visitKey = `${rowData.PATIENT_CD}_${rowData.START_DATE || 'unknown'}`
           let visit = visitMap.get(visitKey)
           if (!visit) {
-            visit = this.createVisitFromRow(rowData, patient.PATIENT_NUM)
+            // Unique placeholder ENCOUNTER_NUM per visit so the importer's idMap can
+            // route each row's observations to its own visit (DB autoincrements the real id).
+            const placeholderEncounterNum = visitMap.size + 1
+            visit = this.createVisitFromRow(rowData, patient.PATIENT_NUM, placeholderEncounterNum)
             visitMap.set(visitKey, visit)
             clinicalData.visits.push(visit)
           }
 
-          // Create observations
           const observations = this.createObservationsFromRow(rowData, patient.PATIENT_NUM, visit.ENCOUNTER_NUM)
           clinicalData.observations.push(...observations)
         }
+      } catch (rowError) {
+        skippedRows.push({ rowIndex: index, reason: rowError.message })
       }
-    }
+    })
 
+    if (skippedRows.length > 0) {
+      clinicalData.skippedRows = skippedRows
+    }
     return clinicalData
   }
 
@@ -599,10 +641,10 @@ export class CsvService {
    * @param {number} patientNum - Patient number
    * @returns {Object} Visit object
    */
-  createVisitFromRow(rowData, patientNum) {
+  createVisitFromRow(rowData, patientNum, encounterNum = 1) {
     return {
       PATIENT_NUM: patientNum,
-      ENCOUNTER_NUM: 1, // Default encounter number for CSV import
+      ENCOUNTER_NUM: encounterNum,
       START_DATE: rowData.START_DATE || null,
       LOCATION_CD: rowData.LOCATION_CD || 'UNKNOWN',
       INOUT_CD: rowData.INOUT_CD || 'O',
@@ -652,6 +694,26 @@ export class CsvService {
     let tval = value
     let nval = null
     let observationBlob = null
+    let valueFlag = null
+
+    // 3-state numeric marker emitted by formatObservationValue. Round-trip
+    // restores VALUEFLAG_CD='NV' with no numeric value (= patient was asked,
+    // explicitly no value).
+    if (typeof value === 'string' && value.trim() === '[NV]') {
+      return {
+        PATIENT_NUM: patientNum,
+        ENCOUNTER_NUM: encounterNum,
+        CONCEPT_CD: field,
+        VALTYPE_CD: 'N',
+        TVAL_CHAR: null,
+        NVAL_NUM: null,
+        VALUEFLAG_CD: 'NV',
+        OBSERVATION_BLOB: null,
+        START_DATE: new Date().toISOString().split('T')[0],
+        SOURCESYSTEM_CD: 'CSV_IMPORT',
+        UPLOAD_ID: 1,
+      }
+    }
 
     // Try to parse as number
     if (!isNaN(value) && value.trim() !== '') {
@@ -660,10 +722,20 @@ export class CsvService {
       tval = null
     }
 
-    // Try to parse as date (YYYY-MM-DD format)
-    if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-      const date = new Date(value)
-      if (!isNaN(date.getTime())) {
+    // Try to parse as date (YYYY-MM-DD format). new Date() rolls overflow values
+    // (e.g. "2024-13-45" → 2025-02-14) silently, so we validate each component.
+    const dateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+    if (dateMatch) {
+      const [, yearStr, monthStr, dayStr] = dateMatch
+      const year = Number(yearStr)
+      const month = Number(monthStr)
+      const day = Number(dayStr)
+      const date = new Date(Date.UTC(year, month - 1, day))
+      const matchesInput =
+        date.getUTCFullYear() === year &&
+        date.getUTCMonth() === month - 1 &&
+        date.getUTCDate() === day
+      if (matchesInput) {
         valtype = 'D'
         tval = null
         // For date observations, we store the date in START_DATE field
@@ -690,6 +762,7 @@ export class CsvService {
       VALTYPE_CD: valtype,
       TVAL_CHAR: tval,
       NVAL_NUM: nval,
+      VALUEFLAG_CD: valueFlag,
       OBSERVATION_BLOB: observationBlob,
       START_DATE: valtype === 'D' ? value : new Date().toISOString().split('T')[0],
       SOURCESYSTEM_CD: 'CSV_IMPORT',

@@ -253,11 +253,14 @@ import { ref, onMounted } from 'vue'
 import { useDatabaseStore } from '../stores/database-store.js'
 import { useAuthStore } from '../stores/auth-store.js'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { createDemoPatients as createDemoPatientsUtil } from '../core/services/demo-patient-service.js'
 import { deleteDemoPatients as deleteDemoPatientsUtil, countDemoData } from '../core/services/delete-demo-patients-service.js'
 import { questionnaireFiles } from '../core/database/seeds/csv-loader.js'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const databaseStore = useDatabaseStore()
 const authStore = useAuthStore()
 
@@ -284,15 +287,9 @@ const questStats = ref({ available: 0, inDb: 0, new: 0 })
 const initializeDatabase = async () => {
   try {
     await databaseStore.initializeDatabase(databasePath.value)
-    $q.notify({
-      type: 'positive',
-      message: 'Database connected successfully!',
-    })
+    notify.success('Database connected successfully!')
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Failed to connect: ${error.message}`,
-    })
+    notify.error(`Failed to connect: ${error.message}`)
   }
 }
 
@@ -300,30 +297,18 @@ const closeDatabase = async () => {
   try {
     await databaseStore.closeDatabase()
     patients.value = []
-    $q.notify({
-      type: 'positive',
-      message: 'Database disconnected successfully!',
-    })
+    notify.success('Database disconnected successfully!')
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Failed to disconnect: ${error.message}`,
-    })
+    notify.error(`Failed to disconnect: ${error.message}`)
   }
 }
 
 const refreshDatabaseInfo = async () => {
   try {
     await databaseStore.refreshDatabaseInfo()
-    $q.notify({
-      type: 'positive',
-      message: 'Database information refreshed!',
-    })
+    notify.success('Database information refreshed!')
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Failed to refresh: ${error.message}`,
-    })
+    notify.error(`Failed to refresh: ${error.message}`)
   }
 }
 
@@ -331,21 +316,12 @@ const validateDatabase = async () => {
   try {
     const validation = await databaseStore.validateDatabase()
     if (validation.valid) {
-      $q.notify({
-        type: 'positive',
-        message: 'Database validation passed!',
-      })
+      notify.success('Database validation passed!')
     } else {
-      $q.notify({
-        type: 'warning',
-        message: `Database validation issues: ${validation.errors.length} errors found`,
-      })
+      notify.warning(`Database validation issues: ${validation.errors.length} errors found`)
     }
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Validation failed: ${error.message}`,
-    })
+    notify.error(`Validation failed: ${error.message}`)
   }
 }
 
@@ -359,25 +335,16 @@ const resetDatabase = async () => {
     }).onOk(async () => {
       await databaseStore.resetDatabase()
       patients.value = []
-      $q.notify({
-        type: 'positive',
-        message: 'Database reset completed!',
-      })
+      notify.success('Database reset completed!')
     })
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Reset failed: ${error.message}`,
-    })
+    notify.error(`Reset failed: ${error.message}`)
   }
 }
 
 const createTestPatient = async () => {
   if (!newPatient.value.PATIENT_CD) {
-    $q.notify({
-      type: 'warning',
-      message: 'Patient Code is required!',
-    })
+    notify.warning('Patient Code is required!')
     return
   }
 
@@ -405,15 +372,9 @@ const createTestPatient = async () => {
     // Refresh patient list
     await loadAllPatients()
 
-    $q.notify({
-      type: 'positive',
-      message: `Patient ${patient.PATIENT_CD} created successfully!`,
-    })
+    notify.success(`Patient ${patient.PATIENT_CD} created successfully!`)
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Failed to create patient: ${error.message}`,
-    })
+    notify.error(`Failed to create patient: ${error.message}`)
   } finally {
     isCreatingPatient.value = false
   }
@@ -431,25 +392,17 @@ const createDemoPatients = async () => {
       conceptRepository: databaseStore.getRepository('concept'),
     }
 
-    $q.notify({
-      type: 'info',
-      message: 'Creating 20 demo patients with visits and observations...',
-      timeout: 2000,
-    })
+    notify.info('Creating 20 demo patients with visits and observations...', { timeout: 2000 })
 
     const results = await createDemoPatientsUtil(repositories, 20)
 
     if (results.errors.length > 0) {
       console.warn('Demo patient creation had some errors:', results.errors)
-      $q.notify({
-        type: 'warning',
-        message: `Demo patients created with ${results.errors.length} warnings. Check console for details.`,
+      notify.warning(`Demo patients created with ${results.errors.length} warnings. Check console for details.`, {
         timeout: 5000,
       })
     } else {
-      $q.notify({
-        type: 'positive',
-        message: `Successfully created ${results.patients.length} demo patients with ${results.visits.length} visits and ${results.observations.length} observations!`,
+      notify.success(`Successfully created ${results.patients.length} demo patients with ${results.visits.length} visits and ${results.observations.length} observations!`, {
         timeout: 5000,
       })
     }
@@ -461,11 +414,7 @@ const createDemoPatients = async () => {
     await refreshDatabaseInfo()
   } catch (error) {
     console.error('Failed to create demo patients:', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to create demo patients: ${error.message}`,
-      timeout: 5000,
-    })
+    notify.error(`Failed to create demo patients: ${error.message}`, { timeout: 5000 })
   } finally {
     isCreatingDemoPatients.value = false
   }
@@ -486,11 +435,7 @@ const deleteDemoPatients = async () => {
     const count = await countDemoData(repositories)
 
     if (count.totalRecords === 0) {
-      $q.notify({
-        type: 'info',
-        message: 'No demo patients found to delete.',
-        timeout: 3000,
-      })
+      notify.info('No demo patients found to delete.', { timeout: 3000 })
       return
     }
 
@@ -502,25 +447,17 @@ const deleteDemoPatients = async () => {
       persistent: true,
     }).onOk(async () => {
       try {
-        $q.notify({
-          type: 'info',
-          message: 'Deleting demo patients...',
-          timeout: 2000,
-        })
+        notify.info('Deleting demo patients...', { timeout: 2000 })
 
         const results = await deleteDemoPatientsUtil(repositories)
 
         if (results.errors.length > 0) {
           console.warn('Demo patient deletion had some errors:', results.errors)
-          $q.notify({
-            type: 'warning',
-            message: `Demo patients deleted with ${results.errors.length} warnings. Check console for details.`,
+          notify.warning(`Demo patients deleted with ${results.errors.length} warnings. Check console for details.`, {
             timeout: 5000,
           })
         } else {
-          $q.notify({
-            type: 'positive',
-            message: `Successfully deleted ${results.deletedPatients} demo patients, ${results.deletedVisits} visits, and ${results.deletedObservations} observations!`,
+          notify.success(`Successfully deleted ${results.deletedPatients} demo patients, ${results.deletedVisits} visits, and ${results.deletedObservations} observations!`, {
             timeout: 5000,
           })
         }
@@ -530,20 +467,12 @@ const deleteDemoPatients = async () => {
         await refreshDatabaseInfo()
       } catch (error) {
         console.error('Failed to delete demo patients:', error)
-        $q.notify({
-          type: 'negative',
-          message: `Failed to delete demo patients: ${error.message}`,
-          timeout: 5000,
-        })
+        notify.error(`Failed to delete demo patients: ${error.message}`, { timeout: 5000 })
       }
     })
   } catch (error) {
     console.error('Failed to count demo patients:', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to count demo patients: ${error.message}`,
-      timeout: 5000,
-    })
+    notify.error(`Failed to count demo patients: ${error.message}`, { timeout: 5000 })
   } finally {
     isDeletingDemoPatients.value = false
   }
@@ -551,10 +480,7 @@ const deleteDemoPatients = async () => {
 
 const searchPatients = async () => {
   if (!searchTerm.value.trim()) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please enter a search term!',
-    })
+    notify.warning('Please enter a search term!')
     return
   }
 
@@ -563,16 +489,10 @@ const searchPatients = async () => {
     patients.value = await databaseStore.searchPatients(searchTerm.value)
 
     if (patients.value.length === 0) {
-      $q.notify({
-        type: 'info',
-        message: 'No patients found matching your search.',
-      })
+      notify.info('No patients found matching your search.')
     }
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Search failed: ${error.message}`,
-    })
+    notify.error(`Search failed: ${error.message}`)
   } finally {
     isSearching.value = false
   }
@@ -584,16 +504,10 @@ const loadAllPatients = async () => {
     patients.value = await databaseStore.findPatients()
 
     if (patients.value.length === 0) {
-      $q.notify({
-        type: 'info',
-        message: 'No patients found in database.',
-      })
+      notify.info('No patients found in database.')
     }
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Failed to load patients: ${error.message}`,
-    })
+    notify.error(`Failed to load patients: ${error.message}`)
   } finally {
     isLoadingPatients.value = false
   }
@@ -669,16 +583,9 @@ const seedQuestionnaires = async () => {
 
     await loadQuestionnaires()
 
-    $q.notify({
-      type: 'positive',
-      message: `Questionnaires: ${seeded} neu importiert, ${skipped} bereits vorhanden`,
-      timeout: 5000,
-    })
+    notify.success(`Questionnaires: ${seeded} neu importiert, ${skipped} bereits vorhanden`, { timeout: 5000 })
   } catch (error) {
-    $q.notify({
-      type: 'negative',
-      message: `Failed to seed questionnaires: ${error.message}`,
-    })
+    notify.error(`Failed to seed questionnaires: ${error.message}`)
   } finally {
     isSeedingQuests.value = false
   }

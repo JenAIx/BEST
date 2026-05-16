@@ -152,6 +152,49 @@ describe('Global Settings Store', () => {
       expect(result).toBe(true)
       expect(mockDbStore.executeCommand).toHaveBeenCalledWith('DELETE FROM CODE_LOOKUP WHERE CODE_CD = ?', ['CAT_TEST'])
     })
+
+    it('should invalidate the precise cache key after addLookupValue', async () => {
+      globalSettingsStore.lookupData = {
+        CONCEPT_DIMENSION_CATEGORY_CHAR: [{ CODE_CD: 'CAT_OLD' }],
+        CONCEPT_DIMENSION_VALTYPE_CD: [{ CODE_CD: 'N' }],
+      }
+      globalSettingsStore.columnTypes = [{ value: 'CATEGORY_CHAR' }]
+      globalSettingsStore.lastRefresh = new Date().toISOString()
+      mockDbStore.executeCommand.mockResolvedValue({ success: true })
+
+      await globalSettingsStore.addLookupValue('CATEGORY_CHAR', 'CAT_NEW', 'New', null)
+
+      expect(globalSettingsStore.lookupData.CONCEPT_DIMENSION_CATEGORY_CHAR).toBeUndefined()
+      expect(globalSettingsStore.lookupData.CONCEPT_DIMENSION_VALTYPE_CD).toBeDefined()
+      expect(globalSettingsStore.columnTypes).toEqual([])
+      expect(globalSettingsStore.lastRefresh).toBeNull()
+    })
+
+    it('should invalidate all caches after updateLookupValue', async () => {
+      globalSettingsStore.lookupData = { CONCEPT_DIMENSION_CATEGORY_CHAR: [{}] }
+      globalSettingsStore.columnTypes = [{ value: 'CATEGORY_CHAR' }]
+      globalSettingsStore.lastRefresh = new Date().toISOString()
+      mockDbStore.executeCommand.mockResolvedValue({ success: true })
+
+      await globalSettingsStore.updateLookupValue('CAT_TEST', 'New name', null)
+
+      expect(globalSettingsStore.lookupData).toEqual({})
+      expect(globalSettingsStore.columnTypes).toEqual([])
+      expect(globalSettingsStore.lastRefresh).toBeNull()
+    })
+
+    it('should invalidate all caches after deleteLookupValue', async () => {
+      globalSettingsStore.lookupData = { CONCEPT_DIMENSION_CATEGORY_CHAR: [{}] }
+      globalSettingsStore.columnTypes = [{ value: 'CATEGORY_CHAR' }]
+      globalSettingsStore.lastRefresh = new Date().toISOString()
+      mockDbStore.executeCommand.mockResolvedValue({ success: true })
+
+      await globalSettingsStore.deleteLookupValue('CAT_TEST')
+
+      expect(globalSettingsStore.lookupData).toEqual({})
+      expect(globalSettingsStore.columnTypes).toEqual([])
+      expect(globalSettingsStore.lastRefresh).toBeNull()
+    })
   })
 
   describe('Utility Functions', () => {

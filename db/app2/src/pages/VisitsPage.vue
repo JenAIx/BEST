@@ -12,9 +12,9 @@
             <q-btn flat round icon="arrow_back" color="white" @click="deselectPatient" class="back-btn">
               <q-tooltip>Back to visits list</q-tooltip>
             </q-btn>
-            <q-avatar size="48px" color="white" text-color="primary" class="q-mr-md patient-avatar-clickable" @click="goToPatientPage">
+            <q-avatar size="48px" color="white" text-color="primary" class="q-mr-md patient-avatar-clickable" @click="showPatientData">
               {{ getPatientInitials(selectedPatient.name) }}
-              <q-tooltip>View Patient Details</q-tooltip>
+              <q-tooltip>{{ $t('visit.viewPatientData') }}</q-tooltip>
             </q-avatar>
             <div class="patient-header-info">
               <h2 class="patient-name">{{ selectedPatient.name }}</h2>
@@ -43,7 +43,17 @@
                 :label="$t('visit.dataEntry')"
                 @click="viewMode = 'entry'"
               />
+              <q-btn
+                :color="viewMode === 'patient' ? 'white' : 'grey-4'"
+                :text-color="viewMode === 'patient' ? 'primary' : 'white'"
+                icon="person"
+                :label="$t('visit.patientData')"
+                @click="viewMode = 'patient'"
+              />
             </q-btn-group>
+            <q-btn flat round icon="delete" color="white" class="q-ml-md" @click="confirmDeletePatient">
+              <q-tooltip>{{ $t('patient.deletePatientTooltip') }}</q-tooltip>
+            </q-btn>
           </div>
         </div>
       </div>
@@ -53,6 +63,17 @@
 
       <!-- Data Entry View -->
       <VisitDataEntry v-if="viewMode === 'entry'" :patient="selectedPatient" :initial-visit="selectedVisit" @visit-created="onVisitCreated" />
+
+      <!-- Patient Data View -->
+      <PatientDataView
+        v-if="viewMode === 'patient' && patientRawData"
+        :patient="patientRawData"
+        :visits="visits"
+        :observations="observations"
+        @updated="onPatientUpdated"
+      />
+
+      <DeletePatientDialog ref="deletePatientDialog" @deleted="onPatientDeleted" />
     </div>
   </q-page>
 </template>
@@ -62,26 +83,33 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useVisitStore } from 'src/stores/visit-store'
+import { useObservationStore } from 'src/stores/observation-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
 import VisitTimeline from 'src/components/visits/VisitTimeline.vue'
 import VisitDataEntry from 'src/components/visits/VisitDataEntry.vue'
+import PatientDataView from 'src/components/visits/PatientDataView.vue'
+import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
 const patientStore = usePatientStore()
 const visitStore = useVisitStore()
+const observationStore = useObservationStore()
 const localSettings = useLocalSettingsStore()
 
 // Local state
 const viewMode = ref('timeline')
+const deletePatientDialog = ref(null)
 
 // Computed properties from stores
 const selectedPatient = computed(() => patientStore.selectedPatient)
 const selectedVisit = computed(() => visitStore.selectedVisit)
 const visits = computed(() => visitStore.visits)
+const observations = computed(() => observationStore.allObservations)
+const patientRawData = computed(() => selectedPatient.value?.rawData || selectedPatient.value)
 
 // Helper: Add patient to recent patients list
 const addToRecentPatients = (patientId) => {
@@ -117,19 +145,35 @@ const deselectPatient = () => {
   router.push('/visits')
 }
 
-const goToPatientPage = () => {
-  if (!selectedPatient.value) {
-    console.error('Cannot navigate to patient page - no patient selected')
-    return
-  }
+const showPatientData = () => {
+  if (!selectedPatient.value) return
+  viewMode.value = 'patient'
+}
 
-  try {
-    // Navigate to patient page using PATIENT_CD (consistent with route parameter)
-    // The patient store normalizes id to PATIENT_CD, but we use PATIENT_CD for routes
-    const patientId = selectedPatient.value.PATIENT_CD || selectedPatient.value.id
-    router.push(`/patient/${patientId}`)
-  } catch (error) {
-    console.error('Failed to navigate to patient page:', error)
+const confirmDeletePatient = () => {
+  if (!selectedPatient.value) return
+  const raw = patientRawData.value
+  deletePatientDialog.value?.show(raw, selectedPatient.value.name)
+}
+
+const onPatientDeleted = async () => {
+  const deletedId = selectedPatient.value?.PATIENT_CD || selectedPatient.value?.id
+  if (deletedId) {
+    const recent = localSettings.getSetting('visits.recentPatients') || []
+    const cleaned = recent.filter((id) => id !== deletedId)
+    if (cleaned.length !== recent.length) {
+      localSettings.setSetting('visits.recentPatients', cleaned)
+    }
+  }
+  visitObservationService.clearAllData()
+  viewMode.value = 'timeline'
+  router.push('/visits')
+}
+
+const onPatientUpdated = async () => {
+  const patientId = selectedPatient.value?.PATIENT_CD || selectedPatient.value?.id
+  if (patientId) {
+    await visitObservationService.loadPatientWithData(patientId)
   }
 }
 

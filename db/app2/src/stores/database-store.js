@@ -204,62 +204,51 @@ export const useDatabaseStore = defineStore('database', () => {
   const createPatient = async (patientData) => {
     const loggingStore = useLoggingStore()
     const patientRepo = getPatientRepository()
-    
-    // Create the patient first
-    const createdPatient = await patientRepo.createPatient(patientData)
-    
-    // Auto-create USER_PATIENT_LOOKUP entry for creator (but import auth-store dynamically to avoid circular dependency)
+
+    // Resolve creator before opening the transaction so a circular-import failure
+    // doesn't leave us holding an orphan BEGIN.
+    let currentUserId = null
     try {
       const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      const currentUserId = authStore.currentUser?.USER_ID
-      
+      currentUserId = useAuthStore().currentUser?.USER_ID ?? null
+    } catch (error) {
+      loggingStore.warn('DatabaseStore', 'Could not resolve current user for patient access', error)
+    }
+
+    // Atomic: patient INSERT + USER_PATIENT_LOOKUP INSERT must commit or rollback together,
+    // otherwise a regular (non-admin) user would be locked out of patients they just created.
+    let inTransaction = false
+    try {
+      await executeCommand('BEGIN TRANSACTION')
+      inTransaction = true
+
+      const createdPatient = await patientRepo.createPatient(patientData)
+
       if (currentUserId && createdPatient.PATIENT_NUM) {
-        // Check if association already exists (e.g., from import or previous creation)
-        const checkQuery = `
-          SELECT COUNT(*) as count
-          FROM USER_PATIENT_LOOKUP
-          WHERE USER_ID = ? AND PATIENT_NUM = ?
-        `
-        const checkResult = await executeQuery(checkQuery, [currentUserId, createdPatient.PATIENT_NUM])
-        
-        if (checkResult.success && checkResult.data[0]?.count > 0) {
-          loggingStore.info('DatabaseStore', 'USER_PATIENT_LOOKUP entry already exists, skipping', {
-            userId: currentUserId,
-            patientNum: createdPatient.PATIENT_NUM,
-          })
-        } else {
-          loggingStore.info('DatabaseStore', 'Auto-creating USER_PATIENT_LOOKUP entry for creator', {
-            userId: currentUserId,
-            patientNum: createdPatient.PATIENT_NUM,
-          })
-          
-          const insertAccessSql = `
-            INSERT INTO USER_PATIENT_LOOKUP 
-              (USER_ID, PATIENT_NUM, NAME_CHAR, UPDATE_DATE, IMPORT_DATE)
-            VALUES (?, ?, ?, datetime('now'), datetime('now'))
-          `
-          
-          const result = await executeCommand(insertAccessSql, [
-            currentUserId,
-            createdPatient.PATIENT_NUM,
-            'Creator access - auto-assigned'
-          ])
-          
-          if (result.success) {
-            loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry created', {
-              userId: currentUserId,
-              patientNum: createdPatient.PATIENT_NUM,
-            })
-          }
+        const lookupRepo = getRepository('userPatientLookup')
+        await lookupRepo.addAssociationIfMissing(currentUserId, createdPatient.PATIENT_NUM, {
+          nameChar: 'Creator access - auto-assigned',
+        })
+        loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
+          userId: currentUserId,
+          patientNum: createdPatient.PATIENT_NUM,
+        })
+      }
+
+      await executeCommand('COMMIT')
+      inTransaction = false
+      return createdPatient
+    } catch (error) {
+      if (inTransaction) {
+        try {
+          await executeCommand('ROLLBACK')
+        } catch (rollbackError) {
+          loggingStore.error('DatabaseStore', 'Rollback after createPatient failure failed', rollbackError)
         }
       }
-    } catch (error) {
-      // Don't fail patient creation if access assignment fails
-      loggingStore.error('DatabaseStore', 'Failed to create USER_PATIENT_LOOKUP entry', error)
+      loggingStore.error('DatabaseStore', 'createPatient transaction failed', error)
+      throw error
     }
-    
-    return createdPatient
   }
 
   const findPatient = async (id) => {
@@ -306,20 +295,17 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const deletePatient = async (id) => {
-    // First, delete USER_PATIENT_LOOKUP entries (no CASCADE on PATIENT_NUM FK)
-    try {
-      await executeCommand(
-        'DELETE FROM USER_PATIENT_LOOKUP WHERE PATIENT_NUM = ?',
-        [id]
-      )
-    } catch (error) {
-      console.warn('Failed to delete user-patient associations:', error)
-      // Continue with patient deletion even if this fails
-    }
-
-    // Then delete the patient (will CASCADE to VISIT_DIMENSION, OBSERVATION_FACT, NOTE_FACT)
-    const patientRepo = getPatientRepository()
-    return await patientRepo.delete(id)
+    // Defensive cascade in JS: NOTE_FACT.PATIENT_NUM and USER_PATIENT_LOOKUP.PATIENT_NUM
+    // have FKs without ON DELETE CASCADE, and the trigger-based cascade leaves
+    // patient-only NOTE_FACT rows behind. Clearing children explicitly inside a
+    // transaction makes the delete work regardless of trigger state.
+    return await executeTransaction([
+      { sql: 'DELETE FROM NOTE_FACT WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM OBSERVATION_FACT WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM VISIT_DIMENSION WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM USER_PATIENT_LOOKUP WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM PATIENT_DIMENSION WHERE PATIENT_NUM = ?', params: [id] },
+    ])
   }
 
   const getPatientStatistics = async () => {
@@ -670,24 +656,55 @@ export const useDatabaseStore = defineStore('database', () => {
         count: cleanPatientIds.length,
       })
 
-      const patientRepo = getRepository('patient')
-      const visitRepo = getRepository('visit')
-
-      // Get patient details
-      const patientDetails = await Promise.all(
-        cleanPatientIds.map(async (patientId) => {
-          const patient = await patientRepo.findByPatientCode(patientId)
-          if (!patient) {
-            loggingStore.warn('DatabaseStore', 'Patient not found', { patientId })
-            return { patient: null, visits: [] }
-          }
-          const visits = await visitRepo.getPatientVisitTimeline(patient.PATIENT_NUM)
-          return { patient, visits }
-        }),
+      // Two bulk queries instead of 2*N round-trips: one for the patients, one for
+      // their visits joined to observation counts. We then bucket visits in JS.
+      const placeholders = cleanPatientIds.map(() => '?').join(',')
+      const patientResult = await executeQuery(
+        `SELECT * FROM PATIENT_DIMENSION WHERE PATIENT_CD IN (${placeholders})`,
+        cleanPatientIds,
       )
+      const patients = patientResult.success ? patientResult.data : []
 
-      // Filter out null patients
-      const validPatientData = patientDetails.filter((p) => p.patient !== null)
+      const missing = cleanPatientIds.filter(
+        (id) => !patients.some((p) => String(p.PATIENT_CD) === id),
+      )
+      for (const id of missing) {
+        loggingStore.warn('DatabaseStore', 'Patient not found', { patientId: id })
+      }
+
+      const visitsByPatient = new Map()
+      if (patients.length > 0) {
+        const numPlaceholders = patients.map(() => '?').join(',')
+        const visitResult = await executeQuery(
+          `SELECT v.*, COUNT(o.OBSERVATION_ID) AS observationCount
+           FROM VISIT_DIMENSION v
+           LEFT JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
+           WHERE v.PATIENT_NUM IN (${numPlaceholders})
+           GROUP BY v.ENCOUNTER_NUM
+           ORDER BY v.START_DATE DESC`,
+          patients.map((p) => p.PATIENT_NUM),
+        )
+        if (visitResult.success) {
+          for (const visit of visitResult.data) {
+            if (!visitsByPatient.has(visit.PATIENT_NUM)) {
+              visitsByPatient.set(visit.PATIENT_NUM, [])
+            }
+            visitsByPatient.get(visit.PATIENT_NUM).push(visit)
+          }
+        }
+      }
+
+      // Preserve the order requested by the caller
+      const validPatientData = cleanPatientIds
+        .map((id) => {
+          const patient = patients.find((p) => String(p.PATIENT_CD) === id)
+          if (!patient) return null
+          return {
+            patient,
+            visits: visitsByPatient.get(patient.PATIENT_NUM) || [],
+          }
+        })
+        .filter(Boolean)
 
       if (validPatientData.length === 0) {
         throw new Error('No valid patients found with the provided IDs')
@@ -748,6 +765,7 @@ export const useDatabaseStore = defineStore('database', () => {
           TVAL_CHAR,
           NVAL_NUM,
           UNIT_CD,
+          VALUEFLAG_CD,
           START_DATE,
           CATEGORY_CHAR,
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
@@ -797,10 +815,23 @@ export const useDatabaseStore = defineStore('database', () => {
         const patientName = getPatientNameFromData(patientInfo.patient)
 
         // Create a row for each visit, even if it has no observations
-        if (patientInfo.visits && Array.isArray(patientInfo.visits)) {
+        const hasVisits = patientInfo.visits && Array.isArray(patientInfo.visits) && patientInfo.visits.length > 0
+        if (hasVisits) {
           patientInfo.visits.forEach((visit) => {
             // Skip visits without encounter number
             if (!visit || visit.ENCOUNTER_NUM == null) return
+
+            // Parse visit-type code out of VISIT_BLOB so the grid can render
+            // a per-visit label/chip (see ExcelLikeEditor visit-col rendering).
+            let visitTypeCode = null
+            if (visit.VISIT_BLOB) {
+              try {
+                const blob = typeof visit.VISIT_BLOB === 'string' ? JSON.parse(visit.VISIT_BLOB) : visit.VISIT_BLOB
+                visitTypeCode = blob?.visitType || null
+              } catch {
+                // ignore malformed blob - row just won't have a visit-type label
+              }
+            }
 
             const key = `${patientCd}-${visit.ENCOUNTER_NUM}`
             if (!patientVisitMap.has(key)) {
@@ -809,9 +840,22 @@ export const useDatabaseStore = defineStore('database', () => {
                 patientName: patientName,
                 encounterNum: visit.ENCOUNTER_NUM,
                 visitDate: visit.START_DATE || null,
+                visitTypeCode,
                 observations: {},
               })
             }
+          })
+        } else {
+          // Patient has no visits — render a placeholder row so the grid still
+          // shows the patient. The user can trigger "Add Visit" from there;
+          // observation cells are non-editable until a real visit exists.
+          patientVisitMap.set(`${patientCd}-placeholder`, {
+            patientId: patientCd,
+            patientName: patientName,
+            encounterNum: null,
+            visitDate: null,
+            observations: {},
+            isPlaceholder: true,
           })
         }
       })
@@ -824,7 +868,14 @@ export const useDatabaseStore = defineStore('database', () => {
             code: obs.CONCEPT_CD,
             name: obs.CONCEPT_NAME || obs.CONCEPT_CD,
             valueType: obs.VALTYPE_CD || 'T',
+            // CATEGORY_CHAR comes from OBSERVATION_FACT.CATEGORY_CHAR; the grid uses
+            // it to group concepts into category-banded columns. Empty/null is
+            // tolerated and rendered under a generic "Other" group.
+            category: obs.CATEGORY_CHAR || null,
           })
+        } else if (!conceptMap.get(obs.CONCEPT_CD).category && obs.CATEGORY_CHAR) {
+          // Backfill category if the first occurrence happened to have none.
+          conceptMap.get(obs.CONCEPT_CD).category = obs.CATEGORY_CHAR
         }
 
         // Skip observations without required fields
@@ -862,6 +913,10 @@ export const useDatabaseStore = defineStore('database', () => {
           value: displayValue,
           valueType: obs.VALTYPE_CD,
           unit: obs.UNIT_CD,
+          // valueFlag carries OBSERVATION_FACT.VALUEFLAG_CD. The grid uses
+          // 'NV' (no value / explicit absence, e.g. drug not taken) to render
+          // a distinct cell state. See CLAUDE.md "3-state pattern for numerics".
+          valueFlag: obs.VALUEFLAG_CD || null,
           originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
           resolvedValue: obs.TVAL_RESOLVED,
           // rawObservation without BLOB for performance (BLOB loaded on-demand)
@@ -889,6 +944,9 @@ export const useDatabaseStore = defineStore('database', () => {
         if (a.patientId !== b.patientId) {
           return a.patientId.localeCompare(b.patientId)
         }
+        // Placeholder rows (encounterNum=null) sort first within the same patient
+        if (a.encounterNum == null) return -1
+        if (b.encounterNum == null) return 1
         return a.encounterNum - b.encounterNum
       })
 

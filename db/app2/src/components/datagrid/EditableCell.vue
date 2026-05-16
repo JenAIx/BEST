@@ -20,6 +20,17 @@
         <span v-if="unitDisplay" class="cell-unit">{{ unitDisplay }}</span>
       </div>
 
+      <!-- 3-state numeric: VALUEFLAG_CD='NV' = patient was assessed and explicitly
+           has no value (e.g. drug not taken). Distinct visual to separate from
+           "not yet assessed" (which has no observation at all). See CLAUDE.md. -->
+      <div
+        v-else-if="valueType === 'N' && valueFlag === 'NV'"
+        class="cell-no-value"
+        title="Erfasst — kein Wert (nicht eingenommen / nicht zutreffend)"
+      >
+        <q-icon name="block" size="14px" color="grey-6" />
+      </div>
+
       <!-- Empty Cell -->
       <div v-else class="cell-empty">
         <q-icon name="add" size="12px" color="grey-5" />
@@ -115,7 +126,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -147,11 +158,18 @@ const props = defineProps({
     type: [String, Number],
     default: null,
   },
+  // OBSERVATION_FACT.VALUEFLAG_CD for the cell. Currently used for 'NV' = the
+  // patient was assessed but explicitly has no numeric value (e.g. drug not
+  // taken). Distinct from "not assessed" (cell has no observation at all).
+  valueFlag: {
+    type: String,
+    default: null,
+  },
 })
 
-const emit = defineEmits(['update', 'save', 'error'])
+const emit = defineEmits(['update', 'save', 'error', 'edit-recorded'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
 const globalSettingsStore = useGlobalSettingsStore()
@@ -198,6 +216,7 @@ const cellClasses = computed(() => ({
   'has-value': !!displayValue.value,
   'has-changes': hasUnsavedChanges.value,
   'is-saving': isSaving.value,
+  'has-no-value-flag': props.valueFlag === 'NV' && !displayValue.value,
   [`value-type-${props.valueType.toLowerCase()}`]: true,
 }))
 
@@ -278,6 +297,10 @@ const saveEdit = async () => {
     return
   }
 
+  // Snapshot pre-edit state for undo recording. originalValue is in the
+  // same representation as displayValue (label for S/F, raw for others).
+  const oldValueForUndo = originalValue.value
+
   try {
     isSaving.value = true
 
@@ -300,8 +323,9 @@ const saveEdit = async () => {
       valueType: props.valueType,
     })
 
-    // Save to database
-    await saveToDatabase()
+    // Save to database — returns the resulting observationId (existing on
+    // UPDATE, new on INSERT) so undo can target it later.
+    const savedObservationId = await saveToDatabase()
 
     // Mark as saved
     hasUnsavedChanges.value = false
@@ -313,16 +337,21 @@ const saveEdit = async () => {
       conceptCode: props.conceptCode,
       value: editValue.value,
     })
+
+    emit('edit-recorded', {
+      patientId: props.patientId,
+      encounterNum: props.encounterNum,
+      conceptCode: props.conceptCode,
+      oldValue: oldValueForUndo,
+      newValue: emitValue,
+      observationId: savedObservationId,
+      valueType: props.valueType,
+    })
   } catch (error) {
     logger.error('Failed to save cell', error)
     emit('error', error)
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to save: ${error.message}`,
-      position: 'top-right',
-      timeout: 3000,
-    })
+    notify.error(`Failed to save: ${error.message}`, { position: 'top-right', timeout: 3000 })
   } finally {
     isSaving.value = false
   }
@@ -331,12 +360,11 @@ const saveEdit = async () => {
 const saveToDatabase = async () => {
   try {
     if (props.observationId) {
-      // Update existing observation
       await updateObservation()
-    } else {
-      // Create new observation
-      await createObservation()
+      return props.observationId
     }
+    // Create new observation, return its new id
+    return await createObservation()
   } catch (error) {
     logger.error('Database save error', error)
     throw error
@@ -437,6 +465,8 @@ const createObservation = async () => {
     observationId: result.OBSERVATION_ID,
     valueType: props.valueType,
   })
+
+  return result.OBSERVATION_ID
 }
 
 const cancelEdit = () => {
@@ -716,6 +746,24 @@ watch(editValue, (newValue) => {
 
     .editable-cell:hover & {
       opacity: 1;
+    }
+  }
+
+  // 3-state numeric: "assessed but no value" (VALUEFLAG_CD='NV').
+  // Visible by default (always-on, not just on hover) so the user can tell at a
+  // glance that this is recorded data, not a blank cell.
+  .cell-no-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.55;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 2px;
+    margin: 2px;
+
+    .editable-cell:hover & {
+      opacity: 0.9;
     }
   }
 

@@ -16,13 +16,17 @@ import CqlRepository from '../database/repositories/cql-repository.js'
 import VisitRepository from '../database/repositories/visit-repository.js'
 import ObservationRepository from '../database/repositories/observation-repository.js'
 import StudyRepository from '../database/repositories/study-repository.js'
+import UserPatientLookupRepository from '../database/repositories/user-patient-lookup-repository.js'
 import { coreSchema } from '../database/migrations/001-core-schema.js'
 import { databaseViews } from '../database/migrations/002-views.js'
-// import { databaseTriggers } from '../database/migrations/003-triggers.js'
+import { databaseTriggers } from '../database/migrations/003-triggers.js'
 import { studyTables } from '../database/migrations/004-study-tables.js'
 import { questionnaireFieldSet } from '../database/migrations/005-questionnaire-fieldset.js'
 import { fieldsetCategories } from '../database/migrations/006-fieldset-categories.js'
 import { parkinsonVisitTypes } from '../database/migrations/007-parkinson-visit-types.js'
+import { passwordHashing } from '../database/migrations/008-password-hashing.js'
+import { fixPatientCascade } from '../database/migrations/009-fix-patient-cascade.js'
+import { strokeLipidSeed } from '../database/migrations/010-stroke-lipid-seed.js'
 
 class DatabaseService {
   constructor() {
@@ -66,12 +70,14 @@ class DatabaseService {
       // Register consolidated migrations
       this.migrationManager.registerMigration(coreSchema)
       this.migrationManager.registerMigration(databaseViews)
-      // TODO: Fix trigger SQL syntax and re-enable
-      // this.migrationManager.registerMigration(databaseTriggers)
+      this.migrationManager.registerMigration(databaseTriggers)
       this.migrationManager.registerMigration(studyTables)
       this.migrationManager.registerMigration(questionnaireFieldSet)
       this.migrationManager.registerMigration(fieldsetCategories)
       this.migrationManager.registerMigration(parkinsonVisitTypes)
+      this.migrationManager.registerMigration(passwordHashing)
+      this.migrationManager.registerMigration(fixPatientCascade)
+      this.migrationManager.registerMigration(strokeLipidSeed)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()
@@ -138,6 +144,7 @@ class DatabaseService {
     this.repositories.visit = new VisitRepository(this.connection)
     this.repositories.observation = new ObservationRepository(this.connection)
     this.repositories.study = new StudyRepository(this.connection)
+    this.repositories.userPatientLookup = new UserPatientLookupRepository(this.connection)
 
     // TODO: Add other repositories as they are implemented
     // this.repositories.provider = new ProviderRepository(this.connection)

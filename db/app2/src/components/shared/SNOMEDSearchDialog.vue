@@ -260,7 +260,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useLoggingStore } from '../../stores/logging-store.js'
 
 const props = defineProps({
@@ -276,7 +276,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'select'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const loggingStore = useLoggingStore()
 
 const localSearchQuery = ref('')
@@ -291,11 +291,7 @@ const dialogVisible = computed({
 
 const search = async () => {
   if (!localSearchQuery.value || localSearchQuery.value.length < 3) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please enter at least 3 characters to search SNOMED CT',
-      position: 'top',
-    })
+    notify.warning('Please enter at least 3 characters to search SNOMED CT')
     return
   }
 
@@ -323,11 +319,7 @@ const search = async () => {
       }))
 
       if (searchResults.value.length === 0) {
-        $q.notify({
-          type: 'info',
-          message: 'No SNOMED CT concepts found for this search term',
-          position: 'top',
-        })
+        notify.info('No SNOMED CT concepts found for this search term')
       }
     } else {
       throw new Error(result.error || 'SNOMED CT API search failed')
@@ -345,12 +337,7 @@ const search = async () => {
       errorMessage = 'SNOMED CT API rate limit exceeded - please wait and try again'
     }
 
-    $q.notify({
-      type: 'negative',
-      message: errorMessage,
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(errorMessage, { timeout: 5000 })
 
     // Fallback to empty results
     searchResults.value = []

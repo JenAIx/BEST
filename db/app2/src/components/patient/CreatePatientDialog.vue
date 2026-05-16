@@ -22,6 +22,7 @@
                 :label="$t('patient.patientId') + ' *'"
                 outlined
                 dense
+                debounce="300"
                 :rules="[(val) => !!val || $t('patient.patientIdRequired'), validatePatientId]"
                 clearable
                 :placeholder="$t('patient.patientIdPlaceholder')"
@@ -168,7 +169,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useRouter } from 'vue-router'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -184,7 +185,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'patientCreated'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const router = useRouter()
 const databaseStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
@@ -303,12 +304,7 @@ const generatePatientId = async () => {
 
     formData.value.PATIENT_CD = patientId
 
-    $q.notify({
-      type: 'positive',
-      message: `Generated Patient ID: ${patientId}`,
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.success(`Generated Patient ID: ${patientId}`, { timeout: 2000 })
   } catch (error) {
     logger.error('Failed to generate patient ID', error)
     // Fallback to simple generation
@@ -318,12 +314,7 @@ const generatePatientId = async () => {
     patientId = `PAT-${dateStr}-${seqStr}`
     formData.value.PATIENT_CD = patientId
 
-    $q.notify({
-      type: 'info',
-      message: `Generated Patient ID: ${patientId} (random)`,
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.info(`Generated Patient ID: ${patientId} (random)`, { timeout: 2000 })
   }
 }
 
@@ -353,16 +344,25 @@ const calculateBirthDateFromAge = (age) => {
   return `${birthYear}-01-01`
 }
 
+// Cache the last validation result so Quasar's repeat invocations (focus/blur, submit)
+// don't re-hit the DB for an unchanged value. The q-input `debounce="300"` already
+// suppresses validation on rapid typing, so we don't need an internal timer here.
+let lastValidatedValue = null
+let lastValidatedResult = true
 const validatePatientId = async (val) => {
   if (!val || !val.trim()) return 'Patient ID is required'
 
+  const trimmed = val.trim()
+  if (lastValidatedValue === trimmed) {
+    return lastValidatedResult
+  }
+
   try {
-    // Check if patient ID already exists using database store
-    const existing = await databaseStore.findPatientByCode(val.trim())
-    if (existing) {
-      return 'Patient ID already exists'
-    }
-    return true
+    const existing = await databaseStore.findPatientByCode(trimmed)
+    const result = existing ? 'Patient ID already exists' : true
+    lastValidatedValue = trimmed
+    lastValidatedResult = result
+    return result
   } catch (error) {
     logger.warn('Failed to validate patient ID', error)
     return true // Allow creation if validation fails
@@ -409,11 +409,7 @@ const loadConceptOptions = async () => {
 
 const handleSubmit = async () => {
   if (!isFormValid.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please fill in all required fields',
-      position: 'top',
-    })
+    notify.warning('Please fill in all required fields')
     return
   }
 
@@ -452,10 +448,7 @@ const handleSubmit = async () => {
     // Create the patient using database store
     const createdPatient = await databaseStore.createPatient(patientData)
 
-    $q.notify({
-      type: 'positive',
-      message: `Patient created successfully (ID: ${createdPatient.PATIENT_CD})`,
-      position: 'top',
+    notify.success(`Patient created successfully (ID: ${createdPatient.PATIENT_CD})`, {
       timeout: 3000,
       actions: [
         {
@@ -477,16 +470,11 @@ const handleSubmit = async () => {
     // Close dialog
     showDialog.value = false
 
-    // Navigate to the patient page
-    router.push(`/patient/${createdPatient.PATIENT_CD}`)
+    // Navigate to the patient visits page (consolidated patient hub)
+    router.push(`/visits/${createdPatient.PATIENT_CD}`)
   } catch (error) {
     logger.error('Error creating patient', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to create patient: ${error.message}`,
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(`Failed to create patient: ${error.message}`, { timeout: 5000 })
   } finally {
     loading.value = false
   }
