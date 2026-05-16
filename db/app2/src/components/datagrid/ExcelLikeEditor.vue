@@ -108,8 +108,10 @@
                     'value-type-d': concept.valueType === 'D',
                     'value-type-n': concept.valueType === 'N',
                     'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
+                    'is-focused': focusedColumn === concept.code,
                   }"
-                  :title="concept.name"
+                  :title="concept.name + ' — click header to expand'"
+                  @click="toggleFocusColumn(concept.code)"
                 >
                   <div class="col-header">
                     <div class="concept-name">{{ concept.name }}</div>
@@ -216,7 +218,8 @@
                     'value-type-d': concept.valueType === 'D',
                     'value-type-n': concept.valueType === 'N',
                     'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
-                    'obs-cell-placeholder': row.isPlaceholder
+                    'obs-cell-placeholder': row.isPlaceholder,
+                    'is-focused': focusedColumn === concept.code,
                   }
                 ]"
               >
@@ -643,6 +646,15 @@ const saveHiddenVisits = (hiddenVisitsSet) => {
 }
 
 const hiddenVisits = ref(loadHiddenVisits()) // Track hidden visit encounter numbers
+
+// Focus-column mode: clicking an observation column header toggles a wide view
+// for that single concept so the user can comfortably read longer values
+// without expanding the whole grid. Click the same header again to collapse.
+// Click another header to switch focus.
+const focusedColumn = ref(null)
+function toggleFocusColumn(code) {
+  focusedColumn.value = focusedColumn.value === code ? null : code
+}
 
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
@@ -1930,37 +1942,56 @@ onBeforeUnmount(() => {
       }
 
       &.obs-col {
-        width: 150px;
-        min-width: 150px;
+        // Compact-by-default widths. Click the header to focus a single column
+        // (`&.is-focused` below) and read longer values comfortably.
+        width: 90px;
+        min-width: 90px;
+        cursor: pointer;
+        transition: width 0.18s ease, background-color 0.18s ease;
 
         // Specific widths for different value types
         &.value-type-d {
-          width: 120px; // Date columns: -30px
-          min-width: 120px;
+          width: 96px; // Date columns: fit YYYY-MM-DD without wrap
+          min-width: 96px;
         }
 
         &.value-type-n {
-          width: 100px; // Numeric columns: -50px
-          min-width: 100px;
+          width: 72px; // Numeric columns: small numeric values + unit fit
+          min-width: 72px;
         }
 
         &.value-type-m {
-          width: 120px; // Medication columns
-          min-width: 120px;
+          width: 84px; // Medication icon column
+          min-width: 84px;
+        }
+
+        // Focus-column mode: clicked header → comfortable read width.
+        &.is-focused {
+          width: 220px;
+          min-width: 220px;
+          background: $blue-1;
+
+          // Specific override even for narrow types when focused.
+          &.value-type-d,
+          &.value-type-n,
+          &.value-type-m {
+            width: 220px;
+            min-width: 220px;
+          }
         }
 
         .col-header {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 4px;
+          gap: 2px;
 
           .concept-name {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             text-align: center;
-            line-height: 1.2;
-            max-height: 2.4em;
+            line-height: 1.15;
+            max-height: 2.3em;
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -1969,7 +2000,7 @@ onBeforeUnmount(() => {
           }
 
           .concept-code {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: $grey-6;
             font-weight: normal;
           }
@@ -2014,27 +2045,43 @@ onBeforeUnmount(() => {
       }
 
       &.obs-cell {
-        width: 150px;
-        min-width: 150px;
+        // Match the compact obs-col defaults above; the .is-focused override
+        // gives one selected column a comfortable read width.
+        width: 90px;
+        min-width: 90px;
         padding: 2px;
         text-align: center;
         vertical-align: middle;
+        transition: width 0.18s ease, background-color 0.18s ease;
 
         // Specific widths for different value types
         &.value-type-d {
-          width: 120px; // Date cells: -30px
-          min-width: 120px;
+          width: 96px;
+          min-width: 96px;
         }
 
         &.value-type-n {
-          width: 100px; // Numeric cells: -50px
-          min-width: 100px;
+          width: 72px;
+          min-width: 72px;
+        }
+
+        &.is-focused {
+          width: 220px;
+          min-width: 220px;
+          background: rgba(33, 150, 243, 0.04);
+
+          &.value-type-d,
+          &.value-type-n,
+          &.value-type-m {
+            width: 220px;
+            min-width: 220px;
+          }
         }
 
         // Expand cell when editing text
         :deep(.editable-cell.is-editing) {
           min-width: 200px;
-          
+
           .cell-edit {
             min-width: 200px;
           }
