@@ -415,6 +415,88 @@ to `'Demographics'`).
 
 ---
 
+## 🌿 Git Strategy
+
+Lightweight, predictable. Three layers of branches:
+
+```
+main          ← stable releases only. Tagged. Never receive direct commits.
+  │
+  └── development    ← the integration trunk. All feature work flows here.
+        │
+        ├── features/<topic>     ← short-lived feature branches
+        ├── features/<other>     ← started off the current development tip
+        └── fixes/<topic>        ← bugfix branches use the same rules
+```
+
+### Rules
+
+1. **`development` is the working trunk.** Every change starts here. When you
+   begin a new feature, `git checkout development && git pull && git checkout
+   -b features/<topic>`. Don't branch off `main` and don't branch off another
+   feature branch.
+
+2. **Feature branches stay short-lived.** Aim for days, not weeks. Merge back
+   into `development` as soon as the feature is self-consistent and tested
+   (full vitest suite green, lint clean). Long-running feature branches drift
+   and accumulate merge cost.
+
+3. **Merge into `development` with `--no-ff`** so each feature shows up as a
+   single merge commit in `git log --oneline development`. Makes it easy to
+   read history and to revert a whole feature with one revert. Squash only
+   for tiny / experimental branches where the intermediate commits add no
+   value.
+
+4. **`main` only receives merges from `development`**, never from a feature
+   branch directly. The promotion happens when `development` is stable
+   (suite green, manual smoke pass, CHANGELOG up to date). Tag the resulting
+   merge commit on `main` with the version from `.env`
+   (e.g. `v0.2_20260516`).
+
+5. **No force-push to `development` or `main`.** Feature branches you own
+   may be force-pushed during rebase. Once a feature branch is merged, leave
+   it as-is — it's history.
+
+6. **CHANGELOG entries go under `[Unreleased]`** while feature work is in
+   progress. The promotion to `main` is the right moment to cut a new
+   versioned section in CHANGELOG.
+
+### Standard flow
+
+```bash
+# Start a new feature
+git checkout development
+git pull
+git checkout -b features/my-feature
+
+# … work, commit, push …
+git push -u origin features/my-feature
+
+# When stable, merge back to development (locally or via PR)
+git checkout development
+git pull
+git merge --no-ff features/my-feature -m "Merge branch 'features/my-feature' into development
+
+<summary of what landed>"
+git push origin development
+
+# When development is stable enough to release, promote to main
+git checkout main
+git pull
+git merge --no-ff development -m "Release v<X.Y_YYYYMMDD>"
+git tag v<X.Y_YYYYMMDD>
+git push origin main --tags
+```
+
+### Where to find the current state
+
+- `git log --oneline development -20` — recent integration history.
+- `git log --oneline main -10`         — release history.
+- `git branch -a`                       — live feature branches.
+- `CHANGELOG.md` `[Unreleased]`         — what's queued for the next release.
+
+---
+
 ## 🩺 Building a New Visit Template
 
 This is the project's reference recipe for introducing a new study or
