@@ -295,11 +295,17 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const deletePatient = async (id) => {
-    // delete_patient_cascade trigger (migration 003) handles VISIT_DIMENSION
-    // and USER_PATIENT_LOOKUP cleanup; the visit trigger then cascades to
-    // OBSERVATION_FACT/NOTE_FACT. No manual pre-delete needed.
-    const patientRepo = getPatientRepository()
-    return await patientRepo.delete(id)
+    // Defensive cascade in JS: NOTE_FACT.PATIENT_NUM and USER_PATIENT_LOOKUP.PATIENT_NUM
+    // have FKs without ON DELETE CASCADE, and the trigger-based cascade leaves
+    // patient-only NOTE_FACT rows behind. Clearing children explicitly inside a
+    // transaction makes the delete work regardless of trigger state.
+    return await executeTransaction([
+      { sql: 'DELETE FROM NOTE_FACT WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM OBSERVATION_FACT WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM VISIT_DIMENSION WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM USER_PATIENT_LOOKUP WHERE PATIENT_NUM = ?', params: [id] },
+      { sql: 'DELETE FROM PATIENT_DIMENSION WHERE PATIENT_NUM = ?', params: [id] },
+    ])
   }
 
   const getPatientStatistics = async () => {
@@ -759,6 +765,7 @@ export const useDatabaseStore = defineStore('database', () => {
           TVAL_CHAR,
           NVAL_NUM,
           UNIT_CD,
+          VALUEFLAG_CD,
           START_DATE,
           CATEGORY_CHAR,
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
@@ -814,6 +821,18 @@ export const useDatabaseStore = defineStore('database', () => {
             // Skip visits without encounter number
             if (!visit || visit.ENCOUNTER_NUM == null) return
 
+            // Parse visit-type code out of VISIT_BLOB so the grid can render
+            // a per-visit label/chip (see ExcelLikeEditor visit-col rendering).
+            let visitTypeCode = null
+            if (visit.VISIT_BLOB) {
+              try {
+                const blob = typeof visit.VISIT_BLOB === 'string' ? JSON.parse(visit.VISIT_BLOB) : visit.VISIT_BLOB
+                visitTypeCode = blob?.visitType || null
+              } catch {
+                // ignore malformed blob - row just won't have a visit-type label
+              }
+            }
+
             const key = `${patientCd}-${visit.ENCOUNTER_NUM}`
             if (!patientVisitMap.has(key)) {
               patientVisitMap.set(key, {
@@ -821,6 +840,7 @@ export const useDatabaseStore = defineStore('database', () => {
                 patientName: patientName,
                 encounterNum: visit.ENCOUNTER_NUM,
                 visitDate: visit.START_DATE || null,
+                visitTypeCode,
                 observations: {},
               })
             }
@@ -848,7 +868,14 @@ export const useDatabaseStore = defineStore('database', () => {
             code: obs.CONCEPT_CD,
             name: obs.CONCEPT_NAME || obs.CONCEPT_CD,
             valueType: obs.VALTYPE_CD || 'T',
+            // CATEGORY_CHAR comes from OBSERVATION_FACT.CATEGORY_CHAR; the grid uses
+            // it to group concepts into category-banded columns. Empty/null is
+            // tolerated and rendered under a generic "Other" group.
+            category: obs.CATEGORY_CHAR || null,
           })
+        } else if (!conceptMap.get(obs.CONCEPT_CD).category && obs.CATEGORY_CHAR) {
+          // Backfill category if the first occurrence happened to have none.
+          conceptMap.get(obs.CONCEPT_CD).category = obs.CATEGORY_CHAR
         }
 
         // Skip observations without required fields
@@ -886,6 +913,10 @@ export const useDatabaseStore = defineStore('database', () => {
           value: displayValue,
           valueType: obs.VALTYPE_CD,
           unit: obs.UNIT_CD,
+          // valueFlag carries OBSERVATION_FACT.VALUEFLAG_CD. The grid uses
+          // 'NV' (no value / explicit absence, e.g. drug not taken) to render
+          // a distinct cell state. See CLAUDE.md "3-state pattern for numerics".
+          valueFlag: obs.VALUEFLAG_CD || null,
           originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
           resolvedValue: obs.TVAL_RESOLVED,
           // rawObservation without BLOB for performance (BLOB loaded on-demand)

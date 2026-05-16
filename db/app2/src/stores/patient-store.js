@@ -5,7 +5,7 @@
  * Part of the MVC refactoring to separate concerns.
  */
 
-import { defineStore } from 'pinia'
+import { defineStore, acceptHMRUpdate } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useLoggingStore } from './logging-store'
@@ -38,17 +38,15 @@ export const usePatientStore = defineStore('patient', () => {
       previousPatientId: selectedPatient.value?.id,
     })
 
-    // If switching to the same patient, don't update
-    if (selectedPatient.value?.id === patient?.id) {
-      logger.debug('Same patient selected, skipping update')
-      return false
-    }
+    const isSamePatient = selectedPatient.value?.id === patient?.id
 
+    // Always replace the reactive state so downstream consumers see fresh
+    // rawData when the same patient is reloaded after an edit.
     selectedPatient.value = patient
     error.value = null
 
-    logger.success('Patient selected', { patientId: patient?.id })
-    return true // Indicates patient was changed
+    logger.success('Patient selected', { patientId: patient?.id, refreshed: isSamePatient })
+    return !isSamePatient // false on refresh (same patient), true when switching
   }
 
   const clearPatient = () => {
@@ -191,3 +189,7 @@ export const usePatientStore = defineStore('patient', () => {
     calculateAge,
   }
 })
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(usePatientStore, import.meta.hot))
+}

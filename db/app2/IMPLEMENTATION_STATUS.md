@@ -1,5 +1,40 @@
 # BEST Database Implementation Status
 
+> See `CHANGELOG.md` for chronological release notes. This file tracks longer-running
+> architectural milestones.
+
+## Recent Milestones
+
+### 2026-05-13 — Stroke-Lipid research import + data-modelling conventions
+
+- Added migration `010-stroke-lipid-seed.js` registered in `database-service.js`:
+  50 concepts (5 missing LOINCs, 2 SNOMED comorbidities, 16 study-specific drugs,
+  9 findings, 2 selections + 9 A-type options, 3 visit-type markers, age + stroke-
+  date concepts, 2 free-text concepts), 5 field sets, 3 visit types, 2
+  `VALUEFLAG_CD` codes (`NV`, `NI`), 1 study row.
+- Established the **3-state numeric pattern** via `OBSERVATION_FACT.VALUEFLAG_CD='NV'`
+  (no schema change). Distinguishes "explicit no value" (e.g. patient assessed and
+  not taking the drug) from "not assessed" (no observation at all).
+- Codified the **F-type Finding answer convention**: `TVAL_CHAR = SCTID:373066001`
+  (Yes) / `SCTID:373067005` (No), parallel to how S-type Selections work.
+- Codified the **`CATEGORY_CHAR` label convention**: human-readable labels only
+  (`'Stroke'`, `'Demographics'`, etc.) — never `CAT_*` codes. Existing
+  `SCTID: 371484003` (Patient name) re-categorised from `'General'` to
+  `'Demographics'` via fix-up step in the migration.
+- Documented the **visit-type ↔ field-set linkage** (visit-type `LOOKUP_BLOB` carries
+  `fieldSets[]` referencing field-set IDs; field-sets have `{concepts[], categories[]}`
+  for hybrid matching).
+- New isolated Node importer at `scripts/import-fw-lipid/` (xlsx + better-sqlite3,
+  own `package.json`) with 2 % spot-check verifier. Successfully imported
+  425/428 patients from `Mastertabelle_Franzi_LDL_Daten_20260513.xlsx`
+  (1037 visits, 21 969 observations, 0 mapping errors).
+
+See `CLAUDE.md` "Data Modelling Conventions" for the full set of invariants,
+and `CLAUDE.md` "Building a New Visit Template" for the step-by-step recipe
+that captures the workflow used here.
+
+---
+
 ## 🎉 COMPLETED SUCCESSFULLY
 
 ### ✅ Core Architecture (100% Complete)

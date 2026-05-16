@@ -20,6 +20,17 @@
         <span v-if="unitDisplay" class="cell-unit">{{ unitDisplay }}</span>
       </div>
 
+      <!-- 3-state numeric: VALUEFLAG_CD='NV' = patient was assessed and explicitly
+           has no value (e.g. drug not taken). Distinct visual to separate from
+           "not yet assessed" (which has no observation at all). See CLAUDE.md. -->
+      <div
+        v-else-if="valueType === 'N' && valueFlag === 'NV'"
+        class="cell-no-value"
+        title="Erfasst — kein Wert (nicht eingenommen / nicht zutreffend)"
+      >
+        <q-icon name="block" size="14px" color="grey-6" />
+      </div>
+
       <!-- Empty Cell -->
       <div v-else class="cell-empty">
         <q-icon name="add" size="12px" color="grey-5" />
@@ -147,6 +158,13 @@ const props = defineProps({
     type: [String, Number],
     default: null,
   },
+  // OBSERVATION_FACT.VALUEFLAG_CD for the cell. Currently used for 'NV' = the
+  // patient was assessed but explicitly has no numeric value (e.g. drug not
+  // taken). Distinct from "not assessed" (cell has no observation at all).
+  valueFlag: {
+    type: String,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['update', 'save', 'error', 'edit-recorded'])
@@ -198,6 +216,7 @@ const cellClasses = computed(() => ({
   'has-value': !!displayValue.value,
   'has-changes': hasUnsavedChanges.value,
   'is-saving': isSaving.value,
+  'has-no-value-flag': props.valueFlag === 'NV' && !displayValue.value,
   [`value-type-${props.valueType.toLowerCase()}`]: true,
 }))
 
@@ -727,6 +746,24 @@ watch(editValue, (newValue) => {
 
     .editable-cell:hover & {
       opacity: 1;
+    }
+  }
+
+  // 3-state numeric: "assessed but no value" (VALUEFLAG_CD='NV').
+  // Visible by default (always-on, not just on hover) so the user can tell at a
+  // glance that this is recorded data, not a blank cell.
+  .cell-no-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.55;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 2px;
+    margin: 2px;
+
+    .editable-cell:hover & {
+      opacity: 0.9;
     }
   }
 

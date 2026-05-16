@@ -1,0 +1,17 @@
+{
+  "name": "fw-lipid-importer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "commonjs",
+  "description": "One-off importer: XLSX (Stroke-Lipid study) -> production.db",
+  "scripts": {
+    "inspect": "node inspect.js",
+    "build-json": "node build-json.js",
+    "import": "node import.js",
+    "verify": "node verify.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "xlsx": "^0.18.5"
+  }
+}

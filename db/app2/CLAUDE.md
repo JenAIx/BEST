@@ -1,6 +1,6 @@
-# AGENTS.md - Quick Reference Guide for AI Assistants
+# CLAUDE.md - Quick Reference Guide for AI Assistants
 
-> **Purpose**: This file provides essential information about the BEST application architecture, database, users, and main pages for quick reference during development and debugging.
+> **Purpose**: This file provides essential information about the BEST application architecture, database, users, and main pages for quick reference during development and debugging. *(Renamed from `AGENTS.md` in May 2026 to align with the Claude Code convention; same content, plus the new "Building a New Visit Template" recipe.)*
 
 ---
 
@@ -246,6 +246,393 @@ const observationRepo = dbStore.getRepository('observation')
 // Execute queries
 const result = await dbStore.executeQuery(sql, params)
 ```
+
+---
+
+## 📐 Data Modelling Conventions
+
+These are project-wide invariants that ALL new concepts/observations/migrations must
+follow. They were established as the codebase grew (most recently solidified by the
+Stroke-Lipid research import, May 2026); see `CHANGELOG.md` for history.
+
+### 1. `CATEGORY_CHAR` uses human-readable labels — not `CAT_*` codes
+
+Both `CONCEPT_DIMENSION.CATEGORY_CHAR` and `OBSERVATION_FACT.CATEGORY_CHAR` store the
+**display label** (`'Stroke'`, `'Demographics'`, `'Laboratory'`, `'Medications'`,
+`'Vital Signs'`, `'General'`, …). The codes (`CAT_STROKE`, `CAT_MEDICATIONS`, …) are
+only valid in `CODE_LOOKUP(CONCEPT_DIMENSION/CATEGORY_CHAR)` as `CODE_CD` keys mapping
+to the labels.
+
+**Why**: the frontend's field-set matcher compares `FieldSet.categories[]` (human
+labels in `LOOKUP_BLOB`) against `CONCEPT_DIMENSION.CATEGORY_CHAR` directly. Concepts
+stored with `CAT_*` codes fall through to "Uncategorized" because the labels don't match.
+
+```sql
+-- ✅ correct
+INSERT INTO CONCEPT_DIMENSION (..., CATEGORY_CHAR) VALUES (..., 'Laboratory');
+-- ❌ wrong — will appear as "Uncategorized" in the UI
+INSERT INTO CONCEPT_DIMENSION (..., CATEGORY_CHAR) VALUES (..., 'CAT_LABORATORY');
+```
+
+### 2. F-Type Findings store answers in `TVAL_CHAR`, not `NVAL_NUM`
+
+For VALTYPE `F` (Finding) observations, the Yes/No answer is recorded as a reference
+to an A-type concept in `TVAL_CHAR` — analogous to how S-type Selections work.
+
+```javascript
+// Yes (= 1, "patient has hypertension")
+TVAL_CHAR = 'SCTID: 373066001'  // Yes (A-type)
+NVAL_NUM  = NULL
+
+// No (= 0, "patient does NOT have hypertension")
+TVAL_CHAR = 'SCTID: 373067005'  // No (A-type)
+NVAL_NUM  = NULL
+```
+
+The two answer concepts (already seeded) are:
+
+- `SCTID: 373066001` — "Yes" (VALTYPE `A`)
+- `SCTID: 373067005` — "No" (VALTYPE `A`)
+
+### 3. 3-State pattern for numeric observations via `VALUEFLAG_CD`
+
+When a numeric value can be in one of three states — **measured**, **explicitly
+no value**, or **not assessed** — use `OBSERVATION_FACT.VALUEFLAG_CD = 'NV'` to mark
+the explicit-no-value case. No schema change needed (column already exists).
+
+| Semantic state | DB representation |
+|---|---|
+| Measured (value present) | `NVAL_NUM = 40`, `UNIT_CD = 'mg'`, `VALUEFLAG_CD = NULL` |
+| Explicitly no value (asked + negative) | `NVAL_NUM = NULL`, `UNIT_CD = 'mg'`, `VALUEFLAG_CD = 'NV'`, `OBSERVATION_BLOB = {"explicit":true}` |
+| Not assessed (unknown) | **No observation row at all** |
+
+`NV` is registered in `CODE_LOOKUP(OBSERVATION_FACT/VALUEFLAG_CD)` with HL7v3 nullFlavor
+mapping `~ NP` (not present). Use this pattern for medications (taking/not-taking/unknown),
+lab values where "explicitly not measured" is meaningful, or any other numeric where
+zero and missing differ in meaning.
+
+UI hint: render checkbox "no value" when `VALUEFLAG_CD='NV'`, number input when
+`NVAL_NUM != NULL`, empty field when no observation exists.
+
+### 4. Concept reuse hierarchy
+
+Before creating a `CUSTOM:` or domain-prefixed concept, walk this hierarchy:
+
+1. **LOINC** (`LID: <code>`) — labs and observations. Search by name in
+   `CONCEPT_DIMENSION WHERE CONCEPT_CD LIKE 'LID:%'`.
+2. **SNOMED CT** (`SCTID: <code>`) — findings, anatomy, conditions, devices.
+   Search `CONCEPT_DIMENSION WHERE CONCEPT_CD LIKE 'SCTID:%'`.
+3. **ICD-10** (`ICD10: <code>`) — diagnoses if you need ICD specifically.
+4. **Existing custom seed** — check the seed CSVs in
+   `src/core/database/seeds/concept_dimension_data.csv`.
+5. Only then create a new study-specific concept (`<DOMAIN>:CATEGORY:KEY`,
+   e.g. `STROKE_LIPID:DRUG:ATORVASTATIN`).
+
+This keeps concept reuse high across studies and ensures interoperability with
+external systems.
+
+### 5. Visit-Type ↔ Field-Set linkage pattern
+
+Visit types live in `CODE_LOOKUP(VISIT_DIMENSION/VISIT_TYPE_CD)` and carry a
+`LOOKUP_BLOB.fieldSets[]` array referencing field-set IDs by their `CODE_CD`:
+
+```json
+{
+  "label": "Stroke-Lipid V1 - Index Stroke",
+  "icon": "emergency", "color": "red",
+  "fieldSets": [
+    { "id": "lipid_stroke_event", "name": "Stroke Event",    "active": true },
+    { "id": "lipid_labor",        "name": "Laboratory",      "active": true },
+    { "id": "lipid_drugs",        "name": "Lipid Medications","active": true }
+  ]
+}
+```
+
+Field sets live in `CODE_LOOKUP(VISIT_DIMENSION/FIELD_SET_CD)` and carry
+`LOOKUP_BLOB.{concepts[], categories[]}` for hybrid matching:
+
+```json
+{
+  "description": "Lipid panel + HbA1c + ASAT/ALAT + GFR + Lp(a)",
+  "icon": "science",
+  "concepts": ["LID: 22748-8", "LID: 14646-4", ...],
+  "categories": ["Laboratory"]
+}
+```
+
+The frontend uses both: a concept matches the field-set if its code appears in
+`concepts[]`, OR its `CATEGORY_CHAR` appears in `categories[]`. This is why the
+CATEGORY_CHAR label convention (rule #1) matters.
+
+When introducing a new visit type, follow the migration pattern of
+`007-parkinson-visit-types.js` / `010-stroke-lipid-seed.js`.
+
+### 6. Bulk-import / re-import pattern
+
+For any non-trivial bulk data import (XLSX/CSV/JSON):
+
+- **Tag every row** with `SOURCESYSTEM_CD = '<UNIQUE_TAG>'` across all four
+  tables (`PATIENT_DIMENSION`, `VISIT_DIMENSION`, `OBSERVATION_FACT`,
+  `STUDY_PATIENT_LOOKUP`). Enables surgical rollback:
+
+  ```sql
+  DELETE FROM OBSERVATION_FACT WHERE SOURCESYSTEM_CD = '<TAG>';
+  DELETE FROM VISIT_DIMENSION  WHERE SOURCESYSTEM_CD = '<TAG>';
+  DELETE FROM PATIENT_DIMENSION WHERE SOURCESYSTEM_CD = '<TAG>';
+  ```
+
+- **Per-patient delete-and-rewrite** for idempotent re-runs: before inserting,
+  `DELETE FROM <table> WHERE PATIENT_NUM = ? AND SOURCESYSTEM_CD = ?`.
+- **Compute derived values** rather than reading from source where possible
+  (e.g. age from `BIRTH_DATE + event_date`). Mark with
+  `OBSERVATION_BLOB.computed = true` for traceability.
+- **Normalise XLSX header keys** for U+00A0 (NBSP) — German Excel exports
+  frequently contain NBSPs in column headers (e.g. `"Alirocumab/ Praluent_V1"`).
+  Use an explicit ` ` regex.
+
+The Stroke-Lipid importer in `scripts/import-fw-lipid/` is the reference
+implementation.
+
+### 7. Self-healing migrations
+
+Migrations that **only insert** should use `INSERT OR IGNORE`. Migrations that
+need to correct prior state (e.g. category labels written incorrectly by an
+earlier run) should use `INSERT ... ON CONFLICT(<key>) DO UPDATE SET …`:
+
+```sql
+INSERT INTO CONCEPT_DIMENSION (CONCEPT_PATH, CONCEPT_CD, NAME_CHAR, ...)
+VALUES (?, ?, ?, ...)
+ON CONFLICT(CONCEPT_CD) DO UPDATE SET
+  NAME_CHAR     = excluded.NAME_CHAR,
+  CATEGORY_CHAR = excluded.CATEGORY_CHAR,
+  UPDATE_DATE   = excluded.UPDATE_DATE;
+```
+
+For one-off fix-ups of existing rows that this migration doesn't own, add explicit
+`UPDATE` statements after the upserts (see `010-stroke-lipid-seed.js`'s
+`categoryFixups` block — that's how `SCTID: 371484003` was moved from `'General'`
+to `'Demographics'`).
+
+---
+
+## 🩺 Building a New Visit Template
+
+This is the project's reference recipe for introducing a new study or
+visit-type set into the system. It captures every decision that went into the
+Stroke-Lipid implementation (May 2026) so the next study can be set up in an
+afternoon instead of a sprint. Concrete files referenced here:
+
+- Migration template: `src/core/database/migrations/010-stroke-lipid-seed.js`
+- Importer template:  `scripts/import-fw-lipid/` (mapping, parsers, import, verify)
+- Earlier templates:  `007-parkinson-visit-types.js`, `006-fieldset-categories.js`
+
+### The mental model
+
+A "visit template" in BEST is the combination of **four artefacts** in
+`CODE_LOOKUP` + `CONCEPT_DIMENSION` that together tell the UI how to render a
+new kind of visit:
+
+```
+CONCEPT_DIMENSION
+  └─ N concept rows (drugs, labs, findings, selections + A-type options, date, …)
+        with CATEGORY_CHAR set to a human-readable label
+
+CODE_LOOKUP (TABLE_CD='VISIT_DIMENSION')
+  ├─ COLUMN_CD='VISIT_TYPE_CD'  → one row per visit type
+  │      LOOKUP_BLOB = { label, icon, color, fieldSets:[{id,name,active}] }
+  └─ COLUMN_CD='FIELD_SET_CD'   → one row per field set referenced above
+         LOOKUP_BLOB = { description, icon, concepts:[…], categories:[…] }
+
+STUDY_DIMENSION
+  └─ optional: one row that identifies the study, used for patient enrolment
+```
+
+When a user creates a visit of type `<your_type>`, the editor reads the visit
+type's `fieldSets[]`, looks each field-set's `concepts[]` + `categories[]` up,
+and renders matching observation inputs. **No code changes are needed in the UI
+to add a new visit type** — everything is data-driven.
+
+### Step 1: Inventory the new study
+
+Before writing any code, answer these on paper (or in a working doc — see the
+plan files in `~/.claude/plans/` for past examples):
+
+1. **Visit timeline** — how many visits per patient? Are they sequential
+   (V0/V1/V2 like Stroke-Lipid) or named (Erstvorstellung / Verlaufskontrolle
+   like Parkinson)? What's each visit's `INOUT_CD` (`I`/`O`/`E`)?
+2. **What observations are recorded at each visit?** Group them into 3–6 buckets
+   (one bucket = one field set). Bucket by semantic family, not by row order.
+3. **For each observation:**
+   - VALTYPE (`N`/`T`/`F`/`S`/`D`/`B`/`R`/`Q`)
+   - For numerics: unit
+   - For F-findings: the answer is always Yes/No (SCTID:373066001 / SCTID:373067005)
+   - For S-selections: write down every option
+   - **Can it be reused from LOINC / SNOMED / ICD-10 / the existing seed?**
+     Walk the concept-reuse hierarchy (Data Modelling Conventions §4).
+4. **3-state numerics?** Mark every numeric where "assessed, explicitly no
+   value" differs from "not assessed" (typically: medications, optional labs).
+   These will use the `VALUEFLAG_CD='NV'` pattern (§3).
+
+The reference Stroke-Lipid inventory (50 concepts, 5 field sets, 3 visit types)
+lives in the data section near the top of `010-stroke-lipid-seed.js`.
+
+### Step 2: Write the migration
+
+Create `src/core/database/migrations/0NN-<study>-seed.js`. Structure:
+
+```js
+// 1. Concept rows (path, code, name, valtype, unit, category)
+const CONCEPTS = [
+  // drugs (N, mg)
+  ['\\STUDY\\DRUG\\X', 'STUDY:DRUG:X', 'Drug X', 'N', 'mg', 'Medications'],
+  // findings (F)
+  ['\\STUDY\\FINDING\\Y', 'STUDY:FINDING:Y', 'Finding Y', 'F', null, 'Stroke'],
+  // selections (S) + their A-type options
+  ['\\STUDY\\SEL\\Z', 'STUDY:SEL:Z', 'Selection Z', 'S', null, 'Stroke'],
+  ['\\STUDY\\SEL\\Z\\OPT1', 'STUDY:Z:OPT1', 'Option 1', 'A', null, 'Stroke'],
+  // dates (D)
+  ['\\STUDY\\EVENT_DATE', 'STUDY:EVENT_DATE', 'Event date', 'D', null, 'Stroke'],
+  // free text (T)
+  ['\\STUDY\\NOTES', 'STUDY:NOTES', 'Notes', 'T', null, 'Stroke'],
+  // re-use existing where possible — don't list these here, just reference them
+  // in field sets by their existing CONCEPT_CD (e.g. 'LID: 22748-8' for LDL).
+]
+
+// 2. Field set rows — one per UI input panel.
+const FIELD_SETS = [
+  {
+    code: 'study_baseline',
+    name: 'Study - Baseline',
+    blob: {
+      description: 'Comorbidities, vitals, etiology',
+      icon: 'monitor_heart',
+      concepts: ['STUDY:FINDING:Y', 'SCTID: 49436004', 'STUDY:SEL:Z'],
+      categories: ['Stroke', 'Vital Signs'], // hybrid matching fallback
+    },
+  },
+  // … one per bucket
+]
+
+// 3. Visit type rows — each referencing its field sets by code.
+const VISIT_TYPES = [
+  {
+    code: 'study_v0',
+    name: 'Study V0 (Baseline)',
+    blob: {
+      label: 'Study V0 - Baseline',
+      icon: 'monitor_heart', color: 'orange',
+      fieldSets: [
+        { id: 'study_baseline', name: 'Baseline', active: true },
+        { id: 'study_drugs',    name: 'Medications', active: true },
+      ],
+    },
+  },
+  // … one per visit type
+]
+
+// 4. Optional: VALUEFLAG_CD codes if you use 3-state numerics.
+//    (NV / NI are already seeded by 010-stroke-lipid-seed; re-seeding is safe.)
+
+// 5. Optional: STUDY_DIMENSION row.
+
+// 6. Optional: category fix-ups for existing CONCEPT_DIMENSION rows that you
+//    want to re-categorise (rare — see categoryFixups in 010).
+```
+
+Use **self-healing upserts** (Data Modelling Conventions §7) so the migration
+can correct earlier mistakes when re-run. Pattern:
+
+```sql
+INSERT INTO CONCEPT_DIMENSION (...)
+VALUES (?, ?, ?, ?, ?, ?, 'STUDY_MIGRATION', NOW, NOW)
+ON CONFLICT(CONCEPT_CD) DO UPDATE SET
+  NAME_CHAR = excluded.NAME_CHAR,
+  CATEGORY_CHAR = excluded.CATEGORY_CHAR,
+  UPDATE_DATE = excluded.UPDATE_DATE;
+```
+
+Register the migration in `src/core/services/database-service.js` alongside the
+existing migrations:
+
+```js
+import { studySeed } from '../database/migrations/0NN-study-seed.js'
+// …
+this.migrationManager.registerMigration(studySeed)
+```
+
+The migration runs automatically on the next app start. To apply it to an
+existing dev DB without restarting the app, copy the `apply-migration.js`
+pattern from `scripts/import-fw-lipid/`:
+
+```bash
+node scripts/import-fw-lipid/apply-migration.js  # idempotent; supports --force
+```
+
+### Step 3: Verify the seed before importing data
+
+```bash
+sqlite3 database/production.db << 'EOF'
+-- Concepts seeded
+SELECT VALTYPE_CD, COUNT(*) FROM CONCEPT_DIMENSION
+WHERE CONCEPT_CD LIKE 'STUDY:%' GROUP BY VALTYPE_CD;
+-- Visit types
+SELECT CODE_CD, NAME_CHAR FROM CODE_LOOKUP
+WHERE TABLE_CD='VISIT_DIMENSION' AND COLUMN_CD='VISIT_TYPE_CD' AND CODE_CD LIKE 'study_%';
+-- Field sets
+SELECT CODE_CD, NAME_CHAR FROM CODE_LOOKUP
+WHERE TABLE_CD='VISIT_DIMENSION' AND COLUMN_CD='FIELD_SET_CD' AND CODE_CD LIKE 'study_%';
+EOF
+```
+
+At this point you can already create a visit of type `study_v0` in the UI; the
+editor will show the correct field sets and accept observations against the
+seeded concepts.
+
+### Step 4: Optional - bulk-import patient data
+
+If the study has historical patient data (XLSX / CSV / JSON), follow the
+**Bulk-import / re-import pattern** (Data Modelling Conventions §6) by copying
+`scripts/import-fw-lipid/` and adapting:
+
+- `mapping.js` — single source of truth: every source column → concept code,
+  visit, valtype, unit. Mark each concept with `existing: true` if it comes
+  from outside the new migration (reuse from LOINC/SNOMED).
+- `parsers.js` — date, PLZ, dose, finding, selection-value parsers. Most of
+  these are study-agnostic and can be reused as-is.
+- `import.js` — per-patient `delete-and-rewrite` keyed on
+  `SOURCESYSTEM_CD='<STUDY>_<DATE>'`. Apply the 3-state logic for medications.
+- `spotcheck.js` — cell-by-cell verifier. The version in the Stroke-Lipid
+  importer checks every patient × every mapped field; copy it and the only
+  thing that should change is the mapping it imports.
+- `export.js` + `export-verify.js` — headless CSV/HL7 round-trip if needed.
+
+### Step 5: Document
+
+Append an entry under `## Recent Milestones` in `IMPLEMENTATION_STATUS.md` and
+under `[Unreleased] > Added` in `CHANGELOG.md` describing what was added and
+linking to the migration / importer paths.
+
+### The Stroke-Lipid worked example
+
+For a concrete reference of every step above, see:
+
+| Step | File |
+|---|---|
+| Inventory | Commit message of `c0557b5` (migration introduction) |
+| Migration | `src/core/database/migrations/010-stroke-lipid-seed.js` (50 concepts, 5 field sets, 3 visit types) |
+| Importer  | `scripts/import-fw-lipid/import.js` (425 patients, 1037 visits, 21 969 observations) |
+| Verifier  | `scripts/import-fw-lipid/spotcheck.js` (34 136 cell assertions, 0 mismatches) |
+| Export    | `scripts/import-fw-lipid/export.js` + `export-verify.js` (CSV + HL7-JSON, 0 mismatches) |
+| Docs      | `scripts/import-fw-lipid/README.md` (the workflow as a runnable how-to) |
+
+The Stroke-Lipid migration introduces 3 visit types (V0 pre-stroke baseline,
+V1 index stroke, V2 follow-up) wired to 5 field sets (`lipid_pre_stroke`,
+`lipid_stroke_event`, `lipid_followup`, `lipid_labor`, `lipid_drugs`). V0
+carries comorbidities + vitals + etiology + age + stroke date; V1 carries
+event-type + labs + drugs + statin intolerance + new-med / dose-increase
+flags + free text; V2 carries follow-up labs + drugs + reinfarct + new-med /
+dose-increase flags + our-clinic flag. Drugs use the 3-state pattern
+(VALUEFLAG_CD='NV') so "asked, not taking" is distinct from "not assessed".
 
 ---
 

@@ -59,7 +59,6 @@
   "navigation": {
     "dashboard": "Dashboard",
     "patientManagement": "Patientenverwaltung",
-    "patientSearch": "Patientensuche",
     "newPatient": "Neuer Patient",
     "patientVisits": "Patientenbesuche",
     "questionnaires": "Fragebögen",
@@ -269,6 +268,8 @@
     "timeline": "Zeitlinie",
     "changeVisit": "Besuch wechseln",
     "dataEntry": "Dateneingabe",
+    "patientData": "Patientendaten",
+    "viewPatientData": "Patientendaten anzeigen",
     "addMedication": "Medikament hinzufügen",
     "exportPdf": "PDF exportieren",
     "loadingSummary": "Besuchszusammenfassung wird geladen...",
@@ -292,6 +293,7 @@
     "endDate": "Enddatum",
     "startDateRequired": "Startdatum ist erforderlich",
     "recentPatients": "Aktuelle Patienten",
+    "latestPatients": "Zuletzt hinzugefügt",
     "searchResults": "Suchergebnisse ({count})",
     "noPatientsFound": "Keine Patienten gefunden",
     "tryDifferentSearch": "Versuchen Sie einen anderen Suchbegriff",
@@ -851,6 +853,7 @@
     "selectPatientHint": "Patienten auswählen, um deren Besuchshistorie anzuzeigen und zu verwalten",
     "findPatient": "Patient finden",
     "searchPatientPlaceholder": "Nach Name oder Patienten-ID suchen...",
+    "advancedFilters": "Erweiterte Filter",
     "dragToResize": "Ziehen zum Ändern der Beobachtungsspalten-Größe"
   },
   "notifications": {

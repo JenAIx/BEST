@@ -44,13 +44,11 @@ const routes = [
       },
       {
         path: 'patients',
-        component: () => import('pages/PatientSearchPage.vue'),
-        meta: { requiresAuth: true },
+        redirect: '/visits',
       },
       {
         path: 'patient/:patientId',
-        component: () => import('pages/PatientPage.vue'),
-        meta: { requiresAuth: true },
+        redirect: (to) => `/visits/${to.params.patientId}`,
       },
       {
         path: 'visits',
