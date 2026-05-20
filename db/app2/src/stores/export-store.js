@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia'
 import { useDatabaseStore } from './database-store'
+import databaseService from 'src/core/services/database-service'
+import { ExportService } from 'src/core/services/export-service'
 import { createLogger } from 'src/core/services/logging-service'
 
 export const useExportStore = defineStore('export', () => {
@@ -162,7 +164,93 @@ export const useExportStore = defineStore('export', () => {
     }
   }
 
+  /**
+   * Export all patients enrolled in a study, in the chosen format.
+   * Runs the same ExportService the headless CLI uses (scripts/import-fw-lipid/export.js)
+   * and triggers a browser download.
+   *
+   * @param {string} studyCd - STUDY_CD (e.g. 'STROKE_LIPID')
+   * @param {'csv'|'hl7'} format - export format
+   * @returns {Promise<{recordCount:number, filename:string, sizeBytes:number}>}
+   */
+  const exportStudyPatients = async (studyCd, format = 'csv') => {
+    const timer = logger.startTimer(`Study patient export (${format})`)
+    logger.info('Starting study patient export', { studyCd, format })
+
+    try {
+      const studyRepo = dbStore.getRepository('study')
+      if (!studyRepo || typeof studyRepo.findEnrolledPatientCds !== 'function') {
+        throw new Error('Study repository or findEnrolledPatientCds not available')
+      }
+      const patientCds = await studyRepo.findEnrolledPatientCds(studyCd)
+      if (!patientCds.length) {
+        throw new Error(`No enrolled patients found for study ${studyCd}`)
+      }
+
+      // ExportService is part of the same DatabaseService boot the app has
+      // already completed, so initialize() just hooks up the existing repos.
+      const exporter = new ExportService(databaseService)
+      await exporter.initialize()
+
+      const selected = patientCds.map((cd) => ({ id: cd, PATIENT_CD: cd }))
+      const result = await exporter.exportPatients(selected, format, {
+        includeVisits: true,
+        includeObservations: true,
+        includeNotes: false,
+      })
+
+      const mimeType = format === 'hl7' ? 'application/json' : 'text/csv'
+      downloadFile(result.content, result.filename, mimeType)
+
+      const duration = timer.end()
+      logger.success('Study patient export completed', {
+        studyCd,
+        format,
+        recordCount: patientCds.length,
+        filename: result.filename,
+        sizeBytes: result.size,
+        duration: `${duration.toFixed(2)}ms`,
+      })
+
+      return {
+        recordCount: patientCds.length,
+        filename: result.filename,
+        sizeBytes: result.size,
+      }
+    } catch (error) {
+      timer.end()
+      logger.error('Failed to export study patients', error, { studyCd, format })
+      throw error
+    }
+  }
+
+  /**
+   * Generic file download (factored out so both CSV and HL7-JSON can reuse it).
+   * UTF-8 BOM is only useful for Excel-CSV; HL7-JSON ships without one.
+   */
+  const downloadFile = (content, filename, mimeType) => {
+    try {
+      const isCsv = mimeType && mimeType.includes('csv')
+      const payload = isCsv ? '﻿' + content : content
+      const blob = new Blob([payload], { type: `${mimeType};charset=utf-8;` })
+
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', filename)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      logger.error('Failed to trigger file download', error, { filename })
+      throw new Error(`Failed to download file: ${error.message}`)
+    }
+  }
+
   return {
     exportConceptsToCSV,
+    exportStudyPatients,
   }
 })

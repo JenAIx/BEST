@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Cohort Dashboard / Study Insights
+
+- **New "Insights" tab on `StudyDetailsPage.vue`** — for any study, renders
+  six aggregate sections over the enrolled cohort:
+  - **Visit Retention** — enrolled + per-visit-type patient counts as KPI
+    cards (e.g. Stroke-Lipid: 425 enrolled · 425 V0 · 425 V1 · 187 V2).
+  - **Drug Usage** — horizontal bar list with 3-state breakdown
+    (`taking` / `not taking` / `unknown`). Bar fill = taking; buffered bar
+    extends to `taking + not taking` so the gap to 100 % is the "unknown"
+    segment. Reads concepts via `CONCEPT_CD LIKE 'STROKE_LIPID:DRUG:%'`
+    (overrideable via store option).
+  - **Comorbidity Prevalence** — every F-type Finding concept the cohort
+    has at least one observation on, with positive/total counts.
+  - **Etiology (TOAST)** + **Event Type** — distribution of the two
+    Stroke-Lipid Selection concepts.
+  - **Lab Trends (LDL + HDL)** — per-visit-type median (robust against
+    single-cell outliers), min/max, count.
+- **5 new repository methods** in `study-repository.js`:
+  `getCohortPatientCount`, `getCohortDrugUsage`,
+  `getCohortFindingPrevalence`, `getCohortSelectionDistribution`,
+  `getCohortLabSummary`. Median is computed in JS (SQLite has no
+  PERCENTILE_CONT) so a single outlier in a small cohort doesn't blow
+  up the V2 lab trend. 9 integration tests with a hand-seeded
+  4-patient cohort (`tests/integration/14_cohort-insights.test.js`).
+- **`studyStore.loadCohortInsights(studyCd, options?)`** action fires
+  the 7 aggregate queries in parallel (~150 ms wall-time for the
+  425-patient Stroke-Lipid cohort) and caches the result keyed by
+  `cohortInsightsStudyCd`. Re-load on study switch.
+- **3 new components** under `src/components/study/`:
+  `StudyInsights.vue` (container, ~250 LOC), `CohortBarList.vue`
+  (reusable horizontal bar list using `q-linear-progress`),
+  `CohortKpiCard.vue` (reusable KPI tile with optional Δ).
+- **No new chart library** — the project stays Quasar-only.
+  `q-linear-progress` is already used in 5 places and was the
+  cheapest, most-consistent path for our bar/KPI aggregates. If
+  later we need real charts (histograms, box-plots), Chart.js +
+  vue-chartjs are obvious next-step.
+
+### Last-Mile fixes for v0.2
+
+- **3-State Drug Edit-UI in the grid editor** — clicking a numeric drug cell
+  now opens an editor with a small side-toggle that flips between entering a
+  value and marking the cell as "not taken / no value" (VALUEFLAG_CD='NV').
+  Round-trip across the three states works:
+  - value → value: UPDATE with `NVAL_NUM` set, `VALUEFLAG_CD` cleared
+  - value → NV: UPDATE with `NVAL_NUM=NULL, VALUEFLAG_CD='NV'`
+  - NV → value: UPDATE with `NVAL_NUM` set, `VALUEFLAG_CD` cleared
+  - value → cleared: DELETE the row (back to "not assessed")
+  Covered by 6 unit tests in `tests/unit/15_editable-cell-nv-state.test.js`.
+- **In-App Cohort Export** — new "Export Cohort" button on every Study
+  Details page opens a small dialog (CSV vs HL7-JSON), triggers
+  `exportStore.exportStudyPatients(...)` which runs the same `ExportService`
+  the headless CLI uses, then download via Blob. Backed by a new
+  `study-repository.findEnrolledPatientCds(studyCd)` method and tested in
+  `tests/unit/16_export-store-study.test.js`.
+- **CHANGELOG graduation** — the v0.2_20260516 content moved out of
+  `[Unreleased]` into its own versioned section below; this `[Unreleased]`
+  is the clean staging area for the next release.
+
+## [0.2_20260516] - 2026-05-16
+
 ### App version
 
 - **`VITE_APP_VERSION` bumped to `0.2_20260516`** (from `0.1_20251219`). This
@@ -203,4 +264,5 @@ changes from the recent commit history (see `git log` for full detail).
 - `test(dbBEST)`: smoke tests for UI-prep foundation (notify, session monitor, error boundary).
 - `refactor(dbBEST)`: migrated all `$q.notify` calls to `useNotify` composable.
 
-[Unreleased]: https://github.com/your-org/best/compare/HEAD
+[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.2_20260516...HEAD
+[0.2_20260516]: https://github.com/JenAIx/BEST/releases/tag/v0.2_20260516

@@ -18,8 +18,52 @@
             </div>
           </div>
         </div>
-
+        <div class="row q-gutter-sm">
+          <q-btn
+            color="primary"
+            icon="download"
+            :label="$t('study.exportCohort')"
+            @click="openExportDialog"
+            :disable="!study.patientCount"
+          >
+            <q-tooltip v-if="!study.patientCount">
+              {{ $t('study.noPatientsToExport') }}
+            </q-tooltip>
+          </q-btn>
+        </div>
       </div>
+
+      <!-- Cohort Export Dialog -->
+      <q-dialog v-model="exportDialog">
+        <q-card style="min-width: 360px">
+          <q-card-section>
+            <div class="text-h6">{{ $t('study.exportCohort') }}</div>
+            <div class="text-caption text-grey-7 q-mt-xs">
+              {{ $t('study.exportCohortHint', { count: study.patientCount || 0, name: study.name }) }}
+            </div>
+          </q-card-section>
+          <q-card-section class="q-pt-none">
+            <q-option-group
+              v-model="exportFormat"
+              :options="[
+                { label: 'CSV (Spreadsheet)', value: 'csv' },
+                { label: 'HL7-JSON (FHIR Composition)', value: 'hl7' },
+              ]"
+              color="primary"
+              type="radio"
+            />
+          </q-card-section>
+          <q-card-actions align="right">
+            <q-btn flat :label="$t('common.cancel')" v-close-popup />
+            <q-btn
+              color="primary"
+              :label="$t('common.export')"
+              :loading="exporting"
+              @click="runExport"
+            />
+          </q-card-actions>
+        </q-card>
+      </q-dialog>
 
       <!-- Study Info Cards -->
       <div class="row q-col-gutter-md q-mb-lg">
@@ -122,6 +166,15 @@
         </div>
       </div>
 
+      <!-- Overview / Insights tabs -->
+      <q-tabs v-model="activeTab" dense align="left" indicator-color="primary" class="q-mb-md">
+        <q-tab name="overview" icon="info" :label="$t('study.tabOverview')" />
+        <q-tab name="insights" icon="insights" :label="$t('study.tabInsights')" />
+      </q-tabs>
+      <q-separator />
+      <q-tab-panels v-model="activeTab" animated class="bg-transparent" keep-alive>
+        <q-tab-panel name="overview" class="q-pa-none q-pt-md">
+
       <!-- Enrolled Patients -->
       <q-card>
         <q-card-section>
@@ -180,6 +233,12 @@
           </div>
         </q-card-section>
       </q-card>
+
+        </q-tab-panel>
+        <q-tab-panel name="insights" class="q-pa-none q-pt-md">
+          <StudyInsights v-if="studyCd" :study-cd="studyCd" />
+        </q-tab-panel>
+      </q-tab-panels>
     </div>
 
     <div v-else class="text-center q-py-xl">
@@ -220,13 +279,15 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useStudyStore } from 'src/stores/study-store'
+import { useExportStore } from 'src/stores/export-store'
 import EnrollPatientDialog from 'src/components/study/EnrollPatientDialog.vue'
+import StudyInsights from 'src/components/study/StudyInsights.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -234,6 +295,7 @@ const notify = useNotify()
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const studyStore = useStudyStore()
+const exportStore = useExportStore()
 
 // State
 const loading = ref(true)
@@ -248,6 +310,40 @@ const enrolling = ref(false)
 const showWithdrawDialog = ref(false)
 const patientToWithdraw = ref(null)
 const withdrawing = ref(false)
+
+// Tabs (Overview / Insights)
+const activeTab = ref('overview')
+// study.STUDY_CD is the unprefixed identifier most consumers want; some
+// upstream transforms surface it as `studyCd` instead. Try both.
+const studyCd = computed(() => study.value?.STUDY_CD || study.value?.studyCd || null)
+
+// Cohort export
+const exportDialog = ref(false)
+const exportFormat = ref('csv')
+const exporting = ref(false)
+const openExportDialog = () => {
+  exportFormat.value = 'csv'
+  exportDialog.value = true
+}
+const runExport = async () => {
+  if (!study.value?.STUDY_CD && !study.value?.studyCd) {
+    notify.error(t('study.missingStudyCode'))
+    return
+  }
+  const studyCd = study.value.STUDY_CD || study.value.studyCd
+  exporting.value = true
+  try {
+    const result = await exportStore.exportStudyPatients(studyCd, exportFormat.value)
+    notify.success(
+      t('study.exportSucceeded', { count: result.recordCount, filename: result.filename }),
+    )
+    exportDialog.value = false
+  } catch (e) {
+    notify.error(e.message)
+  } finally {
+    exporting.value = false
+  }
+}
 
 // Get study ID from route
 const studyId = parseInt(route.params.studyId)
