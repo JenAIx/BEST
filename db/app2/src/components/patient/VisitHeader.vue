@@ -194,6 +194,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useDatabaseStore } from 'src/stores/database-store'
@@ -221,6 +222,8 @@ const props = defineProps({
 const emit = defineEmits(['toggleExpansion', 'visitUpdated'])
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const globalSettingsStore = useGlobalSettingsStore()
 const conceptStore = useConceptResolutionStore()
 const databaseStore = useDatabaseStore()
@@ -552,10 +555,7 @@ const performDeleteVisit = async () => {
 
     loadingDialog.hide()
 
-    $q.notify({
-      type: 'positive',
-      message: `Visit ${visitData.ENCOUNTER_NUM} deleted successfully`,
-      position: 'top',
+    notify.success(`Visit ${visitData.ENCOUNTER_NUM} deleted successfully`, {
       timeout: 3000,
       actions: [
         {
@@ -585,10 +585,7 @@ const performDeleteVisit = async () => {
     showDeleteConfirmDialog.value = false
     showDeleteWarningDialog.value = false
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to delete visit: ${error.message}`,
-      position: 'top',
+    notify.error(`Failed to delete visit: ${error.message}`, {
       timeout: 5000,
       actions: [
         {

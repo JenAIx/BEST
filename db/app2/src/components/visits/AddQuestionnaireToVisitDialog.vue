@@ -111,7 +111,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useQuestionnaireStore } from 'src/stores/questionnaire-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -134,7 +134,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'questionnaire-selected'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const questionnaireStore = useQuestionnaireStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
@@ -187,12 +187,7 @@ const isAlreadyAdded = (code) => {
 
 const selectQuestionnaire = (q) => {
   if (isAlreadyAdded(q.code)) {
-    $q.notify({
-      type: 'warning',
-      message: `"${q.title}" ist bereits in dieser Visite vorhanden`,
-      position: 'top',
-      timeout: 2000,
-    })
+    notify.warning(`"${q.title}" ist bereits in dieser Visite vorhanden`, { timeout: 2000 })
     return
   }
 
@@ -215,7 +210,7 @@ const loadQuestionnaires = async () => {
     logger.info('Questionnaires loaded', { count: questionnaireStore.questionnaireList.length })
   } catch (error) {
     logger.error('Failed to load questionnaires', error)
-    $q.notify({ type: 'negative', message: 'Fragebögen konnten nicht geladen werden', position: 'top' })
+    notify.error('Fragebögen konnten nicht geladen werden')
   } finally {
     loading.value = false
   }

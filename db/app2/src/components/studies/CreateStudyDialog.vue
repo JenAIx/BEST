@@ -55,8 +55,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
-
+import { useNotify } from 'src/composables/useNotify'
 const props = defineProps({
   modelValue: {
     type: Boolean,
@@ -66,8 +65,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'study-created'])
 
-const $q = useQuasar()
-
+const notify = useNotify()
 // Form data
 const studyData = ref({
   name: '',
@@ -146,18 +144,10 @@ const onSubmit = async () => {
     // Close dialog
     isVisible.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: `Study "${newStudy.name}" created successfully!`,
-      position: 'top',
-    })
+    notify.success(`Study "${newStudy.name}" created successfully!`)
   } catch (error) {
     console.error('Failed to create study:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to create study',
-      position: 'top',
-    })
+    notify.error('Failed to create study')
   } finally {
     loading.value = false
   }

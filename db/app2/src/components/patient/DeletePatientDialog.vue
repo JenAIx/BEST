@@ -33,12 +33,15 @@
 <script setup>
 import { ref } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
 
 const emit = defineEmits(['deleted', 'cancel'])
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 
 // State
@@ -154,12 +157,7 @@ const performDeletePatient = async () => {
 
     loadingDialog.hide()
 
-    $q.notify({
-      type: 'positive',
-      message: `Patient ${currentPatient.value.PATIENT_CD} deleted successfully!`,
-      position: 'top',
-      timeout: 3000,
-    })
+    notify.success(`Patient ${currentPatient.value.PATIENT_CD} deleted successfully!`, { timeout: 3000 })
 
     // Clean up state
     showDeleteConfirmDialog.value = false
@@ -178,10 +176,7 @@ const performDeletePatient = async () => {
     showDeleteConfirmDialog.value = false
     showDeleteWarningDialog.value = false
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to delete patient: ${error.message}`,
-      position: 'top',
+    notify.error(`Failed to delete patient: ${error.message}`, {
       timeout: 5000,
       actions: [
         {

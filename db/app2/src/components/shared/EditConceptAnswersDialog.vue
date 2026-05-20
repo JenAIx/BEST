@@ -116,10 +116,13 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('EditConceptAnswersDialog')
@@ -214,10 +217,7 @@ const loadAnswers = async () => {
     }
   } catch (error) {
     logger.error('Failed to load answers', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load answers',
-    })
+    notify.error('Failed to load answers')
   } finally {
     loading.value = false
   }
@@ -246,20 +246,14 @@ const addAnswer = async () => {
 
     await conceptRepo.createConcept(answerData)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Answer added successfully',
-    })
+    notify.success('Answer added successfully')
 
     resetNewAnswer()
     showAddForm.value = false
     await loadAnswers()
   } catch (error) {
     logger.error('Failed to add answer', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to add answer',
-    })
+    notify.error('Failed to add answer')
   }
 }
 
@@ -281,19 +275,13 @@ const saveEditAnswer = async () => {
 
     await conceptRepo.updateConcept(editingAnswer.value.CONCEPT_CD, updateData)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Answer updated successfully',
-    })
+    notify.success('Answer updated successfully')
 
     showEditDialog.value = false
     await loadAnswers()
   } catch (error) {
     logger.error('Failed to update answer', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to update answer',
-    })
+    notify.error('Failed to update answer')
   }
 }
 
@@ -311,18 +299,12 @@ const deleteAnswer = (answer) => {
 
       await conceptRepo.deleteConcept(answer.CONCEPT_CD)
 
-      $q.notify({
-        type: 'positive',
-        message: 'Answer deleted successfully',
-      })
+      notify.success('Answer deleted successfully')
 
       await loadAnswers()
     } catch (error) {
       logger.error('Failed to delete answer', error)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to delete answer',
-      })
+      notify.error('Failed to delete answer')
     }
   })
 }

@@ -297,24 +297,81 @@ describe('CSV Service', () => {
       expect(value).toBe('2024-01-15')
     })
 
-    it('should handle unknown value types', () => {
+    it('should return empty string for unknown value types (so re-import treats them as no-obs)', () => {
       const observation = {
         VALTYPE_CD: 'X',
-        TVAL_CHAR: 'Unknown',
+        TVAL_CHAR: 'Anything',
       }
 
       const value = csvService.formatObservationValue(observation)
-      expect(value).toBe('Unknown')
+      expect(value).toBe('')
     })
 
-    it('should handle null values', () => {
+    it('should return empty string for null numeric values (so re-import treats them as no-obs)', () => {
       const observation = {
         VALTYPE_CD: 'N',
         NVAL_NUM: null,
       }
 
       const value = csvService.formatObservationValue(observation)
-      expect(value).toBe('Unknown')
+      expect(value).toBe('')
+    })
+
+    it('should emit [NV] marker for 3-state numeric "assessed, explicitly no value"', () => {
+      // VALUEFLAG_CD='NV' is the project-wide marker (see CLAUDE.md Data Modelling
+      // Conventions). E.g. "patient was asked, explicitly not taking this drug".
+      const observation = {
+        VALTYPE_CD: 'N',
+        NVAL_NUM: null,
+        VALUEFLAG_CD: 'NV',
+      }
+
+      const value = csvService.formatObservationValue(observation)
+      expect(value).toBe('[NV]')
+    })
+
+    it('should format F-type (Finding) observation as its TVAL_CHAR (SCTID:Yes/No A-ref)', () => {
+      const observation = {
+        VALTYPE_CD: 'F',
+        TVAL_CHAR: 'SCTID: 373066001', // "Yes" A-type concept
+      }
+      expect(csvService.formatObservationValue(observation)).toBe('SCTID: 373066001')
+    })
+
+    it('should format S-type (Selection) observation as its TVAL_CHAR (A-ref)', () => {
+      const observation = {
+        VALTYPE_CD: 'S',
+        TVAL_CHAR: 'STROKE_LIPID:ETIO:CRYPTOGENIC',
+      }
+      expect(csvService.formatObservationValue(observation)).toBe('STROKE_LIPID:ETIO:CRYPTOGENIC')
+    })
+
+    it('should prefer TVAL_CHAR over START_DATE for D-type observations', () => {
+      // Date observations may carry the date in TVAL_CHAR (preferred, set by
+      // explicit date imports like Stroke-Lipid stroke event date) OR in
+      // START_DATE (legacy). TVAL_CHAR must win.
+      const observation = {
+        VALTYPE_CD: 'D',
+        TVAL_CHAR: '2025-02-13',
+        START_DATE: '2025-02-12',
+      }
+      expect(csvService.formatObservationValue(observation)).toBe('2025-02-13')
+    })
+
+    it('should round-trip a 3-state drug observation through export → import', async () => {
+      // Export → re-import: [NV] marker should restore VALUEFLAG_CD='NV' with
+      // no numeric value. See CLAUDE.md "3-state pattern for numerics".
+      const exported = csvService.formatObservationValue({
+        VALTYPE_CD: 'N',
+        NVAL_NUM: null,
+        VALUEFLAG_CD: 'NV',
+      })
+      expect(exported).toBe('[NV]')
+      const reimported = csvService.createObservationFromField('STROKE_LIPID:DRUG:ASS', '[NV]', 1, 1)
+      expect(reimported.VALTYPE_CD).toBe('N')
+      expect(reimported.NVAL_NUM).toBeNull()
+      expect(reimported.TVAL_CHAR).toBeNull()
+      expect(reimported.VALUEFLAG_CD).toBe('NV')
     })
   })
 
@@ -430,6 +487,13 @@ TEST002,2024-01-16,165,60`
       expect(result.metadata.author).toBe('Test User')
     })
 
+    it('should strip UTF-8 BOM from CSV content', () => {
+      const bomCsv = '\uFEFFPatient ID\nPATIENT_CD\nTEST001'
+      const parsed = csvService.parseCsvContent(bomCsv)
+      expect(parsed.descriptionHeaders[0]).toBe('Patient ID')
+      expect(parsed.conceptHeaders[0]).toBe('PATIENT_CD')
+    })
+
     it('should parse CSV content correctly', () => {
       const parsed = csvService.parseCsvContent(mockCsvContent)
 
@@ -538,6 +602,32 @@ Data1,Data2`
       expect(result.observations[0].CONCEPT_CD).toBe('TEST:001')
     })
 
+    it('should assign unique ENCOUNTER_NUMs to multiple visits of the same patient', async () => {
+      const parsedData = {
+        descriptionHeaders: ['Patient ID', 'Visit Date', 'Height'],
+        conceptHeaders: ['PATIENT_CD', 'START_DATE', 'TEST:001'],
+        dataRows: [
+          ['PAT001', '2024-01-15', '180'],
+          ['PAT001', '2024-02-20', '181'],
+          ['PAT001', '2024-03-25', '182'],
+          ['PAT002', '2024-01-15', '170'],
+        ],
+      }
+
+      const result = await csvService.transformCsvToClinical(parsedData, { validateData: false })
+
+      expect(result.patients.length).toBe(2)
+      expect(result.visits.length).toBe(4)
+      const encounterNums = result.visits.map((v) => v.ENCOUNTER_NUM)
+      expect(new Set(encounterNums).size).toBe(4)
+      // Each observation routes to its own visit's placeholder ENCOUNTER_NUM
+      const obsByVisit = new Map()
+      for (const obs of result.observations) {
+        obsByVisit.set(obs.ENCOUNTER_NUM, (obsByVisit.get(obs.ENCOUNTER_NUM) || 0) + 1)
+      }
+      expect(obsByVisit.size).toBe(4)
+    })
+
     it('should map row data to objects', () => {
       const row = ['TEST001', '2024-01-15', '180', 'Normal']
       const conceptHeaders = ['PATIENT_CD', 'START_DATE', 'TEST:001', 'TEST:002']
@@ -601,6 +691,18 @@ Data1,Data2`
       expect(textObs.TVAL_CHAR).toBe('Normal')
     })
 
+    it('should reject overflow dates like 2024-13-45 instead of parsing them as VALTYPE D', () => {
+      const obs = csvService.createObservationFromField('TEST:DATE', '2024-13-45', 1, 1)
+      expect(obs.VALTYPE_CD).not.toBe('D')
+      expect(obs.TVAL_CHAR).toBe('2024-13-45')
+    })
+
+    it('should accept a valid YYYY-MM-DD date as VALTYPE D', () => {
+      const obs = csvService.createObservationFromField('TEST:DATE', '2024-03-15', 1, 1)
+      expect(obs.VALTYPE_CD).toBe('D')
+      expect(obs.START_DATE).toBe('2024-03-15')
+    })
+
     it('should infer observation value types correctly', () => {
       // Numeric value
       const numericObs = csvService.createObservationFromField('TEST:001', '180', 1, 1)
@@ -644,20 +746,26 @@ Data1,Data2`
       expect(result.errors.some((error) => error.message === 'Required field missing: PATIENT_CD')).toBe(true)
     })
 
-    it('should handle transformation errors', async () => {
+    it('should record per-row failures as skippedRows instead of aborting the import', async () => {
       const parsedData = {
-        descriptionHeaders: ['Patient ID'],
-        conceptHeaders: ['PATIENT_CD'],
-        dataRows: [['TEST001']],
+        descriptionHeaders: ['Patient ID', 'Visit Date', 'Height'],
+        conceptHeaders: ['PATIENT_CD', 'START_DATE', 'TEST:001'],
+        dataRows: [
+          ['TEST001', '2024-01-15', '180'],
+          ['TEST_BAD', '2024-01-16', '170'],
+          ['TEST002', '2024-01-17', '160'],
+        ],
       }
 
-      // Mock a method to throw an error
-      vi.spyOn(csvService, 'createPatientFromRow').mockImplementation(() => {
-        throw new Error('Test error')
+      vi.spyOn(csvService, 'createPatientFromRow').mockImplementation((rowData) => {
+        if (rowData.PATIENT_CD === 'TEST_BAD') throw new Error('boom')
+        return { PATIENT_CD: rowData.PATIENT_CD, SOURCESYSTEM_CD: 'CSV_IMPORT', UPLOAD_ID: 1 }
       })
 
-      const importOptions = { validateData: false }
-      await expect(csvService.transformCsvToClinical(parsedData, importOptions)).rejects.toThrow('Test error')
+      const result = await csvService.transformCsvToClinical(parsedData, { validateData: false })
+
+      expect(result.patients.length).toBe(2)
+      expect(result.skippedRows).toEqual([{ rowIndex: 1, reason: 'boom' }])
     })
   })
 })

@@ -126,7 +126,7 @@ export const useVisitStore = defineStore('visit', () => {
       logger.info('Creating new visit', { patientNum: visitData.PATIENT_NUM })
 
       const visitRepo = dbStore.getRepository('visit')
-      
+
       // Use the provided visit data directly since NewVisitDialog already formats it correctly
       const createdVisit = await visitRepo.createVisit(visitData)
       const newVisit = transformVisit(createdVisit, 0)
@@ -143,6 +143,28 @@ export const useVisitStore = defineStore('visit', () => {
     } finally {
       loading.value = false
     }
+  }
+
+  // Auto-create a visit when an import targets an existing patient with no visits.
+  // Uses import-specific defaults (active 'A', INOUT 'IMPORT', source 'IMPORT_SYSTEM')
+  // that differ from the standard createVisit defaults.
+  const createVisitForImport = async (patientNum) => {
+    if (!patientNum) {
+      throw new Error('patientNum is required for createVisitForImport')
+    }
+    const visitData = {
+      PATIENT_NUM: patientNum,
+      ACTIVE_STATUS_CD: 'A',
+      START_DATE: new Date().toISOString(),
+      INOUT_CD: 'IMPORT',
+      LOCATION_CD: 'Data Import',
+      VISIT_BLOB: JSON.stringify({
+        visitNotes: 'Auto-created for data import',
+        createdFor: 'import',
+      }),
+      SOURCESYSTEM_CD: 'IMPORT_SYSTEM',
+    }
+    return await createVisit(visitData)
   }
 
   const updateVisit = async (visitId, updateData) => {
@@ -298,6 +320,7 @@ export const useVisitStore = defineStore('visit', () => {
     clearVisits,
     loadVisitsForPatient,
     createVisit,
+    createVisitForImport,
     updateVisit,
     deleteVisit,
     updateVisitObservationCount,

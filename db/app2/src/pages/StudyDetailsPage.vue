@@ -222,7 +222,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useStudyStore } from 'src/stores/study-store'
@@ -230,7 +230,7 @@ import EnrollPatientDialog from 'src/components/study/EnrollPatientDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const studyStore = useStudyStore()
@@ -321,11 +321,7 @@ const loadStudy = async () => {
     }
   } catch (error) {
     console.error('Failed to load study:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('study.failedToLoad'),
-      position: 'top',
-    })
+    notify.error(t('study.failedToLoad'))
   } finally {
     loading.value = false
   }
@@ -346,11 +342,7 @@ const loadEnrolledPatients = async () => {
     }))
   } catch (error) {
     console.error('Failed to load enrolled patients:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('study.failedToLoadPatients'),
-      position: 'top',
-    })
+    notify.error(t('study.failedToLoadPatients'))
   } finally {
     loadingPatients.value = false
   }
@@ -377,18 +369,10 @@ const saveStudy = async () => {
     await loadStudy()
     editMode.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: t('study.studyUpdated'),
-      position: 'top',
-    })
+    notify.success(t('study.studyUpdated'))
   } catch (error) {
     console.error('Failed to save study:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('study.failedToSave'),
-      position: 'top',
-    })
+    notify.error(t('study.failedToSave'))
   } finally {
     saving.value = false
   }
@@ -421,18 +405,10 @@ const handleEnrollPatient = async ({ patientNum, enrollmentDate }) => {
 
     showEnrollDialog.value = false
 
-    $q.notify({
-      type: 'positive',
-      message: t('study.patientEnrolled'),
-      position: 'top',
-    })
+    notify.success(t('study.patientEnrolled'))
   } catch (error) {
     console.error('Failed to enroll patient:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('study.failedToEnroll'),
-      position: 'top',
-    })
+    notify.error(t('study.failedToEnroll'))
   } finally {
     enrolling.value = false
   }
@@ -460,18 +436,10 @@ const withdrawPatient = async () => {
     showWithdrawDialog.value = false
     patientToWithdraw.value = null
 
-    $q.notify({
-      type: 'positive',
-      message: t('study.patientWithdrawn'),
-      position: 'top',
-    })
+    notify.success(t('study.patientWithdrawn'))
   } catch (error) {
     console.error('Failed to withdraw patient:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('study.failedToWithdraw'),
-      position: 'top',
-    })
+    notify.error(t('study.failedToWithdraw'))
   } finally {
     withdrawing.value = false
   }

@@ -204,9 +204,9 @@ describe('Import Services Integration Tests', () => {
       const detectedFormat = detectFormat(content, '04_surveybest.html')
       expect(detectedFormat).toBe('html')
 
-      // Verify it contains CDA data
-      expect(content).toContain('CDA=')
-      expect(content).toContain('"cda"')
+      // Verify it contains CDA data (script writes `CDA = { cda: { ... } }`)
+      expect(content).toContain('CDA =')
+      expect(content).toContain('cda:')
 
       logger.info('BDI-II HTML survey format detection verified')
     })

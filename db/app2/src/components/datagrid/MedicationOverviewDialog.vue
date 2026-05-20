@@ -218,7 +218,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -263,7 +263,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'medications-updated'])
 
 const { t } = useI18n()
-const $q = useQuasar()
+const notify = useNotify()
 const databaseStore = useDatabaseStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const medicationsStore = useMedicationsStore()
@@ -333,11 +333,7 @@ const saveMedication = async (index) => {
   const med = localMedications.value[index]
   
   if (!med.drugName || !med.drugName.trim()) {
-    $q.notify({
-      type: 'warning',
-      message: 'Drug name is required',
-      position: 'top',
-    })
+    notify.warning('Drug name is required')
     return
   }
 
@@ -417,11 +413,7 @@ const saveMedication = async (index) => {
     editingIndex.value = null
     originalMedication.value = null
 
-    $q.notify({
-      type: 'positive',
-      message: t('notifications.medicationSaved'),
-      position: 'top',
-    })
+    notify.success(t('notifications.medicationSaved'))
 
     // Update local medications list with saved data
     if (!med.observationId && result) {
@@ -435,11 +427,7 @@ const saveMedication = async (index) => {
     emit('medications-updated')
   } catch (error) {
     logger.error('Failed to save medication', error)
-    $q.notify({
-      type: 'negative',
-      message: t('notifications.failedToSaveMedication'),
-      position: 'top',
-    })
+    notify.error(t('notifications.failedToSaveMedication'))
   } finally {
     saving.value = false
   }
@@ -461,21 +449,13 @@ const deleteMedication = async (med, index) => {
 
     logger.success('Medication deleted', { observationId: med.observationId })
 
-    $q.notify({
-      type: 'positive',
-      message: t('notifications.medicationDeleted'),
-      position: 'top',
-    })
+    notify.success(t('notifications.medicationDeleted'))
 
     // Emit update event
     emit('medications-updated')
   } catch (error) {
     logger.error('Failed to delete medication', error)
-    $q.notify({
-      type: 'negative',
-      message: t('notifications.failedToDeleteMedication'),
-      position: 'top',
-    })
+    notify.error(t('notifications.failedToDeleteMedication'))
   }
 }
 

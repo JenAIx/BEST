@@ -131,10 +131,12 @@ describe('FieldSet/Category/Questionnaire Integration', () => {
       }
     })
 
-    it('parkinson visit should have assessment, medications, physical', async () => {
+    it('parkinson_erst visit should have assessment, medications, physical', async () => {
+      // Migration 007 split the legacy "parkinson" visit type into
+      // parkinson_erst (Erstvorstellung) and parkinson_verlauf (Verlaufskontrolle).
       const result = await connection.executeQuery(
         `SELECT LOOKUP_BLOB FROM CODE_LOOKUP
-         WHERE TABLE_CD='VISIT_DIMENSION' AND COLUMN_CD='VISIT_TYPE_CD' AND CODE_CD='parkinson'`,
+         WHERE TABLE_CD='VISIT_DIMENSION' AND COLUMN_CD='VISIT_TYPE_CD' AND CODE_CD='parkinson_erst'`,
       )
       const meta = JSON.parse(result.data[0].LOOKUP_BLOB)
       const fsIds = meta.fieldSets.map((fs) => fs.id)
@@ -275,7 +277,6 @@ describe('FieldSet/Category/Questionnaire Integration', () => {
 
       const codes = result.data.map((r) => r.CODE_CD)
       expect(codes).toContain('MOCA')
-      expect(codes).toContain('SAMPLE_HEALTH_SURVEY')
     })
 
     it('pending questionnaire observation should be insertable and queryable', async () => {

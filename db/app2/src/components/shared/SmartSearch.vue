@@ -116,14 +116,14 @@
 <script setup>
 import { ref, computed, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLoggingStore } from 'src/stores/logging-store'
 import PatientAvatar from './PatientAvatar.vue'
 
 const router = useRouter()
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('SmartSearch')
@@ -212,11 +212,7 @@ const performSearch = async () => {
     }))
   } catch (error) {
     logger.error('Search error', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Search failed. Please try again.',
-      position: 'top',
-    })
+    notify.error('Search failed. Please try again.')
     searchResults.value = []
   } finally {
     isSearching.value = false
@@ -250,25 +246,14 @@ const selectPatient = async (patient) => {
     router.push(`/visits/${visitPatient.id}`)
     clearSearch()
 
-    $q.notify({
-      type: 'positive',
-      message: `Selected patient: ${visitPatient.name}`,
-      position: 'top',
-      icon: 'person',
-      timeout: 2000,
-    })
+    notify.success(`Selected patient: ${visitPatient.name}`, { icon: 'person', timeout: 2000 })
   } catch (error) {
     logger.error('Failed to select patient from search', error, {
       patientId: patient.patientId,
       patientName: `${patient.firstName} ${patient.lastName}`,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to select patient. Please try again.',
-      position: 'top',
-      timeout: 3000,
-    })
+    notify.error('Failed to select patient. Please try again.', { timeout: 3000 })
   }
 }
 

@@ -215,7 +215,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from './shared/AppDialog.vue'
@@ -231,7 +231,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'imported'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const dbStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ConceptsImportDialog')
@@ -703,11 +703,7 @@ const toggleSelection = (concept, selected) => {
  */
 const onImport = async () => {
   if (selectedConcepts.value.length === 0) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please select at least one concept to import',
-      position: 'top',
-    })
+    notify.warning('Please select at least one concept to import')
     return
   }
 
@@ -720,11 +716,7 @@ const onImport = async () => {
 
   const conceptRepo = dbStore.getRepository('concept')
   if (!conceptRepo) {
-    $q.notify({
-      type: 'negative',
-      message: 'Concept repository not available',
-      position: 'top',
-    })
+    notify.error('Concept repository not available')
     isImporting.value = false
     return
   }
@@ -777,10 +769,7 @@ const onImport = async () => {
     }
 
     // Show notification
-    $q.notify({
-      type: 'positive',
-      message: `Import completed: ${importResults.value.success} imported, ${importResults.value.skipped} skipped`,
-      position: 'top',
+    notify.success(`Import completed: ${importResults.value.success} imported, ${importResults.value.skipped} skipped`, {
       timeout: 5000,
     })
 
@@ -813,11 +802,7 @@ const onImport = async () => {
     emit('imported', importResults.value)
   } catch (error) {
     logger.error('Import failed', error)
-    $q.notify({
-      type: 'negative',
-      message: `Import failed: ${error.message}`,
-      position: 'top',
-    })
+    notify.error(`Import failed: ${error.message}`)
   } finally {
     isImporting.value = false
   }

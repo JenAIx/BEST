@@ -149,7 +149,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useMedicationsStore } from 'src/stores/medications-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import AppDialog from 'src/components/shared/AppDialog.vue'
@@ -179,7 +179,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'save', 'cancel'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('MedicationEditDialog')
@@ -325,11 +325,7 @@ const onMedicationChange = async () => {
 
 const onSave = async () => {
   if (!hasValidData.value) {
-    $q.notify({
-      type: 'warning',
-      message: 'Please enter at least a drug name',
-      position: 'top',
-    })
+    notify.warning('Please enter at least a drug name')
     return
   }
 
@@ -340,20 +336,12 @@ const onSave = async () => {
 
     emit('save', localMedicationData.value)
 
-    $q.notify({
-      type: 'positive',
-      message: 'Medication updated successfully',
-      position: 'top',
-    })
+    notify.success('Medication updated successfully')
 
     dialogModel.value = false
   } catch (error) {
     logger.error('Failed to save medication', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save medication',
-      position: 'top',
-    })
+    notify.error('Failed to save medication')
   } finally {
     saving.value = false
   }

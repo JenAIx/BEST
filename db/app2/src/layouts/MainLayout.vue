@@ -117,16 +117,9 @@
           <!-- Patient Management -->
           <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.patientManagement') }}</q-item-label>
 
-          <q-item clickable v-ripple to="/patients" active-class="bg-primary text-white">
-            <q-item-section avatar>
-              <q-icon name="people" />
-            </q-item-section>
-            <q-item-section>{{ $t('navigation.patientSearch') }}</q-item-section>
-          </q-item>
-
           <q-item clickable v-ripple to="/visits" active-class="bg-primary text-white">
             <q-item-section avatar>
-              <q-icon name="event" />
+              <q-icon name="people" />
             </q-item-section>
             <q-item-section>{{ $t('navigation.patientVisits') }}</q-item-section>
           </q-item>
@@ -253,9 +246,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useDatabaseStore } from 'src/stores/database-store'
@@ -264,6 +258,8 @@ import NotificationButton from 'src/components/shared/NotificationButton.vue'
 import SmartSearch from 'src/components/shared/SmartSearch.vue'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -321,19 +317,12 @@ const toggleLanguage = () => {
       console.warn('Error saving locale to localStorage:', storageError)
     }
 
-    $q.notify({
-      message: newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English',
-      type: 'info',
-      position: 'top',
+    notify.info(newLocale === 'de' ? 'Sprache auf Deutsch geändert' : 'Language changed to English', {
       timeout: 1500,
     })
   } catch (error) {
     console.error('Error in toggleLanguage:', error)
-    $q.notify({
-      message: 'Error switching language',
-      type: 'negative',
-      position: 'top',
-    })
+    notify.error('Error switching language')
   }
 }
 
@@ -350,12 +339,11 @@ const breadcrumbs = computed(() => {
     const path = paths[i]
     currentPath += `/${path}`
 
-    // Special handling for patient routes
+    // Legacy /patient/:id route is redirected to /visits/:id; collapse the breadcrumb accordingly.
     if (path === 'patient' && i < paths.length - 1) {
-      // For individual patient pages, link back to patients list
       crumbs.push({
-        label: 'Patients',
-        path: '/patients',
+        label: t('navigation.patientVisits'),
+        path: '/visits',
       })
     } else {
       crumbs.push({
@@ -398,11 +386,7 @@ const onLogout = async () => {
   }).onOk(async () => {
     await authStore.logout()
     router.push('/login')
-    $q.notify({
-      type: 'info',
-      message: t('auth.loggedOut'),
-      position: 'top',
-    })
+    notify.info(t('auth.loggedOut'))
   })
 }
 
@@ -421,9 +405,29 @@ if (savedMode) {
   viewMode.value = savedMode
 }
 
-// Initialize local settings store on app mount
+// --- Session-Timeout enforcement -------------------------------------------
+// Track real user activity (clicks, keys, scroll, touch) so the session-
+// monitor can fire when the user is actually idle. Throttle to 60s so we
+// don't repeatedly write to localStorage on every mousemove.
+const ACTIVITY_EVENTS = ['click', 'keydown', 'scroll', 'touchstart']
+const ACTIVITY_THROTTLE_MS = 60_000
+let lastActivityWrite = 0
+const onUserActivity = () => {
+  const now = Date.now()
+  if (now - lastActivityWrite < ACTIVITY_THROTTLE_MS) return
+  lastActivityWrite = now
+  authStore.updateActivity()
+}
+
 onMounted(() => {
   localSettingsStore.initialize()
+  authStore.startSessionMonitor()
+  ACTIVITY_EVENTS.forEach((evt) => window.addEventListener(evt, onUserActivity, { passive: true }))
+})
+
+onBeforeUnmount(() => {
+  ACTIVITY_EVENTS.forEach((evt) => window.removeEventListener(evt, onUserActivity))
+  authStore.stopSessionMonitor()
 })
 </script>
 

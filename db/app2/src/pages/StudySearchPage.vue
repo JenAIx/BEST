@@ -248,7 +248,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -256,7 +256,7 @@ import { useStudyStore } from 'src/stores/study-store'
 import CreateStudyDialog from '../components/studies/CreateStudyDialog.vue'
 
 const router = useRouter()
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
@@ -367,11 +367,7 @@ const loadStudies = async () => {
     await studyStore.searchStudies(searchQuery.value, filters.value)
   } catch (error) {
     console.error('Failed to load studies:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load studies',
-      position: 'top',
-    })
+    notify.error('Failed to load studies')
   }
 }
 
@@ -455,11 +451,7 @@ const showAllStudies = async () => {
     await studyStore.searchStudies('', {})
   } catch (error) {
     console.error('Failed to load all studies:', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load studies',
-      position: 'top',
-    })
+    notify.error('Failed to load studies')
   }
 }
 
@@ -564,17 +556,9 @@ const onViewStudy = (study) => {
 const onViewAnalytics = async (study) => {
   try {
     const analytics = await studyStore.getStudyAnalytics(study.id)
-    $q.notify({
-      type: 'info',
-      message: `Analytics: ${study.name} - Progress: ${analytics.patientProgress.toFixed(1)}%`,
-      position: 'top',
-    })
+    notify.info(`Analytics: ${study.name} - Progress: ${analytics.patientProgress.toFixed(1)}%`)
   } catch {
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load study analytics',
-      position: 'top',
-    })
+    notify.error('Failed to load study analytics')
   }
 }
 
@@ -589,12 +573,7 @@ const onStudyCreated = async (createdStudy) => {
     await loadStudies()
   }
 
-  $q.notify({
-    type: 'positive',
-    message: `Study "${createdStudy.name}" created successfully!`,
-    position: 'top',
-    timeout: 3000,
-  })
+  notify.success(`Study "${createdStudy.name}" created successfully!`, { timeout: 3000 })
 }
 
 

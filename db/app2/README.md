@@ -82,6 +82,26 @@ The application uses a **star schema** design optimized for clinical research da
 - **CQL_FACT**: Clinical Quality Language rules with 8 seeded rules
 - **CONCEPT_CQL_LOOKUP**: Concept-rule relationships and mappings
 
+### Data Modelling Conventions
+
+The project follows a small set of invariants for how clinical data is encoded.
+Full rules (with examples) live in [`CLAUDE.md`](./CLAUDE.md#-data-modelling-conventions); brief summary:
+
+- **`CATEGORY_CHAR`** stores human-readable labels (`'Stroke'`, `'Laboratory'`,
+  `'Demographics'`, …) — never `CAT_*` codes; the field-set matcher relies on labels.
+- **F-type Finding answers** sit in `TVAL_CHAR` as A-type concept refs
+  (`SCTID: 373066001` Yes / `SCTID: 373067005` No), parallel to S-type Selections.
+- **3-state numerics**: use `OBSERVATION_FACT.VALUEFLAG_CD='NV'` to distinguish
+  "assessed and explicitly no value" from "not assessed" (no observation at all).
+- **Concept-reuse hierarchy**: LOINC (`LID:`) → SNOMED (`SCTID:`) → existing custom
+  seed → only then a new study-specific concept.
+- **Visit-types** in `CODE_LOOKUP` carry `LOOKUP_BLOB.fieldSets[]`; field-sets
+  carry `LOOKUP_BLOB.{concepts[], categories[]}` for hybrid frontend matching.
+- **Bulk imports** tag every row with `SOURCESYSTEM_CD = '<UNIQUE_TAG>'` for
+  surgical rollback. Reference implementation: `scripts/import-fw-lipid/`.
+
+See [`CHANGELOG.md`](./CHANGELOG.md) for the change history.
+
 ## MVC Architecture
 
 The application follows a clean **Model-View-Controller (MVC)** pattern that separates concerns and promotes maintainability:

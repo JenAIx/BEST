@@ -138,7 +138,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useQuestionnaireStore } from '../stores/questionnaire-store.js'
 import { useDatabaseStore } from '../stores/database-store.js'
 import { logger } from '../core/services/logging-service.js'
@@ -149,7 +149,7 @@ import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
 
 // Composables
 const router = useRouter()
-const $q = useQuasar()
+const notify = useNotify()
 const questionnaireStore = useQuestionnaireStore()
 const dbStore = useDatabaseStore()
 
@@ -217,10 +217,7 @@ const openVisitSelection = async () => {
       }
     } catch (error) {
       logger.error('Failed to check patient visits', error)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to load patient visits',
-      })
+      notify.error('Failed to load patient visits')
     }
   }
 }
@@ -263,11 +260,7 @@ const createVisitForPatient = async () => {
     selectedVisit.value = newVisit
     currentStep.value = 'selection'
 
-    $q.notify({
-      type: 'positive',
-      message: 'Visit created automatically',
-      timeout: 3000,
-    })
+    notify.success('Visit created automatically', { timeout: 3000 })
 
     logger.info('Auto-created visit for patient', {
       encounterNum: newVisit.ENCOUNTER_NUM,
@@ -275,10 +268,7 @@ const createVisitForPatient = async () => {
     })
   } catch (error) {
     logger.error('Failed to create visit for patient', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to create visit for patient',
-    })
+    notify.error('Failed to create visit for patient')
   }
 }
 
@@ -342,18 +332,12 @@ const onQuestionnaireSelected = ({ questionnaire }) => {
 
 const onQuestionnaireSubmit = async ({ results }) => {
   if (!selectedPatient.value) {
-    $q.notify({
-      type: 'negative',
-      message: 'No patient selected',
-    })
+    notify.error('No patient selected')
     return
   }
 
   if (!selectedVisit.value) {
-    $q.notify({
-      type: 'negative',
-      message: 'No visit selected',
-    })
+    notify.error('No visit selected')
     return
   }
 
@@ -363,10 +347,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
     logger.error('Encounter number is missing from selected visit', {
       selectedVisit: selectedVisit.value,
     })
-    $q.notify({
-      type: 'negative',
-      message: 'Invalid visit: missing encounter number. Please select a different visit or create a new one.',
-    })
+    notify.error('Invalid visit: missing encounter number. Please select a different visit or create a new one.')
     return
   }
 
@@ -384,18 +365,10 @@ const onQuestionnaireSubmit = async ({ results }) => {
     submissionComplete.value = true
     currentStep.value = 'complete'
 
-    $q.notify({
-      type: 'positive',
-      message: 'Questionnaire submitted successfully',
-      timeout: 3000,
-    })
+    notify.success('Questionnaire submitted successfully', { timeout: 3000 })
   } catch (error) {
     logger.error('Failed to submit questionnaire', error)
-    $q.notify({
-      type: 'negative',
-      message: `Failed to submit questionnaire: ${error.message}`,
-      timeout: 5000,
-    })
+    notify.error(`Failed to submit questionnaire: ${error.message}`, { timeout: 5000 })
   } finally {
     showSubmissionDialog.value = false
   }

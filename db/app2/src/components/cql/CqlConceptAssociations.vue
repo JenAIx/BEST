@@ -151,11 +151,14 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useCqlStore } from 'src/stores/cql-store'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const cqlStore = useCqlStore()
 const dbStore = useDatabaseStore()
 const logger = useLoggingStore().createLogger('CqlConceptAssociations')
@@ -286,11 +289,7 @@ const loadAssociations = async () => {
     })
   } catch (error) {
     logger.error('Failed to load associations', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to load associations',
-      position: 'top',
-    })
+    notify.error('Failed to load associations')
   } finally {
     loading.value = false
   }
@@ -387,11 +386,7 @@ const onSaveAssociation = async () => {
       `
       await dbStore.executeCommand(insertQuery, [formData.value.CONCEPT_CD, formData.value.CQL_ID, formData.value.NAME_CHAR, formData.value.RULE_BLOB])
 
-      $q.notify({
-        type: 'positive',
-        message: 'Association created successfully',
-        position: 'top',
-      })
+      notify.success('Association created successfully')
     } else {
       // Update existing association
       const updateQuery = `
@@ -401,22 +396,14 @@ const onSaveAssociation = async () => {
       `
       await dbStore.executeCommand(updateQuery, [formData.value.CONCEPT_CD, formData.value.CQL_ID, formData.value.NAME_CHAR, formData.value.RULE_BLOB, selectedAssociation.value.CONCEPT_CQL_ID])
 
-      $q.notify({
-        type: 'positive',
-        message: 'Association updated successfully',
-        position: 'top',
-      })
+      notify.success('Association updated successfully')
     }
 
     showAssociationDialog.value = false
     await loadAssociations()
   } catch (error) {
     logger.error('Failed to save association', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to save association',
-      position: 'top',
-    })
+    notify.error('Failed to save association')
   } finally {
     saving.value = false
   }
@@ -434,20 +421,12 @@ const onDeleteAssociation = (association) => {
       const deleteQuery = `DELETE FROM CONCEPT_CQL_LOOKUP WHERE CONCEPT_CQL_ID = ?`
       await dbStore.executeCommand(deleteQuery, [association.CONCEPT_CQL_ID])
 
-      $q.notify({
-        type: 'positive',
-        message: 'Association deleted successfully',
-        position: 'top',
-      })
+      notify.success('Association deleted successfully')
 
       await loadAssociations()
     } catch (error) {
       logger.error('Failed to delete association', error)
-      $q.notify({
-        type: 'negative',
-        message: 'Failed to delete association',
-        position: 'top',
-      })
+      notify.error('Failed to delete association')
     }
   })
 }

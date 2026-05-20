@@ -121,6 +121,63 @@ export const parseChangeKey = (key) => {
 }
 
 /**
+ * Group an array of concepts by their CATEGORY_CHAR for two-level column headers.
+ *
+ * The order of categories follows clinical convention (demographics first, vitals
+ * before labs, medications last). Concepts whose category is null/empty are bundled
+ * under "Other". Within a group, concept order is preserved (alphabetical by
+ * upstream caller).
+ *
+ * @param {Array<{code: string, name: string, valueType: string, category?: string|null}>} concepts
+ * @returns {Array<{category: string, concepts: Array}>}
+ */
+export const groupConceptsByCategory = (concepts) => {
+  if (!Array.isArray(concepts) || concepts.length === 0) return []
+
+  const buckets = new Map()
+  for (const c of concepts) {
+    const cat = (c && c.category) || 'Other'
+    if (!buckets.has(cat)) buckets.set(cat, [])
+    buckets.get(cat).push(c)
+  }
+
+  // Stable category ordering: well-known clinical categories first, the rest
+  // alphabetical, "Other" always last so unclassified columns trail.
+  const PREFERRED_ORDER = [
+    'Demographics',
+    'Vital Signs',
+    'Stroke',
+    'Diagnosis',
+    'Assessment',
+    'Clinical Scales',
+    'Neurological Assessment',
+    'Psychological Assessment',
+    'Sleep Assessment',
+    'Laboratory',
+    'CSF Analysis',
+    'Imaging',
+    'Medications',
+    'Social History',
+    'Education',
+    'General',
+  ]
+  const preferredIdx = (cat) => {
+    const i = PREFERRED_ORDER.indexOf(cat)
+    return i === -1 ? PREFERRED_ORDER.length : i
+  }
+  const sortedCats = [...buckets.keys()].sort((a, b) => {
+    if (a === 'Other') return 1
+    if (b === 'Other') return -1
+    const ai = preferredIdx(a)
+    const bi = preferredIdx(b)
+    if (ai !== bi) return ai - bi
+    return a.localeCompare(b)
+  })
+
+  return sortedCats.map((category) => ({ category, concepts: buckets.get(category) }))
+}
+
+/**
  * Get default view options for the data grid
  * @returns {Object} Default view options
  */

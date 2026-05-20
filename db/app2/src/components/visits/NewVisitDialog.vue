@@ -100,7 +100,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useVisitStore } from 'src/stores/visit-store'
@@ -121,7 +121,7 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'created'])
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const visitStore = useVisitStore()
@@ -249,11 +249,7 @@ const loadOptions = async () => {
     }
   } catch (error) {
     logger.error('Failed to load options from global settings', error)
-    $q.notify({
-      type: 'warning',
-      message: t('visit.usingDefaultOptions'),
-      position: 'top',
-    })
+    notify.warning(t('visit.usingDefaultOptions'))
 
     // Fallback to default options
     visitTypes.value = [
@@ -347,10 +343,7 @@ const applyTemplate = (template) => {
     hasLocation: !!template.location,
   })
 
-  $q.notify({
-    type: 'positive',
-    message: t('visit.appliedTemplate', { templateName: template.name }),
-    position: 'top',
+  notify.success(t('visit.appliedTemplate', { templateName: template.name }), {
     color: template.color || 'primary',
     icon: template.icon || 'assignment',
   })
@@ -405,11 +398,7 @@ const saveVisit = async () => {
     closeDialog()
   } catch (error) {
     logger.error('Failed to create visit', error)
-    $q.notify({
-      type: 'negative',
-      message: t('visit.failedToCreateVisit'),
-      position: 'top',
-    })
+    notify.error(t('visit.failedToCreateVisit'))
   } finally {
     creating.value = false
   }

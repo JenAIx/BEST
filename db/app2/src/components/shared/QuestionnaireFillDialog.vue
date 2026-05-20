@@ -77,7 +77,7 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import { useQuestionnaireStore } from '../../stores/questionnaire-store.js'
 import { useDatabaseStore } from '../../stores/database-store.js'
 import { logger } from '../../core/services/logging-service.js'
@@ -118,7 +118,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'questionnaire-completed', 'close'])
 
 // Composables
-const $q = useQuasar()
+const notify = useNotify()
 const questionnaireStore = useQuestionnaireStore()
 const databaseStore = useDatabaseStore()
 
@@ -323,11 +323,7 @@ const onQuestionnaireSubmit = async ({ results }) => {
       encounterNum: props.encounterNum,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to submit questionnaire: ${error.message}`,
-      timeout: 5000,
-    })
+    notify.error(`Failed to submit questionnaire: ${error.message}`, { timeout: 5000 })
   } finally {
     showSubmissionDialog.value = false
   }

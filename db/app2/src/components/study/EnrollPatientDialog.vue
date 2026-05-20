@@ -104,7 +104,7 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
-import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import AppInputDialog from 'src/components/shared/AppInputDialog.vue'
 
 const props = defineProps({
@@ -122,8 +122,7 @@ const emit = defineEmits(['update:modelValue', 'enroll', 'cancel'])
 
 const { t } = useI18n()
 const dbStore = useDatabaseStore()
-const $q = useQuasar()
-
+const notify = useNotify()
 // State
 const patientSearchQuery = ref('')
 const searching = ref(false)
@@ -182,11 +181,7 @@ const onSearchInput = async () => {
   } catch (error) {
     console.error('Failed to search patients:', error)
     suggestions.value = []
-    $q.notify({
-      type: 'negative',
-      message: t('study.failedToSearchPatients'),
-      position: 'top',
-    })
+    notify.error(t('study.failedToSearchPatients'))
   } finally {
     searching.value = false
   }

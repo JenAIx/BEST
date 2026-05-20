@@ -6,6 +6,12 @@
         <!-- Left side: Main actions -->
         <div class="row items-center q-gutter-sm">
           <q-btn flat icon="refresh" :label="$t('common.refresh')" @click="refreshData" :loading="loading" />
+          <q-btn flat dense icon="undo" :disable="!dataGridStore?.canUndo" @click="onUndo">
+            <q-tooltip>{{ $t('dataGrid.undoTooltip') }}</q-tooltip>
+          </q-btn>
+          <q-btn flat dense icon="redo" :disable="!dataGridStore?.canRedo" @click="onRedo">
+            <q-tooltip>{{ $t('dataGrid.redoTooltip') }}</q-tooltip>
+          </q-btn>
           <q-btn flat icon="settings" :label="$t('dataGrid.viewOptions')" @click="showViewOptions = true" />
           <q-btn flat icon="add" :label="$t('common.add')" color="dark">
             <q-menu anchor="bottom left" self="top left">
@@ -68,33 +74,53 @@
       <q-scroll-area class="excel-scroll-area" :thumb-style="thumbStyle" :bar-style="barStyle">
         <div class="excel-table-wrapper" :style="zoomWrapperStyle">
           <table class="excel-table" :style="tableZoomStyle">
-          <!-- Header Row -->
+          <!-- Header Rows: category band + per-concept header -->
           <thead>
+            <!-- Category band: one cell per group spanning its concept columns.
+                 Visually groups e.g. all 'Medications' columns under one label
+                 so a 50+ column grid stays readable. -->
+            <tr v-if="conceptGroups.length" class="category-band-row">
+              <th class="fixed-col patient-col category-band-empty"></th>
+              <th class="fixed-col visit-col category-band-empty"></th>
+              <th
+                v-for="g in conceptGroups"
+                :key="`band-${g.category}`"
+                :colspan="g.concepts.length"
+                class="category-band"
+                :class="`category-band--${(g.category || 'other').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`"
+              >
+                {{ g.category }}
+              </th>
+            </tr>
             <tr class="header-row">
               <!-- Fixed columns -->
               <th class="fixed-col patient-col">Patient</th>
               <th class="fixed-col visit-col">Visit Date</th>
 
-              <!-- Dynamic observation columns -->
-              <th 
-                v-for="concept in visibleObservationConcepts" 
-                :key="concept.code" 
-                class="obs-col" 
-                :class="{
-                  'value-type-d': concept.valueType === 'D',
-                  'value-type-n': concept.valueType === 'N',
-                  'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept)
-                }"
-                :title="concept.name"
-              >
-                <div class="col-header">
-                  <div class="concept-name">{{ concept.name }}</div>
-                  <div class="concept-code">{{ concept.code }}</div>
-                  <!-- Show quiz icon for questionnaire concepts, otherwise use ValueTypeIcon -->
-                  <q-icon v-if="concept.valueType === 'Q'" name="quiz" size="16px" color="deep-purple" />
-                  <ValueTypeIcon v-else :value-type="concept.valueType" size="16px" variant="minimal" />
-                </div>
-              </th>
+              <!-- Dynamic observation columns, rendered in category-grouped order
+                   to align with the category band above. -->
+              <template v-for="g in conceptGroups" :key="`grp-${g.category}`">
+                <th
+                  v-for="concept in g.concepts"
+                  :key="concept.code"
+                  class="obs-col"
+                  :class="{
+                    'value-type-d': concept.valueType === 'D',
+                    'value-type-n': concept.valueType === 'N',
+                    'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
+                    'is-focused': focusedColumn === concept.code,
+                  }"
+                  :title="concept.name + ' — click header to expand'"
+                  @click="toggleFocusColumn(concept.code)"
+                >
+                  <div class="col-header">
+                    <div class="concept-name">{{ concept.name }}</div>
+                    <div class="concept-code">{{ concept.code }}</div>
+                    <q-icon v-if="concept.valueType === 'Q'" name="quiz" size="16px" color="deep-purple" />
+                    <ValueTypeIcon v-else :value-type="concept.valueType" size="16px" variant="minimal" />
+                  </div>
+                </th>
+              </template>
             </tr>
           </thead>
 
@@ -117,16 +143,49 @@
                   </q-avatar>
                   <div v-else class="avatar-placeholder"></div>
                   <div>
-                    <div class="patient-name">{{ row.patientName }}</div>
+                    <!-- Show patientName + patientId, but skip the duplicate when
+                         the upstream had no resolved name (PATIENT_BLOB empty) and
+                         falls back to PATIENT_CD - we'd otherwise render the same
+                         ID twice in the cell. -->
+                    <div v-if="row.patientName && row.patientName !== row.patientId" class="patient-name">
+                      {{ row.patientName }}
+                    </div>
                     <div class="patient-id">{{ row.patientId }}</div>
                   </div>
                 </div>
               </td>
 
               <td class="fixed-col visit-col">
-                <div class="visit-date-container">
+                <div v-if="row.isPlaceholder" class="visit-date-container visit-placeholder">
+                  <q-btn
+                    flat
+                    dense
+                    no-caps
+                    color="primary"
+                    icon="event_available"
+                    :label="$t('dataGrid.addVisit')"
+                    @click="quickAddVisitForPatient(row)"
+                  />
+                </div>
+                <div v-else class="visit-date-container">
                   <div class="visit-date">
                     {{ formatDate(row.visitDate) }}
+                  </div>
+                  <!-- Visit-type chip under the date, sourced from VISIT_BLOB.visitType
+                       and CODE_LOOKUP(VISIT_DIMENSION/VISIT_TYPE_CD).LOOKUP_BLOB.
+                       Click bubbles to the row's edit icon below. -->
+                  <div
+                    v-if="getVisitTypeMeta(row.visitTypeCode)"
+                    class="visit-type-chip"
+                    :style="visitTypeChipStyle(row.visitTypeCode)"
+                  >
+                    <q-icon
+                      v-if="getVisitTypeMeta(row.visitTypeCode).icon"
+                      :name="getVisitTypeMeta(row.visitTypeCode).icon"
+                      size="12px"
+                      class="q-mr-xs"
+                    />
+                    <span class="visit-type-label">{{ getVisitTypeMeta(row.visitTypeCode).label }}</span>
                   </div>
                   <div class="visit-edit-icon" @click="openVisitEditDialog(row)">
                     <q-icon name="edit" size="16px" color="grey-6" />
@@ -137,28 +196,37 @@
                       <div><strong>Patient:</strong> {{ row.patientName }}</div>
                       <div><strong>Encounter:</strong> {{ row.encounterNum }}</div>
                       <div><strong>Date:</strong> {{ formatDate(row.visitDate) }}</div>
+                      <div v-if="getVisitTypeMeta(row.visitTypeCode)">
+                        <strong>Type:</strong> {{ getVisitTypeMeta(row.visitTypeCode).label }}
+                      </div>
                       <div class="text-grey-4 text-caption q-mt-xs">Click edit icon to modify visit</div>
                     </div>
                   </q-tooltip>
                 </div>
               </td>
 
-              <!-- Observation cells -->
-              <td 
-                v-for="concept in visibleObservationConcepts" 
-                :key="concept.code" 
-                class="obs-cell" 
+              <!-- Observation cells (rendered in category-grouped order to align
+                   with the category band header). -->
+              <template v-for="g in conceptGroups" :key="`row-grp-${row.patientId}-${row.encounterNum}-${g.category}`">
+              <td
+                v-for="concept in g.concepts"
+                :key="concept.code"
+                class="obs-cell"
                 :class="[
                   getCellClass(row, concept),
                   {
                     'value-type-d': concept.valueType === 'D',
                     'value-type-n': concept.valueType === 'N',
-                    'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept)
+                    'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
+                    'obs-cell-placeholder': row.isPlaceholder,
+                    'is-focused': focusedColumn === concept.code,
                   }
                 ]"
               >
+                <!-- Placeholder row: no visit yet, observations not editable -->
+                <div v-if="row.isPlaceholder" class="obs-placeholder">—</div>
                 <!-- Custom questionnaire cell for Q type -->
-                <div v-if="concept.valueType === 'Q'" class="questionnaire-cell">
+                <div v-else-if="concept.valueType === 'Q'" class="questionnaire-cell">
                   <!-- Filled questionnaire -->
                   <div v-if="getCellValue(row, concept)" class="questionnaire-content" @click="openQuestionnairePreview(row, concept)">
                     {{ getCellValue(row, concept) }}
@@ -197,6 +265,7 @@
                   v-else
                   :value="getCellValue(row, concept)"
                   :value-type="concept.valueType"
+                  :value-flag="getCellValueFlag(row, concept)"
                   :concept-code="concept.code"
                   :patient-id="row.patientId"
                   :encounter-num="row.encounterNum"
@@ -204,8 +273,10 @@
                   @update="onCellUpdate"
                   @save="onCellSave"
                   @error="onCellError"
+                  @edit-recorded="onEditRecorded"
                 />
               </td>
+              </template>
             </tr>
           </tbody>
         </table>
@@ -433,8 +504,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
-import { useQuasar } from 'quasar'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { useNotify } from 'src/composables/useNotify'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useDatabaseStore } from 'src/stores/database-store'
@@ -452,6 +523,7 @@ import { useI18n } from 'vue-i18n'
 import { useVisitStore } from 'src/stores/visit-store'
 import MedicationOverviewDialog from './MedicationOverviewDialog.vue'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
+import { groupConceptsByCategory } from 'src/shared/utils/grid-utils'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -464,7 +536,7 @@ const props = defineProps({
 
 // No longer need to emit events - store handles reactivity
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const dataGridStore = useDataGridStore()
 const conceptStore = useConceptResolutionStore()
@@ -575,12 +647,65 @@ const saveHiddenVisits = (hiddenVisitsSet) => {
 
 const hiddenVisits = ref(loadHiddenVisits()) // Track hidden visit encounter numbers
 
+// Focus-column mode: clicking an observation column header toggles a wide view
+// for that single concept so the user can comfortably read longer values
+// without expanding the whole grid. Click the same header again to collapse.
+// Click another header to switch focus.
+const focusedColumn = ref(null)
+function toggleFocusColumn(code) {
+  focusedColumn.value = focusedColumn.value === code ? null : code
+}
+
 // Computed properties (using store data)
 const loading = computed(() => dataGridStore?.loading || false)
 const observationConcepts = computed(() => dataGridStore?.observationConcepts || [])
 
 // Use store's reactive properties for visibility and statistics
 const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObservationConcepts || [])
+
+// Group visible concepts by CATEGORY_CHAR for the two-level header.
+// {category, concepts[]} bands rendered above the per-concept header row;
+// the existing single-row per-concept header still drives the data cells.
+const conceptGroups = computed(() => groupConceptsByCategory(visibleObservationConcepts.value))
+
+// Visit-type metadata loaded once from CODE_LOOKUP. Keyed by CODE_CD (e.g.
+// 'stroke_lipid_v0'), values are {label, icon, color} pulled from LOOKUP_BLOB.
+// This lets every visit row render a chip without per-row DB queries.
+const visitTypeMeta = ref(new Map())
+async function loadVisitTypeMeta() {
+  try {
+    const result = await databaseStore.executeQuery(
+      `SELECT CODE_CD, NAME_CHAR, LOOKUP_BLOB
+         FROM CODE_LOOKUP
+        WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = 'VISIT_TYPE_CD'`,
+    )
+    if (!result?.success) return
+    const map = new Map()
+    for (const r of result.data) {
+      let label = r.NAME_CHAR
+      let icon = null
+      let color = null
+      if (r.LOOKUP_BLOB) {
+        try {
+          const blob = typeof r.LOOKUP_BLOB === 'string' ? JSON.parse(r.LOOKUP_BLOB) : r.LOOKUP_BLOB
+          if (blob?.label) label = blob.label
+          if (blob?.icon) icon = blob.icon
+          if (blob?.color) color = blob.color
+        } catch {
+          // ignore malformed blob - fall back to NAME_CHAR
+        }
+      }
+      map.set(r.CODE_CD, { label, icon, color })
+    }
+    visitTypeMeta.value = map
+  } catch (e) {
+    logger.warn('Failed to load visit-type metadata', e)
+  }
+}
+function getVisitTypeMeta(code) {
+  if (!code) return null
+  return visitTypeMeta.value.get(code) || null
+}
 
 // Filter table rows to exclude hidden visits
 const tableRows = computed(() => {
@@ -682,6 +807,40 @@ const getPatientInitials = dataGridStore?.getPatientInitials || (() => 'U')
 const formatDate = dataGridStore?.formatDate || ((date) => date || '')
 const getCellValue = dataGridStore?.getCellValue || (() => '')
 const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
+// Read OBSERVATION_FACT.VALUEFLAG_CD for a cell. Used by EditableCell to render
+// the 3-state numeric pattern: NVAL set -> value shown, VALUEFLAG_CD='NV' -> "no
+// value" indicator, neither -> empty.
+function getCellValueFlag(row, concept) {
+  const obs = row?.observations?.[concept.code]
+  return obs?.valueFlag || null
+}
+
+// Inline style for the visit-type chip. We can't compose Quasar colour tokens
+// into SCSS at runtime, so push the colour through CSS custom properties.
+function visitTypeChipStyle(code) {
+  const meta = getVisitTypeMeta(code)
+  if (!meta || !meta.color) return {}
+  // Map Quasar palette names to hex. Fallback: treat the value as a valid CSS colour.
+  const palette = {
+    primary: '#1976d2', secondary: '#26a69a', accent: '#9c27b0',
+    positive: '#21ba45', negative: '#c10015', info: '#31ccec', warning: '#f2c037',
+    red: '#c10015', pink: '#e91e63', purple: '#9c27b0', 'deep-purple': '#673ab7',
+    indigo: '#3f51b5', blue: '#1976d2', 'light-blue': '#03a9f4', cyan: '#00bcd4',
+    teal: '#009688', green: '#21ba45', 'light-green': '#8bc34a', lime: '#cddc39',
+    yellow: '#ffeb3b', amber: '#ffc107', orange: '#f2c037', 'deep-orange': '#ff5722',
+    brown: '#795548', grey: '#9e9e9e', 'blue-grey': '#607d8b',
+  }
+  const c = palette[meta.color] || meta.color
+  // hex → rgba @ 12% for the soft chip background
+  let bg = 'rgba(25, 118, 210, 0.08)'
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) {
+    const r = parseInt(c.slice(1, 3), 16)
+    const g = parseInt(c.slice(3, 5), 16)
+    const b = parseInt(c.slice(5, 7), 16)
+    bg = `rgba(${r}, ${g}, ${b}, 0.12)`
+  }
+  return { '--visit-type-color': c, '--visit-type-bg': bg }
+}
 const getCellClass = dataGridStore?.getCellClass || (() => '')
 const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
 
@@ -834,11 +993,7 @@ const openMedicationOverviewDialog = async (row) => {
     showMedicationOverviewDialog.value = true
   } catch (error) {
     logger.error('Failed to open medication overview dialog', error)
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to open medication overview',
-      position: 'top',
-    })
+    notify.error('Failed to open medication overview')
   }
 }
 
@@ -895,6 +1050,43 @@ const getObservationCount = async (encounterNum) => {
 const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
 const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
+const onEditRecorded = (entry) => dataGridStore?.recordEdit?.(entry)
+
+const onUndo = async () => {
+  if (!dataGridStore?.canUndo) return
+  try {
+    await dataGridStore.undo()
+  } catch (error) {
+    notify.error(t('dataGrid.undoFailed', { msg: error.message }))
+  }
+}
+
+const onRedo = async () => {
+  if (!dataGridStore?.canRedo) return
+  try {
+    await dataGridStore.redo()
+  } catch (error) {
+    notify.error(t('dataGrid.redoFailed', { msg: error.message }))
+  }
+}
+
+// Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z keyboard shortcuts (window-level, only fire
+// when no input is focused — text editing keeps native undo behaviour).
+const onGridKeydown = (event) => {
+  const tag = event.target?.tagName
+  const isTyping = tag === 'INPUT' || tag === 'TEXTAREA' || event.target?.isContentEditable
+  if (isTyping) return
+  if (!(event.ctrlKey || event.metaKey)) return
+
+  const k = event.key.toLowerCase()
+  if (k === 'z' && !event.shiftKey) {
+    event.preventDefault()
+    onUndo()
+  } else if (k === 'y' || (k === 'z' && event.shiftKey)) {
+    event.preventDefault()
+    onRedo()
+  }
+}
 
 // Batch operations (using store functions) - with defensive checks
 const refreshData = () => {
@@ -1041,11 +1233,7 @@ const openVisitEditDialog = async (row) => {
       encounterNum: row.encounterNum,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: `Failed to load visit data: ${error.message}`,
-      position: 'top',
-    })
+    notify.error(`Failed to load visit data: ${error.message}`)
   }
 }
 
@@ -1055,11 +1243,7 @@ const handleVisitUpdated = (updatedVisit) => {
   // Refresh the data grid to show the updated visit information
   refreshData()
 
-  $q.notify({
-    type: 'positive',
-    message: `Visit ${updatedVisit.ENCOUNTER_NUM} updated successfully`,
-    position: 'top',
-  })
+  notify.success(`Visit ${updatedVisit.ENCOUNTER_NUM} updated successfully`)
 }
 
 // Questionnaire fill dialog methods
@@ -1072,12 +1256,7 @@ const handleQuestionnaireCompleted = (completedData) => {
   // Refresh the data grid to show the new questionnaire data
   refreshData()
 
-  $q.notify({
-    type: 'positive',
-    message: 'Questionnaire completed and saved successfully',
-    position: 'top',
-    timeout: 3000,
-  })
+  notify.success('Questionnaire completed and saved successfully', { timeout: 3000 })
 }
 
 const handleQuestionnaireClosed = () => {
@@ -1262,11 +1441,7 @@ const openQuestionnaireFillDialog = async (row, concept) => {
       const availableQuestionnaires = await getAvailableQuestionnaires()
 
       if (availableQuestionnaires.length === 0) {
-        $q.notify({
-          type: 'warning',
-          message: 'No questionnaire templates available',
-          position: 'top',
-        })
+        notify.warning('No questionnaire templates available')
         return
       }
 
@@ -1288,11 +1463,7 @@ const openQuestionnaireFillDialog = async (row, concept) => {
     const questionnaireBlob = await getQuestionnaireTemplateByName(questionnaireName)
 
     if (!questionnaireBlob) {
-      $q.notify({
-        type: 'warning',
-        message: `No template found for questionnaire: ${questionnaireName}`,
-        position: 'top',
-      })
+      notify.warning(`No template found for questionnaire: ${questionnaireName}`)
       return
     }
 
@@ -1326,11 +1497,7 @@ const openQuestionnaireFillDialog = async (row, concept) => {
       conceptCode: concept.code,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to open questionnaire dialog',
-      position: 'top',
-    })
+    notify.error('Failed to open questionnaire dialog')
   }
 }
 
@@ -1353,11 +1520,7 @@ const openQuestionnairePreview = async (row, concept) => {
         encounterNum: row.encounterNum,
         conceptCode: concept.code,
       })
-      $q.notify({
-        type: 'warning',
-        message: 'No questionnaire data available for this cell',
-        position: 'top',
-      })
+      notify.warning('No questionnaire data available for this cell')
       return
     }
 
@@ -1385,11 +1548,7 @@ const openQuestionnairePreview = async (row, concept) => {
       conceptCode: concept.code,
     })
 
-    $q.notify({
-      type: 'negative',
-      message: 'Failed to open questionnaire preview',
-      position: 'top',
-    })
+    notify.error('Failed to open questionnaire preview')
   }
 }
 
@@ -1419,6 +1578,11 @@ const selectPatientForVisit = (patient) => {
   newVisitDate.value = new Date().toISOString().split('T')[0] // Reset to today
   closeDialog('addVisit')
   openDialog('newVisit')
+}
+
+// Quick-add visit from a placeholder row in the grid (patient has no visits yet)
+const quickAddVisitForPatient = (row) => {
+  selectPatientForVisit({ patientId: row.patientId, patientName: row.patientName })
 }
 
 // Create simple visit with just start date
@@ -1466,18 +1630,10 @@ const createSimpleVisit = async () => {
     // Refresh grid data to show new visit
     await refreshData()
     
-    $q.notify({
-      type: 'positive',
-      message: t('visit.visitCreated'),
-      position: 'top',
-    })
+    notify.success(t('visit.visitCreated'))
   } catch (error) {
     logger.error('Failed to create visit', error)
-    $q.notify({
-      type: 'negative',
-      message: t('visit.failedToCreateVisit'),
-      position: 'top',
-    })
+    notify.error(t('visit.failedToCreateVisit'))
   } finally {
     creatingVisit.value = false
   }
@@ -1511,11 +1667,7 @@ const addPatientToGrid = async (patient) => {
     
     // Check if patient is already in grid
     if (props.patientIds.includes(patientId)) {
-      $q.notify({
-        type: 'info',
-        message: t('dataGrid.patientAlreadyInGrid', { name: patient.NAME_CHAR || patientId }),
-        position: 'top',
-      })
+      notify.info(t('dataGrid.patientAlreadyInGrid', { name: patient.NAME_CHAR || patientId }))
       return
     }
 
@@ -1532,18 +1684,10 @@ const addPatientToGrid = async (patient) => {
       await dataGridStore.refreshData(updatedPatients)
     }
     
-    $q.notify({
-      type: 'positive',
-      message: t('dataGrid.patientAddedToGrid', { name: patient.NAME_CHAR || patientId }),
-      position: 'top',
-    })
+    notify.success(t('dataGrid.patientAddedToGrid', { name: patient.NAME_CHAR || patientId }))
   } catch (error) {
     logger.error('Failed to add patient to grid', error)
-    $q.notify({
-      type: 'negative',
-      message: t('dataGrid.failedToAddPatient'),
-      position: 'top',
-    })
+    notify.error(t('dataGrid.failedToAddPatient'))
   }
 }
 
@@ -1555,11 +1699,7 @@ const handleConceptAdded = (concept) => {
   // Refresh grid data to show new column
   refreshData()
   
-  $q.notify({
-    type: 'positive',
-    message: t('dataGrid.columnAddedSuccessfully', { name: concept.name || concept.code }),
-    position: 'top',
-  })
+  notify.success(t('dataGrid.columnAddedSuccessfully', { name: concept.name || concept.code }))
 }
 
 // Manage patient functions
@@ -1618,18 +1758,10 @@ const removePatientFromGrid = async () => {
       await dataGridStore.refreshData(updatedPatients)
     }
 
-    $q.notify({
-      type: 'positive',
-      message: t('dataGrid.patientRemovedFromGrid', { name: selectedPatientForManagement.value.patientName }),
-      position: 'top',
-    })
+    notify.success(t('dataGrid.patientRemovedFromGrid', { name: selectedPatientForManagement.value.patientName }))
   } catch (error) {
     logger.error('Failed to remove patient from grid', error)
-    $q.notify({
-      type: 'negative',
-      message: t('dataGrid.failedToRemovePatient'),
-      position: 'top',
-    })
+    notify.error(t('dataGrid.failedToRemovePatient'))
   }
 }
 
@@ -1655,7 +1787,17 @@ onMounted(async () => {
     await conceptStore.initialize()
   }
 
+  // Load visit-type label/icon/color map (one query, ~3-10 rows). Used by
+  // visit-col rendering to show a chip under each visit date.
+  await loadVisitTypeMeta()
+
   await loadPatientData()
+
+  window.addEventListener('keydown', onGridKeydown)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onGridKeydown)
 })
 </script>
 
@@ -1714,9 +1856,55 @@ onMounted(async () => {
   border-spacing: 0;
   font-size: 0.875rem;
 
-  .header-row {
+  // Category band: top header row that groups concept columns by CATEGORY_CHAR.
+  // Per-category background tints give visual scanning cues for the dense grid.
+  .category-band-row {
     position: sticky;
     top: 0;
+    z-index: 11;
+    background: $grey-3;
+
+    th {
+      padding: 4px 8px;
+      border: 1px solid $grey-4;
+      border-top: none;
+      border-bottom: 2px solid $grey-5;
+      font-weight: 600;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: $grey-9;
+      background: $grey-3;
+      text-align: center;
+
+      &.fixed-col {
+        position: sticky;
+        left: 0;
+        z-index: 12;
+        background: $grey-3;
+        box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+      }
+
+      &.patient-col { left: 0; }
+      &.visit-col { left: 160px; }
+
+      &.category-band-empty { background: $grey-3; }
+
+      // Subtle per-category tints. Keep them muted so the actual data cells
+      // remain the visual focus.
+      &.category-band--medications { background: rgba(255, 152, 0, 0.12); color: darken(#f57c00, 5%); }
+      &.category-band--laboratory  { background: rgba(33, 150, 243, 0.10); color: darken(#1976d2, 5%); }
+      &.category-band--stroke      { background: rgba(244, 67, 54, 0.10);  color: darken(#d32f2f, 5%); }
+      &.category-band--vital-signs { background: rgba(76, 175, 80, 0.10);  color: darken(#388e3c, 5%); }
+      &.category-band--demographics{ background: rgba(156, 39, 176, 0.10); color: darken(#7b1fa2, 5%); }
+      &.category-band--diagnosis   { background: rgba(96, 125, 139, 0.10); color: darken(#455a64, 5%); }
+      &.category-band--imaging     { background: rgba(0, 188, 212, 0.10);  color: darken(#0097a7, 5%); }
+    }
+  }
+
+  .header-row {
+    position: sticky;
+    top: 28px; // sit below the category band (band ~28px tall)
     z-index: 10;
     background: $grey-2;
 
@@ -1754,37 +1942,56 @@ onMounted(async () => {
       }
 
       &.obs-col {
-        width: 150px;
-        min-width: 150px;
+        // Compact-by-default widths. Click the header to focus a single column
+        // (`&.is-focused` below) and read longer values comfortably.
+        width: 90px;
+        min-width: 90px;
+        cursor: pointer;
+        transition: width 0.18s ease, background-color 0.18s ease;
 
         // Specific widths for different value types
         &.value-type-d {
-          width: 120px; // Date columns: -30px
-          min-width: 120px;
+          width: 96px; // Date columns: fit YYYY-MM-DD without wrap
+          min-width: 96px;
         }
 
         &.value-type-n {
-          width: 100px; // Numeric columns: -50px
-          min-width: 100px;
+          width: 72px; // Numeric columns: small numeric values + unit fit
+          min-width: 72px;
         }
 
         &.value-type-m {
-          width: 120px; // Medication columns
-          min-width: 120px;
+          width: 84px; // Medication icon column
+          min-width: 84px;
+        }
+
+        // Focus-column mode: clicked header → comfortable read width.
+        &.is-focused {
+          width: 220px;
+          min-width: 220px;
+          background: $blue-1;
+
+          // Specific override even for narrow types when focused.
+          &.value-type-d,
+          &.value-type-n,
+          &.value-type-m {
+            width: 220px;
+            min-width: 220px;
+          }
         }
 
         .col-header {
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 4px;
+          gap: 2px;
 
           .concept-name {
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
             text-align: center;
-            line-height: 1.2;
-            max-height: 2.4em;
+            line-height: 1.15;
+            max-height: 2.3em;
             overflow: hidden;
             display: -webkit-box;
             -webkit-line-clamp: 2;
@@ -1793,7 +2000,7 @@ onMounted(async () => {
           }
 
           .concept-code {
-            font-size: 0.65rem;
+            font-size: 0.6rem;
             color: $grey-6;
             font-weight: normal;
           }
@@ -1838,27 +2045,43 @@ onMounted(async () => {
       }
 
       &.obs-cell {
-        width: 150px;
-        min-width: 150px;
+        // Match the compact obs-col defaults above; the .is-focused override
+        // gives one selected column a comfortable read width.
+        width: 90px;
+        min-width: 90px;
         padding: 2px;
         text-align: center;
         vertical-align: middle;
+        transition: width 0.18s ease, background-color 0.18s ease;
 
         // Specific widths for different value types
         &.value-type-d {
-          width: 120px; // Date cells: -30px
-          min-width: 120px;
+          width: 96px;
+          min-width: 96px;
         }
 
         &.value-type-n {
-          width: 100px; // Numeric cells: -50px
-          min-width: 100px;
+          width: 72px;
+          min-width: 72px;
+        }
+
+        &.is-focused {
+          width: 220px;
+          min-width: 220px;
+          background: rgba(33, 150, 243, 0.04);
+
+          &.value-type-d,
+          &.value-type-n,
+          &.value-type-m {
+            width: 220px;
+            min-width: 220px;
+          }
         }
 
         // Expand cell when editing text
         :deep(.editable-cell.is-editing) {
           min-width: 200px;
-          
+
           .cell-edit {
             min-width: 200px;
           }
@@ -2130,16 +2353,70 @@ onMounted(async () => {
 .visit-date-container {
   position: relative;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 4px;
   cursor: help;
   height: 100%;
+  gap: 2px;
 
   &:hover .visit-edit-icon {
     opacity: 1;
     visibility: visible;
   }
+
+  &.visit-placeholder {
+    cursor: default;
+    background: rgba(25, 118, 210, 0.04);
+  }
+}
+
+// Visit-type chip under the date.
+//
+// Kept small + visually quiet so the date stays the primary anchor: text is
+// grey, only a small coloured dot on the left carries the per-visit-type accent
+// (from CODE_LOOKUP blob `color`, e.g. orange/red/teal for stroke_lipid_v0/v1/v2).
+.visit-type-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 6px;
+  font-size: 0.6rem;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: $grey-7;
+  background: transparent;
+  max-width: 100%;
+
+  // Coloured accent dot (the only place the per-type colour shows).
+  &::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--visit-type-color, #9e9e9e);
+  }
+
+  .visit-type-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.obs-cell-placeholder {
+  background: rgba(0, 0, 0, 0.02);
+  cursor: not-allowed;
+}
+
+.obs-placeholder {
+  text-align: center;
+  color: $grey-5;
+  font-size: 0.9rem;
+  user-select: none;
 }
 
 .visit-date {

@@ -6,6 +6,7 @@
  */
 
 import { conceptsData, cqlRulesData, conceptCqlLookupsData, standardUsersData, codeLookupData, questionnaireFiles } from './csv-loader.js'
+import { hashPasswordSync, isHashed } from '../../services/password-service.js'
 
 class SeedManager {
   constructor(connection) {
@@ -458,9 +459,15 @@ class SeedManager {
    * @returns {Promise<void>}
    */
   async insertUser(user) {
-    const fields = Object.keys(user).filter((key) => user[key] !== null && user[key] !== undefined)
+    // Hash the seed password if it isn't already a bcrypt hash so seeds never persist plaintext
+    const prepared = { ...user }
+    if (prepared.PASSWORD_CHAR && !isHashed(prepared.PASSWORD_CHAR)) {
+      prepared.PASSWORD_CHAR = hashPasswordSync(prepared.PASSWORD_CHAR)
+    }
+
+    const fields = Object.keys(prepared).filter((key) => prepared[key] !== null && prepared[key] !== undefined)
     const placeholders = fields.map(() => '?').join(', ')
-    const values = fields.map((field) => user[field])
+    const values = fields.map((field) => prepared[field])
 
     const sql = `INSERT OR IGNORE INTO USER_MANAGEMENT (${fields.join(', ')}) VALUES (${placeholders})`
 

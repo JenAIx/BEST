@@ -2,22 +2,22 @@
   <q-card class="full-height">
     <q-card-section class="full-height">
       <div class="text-h6 q-mb-md">{{ $t('patient.statistics') }}</div>
-      <div class="q-gutter-sm">
-        <div class="row">
-          <div class="col-6 text-grey-6">{{ $t('patient.totalVisits') }}:</div>
-          <div class="col-6">{{ visits.length }}</div>
+      <div class="info-list">
+        <div class="info-row">
+          <span class="info-label">{{ $t('patient.totalVisits') }}</span>
+          <span class="info-value">{{ visits.length }}</span>
         </div>
-        <div class="row">
-          <div class="col-6 text-grey-6">{{ $t('patient.totalObservations') }}:</div>
-          <div class="col-6">{{ observations.length }}</div>
+        <div class="info-row">
+          <span class="info-label">{{ $t('patient.totalObservations') }}</span>
+          <span class="info-value">{{ observations.length }}</span>
         </div>
-        <div class="row">
-          <div class="col-6 text-grey-6">{{ $t('patient.created') }}:</div>
-          <div class="col-6">{{ formatDate(patient.CREATED_AT) }}</div>
+        <div class="info-row">
+          <span class="info-label">{{ $t('patient.created') }}</span>
+          <span class="info-value">{{ formatDate(patient.CREATED_AT) }}</span>
         </div>
-        <div v-if="patient.UPDATED_AT !== patient.CREATED_AT" class="row">
-          <div class="col-6 text-grey-6">{{ $t('patient.updated') }}:</div>
-          <div class="col-6">{{ formatDate(patient.UPDATED_AT) }}</div>
+        <div v-if="patient.UPDATED_AT !== patient.CREATED_AT" class="info-row">
+          <span class="info-label">{{ $t('patient.updated') }}</span>
+          <span class="info-value">{{ formatDate(patient.UPDATED_AT) }}</span>
         </div>
       </div>
     </q-card-section>
@@ -55,5 +55,30 @@ const formatDate = (dateStr) => {
   height: 100%;
   display: flex;
   flex-direction: column;
+}
+
+.info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.info-label {
+  flex: 0 0 auto;
+  color: $grey-7;
+  white-space: nowrap;
+}
+
+.info-value {
+  flex: 1 1 auto;
+  text-align: right;
+  word-break: break-word;
 }
 </style>

@@ -17,7 +17,7 @@ const dbman = {
     return !!this.database
   },
 
-  connect(filename) {
+  async connect(filename) {
     // Convert relative path to absolute
     const absolutePath = path.isAbsolute(filename) ? filename : path.join(process.cwd(), filename)
 
@@ -57,43 +57,22 @@ const dbman = {
         console.log('Connected to SQLite database:', absolutePath)
       })
 
-      // CRITICAL: Configure SQLite for immediate persistence
-      // These must complete before any other operations
-      this.database.serialize(() => {
-        // Force rollback journal mode (most compatible, immediate writes)
-        this.database.run('PRAGMA journal_mode = DELETE', (err) => {
-          if (err) console.error('Failed to set journal mode:', err)
-          else console.log('Journal mode set to DELETE (immediate writes)')
-        })
-
-        // Force all transactions to disk immediately
-        this.database.run('PRAGMA synchronous = FULL', (err) => {
-          if (err) console.error('Failed to set synchronous mode:', err)
-          else console.log('Synchronous mode set to FULL (maximum durability)')
-        })
-
-        // Disable memory caching
-        this.database.run('PRAGMA cache_size = 0', (err) => {
-          if (err) console.error('Failed to set cache size:', err)
-          else console.log('Cache disabled for immediate persistence')
-        })
-
-        // Enable foreign keys
-        this.database.run('PRAGMA foreign_keys = ON', (err) => {
-          if (err) console.error('Failed to enable foreign keys:', err)
-          else console.log('Foreign keys enabled')
-        })
-
-        // Verify we're not using temp storage
-        this.database.get('PRAGMA temp_store', (err, row) => {
-          if (!err) console.log('Temp store setting:', row)
-        })
-
-        // Verify database file
-        this.database.get('PRAGMA database_list', (err, row) => {
-          if (!err) console.log('Database file location:', row)
-        })
-      })
+      // Durability-first profile: rollback journal + full sync. Cache stays at the
+      // SQLite default (~2000 pages / 8 MiB) instead of the previous 0, which
+      // forced every query through the disk page cache and tanked import/joins.
+      // Run sequentially so connect() doesn't return before PRAGMAs are applied.
+      const runPragma = (sql) =>
+        new Promise((resolve, reject) =>
+          this.database.run(sql, (err) => (err ? reject(err) : resolve())),
+        )
+      try {
+        await runPragma('PRAGMA journal_mode = DELETE')
+        await runPragma('PRAGMA synchronous = FULL')
+        await runPragma('PRAGMA foreign_keys = ON')
+      } catch (err) {
+        console.error('Failed to apply connection PRAGMAs:', err)
+        return false
+      }
 
       return true
     } catch (error) {
@@ -188,24 +167,7 @@ const dbman = {
                 changes: this.changes,
               }
               console.log(`SQL executed: ${sql.substring(0, 50)}... Changes: ${result.changes}`)
-
-              // CRITICAL: For COMMIT statements, force a checkpoint to ensure data is written
-              if (sql.trim().toUpperCase() === 'COMMIT') {
-                console.log('Forcing database checkpoint after COMMIT...')
-                // Get reference to database before callback
-                const db = dbman.database
-                // Force SQLite to write all pending changes to disk
-                db.run('PRAGMA wal_checkpoint(TRUNCATE)', (checkErr) => {
-                  if (checkErr) {
-                    console.log('Checkpoint not needed (not in WAL mode)')
-                  } else {
-                    console.log('Database checkpoint completed')
-                  }
-                  resolve(result)
-                })
-              } else {
-                resolve(result)
-              }
+              resolve(result)
             }
           }.bind(this),
         ) // Bind this to preserve context

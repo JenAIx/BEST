@@ -69,17 +69,23 @@ export const useObservationStore = defineStore('observation', () => {
     error.value = null
   }
 
-  const loadObservationsForVisit = async (visitId) => {
+  // Default page size for visit observations. Visits with more rows page via {limit, offset}.
+  const DEFAULT_OBSERVATION_LIMIT = 500
+
+  const loadObservationsForVisit = async (visitId, options = {}) => {
     if (!visitId) {
       observations.value = []
       return []
     }
 
+    const limit = Number.isInteger(options.limit) && options.limit > 0 ? options.limit : DEFAULT_OBSERVATION_LIMIT
+    const offset = Number.isInteger(options.offset) && options.offset >= 0 ? options.offset : 0
+
     try {
       loading.value = true
       error.value = null
 
-      logger.info('Loading observations for visit', { visitId })
+      logger.info('Loading observations for visit', { visitId, limit, offset })
 
       const query = `
         SELECT
@@ -99,10 +105,10 @@ export const useObservationStore = defineStore('observation', () => {
         FROM patient_observations
         WHERE ENCOUNTER_NUM = ?
         ORDER BY CATEGORY_CHAR, CONCEPT_NAME_CHAR
-        LIMIT 500
+        LIMIT ? OFFSET ?
       `
 
-      const result = await dbStore.executeQuery(query, [visitId])
+      const result = await dbStore.executeQuery(query, [visitId, limit, offset])
 
       if (result.success) {
         observations.value = result.data.map((obs) => transformObservation(obs))

@@ -89,7 +89,6 @@ export const useExportStore = defineStore('export', () => {
       })
 
       return {
-        success: true,
         recordCount: allConcepts.length,
         filename,
         message: `Successfully exported ${allConcepts.length} concepts to ${filename}`,
@@ -102,12 +101,7 @@ export const useExportStore = defineStore('export', () => {
         errorMessage: error.message,
         stack: error.stack,
       })
-
-      return {
-        success: false,
-        error: error.message,
-        message: 'Failed to export concepts',
-      }
+      throw error
     }
   }
 

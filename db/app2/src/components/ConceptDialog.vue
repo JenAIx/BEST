@@ -191,6 +191,7 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import { useQuasar } from 'quasar'
+import { useNotify } from 'src/composables/useNotify'
 import BaseEntityDialog from './shared/BaseEntityDialog.vue'
 import ConceptPathPickerDialog from './shared/ConceptPathPickerDialog.vue'
 import EditConceptAnswersDialog from './shared/EditConceptAnswersDialog.vue'
@@ -218,6 +219,8 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'saved', 'cancelled', 'find-existing'])
 
 const $q = useQuasar()
+
+const notify = useNotify()
 const globalSettingsStore = useGlobalSettingsStore()
 const dbStore = useDatabaseStore()
 const loggingStore = useLoggingStore()
@@ -549,21 +552,15 @@ const onSNOMEDSelected = async (concept) => {
         formDataRef.value.sourceSystem = 'SNOMED-CT'
       }
 
-      $q.notify({
-        type: 'positive',
-        message: 'SNOMED CT concept selected and path resolved',
+      notify.success('SNOMED CT concept selected and path resolved', {
         caption: `Path: ${conceptPath}`,
-        position: 'top',
         timeout: 3000,
       })
     } else {
       // Fallback to basic path if resolution fails
       formDataRef.value.conceptPath = `\\SNOMED-CT\\${concept.code}`
-      $q.notify({
-        type: 'warning',
-        message: 'SNOMED CT concept selected, but path resolution failed',
+      notify.warning('SNOMED CT concept selected, but path resolution failed', {
         caption: 'Using basic path format',
-        position: 'top',
       })
     }
   } catch (error) {
@@ -631,11 +628,7 @@ const handleSubmit = async ({ mode, data, changes }) => {
       // Create concept
       const newConcept = await conceptRepo.createConcept(conceptData)
 
-      $q.notify({
-        type: 'positive',
-        message: 'Concept created successfully',
-        position: 'top',
-      })
+      notify.success('Concept created successfully')
 
       emit('saved', { mode: 'create', concept: newConcept })
       dialogVisible.value = false
@@ -679,11 +672,7 @@ const handleSubmit = async ({ mode, data, changes }) => {
       // Update concept
       const updatedConcept = await conceptRepo.updateConcept(props.concept.CONCEPT_CD, updateData)
 
-      $q.notify({
-        type: 'positive',
-        message: 'Concept updated successfully',
-        position: 'top',
-      })
+      notify.success('Concept updated successfully')
 
       emit('saved', { mode: 'edit', concept: updatedConcept })
       dialogVisible.value = false
@@ -700,13 +689,9 @@ const handleSubmit = async ({ mode, data, changes }) => {
       errorMessage = `This concept code already exists in the database. Please choose a different code.`
     }
 
-    $q.notify({
-      type: 'negative',
-      message: errorMessage,
-      position: 'top',
+    notify.error(errorMessage, {
       timeout: 5000,
-      actions:
-        error.message && error.message.includes('already exists')
+      actions: error.message && error.message.includes('already exists')
           ? [
               {
                 label: 'Find Existing',

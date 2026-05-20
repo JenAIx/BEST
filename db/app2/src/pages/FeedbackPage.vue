@@ -229,12 +229,12 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
-import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useFeedbackStore } from 'src/stores/feedback-store'
 import { useAuthStore } from 'src/stores/auth-store'
+import { useNotify } from 'src/composables/useNotify'
 
-const $q = useQuasar()
+const notify = useNotify()
 const { t } = useI18n()
 const feedbackStore = useFeedbackStore()
 const authStore = useAuthStore()
@@ -299,22 +299,7 @@ const onSubmitFeedback = async () => {
       rating: feedbackForm.rating,
     })
 
-    // Success notification
-    $q.notify({
-      type: 'positive',
-      message: t('feedback.feedbackSubmitted'),
-      position: 'top',
-      timeout: 3000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          handler: () => {
-            /* dismiss */
-          },
-        },
-      ],
-    })
+    notify.success(t('feedback.feedbackSubmitted'))
 
     // Reset form
     feedbackForm.title = ''
@@ -325,21 +310,7 @@ const onSubmitFeedback = async () => {
     await loadStatistics()
   } catch (error) {
     console.error('Failed to submit feedback:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('feedback.feedbackError'),
-      position: 'top',
-      timeout: 5000,
-      actions: [
-        {
-          icon: 'close',
-          color: 'white',
-          handler: () => {
-            /* dismiss */
-          },
-        },
-      ],
-    })
+    notify.error(t('feedback.feedbackError'), { timeout: 5000 })
   }
 }
 
@@ -354,12 +325,7 @@ const deleteFeedback = async () => {
 
     await feedbackStore.deleteFeedback(feedbackToDelete.value.id)
 
-    $q.notify({
-      type: 'positive',
-      message: t('feedback.feedbackDeleted'),
-      position: 'top',
-      timeout: 3000,
-    })
+    notify.success(t('feedback.feedbackDeleted'))
 
     showDeleteDialog.value = false
     feedbackToDelete.value = null
@@ -368,12 +334,7 @@ const deleteFeedback = async () => {
     await loadStatistics()
   } catch (error) {
     console.error('Failed to delete feedback:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('feedback.deleteError'),
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(t('feedback.deleteError'), { timeout: 5000 })
   }
 }
 
@@ -382,12 +343,7 @@ const loadFeedbackData = async () => {
     await Promise.all([feedbackStore.loadFeedbacks(), loadStatistics()])
   } catch (error) {
     console.error('Failed to load feedback data:', error)
-    $q.notify({
-      type: 'negative',
-      message: t('feedback.loadError'),
-      position: 'top',
-      timeout: 5000,
-    })
+    notify.error(t('feedback.loadError'), { timeout: 5000 })
   }
 }
 
