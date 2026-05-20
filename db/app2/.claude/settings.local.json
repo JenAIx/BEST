@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npm_config_arch=x64 npm_config_target_arch=x64 npm_config_target_platform=win32 npm install)",
+      "Bash(tasklist)",
+      "PowerShell(Get-Process | Where-Object { $_.ProcessName -match 'electron|cypress' } | Select-Object Id, ProcessName, Path | Format-Table -AutoSize)",
+      "Bash(CYPRESS_INSTALL_BINARY=0 npm_config_arch=x64 npm_config_target_arch=x64 npm_config_target_platform=win32 npm install)",
+      "Bash(npm run *)",
+      "Bash(export CYPRESS_INSTALL_BINARY=0 npm_config_arch=x64 npm_config_target_arch=x64 npm_config_target_platform=win32)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git *)"
+    ]
+  }
+}
