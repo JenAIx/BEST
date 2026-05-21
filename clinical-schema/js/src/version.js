@@ -1,16 +1,21 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
-import { dirname, resolve } from 'node:path'
+// Read the VERSION file when running in Node. In a browser bundler
+// (Vite, etc.) the `node:*` modules are externalised — destructured
+// named imports turn into property access on a throwing Proxy. Using
+// default-imports keeps the proxy untouched at module load; we only
+// touch it inside the try block, where the throw is caught and the
+// hardcoded fallback below is used instead.
 
-const here = dirname(fileURLToPath(import.meta.url))
-// js/src/version.js → js/src → js → repo root
-const versionFile = resolve(here, '..', '..', 'VERSION')
+import fs from 'node:fs'
+import url from 'node:url'
+import path from 'node:path'
 
-let version
+let version = '1.0.0'
 try {
-  version = readFileSync(versionFile, 'utf8').trim()
+  const here = path.dirname(url.fileURLToPath(import.meta.url))
+  const versionFile = path.resolve(here, '..', '..', 'VERSION')
+  version = fs.readFileSync(versionFile, 'utf8').trim()
 } catch {
-  version = '0.0.0-unknown'
+  // Browser (or missing VERSION file): keep the hardcoded fallback.
 }
 
 export const SCHEMA_VERSION = version
