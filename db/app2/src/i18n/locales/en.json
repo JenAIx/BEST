@@ -642,6 +642,8 @@
     "addVisitHint": "Create a new visit for a patient",
     "addPatient": "Add Patient",
     "addPatientHint": "Add an existing patient to the grid",
+    "createNewPatient": "Create new patient",
+    "createNewPatientHint": "Create a new patient and add directly to the grid",
     "selectPatientForVisit": "Select Patient for Visit",
     "addPatientToGrid": "Add Patient to Grid",
     "patientAlreadyInGrid": "Patient \"{name}\" is already in the grid",

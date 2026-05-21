@@ -43,6 +43,15 @@
                     <q-item-label caption>{{ $t('dataGrid.addPatientHint') }}</q-item-label>
                   </q-item-section>
                 </q-item>
+                <q-item clickable @click="openCreateNewPatientDialog" v-close-popup>
+                  <q-item-section avatar>
+                    <q-icon name="person_add_alt_1" color="primary" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ $t('dataGrid.createNewPatient') }}</q-item-label>
+                    <q-item-label caption>{{ $t('dataGrid.createNewPatientHint') }}</q-item-label>
+                  </q-item-section>
+                </q-item>
               </q-list>
             </q-menu>
           </q-btn>
@@ -306,6 +315,13 @@
     <!-- Edit Visit Dialog -->
     <EditVisitDialog v-if="selectedVisitData" v-model="showVisitEditDialog" :patient="selectedVisitData" :visit="selectedVisitData" @visitUpdated="handleVisitUpdated" />
 
+    <!-- Create New Patient Dialog (data-grid context — stay on this page) -->
+    <CreatePatientDialog
+      v-model="showCreateNewPatientDialog"
+      :redirect-on-create="false"
+      @patientCreated="onNewPatientCreatedFromGrid"
+    />
+
     <!-- Questionnaire Preview Dialog -->
     <QuestionnairePreviewDialog
       v-if="selectedQuestionnaireData"
@@ -524,6 +540,7 @@ import EditableCell from './EditableCell.vue'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
 import AddObservationDialog from './AddObservationDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
+import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 import PatientSelectionCard from 'src/components/shared/PatientSelectionCard.vue'
@@ -577,6 +594,7 @@ const selectedQuestionnaireFillData = ref(null)
 const showAddObservationDialog = ref(false)
 const showAddVisitDialog = ref(false)
 const showAddPatientDialog = ref(false)
+const showCreateNewPatientDialog = ref(false)
 const showNewVisitDialog = ref(false)
 const showQuestionnairePreview = ref(false)
 const showQuestionnaireFillDialog = ref(false)
@@ -594,6 +612,9 @@ const openDialog = (name) => {
       break
     case 'addPatient':
       showAddPatientDialog.value = true
+      break
+    case 'createNewPatient':
+      showCreateNewPatientDialog.value = true
       break
     case 'newVisit':
       showNewVisitDialog.value = true
@@ -1637,6 +1658,25 @@ const openAddVisitDialog = () => {
 
 const openAddPatientDialog = () => {
   openDialog('addPatient')
+}
+
+const openCreateNewPatientDialog = () => {
+  openDialog('createNewPatient')
+}
+
+// Handler for CreatePatientDialog (opened with redirect-on-create=false).
+// The dialog has already closed itself and persisted the patient — we just
+// need to push the new row into the grid via the existing add path.
+const onNewPatientCreatedFromGrid = async (patient) => {
+  if (!patient || !patient.PATIENT_CD) {
+    logger.warn('patientCreated emit missing PATIENT_CD', { patient })
+    return
+  }
+  await addPatientToGrid({
+    PATIENT_CD: patient.PATIENT_CD,
+    PATIENT_NUM: patient.PATIENT_NUM,
+    NAME_CHAR: patient.NAME_CHAR || patient.name || patient.PATIENT_CD,
+  })
 }
 
 // Patient search is now handled by PatientSelectionCard component
