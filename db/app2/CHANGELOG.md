@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3_20260521] - 2026-05-21
+
 ### Datentabellen-Editor: per-observation date (right-click → edit / reset)
 
 - **`OBSERVATION_FACT.START_DATE` is now editable per cell** via the
@@ -335,5 +337,6 @@ changes from the recent commit history (see `git log` for full detail).
 - `test(dbBEST)`: smoke tests for UI-prep foundation (notify, session monitor, error boundary).
 - `refactor(dbBEST)`: migrated all `$q.notify` calls to `useNotify` composable.
 
-[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.2_20260516...HEAD
+[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.3_20260521...HEAD
+[0.3_20260521]: https://github.com/JenAIx/BEST/releases/tag/v0.3_20260521
 [0.2_20260516]: https://github.com/JenAIx/BEST/releases/tag/v0.2_20260516
