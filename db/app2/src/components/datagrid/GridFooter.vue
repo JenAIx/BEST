@@ -52,6 +52,21 @@
           <span class="stat-value">{{ statistics.totalCells }}</span>
           <span class="stat-label">{{ $t('dataGrid.cells') }}</span>
         </div>
+
+        <!-- Open audits: clickable chip that toggles the audit-only filter. -->
+        <q-chip
+          v-if="statistics.openAuditsCount > 0 || auditFilterActive"
+          dense
+          clickable
+          :icon="auditFilterActive ? 'filter_alt' : 'flag'"
+          :color="auditFilterActive ? 'red' : 'red-1'"
+          :text-color="auditFilterActive ? 'white' : 'red'"
+          class="q-ml-sm"
+          @click="onToggleAuditFilter"
+        >
+          {{ $t('dataGrid.openAudits', { count: statistics.openAuditsCount }) }}
+          <q-tooltip>{{ auditFilterActive ? $t('dataGrid.auditFilterActive') : $t('dataGrid.showOnlyAudits') }}</q-tooltip>
+        </q-chip>
       </div>
     </div>
   </div>
@@ -69,6 +84,11 @@ const hasUnsavedChanges = computed(() => dataGridStore?.hasUnsavedChanges || fal
 const unsavedChangesCount = computed(() => dataGridStore?.unsavedChangesCount || 0)
 const lastUpdateTime = computed(() => dataGridStore?.lastUpdateTime || '')
 const statistics = computed(() => dataGridStore?.statistics || null)
+const auditFilterActive = computed(() => !!dataGridStore?.auditFilterActive)
+
+const onToggleAuditFilter = () => {
+  dataGridStore?.toggleAuditFilter?.()
+}
 </script>
 
 <style lang="scss" scoped>
