@@ -266,6 +266,8 @@
                   :value="getCellValue(row, concept)"
                   :value-type="concept.valueType"
                   :value-flag="getCellValueFlag(row, concept)"
+                  :start-date="getCellStartDate(row, concept)"
+                  :visit-date="row.visitDate"
                   :concept-code="concept.code"
                   :patient-id="row.patientId"
                   :encounter-num="row.encounterNum"
@@ -274,6 +276,12 @@
                   @save="onCellSave"
                   @error="onCellError"
                   @edit-recorded="onEditRecorded"
+                  @delete-value="onDeleteCellValue"
+                  @mark-audit="onMarkAudit"
+                  @resolve-audit="onResolveAudit"
+                  @mark-no-value="onMarkNoValue"
+                  @clear-no-value="onClearNoValue"
+                  @set-observation-date="onSetObservationDate"
                 />
               </td>
               </template>
@@ -707,11 +715,19 @@ function getVisitTypeMeta(code) {
   return visitTypeMeta.value.get(code) || null
 }
 
-// Filter table rows to exclude hidden visits
+// Filter table rows: drop visits the user hid, and — when the audit filter is
+// active — also drop rows that contain no AUDIT cells.
 const tableRows = computed(() => {
-  const rows = dataGridStore?.tableRows || []
-  if (hiddenVisits.value.size === 0) return rows
-  return rows.filter(row => !hiddenVisits.value.has(row.encounterNum))
+  let rows = dataGridStore?.tableRows || []
+  if (hiddenVisits.value.size > 0) {
+    rows = rows.filter((row) => !hiddenVisits.value.has(row.encounterNum))
+  }
+  if (dataGridStore?.auditFilterActive) {
+    rows = rows.filter((row) =>
+      Object.values(row.observations || {}).some((obs) => obs?.valueFlag === 'AUDIT'),
+    )
+  }
+  return rows
 })
 const viewOptions = computed(() => dataGridStore?.viewOptions || {})
 
@@ -813,6 +829,14 @@ const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
 function getCellValueFlag(row, concept) {
   const obs = row?.observations?.[concept.code]
   return obs?.valueFlag || null
+}
+
+// Read OBSERVATION_FACT.START_DATE for a cell — drives the per-observation
+// date workflow (right-click "Datum bearbeiten") and the corner badge
+// rendered when it differs from row.visitDate.
+function getCellStartDate(row, concept) {
+  const obs = row?.observations?.[concept.code]
+  return obs?.startDate || null
 }
 
 // Inline style for the visit-type chip. We can't compose Quasar colour tokens
@@ -1051,6 +1075,56 @@ const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
 const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
 const onEditRecorded = (entry) => dataGridStore?.recordEdit?.(entry)
+
+// Audit workflow handlers — route the EditableCell context-menu emits
+// to the store. The store mutates local state so the cell re-renders.
+const onDeleteCellValue = async (payload) => {
+  try {
+    await dataGridStore.deleteObservationFromGrid(payload)
+  } catch (error) {
+    notify.error(error.message || t('dataGrid.deleteValue'))
+  }
+}
+
+const onMarkAudit = async (payload) => {
+  try {
+    await dataGridStore.setObservationFlag({ ...payload, flag: 'AUDIT' })
+  } catch (error) {
+    notify.error(error.message || t('dataGrid.markForAudit'))
+  }
+}
+
+const onResolveAudit = async (payload) => {
+  try {
+    await dataGridStore.setObservationFlag({ ...payload, flag: 'CONFIRMED' })
+  } catch (error) {
+    notify.error(error.message || t('dataGrid.resolveAudit'))
+  }
+}
+
+const onMarkNoValue = async (payload) => {
+  try {
+    await dataGridStore.setObservationFlag({ ...payload, flag: 'NV' })
+  } catch (error) {
+    notify.error(error.message || t('dataGrid.markAsNoValue'))
+  }
+}
+
+const onClearNoValue = async (payload) => {
+  try {
+    await dataGridStore.setObservationFlag({ ...payload, flag: null })
+  } catch (error) {
+    notify.error(error.message || t('dataGrid.clearNoValue'))
+  }
+}
+
+const onSetObservationDate = async (payload) => {
+  try {
+    await dataGridStore.setObservationStartDate(payload)
+  } catch (error) {
+    notify.error(error.message || t('dataGrid.editObservationDate'))
+  }
+}
 
 const onUndo = async () => {
   if (!dataGridStore?.canUndo) return

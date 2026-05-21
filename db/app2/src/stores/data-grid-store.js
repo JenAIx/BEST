@@ -15,6 +15,7 @@ import {
   hasRowChanges,
   getCellValue,
   getCellObservationId,
+  getCellValueFlag,
   getPatientNameFromGridData,
   cleanPatientIds,
   createChangeKey,
@@ -54,6 +55,11 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // Column order state (Array<columnCode>)
   const columnOrder = ref([])
 
+  // Audit filter: when active, the grid only shows columns + rows that
+  // contain at least one cell with VALUEFLAG_CD = 'AUDIT'. Toggled from
+  // the GridFooter chip.
+  const auditFilterActive = ref(false)
+
   // Getters
   const totalObservations = computed(() => {
     return tableRows.value.reduce((total, row) => {
@@ -72,39 +78,64 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   const canUndo = computed(() => undoStack.value.length > 0)
   const canRedo = computed(() => redoStack.value.length > 0)
 
-  // Visible observation concepts based on column visibility and order
+  // Set of concept codes that have at least one AUDIT cell across all rows.
+  // Used by the audit filter and by the row-level filter computed below.
+  const conceptCodesWithOpenAudit = computed(() => {
+    const codes = new Set()
+    for (const row of tableRows.value || []) {
+      for (const [code, obs] of Object.entries(row.observations || {})) {
+        if (obs?.valueFlag === 'AUDIT') codes.add(code)
+      }
+    }
+    return codes
+  })
+
+  // Visible observation concepts based on column visibility, order, and the
+  // optional audit filter.
   const getVisibleObservationConcepts = computed(() => {
     const allConcepts = observationConcepts.value || []
 
-    // If no visibility state exists, show all columns
-    if (!columnVisibility.value || columnVisibility.value.size === 0) {
-      return allConcepts
-    }
-
-    try {
-      // First filter by visibility
-      const visibleConcepts = allConcepts.filter((concept) => {
-        // If no visibility state exists for this column, default to visible
-        return columnVisibility.value.get(concept.code) !== false
-      })
-
-      // If we have a custom column order, use it to sort the visible concepts
-      if (columnOrder.value && columnOrder.value.length > 0) {
-        const orderMap = new Map(columnOrder.value.map((code, index) => [code, index]))
-
-        return visibleConcepts.sort((a, b) => {
-          const aIndex = orderMap.get(a.code) ?? 999
-          const bIndex = orderMap.get(b.code) ?? 999
-          return aIndex - bIndex
+    // If no visibility state exists, start from all columns
+    let visibleConcepts = allConcepts
+    if (columnVisibility.value && columnVisibility.value.size > 0) {
+      try {
+        visibleConcepts = allConcepts.filter((concept) => {
+          return columnVisibility.value.get(concept.code) !== false
         })
+      } catch (error) {
+        logger.warn('Error filtering visible concepts in store', error)
+        return allConcepts
       }
-
-      // No custom order, return visible concepts as-is
-      return visibleConcepts
-    } catch (error) {
-      logger.warn('Error filtering visible concepts in store', error)
-      return allConcepts // Fallback to showing all concepts
     }
+
+    // Audit filter: keep only columns that have at least one AUDIT cell.
+    if (auditFilterActive.value) {
+      const auditCodes = conceptCodesWithOpenAudit.value
+      visibleConcepts = visibleConcepts.filter((c) => auditCodes.has(c.code))
+    }
+
+    // If we have a custom column order, use it to sort the visible concepts
+    if (columnOrder.value && columnOrder.value.length > 0) {
+      const orderMap = new Map(columnOrder.value.map((code, index) => [code, index]))
+      return [...visibleConcepts].sort((a, b) => {
+        const aIndex = orderMap.get(a.code) ?? 999
+        const bIndex = orderMap.get(b.code) ?? 999
+        return aIndex - bIndex
+      })
+    }
+
+    return visibleConcepts
+  })
+
+  // Rows that should be shown given the current filter. When the audit filter
+  // is active, only rows that contain at least one AUDIT cell are returned;
+  // otherwise the unfiltered tableRows are returned. Components that want to
+  // honour the audit filter should iterate this instead of tableRows directly.
+  const getVisibleTableRows = computed(() => {
+    if (!auditFilterActive.value) return tableRows.value || []
+    return (tableRows.value || []).filter((row) =>
+      Object.values(row.observations || {}).some((obs) => obs?.valueFlag === 'AUDIT'),
+    )
   })
 
   // Statistics computation
@@ -120,6 +151,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
       let totalCells = 0
       let filledCells = 0
+      let openAuditsCount = 0
 
       rows.forEach((row) => {
         visibleConcepts.forEach((concept) => {
@@ -129,6 +161,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
             // Consider a cell filled if it has a non-empty value
             if (cellValue !== null && cellValue !== undefined && cellValue !== 'NULL' && (typeof cellValue === 'string' ? cellValue.trim() !== '' : String(cellValue).trim() !== '')) {
               filledCells++
+            }
+            if (getCellValueFlag(row, concept) === 'AUDIT') {
+              openAuditsCount++
             }
           } catch (error) {
             logger.warn('Error getting cell value for statistics', { row, concept, error })
@@ -146,6 +181,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         totalCells,
         filledCells,
         filledCellsPercentage,
+        openAuditsCount,
       }
     } catch (error) {
       logger.warn('Error calculating statistics', error)
@@ -156,6 +192,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         totalCells: 0,
         filledCells: 0,
         filledCellsPercentage: 0,
+        openAuditsCount: 0,
       }
     }
   })
@@ -265,10 +302,10 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
   // Event handlers
   const handleCellUpdate = (data) => {
-    const { patientId, encounterNum, conceptCode, value, observationId } = data
+    const { patientId, encounterNum, conceptCode, value, observationId, valueFlag, startDate } = data
     const key = createChangeKey(patientId, encounterNum, conceptCode)
 
-    logger.debug('Handling cell update', { key, value, observationId })
+    logger.debug('Handling cell update', { key, value, observationId, valueFlag, startDate })
 
     // Track the change
     pendingChanges.value.set(key, {
@@ -282,7 +319,10 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
     // Update the local data — propagate observationId so subsequent edits
     // know the observation already exists (otherwise EditableCell would try
-    // to INSERT again instead of UPDATE).
+    // to INSERT again instead of UPDATE). valueFlag and startDate are
+    // mirrored too so the 3-state NV cell and the per-observation-date
+    // workflow render correctly after a save without waiting for a full
+    // grid reload.
     const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
     if (row) {
       if (!row.observations[conceptCode]) {
@@ -291,6 +331,12 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       row.observations[conceptCode].value = value
       if (observationId != null) {
         row.observations[conceptCode].observationId = observationId
+      }
+      if (valueFlag !== undefined) {
+        row.observations[conceptCode].valueFlag = valueFlag
+      }
+      if (startDate !== undefined) {
+        row.observations[conceptCode].startDate = startDate
       }
     }
   }
@@ -338,6 +384,120 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       }
     }
     lastUpdateTime.value = new Date().toLocaleTimeString()
+  }
+
+  // Audit / NV workflow -----------------------------------------------------
+  //
+  // setObservationFlag flips OBSERVATION_FACT.VALUEFLAG_CD for an existing
+  // observation row. Used by the EditableCell context-menu to mark a cell
+  // 'AUDIT' (needs review), resolve it to 'CONFIRMED', mark it 'NV' (the
+  // 3-state "Erfasst – kein Wert" — see CLAUDE.md §3) or clear back to null.
+  //
+  // For 'NV' the value cells (NVAL_NUM, TVAL_CHAR) are also cleared, so the
+  // SQL update is wider and mirrors what EditableCell.updateObservation does
+  // when the user toggles into NV via the inline side button. Empty cells
+  // (observationId == null) are silently ignored.
+  const setObservationFlag = async (payload) => {
+    const { patientId, encounterNum, conceptCode, observationId, flag } = payload || {}
+    if (observationId == null) {
+      logger.warn('setObservationFlag called without observationId — skipped', { payload })
+      return
+    }
+
+    const clearValue = flag === 'NV'
+    const sql = clearValue
+      ? 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, NVAL_NUM = NULL, TVAL_CHAR = NULL, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
+      : 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
+    const result = await dbStore.executeQuery(sql, [flag, observationId])
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
+    }
+
+    // Mirror the flag (and possibly the cleared value) into local state so the
+    // cell re-renders without a reload.
+    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+    if (row && row.observations[conceptCode]) {
+      row.observations[conceptCode].valueFlag = flag
+      if (clearValue) {
+        row.observations[conceptCode].value = ''
+      }
+    }
+
+    lastUpdateTime.value = new Date().toLocaleTimeString()
+    logger.info('Observation flag updated', { observationId, flag })
+  }
+
+  // deleteObservationFromGrid hard-deletes the OBSERVATION_FACT row and
+  // clears the local cell. Mirrors EditableCell's "clear numeric without NV"
+  // path (saveToDatabase line 412-416) but reachable from the right-click
+  // menu so the user can wipe text/finding/selection cells too.
+  const deleteObservationFromGrid = async (payload) => {
+    const { patientId, encounterNum, conceptCode, observationId } = payload || {}
+    if (observationId == null) {
+      logger.warn('deleteObservationFromGrid called without observationId — skipped', { payload })
+      return
+    }
+
+    const sql = 'DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?'
+    const result = await dbStore.executeQuery(sql, [observationId])
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to delete observation')
+    }
+
+    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+    if (row && row.observations[conceptCode]) {
+      // Keep the cell shell with valueType so the user can still INSERT a new
+      // value via direct edit; just blank the value/observationId/flag.
+      row.observations[conceptCode].observationId = null
+      row.observations[conceptCode].value = ''
+      row.observations[conceptCode].valueFlag = null
+    }
+
+    // Drop any pending change so the deleted cell doesn't try to save again.
+    pendingChanges.value.delete(createChangeKey(patientId, encounterNum, conceptCode))
+
+    lastUpdateTime.value = new Date().toLocaleTimeString()
+    logger.info('Observation deleted from grid', { observationId })
+  }
+
+  const toggleAuditFilter = () => {
+    auditFilterActive.value = !auditFilterActive.value
+    logger.debug('Audit filter toggled', { active: auditFilterActive.value })
+  }
+
+  // Per-observation date workflow ------------------------------------------
+  //
+  // OBSERVATION_FACT.START_DATE defaults to the parent visit's START_DATE on
+  // insert (set by EditableCell.createObservation), but can diverge — e.g. a
+  // lab whose draw date is a few days before/after the visit. The right-click
+  // "Datum bearbeiten" menu calls this action; "Auf Visitendatum
+  // zurücksetzen" calls the same action with startDate=row.visitDate.
+  //
+  // Update-only (observationId required). New observations still get their
+  // initial date from the visit via the existing EditableCell create path.
+  const setObservationStartDate = async (payload) => {
+    const { patientId, encounterNum, conceptCode, observationId, startDate } = payload || {}
+    if (observationId == null) {
+      logger.warn('setObservationStartDate called without observationId — skipped', { payload })
+      return
+    }
+    if (!startDate) {
+      throw new Error('setObservationStartDate requires a non-empty startDate')
+    }
+
+    const sql = 'UPDATE OBSERVATION_FACT SET START_DATE = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
+    const result = await dbStore.executeQuery(sql, [startDate, observationId])
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update observation START_DATE')
+    }
+
+    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+    if (row && row.observations[conceptCode]) {
+      row.observations[conceptCode].startDate = startDate
+    }
+
+    lastUpdateTime.value = new Date().toLocaleTimeString()
+    logger.info('Observation start date updated', { observationId, startDate })
   }
 
   const undo = async () => {
@@ -744,6 +904,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     viewOptions,
     columnVisibility,
     columnOrder,
+    auditFilterActive,
 
     // Getters
     totalObservations,
@@ -752,6 +913,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     canUndo,
     canRedo,
     getVisibleObservationConcepts,
+    getVisibleTableRows,
+    conceptCodesWithOpenAudit,
     statistics,
 
     // Utility functions
@@ -774,6 +937,12 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     handleCellUpdate,
     handleCellSave,
     handleCellError,
+
+    // Audit workflow
+    setObservationFlag,
+    deleteObservationFromGrid,
+    toggleAuditFilter,
+    setObservationStartDate,
 
     // Undo/redo
     recordEdit,

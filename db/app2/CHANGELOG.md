@@ -7,6 +7,77 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Datentabellen-Editor: per-observation date (right-click → edit / reset)
+
+- **`OBSERVATION_FACT.START_DATE` is now editable per cell** via the
+  right-click menu on any observation. Two new menu items:
+  - **Datum bearbeiten** — opens a small `AppDialog` with a
+    `<q-input type="date">` pre-filled with the current observation date.
+    Saving runs `UPDATE OBSERVATION_FACT SET START_DATE = ?` and mirrors
+    the new date into the grid's local state.
+  - **Auf Visitendatum zurücksetzen** — shown only when the observation
+    date diverges from the parent visit's `START_DATE`. One-click reset
+    that calls the same store action with `startDate = row.visitDate`.
+- **Corner badge** — cells whose `obs.startDate !== row.visitDate` now
+  render a small calendar icon in the top-left corner (purple `event`
+  icon, pointer-events: none so it doesn't intercept clicks).
+- **Local-state propagation** — every save (whether via the inline
+  editor, the right-click date dialog, or the reset action) carries
+  `startDate` through `EditableCell.emit('update', {..., startDate})`
+  → `data-grid-store.handleCellUpdate` mirrors it into
+  `row.observations[code].startDate`. Same invariant as `valueFlag`,
+  documented in CLAUDE.md §3.
+- **No schema change** — `OBSERVATION_FACT.START_DATE` already exists
+  and was already populated from the visit on INSERT. The grid loader
+  (`processObservationDataForGrid` in `database-store.js`) now exposes
+  it in the per-cell payload alongside `value`, `valueFlag`, etc.
+- **Tests** — 7 new in `tests/unit/18_observation-date.test.js`:
+  SQL params, local mirror, reset-to-visit-date, missing-id no-op,
+  empty-string rejection, error surface, and `handleCellUpdate`
+  backwards-compat (no `startDate` in payload leaves the cell
+  untouched). Total suite: 764 passing, 3 skipped.
+
+### Datentabellen-Editor: Audit-Workflow + NV / right-click context menu
+
+- **New right-click menu on grid cells** (`EditableCell.vue`). Mutually-exclusive
+  state transitions backed by `OBSERVATION_FACT.VALUEFLAG_CD`:
+  - **Wert löschen** — confirm-dialog (shared `AppDialog`), then hard-delete
+    the observation row.
+  - **Zur Prüfung markieren** / **Prüfung auflösen** — flips
+    `VALUEFLAG_CD` between `AUDIT` and `CONFIRMED`. Audit-flagged cells render
+    with a 2 px red border, confirmed cells with a 1 px green border.
+  - **Als „Kein Wert" markieren** / **„Kein Wert" aufheben** — toggles the
+    existing 3-state numeric `NV` state via the menu (previously only the
+    inline side button could set it).
+- **GridFooter audit chip** — shows `Audits offen: N` when at least one
+  cell is flagged AUDIT. Clicking the chip toggles a filter that collapses
+  the grid to only the columns and rows that contain open audits; clicking
+  again restores the full view.
+- **Migration 011 (`011-audit-valueflags.js`)** seeds `AUDIT` + `CONFIRMED`
+  codes into `CODE_LOOKUP(OBSERVATION_FACT/VALUEFLAG_CD)` alongside the
+  existing `NV` / `NI` codes from migration 010. No schema change.
+- **CLAUDE.md §3** rewritten as a `VALUEFLAG_CD` state machine — covers
+  3-state numerics and the audit workflow together, including the
+  invariant that every save MUST propagate `valueFlag` through to the
+  grid's local state.
+- **2 bug fixes uncovered during integration**:
+  - **Inline NV-toggle on an empty cell silently did nothing** — the
+    `<q-input>` carrying the only `@blur="saveEdit"` handler was unmounted
+    when `editFlagNV` flipped to `true`, leaving no save trigger. Fix:
+    `toggleEditFlag` now fires `saveEdit()` when flipping **into** NV (commit
+    is unambiguous — no further input expected), with an `isSaving` re-entry
+    guard so a concurrent blur save doesn't double-fire.
+  - **`valueFlag` not mirrored to local state after save** — the editor
+    persisted `VALUEFLAG_CD='NV'` to the DB but `row.observations[code].valueFlag`
+    stayed stale, so the cell rendered empty until a full reload. Fix:
+    `EditableCell.emit('update', {…, valueFlag})` now carries the new flag and
+    `data-grid-store.handleCellUpdate` mirrors it.
+- **Tests**: 17_audit-flagging.test.js (12 new tests covering store actions,
+  statistics, audit filter, NV-clears-value, valueFlag in payload) and 3 new
+  regressions in 15_editable-cell-nv-state.test.js (empty→NV via toggle,
+  emit payload carries `valueFlag`, edit clears stale flag).
+  Total suite: 757 passing, 3 skipped.
+
 ### Cohort Dashboard / Study Insights
 
 - **New "Insights" tab on `StudyDetailsPage.vue`** — for any study, renders

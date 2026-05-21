@@ -43,6 +43,11 @@
       <div v-else-if="isSaving" class="cell-status">
         <q-spinner size="10px" color="primary" />
       </div>
+      <!-- Corner badge: per-observation date diverges from the parent visit
+           date. Always rendered, never blocks the main status indicators. -->
+      <div v-if="dateDiffersFromVisit" class="cell-date-badge" :title="$t('dataGrid.dateDiffersFromVisit', { date: props.startDate })">
+        <q-icon name="event" size="10px" color="purple-6" />
+      </div>
     </div>
 
     <!-- Edit Mode -->
@@ -141,6 +146,117 @@
       :concept-name="getConceptName()"
       :upload-date="getUploadDate()"
     />
+
+    <!-- Right-click context menu: delete · audit/resolve · NV toggle.
+         States are mutually exclusive: a cell flagged AUDIT can be resolved
+         (→ CONFIRMED) but cannot be marked NV until resolved; an NV cell can
+         be cleared but cannot be audited until cleared. Only shown when the
+         cell has an observation row to act on. -->
+    <q-menu
+      v-if="props.observationId != null"
+      context-menu
+      touch-position
+      auto-close
+    >
+      <q-list dense style="min-width: 220px">
+        <q-item clickable @click="onContextDelete">
+          <q-item-section avatar><q-icon name="delete" color="negative" /></q-item-section>
+          <q-item-section>{{ $t('dataGrid.deleteValue') }}</q-item-section>
+        </q-item>
+        <q-separator />
+        <q-item
+          v-if="props.valueFlag !== 'AUDIT' && props.valueFlag !== 'NV'"
+          clickable
+          @click="onContextMarkAudit"
+        >
+          <q-item-section avatar><q-icon name="flag" color="red" /></q-item-section>
+          <q-item-section>{{ $t('dataGrid.markForAudit') }}</q-item-section>
+        </q-item>
+        <q-item
+          v-if="props.valueFlag === 'AUDIT'"
+          clickable
+          @click="onContextResolveAudit"
+        >
+          <q-item-section avatar><q-icon name="check_circle" color="positive" /></q-item-section>
+          <q-item-section>{{ $t('dataGrid.resolveAudit') }}</q-item-section>
+        </q-item>
+        <!-- NV toggle (3-state, numeric only). Mutually exclusive with AUDIT. -->
+        <q-item
+          v-if="props.valueType === 'N' && props.valueFlag !== 'NV' && props.valueFlag !== 'AUDIT'"
+          clickable
+          @click="onContextMarkNoValue"
+        >
+          <q-item-section avatar><q-icon name="block" color="grey-7" /></q-item-section>
+          <q-item-section>{{ $t('dataGrid.markAsNoValue') }}</q-item-section>
+        </q-item>
+        <q-item
+          v-if="props.valueType === 'N' && props.valueFlag === 'NV'"
+          clickable
+          @click="onContextClearNoValue"
+        >
+          <q-item-section avatar><q-icon name="undo" color="grey-7" /></q-item-section>
+          <q-item-section>{{ $t('dataGrid.clearNoValue') }}</q-item-section>
+        </q-item>
+        <!-- Per-observation date: edit + (optional) reset to visit date. -->
+        <q-separator />
+        <q-item clickable @click="onContextEditDate">
+          <q-item-section avatar><q-icon name="event" color="purple-6" /></q-item-section>
+          <q-item-section>
+            <q-item-label>{{ $t('dataGrid.editObservationDate') }}</q-item-label>
+            <q-item-label caption v-if="props.startDate">{{ props.startDate }}</q-item-label>
+          </q-item-section>
+        </q-item>
+        <q-item v-if="dateDiffersFromVisit" clickable @click="onContextResetDateToVisit">
+          <q-item-section avatar><q-icon name="restart_alt" color="grey-7" /></q-item-section>
+          <q-item-section>
+            <q-item-label>{{ $t('dataGrid.resetToVisitDate') }}</q-item-label>
+            <q-item-label caption v-if="props.visitDate">{{ props.visitDate }}</q-item-label>
+          </q-item-section>
+        </q-item>
+      </q-list>
+    </q-menu>
+
+    <!-- Confirm-delete dialog for the right-click "Delete value" action. -->
+    <AppDialog
+      v-model="showConfirmDelete"
+      :title="$t('dataGrid.confirmDeleteValueTitle')"
+      :message="$t('dataGrid.confirmDeleteValueMessage')"
+      size="md"
+      persistent
+      :ok-label="$t('common.delete')"
+      ok-color="negative"
+      @ok="onConfirmDelete"
+    />
+
+    <!-- Per-observation date editor dialog. -->
+    <AppDialog
+      v-model="showEditDateDialog"
+      :title="$t('dataGrid.editDateDialogTitle')"
+      size="md"
+      :ok-label="$t('common.save')"
+      ok-color="primary"
+      @ok="onConfirmEditDate"
+    >
+      <div class="q-pa-sm">
+        <div class="text-caption text-grey-7 q-mb-sm">
+          {{ $t('dataGrid.editDateHint') }}
+        </div>
+        <q-input
+          v-model="editDateValue"
+          type="date"
+          outlined
+          dense
+          :label="$t('dataGrid.editObservationDate')"
+        >
+          <template v-slot:prepend>
+            <q-icon name="event" />
+          </template>
+        </q-input>
+        <div v-if="props.visitDate" class="text-caption text-grey-6 q-mt-sm">
+          {{ $t('visit.visitDate') }}: {{ props.visitDate }}
+        </div>
+      </div>
+    </AppDialog>
   </div>
 </template>
 
@@ -152,6 +268,7 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
+import AppDialog from 'src/components/shared/AppDialog.vue'
 
 const props = defineProps({
   value: {
@@ -185,9 +302,35 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  // OBSERVATION_FACT.START_DATE for the cell. Defaults to the parent visit's
+  // START_DATE on insert (set by createObservation) but the right-click
+  // "Datum bearbeiten" workflow can shift it. Used to render the corner
+  // badge when the observation date differs from the visit date.
+  startDate: {
+    type: String,
+    default: null,
+  },
+  // VISIT_DIMENSION.START_DATE of the parent visit. Read-only — only used
+  // for the "Auf Visitendatum zurücksetzen" reset target and to detect
+  // divergence (corner-badge condition).
+  visitDate: {
+    type: String,
+    default: null,
+  },
 })
 
-const emit = defineEmits(['update', 'save', 'error', 'edit-recorded'])
+const emit = defineEmits([
+  'update',
+  'save',
+  'error',
+  'edit-recorded',
+  'delete-value',
+  'mark-audit',
+  'resolve-audit',
+  'mark-no-value',
+  'clear-no-value',
+  'set-observation-date',
+])
 
 const notify = useNotify()
 const dbStore = useDatabaseStore()
@@ -215,6 +358,14 @@ const loadingOptions = ref(false)
 // File preview state for R type observations
 const showFilePreview = ref(false)
 
+// Confirm-delete dialog state for the right-click "Delete value" action.
+const showConfirmDelete = ref(false)
+
+// Per-observation date editor dialog state. editDateValue holds a
+// YYYY-MM-DD string compatible with <q-input type="date">.
+const showEditDateDialog = ref(false)
+const editDateValue = ref('')
+
 // Computed properties
 const displayValue = computed(() => {
   if (hasUnsavedChanges.value && !isEditing.value) {
@@ -241,8 +392,21 @@ const cellClasses = computed(() => ({
   'has-changes': hasUnsavedChanges.value,
   'is-saving': isSaving.value,
   'has-no-value-flag': props.valueFlag === 'NV' && !displayValue.value,
+  'value-flag-audit': props.valueFlag === 'AUDIT',
+  'value-flag-confirmed': props.valueFlag === 'CONFIRMED',
+  'date-differs-from-visit': dateDiffersFromVisit.value,
   [`value-type-${props.valueType.toLowerCase()}`]: true,
 }))
+
+// True when this observation has its own START_DATE that doesn't match the
+// parent visit's START_DATE. Drives the corner-badge and the visibility of
+// the "Reset to visit date" menu item.
+const dateDiffersFromVisit = computed(() => {
+  if (!props.startDate || !props.visitDate) return false
+  // Compare as date-only strings (both are 'YYYY-MM-DD' from SQLite DATE
+  // columns; defensively slice to 10 chars in case of stray time component).
+  return String(props.startDate).slice(0, 10) !== String(props.visitDate).slice(0, 10)
+})
 
 // Methods
 const onCellClick = () => {
@@ -252,6 +416,62 @@ const onCellClick = () => {
   } else {
     startEdit()
   }
+}
+
+// Build a payload shared by all three context-menu emits — parent uses it to
+// route to data-grid-store.{setObservationFlag, deleteObservationFromGrid}.
+const auditPayload = () => ({
+  patientId: props.patientId,
+  encounterNum: props.encounterNum,
+  conceptCode: props.conceptCode,
+  observationId: props.observationId,
+})
+
+const onContextDelete = () => {
+  showConfirmDelete.value = true
+}
+
+const onConfirmDelete = () => {
+  emit('delete-value', auditPayload())
+}
+
+const onContextMarkAudit = () => {
+  emit('mark-audit', auditPayload())
+}
+
+const onContextResolveAudit = () => {
+  emit('resolve-audit', auditPayload())
+}
+
+const onContextMarkNoValue = () => {
+  emit('mark-no-value', auditPayload())
+}
+
+const onContextClearNoValue = () => {
+  emit('clear-no-value', auditPayload())
+}
+
+const onContextEditDate = () => {
+  // Pre-fill with the current observation date, falling back to the visit's
+  // date so the picker is never empty (new observations always inherit it).
+  editDateValue.value = String(props.startDate || props.visitDate || '').slice(0, 10)
+  showEditDateDialog.value = true
+}
+
+const onConfirmEditDate = () => {
+  if (!editDateValue.value) return
+  emit('set-observation-date', {
+    ...auditPayload(),
+    startDate: editDateValue.value,
+  })
+}
+
+const onContextResetDateToVisit = () => {
+  if (!props.visitDate) return
+  emit('set-observation-date', {
+    ...auditPayload(),
+    startDate: String(props.visitDate).slice(0, 10),
+  })
 }
 
 const startEdit = async () => {
@@ -317,20 +537,36 @@ const loadSelectionOptions = async () => {
 
 /**
  * Toggle the editor between numeric-value mode and "NV" (no value / explicitly
- * absent) mode. Clears the numeric value when flipping into NV so the next
- * save persists the NV state cleanly.
+ * absent) mode. Clears the numeric value when flipping into NV.
+ *
+ * Flipping INTO NV commits immediately — once the q-input is gone there is no
+ * blur trigger to save the change, so on a freshly-clicked empty cell the user
+ * would otherwise stage NV with no way to persist it. Flipping OUT of NV is
+ * left as edit-mode-only since the user is about to type a value; the normal
+ * blur/enter/tab path commits.
  */
 const toggleEditFlag = () => {
   if (props.valueType !== 'N') return
   editFlagNV.value = !editFlagNV.value
   if (editFlagNV.value) {
     editValue.value = ''
+    hasUnsavedChanges.value = true
+    // Fire-and-forget — saveEdit is async but the click handler is sync.
+    // The re-entry guard inside saveEdit prevents a concurrent blur save
+    // from racing this commit.
+    saveEdit()
+  } else {
+    hasUnsavedChanges.value = true
   }
-  hasUnsavedChanges.value = true
 }
 
 const saveEdit = async () => {
   if (!isEditing.value) return
+  // Re-entry guard: toggleEditFlag fires saveEdit when flipping into NV,
+  // which can race with a near-simultaneous blur save from the unmounting
+  // q-input. The first call sets isSaving=true synchronously before any
+  // await; later concurrent calls observe it and bail.
+  if (isSaving.value) return
 
   // 3-state numeric: detect "no change" against the cell's pre-edit state.
   // For numeric+NV we compare both the numeric value AND the NV-flag intent.
@@ -359,7 +595,12 @@ const saveEdit = async () => {
       }
     }
 
-    // Emit update event to parent
+    // Emit update event to parent. Includes the new VALUEFLAG_CD so the
+    // grid's local state mirrors what saveToDatabase will persist — without
+    // this, an NV toggle would write VALUEFLAG_CD='NV' to the DB but the
+    // cell would re-render as empty (valueFlag stays null in row state)
+    // until a full reload.
+    const newValueFlag = props.valueType === 'N' && editFlagNV.value ? 'NV' : null
     emit('update', {
       patientId: props.patientId,
       encounterNum: props.encounterNum,
@@ -367,6 +608,7 @@ const saveEdit = async () => {
       value: emitValue,
       observationId: props.observationId,
       valueType: props.valueType,
+      valueFlag: newValueFlag,
     })
 
     // Save to database — returns the resulting observationId (existing on
@@ -537,7 +779,10 @@ const createObservation = async () => {
     }
   }
 
-  // Update the observation ID for future updates
+  // Update the observation ID for future updates. Mirror VALUEFLAG_CD too
+  // so the cell re-renders with the right state (block icon for NV) without
+  // waiting for a full grid reload.
+  const newValueFlag = props.valueType === 'N' && editFlagNV.value ? 'NV' : null
   emit('update', {
     patientId: props.patientId,
     encounterNum: props.encounterNum,
@@ -545,6 +790,7 @@ const createObservation = async () => {
     value: emitValue,
     observationId: result.OBSERVATION_ID,
     valueType: props.valueType,
+    valueFlag: newValueFlag,
   })
 
   return result.OBSERVATION_ID
@@ -957,6 +1203,29 @@ watch(editValue, (newValue) => {
 
 .editable-cell.cell-saved {
   animation: cellSaved 0.5s ease-out;
+}
+
+// Audit workflow: AUDIT = flagged for review (prominent red border),
+// CONFIRMED = audited and confirmed OK (subtle green border).
+.editable-cell.value-flag-audit {
+  border: 2px solid $negative;
+  border-radius: 2px;
+}
+
+.editable-cell.value-flag-confirmed {
+  border: 1px solid $positive;
+  border-radius: 2px;
+}
+
+// Per-observation date diverges from parent visit date — small calendar
+// icon in the top-left corner, mirrors the .cell-status pattern but on
+// the opposite side so the two never collide.
+.cell-date-badge {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  pointer-events: none; // don't intercept clicks meant for the cell
+  z-index: 1;
 }
 
 // Responsive adjustments
