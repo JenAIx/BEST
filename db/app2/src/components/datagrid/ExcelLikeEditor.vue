@@ -148,24 +148,6 @@
                     @click="openManagePatientDialog(row)"
                   >
                     {{ getPatientInitials(row.patientName) }}
-                    <q-tooltip>{{ $t('dataGrid.managePatientTooltip') }}</q-tooltip>
-                    <!-- Right-click: manage (= same as click) + delete-with-cascade -->
-                    <q-menu context-menu touch-position auto-close>
-                      <q-list dense style="min-width: 220px">
-                        <q-item clickable @click="openManagePatientDialog(row)">
-                          <q-item-section avatar><q-icon name="manage_accounts" color="primary" /></q-item-section>
-                          <q-item-section>{{ $t('dataGrid.managePatient') }}</q-item-section>
-                        </q-item>
-                        <q-separator />
-                        <q-item clickable @click="openDeletePatientFromGrid(row)">
-                          <q-item-section avatar><q-icon name="delete_forever" color="negative" /></q-item-section>
-                          <q-item-section>
-                            <q-item-label>{{ $t('patient.deletePatient') }}</q-item-label>
-                            <q-item-label caption>{{ $t('patient.deletePatientTooltip') }}</q-item-label>
-                          </q-item-section>
-                        </q-item>
-                      </q-list>
-                    </q-menu>
                   </q-avatar>
                   <div v-else class="avatar-placeholder"></div>
                   <div>
@@ -179,6 +161,24 @@
                     <div class="patient-id">{{ row.patientId }}</div>
                   </div>
                 </div>
+                <!-- Right-click anywhere in the patient cell (incl. subsequent
+                     visit rows where the avatar is hidden): manage + delete. -->
+                <q-menu context-menu touch-position auto-close>
+                  <q-list dense style="min-width: 220px">
+                    <q-item clickable @click="openManagePatientDialog(row)">
+                      <q-item-section avatar><q-icon name="manage_accounts" color="primary" /></q-item-section>
+                      <q-item-section>{{ $t('dataGrid.managePatient') }}</q-item-section>
+                    </q-item>
+                    <q-separator />
+                    <q-item clickable @click="openDeletePatientFromGrid(row)">
+                      <q-item-section avatar><q-icon name="delete_forever" color="negative" /></q-item-section>
+                      <q-item-section>
+                        <q-item-label>{{ $t('patient.deletePatient') }}</q-item-label>
+                        <q-item-label caption>{{ $t('patient.deletePatientTooltip') }}</q-item-label>
+                      </q-item-section>
+                    </q-item>
+                  </q-list>
+                </q-menu>
               </td>
 
               <td class="fixed-col visit-col">
