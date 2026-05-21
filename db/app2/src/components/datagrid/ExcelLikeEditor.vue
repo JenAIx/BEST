@@ -139,16 +139,33 @@
               <!-- Fixed columns -->
               <td class="fixed-col patient-col" :class="{ 'subsequent-visit': !isFirstVisitForPatient(row) }">
                 <div class="patient-info">
-                  <q-avatar 
-                    v-if="isFirstVisitForPatient(row)" 
-                    size="24px" 
-                    color="primary" 
-                    text-color="white" 
+                  <q-avatar
+                    v-if="isFirstVisitForPatient(row)"
+                    size="24px"
+                    color="primary"
+                    text-color="white"
                     class="q-mr-xs patient-avatar-clickable"
                     @click="openManagePatientDialog(row)"
                   >
                     {{ getPatientInitials(row.patientName) }}
                     <q-tooltip>{{ $t('dataGrid.managePatientTooltip') }}</q-tooltip>
+                    <!-- Right-click: manage (= same as click) + delete-with-cascade -->
+                    <q-menu context-menu touch-position auto-close>
+                      <q-list dense style="min-width: 220px">
+                        <q-item clickable @click="openManagePatientDialog(row)">
+                          <q-item-section avatar><q-icon name="manage_accounts" color="primary" /></q-item-section>
+                          <q-item-section>{{ $t('dataGrid.managePatient') }}</q-item-section>
+                        </q-item>
+                        <q-separator />
+                        <q-item clickable @click="openDeletePatientFromGrid(row)">
+                          <q-item-section avatar><q-icon name="delete_forever" color="negative" /></q-item-section>
+                          <q-item-section>
+                            <q-item-label>{{ $t('patient.deletePatient') }}</q-item-label>
+                            <q-item-label caption>{{ $t('patient.deletePatientTooltip') }}</q-item-label>
+                          </q-item-section>
+                        </q-item>
+                      </q-list>
+                    </q-menu>
                   </q-avatar>
                   <div v-else class="avatar-placeholder"></div>
                   <div>
@@ -320,6 +337,12 @@
       v-model="showCreateNewPatientDialog"
       :redirect-on-create="false"
       @patientCreated="onNewPatientCreatedFromGrid"
+    />
+
+    <!-- Delete Patient Dialog (shared, two-step confirm + cascade) -->
+    <DeletePatientDialog
+      ref="deletePatientDialogRef"
+      @deleted="onPatientDeletedFromGrid"
     />
 
     <!-- Questionnaire Preview Dialog -->
@@ -541,6 +564,7 @@ import ViewOptionsDialog from './ViewOptionsDialog.vue'
 import AddObservationDialog from './AddObservationDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
 import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
+import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 import PatientSelectionCard from 'src/components/shared/PatientSelectionCard.vue'
@@ -662,6 +686,10 @@ const creatingVisit = ref(false)
 // Manage patient dialog state
 const showManagePatientDialog = ref(false)
 const selectedPatientForManagement = ref(null)
+
+// Imperative handle for the shared DeletePatientDialog (warns about
+// associated data and then runs the full cascade transaction).
+const deletePatientDialogRef = ref(null)
 
 // Load hidden visits from localStorage
 const loadHiddenVisits = () => {
@@ -1823,6 +1851,49 @@ const openManagePatientDialog = (row) => {
     patientName: row.patientName,
   }
   showManagePatientDialog.value = true
+}
+
+// Right-click → "Patient löschen". DeletePatientDialog needs PATIENT_NUM
+// (the surrogate key) but the grid rows only carry PATIENT_CD, so resolve
+// it once via findPatientByCode. The dialog itself handles the two-step
+// confirm (warns when data exists) and runs the cascade transaction in
+// dbStore.deletePatient.
+const openDeletePatientFromGrid = async (row) => {
+  try {
+    const patient = await databaseStore.findPatientByCode(row.patientId)
+    if (!patient || patient.PATIENT_NUM == null) {
+      notify.error(t('dataGrid.failedToRemovePatient'))
+      return
+    }
+    deletePatientDialogRef.value?.show(patient, row.patientName)
+  } catch (error) {
+    logger.error('Failed to open delete-patient dialog', error)
+    notify.error(t('dataGrid.failedToRemovePatient'))
+  }
+}
+
+// Called after DeletePatientDialog completed the cascade. Drop the
+// patient from the cohort selection and refresh the grid so the row
+// disappears.
+const onPatientDeletedFromGrid = async (deletedPatient) => {
+  try {
+    const localSettings = useLocalSettingsStore()
+    const currentPatients = localSettings.getDataGridSelectedPatients()
+    const updatedPatients = currentPatients.filter((id) => id !== deletedPatient.PATIENT_CD)
+    localSettings.setDataGridSelectedPatients(updatedPatients)
+
+    // Also close the manage dialog if it happened to be open for this patient
+    if (selectedPatientForManagement.value?.patientId === deletedPatient.PATIENT_CD) {
+      showManagePatientDialog.value = false
+      selectedPatientForManagement.value = null
+    }
+
+    if (dataGridStore?.refreshData) {
+      await dataGridStore.refreshData(updatedPatients)
+    }
+  } catch (error) {
+    logger.error('Failed to refresh grid after patient delete', error)
+  }
 }
 
 // Get all visits for the selected patient
