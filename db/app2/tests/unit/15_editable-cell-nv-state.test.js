@@ -26,11 +26,12 @@ vi.mock('quasar', () => ({
 }))
 
 const executeQueryMock = vi.fn()
+const createObservationMock = vi.fn().mockResolvedValue({ OBSERVATION_ID: 999 })
 vi.mock('src/stores/database-store', () => ({
   useDatabaseStore: () => ({
     executeQuery: executeQueryMock,
     getRepository: () => ({
-      createObservation: vi.fn().mockResolvedValue({ OBSERVATION_ID: 999 }),
+      createObservation: createObservationMock,
     }),
   }),
 }))
@@ -82,7 +83,9 @@ describe('EditableCell 3-state numeric edit flow', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     executeQueryMock.mockReset()
-    executeQueryMock.mockResolvedValue({ success: true, data: [] })
+    executeQueryMock.mockResolvedValue({ success: true, data: [{ PATIENT_NUM: 1, START_DATE: '2026-01-01' }] })
+    createObservationMock.mockClear()
+    createObservationMock.mockResolvedValue({ OBSERVATION_ID: 999 })
   })
 
   it('value → value: UPDATE sets NVAL_NUM and clears VALUEFLAG_CD', async () => {
@@ -157,6 +160,65 @@ describe('EditableCell 3-state numeric edit flow', () => {
 
     const updateCall = executeQueryMock.mock.calls.find((c) => /UPDATE|DELETE/.test(c[0]))
     expect(updateCall).toBeFalsy()
+  })
+
+  it('emit("update") payload carries the new valueFlag so the grid mirrors it locally', async () => {
+    // Regression: without valueFlag in the emit, handleCellUpdate would
+    // leave row.observations[code].valueFlag stale (null) even though
+    // VALUEFLAG_CD='NV' was persisted — the cell would render empty until
+    // a full reload.
+    const wrapper = makeWrapper({ value: 40, observationId: 100, valueFlag: null })
+    await wrapper.find('.editable-cell').trigger('click')
+    await nextTick()
+    wrapper.vm.toggleEditFlag() // flip into NV — fires saveEdit internally
+    await flushPromises()
+
+    const updateEvents = wrapper.emitted('update') || []
+    expect(updateEvents.length).toBeGreaterThanOrEqual(1)
+    // The pre-save emit (or the post-save one for INSERT) must include valueFlag='NV'
+    expect(updateEvents.some((args) => args[0]?.valueFlag === 'NV')).toBe(true)
+  })
+
+  it('value → value: emit("update") payload carries valueFlag=null (clears stale flag)', async () => {
+    const wrapper = makeWrapper({ value: '', observationId: 100, valueFlag: 'NV' })
+    await wrapper.find('.editable-cell').trigger('click')
+    await nextTick()
+    wrapper.vm.toggleEditFlag() // out of NV
+    wrapper.vm.editValue = 40
+    await wrapper.vm.saveEdit()
+    await flushPromises()
+
+    const updateEvents = wrapper.emitted('update') || []
+    expect(updateEvents.length).toBeGreaterThanOrEqual(1)
+    // After flipping out of NV and entering a value, the emit must clear valueFlag
+    expect(updateEvents[0][0]?.valueFlag).toBeNull()
+  })
+
+  it('empty → NV: toggleEditFlag auto-commits via INSERT (no blur trigger possible)', async () => {
+    // The q-input is unmounted when the editor flips into NV mode, so the
+    // user's only path to commit is via toggleEditFlag itself. Regression
+    // for the bug where clicking the inline NV button on an empty cell
+    // left the editor in NV-mode but never wrote to the DB.
+    const wrapper = makeWrapper({
+      value: '',
+      observationId: null, // empty cell
+      valueFlag: null,
+    })
+
+    await wrapper.find('.editable-cell').trigger('click')
+    await nextTick()
+    // Flip into NV via the inline toggle — this MUST persist.
+    wrapper.vm.toggleEditFlag()
+    await flushPromises()
+
+    // Patient + visit lookups happen via executeQuery; the actual INSERT
+    // goes through the observation repository.
+    expect(createObservationMock).toHaveBeenCalledOnce()
+    const obs = createObservationMock.mock.calls[0][0]
+    expect(obs.NVAL_NUM).toBeNull()
+    expect(obs.VALUEFLAG_CD).toBe('NV')
+    expect(obs.VALTYPE_CD).toBe('N')
+    expect(obs.CONCEPT_CD).toBe('STROKE_LIPID:DRUG:ATORVASTATIN')
   })
 
   it('NV state shows the placeholder and the toggle is highlighted', async () => {

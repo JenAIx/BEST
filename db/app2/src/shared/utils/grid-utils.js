@@ -54,6 +54,17 @@ export const getCellObservationId = (row, concept) => {
 }
 
 /**
+ * Get the VALUEFLAG_CD for a cell (used by the audit workflow and stats).
+ * @param {Object} row - Table row data
+ * @param {Object} concept - Concept definition
+ * @returns {string|null} VALUEFLAG_CD value (e.g. 'AUDIT', 'CONFIRMED', 'NV') or null
+ */
+export const getCellValueFlag = (row, concept) => {
+  const obs = row.observations[concept.code]
+  return obs?.valueFlag || null
+}
+
+/**
  * Format patient name from patient object (grid-specific)
  * @param {Object} patient - Patient database object
  * @returns {string} Formatted patient name

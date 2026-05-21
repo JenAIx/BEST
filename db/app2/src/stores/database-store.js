@@ -917,6 +917,11 @@ export const useDatabaseStore = defineStore('database', () => {
           // 'NV' (no value / explicit absence, e.g. drug not taken) to render
           // a distinct cell state. See CLAUDE.md "3-state pattern for numerics".
           valueFlag: obs.VALUEFLAG_CD || null,
+          // startDate is OBSERVATION_FACT.START_DATE. Defaults to the visit's
+          // START_DATE on insert, but can diverge — the right-click "Datum
+          // bearbeiten" workflow lets users set a per-observation date when
+          // e.g. a lab was drawn on a different day than the visit.
+          startDate: obs.START_DATE || null,
           originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
           resolvedValue: obs.TVAL_RESOLVED,
           // rawObservation without BLOB for performance (BLOB loaded on-demand)

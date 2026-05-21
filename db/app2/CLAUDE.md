@@ -294,11 +294,13 @@ The two answer concepts (already seeded) are:
 - `SCTID: 373066001` — "Yes" (VALTYPE `A`)
 - `SCTID: 373067005` — "No" (VALTYPE `A`)
 
-### 3. 3-State pattern for numeric observations via `VALUEFLAG_CD`
+### 3. `VALUEFLAG_CD` state machine (3-state numerics + audit workflow)
 
-When a numeric value can be in one of three states — **measured**, **explicitly
-no value**, or **not assessed** — use `OBSERVATION_FACT.VALUEFLAG_CD = 'NV'` to mark
-the explicit-no-value case. No schema change needed (column already exists).
+`OBSERVATION_FACT.VALUEFLAG_CD` is a single-value enum that encodes both the
+3-state numeric pattern and the audit workflow. **The flag values are mutually
+exclusive** — a cell is in exactly one state at a time.
+
+**3-state numeric** (`NV` — added by migration 010, intended for numerics):
 
 | Semantic state | DB representation |
 |---|---|
@@ -306,13 +308,58 @@ the explicit-no-value case. No schema change needed (column already exists).
 | Explicitly no value (asked + negative) | `NVAL_NUM = NULL`, `UNIT_CD = 'mg'`, `VALUEFLAG_CD = 'NV'`, `OBSERVATION_BLOB = {"explicit":true}` |
 | Not assessed (unknown) | **No observation row at all** |
 
-`NV` is registered in `CODE_LOOKUP(OBSERVATION_FACT/VALUEFLAG_CD)` with HL7v3 nullFlavor
-mapping `~ NP` (not present). Use this pattern for medications (taking/not-taking/unknown),
-lab values where "explicitly not measured" is meaningful, or any other numeric where
-zero and missing differ in meaning.
+`NV` is registered in `CODE_LOOKUP(OBSERVATION_FACT/VALUEFLAG_CD)` with HL7v3
+nullFlavor mapping `~ NP`. Use this pattern for medications
+(taking/not-taking/unknown), labs where "explicitly not measured" is meaningful,
+or any other numeric where zero and missing differ in meaning.
 
-UI hint: render checkbox "no value" when `VALUEFLAG_CD='NV'`, number input when
-`NVAL_NUM != NULL`, empty field when no observation exists.
+**Audit workflow** (`AUDIT` / `CONFIRMED` — added by migration 011):
+
+| Semantic state | DB representation | UI |
+|---|---|---|
+| Needs review | value present, `VALUEFLAG_CD = 'AUDIT'` | 2px red cell border, footer chip "Audits offen: N" |
+| Reviewed / OK | value present, `VALUEFLAG_CD = 'CONFIRMED'` | 1px green cell border |
+
+These cover any value type (not just numerics) — useful when a reviewer wants
+to flag a data point for discussion without changing the value, and later
+record that it was reviewed. The "Audits offen" footer chip in the
+Datentabellen-Editor (`GridFooter.vue`) doubles as a one-click filter that
+hides every column/row without an open audit (`data-grid-store.auditFilterActive`).
+
+**State transitions** — `data-grid-store.setObservationFlag({observationId, flag})`
+is the single entry point:
+
+- `flag='AUDIT'` / `'CONFIRMED'` — flips the flag, value untouched.
+- `flag='NV'` — flips to NV **and** clears `NVAL_NUM` + `TVAL_CHAR` (so "no value" really is no value).
+- `flag=null` — clears the flag, value untouched.
+
+Direct value edits via `EditableCell.updateObservation` also write
+`VALUEFLAG_CD = null` whenever a real numeric value is entered, so any prior
+NV/AUDIT/CONFIRMED state is cleared automatically (see test
+`tests/unit/15_editable-cell-nv-state.test.js`, case "value → value").
+
+**Invariant — every save MUST propagate `valueFlag` to the grid's local state.**
+`EditableCell.emit('update', {..., valueFlag})` carries the new flag back to
+`data-grid-store.handleCellUpdate`, which mirrors it into
+`row.observations[code].valueFlag`. Without this, an inline NV-toggle would
+write `VALUEFLAG_CD='NV'` to the DB but the cell would re-render as empty
+(stale `valueFlag=null` in local state) until a full grid reload. The store
+actions that bypass the editor (`setObservationFlag`,
+`deleteObservationFromGrid`) maintain this invariant themselves.
+
+UI hint: in the Excel-like grid, render checkbox "no value" when
+`VALUEFLAG_CD='NV'`, number input when `NVAL_NUM != NULL`, empty field when
+no observation exists, red border for `'AUDIT'`, green border for `'CONFIRMED'`.
+
+**Per-observation date** — `OBSERVATION_FACT.START_DATE` defaults to the parent
+visit's `START_DATE` on INSERT, but can diverge per observation (e.g. a lab
+drawn on a different day). The grid exposes this via the right-click menu
+("Datum bearbeiten" / "Auf Visitendatum zurücksetzen"). Same propagation
+invariant as `valueFlag`: every save MUST carry `startDate` back to the grid's
+local state. `EditableCell.emit('update', {..., startDate})` →
+`data-grid-store.handleCellUpdate` mirrors it. Cells where
+`obs.startDate !== row.visitDate` render a small calendar corner badge so
+users can see divergence without opening the menu.
 
 ### 4. Concept reuse hierarchy
 
