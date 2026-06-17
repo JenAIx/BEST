@@ -1,0 +1,192 @@
+{
+    "title": "Aufnahmebogen V1 (LEC-SEQ)",
+    "short_title": "lecseq-anamnese-v1",
+    "coding": {
+        "system": "LEC-SEQ",
+        "code": "CUSTOM: LECSEQ_ANAMNESE_V1",
+        "display": "Aufnahmebogen V1 - Einwilligung/Anamnese/Vortherapie (LEC-SEQ)",
+        "version": "20260601"
+    },
+    "description": "Baseline-Aufnahme bei V1: Einwilligung, Anamnese, Vortherapie und Eignungsprüfung (vor LECIG-Start)",
+    "keywords": "parkinson lec-seq lecigon anamnese baseline einwilligung vortherapie eignung v1",
+    "manual": "<b>Parkinson-spezifische Baseline-Erhebung bei V1</b> (vor LECIG-Start), durch Studienpersonal. Deckt Einwilligung + Anamnese + Vortherapie-Doku der Erhebungsmatrix ab.",
+    "items": [
+        { "label": "1 — Stammdaten", "type": "separator" },
+        { "label": "Geburtsjahr", "tag": "geburtsjahr", "value": null, "type": "date_year", "force": false },
+        { "label": "Alter", "tag": "alter", "value": null, "type": "number", "force": false },
+        {
+            "label": "Geschlecht", "tag": "geschlecht", "value": null, "type": "radio", "inline": true,
+            "options": [
+                {"label": "männlich", "value": "m"},
+                {"label": "weiblich", "value": "w"},
+                {"label": "divers", "value": "d"}
+            ]
+        },
+        { "label": "Visiten-Datum (V1)", "tag": "visit_date", "value": null, "type": "date", "force": false },
+        { "label": "Studienzentrum", "tag": "studienzentrum", "value": null, "type": "text", "force": false },
+        { "label": "Notizen / Anmerkungen", "tag": "notizen", "value": null, "type": "text", "force": false },
+
+        { "label": "2 — Einwilligung & Aufklärung", "type": "separator" },
+        {
+            "label": "Einwilligung / Aufklärung", "tag": "einwilligung", "value": [], "type": "checkbox",
+            "options": [
+                {"label": "vollständig aufgeklärt (mündlich + schriftlich)", "value": "aufgeklaert"},
+                {"label": "schriftliche Einwilligung vorliegend", "value": "einwilligung_vorliegend"},
+                {"label": "ausreichend Bedenkzeit", "value": "bedenkzeit"},
+                {"label": "Kopie ausgehändigt", "value": "kopie"}
+            ]
+        },
+        { "label": "Datum / Version Aufklärungsbogen", "tag": "aufklaerung_version", "value": null, "type": "text", "force": false },
+
+        { "label": "3 — Diagnose & Krankheitsverlauf", "type": "separator" },
+        { "label": "Erstdiagnose (Jahr)", "tag": "erstdiagnose_jahr", "value": null, "type": "date_year", "force": false },
+        { "label": "Erkrankungsdauer (Jahre)", "tag": "erkrankungsdauer", "value": null, "type": "number", "force": false },
+        {
+            "label": "Diagnose nach Kriterien", "tag": "diagnosekriterien", "value": null, "type": "radio", "inline": true,
+            "options": [
+                {"label": "MDS", "value": "mds"},
+                {"label": "UK Brain Bank", "value": "ukbb"}
+            ]
+        },
+        {
+            "label": "Dominanter Phänotyp", "tag": "phaenotyp", "value": null, "type": "radio",
+            "options": [
+                {"label": "tremordominant", "value": "tremordominant"},
+                {"label": "akinetisch-rigide", "value": "akinetisch_rigide"},
+                {"label": "Äquivalenz", "value": "aequivalenz"}
+            ]
+        },
+        {
+            "label": "Hoehn & Yahr (ON)", "tag": "hoehn_yahr", "value": null, "type": "radio", "inline": true,
+            "options": [
+                {"label": "I", "value": 1},
+                {"label": "II", "value": 2},
+                {"label": "III", "value": 3},
+                {"label": "IV", "value": 4},
+                {"label": "V", "value": 5}
+            ],
+            "ignore_for_result": true
+        },
+        {
+            "label": "Familienanamnese (Parkinson)", "tag": "familienanamnese", "value": null, "type": "radio", "inline": true,
+            "force": false,
+            "options": [
+                {"label": "nein", "value": "nein"},
+                {"label": "ja", "value": "ja"}
+            ]
+        },
+        { "label": "MMST", "tag": "mmst", "value": null, "type": "number", "force": false },
+        { "label": "MoCA", "tag": "moca", "value": null, "type": "number", "force": false },
+        { "label": "Relevante Komorbiditäten", "tag": "komorbiditaeten", "value": null, "type": "text", "force": false },
+
+        { "label": "4 — Aktueller Verlauf & aktuelle Probleme", "type": "separator" },
+        { "label": "Hauptbeschwerden / Anlass der Umstellung", "tag": "hauptbeschwerden", "value": null, "type": "text" },
+        { "label": "OFF-Zeit (h/Tag)", "tag": "off_zeit", "value": null, "type": "number", "force": false },
+        {
+            "label": "Dyskinesien", "tag": "dyskinesien", "value": null, "type": "radio", "inline": true,
+            "options": [
+                {"label": "keine", "value": "keine"},
+                {"label": "leicht", "value": "leicht"},
+                {"label": "mäßig", "value": "maessig"},
+                {"label": "schwer", "value": "schwer"}
+            ]
+        },
+        {
+            "label": "Freezing of Gait", "tag": "freezing", "value": null, "type": "radio", "inline": true,
+            "force": false,
+            "options": [
+                {"label": "nein", "value": "nein"},
+                {"label": "ja", "value": "ja"}
+            ]
+        },
+        { "label": "Stürze (letzte 3 Monate)", "tag": "stuerze_3mo", "value": null, "type": "number", "force": false },
+        {
+            "label": "Nicht-motorische Symptome", "tag": "nms", "value": [], "type": "checkbox", "force": false,
+            "options": [
+                {"label": "Schlaf", "value": "schlaf"},
+                {"label": "Tagesmüdigkeit", "value": "tagesmuedigkeit"},
+                {"label": "Stimmung / Depression", "value": "depression"},
+                {"label": "Angst", "value": "angst"},
+                {"label": "Kognition", "value": "kognition"},
+                {"label": "Halluzinationen", "value": "halluzinationen"},
+                {"label": "autonom", "value": "autonom"},
+                {"label": "Schmerz", "value": "schmerz"}
+            ]
+        },
+
+        { "label": "5 — Aktuelle Medikation", "type": "separator" },
+        {
+            "label": "Aktuelle Antiparkinson-Medikation",
+            "caption": "Wirkstoff/Präparat · Einzeldosis · Frequenz/Tag · Tagesdosis",
+            "tag": "medikation", "value": null, "type": "text", "force": false
+        },
+        { "label": "LEDD (mg/Tag)", "tag": "ledd", "value": null, "type": "number", "force": false },
+        { "label": "Relevante Begleitmedikation", "tag": "begleitmedikation", "value": null, "type": "text", "force": false },
+
+        { "label": "6 — Therapieverlauf & bisherige Pumpentherapien", "type": "separator" },
+        {
+            "label": "Bisherige Vortherapie(n) erhalten",
+            "caption": "Einschlusskriterium: ≥ 3 Mo, unzureichend wirksam und/oder nicht toleriert.",
+            "tag": "vortherapien", "value": [], "type": "checkbox",
+            "options": [
+                {"label": "Apomorphin (CSAI)", "value": "apomorphin"},
+                {"label": "Produodopa / Foslevodopa", "value": "produodopa"},
+                {"label": "Duodopa / LCIG", "value": "duodopa"},
+                {"label": "andere", "value": "andere"}
+            ]
+        },
+        { "label": "Vortherapie — Zeitraum / Details", "tag": "vortherapie_details", "value": null, "type": "text", "force": false },
+        {
+            "label": "Grund(e) der Umstellung", "tag": "umstellungsgrund", "value": [], "type": "checkbox", "force": false,
+            "options": [
+                {"label": "unzureichende Wirksamkeit", "value": "wirksamkeit"},
+                {"label": "ADRs", "value": "adrs"},
+                {"label": "Handhabung", "value": "handhabung"},
+                {"label": "sonstige", "value": "sonstige"}
+            ]
+        },
+        {
+            "label": "Vortherapie ≥ 3 Monate bestätigt?", "tag": "vortherapie_3mo", "value": null, "type": "radio", "inline": true,
+            "options": [
+                {"label": "ja", "value": "ja"},
+                {"label": "nein", "value": "nein"}
+            ]
+        },
+        {
+            "label": "Klinische Indikation zur LECIG-Pumpe gestellt?", "tag": "indikation_lecig", "value": null, "type": "radio", "inline": true,
+            "options": [
+                {"label": "ja", "value": "ja"},
+                {"label": "nein", "value": "nein"}
+            ]
+        },
+
+        { "label": "7 — Eignungsprüfung", "type": "separator" },
+        {
+            "label": "Einschlusskriterien (alle 5 erfüllt)", "tag": "einschluss", "value": [], "type": "checkbox", "force": false,
+            "options": [
+                {"label": "PD-Diagnose", "value": "pd_diagnose"},
+                {"label": "Vortherapie ≥ 3 Mo", "value": "vortherapie_3mo"},
+                {"label": "Indikation LECIG", "value": "indikation"},
+                {"label": "Alter ≥ 18", "value": "alter_18"},
+                {"label": "Einwilligung", "value": "einwilligung"}
+            ]
+        },
+        {
+            "label": "Ausschlusskriterien (jedes disqualifiziert)", "tag": "ausschluss", "value": [], "type": "checkbox", "force": false,
+            "options": [
+                {"label": "MMST < 15", "value": "mmst_15"},
+                {"label": "schwere Psychiatrie / Psychose", "value": "psychiatrie"},
+                {"label": "KI Levodopa/Carbidopa/Entacapon", "value": "ki_medikation"},
+                {"label": "schwere instabile internistische Erkrankung", "value": "internistisch"}
+            ]
+        },
+        {
+            "label": "Einschließbar?", "tag": "einschliessbar", "value": null, "type": "radio", "inline": true,
+            "options": [
+                {"label": "JA", "value": "ja"},
+                {"label": "NEIN", "value": "nein"}
+            ]
+        },
+        { "label": "Falls NEIN: Grund", "tag": "ausschluss_grund", "value": null, "type": "text", "force": false }
+    ]
+}

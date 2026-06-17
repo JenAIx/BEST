@@ -8,6 +8,7 @@ import { db } from '../db'
 import { log } from '../Logger'
 import { uuidv4 } from '../hhash'
 import { buildImportStructure } from '../export_app2'
+import { DEFAULT_VISIT_TEMPLATES, SEED_VERSION } from './default-templates'
 import {
   createVisitFromTemplate,
   createVisitSlot,
@@ -37,6 +38,28 @@ class VisitMan {
       this._VISITS.splice(0, this._VISITS.length, ...(visits || []))
     } catch (e) {
       log({ error: 'VisitMan>init: IndexedDB read failed', data: e })
+    }
+    await this._seed_default_templates()
+  }
+
+  // Versionierte Synchronisation der LEC-SEQ-Standardvorlagen.
+  // Läuft nur, wenn die gespeicherte Seed-Version < SEED_VERSION ist. Default-Vorlagen
+  // werden per Label angelegt bzw. (bei Versions-Bump) auf den aktuellen Stand gebracht;
+  // selbst angelegte Vorlagen bleiben unberührt.
+  async _seed_default_templates() {
+    try {
+      const meta = await db.meta.get('visit_templates_seed')
+      const current = meta && typeof meta.version === 'number' ? meta.version : 0
+      if (current >= SEED_VERSION) return
+      DEFAULT_VISIT_TEMPLATES.forEach((t) => {
+        const existing = this._TEMPLATES.find((x) => x.label === t.label)
+        if (existing) this.update_template(existing.id, { questionnaires: [...t.questionnaires] })
+        else this.add_template(t.label, t.questionnaires)
+      })
+      await db.meta.put({ key: 'visit_templates_seed', version: SEED_VERSION })
+      log({ debug: 'VisitMan: synced default LEC-SEQ visit templates', data: SEED_VERSION })
+    } catch (e) {
+      log({ error: 'VisitMan>seed templates failed', data: e })
     }
   }
 

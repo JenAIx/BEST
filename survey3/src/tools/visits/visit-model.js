@@ -62,9 +62,16 @@ export function itemValidity(item, value) {
   const t = item.type
   if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === undefined) return null
   if (t === 'multiple_radio') {
-    if (!Array.isArray(v)) return false
+    if (!Array.isArray(v) || v.length === 0) return false
+    // Alle Teilfragen müssen beantwortet sein: Länge == Anzahl Teilfragen und kein null.
+    // (Leeres Array [] zählt NICHT als ausgefüllt — sonst wäre v.every() vacuously true.)
+    const expected =
+      item.options && Array.isArray(item.options.questions) ? item.options.questions.length : 0
+    if (expected > 0 && v.length !== expected) return false
     return v.every((x) => x !== undefined && x !== null)
   }
+  // checkbox: mindestens eine Auswahl nötig (leeres [] zählt NICHT als ausgefüllt)
+  if (t === 'checkbox') return Array.isArray(v) && v.length > 0
   return v !== undefined && v !== null
 }
 

@@ -1,0 +1,313 @@
+{
+    "title": "ADR-Bogen LECIG (LEC-SEQ)",
+    "short_title": "lecseq-adr",
+    "coding": {
+        "system": "LEC-SEQ",
+        "code": "CUSTOM: LECSEQ_ADR",
+        "display": "ADR-Erfassungsbogen LECIG (LEC-SEQ)",
+        "version": "20260601"
+    },
+    "description": "Erfassung einer unerwünschten Arzneimittelwirkung (UAW/ADR) unter LECIG-Pumpentherapie — ein Bogen pro Ereignis",
+    "keywords": "parkinson lec-seq lecigon adr uaw sicherheit pharmakovigilanz sae",
+    "manual": "<b>Pro unerwünschtem Ereignis (UAW/ADR) ein Bogen.</b> Zu dokumentieren ab Einwilligung + erster LECIG-Gabe bis Studienende — auch zwischen Visiten, telefonisch und bei ungeplanten Kontakten. <b>Verdacht genügt → sofort erfassen.</b><br><span style=\"color:#b71c1c\">⚠ Entwurf — UAW-Kategorien an der aktuellen Fachinformation Lecigon gegenprüfen. Ersetzt nicht die gesetzlichen Pharmakovigilanz-/SAE-Meldepflichten.</span>",
+    "items": [
+        {
+            "label": "Bogen-Nr.",
+            "tag": "bogen_nr",
+            "value": null,
+            "type": "number",
+            "force": false
+        },
+        {
+            "label": "Erfasst am",
+            "tag": "erfasst_am",
+            "value": null,
+            "type": "date",
+            "force": false
+        },
+        {
+            "label": "Kontext",
+            "tag": "kontext",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "V2", "value": "V2"},
+                {"label": "V3", "value": "V3"},
+                {"label": "V4", "value": "V4"},
+                {"label": "ungeplante Visite", "value": "ungeplant"},
+                {"label": "telefonisch", "value": "telefonisch"},
+                {"label": "stationär", "value": "stationaer"}
+            ]
+        },
+        {
+            "label": "1 — Ereignis",
+            "type": "separator"
+        },
+        {
+            "label": "Beschreibung der UAW",
+            "caption": "Was, wann, wie aufgefallen.",
+            "tag": "beschreibung",
+            "value": null,
+            "type": "text"
+        },
+        {
+            "label": "Beginn",
+            "tag": "beginn",
+            "value": null,
+            "type": "date",
+            "force": false
+        },
+        {
+            "label": "Ende",
+            "tag": "ende",
+            "value": null,
+            "type": "date",
+            "force": false
+        },
+        {
+            "label": "anhaltend",
+            "tag": "anhaltend",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "anhaltend", "value": "anhaltend"}
+            ]
+        },
+        {
+            "label": "2 — Kategorie (Mehrfachnennung möglich)",
+            "type": "separator"
+        },
+        {
+            "label": "A) Gerät / Sonde / Prozedur (PEG-J + Pumpe)",
+            "tag": "kat_geraet",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "Stoma-Infektion / Rötung / Sekretion", "value": "stoma_infektion"},
+                {"label": "Granulationsgewebe / Schmerz an Einstichstelle", "value": "granulation"},
+                {"label": "Sondendislokation / -knick / -okklusion", "value": "sonde_dislokation"},
+                {"label": "Sondenmigration", "value": "sondenmigration"},
+                {"label": "postprozedurale Bauchschmerzen", "value": "postproz_bauchschmerz"},
+                {"label": "Peritonitis", "value": "peritonitis"},
+                {"label": "Ileus / Subileus", "value": "ileus"},
+                {"label": "Pneumoperitoneum", "value": "pneumoperitoneum"},
+                {"label": "Darmperforation", "value": "darmperforation"},
+                {"label": "Pumpen-/Gerätestörung", "value": "geraetestoerung"}
+            ]
+        },
+        {
+            "label": "B) Gastrointestinal",
+            "tag": "kat_gi",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "Übelkeit", "value": "uebelkeit"},
+                {"label": "Erbrechen", "value": "erbrechen"},
+                {"label": "Obstipation", "value": "obstipation"},
+                {"label": "Bauchschmerz / Blähung", "value": "bauchschmerz"},
+                {"label": "Gewichtsverlust", "value": "gewichtsverlust"}
+            ]
+        },
+        {
+            "label": "C) Neurologisch / dopaminerg",
+            "tag": "kat_neuro",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "Dyskinesien / Überbewegungen", "value": "dyskinesien"},
+                {"label": "verstärkte Wirkungsfluktuationen (On-Off)", "value": "fluktuationen"},
+                {"label": "Halluzinationen / Verwirrtheit / Psychose", "value": "halluzinationen"},
+                {"label": "Impulskontrollstörung", "value": "impulskontrolle"},
+                {"label": "Dopamin-Dysregulationssyndrom", "value": "dds"},
+                {"label": "Tagesschläfrigkeit / plötzliches Einschlafen", "value": "tagesschlaefrigkeit"},
+                {"label": "Schwindel", "value": "schwindel"},
+                {"label": "orthostatische Hypotonie / Synkope", "value": "orthostase"},
+                {"label": "Kopfschmerz", "value": "kopfschmerz"}
+            ]
+        },
+        {
+            "label": "D) Metabolisch / neuropathisch (LECIG-spezifisch beobachten!)",
+            "caption": "Bei intestinalem Levodopa-Gel auf Polyneuropathie + B-Vitamin-Status achten (B6/B12/Folat + Homocystein).",
+            "tag": "kat_metabolisch",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "Polyneuropathie (akut/subakut)", "value": "polyneuropathie"},
+                {"label": "Vitamin-B6-/B12-/Folat-Mangel", "value": "vitaminmangel"},
+                {"label": "Homocystein-/Methylmalonsäure-Erhöhung", "value": "homocystein"}
+            ]
+        },
+        {
+            "label": "E) Sonstiges",
+            "tag": "kat_sonstiges",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "Sturz", "value": "sturz"},
+                {"label": "Hautreaktion", "value": "hautreaktion"}
+            ]
+        },
+        {
+            "label": "Sonstiges — andere (Freitext)",
+            "tag": "kat_sonstiges_andere",
+            "value": null,
+            "type": "text",
+            "force": false
+        },
+        {
+            "label": "3 — Schweregrad (CTCAE-orientiert)",
+            "type": "separator"
+        },
+        {
+            "label": "Schweregrad",
+            "tag": "schweregrad",
+            "value": null,
+            "type": "radio",
+            "options": [
+                {"label": "Grad 1 (leicht)", "value": 1},
+                {"label": "Grad 2 (mäßig)", "value": 2},
+                {"label": "Grad 3 (schwer)", "value": 3},
+                {"label": "Grad 4 (lebensbedrohlich)", "value": 4},
+                {"label": "Grad 5 (tödlich)", "value": 5}
+            ]
+        },
+        {
+            "label": "4 — Schwerwiegend (SAE)?",
+            "type": "separator"
+        },
+        {
+            "label": "Schwerwiegend (SAE)?",
+            "tag": "sae",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "nein", "value": "nein"},
+                {"label": "ja", "value": "ja"}
+            ]
+        },
+        {
+            "label": "SAE-Kriterium",
+            "caption": "Nur bei SAE = ja (Mehrfachnennung möglich).",
+            "tag": "sae_kriterium",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "Tod", "value": "tod"},
+                {"label": "lebensbedrohlich", "value": "lebensbedrohlich"},
+                {"label": "stationäre Aufnahme / Verlängerung", "value": "stationaer"},
+                {"label": "bleibende Behinderung / Schädigung", "value": "behinderung"},
+                {"label": "kongenitale Anomalie", "value": "kongenital"},
+                {"label": "medizinisch bedeutsam", "value": "medizinisch_bedeutsam"}
+            ]
+        },
+        {
+            "label": "5 — Kausaler Zusammenhang",
+            "type": "separator"
+        },
+        {
+            "label": "Vermuteter Auslöser",
+            "caption": "Mehrfachnennung möglich.",
+            "tag": "ausloeser",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "LECIG-Medikation", "value": "lecig"},
+                {"label": "PEG-J-Sonde", "value": "pegj"},
+                {"label": "Pumpe/Gerät", "value": "pumpe"},
+                {"label": "Prozedur/Anlage", "value": "prozedur"},
+                {"label": "andere Ursache", "value": "andere"}
+            ]
+        },
+        {
+            "label": "Kausalitätsbewertung (zu LECIG-Therapie)",
+            "tag": "kausalitaet",
+            "value": null,
+            "type": "radio",
+            "options": [
+                {"label": "unwahrscheinlich", "value": "unwahrscheinlich"},
+                {"label": "möglich", "value": "moeglich"},
+                {"label": "wahrscheinlich", "value": "wahrscheinlich"},
+                {"label": "gesichert", "value": "gesichert"},
+                {"label": "nicht beurteilbar", "value": "nicht_beurteilbar"}
+            ]
+        },
+        {
+            "label": "6 — Maßnahme & Verlauf",
+            "type": "separator"
+        },
+        {
+            "label": "Maßnahme",
+            "caption": "Mehrfachnennung möglich.",
+            "tag": "massnahme",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "keine", "value": "keine"},
+                {"label": "Dosisanpassung", "value": "dosisanpassung"},
+                {"label": "Pumpe pausiert", "value": "pumpe_pausiert"},
+                {"label": "Sonden-/Gerätewechsel", "value": "geraetewechsel"},
+                {"label": "stationäre Aufnahme", "value": "stationaer"},
+                {"label": "LECIG abgesetzt", "value": "lecig_abgesetzt"},
+                {"label": "Begleitmedikation", "value": "begleitmedikation"}
+            ]
+        },
+        {
+            "label": "Maßnahme — sonstige (Freitext)",
+            "tag": "massnahme_sonstige",
+            "value": null,
+            "type": "text",
+            "force": false
+        },
+        {
+            "label": "Verlauf / Outcome",
+            "tag": "outcome",
+            "value": null,
+            "type": "radio",
+            "options": [
+                {"label": "erholt (ohne Folgen)", "value": "erholt"},
+                {"label": "in Besserung", "value": "besserung"},
+                {"label": "noch nicht erholt", "value": "nicht_erholt"},
+                {"label": "erholt mit Folgeschaden", "value": "folgeschaden"},
+                {"label": "tödlich", "value": "toedlich"},
+                {"label": "unbekannt", "value": "unbekannt"}
+            ]
+        },
+        {
+            "label": "7 — Meldung & Signatur",
+            "type": "separator"
+        },
+        {
+            "label": "Bei SAE: unverzügliche Meldung gemäß Studienvorgaben (Coordinating Investigator, Förderer/STADA Pharmakovigilanz, ggf. Ethikkommission)."
+        },
+        {
+            "label": "Gemeldet an",
+            "tag": "gemeldet_an",
+            "value": [],
+            "type": "checkbox",
+            "force": false,
+            "options": [
+                {"label": "Coordinating Investigator (S. Brodoehl)", "value": "ci"},
+                {"label": "Förderer / STADA (Pharmakovigilanz)", "value": "stada"},
+                {"label": "Ethikkommission (bei SAE)", "value": "ethik"}
+            ]
+        },
+        {
+            "label": "Dokumentiert durch",
+            "tag": "dokumentiert_durch",
+            "value": null,
+            "type": "text",
+            "force": false
+        }
+    ]
+}

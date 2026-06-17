@@ -109,6 +109,24 @@ describe('itemValidity', () => {
     expect(itemValidity({ type: 'multiple_radio', value: undefined })).toBe(false)
   })
 
+  test('multiple_radio: leeres Array zählt NICHT als ausgefüllt (PDQ-8-Bug)', () => {
+    expect(itemValidity({ type: 'multiple_radio', value: [] })).toBe(false)
+    // mit bekannter Teilfragen-Anzahl: Länge muss passen
+    const item = { type: 'multiple_radio', options: { questions: [{}, {}, {}] } }
+    expect(itemValidity(item, [])).toBe(false)
+    expect(itemValidity(item, [1, 2])).toBe(false) // unvollständig
+    expect(itemValidity(item, [1, 2, 3])).toBe(true)
+    expect(itemValidity(item, [1, null, 3])).toBe(false)
+  })
+
+  test('checkbox: leeres Array zählt NICHT als ausgefüllt', () => {
+    expect(itemValidity({ type: 'checkbox', value: [] })).toBe(false)
+    expect(itemValidity({ type: 'checkbox', value: ['a'] })).toBe(true)
+    expect(itemValidity({ type: 'checkbox', value: null })).toBe(false)
+    // optional bleibt true
+    expect(itemValidity({ type: 'checkbox', force: false, value: [] })).toBe(true)
+  })
+
   test('value-Override hat Vorrang vor item.value', () => {
     expect(itemValidity({ type: 'radio', value: null }, 5)).toBe(true)
     expect(itemValidity({ type: 'radio', value: 5 }, null)).toBe(false)
