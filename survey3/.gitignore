@@ -37,3 +37,7 @@ yarn-error.log*
 cypress/downloads/
 cypress/screenshots/
 cypress/videos/
+
+# generierte Test-Diagnose-Reports (bei jedem Lauf neu erzeugt)
+test/jest/golden_master_report.json
+test/jest/max_fill_report.json
