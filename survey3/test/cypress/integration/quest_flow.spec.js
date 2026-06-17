@@ -24,7 +24,7 @@ context('Single Questionnaire Flow', () => {
     cy.get('[data-cy=questlist0]').should('contain', 'MRS').click()
     cy.get('[data-cy=btn_gotoquest]').click()
 
-    // Quest ausfüllen
+    // Quest ausfüllen (Listen-Modus = Standard)
     cy.get('[data-cy=page_quest]').should('exist')
     cy.get('[data-cy=PID]').type(PID)
     cy.get('[data-cy=list_entries]').find('.q-radio').first().click({ force: true })

@@ -8,48 +8,55 @@
 
       <!-- CONtENT -->
       <div class="col q-py-md" style="position: relative">
-        <q-scroll-area class="shadow-1 my-form">
-          <div class="row q-pa-md justify-around q-gutter-md">
-            <q-item class="my-btn-item"
+        <q-scroll-area class="my-form-wide">
+          <div class="row q-pa-md justify-center q-gutter-md">
+            <q-card
+              class="preset-card"
               v-for="(item, index) in mainStore.PRESET_STORE" :key="item+'_'+index" flat bordered
             >
-              <q-item-section>
-                <q-item-label contenteditable @blur="actionStr($event, index)"
-                      @keyup.enter="actionStr($event, index)"> {{item.label}}
-                </q-item-label>
-                <q-item-label caption>
-                  <span v-for="(val, idx) in item.value" :key="val + idx">
-                    {{val}}<span v-if="idx+1 < item.value.length">, </span>
-                  </span>
-                </q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-btn v-if="needToSave[index] === true" class="gt-xs" size="12px" flat dense round icon="save" @click="save_item(index)"></q-btn>
-                <div v-else class="text-grey-8 q-gutter-xs">
-                  <q-btn size="12px" flat dense round icon="play_arrow" @click="start_preset(index)"/>
-                  <q-btn size="12px" flat dense round icon="more_vert" data-cy="btn_options" >
-                    <q-menu cover auto-close>
-                      <q-list>
-                        <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="edit_preset(index)">
-                          <q-item-section avatar>
-                            <q-icon :name="$t('btn.edit_new.icon')" />
-                          </q-item-section>
-                          <q-item-section >{{$t('btn.edit_new.label')}}</q-item-section>
-                        </q-item>
-                        <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="delete_preset(index)">
-                          <q-item-section avatar>
-                            <q-icon :name="$t('btn.delete.icon')" />
-                          </q-item-section>
-                          <q-item-section >{{$t('btn.delete.label')}}</q-item-section>
-                        </q-item>
-                        
-                      </q-list>
-                    </q-menu>
-                </q-btn>
+              <!-- KOPF: TITEL + AKTIONEN -->
+              <q-card-section class="row items-center no-wrap q-py-sm">
+                <div class="col">
+                  <div class="preset-card__title text-subtitle1 text-weight-medium"
+                    contenteditable @blur="actionStr($event, index)" @keyup.enter.prevent="actionStr($event, index)">{{item.label}}</div>
+                  <div class="text-caption text-grey-6">{{ item.value.length }} Fragebögen</div>
                 </div>
-              </q-item-section>
-            </q-item>
-
+                <div class="col-auto">
+                  <q-btn v-if="needToSave[index] === true" color="primary" size="12px" flat dense round icon="save" @click="save_item(index)">
+                    <q-tooltip>{{ $t('btn.save.label') }}</q-tooltip>
+                  </q-btn>
+                  <div v-else class="text-grey-8 q-gutter-xs no-wrap">
+                    <q-btn size="12px" color="primary" flat dense round icon="play_arrow" @click="start_preset(index)">
+                      <q-tooltip>{{ $t('btn.start_preset') }}</q-tooltip>
+                    </q-btn>
+                    <q-btn size="12px" flat dense round icon="more_vert" data-cy="btn_options">
+                      <q-menu cover auto-close>
+                        <q-list>
+                          <q-item class="my-btn text-center" data-cy="back_root" clickable @click="edit_preset(index)">
+                            <q-item-section avatar>
+                              <q-icon :name="$t('btn.edit_new.icon')" />
+                            </q-item-section>
+                            <q-item-section>{{$t('btn.edit_new.label')}}</q-item-section>
+                          </q-item>
+                          <q-item class="my-btn text-center text-negative" data-cy="back_root" clickable @click="delete_preset(index)">
+                            <q-item-section avatar>
+                              <q-icon :name="$t('btn.delete.icon')" color="negative" />
+                            </q-item-section>
+                            <q-item-section>{{$t('btn.delete.label')}}</q-item-section>
+                          </q-item>
+                        </q-list>
+                      </q-menu>
+                    </q-btn>
+                  </div>
+                </div>
+              </q-card-section>
+              <q-separator />
+              <!-- FRAGEBÖGEN ALS CHIPS -->
+              <q-card-section class="preset-card__chips q-gutter-xs q-py-sm">
+                <q-chip v-for="(val, idx) in item.value" :key="val + idx" dense outline color="primary"
+                  text-color="primary" :label="val" />
+              </q-card-section>
+            </q-card>
           </div>
         </q-scroll-area>
       </div>
@@ -144,3 +151,26 @@
   }
 
 </script>
+
+<style lang="sass" scoped>
+.preset-card
+  width: 320px
+  border-radius: $radius
+  border-color: $line
+  box-shadow: $shadow-soft
+  transition: box-shadow .18s ease, transform .18s ease
+  &:hover
+    box-shadow: $shadow-hover
+    transform: translateY(-1px)
+
+.preset-card__title
+  outline: none
+  border-radius: 6px
+  padding: 2px 4px
+  &:focus
+    background: rgba($primary, 0.06)
+
+.preset-card__chips
+  max-height: 132px
+  overflow-y: auto
+</style>

@@ -27,6 +27,21 @@
               </div>
             </q-expansion-item>
 
+            <!-- FRAGEBOGEN-DARSTELLUNG -->
+            <q-expansion-item data-cy="btn_quest_display" expand-separator :icon="$t('settings.quest.icon')"
+              :label="$t('settings.quest.label')" :caption="$t('settings.quest.caption')"
+              class="my-settings-item">
+              <div class="q-px-md q-pb-sm">
+                <q-toggle v-model="mainStore.SETTINGS.quest_focus_mode" color="primary"
+                  :label="$t('settings.quest.focus_mode')" data-cy="toggle_focus_mode" />
+                <div class="text-caption my-annotation-text q-mb-sm">{{ $t('settings.quest.focus_mode_hint') }}</div>
+                <q-toggle v-model="mainStore.SETTINGS.quest_auto_advance" color="primary"
+                  :disable="!mainStore.SETTINGS.quest_focus_mode"
+                  :label="$t('settings.quest.auto_advance')" data-cy="toggle_auto_advance" />
+                <div class="text-caption my-annotation-text">{{ $t('settings.quest.auto_advance_hint') }}</div>
+              </div>
+            </q-expansion-item>
+
             <!-- EXPORT -->
             <q-expansion-item data-cy="btn_description" expand-separator :icon="$t('settings.export.icon')"
               :label="$t('settings.export.label')" :caption="`Format: ${export_format}`" class="my-settings-item">

@@ -38,7 +38,7 @@ export default configure(function (/* ctx */) {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
-      https: true,
+      https: false,
       port: 8088,
       open: true,
     },

@@ -130,15 +130,18 @@
 
 <style scoped lang="sass">
 .idx-stat-card
-  background: $grey-2
-  border-radius: 8px
-  padding: 12px 20px
+  background: $surface
+  border: 1px solid $line
+  border-radius: $radius
+  box-shadow: $shadow-soft
+  padding: 14px 22px
   text-align: center
-  min-width: 80px
+  min-width: 84px
   cursor: pointer
-  transition: background 0.15s
+  transition: box-shadow .18s ease, transform .18s ease
   &:hover
-    background: $grey-3
+    box-shadow: $shadow-hover
+    transform: translateY(-1px)
 
 .idx-stat-value
   font-size: 1.4rem

@@ -119,19 +119,19 @@ export default {
 <style lang="sass" scoped>
 .storage-card
   width: 340px
-  border-radius: 10px
+  border-radius: $radius-sm
   overflow: hidden
   position: relative
   transition: box-shadow 0.2s ease, transform 0.15s ease
-  background: white
-  border-color: $grey-3
+  background: $surface
+  border-color: $line
 
   &:hover
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1)
+    box-shadow: $shadow-hover
     transform: translateY(-1px)
 
   &--selected
-    background: $grey-2
+    background: $surface-muted
     border-color: $primary
 
 .storage-card__accent

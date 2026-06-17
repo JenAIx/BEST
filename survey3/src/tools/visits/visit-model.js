@@ -94,6 +94,36 @@ export function requiredFieldStats(items, values) {
   return { filled, total, percent }
 }
 
+// Fortschritts-Statistik für die ANZEIGE (nicht für die Pflichtprüfung): zählt alle
+// beantwortbaren Antwort-Slots — eine multiple_radio-Matrix wird in ihre Teilfragen
+// aufgelöst, optionale Felder (force:false) zählen ebenfalls mit. So zeigt z. B. ein
+// optionaler Matrix-Bogen „0 von 18" statt „0 von 0".
+// values optional (indexgenau, z. B. slot.draft.values), sonst item.value.
+export function answerStats(items, values) {
+  if (!Array.isArray(items)) return { filled: 0, total: 0, percent: 100 }
+  let total = 0
+  let filled = 0
+  items.forEach((item, i) => {
+    const t = item.type
+    if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === 'image' || t === undefined) return
+    const value = Array.isArray(values) ? values[i] : item.value
+    if (t === 'multiple_radio') {
+      const subs =
+        item.options && Array.isArray(item.options.questions) ? item.options.questions.length : 0
+      total += subs
+      if (Array.isArray(value)) filled += value.filter((x) => x !== undefined && x !== null).length
+    } else if (t === 'checkbox') {
+      total += 1
+      if (Array.isArray(value) && value.length > 0) filled += 1
+    } else {
+      total += 1
+      if (value !== undefined && value !== null) filled += 1
+    }
+  })
+  const percent = total === 0 ? 100 : Math.round((filled / total) * 100)
+  return { filled, total, percent }
+}
+
 // Überlagert gespeicherte Entwurfs-Werte (indexgenau) auf die items eines aktiven Quests.
 // values ist ein Array roher item.value-Einträge, ausgerichtet an der items-Reihenfolge.
 export function applyDraftValues(items, values) {

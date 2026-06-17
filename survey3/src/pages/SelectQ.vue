@@ -11,37 +11,36 @@
       </div>
       <div class="col">
         <!-- AUSWAHL FRAGEBÖGEN -->
-        <q-scroll-area class="q-ma-xs shadow-1 my-form">
-          <q-list
+        <q-scroll-area class="q-ma-xs my-form">
+          <div
             v-if="FILTERED_LIST.length > 0"
-            bordered
-            separator
-            class="quest_list"
+            class="q-pa-sm q-gutter-y-sm quest_list"
             data-cy="questlistRoot"
           >
-            <div
+            <q-item
               v-for="(item, index) in FILTERED_LIST"
               :key="item + index + date_str"
+              clickable
+              v-ripple
+              class="select-card"
+              :class="{ 'select-card--active': INDEX[index] }"
+              :data-cy="'questlist' + index"
+              @click="set_index(index)"
             >
-              <q-item
-                :class="{ 'bg-grey-4': INDEX[index] }"
-                clickable
-                v-ripple
-                :data-cy="'questlist' + index"
-                @click="set_index(index)"
-              >
-                <q-item-section side top>
-                  <q-checkbox v-model="INDEX[index]" />
-                </q-item-section>
-                <q-item-section :data-cy="'quest_' + index">
-                  <q-item-label>{{ QUESTMAN.get(item).title }}</q-item-label>
-                  <q-item-label caption>{{
-                    QUESTMAN.get(item).description
-                  }}</q-item-label>
-                </q-item-section>
-              </q-item>
-            </div>
-          </q-list>
+              <q-item-section avatar>
+                <q-icon
+                  :name="INDEX[index] ? 'check_circle' : 'radio_button_unchecked'"
+                  :color="INDEX[index] ? 'primary' : 'grey-5'"
+                  size="24px"
+                />
+              </q-item-section>
+              <q-item-section :data-cy="'quest_' + index">
+                <q-item-label class="text-weight-medium">{{ QUESTMAN.get(item).title }}</q-item-label>
+                <q-item-label caption lines="2">{{ QUESTMAN.get(item).description }}</q-item-label>
+              </q-item-section>
+            </q-item>
+          </div>
+          <div v-else class="text-grey-6 text-center q-pa-xl" v-html="$t('select_quest.empty')"></div>
         </q-scroll-area>
       </div>
       <div class="col-2 items-center row justify-around" style="width: 100%">
@@ -169,3 +168,19 @@ export default {
   },
 };
 </script>
+
+<style lang="sass" scoped>
+.select-card
+  background: $surface
+  border: 1px solid $line
+  border-radius: $radius
+  box-shadow: $shadow-soft
+  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease
+  &:hover
+    box-shadow: $shadow-hover
+    transform: translateY(-1px)
+
+.select-card--active
+  border-color: $primary
+  background: rgba($primary, 0.06)
+</style>

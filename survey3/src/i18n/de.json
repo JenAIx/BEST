@@ -47,6 +47,15 @@
       "label": "Nutzerverwaltung und Sicherheit",
       "uid_description": "Beim ersten Start der App werden automatisch eine UID sowie ein Paar von privaten/public Keys (RSA) erzeugt. Diese werden intern für die Signierung und Verschlüsselung verwendet. <br><b>Empfehlung:</b> Exportieren Sie diese Einstellungen mit der Schaltfläche NUTZER EXPORTIEREN!"
     },
+    "quest": {
+      "icon": "quiz",
+      "label": "Fragebogen-Darstellung",
+      "caption": "Fokus-Modus & Navigation",
+      "focus_mode": "Fokus-Modus (eine Frage pro Schritt)",
+      "focus_mode_hint": "Aus = klassische Listen-Ansicht (alle Fragen auf einer Seite)",
+      "auto_advance": "Bei Einfachauswahl automatisch weiter",
+      "auto_advance_hint": "Springt nach der Auswahl automatisch zur nächsten Frage"
+    },
     "questman": {
       "icon": "summarize",
       "label": "Fragebögen verwalten",
@@ -90,7 +99,22 @@
     "presets": "Folgende Fragebögen werden ausgeführt",
     "save_preset": "Preset speichern",
     "finished": "Herzlichen Dank, daß Sie alle Frage beantwortet haben!",
-    "save_success": "erfolgreich gespeichert"
+    "save_success": "erfolgreich gespeichert",
+    "next": "Weiter",
+    "prev": "Zurück",
+    "step_of": "Frage {current} von {total}",
+    "answered": "{filled} von {total} beantwortet",
+    "review_title": "Übersicht",
+    "review_hint": "Tippen Sie auf eine Frage, um sie zu ändern.",
+    "answered_short": "beantwortet",
+    "open_short": "offen",
+    "required_open": "Pflichtfrage offen",
+    "optional": "optional",
+    "next_open": "Zur nächsten offenen Frage",
+    "focus_mode": "Fokus-Modus",
+    "list_mode": "Listen-Ansicht",
+    "auto_advance": "Automatisch weiterspringen",
+    "start": "Fragebogen starten"
   },
   "btn": {
     "close": {

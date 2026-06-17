@@ -13,8 +13,31 @@ h3, .text-h3
 
 h4, .text-h4
   font-size: 1.3em
-  line-height: 0
-  
+  line-height: 1.3
+
+// --- wiederverwendbare Flächen / Karten (Design-Tokens) ---
+.surface-card
+  background: $surface
+  border: 1px solid $line
+  border-radius: $radius
+  box-shadow: $shadow-soft
+  transition: box-shadow .18s ease, transform .18s ease
+
+.surface-card--hover
+  cursor: pointer
+  &:hover
+    box-shadow: $shadow-hover
+    transform: translateY(-1px)
+
+.surface-muted
+  background: $surface-muted
+  border-radius: $radius
+
+.soft-divider
+  height: 1px
+  background: $line
+  border: none
+
 
 .body-normal
   font-size: 1em
@@ -91,7 +114,9 @@ h2, .text-h2
   width: 300px
   height: 50px
   font-size: 1.3em
-  background-color: $grey-2
+  background-color: $surface
+  border: 1px solid $line
+  border-radius: $radius-sm
 
 @media screen and ( max-width: 600px)
   .my-btn-sm
@@ -103,7 +128,9 @@ h2, .text-h2
   width: 300px
   height: 50px
   font-size: 18px
-  background-color: $grey-2
+  background-color: $surface
+  border: 1px solid $line
+  border-radius: $radius-sm
 
 @media screen and ( max-width: 600px)
   .my-btn-md
@@ -114,16 +141,24 @@ h2, .text-h2
 .my-btn-item
   width: 340px
   height: 90px
-  background-color: $grey-2
-  border-radius: 8px
+  background: $surface
+  border: 1px solid $line
+  border-radius: $radius
+  box-shadow: $shadow-soft
   overflow: hidden
+  transition: box-shadow .18s ease, transform .18s ease
+  &:hover
+    box-shadow: $shadow-hover
+    transform: translateY(-1px)
 
 .my-settings-item
   width: 350px
   max-width: 350px
   min-height: 5em
-  background-color: $grey-2
-  border-radius: 8px
+  background: $surface
+  border: 1px solid $line
+  border-radius: $radius
+  box-shadow: $shadow-soft
   overflow: hidden
 
 .my-settings-separator
