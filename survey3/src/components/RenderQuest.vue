@@ -38,8 +38,8 @@
     <!-- MANUAL -->
     <q-card-section v-html="QUEST.manual"></q-card-section>
 
-    <!-- PID -->
-    <q-card-section>
+    <!-- PID (im Visiten-/Embedded-Modus ausgeblendet — Patient ist durch die Visite gesetzt) -->
+    <q-card-section v-if="!embedded">
       <q-input data-cy="PID" filled v-model="subject_pid" :label="$t('quest.pid')" :hint="PID_HINT_TEXT"
         :rules="[ val => val && val.length > 0 || $t('quest.pid_hint')]" :disable="PARAMS.PID !== undefined" />
         <!-- INVISIBLE ELEMENT TO DO THE AUTOFOCUS -->
@@ -103,8 +103,8 @@
       </q-list>
     </q-card-section>
 
-    <!-- FORM BUTTON -->
-    <q-card-section v-if="PREVIEWQUEST === undefined">
+    <!-- FORM BUTTON (im Embedded-Modus liefert die übergeordnete Seite eigene Aktionen) -->
+    <q-card-section v-if="PREVIEWQUEST === undefined && !embedded">
       <div class="text-center q-pb-xl">
           <q-btn rounded :label="$t('btn.submit')" type="submit" color="primary" @click="emitEvent()" data-cy="submitquest" class="my-btn" />
       </div>
@@ -140,7 +140,7 @@ import RenderRadio from './RenderQuest_radio.vue'
 export default {
   name: 'RenderQuest',
   components: { RenderSlider, RenderMultipleRadio, RenderDate, RenderTime, RenderText, RenderRadio },
-  props: ["QUEST_LABEL", "saved", "PID", "PREVIEWQUEST"],
+  props: ["QUEST_LABEL", "saved", "PID", "PREVIEWQUEST", "embedded"],
   setup() {
     return { mainStore: useMainStore() }
   },
@@ -167,8 +167,8 @@ export default {
       return this.$t('quest.pid_hint')
     },
     PARAMS() {
-      if (this.PREVIEWQUEST !== undefined) return {}
-      return parseRouteParams(this.$route.params.id)
+      if (this.PREVIEWQUEST !== undefined || this.embedded) return {}
+      return parseRouteParams(this.$route.params.id) || {}
     },
     QUEST() {
       if (this.PREVIEWQUEST !== undefined) return this.PREVIEWQUEST
@@ -192,6 +192,13 @@ export default {
       if (!answ) return
       //else
       this.mainStore.QUESTMAN._init()
+    },
+    // Logikprüfung auslösen (für Embedded-/Visiten-Modus, via $ref aufrufbar).
+    // Setzt die Inline-Markierungen und liefert das Ergebnis von check_activeQuest().
+    runCheck() {
+      this.submit_clicked = true
+      this.check_form = this.mainStore.QUESTMAN.check_activeQuest()
+      return this.check_form
     },
     emitEvent() {
       // FIRST CHECK THE FORM

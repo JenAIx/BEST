@@ -87,6 +87,32 @@ const routes = [{
     name: "FinishedScreen",
     component: FinishedQuest,
   },
+  // --- Patienten-/Visiten-Workflow ---
+  {
+    path: "patients",
+    name: "patients",
+    component: () => import("pages/Patients.vue"),
+  },
+  {
+    path: "patient/:id",
+    name: "patient",
+    component: () => import("pages/Patient.vue"),
+  },
+  {
+    path: "visit/:id",
+    name: "visit",
+    component: () => import("pages/Visit.vue"),
+  },
+  {
+    path: "visit/:id/quest/:short",
+    name: "visit_quest",
+    component: () => import("pages/VisitQuest.vue"),
+  },
+  {
+    path: "visit_templates",
+    name: "visit_templates",
+    component: () => import("pages/VisitTemplates.vue"),
+  },
   ],
 },
 

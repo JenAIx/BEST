@@ -189,6 +189,19 @@ export class QuestMan {
     return true
   }
 
+  // Überlagert gespeicherte Entwurfs-Werte (indexgenau) auf den aktiven Quest.
+  // values: Array roher item.value-Einträge, ausgerichtet an items-Reihenfolge.
+  restore_active_values(values) {
+    if (this.activeQuest === undefined) return false
+    if (!Array.isArray(values)) return false
+    const items = this.activeQuest.value.items
+    const n = Math.min(items.length, values.length)
+    for (let i = 0; i < n; i++) {
+      if (values[i] !== undefined) items[i].value = values[i]
+    }
+    return true
+  }
+
   check_activeQuest() {
     if (this.activeQuest === undefined) return undefined
 

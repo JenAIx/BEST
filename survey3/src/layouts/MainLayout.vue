@@ -89,6 +89,8 @@ export default {
         { key: 'store_preset', icon: 'archive', link: 'store_preset', name: 'store_preset' },
         { key: 'storage', icon: 'inventory_2', link: 'storage', name: 'storage' },
         { key: 'separator' },
+        { key: 'patients', icon: 'people', link: 'patients', name: 'patients' },
+        { key: 'visit_templates', icon: 'event_note', link: 'visit_templates', name: 'visit_templates' },
         { key: 'settings', icon: 'settings', link: 'settings', name: 'settings' },
         { key: 'about', icon: 'info', link: 'about', name: 'about' },
         { key: 'changelog', icon: 'update', link: 'changelog', name: 'changelog' },
