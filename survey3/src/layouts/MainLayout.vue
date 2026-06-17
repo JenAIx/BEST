@@ -42,16 +42,18 @@
           :data-cy="'link_'+link.title"
         />
 
+        <!-- Logo im normalen Fluss unter der Liste — kein fixed-Overlay mehr, damit es die
+             untersten Einträge (Über diese App / Changelog) nicht überdeckt -->
+        <div class="text-center q-mt-lg q-mb-xl" style="opacity: 0.5;">
+          <q-img
+              class="cursor-pointer"
+              src="assets/favicon.svg"
+              style="height: 100px; width: 100px;"
+              @click="mainStore.leftDrawerOpen = false, $router.push({name: 'about'}).catch(() => {})"
+            />
+        </div>
+
       </q-list>
-
-      <div class="fixed-bottom text-center q-mb-xl" style="opacity: 0.5;">
-        <q-img 
-            src="assets/favicon.svg"
-            style="height: 100px; width: 100px; "
-            @click="mainStore.leftDrawerOpen = false, $router.push({name: 'about'}).catch(() => {})"
-          />
-
-      </div>
 
     </q-drawer>
     <q-page-container :class="bodysize">

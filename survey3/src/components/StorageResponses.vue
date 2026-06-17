@@ -1,12 +1,12 @@
 <template>
   <!-- Liste der gespeicherten Einzel-Fragebögen (Body der Storage-Seite) -->
   <div class="column items-center full-height" style="width: 100%">
-    <div class="col-auto" style="max-height: 50px; width: 100%">
+    <div class="col-auto row justify-center" style="max-height: 50px; width: 100%">
       <FILTERSTORAGE @filterSet="filterDO('set')" @filterCleared="filterDO('cleared')" />
     </div>
 
     <!-- CONTENT -->
-    <div class="col q-py-md" style="position: relative; width: 100%">
+    <div class="col q-py-md column items-center" style="position: relative; width: 100%">
       <q-scroll-area class="shadow-1 my-form">
         <div class="row q-pa-md justify-around q-gutter-md" data-cy="items">
           <StorageCard v-for="(item, index) in QUEST_LIST" :key="'item_' + index" v-show="FILTER_ON === false ||

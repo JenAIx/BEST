@@ -17,6 +17,10 @@
             <div class="idx-stat-value">{{ presetCount }}</div>
             <div class="idx-stat-label">{{ $t('index.stat_presets') }}</div>
           </div>
+          <div class="idx-stat-card" data-cy="stat_patients" @click="$router.push('patients')">
+            <div class="idx-stat-value">{{ patientCount }}</div>
+            <div class="idx-stat-label">{{ $t('index.stat_patients') }}</div>
+          </div>
           <div class="idx-stat-card" v-if="openExports > 0" @click="$router.push('storage')">
             <div class="idx-stat-value text-warning">{{ openExports }}</div>
             <div class="idx-stat-label">{{ $t('index.stat_open_exports') }}</div>
@@ -98,6 +102,9 @@
       presetCount() {
         const presets = this.mainStore.PRESET_STORE
         return presets?.length || 0
+      },
+      patientCount() {
+        return this.mainStore.PATIENTS?.length || 0
       },
       openExports() {
         const items = this.mainStore.STORAGE?.get() || []
