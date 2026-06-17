@@ -15,10 +15,8 @@ import { QUESTMAN } from '../../../src/tools/questman'
 import { validateQuestScoring } from '../../../src/tools/questman/validate'
 
 // Bögen mit bekannten, noch nicht behobenen Befunden (label -> Grund).
-const KNOWN_PENDING = {
-  whoqol: 'STRING_NUMERIC: Options-Werte "1".."8" als String vs. numerische ids-scoring-Arrays (ids-Batch)',
-  ECOG: 'VALUE_SCORE_LENGTH: value(5)!=score(6), "kA"-Behandlung klären (ids-Batch)',
-}
+// Leer: alle aufgedeckten Alt-Befunde sind behoben, der Guard ist scharf.
+const KNOWN_PENDING = {}
 
 describe('Scoring-Schema-Guard (alle Fragebögen)', () => {
   const labels = QUESTMAN.quest_list.slice().sort()

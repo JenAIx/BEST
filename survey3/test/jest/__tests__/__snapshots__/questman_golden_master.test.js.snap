@@ -89,31 +89,31 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
       "system": "CUSTOM",
     },
     "label": "Total Score",
-    "value": 156,
+    "value": 0,
   },
   {
     "label": "Gedächtnis",
-    "value": 32,
+    "value": 0,
   },
   {
     "label": "Sprache",
-    "value": 40,
+    "value": 0,
   },
   {
     "label": "Visuell-räumliche Wahrnehmungsfähigkeiten",
-    "value": 28,
+    "value": 0,
   },
   {
     "label": "EF-Planung",
-    "value": 20,
+    "value": 0,
   },
   {
     "label": "EF-Organisation",
-    "value": 24,
+    "value": 0,
   },
   {
     "label": "EF-geteilte_Aufmerksamkeit",
-    "value": 16,
+    "value": 0,
   },
 ]
 `;

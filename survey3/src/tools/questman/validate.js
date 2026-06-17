@@ -78,10 +78,23 @@ export function validateQuestScoring(quest) {
     seen.add(d.label)
   })
 
-  // --- Typ-Konsistenz der Antwortwerte (DGI/whoqol-Klasse) ---
+  // --- Typ-Konsistenz der Antwortwerte (DGI-Klasse) ---
   // String-numerische Werte werden von sum/avg ignoriert und matchen nicht in
-  // numerischen ids-value-Arrays -> stille Untererfassung.
+  // numerischen ids-value-Arrays -> stille Untererfassung. Nur relevant für
+  // Items, die tatsächlich zum Score beitragen (nicht für reine Demografie).
+  const scoredIds = new Set()
+  ;(r.scoring || []).forEach((s) => (s.id || []).forEach((x) => typeof x === 'number' && scoredIds.add(x)))
+  ;(r.domaine || []).forEach((d) => (d.id || []).forEach((x) => typeof x === 'number' && scoredIds.add(x)))
+  // Bei sum/avg/count(_targets) gibt es keine id-Liste; jeder numerische
+  // Item-Wert fließt ein -> alle interaktiven Items gelten als bepunktet.
+  const scoresAllItems = r.method !== 'ids'
+
   ;(quest.items || []).forEach((it, ix) => {
+    const itemIdList = Array.isArray(it.id) ? it.id : it.id !== undefined ? [it.id] : []
+    const mrIds = it.options && it.options.questions ? it.options.questions.map((q) => q.id) : []
+    const contributes = scoresAllItems || [...itemIdList, ...mrIds].some((x) => scoredIds.has(x))
+    if (!contributes) return
+
     const opts = []
     if (Array.isArray(it.options)) opts.push(...it.options)
     if (it.options && it.options.answers) opts.push(...it.options.answers)
