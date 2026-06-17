@@ -27,13 +27,6 @@ export function buildResultItems(items) {
   items.forEach((item) => {
     if (item.value === undefined || item.value === null) return
 
-    // LEGACY: number-Items mit String-Wert werden normalisiert, aber NICHT in die
-    // Ergebnis-Items übernommen. Bewusst erhaltenes Alt-Verhalten (separat zu prüfen).
-    if (item.type === 'number' && typeof item.value === 'string') {
-      item.value = parseFloat(item.value)
-      return
-    }
-
     // multiple_radio -> ein Eintrag je Sub-Frage. Tag-Verkettung ${item.tag}_${sub.tag}
     // (bzw. nur sub.tag), coding/id stammen von der Sub-Frage; ignore_for_result vom Item.
     if (item.type === 'multiple_radio' && Array.isArray(item.value)) {
@@ -48,6 +41,15 @@ export function buildResultItems(items) {
         pushResultItem(out, src, item.ignore_for_result)
       })
       return
+    }
+
+    // number: numerische String-Werte (Altdaten/Import) zu Zahl normalisieren und
+    // ganz normal übernehmen; ungültige (parseFloat -> NaN) gelten wie "nicht
+    // beantwortet" und werden übersprungen (sonst würde NaN die Summe vergiften).
+    if (item.type === 'number' && typeof item.value === 'string') {
+      const parsed = parseFloat(item.value)
+      if (Number.isNaN(parsed)) return
+      item.value = parsed
     }
 
     pushResultItem(out, item, item.ignore_for_result)

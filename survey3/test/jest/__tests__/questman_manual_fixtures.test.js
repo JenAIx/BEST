@@ -268,4 +268,21 @@ describe('QuestMan manuelle Fixtures', () => {
     expect(dom(s, 'sum')).toBe(47)
     expect(s).toMatchSnapshot()
   })
+
+  // --- REGRESSION: number-Items mit numerischem String-Wert (Altdaten/Import) werden
+  //     als Zahl uebernommen und gescort (zuvor stillschweigend verworfen);
+  //     ungueltige Strings (parseFloat -> NaN) gelten wie "nicht beantwortet". ---
+  test('number items: numeric strings included & scored, invalid skipped', () => {
+    const s = summaryFor('falling_stick', (items) => {
+      items[1].value = '145' // String! (rechts: id1)
+      items[2].value = '152' // id2
+      items[3].value = '148' // id3
+      items[5].value = 160 // links: id4 (Zahl)
+      items[6].value = 158 // id5
+      items[7].value = 'abc' // id6 -> NaN -> uebersprungen
+    })
+    expect(dom(s, 'rechts')).toBe(148.33) // (145+152+148)/3 — Strings korrekt einbezogen
+    expect(s.items.find((it) => it.id === 1).value).toBe(145) // als Zahl normalisiert
+    expect(s.items.some((it) => it.id === 6)).toBe(false) // 'abc' nicht uebernommen
+  })
 })
