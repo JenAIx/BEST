@@ -48,8 +48,6 @@ export default {
     }
   },
   mounted() {
-    this.mainStore.leftDrawerOpen = false
-    this.mainStore.PROTECTED_MODE = true
     this.mainStore.exportClear()
     this.loadQuest()
   },

@@ -9,6 +9,8 @@ import {
   visitProgress,
   recomputeVisitStatus,
   applyDraftValues,
+  itemValidity,
+  requiredFieldStats,
 } from '../../../src/tools/visits/visit-model'
 
 describe('visit-model', () => {
@@ -80,5 +82,64 @@ describe('visit-model', () => {
     const items = [{ value: null }]
     expect(() => applyDraftValues(items, [1, 2, 3])).not.toThrow()
     expect(items[0].value).toBe(1)
+  })
+})
+
+describe('itemValidity', () => {
+  test('beantwortetes Pflichtfeld → true, offenes → false', () => {
+    expect(itemValidity({ type: 'radio', value: 1 })).toBe(true)
+    expect(itemValidity({ type: 'radio', value: null })).toBe(false)
+    expect(itemValidity({ type: 'text', value: undefined })).toBe(false)
+  })
+
+  test('force:false → immer true', () => {
+    expect(itemValidity({ type: 'radio', force: false, value: null })).toBe(true)
+  })
+
+  test('nicht-interaktive Typen → null', () => {
+    expect(itemValidity({ type: 'separator' })).toBeNull()
+    expect(itemValidity({ type: 'seperator' })).toBeNull()
+    expect(itemValidity({ type: 'textbox' })).toBeNull()
+    expect(itemValidity({})).toBeNull() // type undefined
+  })
+
+  test('multiple_radio: alle Teilantworten nötig', () => {
+    expect(itemValidity({ type: 'multiple_radio', value: [1, 2, 3] })).toBe(true)
+    expect(itemValidity({ type: 'multiple_radio', value: [1, null, 3] })).toBe(false)
+    expect(itemValidity({ type: 'multiple_radio', value: undefined })).toBe(false)
+  })
+
+  test('value-Override hat Vorrang vor item.value', () => {
+    expect(itemValidity({ type: 'radio', value: null }, 5)).toBe(true)
+    expect(itemValidity({ type: 'radio', value: 5 }, null)).toBe(false)
+  })
+})
+
+describe('requiredFieldStats', () => {
+  const items = [
+    { type: 'separator' }, // null → zählt nicht
+    { type: 'radio' }, // Pflicht
+    { type: 'text', force: false }, // optional → zählt nicht
+    { type: 'number' }, // Pflicht
+  ]
+
+  test('zählt nur interaktive Pflichtfelder', () => {
+    expect(requiredFieldStats(items, [])).toEqual({ filled: 0, total: 2, percent: 0 })
+  })
+
+  test('teilweise gefüllt → anteiliger Prozentwert (gegen draft-values)', () => {
+    // index 1 (radio) gefüllt, index 3 (number) offen
+    const values = [undefined, 'a', undefined, undefined]
+    expect(requiredFieldStats(items, values)).toEqual({ filled: 1, total: 2, percent: 50 })
+  })
+
+  test('alle Pflichtfelder gefüllt → 100', () => {
+    const values = [undefined, 'a', undefined, 7]
+    expect(requiredFieldStats(items, values)).toEqual({ filled: 2, total: 2, percent: 100 })
+  })
+
+  test('ohne Pflichtfelder → 100', () => {
+    const onlyOptional = [{ type: 'separator' }, { type: 'text', force: false }]
+    expect(requiredFieldStats(onlyOptional, []).percent).toBe(100)
   })
 })

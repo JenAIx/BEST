@@ -27,6 +27,7 @@ export function createVisitFromTemplate(template, patientId, date) {
     templateId: template && template.id !== undefined && template.id !== null ? template.id : null,
     label: (template && template.label) || 'Visite',
     date: date || null,
+    note: '', // freie Notiz, in der UI editierbar
     inOut: 'O', // Outpatient — Default
     status: 'open', // 'open' | 'completed' (Inhaltsstatus)
     exportedAt: null, // Zeitstempel des letzten Exports (Badge in der UI)
@@ -47,6 +48,43 @@ export function recomputeVisitStatus(visit) {
   const { completed, total } = visitProgress(visit)
   visit.status = total > 0 && completed === total ? 'completed' : 'open'
   return visit
+}
+
+// Gültigkeit eines einzelnen Fragebogen-Items — die EINE Quelle der Wahrheit, die auch
+// QuestMan.check_activeQuest nutzt.
+//   true  = (Pflicht-)Feld ist beantwortet bzw. optional (force:false)
+//   false = Pflichtfeld noch offen
+//   null  = nicht-interaktiv (separator / textbox / ohne Typ) → kein Pflichtfeld
+// value optional überschreibbar (z. B. aus einem Entwurf), sonst item.value.
+export function itemValidity(item, value) {
+  const v = value !== undefined ? value : item.value
+  if (item.force === false) return true
+  const t = item.type
+  if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === undefined) return null
+  if (t === 'multiple_radio') {
+    if (!Array.isArray(v)) return false
+    return v.every((x) => x !== undefined && x !== null)
+  }
+  return v !== undefined && v !== null
+}
+
+// Pflichtfeld-Statistik über einen Fragebogen, optional gegen index-ausgerichtete Werte
+// (z. B. slot.draft.values). Nicht-interaktive und optionale Items zählen nicht mit.
+// Liefert { filled, total, percent }; percent = 100 wenn es keine Pflichtfelder gibt.
+export function requiredFieldStats(items, values) {
+  if (!Array.isArray(items)) return { filled: 0, total: 0, percent: 0 }
+  let total = 0
+  let filled = 0
+  items.forEach((item, i) => {
+    if (item.force === false) return
+    const value = Array.isArray(values) ? values[i] : undefined
+    const validity = itemValidity(item, value)
+    if (validity === null) return // nicht-interaktiv
+    total++
+    if (validity === true) filled++
+  })
+  const percent = total === 0 ? 100 : Math.round((filled / total) * 100)
+  return { filled, total, percent }
 }
 
 // Überlagert gespeicherte Entwurfs-Werte (indexgenau) auf die items eines aktiven Quests.

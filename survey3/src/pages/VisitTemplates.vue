@@ -46,7 +46,7 @@
 
       <!-- LIST -->
       <div class="col q-pb-md" style="position: relative; width: 100%; max-width: 640px">
-        <q-scroll-area class="shadow-1 my-form">
+        <q-scroll-area class="shadow-1 my-form-wide">
           <div v-if="mainStore.VISIT_TEMPLATES.length === 0" class="q-pa-lg text-center text-grey-7">
             {{ $t('visit.no_templates') }}
           </div>
@@ -84,10 +84,12 @@
 <script>
 import BACKBUTTON from 'src/components/BackButton.vue'
 import { useMainStore } from 'src/stores/main'
+import questPicker from 'src/mixins/questPicker'
 
 export default {
   name: 'VisitTemplatesPage',
   components: { BACKBUTTON },
+  mixins: [questPicker],
   setup() {
     return { mainStore: useMainStore() }
   },
@@ -95,11 +97,7 @@ export default {
     return {
       editId: null,
       form: { label: '', questionnaires: [] },
-      questFilter: null,
     }
-  },
-  mounted() {
-    this.mainStore.setProtectedMode(false)
   },
   computed: {
     questOptions() {
@@ -110,15 +108,6 @@ export default {
     },
   },
   methods: {
-    questTitle(short_title) {
-      const q = this.mainStore.QUESTMAN.get(short_title)
-      return q && q.title ? q.title : short_title
-    },
-    filterQuests(val, update) {
-      update(() => {
-        this.questFilter = val ? val.toLowerCase() : null
-      })
-    },
     resetForm() {
       this.editId = null
       this.form = { label: '', questionnaires: [] }

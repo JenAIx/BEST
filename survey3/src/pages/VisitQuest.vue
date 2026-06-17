@@ -35,7 +35,7 @@
         </div>
       </div>
     </div>
-    <BACKBUTTON :ask="true" :hidden="true" />
+    <BACKBUTTON :ask="true" :hidden="true" :go_location="{ name: 'visit', params: { id: visitId } }" />
   </q-page>
 </template>
 
@@ -62,7 +62,6 @@ export default {
     },
   },
   mounted() {
-    this.mainStore.leftDrawerOpen = false
     this.setup()
   },
   methods: {

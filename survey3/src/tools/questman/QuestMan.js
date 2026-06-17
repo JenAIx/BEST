@@ -1,6 +1,7 @@
 import { log } from '../Logger'
 import { RANDOM, RANDOMWORD } from './helpers'
 import { calc_results, evaluate } from './scoring'
+import { itemValidity } from '../visits/visit-model'
 import { db } from '../db'
 
 // Eagerly load all questionnaire JSON files via Vite's glob import
@@ -204,26 +205,8 @@ export class QuestMan {
 
   check_activeQuest() {
     if (this.activeQuest === undefined) return undefined
-
-    const index = []
-
-    this.activeQuest.value.items.forEach(item => {
-      if (item.force === false) index.push(true)
-      else if (item.type === 'textbox' || item.type === 'seperator' || item.type === 'separator' || item.type === undefined) index.push(null)
-      else if (item.type === 'multiple_radio') {
-        if (item.value === undefined || item.value === null) index.push(false)
-        else {
-          let ISVALID = true
-          item.value.forEach(val => {
-            if (val === undefined || val === null) ISVALID = false
-          })
-          index.push(ISVALID)
-        }
-      }
-      else if (item.value !== undefined && item.value !== null) index.push(true)
-      else index.push(false)
-    })
-
+    // Per-Item-Logik liegt zentral in itemValidity (geteilt mit requiredFieldStats).
+    const index = this.activeQuest.value.items.map(item => itemValidity(item))
     if (index.includes(false)) return index
     else return true
   }

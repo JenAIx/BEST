@@ -106,7 +106,6 @@ export default {
     };
   },
   mounted() {
-    this.mainStore.setProtectedMode(true);
     for (let i = 0; i < this.QUEST_LIST.length; i++) {
       this.INDEX[i] = false;
     }

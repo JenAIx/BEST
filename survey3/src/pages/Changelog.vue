@@ -40,9 +40,6 @@ export default {
   data() {
     return {}
   },
-  mounted() {
-    this.mainStore.setProtectedMode(true);
-  },
   computed: {
     missionTxt() {
       var converter = new showdown.Converter(),

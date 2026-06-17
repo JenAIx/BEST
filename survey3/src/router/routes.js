@@ -22,6 +22,7 @@ const routes = [{
     path: "spaceinvaders",
     name: "spaceinvaders",
     component: () => import("pages/SpaceInvaders.vue"),
+    meta: { immersive: true },
   },
   {
     path: "select",
@@ -32,6 +33,7 @@ const routes = [{
     path: "quest/:id",
     name: "quest/id",
     component: () => import("pages/Quest.vue"),
+    meta: { immersive: true },
   },
   {
     path: "preset",
@@ -107,6 +109,7 @@ const routes = [{
     path: "visit/:id/quest/:short",
     name: "visit_quest",
     component: () => import("pages/VisitQuest.vue"),
+    meta: { immersive: true },
   },
   {
     path: "visit_templates",

@@ -13,7 +13,7 @@
           data-cy="main_drawer"
         />
 
-        <q-toolbar-title @click="$router.push('/').catch(()=>{})" class="text-black">
+        <q-toolbar-title @click="$router.push('/').catch(()=>{})" class="text-black cursor-pointer">
           {{ $t('label') }}
         </q-toolbar-title>
 
@@ -36,8 +36,8 @@
           <!-- Essential Links -->
         </q-item-label>
         <EssentialLink
-          v-for="link in essentialLinks"
-          :key="link.title"
+          v-for="(link, idx) in essentialLinks"
+          :key="idx"
           v-bind="link"
           :data-cy="'link_'+link.title"
         />
@@ -78,6 +78,19 @@ export default {
   data() {
     return {}
   },
+  watch: {
+    // Zentrale Chrome-Regel: Header/Drawer überall verfügbar, nur auf
+    // immersiven Seiten (Ausfüllen / Vollbild) ausgeblendet — gesteuert über
+    // route.meta.immersive. Ersetzt das verstreute setProtectedMode in den Seiten.
+    $route: {
+      immediate: true,
+      handler(to) {
+        const immersive = !!(to && to.meta && to.meta.immersive)
+        this.mainStore.PROTECTED_MODE = immersive
+        if (immersive) this.mainStore.leftDrawerOpen = false
+      },
+    },
+  },
   computed: {
     appVersion() {
       return `${process.env.APP_VERSION}-${process.env.APP_UPDATED}`
@@ -87,10 +100,10 @@ export default {
         { key: 'start', icon: 'home', link: '/', name: 'start' },
         { key: 'select', icon: 'assignment', link: 'select', name: 'select' },
         { key: 'store_preset', icon: 'archive', link: 'store_preset', name: 'store_preset' },
+        { key: 'patients', icon: 'people', link: 'patients', name: 'patients' },
+        { key: 'separator' },
         { key: 'storage', icon: 'inventory_2', link: 'storage', name: 'storage' },
         { key: 'separator' },
-        { key: 'patients', icon: 'people', link: 'patients', name: 'patients' },
-        { key: 'visit_templates', icon: 'event_note', link: 'visit_templates', name: 'visit_templates' },
         { key: 'settings', icon: 'settings', link: 'settings', name: 'settings' },
         { key: 'about', icon: 'info', link: 'about', name: 'about' },
         { key: 'changelog', icon: 'update', link: 'changelog', name: 'changelog' },

@@ -66,16 +66,15 @@ export default {
   methods: {
 
     quitForm() {
-      if (this.go_location !== undefined) this.$router.push(this.go_location)
-      if (this.go_back === true) return this.$router.go(-1)
-
-      // else
+      // Abbruch-Rückfrage gilt für alle Modi (z. B. ungespeicherter Fragebogen)
       if (this.ask === true) {
         var answer = window.confirm("Wirklich abbrechen?");
         if (!answer) return
       }
-
       this.mainStore.PROTECTED_MODE = false;
+      // Zielort hat Vorrang, dann History-Back, sonst Startseite
+      if (this.go_location !== undefined) return this.$router.push(this.go_location)
+      if (this.go_back === true) return this.$router.go(-1)
       this.$router.push('/')
     }
 

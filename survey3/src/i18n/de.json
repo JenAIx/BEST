@@ -4,8 +4,10 @@
   "index": {
     "btn_select": "zur Fragebogenauswahl",
     "btn_preset": "zu den Vorlagen",
+    "btn_patients": "Patienten & Visiten",
     "text_select": "direkt einen Fragebogen auswählen und starten",
     "text_preset": "vordefinierte Zusammenstellung von verschiedenen Fragebögen",
+    "text_patients": "Patienten anlegen, Visiten ausfüllen und exportieren",
     "stat_quests": "Fragebögen",
     "stat_stored": "Gespeichert",
     "stat_presets": "Vorlagen",
@@ -204,6 +206,10 @@
     "choose_template": "Vorlage wählen",
     "empty_visit": "Leere Visite (ad-hoc)",
     "visit_title": "Visite",
+    "edit_visit": "Visite bearbeiten",
+    "visit_name": "Name der Visite",
+    "visit_date": "Datum",
+    "visit_note": "Notiz",
     "add_questionnaire": "Fragebogen ergänzen",
     "status": {
       "empty": "offen",
@@ -230,7 +236,9 @@
     "template_questionnaires": "Fragebögen in dieser Vorlage",
     "delete_patient_confirm": "Patient und alle zugehörigen Visiten wirklich löschen?",
     "delete_visit_confirm": "Visite wirklich löschen?",
-    "delete_template_confirm": "Vorlage wirklich löschen?"
+    "delete_template_confirm": "Vorlage wirklich löschen?",
+    "delete_questionnaire_confirm": "Fragebogen aus der Visite entfernen?",
+    "export_incomplete_confirm": "{count} von {total} Fragebögen sind noch nicht abgeschlossen und werden NICHT exportiert. Trotzdem fortfahren?"
   },
   "nav": {
     "start": {

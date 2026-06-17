@@ -39,7 +39,7 @@
         class="col q-pb-md"
         style="position: relative; width: 100%; max-width: 640px"
       >
-        <q-scroll-area class="shadow-1 my-form">
+        <q-scroll-area class="shadow-1 my-form-wide">
           <div v-if="visits.length === 0" class="q-pa-lg text-center text-grey-7">
             {{ $t('visit.no_visits') }}
           </div>
@@ -53,7 +53,7 @@
             >
               <q-item-section>
                 <q-item-label>{{ v.label }}</q-item-label>
-                <q-item-label caption>{{ formatDate(v.date) }}</q-item-label>
+                <q-item-label caption>{{ formatDay(v.date) }}</q-item-label>
               </q-item-section>
               <q-item-section side>
                 <div class="row items-center q-gutter-xs">
@@ -99,7 +99,8 @@
 import BACKBUTTON from 'src/components/BackButton.vue'
 import { useMainStore } from 'src/stores/main'
 import { visitProgress } from 'src/tools/visits/visit-model'
-import dateFormat from 'dateformat'
+import { progressColor } from 'src/tools/visits/visit-ui'
+import { formatDay } from 'src/tools/dateUtils'
 
 export default {
   name: 'PatientPage',
@@ -109,9 +110,6 @@ export default {
   },
   data() {
     return { selectedTemplate: null }
-  },
-  mounted() {
-    this.mainStore.setProtectedMode(false)
   },
   computed: {
     patientId() {
@@ -130,19 +128,13 @@ export default {
     },
   },
   methods: {
-    formatDate(d) {
-      if (!d) return ''
-      return dateFormat(d, 'yyyy-mm-dd')
-    },
+    formatDay,
     progressLabel(v) {
       const p = visitProgress(v)
       return this.$t('visit.progress', { completed: p.completed, total: p.total })
     },
     progressColor(v) {
-      const p = visitProgress(v)
-      if (p.total > 0 && p.completed === p.total) return 'positive'
-      if (p.completed > 0) return 'orange'
-      return 'grey-6'
+      return progressColor(visitProgress(v))
     },
     addVisit() {
       const visit = this.mainStore.VISIT_MAN.add_visit(this.patientId, this.selectedTemplate || null)
@@ -157,6 +149,21 @@ export default {
       this.mainStore.VISIT_MAN.remove_visit(v.id)
     },
     exportPatient() {
+      let total = 0
+      let completed = 0
+      this.visits.forEach((v) => {
+        ;(v.items || []).forEach((i) => {
+          total++
+          if (i.status === 'completed') completed++
+        })
+      })
+      const incomplete = total - completed
+      if (completed === 0) {
+        this.$q.notify({ message: this.$t('visit.export_empty'), color: 'warning' })
+        return
+      }
+      if (incomplete > 0 &&
+        !window.confirm(this.$t('visit.export_incomplete_confirm', { count: incomplete, total }))) return
       const ok = this.mainStore.exportPatient(this.patientId)
       this.$q.notify({
         message: ok ? this.$t('visit.export_ok') : this.$t('visit.export_empty'),

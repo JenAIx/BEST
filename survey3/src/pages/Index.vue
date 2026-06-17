@@ -50,6 +50,19 @@
           </q-item>
       </div>
 
+      <!-- PATIENTS & VISITS -->
+      <div class="col-2">
+          <q-item data-cy="btn_patients" clickable v-ripple class="my-btn-item q-my-sm" @click="mainStore.leftDrawerOpen = false, $router.push('patients')">
+            <q-item-section avatar>
+              <q-icon name="people" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{$t('index.btn_patients')}}</q-item-label>
+              <q-item-label caption>{{$t('index.text_patients')}}</q-item-label>
+            </q-item-section>
+          </q-item>
+      </div>
+
       <!-- LAST ACTIVITY -->
       <div v-if="lastEntry" class="col-auto q-pb-md">
         <div class="text-caption text-grey-6 text-center">
@@ -73,9 +86,6 @@
     },
     data() {
       return {}
-    },
-    mounted() {
-      this.mainStore.setProtectedMode(false);
     },
     computed: {
       questCount() {
