@@ -1880,10 +1880,6 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "value": 30,
   },
   {
-    "label": "Schmerzgrad",
-    "value": 10,
-  },
-  {
     "label": "III_Schmerz",
     "value": 20,
   },

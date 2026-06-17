@@ -144,12 +144,17 @@ export function getDomaineScore(VALUES, sub, RESULTS) {
  * Führt beide Stufen aus und liefert die Domänen-Resultate (auf 2 Nachkommastellen
  * gerundet). Domänen werden in Definitionsreihenfolge berechnet, sodass spätere
  * Domänen frühere per Label referenzieren können.
+ *
+ * Mit `"internal": true` markierte Domänen werden weiterhin berechnet (stehen also
+ * für String-Referenzen zur Verfügung), aber NICHT zurückgegeben — reine
+ * Rechen-Zwischengrößen erscheinen so nicht im Ergebnis/Export.
  * @param {Array<{id:*, value:*}>} items  aufbereitete Result-Items
  * @param {object} method  results-Block
  * @returns {Array<{label:string, value:number, coding?:object}>}
  */
 export function calc_ids(items, method) {
   const results = []
+  const internalLabels = new Set()
   const VALUES = items.map((item) => ({ id: item.id, value: item.value }))
 
   // Stufe 1: Item-Scores
@@ -164,8 +169,9 @@ export function calc_ids(items, method) {
       value: Math.round(getDomaineScore(VALUES, sub, results) * 100) / 100,
     }
     if (sub.coding) val.coding = sub.coding
-    results.push(val)
+    results.push(val) // interne Domänen bleiben für nachfolgende String-Referenzen sichtbar
+    if (sub.internal === true) internalLabels.add(sub.label)
   })
 
-  return results
+  return results.filter((r) => !internalLabels.has(r.label))
 }

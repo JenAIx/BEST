@@ -230,9 +230,10 @@ describe('QuestMan manuelle Fixtures', () => {
     expect(s).toMatchSnapshot()
   })
 
-  // --- TWSTRS: sum_multiply + String-Ref-Verkettung. (Schmerzgrad erscheint in Snapshot,
-  //     wird in Phase D als interne Domäne ausgeblendet — III_Schmerz/sum bleiben stabil.)
-  test('twstrs: sum_multiply + chained pain domain', () => {
+  // --- TWSTRS: sum_multiply + String-Ref-Verkettung. Schmerzgrad ist eine INTERNE
+  //     Domäne (internal:true): wird berechnet und von III_Schmerz genutzt, aber NICHT
+  //     ausgegeben. III_Schmerz/sum bleiben unverändert.
+  test('twstrs: sum_multiply + chained pain domain (internal Schmerzgrad)', () => {
     const s = summaryFor('twstrs', (items) => {
       items[2].value = 2 // id1
       items[3].value = 2 // id2
@@ -257,13 +258,13 @@ describe('QuestMan manuelle Fixtures', () => {
     })
     // I_Schweregrad = 2+2+2+2+1+1+2+2+2+2+2 = 20
     // II_Aktivitaetseinschraenkung = 6x3 = 18
-    // Schmerzgrad = (raw17 + raw18 + 2*raw19) * 0.25 = (4 + 4 + 8) * 0.25 = 4
+    // Schmerzgrad (intern) = (raw17 + raw18 + 2*raw19) * 0.25 = (4 + 4 + 8) * 0.25 = 4
     // III_Schmerz = id20 + id21 + Schmerzgrad = 3 + 2 + 4 = 9
     // sum = 20 + 18 + 9 = 47
     expect(dom(s, 'I_Schweregrad')).toBe(20)
     expect(dom(s, 'II_Aktivitaetseinschraenkung')).toBe(18)
-    expect(dom(s, 'Schmerzgrad')).toBe(4)
-    expect(dom(s, 'III_Schmerz')).toBe(9)
+    expect(dom(s, 'Schmerzgrad')).toBeUndefined() // intern -> nicht im Ergebnis
+    expect(dom(s, 'III_Schmerz')).toBe(9) // nutzt Schmerzgrad intern weiter
     expect(dom(s, 'sum')).toBe(47)
     expect(s).toMatchSnapshot()
   })

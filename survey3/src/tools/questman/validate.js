@@ -78,6 +78,15 @@ export function validateQuestScoring(quest) {
     seen.add(d.label)
   })
 
+  // --- interne Domänen müssen referenziert werden, sonst verschwinden sie spurlos ---
+  const referencedLabels = new Set()
+  ;(r.domaine || []).forEach((d) => (d.id || []).forEach((id) => typeof id === 'string' && referencedLabels.add(id)))
+  ;(r.domaine || []).forEach((d, i) => {
+    if (d.internal === true && !referencedLabels.has(d.label)) {
+      W('INTERNAL_UNREFERENCED', `domaine[${i}] "${d.label}" ist internal, wird aber von keiner Domäne referenziert (verschwindet wirkungslos)`)
+    }
+  })
+
   // --- Typ-Konsistenz der Antwortwerte (DGI-Klasse) ---
   // String-numerische Werte werden von sum/avg ignoriert und matchen nicht in
   // numerischen ids-value-Arrays -> stille Untererfassung. Nur relevant für

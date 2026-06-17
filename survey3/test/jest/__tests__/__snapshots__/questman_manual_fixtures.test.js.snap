@@ -1420,7 +1420,7 @@ exports[`QuestMan manuelle Fixtures sus: sum_multiply x2.5 + reverse scoring 1`]
 }
 `;
 
-exports[`QuestMan manuelle Fixtures twstrs: sum_multiply + chained pain domain 1`] = `
+exports[`QuestMan manuelle Fixtures twstrs: sum_multiply + chained pain domain (internal Schmerzgrad) 1`] = `
 {
   "coding": {
     "code": "SCTID: 225398001",
@@ -1646,10 +1646,6 @@ exports[`QuestMan manuelle Fixtures twstrs: sum_multiply + chained pain domain 1
     {
       "label": "II_Aktivitaetseinschraenkung",
       "value": 18,
-    },
-    {
-      "label": "Schmerzgrad",
-      "value": 4,
     },
     {
       "label": "III_Schmerz",
