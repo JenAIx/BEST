@@ -4,11 +4,14 @@
   "index": {
     "btn_select": "zur Fragebogenauswahl",
     "btn_preset": "zu den Vorlagen",
+    "btn_patients": "Patienten & Visiten",
     "text_select": "direkt einen Fragebogen auswählen und starten",
     "text_preset": "vordefinierte Zusammenstellung von verschiedenen Fragebögen",
+    "text_patients": "Patienten anlegen, Visiten ausfüllen und exportieren",
     "stat_quests": "Fragebögen",
     "stat_stored": "Gespeichert",
     "stat_presets": "Vorlagen",
+    "stat_patients": "Patienten",
     "stat_open_exports": "Offen",
     "last_entry": "Letzter Eintrag"
   },
@@ -192,6 +195,52 @@
       "fileselect": "Datei auswählen"
     }
   },
+  "visit": {
+    "patients_title": "Patienten",
+    "no_patients": "Noch keine Patienten angelegt.",
+    "new_patient": "Patient anlegen",
+    "patient_pid": "Patienten-ID / Code",
+    "patient_title": "Patient",
+    "visits_title": "Visiten",
+    "no_visits": "Noch keine Visiten für diesen Patienten.",
+    "new_visit": "Visite hinzufügen",
+    "choose_template": "Vorlage wählen",
+    "empty_visit": "Leere Visite (ad-hoc)",
+    "visit_title": "Visite",
+    "edit_visit": "Visite bearbeiten",
+    "visit_name": "Name der Visite",
+    "visit_date": "Datum",
+    "visit_note": "Notiz",
+    "add_questionnaire": "Fragebogen ergänzen",
+    "status": {
+      "empty": "offen",
+      "draft": "Entwurf",
+      "completed": "abgeschlossen"
+    },
+    "progress": "{completed} / {total} abgeschlossen",
+    "fill": "ausfüllen",
+    "resume": "fortsetzen",
+    "edit": "bearbeiten",
+    "save_draft": "Als Entwurf speichern",
+    "finish": "Abschließen",
+    "draft_saved": "Entwurf gespeichert",
+    "completed_ok": "Fragebogen abgeschlossen",
+    "export_visit": "Visite exportieren",
+    "export_patient": "Patient exportieren",
+    "export_ok": "Export erfolgreich",
+    "export_empty": "Nichts zu exportieren (keine abgeschlossenen Fragebögen)",
+    "exported_badge": "exportiert",
+    "templates_title": "Visiten-Vorlagen",
+    "no_templates": "Noch keine Vorlagen angelegt.",
+    "new_template": "Vorlage anlegen",
+    "template_label": "Name der Vorlage",
+    "template_questionnaires": "Fragebögen in dieser Vorlage",
+    "delete_patient_confirm": "Patient und alle zugehörigen Visiten wirklich löschen?",
+    "delete_visit_confirm": "Visite wirklich löschen?",
+    "delete_template_confirm": "Vorlage wirklich löschen?",
+    "delete_questionnaire_confirm": "Fragebogen aus der Visite entfernen?",
+    "export_incomplete_confirm": "{count} von {total} Fragebögen sind noch nicht abgeschlossen und werden NICHT exportiert. Trotzdem fortfahren?"
+  },
   "nav": {
     "start": {
       "title": "Startseite",
@@ -208,6 +257,14 @@
     "storage": {
       "title": "Gespeicherte Fragebögen",
       "caption": "hier werden ausgefüllte Fragebögen lokal gespeichert"
+    },
+    "patients": {
+      "title": "Patienten & Visiten",
+      "caption": "Patienten anlegen und Visiten ausfüllen"
+    },
+    "visit_templates": {
+      "title": "Visiten-Vorlagen",
+      "caption": "wiederverwendbare Zusammenstellungen von Fragebögen für Visiten"
     },
     "settings": {
       "title": "Einstellungen",

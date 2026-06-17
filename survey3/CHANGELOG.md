@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.9.0
+
+#### Added
+
+- [2026-06-17] Patienten-/Visiten-Workflow (parallel zum Einzel-Fragebogen-Flow): Patienten anlegen, Visiten aus wiederverwendbaren Vorlagen zusammenstellen, Komplettierungsstatus je Bogen mit Pflichtfeld-Prozent, Bögen als Entwurf speichern/fortsetzen oder abschließen (mit Logikprüfung)
+- [2026-06-17] Export einer Visite oder eines Patienten als app2-kompatibles `importStructure`-JSON (Fragebögen als `VALTYPE_CD='Q'`-Observation + abgeleitete Score-Observations) — direkt in db/app2 importierbar; warnt explizit bei unvollständigen Bögen
+- [2026-06-17] LEC-SEQ-Studieninstrumente: NMSS (vollständig, 30 Items / 9 Bereiche, Schwere×Häufigkeit-Scoring), SLTS-7, Aufnahmebogen V1 (`lecseq-anamnese-v1`), Verlaufs-Interview (`lecseq-verlauf`), ADR-Bogen (`lecseq-adr`)
+- [2026-06-17] 4 versionierte Visiten-Vorlagen LEC-SEQ V1–V4 (Seed beim ersten Start, re-synct bei Versions-Bump)
+- [2026-06-17] Startseite: Info-Card „Patienten"
+- [2026-06-17] Headless-Cypress-E2E (Patienten-/Visiten-Flow + Einzel-Fragebogen-Flow) sowie Jest-End-to-End-Test für den kompletten Studienlauf inkl. Export
+
+#### Changed
+
+- [2026-06-17] App-weite Navigation vereinheitlicht: Header + Drawer sind überall verfügbar, nur beim Ausfüllen eines Fragebogens (Quest/VisitQuest) immersiv ausgeblendet — gesteuert über eine zentrale `route.meta.immersive`-Regel statt verstreutem `setProtectedMode`
+- [2026-06-17] „Gespeicherte Fragebögen" und „Patienten & Visiten" als getrennte Seiten; Storage- und Patientenliste in wiederverwendbare Komponenten extrahiert
+- [2026-06-17] Header-Titel „bestQUEST" springt zur Startseite
+
+#### Fixed
+
+- [2026-06-17] Vollständigkeitsanzeige: leere `multiple_radio`-/`checkbox`-Felder zählten fälschlich als ausgefüllt (PDQ-8 zeigte 100 %, Aufnahmebogen 18 %) — leere Arrays gelten jetzt korrekt als unbeantwortet; `multiple_radio` verlangt alle Teilfragen
+- [2026-06-17] `calc_results` stürzte bei Fragebögen ohne `results`-Block ab
+- [2026-06-17] Drawer: unterster Eintrag (Changelog) war durch das fixierte Logo-Overlay nicht klickbar — Logo in den normalen Fluss verschoben
+- [2026-06-17] `/storage`: Liste und Filter wieder mittig zentriert (Regression aus der Komponenten-Extraktion)
+- [2026-06-17] `BackButton`: „Zurück" im Visiten-Fragebogen führt zur jeweiligen Visite (korrektes `go_location`-Verhalten)
+
 ### v1.8.1
 
 #### Fixed

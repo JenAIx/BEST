@@ -1,11 +1,11 @@
 <template>
-  <q-page class="page-size" data-cy="page_storage">
+  <q-page class="page-size" data-cy="page_patients">
     <div class="column items-center" style="height: 100%">
       <!-- HEADING -->
-      <div class="col-auto q-pt-md text-h6">{{ $t('storage.label') }}</div>
+      <div class="col-auto q-pt-md text-h6">{{ $t('visit.patients_title') }}</div>
       <!-- CONTENT -->
       <div class="col full-width column items-center" style="min-height: 0">
-        <StorageResponses />
+        <PatientsList />
       </div>
     </div>
     <BACKBUTTON />
@@ -14,10 +14,10 @@
 
 <script>
 import BACKBUTTON from 'src/components/BackButton.vue'
-import StorageResponses from 'src/components/StorageResponses.vue'
+import PatientsList from 'src/components/PatientsList.vue'
 
 export default {
-  name: 'PageStorage',
-  components: { BACKBUTTON, StorageResponses },
+  name: 'PagePatients',
+  components: { BACKBUTTON, PatientsList },
 }
 </script>

@@ -187,8 +187,6 @@ export default {
     };
   },
   mounted() {
-    this.mainStore.setProtectedMode(true);
-
     // CHECK IF MAIL SERVER IS AVAILABLE
     checkMail(this.mainStore.SETTINGS.email_export).then((res) => {
       this.email_server_available = res;

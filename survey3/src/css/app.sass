@@ -55,8 +55,18 @@ h2, .text-h2
   min-width: 400px
   height: 95%
 
+.my-form-wide
+  width: 640px
+  max-width: 640px
+  min-width: 640px
+  height: 95%
+
 @media screen and ( max-width: 600px)
   .my-form
+    width: calc(100vw - 40px)
+    min-width: calc(100vw - 20px)
+    max-width: calc(100vw - 40px)
+  .my-form-wide
     width: calc(100vw - 40px)
     min-width: calc(100vw - 20px)
     max-width: calc(100vw - 40px)

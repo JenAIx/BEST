@@ -94,9 +94,6 @@
         PresetStoreEdit_show: false,
       }
     },
-    mounted() {
-      this.mainStore.setProtectedMode(true);
-    },
     components: {BACKBUTTON, MYBUTTON, PRESET_STORE_EDIT},
     methods: {
       actionStr(ev, index) {

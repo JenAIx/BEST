@@ -207,7 +207,6 @@ export default {
     }
   },
   mounted() {
-    this.mainStore.setProtectedMode(true);
     this.initCanvas();
     this.initGame();
     this.startGame();

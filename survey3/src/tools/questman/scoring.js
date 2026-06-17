@@ -2,7 +2,7 @@ import { log } from '../Logger'
 
 // CALC RESULTS
 export function calc_results(data, methods) {
-  if (methods.method === undefined) return {}
+  if (methods === undefined || methods === null || methods.method === undefined) return {}
   switch (methods.method) {
     case 'sum':
       return calc_simple_sum(data.items, methods)

@@ -1,0 +1,86 @@
+{
+    "title": "SLTS-7",
+    "short_title": "slts7",
+    "coding": {
+        "system": "LEC-SEQ",
+        "code": "CUSTOM: SLTS7",
+        "display": "Satisfaction with Life and Treatment Scale (SLTS-7)",
+        "version": "20260601"
+    },
+    "description": "SLTS-7 – Zufriedenheit mit Leben und Behandlung (Sauerbier et al. 2022), 7 Items",
+    "keywords": "parkinson lec-seq zufriedenheit lebensqualität treatment satisfaction slts",
+    "manual": "<b>Selbstauskunft Patient:in · 7 Items · Erhebung V1–V4.</b><br>Skala 1–10. Items 1–6: 1 = überhaupt nicht zufrieden … 10 = sehr zufrieden. Item 7: 1 = überhaupt nicht … 10 = absolut. Höhere Werte = höhere Zufriedenheit.<br><span style=\"color:#b71c1c\">⚠ Arbeitsübersetzung — vor Studieneinsatz lizenzierte deutsche Version absichern (Original englisch validiert).</span>",
+    "items": [
+        {
+            "label": "Visite",
+            "tag": "visite",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "ignore_for_result": true,
+            "options": [
+                {"label": "V1", "value": "V1"},
+                {"label": "V2", "value": "V2"},
+                {"label": "V3", "value": "V3"},
+                {"label": "V4", "value": "V4"}
+            ]
+        },
+        {
+            "label": "Alles in allem: Wie zufrieden sind Sie mit …",
+            "type": "separator"
+        },
+        {
+            "label": "1. … Ihrem Leben als Ganzes?",
+            "caption": "1 = überhaupt nicht zufrieden … 10 = sehr zufrieden",
+            "tag": "slts_1_leben", "id": 1, "value": null, "type": "number"
+        },
+        {
+            "label": "2. … Ihrer körperlichen Gesundheit?",
+            "caption": "1 … 10",
+            "tag": "slts_2_koerper", "id": 2, "value": null, "type": "number"
+        },
+        {
+            "label": "3. … Ihrem psychischen Wohlbefinden?",
+            "caption": "1 … 10",
+            "tag": "slts_3_psyche", "id": 3, "value": null, "type": "number"
+        },
+        {
+            "label": "4. … Ihren sozialen Beziehungen?",
+            "caption": "1 … 10",
+            "tag": "slts_4_sozial", "id": 4, "value": null, "type": "number"
+        },
+        {
+            "label": "5. … Ihrer Freizeit?",
+            "caption": "1 … 10",
+            "tag": "slts_5_freizeit", "id": 5, "value": null, "type": "number"
+        },
+        {
+            "label": "6. … Ihrer bisherigen Parkinson-Behandlung?",
+            "caption": "1 … 10",
+            "tag": "slts_6_behandlung", "id": 6, "value": null, "type": "number"
+        },
+        {
+            "label": "Erwartungen an die Behandlung",
+            "type": "separator"
+        },
+        {
+            "label": "7. Alles in allem: Erfüllt die bisherige Behandlung Ihre Erwartungen?",
+            "caption": "1 = überhaupt nicht … 10 = absolut",
+            "tag": "slts_7_erwartung", "id": 7, "value": null, "type": "number"
+        }
+    ],
+    "results": {
+        "method": "ids",
+        "coding": { "display": "SLTS-7 Gesamtscore", "code": "CUSTOM: SLTS7_TOTAL", "system": "CUSTOM" },
+        "scoring": [
+            { "id": [1, 2, 3, 4, 5, 6, 7], "method": "raw" }
+        ],
+        "domaine": [
+            { "label": "overall", "id": [1], "method": "sum", "coding": { "display": "SLTS-7 Overall (global)", "code": "CUSTOM: SLTS7_OVERALL", "system": "CUSTOM" } },
+            { "label": "physical", "id": [2], "method": "sum", "coding": { "display": "SLTS-7 Physical", "code": "CUSTOM: SLTS7_PHYSICAL", "system": "CUSTOM" } },
+            { "label": "psychosocial", "id": [3, 4, 5], "method": "sum", "coding": { "display": "SLTS-7 Psycho-social", "code": "CUSTOM: SLTS7_PSYCHOSOCIAL", "system": "CUSTOM" } },
+            { "label": "treatment", "id": [6, 7], "method": "sum", "coding": { "display": "SLTS-7 Treatment", "code": "CUSTOM: SLTS7_TREATMENT", "system": "CUSTOM" } },
+            { "label": "sum", "id": [1, 2, 3, 4, 5, 6, 7], "method": "sum", "coding": { "display": "SLTS-7 Gesamtscore", "code": "CUSTOM: SLTS7_TOTAL", "system": "CUSTOM" } }
+        ]
+    }
+}
