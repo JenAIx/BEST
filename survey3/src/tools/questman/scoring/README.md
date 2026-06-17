@@ -100,7 +100,12 @@ fällt. Wirkt ausschließlich auf `sum`.
 
 - `id` — verknüpft ein Item mit `scoring`/`domaine`. Bei `multiple_radio` tragen die
   **Sub-Fragen** die IDs (`options.questions[].id`); das Item selbst kann ein `id`-Array führen.
-- `ignore_for_result: true` — schließt das Item aus `sum`/`avg` aus.
+- `ignore_for_result: true` — schließt das Item aus dem **Score** aus (von `sum`/`avg`
+  direkt; bei `ids` durch Nicht-Referenzieren der `id`). **Nicht** aus dem Export:
+  betroffen sind Demografie/Metadaten (Alter, Geschlecht, Visite, …), die als Daten
+  erfasst und im CDA/CSV-Export gelistet bleiben — sie zählen nur nicht zum Score.
+  Soll ein Item gar nicht erscheinen, ist das eine eigene Anforderung (separates Flag),
+  kein `ignore_for_result`.
 - Antwortwerte müssen **numerisch** sein, wo numerisch gescort wird (String-Zahlen wie
   `"3"` werden von `sum`/`avg` ignoriert und matchen nicht in numerischen value→score-
   Arrays). Validator: `STRING_NUMERIC`.

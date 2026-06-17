@@ -6,6 +6,11 @@
 // Diese Form wird sowohl vom Scoring (calc_results: via id/value/ignore_for_result)
 // als auch vom CDA-Export (via label/coding/value) konsumiert und bleibt daher
 // strikt unverändert.
+//
+// Hinweis: `ignore_for_result` steuert NUR das Scoring (sum/avg überspringen es),
+// NICHT den Export. So markierte Demografie/Metadaten (Alter, Geschlecht, Visite …)
+// bleiben bewusst in den Ergebnis-Items und im CDA/CSV-Export erhalten. Siehe
+// scoring/README.md.
 
 // Erzeugt einen Ergebnis-Eintrag aus einer Quelle { tag, value, coding?, id? }.
 // label = tag; existiert ein coding, überschreibt dessen display das label
