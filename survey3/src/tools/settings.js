@@ -5,7 +5,7 @@ import { db } from "./db";
 const emptySettings = {
   size: "normal", // 'bigger', 'biggest'
   export_format: "html",
-  quest_focus_mode: false, // Fragebogen: Wizard (eine Frage/Schritt) vs. klassische Liste (Default)
+  quest_focus_mode: null, // Wizard (eine Frage/Schritt) vs. Liste; null = adaptiv (iPhone Wizard, sonst Liste)
   quest_auto_advance: true, // bei Einfachauswahl automatisch zur nächsten Frage springen
   filter_storage: { order: { label: "Datum", value: "date" }, text: null },
 };
@@ -60,7 +60,7 @@ class settings {
   }
 
   get quest_focus_mode() {
-    if (this._DATA.quest_focus_mode === undefined) return false;
+    // Rohwert: boolean = explizite Nutzerwahl, null/undefined = adaptiv (in RenderQuest aufgelöst)
     return this._DATA.quest_focus_mode;
   }
   set quest_focus_mode(val) {

@@ -4,7 +4,7 @@
     <q-chip v-if="PARAMS.mode === 'encrypted'" icon="lock" class="absolute-top-left z-top" />
 
     <q-card v-if="QUEST !== undefined" flat class="my-quest-form quest-card">
-      <!-- HEADING -->
+      <!-- HEADER -->
       <q-card-section class="quest-header">
         <div class="row items-center no-wrap">
           <div class="col-auto" v-if="mainStore.DEBUG_MODE || subject_pid === 'DEMO'">
@@ -59,54 +59,20 @@
           <!-- PID-SCHRITT -->
           <template v-if="step && step.kind === 'pid'">
             <div class="text-subtitle1 q-mb-md">{{ $t('quest.start') }}</div>
-            <q-input data-cy="PID" filled v-model="subject_pid" :label="$t('quest.pid')" :hint="PID_HINT_TEXT"
-              :rules="[val => (val && val.length > 0) || $t('quest.pid_hint')]" :disable="PARAMS.PID !== undefined"
-              autofocus @keyup.enter="onEnter" />
+            <QuestPidField v-model="subject_pid" :hint="PID_HINT_TEXT" :disable="PARAMS.PID !== undefined"
+              autofocus @enter="onEnter" />
           </template>
 
           <!-- FRAGE-SCHRITT -->
           <template v-else-if="step && step.kind === 'item'">
-            <!-- Intro / Kontext oberhalb der Frage -->
-            <div v-if="step.intro && step.intro.length" class="quest-intro">
-              <div v-for="(b, bi) in step.intro" :key="'intro' + bi" class="q-mb-sm">
-                <div v-if="b.label" class="text-subtitle2 text-grey-8"><span v-html="b.label" /></div>
-                <div v-if="b.caption" class="text-caption text-grey-7"><span v-html="b.caption" /></div>
-                <span v-if="b.type === 'image'">
-                  <img v-for="(img, k) of b.value" :key="k + 'img'" :src="`img/${img}`" alt=""
-                    :style="`width:${b.width}px`">
-                </span>
-              </div>
-            </div>
-            <!-- Frage -->
-            <div class="quest-question" data-cy="list_entries">
-              <div class="text-subtitle1 quest-question__label"><span v-html="step.item.label" /></div>
-              <div v-if="step.item.caption" class="text-caption text-grey-7 q-mb-sm"><span v-html="step.item.caption" /></div>
-
-              <span v-if="step.item.type === 'image'">
-                <img v-for="(img, i) of step.item.value" :key="i + 'img'" :src="`img/${img}`" alt=""
-                  :style="`width: ${step.item.width}px`">
-              </span>
-              <component v-else :is="rendererComponent(step.item)" :ITEM="step.item"
-                @emitValue="onValue(step.item, $event)" data-cy="item_input" />
-
-              <div v-if="currentError" class="text-red q-mt-sm" data-cy="quest_inline_error">
-                {{ $t('quest.please_complete') }}
-              </div>
-            </div>
+            <QuestIntro :blocks="step.intro" />
+            <QuestItemField :item="step.item" :error="currentError" input-cy="item_input"
+              data-cy="list_entries" @emitValue="onValue(step.item, $event)" />
           </template>
 
           <!-- INFO-SCHRITT (abschließende Hinweise) -->
           <template v-else-if="step && step.kind === 'info'">
-            <div v-if="step.intro && step.intro.length" class="quest-intro">
-              <div v-for="(b, bi) in step.intro" :key="'info' + bi" class="q-mb-sm">
-                <div v-if="b.label" class="text-subtitle2 text-grey-8"><span v-html="b.label" /></div>
-                <div v-if="b.caption" class="text-caption text-grey-7"><span v-html="b.caption" /></div>
-                <span v-if="b.type === 'image'">
-                  <img v-for="(img, k) of b.value" :key="k + 'img'" :src="`img/${img}`" alt=""
-                    :style="`width:${b.width}px`">
-                </span>
-              </div>
-            </div>
+            <QuestIntro :blocks="step.intro" />
           </template>
 
           <!-- ÜBERSICHT / REVIEW -->
@@ -115,7 +81,7 @@
             <div class="text-caption text-grey-7 q-mb-md">{{ $t('quest.review_hint') }}</div>
             <q-list separator>
               <q-item v-for="rev in reviewList" :key="'rev' + rev.stepIndex" clickable v-ripple
-                @click="goTo(rev.stepIndex)" :data-cy="'review_item'">
+                @click="goTo(rev.stepIndex)" data-cy="review_item">
                 <q-item-section avatar>
                   <q-icon :name="rev.icon" :color="rev.color" />
                 </q-item-section>
@@ -132,7 +98,7 @@
         </q-card-section>
 
         <!-- NAVIGATION -->
-        <q-card-section class="quest-nav row items-center justify-between q-pb-xl">
+        <q-card-section class="quest-nav row items-center justify-between">
           <q-btn flat no-caps color="grey-8" icon="arrow_back" :label="$t('quest.prev')" :disable="currentStep === 0"
             data-cy="quest_prev" @click="goPrev()" />
 
@@ -150,8 +116,7 @@
       <template v-else>
         <!-- PID (im Visiten-/Preview-Modus ausgeblendet) -->
         <q-card-section v-if="!embedded && !isPreview">
-          <q-input data-cy="PID" filled v-model="subject_pid" :label="$t('quest.pid')" :hint="PID_HINT_TEXT"
-            :rules="[val => (val && val.length > 0) || $t('quest.pid_hint')]" :disable="PARAMS.PID !== undefined" />
+          <QuestPidField v-model="subject_pid" :hint="PID_HINT_TEXT" :disable="PARAMS.PID !== undefined" />
         </q-card-section>
 
         <q-card-section>
@@ -159,23 +124,22 @@
             <q-item v-for="(item, indQ) in QUEST.items" :key="item.label + indQ" data-cy="item_entry"
               :id="'qitem_' + indQ">
               <q-item-section>
-                <q-item-label title><span v-html="item.label" /></q-item-label>
-                <q-item-label v-if="item.caption !== null || item.type === 'separator'" caption>
-                  <span v-html="item.caption" />
-                </q-item-label>
-
-                <q-item-label v-if="isInteractive(item)">
-                  <component :is="rendererComponent(item)" :ITEM="item" @emitValue="item.value = $event" data-cy="text" />
-                </q-item-label>
-                <q-item-label v-else-if="item.type === 'image'">
-                  <span v-for="(img, imgind) of item.value" :key="imgind + 'img'">
-                    <img :src="`img/${img}`" alt="" :style="`width: ${item.width}px`">
-                  </span>
-                </q-item-label>
-
-                <q-item-label v-if="submit_clicked && CHECK_FORM !== true && CHECK_FORM[indQ] === false" class="text-red">
-                  {{ $t('quest.please_complete') }}
-                </q-item-label>
+                <!-- interaktive Frage -->
+                <QuestItemField v-if="isInteractive(item)" :item="item" input-cy="text"
+                  :error="submit_clicked && CHECK_FORM !== true && CHECK_FORM[indQ] === false"
+                  @emitValue="item.value = $event" />
+                <!-- nicht-interaktiv: Überschrift / Hinweis / Bild -->
+                <template v-else>
+                  <q-item-label title><span v-html="item.label" /></q-item-label>
+                  <q-item-label v-if="item.caption !== null || item.type === 'separator'" caption>
+                    <span v-html="item.caption" />
+                  </q-item-label>
+                  <q-item-label v-if="item.type === 'image'">
+                    <span v-for="(img, imgind) of item.value" :key="imgind + 'img'">
+                      <img :src="`img/${img}`" alt="" :style="`width: ${item.width}px`">
+                    </span>
+                  </q-item-label>
+                </template>
               </q-item-section>
             </q-item>
           </q-list>
@@ -210,25 +174,15 @@ import { log } from 'src/tools/Logger'
 import { parseRouteParams } from 'src/tools/routeParams'
 import { useMainStore } from 'src/stores/main'
 import { itemValidity, answerStats } from 'src/tools/visits/visit-model'
-import RenderSlider from './RenderQuest_slider.vue'
-import RenderMultipleRadio from './RenderQuest_multipleradio.vue'
-import RenderDate from './RenderQuest_date.vue'
-import RenderTime from './RenderQuest_time.vue'
-import RenderText from './RenderQuest_text.vue'
-import RenderRadio from './RenderQuest_radio.vue'
+import QuestItemField from './QuestItemField.vue'
+import QuestIntro from './QuestIntro.vue'
+import QuestPidField from './QuestPidField.vue'
 
 const INTERACTIVE = ['radio', 'checkbox', 'text', 'number', 'date', 'date_year', 'time', 'slider', 'multiple_radio']
-const RENDERER = {
-  radio: 'RenderRadio', checkbox: 'RenderRadio',
-  text: 'RenderText', number: 'RenderText',
-  date: 'RenderDate', date_year: 'RenderDate',
-  time: 'RenderTime', slider: 'RenderSlider',
-  multiple_radio: 'RenderMultipleRadio',
-}
 
 export default {
   name: 'RenderQuest',
-  components: { RenderSlider, RenderMultipleRadio, RenderDate, RenderTime, RenderText, RenderRadio },
+  components: { QuestItemField, QuestIntro, QuestPidField },
   props: {
     QUEST_LABEL: { default: undefined },
     saved: { default: undefined },
@@ -266,7 +220,11 @@ export default {
     },
     focusMode() {
       if (this.isPreview) return false
-      return this.mainStore.SETTINGS.quest_focus_mode !== false
+      // Adaptiv: explizite Nutzerwahl gewinnt; sonst Fokus auf schmalen Screens
+      // (iPhone/xs), Liste auf iPad/Desktop.
+      const s = this.mainStore.SETTINGS.quest_focus_mode
+      if (typeof s === 'boolean') return s
+      return this.$q.screen.lt.sm
     },
     autoAdvance() {
       return this.mainStore.SETTINGS.quest_auto_advance !== false
@@ -346,11 +304,8 @@ export default {
     isInteractive(item) {
       return INTERACTIVE.includes(item.type)
     },
-    rendererComponent(item) {
-      return RENDERER[item.type]
-    },
     toggleMode() {
-      this.mainStore.SETTINGS.quest_focus_mode = !this.mainStore.SETTINGS.quest_focus_mode
+      this.mainStore.SETTINGS.quest_focus_mode = !this.focusMode
       this.currentStep = 0
       this.currentError = false
       this.$nextTick(() => this.focusStep())
@@ -415,7 +370,7 @@ export default {
       if (!el) return
       el.scrollIntoView({ block: 'start', behavior: 'smooth' })
       // Text-/Zahleneingaben automatisch fokussieren (nicht aber Radios/Slider — würde irritieren)
-      if (this.step && (this.step.kind === 'item') &&
+      if (this.step && this.step.kind === 'item' &&
         ['text', 'number', 'date', 'date_year', 'time'].includes(this.step.item.type)) {
         const f = el.querySelector('input:not([type=hidden]), textarea')
         if (f) f.focus()
@@ -493,22 +448,23 @@ export default {
   top: 0
   z-index: 2
   background: $surface
-  padding: 8px 16px 4px
+  padding: $gap-sm $gap-md 4px
 
 .quest-manual
-  padding: 12px 16px
+  padding: 12px $gap-md
   font-size: 0.9em
   color: $grey-8
 
 .quest-step
-  min-height: 180px
+  min-height: 200px
+  padding: $gap-md $gap-md $gap-lg
 
-.quest-question__label
-  line-height: 1.4
-  margin-bottom: 8px
-
-.quest-intro
-  margin-bottom: 12px
-  padding-left: 4px
-  border-left: 3px solid $line
+.quest-nav
+  position: sticky
+  bottom: 0
+  z-index: 2
+  background: $surface
+  border-top: 1px solid $line
+  padding: $gap-sm $gap-md
+  padding-bottom: calc(#{$gap-sm} + env(safe-area-inset-bottom))
 </style>

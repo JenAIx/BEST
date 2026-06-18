@@ -94,16 +94,17 @@ h2, .text-h2
     min-width: calc(100vw - 20px)
     max-width: calc(100vw - 40px)
 
+// Fragebogen-Karte: fluid, zentriert. Desktop/iPad = bis 600px, iPhone = volle
+// Breite mit kleinem Seitenrand. (zuvor fix 600px mit hartem 600px-Breakpoint)
 .my-quest-form
-  width: 600px
+  width: 100%
   max-width: 600px
-  min-width: 600px
+  min-width: 0
   height: 95%
 
-@media screen and ( max-width: 600px)
+@media screen and (max-width: 600px)
   .my-quest-form
-    width: 100%
-    min-width: 100%
+    height: auto
 
 .my-btn
   max-width: 300px
