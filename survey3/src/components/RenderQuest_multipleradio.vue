@@ -127,12 +127,16 @@ export default {
 .mr-th-a__txt
   display: inline-block
 
-// Vertikaltext (von unten nach oben): bleibt in der schmalen Spalte, kein
-// horizontales Klippen und keine Wort-Umbrüche.
+// Fast senkrecht (~10° aus der Senkrechten): leichter lesbar als reine
+// Vertikale, bleibt schmal. Etwas Rand rechts, damit die geneigte Schrift
+// nicht in die Nachbarspalte/den Kartenrand läuft.
+.mr-th-a--rot
+  padding-right: 10px
 .mr-th-a--rot .mr-th-a__txt
   white-space: nowrap
-  writing-mode: vertical-rl
-  transform: rotate(180deg)
+  display: inline-block
+  transform: rotate(-80deg)
+  transform-origin: center bottom
   font-weight: 600
 
 // Fragenspalte: Breite adaptiv via :style (qColWidth), links ausgerichtet
