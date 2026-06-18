@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.10.0
+
+#### Added
+
+- [2026-06-18] Fragebogen-Rendering im klinischen Wizard-Stil (ResearchKit): eine Frage pro Schritt mit großen, gut tippbaren Antwort-Reihen, ruhiger Karte, Fortschritt und Review-Schritt; Standard **adaptiv** (iPhone → Fokus-Wizard, iPad/Desktop → Liste), Umschalter Fokus↔Liste auf allen Geräten
+- [2026-06-18] PDF-Druckformular: Slider-/EQ-VAS-Fragen werden als beschriftete Skala gerendert (zuvor leeres Kästchen), `image`-Items werden eingebettet (zuvor übersprungen) — behebt u.a. EQ-5D, abc-d, MPQ, VAS, Demenzscreening
+- [2026-06-18] Scoring-Schema-Validator (`validate.js`) + Guard-Test über alle Fragebögen; Golden-Master- und handberechnete Fixture-Tests als Regressionsnetz; `internal`-Flag für Rechen-Zwischendomänen
+- [2026-06-18] Beantwortete Fragen werden im Listen-Modus dezent markiert (Haken-Overlay)
+
+#### Changed
+
+- [2026-06-18] Antwort-Optionen (radio/checkbox) als große Reihen mit Auswahl-Tint; `multiple_radio`-Matrix als echte Tabelle — Spaltenlabels lesbar direkt über der Spalte (lange Labels vertikal), füllt die Kartenbreite ohne Überlauf, Zebra-Zeilen
+- [2026-06-18] Fragebogen-Container responsiv (fluid bis 600px) für Desktop/iPad/iPhone; sticky Fortschritt + Navigation mit iOS-SafeArea
+- [2026-06-18] Scoring-Engine modularisiert (ein Auswerte-Pfad je Datei: sum/avg/count/ids), `summary`-Relabeling und PDF-Builder ausgelagert, Schema dokumentiert
+
+#### Fixed
+
+- [2026-06-18] Scoring-Daten-Bugs behoben: DGI (`"3"` als String fiel aus der Summe), TWSTRS (`calc` nicht implementiert + Leerzeichen-Label → Schmerz-Subscore fehlte), ECOG („kA" gab 4 statt 0 Punkte); number-Items mit String-Wert (Altdaten/Import) werden jetzt übernommen statt verworfen
+- [2026-06-18] B-ADL: Geschlecht war Freitext → jetzt kodierte Auswahl (männlich/weiblich/divers)
+- [2026-06-18] iPhone: Fokus-Umschalter überlagerte den 3-Punkte-Button (Back/PDF) — auf schmalen Screens entzerrt
+- [2026-06-18] Review-Schritt: `multiple_radio` zeigt jetzt „X von N beantwortet" statt nur der obersten Frage
+- [2026-06-18] Sub-Renderer: Zeit-Eingabe (toter `changedVal`), Datums-Navigation (Max-Jahr war hart auf 2022)
+
 ### v1.9.0
 
 #### Added
