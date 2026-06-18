@@ -7,7 +7,8 @@ import {
   calc_range,
   getDomaineScore,
   substract,
-  evaluate
+  evaluate,
+  calc_ids
 } from 'src/tools/questman/scoring'
 
 // calc_simple_sum
@@ -213,6 +214,68 @@ describe('getDomaineScore', () => {
     const RESULTS = [{ label: 'sub1', value: 5 }, { label: 'sub2', value: 3 }]
     const sub = { id: ['sub1', 'sub2'], method: 'sum', label: 'combined' }
     expect(getDomaineScore(VALUES, sub, RESULTS)).toBe(8)
+  })
+
+  // diff_range: sequentielle Differenz der Item-Scores (score[0]-score[1]-...),
+  // dann Banden-Mapping ueber sum_range. Kein aktiver Repo-Vertreter -> synthetisch.
+  describe('diff_range', () => {
+    const sum_range = [
+      { value: [0, 4], score: 0 },
+      { value: [5, 99], score: 1 },
+    ]
+
+    test('difference of two scores mapped to high band', () => {
+      const VALUES = [{ id: 1, score: 10 }, { id: 2, score: 3 }]
+      const sub = { id: [1, 2], method: 'diff_range', sum_range, label: 'd' }
+      // 10 - 3 = 7 -> [5,99] -> 1
+      expect(getDomaineScore(VALUES, sub, [])).toBe(1)
+    })
+
+    test('difference mapped to low band', () => {
+      const VALUES = [{ id: 1, score: 5 }, { id: 2, score: 3 }]
+      const sub = { id: [1, 2], method: 'diff_range', sum_range, label: 'd' }
+      // 5 - 3 = 2 -> [0,4] -> 0
+      expect(getDomaineScore(VALUES, sub, [])).toBe(0)
+    })
+
+    test('three ids subtract sequentially', () => {
+      const VALUES = [{ id: 1, score: 20 }, { id: 2, score: 5 }, { id: 3, score: 3 }]
+      const sub = {
+        id: [1, 2, 3],
+        method: 'diff_range',
+        sum_range: [{ value: [0, 10], score: 0 }, { value: [11, 99], score: 1 }],
+        label: 'd',
+      }
+      // 20 - 5 - 3 = 12 -> [11,99] -> 1
+      expect(getDomaineScore(VALUES, sub, [])).toBe(1)
+    })
+
+    test('difference outside all bands -> undefined', () => {
+      const VALUES = [{ id: 1, score: 200 }, { id: 2, score: 3 }]
+      const sub = { id: [1, 2], method: 'diff_range', sum_range, label: 'd' }
+      // 197 liegt in keiner Bande -> calc_range gibt undefined
+      expect(getDomaineScore(VALUES, sub, [])).toBeUndefined()
+    })
+  })
+})
+
+// calc_ids: diff_range end-to-end (Stufe 1 raw -> Stufe 2 diff_range -> Rundung)
+describe('calc_ids — diff_range end to end', () => {
+  test('raw scores, sequential difference, range mapping', () => {
+    const items = [{ id: 1, value: 10 }, { id: 2, value: 3 }]
+    const method = {
+      scoring: [{ id: [1, 2], method: 'raw' }],
+      domaine: [
+        {
+          label: 'diff',
+          id: [1, 2],
+          method: 'diff_range',
+          sum_range: [{ value: [0, 4], score: 0 }, { value: [5, 99], score: 1 }],
+        },
+      ],
+    }
+    // 10 - 3 = 7 -> [5,99] -> 1
+    expect(calc_ids(items, method)).toEqual([{ label: 'diff', value: 1 }])
   })
 })
 
