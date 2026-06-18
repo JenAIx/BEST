@@ -290,7 +290,16 @@ export default {
             required: { icon: 'error', color: 'negative', statusText: this.$t('quest.required_open') },
             optional: { icon: 'radio_button_unchecked', color: 'grey-5', statusText: this.$t('quest.optional') },
           }
-          return { stepIndex, label: s.item.label, status, ...map[status] }
+          const entry = { stepIndex, label: s.item.label, status, ...map[status] }
+          // multiple_radio: Teilfragen-Zähler statt nur Status (X von N beantwortet)
+          if (s.item.type === 'multiple_radio') {
+            const total = s.item.options && s.item.options.questions ? s.item.options.questions.length : 0
+            const answered = Array.isArray(s.item.value)
+              ? s.item.value.slice(0, total).filter((x) => x !== null && x !== undefined).length
+              : 0
+            entry.statusText = this.$t('quest.answered', { filled: answered, total })
+          }
+          return entry
         })
     },
     firstOpenIndex() {
@@ -451,6 +460,12 @@ export default {
 
 .quest-header
   padding-bottom: 4px
+
+// Auf schmalen Screens rechts Platz für den schwebenden 3-Punkte-Button
+// (BackButton-Overlay) freihalten -> kein Überlappen mit dem Fokus-Umschalter.
+@media (max-width: 599px)
+  .quest-header
+    padding-right: 48px
 
 .quest-progress
   position: sticky
