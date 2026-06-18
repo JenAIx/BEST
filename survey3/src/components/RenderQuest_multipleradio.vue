@@ -4,10 +4,11 @@
   <div class="mr-scroll">
     <table class="mr-table">
       <thead>
-        <tr>
+        <tr :class="{ 'mr-thead--rot': rotateLong }">
           <th class="mr-th-q" :style="{ width: qColWidth }"></th>
-          <th class="mr-th-a" v-for="(answ, indansw) in answers_only" :key="indansw + 'a'">
-            {{ answ }}
+          <th class="mr-th-a" :class="{ 'mr-th-a--rot': isRot(answ) }"
+            v-for="(answ, indansw) in answers_only" :key="indansw + 'a'">
+            <span class="mr-th-a__txt">{{ answ }}</span>
           </th>
         </tr>
       </thead>
@@ -63,8 +64,18 @@ export default {
       if (n >= 6) return '36%'
       return '46%'
     },
+    // Viele Spalten -> Spalten zu schmal für horizontalen Langtext.
+    rotateLong() {
+      if (this.ITEM.rotate === false) return false
+      return this.answers_only.length >= 7
+    },
   },
   methods: {
+    // Nur längere Labels in schmalen Matrizen schräg stellen; kurze (Zahlen)
+    // bleiben horizontal -> vermeidet hässliche Wort-Umbrüche.
+    isRot(label) {
+      return this.rotateLong && (label || '').length > 3
+    },
     onRadioChange(index, value) {
       const updated = [...this.val]
       updated[index] = value
@@ -96,6 +107,7 @@ export default {
 
 // Antwort-Spaltenköpfe: lesbar direkt über der Spalte, umbrechend
 .mr-th-a
+  position: relative
   text-align: center
   vertical-align: bottom
   font-size: 0.74rem
@@ -106,6 +118,22 @@ export default {
   border-bottom: 2px solid $line
   overflow-wrap: break-word
   hyphens: auto
+
+// Schmale Matrizen mit Langtext: Kopf höher, lange Labels schräg (kein Umbruch)
+.mr-thead--rot .mr-th-a,
+.mr-thead--rot .mr-th-q
+  height: 104px
+
+.mr-th-a__txt
+  display: inline-block
+
+// Vertikaltext (von unten nach oben): bleibt in der schmalen Spalte, kein
+// horizontales Klippen und keine Wort-Umbrüche.
+.mr-th-a--rot .mr-th-a__txt
+  white-space: nowrap
+  writing-mode: vertical-rl
+  transform: rotate(180deg)
+  font-weight: 600
 
 // Fragenspalte: Breite adaptiv via :style (qColWidth), links ausgerichtet
 .mr-th-q,
