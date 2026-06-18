@@ -35,10 +35,15 @@
             "caption": "",
             "coding": { "display" : "gender", "code" : "263495000", "system" : "http://snomed.info/sct"},
             "value": null,
-            "type": "text",
-            "inline": false,
+            "type": "radio",
+            "inline": true,
             "force": true,
-            "ignore_for_result": true
+            "ignore_for_result": true,
+            "options": [
+                { "label": "männlich", "value": "Male" },
+                { "label": "weiblich", "value": "Female" },
+                { "label": "divers", "value": "Intersex" }
+            ]
         },
         {
             "label": "Hat die Person Schwierigkeiten...",
