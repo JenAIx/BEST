@@ -122,7 +122,7 @@
         <q-card-section>
           <q-list bordered separator data-cy="list_entries">
             <q-item v-for="(item, indQ) in QUEST.items" :key="item.label + indQ" data-cy="item_entry"
-              :id="'qitem_' + indQ">
+              :id="'qitem_' + indQ" :class="{ 'quest-item--done': isInteractive(item) && isAnswered(item) }">
               <q-item-section>
                 <!-- interaktive Frage -->
                 <QuestItemField v-if="isInteractive(item)" :item="item" input-cy="text"
@@ -140,6 +140,10 @@
                     </span>
                   </q-item-label>
                 </template>
+              </q-item-section>
+              <!-- dezenter "beantwortet"-Haken -->
+              <q-item-section side top v-if="isInteractive(item) && isAnswered(item)">
+                <q-icon name="check_circle" color="positive" size="20px" />
               </q-item-section>
             </q-item>
           </q-list>
@@ -467,4 +471,13 @@ export default {
   border-top: 1px solid $line
   padding: $gap-sm $gap-md
   padding-bottom: calc(#{$gap-sm} + env(safe-area-inset-bottom))
+
+// Beantwortete Fragen (Listen-Modus) dezent zurücknehmen; beim Bearbeiten
+// (Hover/Fokus) wieder voll sichtbar.
+.quest-item--done
+  opacity: 0.55
+  transition: opacity 0.2s ease
+  &:hover,
+  &:focus-within
+    opacity: 1
 </style>
