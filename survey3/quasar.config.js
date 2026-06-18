@@ -57,7 +57,10 @@ export default configure(function (/* ctx */) {
     // https://v2.quasar.dev/quasar-cli-vite/developing-pwa/configuring-pwa
     pwa: {
       workboxMode: "GenerateSW",
-      workboxOptions: { cleanupOutdatedCaches: true },
+      // skipWaiting/clientsClaim: neuer Service-Worker aktiviert sofort und
+      // übernimmt die Seite -> nach einem Deploy genügt ein Reload (kein
+      // manuelles Cache-Leeren). cleanupOutdatedCaches entfernt alte Caches.
+      workboxOptions: { cleanupOutdatedCaches: true, skipWaiting: true, clientsClaim: true },
 
       manifest: {
         name: "surveyBEST",
