@@ -3,6 +3,9 @@
 // Configuration for your app
 // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file
 
+// .env in process.env laden, damit APP_VERSION/APP_UPDATED u.a. aus .env in den
+// Build uebernommen werden (sonst greifen nur die Fallbacks unten).
+import "dotenv/config";
 import { configure } from "quasar/wrappers";
 
 export default configure(function (/* ctx */) {
@@ -24,8 +27,8 @@ export default configure(function (/* ctx */) {
       env: {
         LOG_LEVEL: process.env.LOG_LEVEL || 'warn',
         APP_NAME: process.env.APP_NAME || 'surveyBEST',
-        APP_VERSION: process.env.APP_VERSION || 'v1.9.0',
-        APP_UPDATED: process.env.APP_UPDATED || '2026-06-17'
+        APP_VERSION: process.env.APP_VERSION || 'v1.10.0',
+        APP_UPDATED: process.env.APP_UPDATED || '2026-06-18'
       },
 
       target: {
