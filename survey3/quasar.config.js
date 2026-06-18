@@ -24,8 +24,8 @@ export default configure(function (/* ctx */) {
       env: {
         LOG_LEVEL: process.env.LOG_LEVEL || 'warn',
         APP_NAME: process.env.APP_NAME || 'surveyBEST',
-        APP_VERSION: process.env.APP_VERSION || 'v1.8.0',
-        APP_UPDATED: process.env.APP_UPDATED || '2026-03-17'
+        APP_VERSION: process.env.APP_VERSION || 'v1.9.0',
+        APP_UPDATED: process.env.APP_UPDATED || '2026-06-17'
       },
 
       target: {
@@ -38,7 +38,7 @@ export default configure(function (/* ctx */) {
 
     // https://v2.quasar.dev/quasar-cli-vite/quasar-config-file#devserver
     devServer: {
-      https: true,
+      https: false,
       port: 8088,
       open: true,
     },

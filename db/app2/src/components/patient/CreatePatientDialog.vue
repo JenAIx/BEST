@@ -181,6 +181,15 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // When `true` (default) the dialog navigates to /visits/{PATIENT_CD}
+  // after a successful create — matches the existing Dashboard /
+  // PatientSelector behaviour. Set `false` when opening from a context
+  // that should stay on the current page (e.g. the data-grid editor
+  // adding a patient to the cohort without leaving the grid).
+  redirectOnCreate: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits(['update:modelValue', 'patientCreated'])
@@ -470,8 +479,12 @@ const handleSubmit = async () => {
     // Close dialog
     showDialog.value = false
 
-    // Navigate to the patient visits page (consolidated patient hub)
-    router.push(`/visits/${createdPatient.PATIENT_CD}`)
+    // Navigate to the patient visits page (consolidated patient hub).
+    // Skipped when redirectOnCreate=false so callers like the data-grid
+    // editor can keep the user on the current page after the create.
+    if (props.redirectOnCreate) {
+      router.push(`/visits/${createdPatient.PATIENT_CD}`)
+    }
   } catch (error) {
     logger.error('Error creating patient', error)
     notify.error(`Failed to create patient: ${error.message}`, { timeout: 5000 })

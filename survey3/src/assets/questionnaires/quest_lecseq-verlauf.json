@@ -1,0 +1,244 @@
+{
+    "title": "Verlaufs-Interview (LEC-SEQ)",
+    "short_title": "lecseq-verlauf",
+    "coding": {
+        "system": "LEC-SEQ",
+        "code": "CUSTOM: LECSEQ_VERLAUF",
+        "display": "Verlaufs-Interview V2-V4 (LEC-SEQ)",
+        "version": "20260603"
+    },
+    "description": "Strukturiertes Verlaufs-Interview seit der letzten Visite (Erhebung V2, V3, V4)",
+    "keywords": "parkinson lec-seq lecigon verlauf interview pumpe adhärenz",
+    "manual": "<b>Kurzes strukturiertes Interview zum Verlauf seit der letzten Visite.</b><br>Erfasst subjektiven Verlauf, Pumpen-/PEG-J-Handhabung, Adhärenz, Gerätestörungen, ADR-Prompt und Zufriedenheits-Tendenz. Erhebung V2, V3, V4.",
+    "items": [
+        {
+            "label": "Visite",
+            "tag": "visite",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "V2", "value": "V2"},
+                {"label": "V3", "value": "V3"},
+                {"label": "V4", "value": "V4"}
+            ]
+        },
+        {
+            "label": "A — Verlauf seit der letzten Visite",
+            "caption": "5-stufig: deutlich schlechter … deutlich besser",
+            "type": "separator"
+        },
+        {
+            "label": "Gesamteindruck",
+            "tag": "a_gesamteindruck",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "deutlich schlechter", "value": 1},
+                {"label": "etwas schlechter", "value": 2},
+                {"label": "unverändert", "value": 3},
+                {"label": "etwas besser", "value": 4},
+                {"label": "deutlich besser", "value": 5}
+            ]
+        },
+        {
+            "label": "Off-Phasen / Beweglichkeit",
+            "tag": "a_off_beweglichkeit",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "deutlich schlechter", "value": 1},
+                {"label": "etwas schlechter", "value": 2},
+                {"label": "unverändert", "value": 3},
+                {"label": "etwas besser", "value": 4},
+                {"label": "deutlich besser", "value": 5}
+            ]
+        },
+        {
+            "label": "Überbewegungen",
+            "tag": "a_ueberbewegungen",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "deutlich schlechter", "value": 1},
+                {"label": "etwas schlechter", "value": 2},
+                {"label": "unverändert", "value": 3},
+                {"label": "etwas besser", "value": 4},
+                {"label": "deutlich besser", "value": 5}
+            ]
+        },
+        {
+            "label": "Schlaf / Tagesform",
+            "tag": "a_schlaf_tagesform",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "deutlich schlechter", "value": 1},
+                {"label": "etwas schlechter", "value": 2},
+                {"label": "unverändert", "value": 3},
+                {"label": "etwas besser", "value": 4},
+                {"label": "deutlich besser", "value": 5}
+            ]
+        },
+        {
+            "label": "Stimmung / Antrieb",
+            "tag": "a_stimmung_antrieb",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "deutlich schlechter", "value": 1},
+                {"label": "etwas schlechter", "value": 2},
+                {"label": "unverändert", "value": 3},
+                {"label": "etwas besser", "value": 4},
+                {"label": "deutlich besser", "value": 5}
+            ]
+        },
+        {
+            "label": "B — Therapie & Pumpe",
+            "type": "separator"
+        },
+        {
+            "label": "Handhabung",
+            "tag": "b_handhabung",
+            "value": null,
+            "type": "radio",
+            "options": [
+                {"label": "problemlos", "value": "problemlos"},
+                {"label": "kleinere Probleme", "value": "kleinere_probleme"},
+                {"label": "größere Probleme", "value": "groessere_probleme"}
+            ]
+        },
+        {
+            "label": "Technische Gerätestörung",
+            "tag": "b_geraetestoerung",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "nein", "value": "nein"},
+                {"label": "ja", "value": "ja"}
+            ]
+        },
+        {
+            "label": "PEG-J-Stelle",
+            "tag": "b_pegj_stelle",
+            "value": null,
+            "type": "radio",
+            "options": [
+                {"label": "unauffällig", "value": "unauffaellig"},
+                {"label": "Reizung", "value": "reizung"},
+                {"label": "Infektion", "value": "infektion"}
+            ]
+        },
+        {
+            "label": "Therapietreue",
+            "tag": "b_therapietreue",
+            "value": null,
+            "type": "radio",
+            "options": [
+                {"label": "vollständig", "value": "vollstaendig"},
+                {"label": "einzelne Auslassung", "value": "auslassung"},
+                {"label": "Unterbrechung", "value": "unterbrechung"}
+            ]
+        },
+        {
+            "label": "Dosis angepasst?",
+            "tag": "b_dosis_angepasst",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "nein", "value": "nein"},
+                {"label": "ja", "value": "ja"}
+            ]
+        },
+        {
+            "label": "Dosisanpassung — Details",
+            "tag": "b_dosis_details",
+            "value": null,
+            "type": "text",
+            "force": false
+        },
+        {
+            "label": "Begleitmedikation geändert?",
+            "tag": "b_begleitmed_geaendert",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "nein", "value": "nein"},
+                {"label": "ja", "value": "ja"}
+            ]
+        },
+        {
+            "label": "Begleitmedikation — Details",
+            "tag": "b_begleitmed_details",
+            "value": null,
+            "type": "text",
+            "force": false
+        },
+        {
+            "label": "C — Sicherheit",
+            "type": "separator"
+        },
+        {
+            "label": "Neue ADR seit der letzten Visite?",
+            "caption": "Bei „ja\" für jede ADR einen ADR-Erfassungsbogen ausfüllen.",
+            "tag": "c_neue_adr",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "nein", "value": "nein"},
+                {"label": "ja", "value": "ja"}
+            ]
+        },
+        {
+            "label": "Anzahl neuer ADR-Bögen",
+            "tag": "c_anzahl_adr",
+            "value": null,
+            "type": "number",
+            "force": false
+        },
+        {
+            "label": "D — Zufriedenheit & Perspektive",
+            "type": "separator"
+        },
+        {
+            "label": "Aktuelle Therapie-Zufriedenheit (0–10)",
+            "caption": "0 = sehr unzufrieden … 10 = sehr zufrieden",
+            "tag": "d_zufriedenheit",
+            "value": null,
+            "type": "number"
+        },
+        {
+            "label": "Therapie fortsetzen?",
+            "tag": "d_fortsetzen",
+            "value": null,
+            "type": "radio",
+            "inline": true,
+            "options": [
+                {"label": "ja", "value": "ja"},
+                {"label": "unsicher", "value": "unsicher"},
+                {"label": "nein", "value": "nein"}
+            ]
+        },
+        {
+            "label": "E — Freitext",
+            "type": "separator"
+        },
+        {
+            "label": "Wichtigste Veränderung / Anliegen der Patient:in",
+            "caption": "1–2 Sätze",
+            "tag": "e_freitext",
+            "value": null,
+            "type": "text",
+            "force": false
+        }
+    ]
+}

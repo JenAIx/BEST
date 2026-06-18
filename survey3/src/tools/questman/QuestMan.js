@@ -1,6 +1,8 @@
 import { log } from '../Logger'
 import { RANDOM, RANDOMWORD } from './helpers'
 import { calc_results, evaluate } from './scoring'
+import { buildResultItems } from './result-items'
+import { itemValidity } from '../visits/visit-model'
 import { db } from '../db'
 
 // Eagerly load all questionnaire JSON files via Vite's glob import
@@ -189,28 +191,23 @@ export class QuestMan {
     return true
   }
 
+  // Überlagert gespeicherte Entwurfs-Werte (indexgenau) auf den aktiven Quest.
+  // values: Array roher item.value-Einträge, ausgerichtet an items-Reihenfolge.
+  restore_active_values(values) {
+    if (this.activeQuest === undefined) return false
+    if (!Array.isArray(values)) return false
+    const items = this.activeQuest.value.items
+    const n = Math.min(items.length, values.length)
+    for (let i = 0; i < n; i++) {
+      if (values[i] !== undefined) items[i].value = values[i]
+    }
+    return true
+  }
+
   check_activeQuest() {
     if (this.activeQuest === undefined) return undefined
-
-    const index = []
-
-    this.activeQuest.value.items.forEach(item => {
-      if (item.force === false) index.push(true)
-      else if (item.type === 'textbox' || item.type === 'seperator' || item.type === 'separator' || item.type === undefined) index.push(null)
-      else if (item.type === 'multiple_radio') {
-        if (item.value === undefined || item.value === null) index.push(false)
-        else {
-          let ISVALID = true
-          item.value.forEach(val => {
-            if (val === undefined || val === null) ISVALID = false
-          })
-          index.push(ISVALID)
-        }
-      }
-      else if (item.value !== undefined && item.value !== null) index.push(true)
-      else index.push(false)
-    })
-
+    // Per-Item-Logik liegt zentral in itemValidity (geteilt mit requiredFieldStats).
+    const index = this.activeQuest.value.items.map(item => itemValidity(item))
     if (index.includes(false)) return index
     else return true
   }
@@ -248,55 +245,25 @@ export class QuestMan {
     log({ debug: 'summary: start' })
     if (this.activeQuest === undefined) return undefined
 
-    const result = {}
-    result.label = this.activeQuest.value.short_title
-    result.title = this.activeQuest.value.title
-    result.items = [],
-      this.activeQuest.value.items.forEach(item => {
+    const quest = this.activeQuest.value
+    const result = {
+      label: quest.short_title,
+      title: quest.title,
+      items: buildResultItems(quest.items),
+    }
 
-        if (item.value !== undefined && item.value !== null) {
-          if (item.type === 'number' && typeof (item.value) === 'string') item.value = parseFloat(item.value)
-          else if (item.type === 'multiple_radio' && Array.isArray(item.value)) {
-            for (let i = 0; i < item.value.length; i++) {
-
-              let tmp_item = {
-                tag: undefined,
-                value: item.value[i],
-                coding: item.options.questions[i].coding
-              }
-              if (item.tag !== undefined) tmp_item.tag = `${item.tag}_${item.options.questions[i].tag}`
-              else tmp_item.tag = item.options.questions[i].tag
-
-              if (item.options.questions[i].id !== undefined) tmp_item.id = item.options.questions[i].id
-              this.push_result(result, tmp_item, item.ignore_for_result)
-            }
-          } else this.push_result(result, item, item.ignore_for_result)
-        }
-      })
-    // results
-    result.results = calc_results(result, this.activeQuest.value.results)
-    result.coding = this.activeQuest.value.coding
-
-    // evaluation
-    if (this.activeQuest.value.results !== undefined && this.activeQuest.value.results.evaluation !== undefined) result.results = evaluate(result.results, this.activeQuest.value.results.evaluation)
+    // Scoring + optionale Bereichs-Bewertung
+    result.results = calc_results(result, quest.results)
+    result.coding = quest.coding
+    if (quest.results !== undefined && quest.results.evaluation !== undefined) {
+      result.results = evaluate(result.results, quest.results.evaluation)
+    }
 
     // dates
     result.date_start = this.activeQuest.date_start
     result.date_end = Date.now()
     log({ debug: 'summary: finished' })
     return result
-  }
-
-  push_result(result, item, ignore_for_result) {
-    let tmp = {
-      label: item.tag,
-      value: item.value,
-      coding: item.coding
-    }
-    if (tmp.coding !== undefined) tmp.label = tmp.coding.display
-    if (item.id !== undefined) tmp.id = item.id
-    if (ignore_for_result !== undefined) tmp.ignore_for_result = item.ignore_for_result
-    result.items.push(tmp)
   }
 
   // RANDOM FILL THE ACTIVE QUEST

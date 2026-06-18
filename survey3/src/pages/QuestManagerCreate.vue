@@ -209,7 +209,6 @@ export default {
     }
   },
   mounted() {
-    this.mainStore.setProtectedMode(true);
     if (this.mainStore.editquest === undefined) {
       this.content = JSON.parse(JSON.stringify(quest_template))
       this.mainStore.editquest = this.content

@@ -22,6 +22,7 @@ const routes = [{
     path: "spaceinvaders",
     name: "spaceinvaders",
     component: () => import("pages/SpaceInvaders.vue"),
+    meta: { immersive: true },
   },
   {
     path: "select",
@@ -32,6 +33,7 @@ const routes = [{
     path: "quest/:id",
     name: "quest/id",
     component: () => import("pages/Quest.vue"),
+    meta: { immersive: true },
   },
   {
     path: "preset",
@@ -86,6 +88,33 @@ const routes = [{
     path: "finished_quest",
     name: "FinishedScreen",
     component: FinishedQuest,
+  },
+  // --- Patienten-/Visiten-Workflow ---
+  {
+    path: "patients",
+    name: "patients",
+    component: () => import("pages/Patients.vue"),
+  },
+  {
+    path: "patient/:id",
+    name: "patient",
+    component: () => import("pages/Patient.vue"),
+  },
+  {
+    path: "visit/:id",
+    name: "visit",
+    component: () => import("pages/Visit.vue"),
+  },
+  {
+    path: "visit/:id/quest/:short",
+    name: "visit_quest",
+    component: () => import("pages/VisitQuest.vue"),
+    meta: { immersive: true },
+  },
+  {
+    path: "visit_templates",
+    name: "visit_templates",
+    component: () => import("pages/VisitTemplates.vue"),
   },
   ],
 },

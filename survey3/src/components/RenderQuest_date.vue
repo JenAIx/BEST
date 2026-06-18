@@ -5,7 +5,7 @@
           <q-popup-proxy ref="qDateProxy" transition-show="scale" transition-hide="scale">
             <q-date v-model="val" :mask="mask_date" :default-view="default_view" default-year-month="1964/01"
             navigation-min-year-month="1901/01"
-            navigation-max-year-month="2022/01"
+            :navigation-max-year-month="maxYearMonth"
             @navigation="changedVal"
               >
               <div class="row items-center justify-end">
@@ -44,6 +44,10 @@ export default {
     default_view() {
       if (this.ITEM.type === 'date_year') return 'Years'
       return ''
+    },
+    // Bis zum laufenden Jahr navigierbar (zuvor hart auf 2022 begrenzt).
+    maxYearMonth() {
+      return `${new Date().getFullYear()}/12`
     }
   },
   methods: {

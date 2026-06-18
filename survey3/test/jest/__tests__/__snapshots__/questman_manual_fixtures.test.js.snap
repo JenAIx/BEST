@@ -1,0 +1,1871 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`QuestMan manuelle Fixtures badl: avg with ignore_zeros 1`] = `
+{
+  "coding": {
+    "code": "273534002",
+    "display": "Bayer-ADL-Skala",
+    "system": "http://snomed.info/sct",
+    "version": "20230126",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "id": 1,
+      "label": "schwierigkeiten__alltag_zurecht_kommen",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 2,
+      "label": "schwierigkeiten__fuer_sich_sorgen",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 3,
+      "label": "schwierigkeiten__medikamenteneinnahme",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 4,
+      "label": "schwierigkeiten__koerperpflege",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 5,
+      "label": "schwierigkeiten__termine_einhalten",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 6,
+      "label": "schwierigkeiten__konzentration_lesen",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 7,
+      "label": "schwierigkeiten__gehoertes_gesehenes_wiedergeben",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 8,
+      "label": "schwierigkeiten__sich_unterhalten",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 9,
+      "label": "schwierigkeiten__telefon_benutzen",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 10,
+      "label": "schwierigkeiten__nachricht_entgegennehmen",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 11,
+      "label": "schwierigkeiten__raeumlich_orientieren",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 12,
+      "label": "schwierigkeiten__einkaufen",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 13,
+      "label": "schwierigkeiten__kochen",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 14,
+      "label": "schwierigkeiten__geld_zaehlen",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 15,
+      "label": "schwierigkeiten__finanzielles_regeln",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 16,
+      "label": "schwierigkeiten__raeumlich_orientieren2",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 17,
+      "label": "schwierigkeiten__geraete_benutzen",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 18,
+      "label": "schwierigkeiten__raeumlich_orientieren3",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 19,
+      "label": "schwierigkeiten__verkehrsmittel",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 20,
+      "label": "schwierigkeiten__freizeit",
+      "value": 8,
+    },
+    {
+      "coding": undefined,
+      "id": 21,
+      "label": "schwierigkeiten__taetigkeiten_unterbrechen",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "id": 22,
+      "label": "schwierigkeiten__dualtasking",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "id": 23,
+      "label": "schwierigkeiten__ungewohntes_umgehen",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "id": 24,
+      "label": "schwierigkeiten__missgeschicke_vermeiden",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "id": 25,
+      "label": "schwierigkeiten__aufgaben_unter_druck",
+      "value": -1,
+    },
+  ],
+  "label": "badl",
+  "results": [
+    {
+      "coding": {
+        "code": "CUSTOM: NP\\BADL",
+        "display": "B-ADL / Gesamtscore",
+        "system": "CUSTOM",
+      },
+      "label": "avg",
+      "value": 5.5,
+    },
+  ],
+  "title": "Bayer-ADL-Skala",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures bdi2: sum + reverse-mapping + evaluation 1`] = `
+{
+  "coding": {
+    "code": "SCTID: 717268000",
+    "display": "Becks depression inventar II",
+    "system": "http://snomed.info/sct",
+    "version": "20230124",
+  },
+  "items": [
+    {
+      "coding": {
+        "code": "709516007",
+        "display": "traurigkeit",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 1,
+      "label": "traurigkeit",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "247799003",
+        "display": "pessimismus",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 2,
+      "label": "pessimismus",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "76797004",
+        "display": "versagensgefuehle",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 3,
+      "label": "versagensgefuehle",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "28669007",
+        "display": "verlustvonfreude",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 4,
+      "label": "verlustvonfreude",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "7571003",
+        "display": "schuldgefuehle",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 5,
+      "label": "schuldgefuehle",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "",
+        "display": "bestrafungsgefuehle",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 6,
+      "label": "bestrafungsgefuehle",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "",
+        "display": "selbstablehnung",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 7,
+      "label": "selbstablehnung",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "",
+        "display": "selbstvorwuerfe",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 8,
+      "label": "selbstvorwuerfe",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "6471006",
+        "display": "selbstmordgedanken",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 9,
+      "label": "selbstmordgedanken",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "271951008",
+        "display": "weinen",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 10,
+      "label": "weinen",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "162221009",
+        "display": "unruhe",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 11,
+      "label": "unruhe",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "247753000",
+        "display": "interessenverlust",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 12,
+      "label": "interessenverlust",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "247585004",
+        "display": "entschlussunfaehigkeit",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 13,
+      "label": "entschlussunfaehigkeit",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "285277009",
+        "display": "wertlosigkeit",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 14,
+      "label": "wertlosigkeit",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "214264003",
+        "display": "energieverlust",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 15,
+      "label": "energieverlust",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "258158006",
+        "display": "schlaf",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 16,
+      "label": "schlaf",
+      "value": -2,
+    },
+    {
+      "coding": {
+        "code": "55929007",
+        "display": "reizbarkeit",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 17,
+      "label": "reizbarkeit",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "33911006",
+        "display": "appetits",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 18,
+      "label": "appetits",
+      "value": -2,
+    },
+    {
+      "coding": {
+        "code": "26329005",
+        "display": "konzentrationsschwierigkeiten",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 19,
+      "label": "konzentrationsschwierigkeiten",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "60119000",
+        "display": "ermuedung",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 20,
+      "label": "ermuedung",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "8357008",
+        "display": "sex",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 21,
+      "label": "sex",
+      "value": 1,
+    },
+  ],
+  "label": "bdi2",
+  "results": [
+    {
+      "coding": {
+        "code": "SCTID: 717268000",
+        "display": "BDI-II",
+        "system": "http://snomed.info/sct",
+      },
+      "evaluation": "mittelgradiges depressives Syndrom",
+      "label": "sum",
+      "value": 23,
+    },
+  ],
+  "title": "BDI 2",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures bfi10: avg subscales + reverse scoring 1`] = `
+{
+  "coding": {
+    "code": "CUSTOM: NP\\BFI10",
+    "display": "BFI-10 (Big Five Inventory)",
+    "system": "CUSTOM",
+    "version": "20230126",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "id": 1,
+      "label": "Q1_1",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 2,
+      "label": "Q1_2",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 3,
+      "label": "Q1_3",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 4,
+      "label": "Q1_4",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 5,
+      "label": "Q1_5",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 6,
+      "label": "Q1_6",
+      "value": 5,
+    },
+    {
+      "coding": undefined,
+      "id": 7,
+      "label": "Q1_7",
+      "value": 5,
+    },
+    {
+      "coding": undefined,
+      "id": 8,
+      "label": "Q1_8",
+      "value": 5,
+    },
+    {
+      "coding": undefined,
+      "id": 9,
+      "label": "Q1_9",
+      "value": 5,
+    },
+    {
+      "coding": undefined,
+      "id": 10,
+      "label": "Q1_10",
+      "value": 5,
+    },
+  ],
+  "label": "bfi10",
+  "results": [
+    {
+      "coding": {
+        "code": "CUSTOM: NP\\BFI10\\E",
+        "display": "BFI-10 Extraversion",
+        "system": "CUSTOM",
+      },
+      "label": "Extraversion",
+      "value": 5,
+    },
+    {
+      "coding": {
+        "code": "CUSTOM: NP\\BFI10\\N",
+        "display": "BFI-10 Neurotizismus",
+        "system": "CUSTOM",
+      },
+      "label": "Neurotizismus",
+      "value": 5,
+    },
+    {
+      "coding": {
+        "code": "CUSTOM: NP\\BFI10\\O",
+        "display": "BFI-10 Offenheit",
+        "system": "CUSTOM",
+      },
+      "label": "Offenheit",
+      "value": 5,
+    },
+    {
+      "coding": {
+        "code": "CUSTOM: NP\\BFI10\\G",
+        "display": "BFI-10 Gewissenhaftigkeit",
+        "system": "CUSTOM",
+      },
+      "label": "Gewissenhaftigkeit",
+      "value": 5,
+    },
+    {
+      "coding": {
+        "code": "CUSTOM: NP\\BFI10\\V",
+        "display": "BFI-10 Verträglichkeit",
+        "system": "CUSTOM",
+      },
+      "label": "Verträglichkeit",
+      "value": 1,
+    },
+  ],
+  "title": "Big-Five-Inventory",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures biomag_handedness: top-level count 1`] = `
+{
+  "coding": {
+    "code": "364940007",
+    "display": "Händigkeit",
+    "system": "http://snomed.info/sct",
+    "version": "20211026",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "id": 1,
+      "label": "handedness_writing",
+      "value": "left",
+    },
+    {
+      "coding": undefined,
+      "id": 2,
+      "label": "handedness_painting",
+      "value": "left",
+    },
+    {
+      "coding": undefined,
+      "id": 3,
+      "label": "handedness_throwing",
+      "value": "left",
+    },
+    {
+      "coding": undefined,
+      "id": 4,
+      "label": "handedness_scissors",
+      "value": "right",
+    },
+    {
+      "coding": undefined,
+      "id": 5,
+      "label": "handedness_brush_teeth",
+      "value": "right",
+    },
+    {
+      "coding": undefined,
+      "id": 6,
+      "label": "handedness_use_knife",
+      "value": "right",
+    },
+    {
+      "coding": undefined,
+      "id": 7,
+      "label": "handedness_use_spoon",
+      "value": "right",
+    },
+    {
+      "coding": undefined,
+      "id": 8,
+      "label": "handedness_use_broom",
+      "value": "right",
+    },
+    {
+      "coding": undefined,
+      "id": 9,
+      "label": "handedness_use_match",
+      "value": "both",
+    },
+    {
+      "coding": undefined,
+      "id": 10,
+      "label": "handedness_open_box",
+      "value": "both",
+    },
+  ],
+  "label": "biomag_handedness",
+  "results": [
+    {
+      "label": "left",
+      "total": 10,
+      "value": 3,
+    },
+    {
+      "label": "right",
+      "total": 10,
+      "value": 5,
+    },
+    {
+      "label": "both",
+      "total": 10,
+      "value": 2,
+    },
+  ],
+  "title": "Händigkeit BIOMAG",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures caide: top-level sum 1`] = `
+{
+  "coding": {
+    "code": "445536008",
+    "display": "CAIDE Dementia Risk Score",
+    "system": "http://snomed.info/sct",
+    "version": "20230201",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "label": "age",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "label": "sex",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "education",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "label": "systolic_blood_pressure",
+      "value": 2,
+    },
+    {
+      "coding": undefined,
+      "label": "bmi",
+      "value": 2,
+    },
+    {
+      "coding": undefined,
+      "label": "serum_total_cholesterin",
+      "value": 2,
+    },
+    {
+      "coding": undefined,
+      "label": "physical_activity",
+      "value": 1,
+    },
+  ],
+  "label": "caide",
+  "results": [
+    {
+      "coding": {
+        "code": "CUSTOM: SCORES\\BAIN_CAIDE",
+        "display": "CAIDE",
+        "system": "CUSTOM",
+      },
+      "label": "sum",
+      "value": 15,
+    },
+  ],
+  "title": "CAIDE",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures cfsme: count + sum_range + chained sum + evaluation 1`] = `
+{
+  "coding": {
+    "code": "52702003",
+    "display": "Kanadische Kriterien für CFS/ME",
+    "system": "http://snomed.info/sct",
+    "version": "20211026",
+  },
+  "items": [
+    {
+      "coding": {
+        "code": "84229001",
+        "display": "fatigue",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 1,
+      "label": "fatigue",
+      "value": [
+        "reduction_activity_level",
+        "delayed_recovery_phase",
+        "worsening_by_stress",
+      ],
+    },
+    {
+      "coding": {
+        "code": "441877007",
+        "display": "sleep_difficulty",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 2,
+      "label": "sleep_difficulty",
+      "value": [
+        "falling_asleep",
+      ],
+    },
+    {
+      "coding": {
+        "code": "22253000",
+        "display": "pain",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 3,
+      "label": "pain",
+      "value": [
+        "joint_pain",
+      ],
+    },
+    {
+      "coding": {
+        "code": "102957003",
+        "display": "neurological_cognitive_manifestation",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 4,
+      "label": "neurological_cognitive_manifestation",
+      "value": [
+        "impairement_concentrate_memory",
+        "difficulties_words_information",
+      ],
+    },
+    {
+      "coding": {
+        "code": "15241006",
+        "display": "autonomous_manifestation",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 5,
+      "label": "autonomous_manifestation",
+      "value": [
+        "vertigo",
+      ],
+    },
+    {
+      "coding": undefined,
+      "id": 6,
+      "label": "neuroendocrine_manifestation",
+      "value": [
+        "body_temperature",
+      ],
+    },
+    {
+      "coding": {
+        "code": "781474001",
+        "display": "immunologic_manifestations",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 7,
+      "label": "immunologic_manifestations",
+      "value": [],
+    },
+    {
+      "coding": {
+        "code": "103335007",
+        "display": "duration_month",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 8,
+      "label": "duration_month",
+      "value": 8,
+    },
+  ],
+  "label": "cfsme",
+  "results": [
+    {
+      "label": "fatigue",
+      "value": 1,
+    },
+    {
+      "label": "sleep",
+      "value": 1,
+    },
+    {
+      "label": "pain",
+      "value": 1,
+    },
+    {
+      "label": "neurologic_cognitive",
+      "value": 1,
+    },
+    {
+      "label": "others",
+      "value": 1,
+    },
+    {
+      "label": "duration",
+      "value": 1,
+    },
+    {
+      "evaluation": "Kriterien für CFS/ME erfüllt",
+      "label": "sum",
+      "value": 6,
+    },
+  ],
+  "title": "Kanadische Kriterien für CFS/ME",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures falling_stick: raw + avg domains 1`] = `
+{
+  "coding": {
+    "code": "\\CUSTOM\\SCORES\\FALLING_STICK",
+    "display": "Fallstab",
+    "system": "CUSTOM",
+  },
+  "items": [
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "right_1",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 1,
+      "label": "right_1",
+      "value": 145,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "right_2",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 2,
+      "label": "right_2",
+      "value": 152,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "right_3",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 3,
+      "label": "right_3",
+      "value": 148,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "left_1",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 4,
+      "label": "left_1",
+      "value": 160,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "left_2",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 5,
+      "label": "left_2",
+      "value": 155,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "left_3",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 6,
+      "label": "left_3",
+      "value": 158,
+    },
+  ],
+  "label": "falling_stick",
+  "results": [
+    {
+      "coding": {
+        "code": "MOD: SCORES_FALLING_STICK RIGHT",
+        "display": "Fallstab rechts",
+        "system": "CUSTOM",
+      },
+      "label": "rechts",
+      "value": 148.33,
+    },
+    {
+      "coding": {
+        "code": "MOD: SCORES_FALLING_STICK LEFT",
+        "display": "Fallstab links",
+        "system": "CUSTOM",
+      },
+      "label": "links",
+      "value": 157.67,
+    },
+  ],
+  "title": "Fallstab Beidseits",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures iqcode: top-level avg 1`] = `
+{
+  "coding": {
+    "code": "113024001",
+    "display": "IQCODE",
+    "system": "http://snomed.info/sct",
+    "version": "20211026",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "label": "_familiaer_dinge",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "_ereignisse",
+      "value": 2,
+    },
+    {
+      "coding": undefined,
+      "label": "_unterhaltungen",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "label": "_zeit",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "label": "_dinge_wiederfinden",
+      "value": 5,
+    },
+    {
+      "coding": undefined,
+      "label": "_neues_lernen",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "_finanzielles",
+      "value": 2,
+    },
+  ],
+  "label": "iqcode",
+  "results": [
+    {
+      "label": "avg",
+      "value": 2.57,
+    },
+  ],
+  "title": "IQCODE",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures mwtb: count_targets 1`] = `
+{
+  "coding": {
+    "code": "CUSTOM: NP\\MWTB",
+    "display": "Mehrfachwahl-Wortschatz-Intelligenztest B (MWT-B)",
+    "system": "CUSTOM",
+    "version": "20230126",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "label": "1.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "2.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "3.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "4.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "5.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "6.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "7.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "8.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "9.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "10.",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "label": "11.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "12.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "13.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "14.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "15.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "16.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "17.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "18.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "19.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "20.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "21.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "22.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "23.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "24.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "25.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "26.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "27.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "28.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "29.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "30.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "31.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "32.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "33.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "34.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "35.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "36.",
+      "value": -1,
+    },
+    {
+      "coding": undefined,
+      "label": "37.",
+      "value": -1,
+    },
+  ],
+  "label": "mwtb",
+  "results": [
+    {
+      "label": "correct",
+      "total": 10,
+      "value": 10,
+    },
+  ],
+  "title": "MWT-B",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures psqi: multiply + range + sum_range + chained sum + evaluation 1`] = `
+{
+  "coding": {
+    "code": "699200007",
+    "display": "PSQI (Pittsburgh sleep quality index)",
+    "system": "http://snomed.info/sct",
+    "version": "20230126",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "id": 2,
+      "label": "2_duration_fall_asleep",
+      "value": 20,
+    },
+    {
+      "coding": undefined,
+      "id": 31,
+      "label": "31_sleep_duration",
+      "value": 7,
+    },
+    {
+      "coding": undefined,
+      "id": 4,
+      "label": "4_effective_sleep_duration",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 6,
+      "label": "5_bad_sleep_a",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 7,
+      "label": "5_bad_sleep_b",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 8,
+      "label": "5_bad_sleep_c",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 9,
+      "label": "5_bad_sleep_d",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 10,
+      "label": "5_bad_sleep_e",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 11,
+      "label": "5_bad_sleep_f",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 12,
+      "label": "5_bad_sleep_g",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 13,
+      "label": "5_bad_sleep_h",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 14,
+      "label": "5_bad_sleep_i",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 15,
+      "label": "5_bad_sleep_j",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 16,
+      "label": "6_sleep_quality",
+      "value": 2,
+    },
+    {
+      "coding": undefined,
+      "id": 17,
+      "label": "7_drugs",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 18,
+      "label": "8_difficulties_stay_awake",
+      "value": 1,
+    },
+    {
+      "coding": undefined,
+      "id": 19,
+      "label": "9_nomojo",
+      "value": 2,
+    },
+  ],
+  "label": "psqi",
+  "results": [
+    {
+      "label": "duration",
+      "value": 3,
+    },
+    {
+      "label": "disturbance",
+      "value": 1,
+    },
+    {
+      "label": "latency",
+      "value": 1,
+    },
+    {
+      "label": "day_dysfunction",
+      "value": 2,
+    },
+    {
+      "label": "efficiency",
+      "value": 2,
+    },
+    {
+      "label": "quality",
+      "value": 2,
+    },
+    {
+      "label": "meds",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "SCTID: 699200007",
+        "display": "PSQI (Pittsburgh sleep quality index)",
+        "system": "http://snomed.info/sct",
+      },
+      "evaluation": "schlechte Schlafqualität",
+      "label": "sum",
+      "value": 12,
+    },
+  ],
+  "title": "PSQI",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures sus: sum_multiply x2.5 + reverse scoring 1`] = `
+{
+  "coding": {
+    "code": "445536008",
+    "display": "System Usability Scale (NeuroNation)",
+    "system": "http://snomed.info/sct",
+    "version": "20211026",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "id": 1,
+      "label": "SUS_q1",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 2,
+      "label": "SUS_q2",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 3,
+      "label": "SUS_q3",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 4,
+      "label": "SUS_q4",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 5,
+      "label": "SUS_q5",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 6,
+      "label": "SUS_q6",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 7,
+      "label": "SUS_q7",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 8,
+      "label": "SUS_q8",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 9,
+      "label": "SUS_q9",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 10,
+      "label": "SUS_q10",
+      "value": 4,
+    },
+  ],
+  "label": "sus",
+  "results": [
+    {
+      "label": "Raw sum",
+      "value": 50,
+    },
+  ],
+  "title": "SUS",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures twstrs: sum_multiply + chained pain domain (internal Schmerzgrad) 1`] = `
+{
+  "coding": {
+    "code": "SCTID: 225398001",
+    "display": "TWSTRS - Toronto Western Spasmodic Torticollis Rating Scale",
+    "system": "http://snomed.info/sct",
+  },
+  "items": [
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Kopfrotation",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 1,
+      "label": "Kopfrotation",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Laterocollis",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 2,
+      "label": "Laterocollis",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Antecollis",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 31,
+      "label": "Antecollis",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Retrocollis",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 32,
+      "label": "Retrocollis",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Lateral Shift",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 4,
+      "label": "Lateral Shift",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Sagittaler Shift",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 5,
+      "label": "Sagittaler Shift",
+      "value": 1,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Zeitfaktor_Deviation",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 6,
+      "label": "Zeitfaktor_Deviation",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Effekt der Geste",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 7,
+      "label": "Effekt der Geste",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Effekt der Geste",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 8,
+      "label": "Effekt der Geste",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Effekt der Geste",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 9,
+      "label": "Effekt der Geste",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Effekt der Geste",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 10,
+      "label": "Effekt der Geste",
+      "value": 2,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Arbeit",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 11,
+      "label": "Arbeit",
+      "value": 3,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "ADL",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 12,
+      "label": "ADL",
+      "value": 3,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Autofahren",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 13,
+      "label": "Autofahren",
+      "value": 3,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Lesen",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 14,
+      "label": "Lesen",
+      "value": 3,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Fernsehen",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 15,
+      "label": "Fernsehen",
+      "value": 3,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Ausserhalb der Wohnung",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 16,
+      "label": "Ausserhalb der Wohnung",
+      "value": 3,
+    },
+    {
+      "coding": undefined,
+      "id": 17,
+      "label": "familiaer_dinge",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 18,
+      "label": "ereignisse",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 19,
+      "label": "unterhaltungen",
+      "value": 4,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Schmerz",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 20,
+      "label": "Schmerz",
+      "value": 3,
+    },
+    {
+      "coding": {
+        "code": "302199004",
+        "display": "Beeinträchtigung",
+        "system": "http://snomed.info/sct",
+      },
+      "id": 21,
+      "label": "Beeinträchtigung",
+      "value": 2,
+    },
+  ],
+  "label": "twstrs",
+  "results": [
+    {
+      "label": "I_Schweregrad",
+      "value": 20,
+    },
+    {
+      "label": "II_Aktivitaetseinschraenkung",
+      "value": 18,
+    },
+    {
+      "label": "III_Schmerz",
+      "value": 9,
+    },
+    {
+      "coding": {
+        "code": "CUSTOM: SCORES\\TWSTRS",
+        "display": "TWSTRS - Toronto Western Spasmodic Torticollis Rating Scale",
+        "system": "CUSTOM",
+      },
+      "label": "sum",
+      "value": 47,
+    },
+  ],
+  "title": "TWSTRS - Toronto Western Spasmodic Torticollis Rating Scale",
+}
+`;
+
+exports[`QuestMan manuelle Fixtures whoqol: avg_multiply + chained sum_sub_multiply transform 1`] = `
+{
+  "coding": {
+    "code": "709503007",
+    "display": "WHOQOL-BREF",
+    "system": "http://snomed.info/sct",
+    "version": "20111103",
+  },
+  "items": [
+    {
+      "coding": undefined,
+      "id": 1,
+      "label": "q1",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 2,
+      "label": "q2",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 3,
+      "label": "block_1_q3",
+      "value": 2,
+    },
+    {
+      "coding": undefined,
+      "id": 4,
+      "label": "block_1_q4",
+      "value": 2,
+    },
+    {
+      "coding": undefined,
+      "id": 5,
+      "label": "block_1_q5",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 6,
+      "label": "block_1_q6",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 7,
+      "label": "block_2_q7",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 8,
+      "label": "block_2_q8",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 9,
+      "label": "block_2_q9",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 10,
+      "label": "block_3_q10",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 11,
+      "label": "block_3_q11",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 12,
+      "label": "block_3_q12",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 13,
+      "label": "block_3_q13",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 14,
+      "label": "block_3_q14",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 15,
+      "label": "block_4_q15",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 16,
+      "label": "block_5_q16",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 17,
+      "label": "block_5_q17",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 18,
+      "label": "block_5_q18",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 19,
+      "label": "block_5_q19",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 20,
+      "label": "block_5_q20",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 21,
+      "label": "block_5_q21",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 22,
+      "label": "block_5_q22",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 23,
+      "label": "block_5_q23",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 24,
+      "label": "block_5_q24",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 25,
+      "label": "block_5_q25",
+      "value": 4,
+    },
+    {
+      "coding": undefined,
+      "id": 26,
+      "label": "q26_q26",
+      "value": 2,
+    },
+  ],
+  "label": "whoqol",
+  "results": [
+    {
+      "label": "Physische Gesundheit",
+      "value": 16,
+    },
+    {
+      "label": "Psychologische Gesundheit",
+      "value": 16,
+    },
+    {
+      "label": "Soziale Beziehungen",
+      "value": 16,
+    },
+    {
+      "label": "Umwelt",
+      "value": 16,
+    },
+    {
+      "label": "Score_physisch",
+      "value": 75,
+    },
+    {
+      "label": "Score_psychisch",
+      "value": 75,
+    },
+    {
+      "label": "Score_sozial",
+      "value": 75,
+    },
+    {
+      "label": "Score_umwelt",
+      "value": 75,
+    },
+  ],
+  "title": "WHOQOL-BREF",
+}
+`;

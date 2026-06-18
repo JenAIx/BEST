@@ -642,6 +642,8 @@
     "addVisitHint": "Eine neue Visite für einen Patienten erstellen",
     "addPatient": "Patient hinzufügen",
     "addPatientHint": "Einen existierenden Patienten zur Tabelle hinzufügen",
+    "createNewPatient": "Neuen Patienten anlegen",
+    "createNewPatientHint": "Patient anlegen und direkt in die Tabelle aufnehmen",
     "selectPatientForVisit": "Patient für Visite auswählen",
     "addPatientToGrid": "Patient zur Tabelle hinzufügen",
     "patientAlreadyInGrid": "Patient \"{name}\" ist bereits in der Tabelle",

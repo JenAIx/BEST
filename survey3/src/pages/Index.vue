@@ -17,6 +17,10 @@
             <div class="idx-stat-value">{{ presetCount }}</div>
             <div class="idx-stat-label">{{ $t('index.stat_presets') }}</div>
           </div>
+          <div class="idx-stat-card" data-cy="stat_patients" @click="$router.push('patients')">
+            <div class="idx-stat-value">{{ patientCount }}</div>
+            <div class="idx-stat-label">{{ $t('index.stat_patients') }}</div>
+          </div>
           <div class="idx-stat-card" v-if="openExports > 0" @click="$router.push('storage')">
             <div class="idx-stat-value text-warning">{{ openExports }}</div>
             <div class="idx-stat-label">{{ $t('index.stat_open_exports') }}</div>
@@ -50,6 +54,19 @@
           </q-item>
       </div>
 
+      <!-- PATIENTS & VISITS -->
+      <div class="col-2">
+          <q-item data-cy="btn_patients" clickable v-ripple class="my-btn-item q-my-sm" @click="mainStore.leftDrawerOpen = false, $router.push('patients')">
+            <q-item-section avatar>
+              <q-icon name="people" />
+            </q-item-section>
+            <q-item-section>
+              <q-item-label>{{$t('index.btn_patients')}}</q-item-label>
+              <q-item-label caption>{{$t('index.text_patients')}}</q-item-label>
+            </q-item-section>
+          </q-item>
+      </div>
+
       <!-- LAST ACTIVITY -->
       <div v-if="lastEntry" class="col-auto q-pb-md">
         <div class="text-caption text-grey-6 text-center">
@@ -74,9 +91,6 @@
     data() {
       return {}
     },
-    mounted() {
-      this.mainStore.setProtectedMode(false);
-    },
     computed: {
       questCount() {
         return this.mainStore.QUEST_LIST?.length || 0
@@ -88,6 +102,9 @@
       presetCount() {
         const presets = this.mainStore.PRESET_STORE
         return presets?.length || 0
+      },
+      patientCount() {
+        return this.mainStore.PATIENTS?.length || 0
       },
       openExports() {
         const items = this.mainStore.STORAGE?.get() || []
@@ -113,15 +130,18 @@
 
 <style scoped lang="sass">
 .idx-stat-card
-  background: $grey-2
-  border-radius: 8px
-  padding: 12px 20px
+  background: $surface
+  border: 1px solid $line
+  border-radius: $radius
+  box-shadow: $shadow-soft
+  padding: 14px 22px
   text-align: center
-  min-width: 80px
+  min-width: 84px
   cursor: pointer
-  transition: background 0.15s
+  transition: box-shadow .18s ease, transform .18s ease
   &:hover
-    background: $grey-3
+    box-shadow: $shadow-hover
+    transform: translateY(-1px)
 
 .idx-stat-value
   font-size: 1.4rem

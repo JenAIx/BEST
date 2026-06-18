@@ -13,7 +13,7 @@
           data-cy="main_drawer"
         />
 
-        <q-toolbar-title @click="$router.push('/').catch(()=>{})" class="text-black">
+        <q-toolbar-title @click="$router.push('/').catch(()=>{})" class="text-black cursor-pointer">
           {{ $t('label') }}
         </q-toolbar-title>
 
@@ -36,22 +36,24 @@
           <!-- Essential Links -->
         </q-item-label>
         <EssentialLink
-          v-for="link in essentialLinks"
-          :key="link.title"
+          v-for="(link, idx) in essentialLinks"
+          :key="idx"
           v-bind="link"
           :data-cy="'link_'+link.title"
         />
 
+        <!-- Logo im normalen Fluss unter der Liste — kein fixed-Overlay mehr, damit es die
+             untersten Einträge (Über diese App / Changelog) nicht überdeckt -->
+        <div class="text-center q-mt-lg q-mb-xl" style="opacity: 0.5;">
+          <q-img
+              class="cursor-pointer"
+              src="assets/favicon.svg"
+              style="height: 100px; width: 100px;"
+              @click="mainStore.leftDrawerOpen = false, $router.push({name: 'about'}).catch(() => {})"
+            />
+        </div>
+
       </q-list>
-
-      <div class="fixed-bottom text-center q-mb-xl" style="opacity: 0.5;">
-        <q-img 
-            src="assets/favicon.svg"
-            style="height: 100px; width: 100px; "
-            @click="mainStore.leftDrawerOpen = false, $router.push({name: 'about'}).catch(() => {})"
-          />
-
-      </div>
 
     </q-drawer>
     <q-page-container :class="bodysize">
@@ -78,6 +80,19 @@ export default {
   data() {
     return {}
   },
+  watch: {
+    // Zentrale Chrome-Regel: Header/Drawer überall verfügbar, nur auf
+    // immersiven Seiten (Ausfüllen / Vollbild) ausgeblendet — gesteuert über
+    // route.meta.immersive. Ersetzt das verstreute setProtectedMode in den Seiten.
+    $route: {
+      immediate: true,
+      handler(to) {
+        const immersive = !!(to && to.meta && to.meta.immersive)
+        this.mainStore.PROTECTED_MODE = immersive
+        if (immersive) this.mainStore.leftDrawerOpen = false
+      },
+    },
+  },
   computed: {
     appVersion() {
       return `${process.env.APP_VERSION}-${process.env.APP_UPDATED}`
@@ -87,6 +102,8 @@ export default {
         { key: 'start', icon: 'home', link: '/', name: 'start' },
         { key: 'select', icon: 'assignment', link: 'select', name: 'select' },
         { key: 'store_preset', icon: 'archive', link: 'store_preset', name: 'store_preset' },
+        { key: 'patients', icon: 'people', link: 'patients', name: 'patients' },
+        { key: 'separator' },
         { key: 'storage', icon: 'inventory_2', link: 'storage', name: 'storage' },
         { key: 'separator' },
         { key: 'settings', icon: 'settings', link: 'settings', name: 'settings' },

@@ -1,0 +1,2021 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: 6MWT 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: AEB 1`] = `
+[
+  {
+    "label": "Mean_Erholung",
+    "value": 6,
+  },
+  {
+    "label": "Mean_Beanspruchung",
+    "value": 6,
+  },
+  {
+    "label": "Körperliche Leistungsfähigkeit",
+    "value": 6,
+  },
+  {
+    "label": "Mentale Leistungsfähigkeit",
+    "value": 6,
+  },
+  {
+    "label": "Emotionale Ausgeglichenheit",
+    "value": 6,
+  },
+  {
+    "label": "Allgemeiner Erholungszustand",
+    "value": 6,
+  },
+  {
+    "label": "Muskuläre Beanspruchung",
+    "value": 6,
+  },
+  {
+    "label": "Aktivierungsmangel",
+    "value": 6,
+  },
+  {
+    "label": "Emotionale Unausgeglichenheit",
+    "value": 6,
+  },
+  {
+    "label": "Allgemeiner Beanspruchungszustand",
+    "value": 6,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: AbschlussVRTag5 1`] = `
+[
+  {
+    "label": 5,
+    "total": 16,
+    "value": 16,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: BewertungSpielVR 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 65,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: DGI 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 443707009",
+      "display": "Dynamic Gait Index",
+      "system": "SNOMED-CT",
+    },
+    "label": "sum",
+    "value": 24,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: ECOG 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\ECOG\\TOTALSCORE",
+      "display": "ECOG - Total Score",
+      "system": "CUSTOM",
+    },
+    "label": "Total Score",
+    "value": 0,
+  },
+  {
+    "label": "Gedächtnis",
+    "value": 0,
+  },
+  {
+    "label": "Sprache",
+    "value": 0,
+  },
+  {
+    "label": "Visuell-räumliche Wahrnehmungsfähigkeiten",
+    "value": 0,
+  },
+  {
+    "label": "EF-Planung",
+    "value": 0,
+  },
+  {
+    "label": "EF-Organisation",
+    "value": 0,
+  },
+  {
+    "label": "EF-geteilte_Aufmerksamkeit",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: FIM 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 716795003",
+      "display": "FIM Score",
+      "system": "http://snomed.info/sct",
+    },
+    "label": "sum",
+    "value": 126,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: Fragebogen für ein standardisiertes Gespräch bei V.a. ND 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: GDS 1`] = `
+[
+  {
+    "evaluation": "Unauffällig",
+    "label": "sum",
+    "value": 5,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: IPAQ_short 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: MFQ 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\1",
+      "display": "MFQ - Subscore 1 (subjective complaint)",
+      "system": "CUSTOM",
+    },
+    "label": "Generell",
+    "value": 7,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\2",
+      "display": "MFQ - Subscore 2",
+      "system": "CUSTOM",
+    },
+    "label": "Rückblickende_Funktion",
+    "value": 35,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\3",
+      "display": "MFQ - Subscore 3",
+      "system": "CUSTOM",
+    },
+    "label": "Häufigkeit_des_Vergessens",
+    "value": 126,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\4",
+      "display": "MFQ - Subscore 4",
+      "system": "CUSTOM",
+    },
+    "label": "Lesen",
+    "value": 35,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\5",
+      "display": "MFQ - Subscore 5",
+      "system": "CUSTOM",
+    },
+    "label": "Zeitungslesen",
+    "value": 35,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\6",
+      "display": "MFQ - Subscore 6",
+      "system": "CUSTOM",
+    },
+    "label": "Ereignisse",
+    "value": 28,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\7",
+      "display": "MFQ - Subscore 7",
+      "system": "CUSTOM",
+    },
+    "label": "Ernsthaftigkeit",
+    "value": 126,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\MFQ\\8",
+      "display": "MFQ - Subscore 8",
+      "system": "CUSTOM",
+    },
+    "label": "Techniken",
+    "value": 56,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: MPQ 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 718970003",
+      "display": "McGill Pain Score",
+      "system": "SNOMED-CT",
+    },
+    "label": "sum",
+    "value": 45,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: More-scale 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 119,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: PANAS 1`] = `
+[
+  {
+    "label": "positive",
+    "value": 5,
+  },
+  {
+    "label": "negative",
+    "value": 5,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: PARK_MOVE 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: PEM_Screening 1`] = `
+[
+  {
+    "label": "Frage 1",
+    "value": 1,
+  },
+  {
+    "label": "Frage 2",
+    "value": 1,
+  },
+  {
+    "label": "Frage 3",
+    "value": 1,
+  },
+  {
+    "label": "Frage 4",
+    "value": 1,
+  },
+  {
+    "label": "Frage 5",
+    "value": 1,
+  },
+  {
+    "evaluation": "PEM Screening positiv",
+    "label": "sum",
+    "value": 1,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: Tinetti 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 443657009",
+      "display": "Tinetti (gesamt)",
+      "system": "SNOMED-CT",
+    },
+    "label": "Tinetti (gesamt)",
+    "value": 0,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 443639008",
+      "display": "Tinetti (Balance)",
+      "system": "SNOMED-CT",
+    },
+    "label": "Tinetti (Balance)",
+    "value": 0,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 443618001",
+      "display": "Tinetti (Gang)",
+      "system": "SNOMED-CT",
+    },
+    "label": "Tinetti (Gang)",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: VAS 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 273903006",
+      "display": "VAS (score)",
+      "system": "SNOMED-CT",
+    },
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: abc-d 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 443125007",
+      "display": "Activities specific balance confidence score (observable entity)",
+      "system": "SNOMED-CT",
+    },
+    "label": "avg",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: aes_scale 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: AES_APATHIE_SCORE",
+      "display": "AES (Apathie Score)",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 9,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: badl 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\BADL",
+      "display": "B-ADL / Gesamtscore",
+      "system": "CUSTOM",
+    },
+    "label": "avg",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: bdi2 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 717268000",
+      "display": "BDI-II",
+      "system": "http://snomed.info/sct",
+    },
+    "evaluation": "schweres depressives Syndrom",
+    "label": "sum",
+    "value": 63,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: bewegungsprotokoll 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: bfi 1`] = `
+[
+  {
+    "label": "Müdigkeit",
+    "value": 10,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: bfi10 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\BFI10\\E",
+      "display": "BFI-10 Extraversion",
+      "system": "CUSTOM",
+    },
+    "label": "Extraversion",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\BFI10\\N",
+      "display": "BFI-10 Neurotizismus",
+      "system": "CUSTOM",
+    },
+    "label": "Neurotizismus",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\BFI10\\O",
+      "display": "BFI-10 Offenheit",
+      "system": "CUSTOM",
+    },
+    "label": "Offenheit",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\BFI10\\G",
+      "display": "BFI-10 Gewissenhaftigkeit",
+      "system": "CUSTOM",
+    },
+    "label": "Gewissenhaftigkeit",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP\\BFI10\\V",
+      "display": "BFI-10 Verträglichkeit",
+      "system": "CUSTOM",
+    },
+    "label": "Verträglichkeit",
+    "value": 3,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: biomag_fw 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: biomag_handedness 1`] = `
+[
+  {
+    "label": "both",
+    "total": 10,
+    "value": 10,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: brain_tremor 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES\\BAIN_TREMOR",
+      "display": "Bain Tremorskala",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 100,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: bsi 1`] = `
+[
+  {
+    "label": "Somatisierung",
+    "value": 28,
+  },
+  {
+    "label": "Zwanghaftigkeit",
+    "value": 24,
+  },
+  {
+    "label": "Unsicherheit im sozialen Kontakt",
+    "value": 16,
+  },
+  {
+    "label": "Depressivität",
+    "value": 24,
+  },
+  {
+    "label": "Ängstlichkeit",
+    "value": 24,
+  },
+  {
+    "label": "Aggressivität",
+    "value": 20,
+  },
+  {
+    "label": "Phobische Angst",
+    "value": 20,
+  },
+  {
+    "label": "Paranoides Denken",
+    "value": 20,
+  },
+  {
+    "label": "Psychotizismus",
+    "value": 20,
+  },
+  {
+    "label": "Zusatz",
+    "value": 16,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: bss 1`] = `
+[
+  {
+    "label": "Intensität",
+    "value": 5,
+  },
+  {
+    "label": "Frequenz",
+    "value": 6,
+  },
+  {
+    "label": "sum",
+    "value": 11,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: caide 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES\\BAIN_CAIDE",
+      "display": "CAIDE",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 15,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: cbi 1`] = `
+[
+  {
+    "label": "Time Dependency Items",
+    "value": 20,
+  },
+  {
+    "label": "Development Items",
+    "value": 20,
+  },
+  {
+    "label": "Physical Health Items",
+    "value": 20,
+  },
+  {
+    "label": "Emotional Health Items",
+    "value": 20,
+  },
+  {
+    "label": "Social Relationships Items",
+    "value": 16,
+  },
+  {
+    "label": "Total Score",
+    "value": 96,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: cdq24 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 96,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: cfqg 1`] = `
+[
+  {
+    "label": "Total Score",
+    "value": 128,
+  },
+  {
+    "label": "Forgetfulness",
+    "value": 4,
+  },
+  {
+    "label": "Distractibility",
+    "value": 4,
+  },
+  {
+    "label": "False Triggering",
+    "value": 4,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: cfsme 1`] = `
+[
+  {
+    "label": "fatigue",
+    "value": 0,
+  },
+  {
+    "label": "sleep",
+    "value": 1,
+  },
+  {
+    "label": "pain",
+    "value": 1,
+  },
+  {
+    "label": "neurologic_cognitive",
+    "value": 0,
+  },
+  {
+    "label": "others",
+    "value": 1,
+  },
+  {
+    "label": "duration",
+    "value": 0,
+  },
+  {
+    "evaluation": "Kriterien für CFS/ME nicht erfüllt",
+    "label": "sum",
+    "value": 3,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: csas_e 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORE_CSASE_SUM",
+      "display": "CSAS-E",
+      "system": "CUSTOM",
+    },
+    "label": "sum_q2",
+    "value": 72,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: daily_activity 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 36,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: dex 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 80,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: dex_female 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 80,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: dex_male 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 80,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: dnmsquest 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES_DNMSQUEST",
+      "display": "DNMSQuest",
+      "system": "http://snomed.info/sct",
+    },
+    "evaluation": "normal",
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: eq5d 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: eq5d5l 1`] = `
+[
+  {
+    "coding": {
+      "code": "736535009_SUM",
+      "display": "EQ-5D-5L Summary Score (sum of 5 dimensions, range 5-25)",
+      "system": "CUSTOM",
+    },
+    "evaluation": "Extreme Probleme/Unfähigkeit in mehreren Dimensionen",
+    "label": "sum",
+    "value": 25,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: ess 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 763254009",
+      "display": "Epworth Sleepiness Scale score",
+      "system": "http://snomed.info/sct",
+    },
+    "evaluation": "Starke Tagesschläfrigkeit",
+    "label": "sum",
+    "value": 24,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: fact_cog 1`] = `
+[
+  {
+    "label": "Total Score",
+    "value": 28,
+  },
+  {
+    "label": "Total Score + extra Items (caution: additional analyses needed)",
+    "value": 36,
+  },
+  {
+    "label": "Perceived cognitive impairments",
+    "value": 0,
+  },
+  {
+    "label": "Perceived cognitive impairments + extra Items",
+    "value": 0,
+  },
+  {
+    "label": "Comments from others",
+    "value": 0,
+  },
+  {
+    "label": "Perceived cognitive abilities",
+    "value": 28,
+  },
+  {
+    "label": "Perceived cognitive abilities + extra Items",
+    "value": 36,
+  },
+  {
+    "label": "Impact of perceived cog imp on QoL",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: falling_stick 1`] = `
+[
+  {
+    "coding": {
+      "code": "MOD: SCORES_FALLING_STICK RIGHT",
+      "display": "Fallstab rechts",
+      "system": "CUSTOM",
+    },
+    "label": "rechts",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "MOD: SCORES_FALLING_STICK LEFT",
+      "display": "Fallstab links",
+      "system": "CUSTOM",
+    },
+    "label": "links",
+    "value": 3,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: fas 1`] = `
+[
+  {
+    "label": "Total Sum",
+    "value": 42,
+  },
+  {
+    "label": "Körperliche Ermüdungserscheinungen",
+    "value": 17,
+  },
+  {
+    "label": "Psychische Ermüdungserscheinungen",
+    "value": 25,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: feda 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: fes-i 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 445035000",
+      "display": "FES-I Score",
+      "system": "SNOMED-CT",
+    },
+    "label": "sum",
+    "value": 64,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: flei 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: XXXXXX",
+      "display": "flei",
+      "system": "http://snomed.info/sct",
+    },
+    "label": "sum",
+    "value": 140,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: fuglmayrshort 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 12,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: gas 1`] = `
+[
+  {
+    "label": "sum",
+    "value": -2,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: gds_dystonia 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 140,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: hads_d 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: NP_HADSD_ANXIETY",
+      "display": "HADS-D: anxiety score",
+      "system": "CUSTOM",
+    },
+    "label": "Kategorie A",
+    "value": 6,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NP_HADSD_DEPRESSION",
+      "display": "HADS-D: depression score",
+      "system": "CUSTOM",
+    },
+    "label": "Kategorie D",
+    "value": 12,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: health49_a 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 115,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: health49_bd 1`] = `
+[
+  {
+    "label": "Total Sum",
+    "value": 0,
+  },
+  {
+    "label": "Teil B Sum",
+    "value": 0,
+  },
+  {
+    "label": "Teil D Sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: hlq 1`] = `
+[
+  {
+    "label": "1. Feeling understood and supported by healthcare providers",
+    "value": 4,
+  },
+  {
+    "label": "2. Having sufficient informationto manage my health",
+    "value": 4,
+  },
+  {
+    "label": "3. Actively managing my health",
+    "value": 4,
+  },
+  {
+    "label": "4. Social support for health",
+    "value": 4,
+  },
+  {
+    "label": "5. Appraisal of health information",
+    "value": 4,
+  },
+  {
+    "label": "6. Ability to actively engage with healthcare providers",
+    "value": 5,
+  },
+  {
+    "label": "7. Navigating the healthcare system",
+    "value": 5,
+  },
+  {
+    "label": "8. Ability to find good health information",
+    "value": 5,
+  },
+  {
+    "label": "9. Understanding health information well enough to know what to do",
+    "value": 5,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: hoehnyahr 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 716138005",
+      "display": "Hoehn and Yahr Scale score",
+      "system": "SNOMED-CT",
+    },
+    "label": "sum",
+    "value": 5,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: iqcode 1`] = `
+[
+  {
+    "label": "avg",
+    "value": 5,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: lecseq-adr 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: lecseq-anamnese-v1 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: lecseq-verlauf 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: mdt 1`] = `
+[
+  {
+    "label": "Schluckbeschwerden Essen/Trinken",
+    "value": 30,
+  },
+  {
+    "label": "Schluckbeschwerden unabhängig",
+    "value": 12,
+  },
+  {
+    "label": "Belastungen",
+    "value": 27,
+  },
+  {
+    "label": "Gesundheitsfragen",
+    "value": 9,
+  },
+  {
+    "label": "sum",
+    "value": 78,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: mna 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: MNA/MNA_SCREENING",
+      "display": "MNA Screening",
+      "system": "CUSTOM",
+    },
+    "label": "Screening",
+    "value": 14,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: MNA/MNA_ASSESSMENT",
+      "display": "MNA Assessment",
+      "system": "CUSTOM",
+    },
+    "label": "Assessment",
+    "value": 15,
+  },
+  {
+    "coding": {
+      "code": "895533005",
+      "display": "MNA Total Score",
+      "system": "http://snomed.info/sct",
+    },
+    "evaluation": "Normaler Ernährungszustand",
+    "label": "sum",
+    "value": 29,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: moca 1`] = `
+[
+  {
+    "coding": {
+      "code": "LID: 72172-0",
+      "display": "MoCA SUM",
+      "system": "LOINC",
+    },
+    "label": "sum",
+    "value": 39,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: mrs 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 1255866005",
+      "display": "mRS",
+      "system": "http://snomed.info/sct",
+    },
+    "label": "sum",
+    "value": 5,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: mwtb 1`] = `
+[
+  {
+    "label": "correct",
+    "total": 7,
+    "value": 7,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: mymop2g_followup 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: mymop2g_pre 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: nihs 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 450743008",
+      "display": "NIHSS",
+      "system": "http://snomed.info/sct",
+    },
+    "label": "sum",
+    "value": 42,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: nms_quest 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES\\NMSQUEST",
+      "display": "NMS Quest - Parkinson",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: nmss 1`] = `
+[
+  {
+    "label": "p1",
+    "value": 12,
+  },
+  {
+    "label": "p2",
+    "value": 12,
+  },
+  {
+    "label": "p3",
+    "value": 12,
+  },
+  {
+    "label": "p4",
+    "value": 12,
+  },
+  {
+    "label": "p5",
+    "value": 12,
+  },
+  {
+    "label": "p6",
+    "value": 12,
+  },
+  {
+    "label": "p7",
+    "value": 12,
+  },
+  {
+    "label": "p8",
+    "value": 12,
+  },
+  {
+    "label": "p9",
+    "value": 12,
+  },
+  {
+    "label": "p10",
+    "value": 12,
+  },
+  {
+    "label": "p11",
+    "value": 12,
+  },
+  {
+    "label": "p12",
+    "value": 12,
+  },
+  {
+    "label": "p13",
+    "value": 12,
+  },
+  {
+    "label": "p14",
+    "value": 12,
+  },
+  {
+    "label": "p15",
+    "value": 12,
+  },
+  {
+    "label": "p16",
+    "value": 12,
+  },
+  {
+    "label": "p17",
+    "value": 12,
+  },
+  {
+    "label": "p18",
+    "value": 12,
+  },
+  {
+    "label": "p19",
+    "value": 12,
+  },
+  {
+    "label": "p20",
+    "value": 12,
+  },
+  {
+    "label": "p21",
+    "value": 12,
+  },
+  {
+    "label": "p22",
+    "value": 12,
+  },
+  {
+    "label": "p23",
+    "value": 12,
+  },
+  {
+    "label": "p24",
+    "value": 12,
+  },
+  {
+    "label": "p25",
+    "value": 12,
+  },
+  {
+    "label": "p26",
+    "value": 12,
+  },
+  {
+    "label": "p27",
+    "value": 12,
+  },
+  {
+    "label": "p28",
+    "value": 12,
+  },
+  {
+    "label": "p29",
+    "value": 12,
+  },
+  {
+    "label": "p30",
+    "value": 12,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B1",
+      "display": "NMSS Bereich 1 Kardiovaskulär",
+      "system": "CUSTOM",
+    },
+    "label": "b1",
+    "value": 24,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B2",
+      "display": "NMSS Bereich 2 Schlaf/Müdigkeit",
+      "system": "CUSTOM",
+    },
+    "label": "b2",
+    "value": 48,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B3",
+      "display": "NMSS Bereich 3 Stimmung/Kognition",
+      "system": "CUSTOM",
+    },
+    "label": "b3",
+    "value": 72,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B4",
+      "display": "NMSS Bereich 4 Wahrnehmung/Halluzinationen",
+      "system": "CUSTOM",
+    },
+    "label": "b4",
+    "value": 36,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B5",
+      "display": "NMSS Bereich 5 Aufmerksamkeit/Gedächtnis",
+      "system": "CUSTOM",
+    },
+    "label": "b5",
+    "value": 36,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B6",
+      "display": "NMSS Bereich 6 Gastrointestinal",
+      "system": "CUSTOM",
+    },
+    "label": "b6",
+    "value": 36,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B7",
+      "display": "NMSS Bereich 7 Miktion",
+      "system": "CUSTOM",
+    },
+    "label": "b7",
+    "value": 36,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B8",
+      "display": "NMSS Bereich 8 Sexualfunktion",
+      "system": "CUSTOM",
+    },
+    "label": "b8",
+    "value": 24,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_B9",
+      "display": "NMSS Bereich 9 Verschiedenes",
+      "system": "CUSTOM",
+    },
+    "label": "b9",
+    "value": 48,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: NMSS_TOTAL",
+      "display": "NMSS Gesamtscore",
+      "system": "CUSTOM",
+    },
+    "evaluation": "sehr schwere nicht-motorische Belastung",
+    "label": "sum",
+    "value": 360,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: paq_50plus 1`] = `
+[
+  {
+    "label": "Aktivitätsniveau",
+    "value": 367.8,
+  },
+  {
+    "label": "Energieverbrauch",
+    "value": 1103.4,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pd_general 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 3,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pd_ondemand 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pdq8 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: PDQ_8",
+      "display": "PDQ-8",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 32,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pdq39 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORE_PDQ39_SUM",
+      "display": "PDQ_39",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 156,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pdss2 1`] = `
+[
+  {
+    "label": "Total Score",
+    "value": 4,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: phq_9 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 720433000",
+      "display": "PHQ-9 (Patient Health Questionnaire Nine Item score)",
+      "system": "http://snomed.info/sct",
+    },
+    "evaluation": "'schwergradige' Depression",
+    "label": "sum",
+    "value": 27,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: psq18 1`] = `
+[
+  {
+    "coding": {
+      "code": "868186005",
+      "display": "Short-Form Patient Satisfaction Questionnaire (PSQ-18)",
+      "system": "http://snomed.info/sct",
+      "version": "20240206",
+    },
+    "label": "sum",
+    "value": 90,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: psqi 1`] = `
+[
+  {
+    "label": "duration",
+    "value": 3,
+  },
+  {
+    "label": "disturbance",
+    "value": 3,
+  },
+  {
+    "label": "latency",
+    "value": 2,
+  },
+  {
+    "label": "day_dysfunction",
+    "value": 3,
+  },
+  {
+    "label": "efficiency",
+    "value": 3,
+  },
+  {
+    "label": "quality",
+    "value": 3,
+  },
+  {
+    "label": "meds",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 699200007",
+      "display": "PSQI (Pittsburgh sleep quality index)",
+      "system": "http://snomed.info/sct",
+    },
+    "evaluation": "schlechte Schlafqualität",
+    "label": "sum",
+    "value": 20,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: ptss14 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 98,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: ptss14_cov2 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 98,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: qol_ad 1`] = `
+[
+  {
+    "coding": {
+      "code": "868186005",
+      "display": "Qol-AD (Sum Score)",
+      "system": "http://snomed.info/sct",
+      "version": "20240206",
+    },
+    "label": "sum",
+    "value": 52,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: quiprs 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES_QUIP_RS_SUM",
+      "display": "QUIP-RS: Questionnaire for Impulsive-Compulsive Disorders in Parkinson’s Disease–Rating Scale",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 112,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: rbd_sq 1`] = `
+[
+  {
+    "evaluation": "unauffällig",
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sams_1 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sams_2 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: SAMS_2_SCORE",
+      "display": "SAMS 2 - Score",
+      "system": "http://snomed.info/sct",
+    },
+    "label": "sum",
+    "value": 92,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: schnelles Demenzscreening 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: NP_KLEIN_SUM",
+      "display": "KLeiN_score",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 2,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: schwab_england 1`] = `
+[
+  {
+    "coding": {
+      "code": "273544001",
+      "display": "Schwab-England Score (%)",
+      "system": "http://snomed.info/sct",
+    },
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sf36 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 770636004_PF",
+      "display": "SF-36 Subscore: Physical functioning",
+      "system": "CUSTOM",
+    },
+    "label": "Physical functioning",
+    "value": 100,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_LH",
+      "display": "SF-36 Subscore: limitations/health",
+      "system": "CUSTOM",
+    },
+    "label": "Role limitations due to physical health",
+    "value": 100,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_LE",
+      "display": "SF-36 Subscore: limitations/emotional problems",
+      "system": "CUSTOM",
+    },
+    "label": "Role limitations due to emotional problems",
+    "value": 100,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_EF",
+      "display": "SF-36 Subscore: energy/fatigue",
+      "system": "CUSTOM",
+    },
+    "label": "Energy/fatigue",
+    "value": 50,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_EWB",
+      "display": "SF-36 Subscore: Emotional well-beeing",
+      "system": "CUSTOM",
+    },
+    "label": "Emotional well-being",
+    "value": 60,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_SF",
+      "display": "SF-36 Subscore: social functioning",
+      "system": "CUSTOM",
+    },
+    "label": "Social functioning",
+    "value": 50,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_PAIN",
+      "display": "SF-36 Subscore: Pain",
+      "system": "CUSTOM",
+    },
+    "label": "Pain",
+    "value": 0,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_GH",
+      "display": "SF-36 Subscore: General health",
+      "system": "CUSTOM",
+    },
+    "label": "General health",
+    "value": 40,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_HC",
+      "display": "SF-36 Subscore: Health change",
+      "system": "CUSTOM",
+    },
+    "label": "Health change",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sf36 mod 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 770636004_PF",
+      "display": "SF-36 Subscore: Physical functioning",
+      "system": "CUSTOM",
+    },
+    "label": "Physical functioning",
+    "value": 100,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_LH",
+      "display": "SF-36 Subscore: limitations/health",
+      "system": "CUSTOM",
+    },
+    "label": "Role limitations due to physical health",
+    "value": 100,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_LE",
+      "display": "SF-36 Subscore: limitations/emotional problems",
+      "system": "CUSTOM",
+    },
+    "label": "Role limitations due to emotional problems",
+    "value": 100,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_EF",
+      "display": "SF-36 Subscore: energy/fatigue",
+      "system": "CUSTOM",
+    },
+    "label": "Energy/fatigue",
+    "value": 50,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_EWB",
+      "display": "SF-36 Subscore: Emotional well-beeing",
+      "system": "CUSTOM",
+    },
+    "label": "Emotional well-being",
+    "value": 60,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_SF",
+      "display": "SF-36 Subscore: social functioning",
+      "system": "CUSTOM",
+    },
+    "label": "Social functioning",
+    "value": 50,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_PAIN",
+      "display": "SF-36 Subscore: Pain",
+      "system": "CUSTOM",
+    },
+    "label": "Pain",
+    "value": 0,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_GH",
+      "display": "SF-36 Subscore: General health",
+      "system": "CUSTOM",
+    },
+    "label": "General health",
+    "value": 40,
+  },
+  {
+    "coding": {
+      "code": "SCTID: 770636004_HC",
+      "display": "SF-36 Subscore: Health change",
+      "system": "CUSTOM",
+    },
+    "label": "Health change",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: shaps_d 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES\\SHAPS_D",
+      "display": "SHAPS-D",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 14,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: slts7 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SLTS7_OVERALL",
+      "display": "SLTS-7 Overall (global)",
+      "system": "CUSTOM",
+    },
+    "label": "overall",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: SLTS7_PHYSICAL",
+      "display": "SLTS-7 Physical",
+      "system": "CUSTOM",
+    },
+    "label": "physical",
+    "value": 3,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: SLTS7_PSYCHOSOCIAL",
+      "display": "SLTS-7 Psycho-social",
+      "system": "CUSTOM",
+    },
+    "label": "psychosocial",
+    "value": 9,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: SLTS7_TREATMENT",
+      "display": "SLTS-7 Treatment",
+      "system": "CUSTOM",
+    },
+    "label": "treatment",
+    "value": 6,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: SLTS7_TOTAL",
+      "display": "SLTS-7 Gesamtscore",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 21,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sss 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: STANFORD_SLEEP_SCALE",
+      "display": "stanford sleepiness scale (score)",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 1,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sus 1`] = `
+[
+  {
+    "label": "Raw sum",
+    "value": 50,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: test 1`] = `
+[
+  {
+    "label": "sum",
+    "value": 15,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: timedupandgotest 1`] = `
+[
+  {
+    "coding": {
+      "code": "SCTID: 444680009",
+      "display": "Timed up and go mobility test score",
+      "system": "SNOMED-CT",
+    },
+    "evaluation": "Ausgeprägte Mobilitätseinschränkung",
+    "label": "sum",
+    "value": 2,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: twstrs 1`] = `
+[
+  {
+    "label": "I_Schweregrad",
+    "value": 33,
+  },
+  {
+    "label": "II_Aktivitaetseinschraenkung",
+    "value": 30,
+  },
+  {
+    "label": "III_Schmerz",
+    "value": 20,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES\\TWSTRS",
+      "display": "TWSTRS - Toronto Western Spasmodic Torticollis Rating Scale",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 83,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: updrs_1 1`] = `
+[
+  {
+    "coding": {
+      "code": "LID: 77718-5",
+      "display": "MDS-UPDRS IA/IB - nM-EDL",
+      "system": "LOINC",
+    },
+    "label": "sum",
+    "value": 52,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: updrs_2 1`] = `
+[
+  {
+    "coding": {
+      "code": "LID: 77719-3",
+      "display": "MDS-UPDRS II - M-EDL",
+      "system": "LOINC",
+    },
+    "label": "sum",
+    "value": 52,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: updrs_3 1`] = `
+[
+  {
+    "coding": {
+      "code": "LID: 77720-1",
+      "display": "MDS-UPDRS III - Motorik",
+      "system": "LOINC",
+    },
+    "label": "sum",
+    "value": 136,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: updrs_4 1`] = `
+[
+  {
+    "coding": {
+      "code": "LID: 77721-9",
+      "display": "MDS-UPDRS IV - Motorische Komplikationen",
+      "system": "LOINC",
+    },
+    "label": "sum",
+    "value": 24,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: whodas2 1`] = `
+[
+  {
+    "coding": {
+      "code": "450738001",
+      "display": "WHODAS 2.0 (12-Item) Total Score (range 12-60, higher is worse)",
+      "system": "http://snomed.info/sct",
+    },
+    "evaluation": "Extreme Beeinträchtigung / Unfähigkeit",
+    "label": "sum",
+    "value": 60,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: whoqol 1`] = `
+[
+  {
+    "label": "Physische Gesundheit",
+    "value": 15.43,
+  },
+  {
+    "label": "Psychologische Gesundheit",
+    "value": 17.33,
+  },
+  {
+    "label": "Soziale Beziehungen",
+    "value": 20,
+  },
+  {
+    "label": "Umwelt",
+    "value": 20,
+  },
+  {
+    "label": "Score_physisch",
+    "value": 71.44,
+  },
+  {
+    "label": "Score_psychisch",
+    "value": 83.31,
+  },
+  {
+    "label": "Score_sozial",
+    "value": 100,
+  },
+  {
+    "label": "Score_umwelt",
+    "value": 100,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: woq9 1`] = `
+[
+  {
+    "label": "Symptome vorhanden (A)",
+    "value": 0,
+  },
+  {
+    "label": "Symptome verbessert (B)",
+    "value": 0,
+  },
+  {
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;

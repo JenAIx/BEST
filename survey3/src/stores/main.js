@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { SETTINGS } from 'src/tools/settings'
 import { STORAGE } from 'src/tools/Storage'
+import { VISITMAN } from 'src/tools/visits/VisitMan'
 import { QuestMan } from 'src/tools/questman'
 import { initQuestMan } from 'src/boot/db'
 import { Platform } from 'quasar'
@@ -13,6 +14,11 @@ import { i18n } from 'src/boot/i18n'
 const _questMan = new QuestMan()
 const _questManReady = initQuestMan(_questMan)
 
+// kompakter Zeitstempel YYYYMMDDHHmmss für Export-Dateinamen
+function _stamp() {
+  return new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14)
+}
+
 export const useMainStore = defineStore('main', {
   state: () => ({
     ENV: {
@@ -23,6 +29,7 @@ export const useMainStore = defineStore('main', {
     leftDrawerOpen: true,
     QuestMan: _questMan,
     STORAGE: STORAGE,
+    VISITMAN: VISITMAN,
     SETTINGS: SETTINGS,
     debug: false,
     PROTECTED_MODE: false,
@@ -52,6 +59,19 @@ export const useMainStore = defineStore('main', {
     },
     DEBUG_MODE(state) {
       return state.debug
+    },
+    // --- Patienten/Visiten ---
+    VISIT_MAN(state) {
+      return state.VISITMAN
+    },
+    PATIENTS(state) {
+      return state.VISITMAN.patients
+    },
+    VISIT_TEMPLATES(state) {
+      return state.VISITMAN.templates
+    },
+    VISITS(state) {
+      return state.VISITMAN.visits
     },
   },
 
@@ -198,6 +218,24 @@ export const useMainStore = defineStore('main', {
         })
       if (Platform.is.desktop || Platform.is.ios)
         return this.STORAGE.export_tofile(payload, { export_format: this.SETTINGS.export_format })
+    },
+
+    // --- Patienten/Visiten Export (app2-importStructure JSON) ---
+    exportVisit(visitId) {
+      const data = this.VISITMAN.build_visit_export(visitId)
+      if (data === undefined) return false
+      const pid = (data.metadata.patientIds[0] || 'patient').replace(/[^a-zA-Z0-9_-]/g, '_')
+      const filename = `survey3_visit_${pid}_${_stamp()}.json`
+      const ok = this.STORAGE._export_file(filename, JSON.stringify(data, null, 2))
+      if (ok) this.VISITMAN.mark_exported(visitId)
+      return ok
+    },
+    exportPatient(patientId) {
+      const data = this.VISITMAN.build_patient_export(patientId)
+      if (data === undefined) return false
+      const pid = (data.metadata.patientIds[0] || 'patient').replace(/[^a-zA-Z0-9_-]/g, '_')
+      const filename = `survey3_patient_${pid}_${_stamp()}.json`
+      return this.STORAGE._export_file(filename, JSON.stringify(data, null, 2))
     },
 
     // --- preset actions (thin wrappers kept for dispatch compat) ---
