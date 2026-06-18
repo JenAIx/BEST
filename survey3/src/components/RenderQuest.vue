@@ -122,7 +122,8 @@
         <q-card-section>
           <q-list bordered separator data-cy="list_entries">
             <q-item v-for="(item, indQ) in QUEST.items" :key="item.label + indQ" data-cy="item_entry"
-              :id="'qitem_' + indQ" :class="{ 'quest-item--done': isInteractive(item) && isAnswered(item) }">
+              :id="'qitem_' + indQ" class="quest-list-item"
+              :class="{ 'quest-item--done': isInteractive(item) && isAnswered(item) }">
               <q-item-section>
                 <!-- interaktive Frage -->
                 <QuestItemField v-if="isInteractive(item)" :item="item" input-cy="text"
@@ -141,10 +142,9 @@
                   </q-item-label>
                 </template>
               </q-item-section>
-              <!-- dezenter "beantwortet"-Haken -->
-              <q-item-section side top v-if="isInteractive(item) && isAnswered(item)">
-                <q-icon name="check_circle" color="positive" size="20px" />
-              </q-item-section>
+              <!-- dezenter "beantwortet"-Haken: absolut, verschiebt das Layout nicht -->
+              <q-icon v-if="isInteractive(item) && isAnswered(item)" name="check_circle"
+                color="positive" size="20px" class="quest-done-check" />
             </q-item>
           </q-list>
         </q-card-section>
@@ -320,9 +320,14 @@ export default {
       return required ? 'required' : 'optional'
     },
     isAnswered(item) {
-      const t = item.type
       const v = item.value
-      if (t === 'checkbox' || t === 'multiple_radio') {
+      // multiple_radio: erst "beantwortet", wenn ALLE Teilfragen gesetzt sind
+      if (item.type === 'multiple_radio') {
+        const n = item.options && item.options.questions ? item.options.questions.length : 0
+        return Array.isArray(v) && n > 0 && v.length >= n && v.slice(0, n).every((x) => x !== null && x !== undefined)
+      }
+      // checkbox: mindestens eine Auswahl
+      if (item.type === 'checkbox') {
         return Array.isArray(v) && v.length > 0 && v.some((x) => x !== null && x !== undefined)
       }
       return v !== null && v !== undefined
@@ -474,10 +479,20 @@ export default {
 
 // Beantwortete Fragen (Listen-Modus) dezent zurücknehmen; beim Bearbeiten
 // (Hover/Fokus) wieder voll sichtbar.
+.quest-list-item
+  position: relative
+
 .quest-item--done
   opacity: 0.55
   transition: opacity 0.2s ease
   &:hover,
   &:focus-within
     opacity: 1
+
+// "beantwortet"-Haken als Overlay (kein Layout-Shift der Spalten)
+.quest-done-check
+  position: absolute
+  top: 6px
+  right: 6px
+  z-index: 1
 </style>
