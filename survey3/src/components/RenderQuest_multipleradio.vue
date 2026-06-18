@@ -1,40 +1,29 @@
 <template>
-  <div class="mr-matrix">
-    <!-- KOPFZEILE: Antwort-Spaltenlabels -->
-    <div class="row no-wrap mr-head">
-      <div class="col mr-corner"></div>
-      <div class="col-2 row no-wrap" :class="answerColClass">
-        <div class="col mr-col-label" v-for="(answ, indansw) in answers_only" :key="indansw + 'answersonly'">
-          <!-- lange Labels: nummerierter Chip + Legende darunter -->
-          <span v-if="useLegend" class="mr-chip">{{ indansw + 1 }}</span>
-          <!-- kurze Labels: direkt, horizontal (umbricht bei Bedarf) -->
-          <span v-else class="mr-col-label__text">{{ answ }}</span>
-          <q-tooltip v-if="answ" anchor="top middle" self="bottom middle" class="text-body2">{{ answ }}</q-tooltip>
-        </div>
-      </div>
-    </div>
-
-    <!-- FRAGE-ZEILEN -->
-    <div class="row no-wrap mr-row" v-for="(question, index) in ITEM.options.questions"
-      :key="'q' + question.tag + index"
-      :class="{ 'mr-row--done': val[index] !== null && val[index] !== undefined }">
-      <div class="col mr-q-label"><span v-html="question.label"></span></div>
-      <div class="col-2 row no-wrap text-center" :class="answerColClass">
-        <div class="col mr-cell" v-for="(sa, indsa) in short_answers" :key="indsa + 'shortans'">
-          <q-radio :model-value="val[index]" :val="sa.value" color="primary"
-            @update:model-value="onRadioChange(index, $event)">
-            <q-tooltip anchor="top middle" self="center middle">{{ answers_only[indsa] }}</q-tooltip>
-          </q-radio>
-        </div>
-      </div>
-    </div>
-
-    <!-- LEGENDE (nur bei langen Labels) -->
-    <div v-if="useLegend" class="mr-legend surface-muted">
-      <span v-for="(answ, i) in answers_only" :key="i + 'leg'" class="mr-legend__item">
-        <span class="mr-chip mr-chip--sm">{{ i + 1 }}</span>{{ answ }}
-      </span>
-    </div>
+  <!-- Echte Tabelle: Spaltenlabels stehen lesbar direkt über der Spalte;
+       Fragenspalte bleibt fixiert; zu breite Matrizen scrollen horizontal. -->
+  <div class="mr-scroll">
+    <table class="mr-table">
+      <thead>
+        <tr>
+          <th class="mr-th-q" :style="{ width: qColWidth }"></th>
+          <th class="mr-th-a" v-for="(answ, indansw) in answers_only" :key="indansw + 'a'">
+            {{ answ }}
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="(question, index) in ITEM.options.questions" :key="'q' + question.tag + index"
+          :class="{ 'mr-row--done': val[index] !== null && val[index] !== undefined }">
+          <td class="mr-td-q" :style="{ width: qColWidth }"><span v-html="question.label"></span></td>
+          <td class="mr-td-a" v-for="(sa, indsa) in short_answers" :key="indsa + 's'">
+            <q-radio :model-value="val[index]" :val="sa.value" color="primary" dense
+              @update:model-value="onRadioChange(index, $event)">
+              <q-tooltip anchor="top middle" self="center middle">{{ answers_only[indsa] }}</q-tooltip>
+            </q-radio>
+          </td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </template>
 
@@ -67,21 +56,12 @@ export default {
       })
       return out
     },
-    // Breite des Antwort-Blocks abhängig von Anzahl/Länge (zuvor inline dupliziert).
-    answerColClass() {
-      return {
-        'col-10': this.ITEM.verylonganswers === true,
-        'col-8': this.answers_only.length > 6,
-        'col-6': this.ITEM.longanswers === true || this.answers_only.length > 4,
-        'col-4': this.answers_only.length > 2,
-      }
-    },
-    // Lange Antwort-Labels -> nummerierte Spaltenköpfe + Legende statt gequetschtem
-    // oder schräg abgeschnittenem Text. Kurze Labels bleiben direkt im Kopf.
-    useLegend() {
-      if (this.ITEM.rotate === false) return false
-      const maxLen = this.answers_only.reduce((m, a) => Math.max(m, (a || '').length), 0)
-      return maxLen > 12
+    // Fragenspalte schmaler bei vielen Antwortspalten (mehr Platz für die Radios).
+    qColWidth() {
+      const n = this.answers_only.length
+      if (n >= 10) return '28%'
+      if (n >= 6) return '36%'
+      return '46%'
     },
   },
   methods: {
@@ -95,96 +75,68 @@ export default {
 </script>
 
 <style lang="sass" scoped>
-.mr-matrix
+.mr-scroll
   margin-top: $gap-md
+  overflow-x: auto
+  -webkit-overflow-scrolling: touch
+  border: 1px solid $line
+  border-radius: $radius-sm
 
-// Kopfzeile: gestylter, klebriger Header-Balken
-.mr-head
-  position: sticky
-  top: 0
-  z-index: 1
-  background: $surface-muted
-  border-radius: $radius-sm $radius-sm 0 0
-  border-bottom: 2px solid $line
-  padding: $gap-sm $gap-xs
-  align-items: flex-end
+// table-layout: fixed -> Tabelle füllt immer exakt die Kartenbreite, Spalten
+// teilen sich den Platz, Labels brechen um (kein horizontales Überlaufen).
+.mr-table
+  width: 100%
+  table-layout: fixed
+  border-collapse: collapse
+  font-size: 0.9rem
 
-.mr-corner
-  min-width: 0
+.mr-table th,
+.mr-table td
+  padding: 8px 3px
 
-.mr-col-label
-  display: flex
-  flex-direction: column
-  justify-content: flex-end
-  align-items: center
+// Antwort-Spaltenköpfe: lesbar direkt über der Spalte, umbrechend
+.mr-th-a
   text-align: center
-  padding: 0 2px
-
-.mr-col-label__text
-  font-size: 0.78rem
+  vertical-align: bottom
+  font-size: 0.74rem
   font-weight: 600
-  line-height: 1.15
+  line-height: 1.12
   color: $grey-8
+  background: $surface-muted
+  border-bottom: 2px solid $line
+  overflow-wrap: break-word
+  hyphens: auto
 
-// Nummern-Chip im Kopf (Legenden-Modus)
-.mr-chip
-  display: inline-flex
-  align-items: center
-  justify-content: center
-  width: 24px
-  height: 24px
-  border-radius: $radius-pill
-  background: $primary
-  color: #fff
-  font-size: 0.78rem
-  font-weight: 600
+// Fragenspalte: Breite adaptiv via :style (qColWidth), links ausgerichtet
+.mr-th-q,
+.mr-td-q
+  text-align: left
 
-.mr-chip--sm
-  width: 19px
-  height: 19px
-  font-size: 0.7rem
-  margin-right: 6px
-  vertical-align: middle
+.mr-th-q
+  background: $surface-muted
+  border-bottom: 2px solid $line
 
-// Frage-Zeilen: Zebra + Hover, beantwortete Zeile dezent hervorgehoben
-.mr-row
-  align-items: center
-  border-bottom: 1px solid $line
-  transition: background-color 0.12s ease
-
-.mr-row:nth-child(even)
-  background: rgba(15, 23, 42, 0.018)
-
-.mr-row:hover
-  background: rgba(25, 118, 210, 0.05)
-
-.mr-row--done .mr-q-label
-  color: $grey-9
-  font-weight: 500
-
-.mr-q-label
-  padding: $gap-sm $gap-sm $gap-sm 0
+.mr-td-q
   line-height: 1.3
   color: $grey-8
+  overflow-wrap: break-word
 
-.mr-cell
-  display: flex
-  justify-content: center
-  align-items: center
-  padding: 2px 0
+.mr-td-a
+  text-align: center
+  border-top: 1px solid $line
 
-// Legende unter der Matrix
-.mr-legend
-  display: flex
-  flex-wrap: wrap
-  gap: 6px $gap-md
-  margin-top: $gap-sm
-  padding: $gap-sm $gap-md
-  border-radius: 0 0 $radius-sm $radius-sm
-  font-size: 0.82rem
-  color: $grey-8
+// dezente Zebra-Streifen (solide, damit die fixierte Spalte sauber deckt)
+.mr-table tbody tr:nth-child(even) td
+  background: #f8f9fb
 
-.mr-legend__item
-  display: inline-flex
-  align-items: center
+.mr-table tbody tr:hover td
+  background: rgba(25, 118, 210, 0.06)
+
+.mr-row--done .mr-td-q
+  font-weight: 500
+  color: $grey-9
+
+// Radio mittig in der Zelle
+.mr-td-a :deep(.q-radio)
+  margin: 0
 </style>
