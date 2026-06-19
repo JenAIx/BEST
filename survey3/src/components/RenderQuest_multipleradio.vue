@@ -77,9 +77,16 @@ export default {
       return this.rotateLong && (label || '').length > 3
     },
     onRadioChange(index, value) {
-      const updated = [...this.val]
-      updated[index] = value
-      this.$emit('emitValue', updated)
+      // Basis IMMER aus der echten Antwort (bzw. leeres Raster) — NICHT aus
+      // this.val, da der Getter sonst example_value als Startwert einsickern
+      // ließe (Beispielwerte würden zur echten Antwort).
+      const n = this.ITEM.options.questions.length
+      const base =
+        Array.isArray(this.ITEM.value) && this.ITEM.value.length === n
+          ? [...this.ITEM.value]
+          : new Array(n).fill(null)
+      base[index] = value
+      this.$emit('emitValue', base)
     },
   },
 }
