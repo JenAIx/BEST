@@ -8,7 +8,7 @@
       <q-card-section class="quest-header">
         <div class="row items-center no-wrap">
           <div class="col-auto" v-if="mainStore.DEBUG_MODE || subject_pid === 'DEMO'">
-            <q-btn color="grey-7" round flat icon="more_vert" data-cy="btn_hidden_options">
+            <q-btn color="grey-7" round flat icon="more_vert" data-cy="btn_hidden_options" :aria-label="$t('btn.options_menu')">
               <q-menu cover auto-close>
                 <q-list>
                   <q-item class="my-btn text-center" data-cy="btn_random_fill" clickable @click="randomFill()">
@@ -30,7 +30,8 @@
           <!-- FOKUS ⇄ LISTE -->
           <div class="col-auto" v-if="showChrome">
             <q-btn flat round dense :icon="focusMode ? 'view_agenda' : 'view_headline'"
-              color="grey-7" data-cy="btn_toggle_focus" @click="toggleMode()">
+              color="grey-7" data-cy="btn_toggle_focus"
+              :aria-label="focusMode ? $t('quest.list_mode') : $t('quest.focus_mode')" @click="toggleMode()">
               <q-tooltip>{{ focusMode ? $t('quest.list_mode') : $t('quest.focus_mode') }}</q-tooltip>
             </q-btn>
           </div>
@@ -411,9 +412,8 @@ export default {
       this.mainStore.QuestMan.random_fill()
       this.subject_pid = this.subject_pid || Date.now().toString()
     },
-    rebuildQuests() {
-      const answ = confirm(this.$t('btn.reset_confirm'))
-      if (!answ) return
+    async rebuildQuests() {
+      if (!(await this.$confirm(this.$t('btn.reset_confirm')))) return
       this.mainStore.QUESTMAN._init()
     },
     // Logikprüfung auslösen (für Embedded-/Visiten-Modus, via $ref aufrufbar).

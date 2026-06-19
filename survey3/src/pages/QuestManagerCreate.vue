@@ -320,13 +320,16 @@ export default {
       this.date_str = Date.now()
 
     },
-    saveQuest() {
-      if (this.content.short_title === null || this.content.short_title === "") {confirm("ShortTitle muss vergeben werden!"); log({error: 'kein Shorttitle'});return}
+    async saveQuest() {
+      if (this.content.short_title === null || this.content.short_title === "") {
+        this.$q.notify({ message: this.$t('btn.shorttitle_required'), color: 'warning' })
+        log({error: 'kein Shorttitle'})
+        return
+      }
 
       // check if short_title exists
       if (this.mainStore.QUEST_LIST.includes(this.content.short_title)) {
-        const answ = confirm("Fragebogen/ShortTitle existiert schon. Vorhandenen überschreiben?")
-        if (!answ) return
+        if (!(await this.$confirm(this.$t('btn.overwrite_confirm')))) return
         this.mainStore.QUESTMAN.remove_by_name(this.content.short_title)
       }
 

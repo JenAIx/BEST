@@ -144,11 +144,11 @@ export default {
     openVisit(v) {
       this.$router.push({ name: 'visit', params: { id: v.id } })
     },
-    deleteVisit(v) {
-      if (!window.confirm(this.$t('visit.delete_visit_confirm'))) return
+    async deleteVisit(v) {
+      if (!(await this.$confirm(this.$t('visit.delete_visit_confirm')))) return
       this.mainStore.VISIT_MAN.remove_visit(v.id)
     },
-    exportPatient() {
+    async exportPatient() {
       let total = 0
       let completed = 0
       this.visits.forEach((v) => {
@@ -163,7 +163,7 @@ export default {
         return
       }
       if (incomplete > 0 &&
-        !window.confirm(this.$t('visit.export_incomplete_confirm', { count: incomplete, total }))) return
+        !(await this.$confirm(this.$t('visit.export_incomplete_confirm', { count: incomplete, total })))) return
       const ok = this.mainStore.exportPatient(this.patientId)
       this.$q.notify({
         message: ok ? this.$t('visit.export_ok') : this.$t('visit.export_empty'),

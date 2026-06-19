@@ -144,10 +144,9 @@ export default {
       this.selected = [];
       this.$q.notify({ message: `${this.$t('quest.export_success')}`, color: "green" });
     },
-    deleteselection(SELECTED_ITEMS) {
+    async deleteselection(SELECTED_ITEMS) {
       if (SELECTED_ITEMS.length < 1) return false;
-      const answ = confirm(this.$t('btn.confirm_delete'));
-      if (!answ) return;
+      if (!(await this.$confirm(this.$t('btn.confirm_delete')))) return;
       SELECTED_ITEMS.forEach((uid) => {
         this.mainStore.storageRemove(uid);
       });

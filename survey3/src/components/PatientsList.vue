@@ -66,8 +66,8 @@ export default {
     openPatient(p) {
       this.$router.push({ name: 'patient', params: { id: p.id } })
     },
-    deletePatient(p) {
-      if (!window.confirm(this.$t('visit.delete_patient_confirm'))) return
+    async deletePatient(p) {
+      if (!(await this.$confirm(this.$t('visit.delete_patient_confirm')))) return
       this.mainStore.VISIT_MAN.remove_patient(p.id)
     },
   },

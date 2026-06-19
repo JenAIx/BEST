@@ -1,7 +1,7 @@
 <template>
   <!-- QUEST MODE: hidden behind 3-dot menu -->
   <div v-if="hidden" class="absolute-top-right q-mr-sm" :class="margintop">
-    <q-btn color="grey-7" round flat icon="more_vert" data-cy="btn_options">
+    <q-btn color="grey-7" round flat icon="more_vert" data-cy="btn_options" :aria-label="$t('btn.options_menu')">
       <q-menu cover auto-close>
         <q-list>
           <q-item class="my-btn text-center" data-cy="back_root" clickable @click="quitForm">
@@ -32,6 +32,7 @@
       icon="arrow_back"
       color="grey-8"
       data-cy="back_root"
+      :aria-label="$t('btn.back.label')"
       @click="quitForm"
     >
       <q-tooltip>{{$t('btn.back.label')}}</q-tooltip>
@@ -65,11 +66,10 @@ export default {
 
   methods: {
 
-    quitForm() {
+    async quitForm() {
       // Abbruch-Rückfrage gilt für alle Modi (z. B. ungespeicherter Fragebogen)
       if (this.ask === true) {
-        var answer = window.confirm("Wirklich abbrechen?");
-        if (!answer) return
+        if (!(await this.$confirm(this.$t('btn.dialog_chancel')))) return
       }
       this.mainStore.PROTECTED_MODE = false;
       // Zielort hat Vorrang, dann History-Back, sonst Startseite
