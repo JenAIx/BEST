@@ -1,161 +1,73 @@
 <template>
-  <q-page class="flex flex-center" style="background: #000;">
+  <q-page class="si-page">
     <div class="game-container">
-      <!-- Back Button (upper left) -->
-      <q-btn
-        flat
-        round
-        dense
-        color="grey-6"
-        icon="arrow_back"
-        class="back-btn"
-        @click="goBack"
-      />
+      <q-btn flat round dense color="grey-6" icon="arrow_back" class="back-btn" @click="goBack" />
 
       <!-- Game Info -->
-      <div class="game-info">
-        <div class="info-item">Level: {{ game.level }}</div>
-        <div class="info-item">Score: {{ game.score }}</div>
-        <div class="info-item">High: {{ game.highScore }}</div>
-        <div class="info-item">Lives: {{ '❤️'.repeat(game.lives) }}</div>
+      <div class="game-info" :style="{ width: displayW + 'px' }">
+        <div class="info-item">LvL {{ game.level }}</div>
+        <div class="info-item">{{ game.score }}</div>
+        <div class="info-item">HI {{ game.highScore }}</div>
+        <div class="info-item">{{ '▲'.repeat(game.lives) }}</div>
       </div>
 
       <!-- Canvas -->
-      <canvas 
-        ref="gameCanvas" 
-        :width="canvasWidth" 
-        :height="canvasHeight"
-        @touchstart="handleTouchStart"
-        @touchmove="handleTouchMove"
-        @touchend="handleTouchEnd"
-        @mousemove="handleMouseMove"
-        @click="handleClick"
-        style="border: 2px solid #0f0; background: #000;"
-      ></canvas>
+      <div class="canvas-wrap" :style="{ width: displayW + 'px', height: displayH + 'px' }">
+        <canvas
+          ref="gameCanvas"
+          :width="canvasWidth"
+          :height="canvasHeight"
+          :style="{ width: displayW + 'px', height: displayH + 'px' }"
+          @touchstart.prevent="onCanvasTouchStart"
+          @touchmove.prevent="onCanvasTouchMove"
+          @touchend.prevent="onCanvasTouchEnd"
+          @mousemove="handleMouseMove"
+          @click="handleClick"
+        ></canvas>
 
-      <!-- Game Over Overlay -->
-      <div v-if="game.gameOver" class="game-over-overlay">
-        <div class="game-over-content">
-          <h2 class="text-h3 text-green">GAME OVER</h2>
-          <p class="text-h6">Score: {{ game.score }}</p>
-          <p v-if="game.score === game.highScore && game.score > 0" class="text-h6 text-yellow">
-            🏆 NEW HIGH SCORE! 🏆
-          </p>
-          <q-btn 
-            color="primary" 
-            label="Neues Spiel" 
-            size="lg"
-            @click="resetGame"
-            class="q-mt-md"
-          />
-          <p class="q-mt-md text-grey-5">
-            <small>oder Enter drücken</small>
-          </p>
+        <!-- Overlays liegen über dem Canvas -->
+        <div v-if="game.gameOver" class="overlay">
+          <h2 class="text-h4 text-green">GAME OVER</h2>
+          <p class="text-subtitle1">Score: {{ game.score }}</p>
+          <p v-if="game.score === game.highScore && game.score > 0" class="text-subtitle1 text-yellow">🏆 NEW HIGH SCORE!</p>
+          <q-btn color="primary" label="Neues Spiel" @click="resetGame" class="q-mt-sm" />
+        </div>
+
+        <div v-else-if="game.isPaused" class="overlay">
+          <h2 class="text-h4 text-green">PAUSE</h2>
+          <q-btn color="primary" label="Fortsetzen" @click="togglePause" class="q-mt-sm" />
+          <q-btn flat color="red-4" label="Abbrechen" icon="close" @click="goBack" class="q-mt-sm" />
+        </div>
+
+        <div v-else-if="levelTransition" class="overlay">
+          <h2 class="text-h5 text-yellow">LEVEL {{ game.level }} GESCHAFFT!</h2>
+          <p class="text-subtitle2 text-green">Nächster Level …</p>
+        </div>
+
+        <div v-else-if="game.isRespawning" class="overlay">
+          <h2 v-if="respawnCountdownNumber > 0" class="text-h2 text-green countdown-number">{{ respawnCountdownNumber }}</h2>
+          <h2 v-else-if="respawnCountdownNumber === 0" class="text-h4 text-yellow">START!</h2>
+          <h3 v-else class="text-subtitle1 text-white">Neues Raumschiff …</h3>
+          <p class="text-caption q-mt-xs">Leben: {{ '▲'.repeat(game.lives) }}</p>
         </div>
       </div>
 
-      <!-- Pause Overlay -->
-      <div v-if="game.isPaused && !game.gameOver" class="pause-overlay">
-        <div class="pause-content">
-          <h2 class="text-h3 text-green">PAUSE</h2>
-          <q-btn
-            color="primary"
-            label="Fortsetzen"
-            size="lg"
-            @click="togglePause"
-            class="q-mt-md"
-          />
-          <div class="q-mt-lg">
-            <q-btn
-              flat
-              color="red-4"
-              label="Abbrechen"
-              icon="close"
-              @click="goBack"
-            />
-          </div>
-        </div>
+      <!-- Mobile-/Touch-Steuerung -->
+      <div class="controls" :style="{ width: displayW + 'px' }">
+        <q-btn round color="primary" icon="chevron_left" class="ctrl-btn"
+          @touchstart.prevent="startMoveLeft" @touchend.prevent="stopMove"
+          @mousedown="startMoveLeft" @mouseup="stopMove" @mouseleave="stopMove" />
+        <q-btn flat dense round color="grey-6" :icon="game.isPaused ? 'play_arrow' : 'pause'" class="ctrl-pause" @click="togglePause" />
+        <q-btn color="green-13" text-color="black" icon="rocket_launch" class="ctrl-fire" label="FEUER" @click="shoot" />
+        <q-btn flat dense round color="grey-6" icon="refresh" class="ctrl-pause" @click="resetGame" />
+        <q-btn round color="primary" icon="chevron_right" class="ctrl-btn"
+          @touchstart.prevent="startMoveRight" @touchend.prevent="stopMove"
+          @mousedown="startMoveRight" @mouseup="stopMove" @mouseleave="stopMove" />
       </div>
 
-      <!-- Level Complete Overlay -->
-      <div v-if="levelTransition" class="game-over-overlay">
-        <div class="game-over-content">
-          <h2 class="text-h3 text-yellow">LEVEL {{ game.level }} COMPLETE!</h2>
-          <p class="text-h6">Score: {{ game.score }}</p>
-          <p class="text-h6 text-green q-mt-md">Nächster Level wird geladen...</p>
-        </div>
+      <div v-if="!isTouch" class="keyboard-info">
+        ⌨️ ← →  bewegen · Leertaste/Klick  schießen · P  Pause · ziehen/tippen auf dem Feld
       </div>
-
-      <!-- Respawn Countdown Overlay -->
-      <div v-if="game.isRespawning" class="game-over-overlay">
-        <div class="game-over-content">
-          <h2 v-if="respawnCountdownNumber > 0" class="text-h1 text-green countdown-number">
-            {{ respawnCountdownNumber }}
-          </h2>
-          <h2 v-else-if="respawnCountdownNumber === 0" class="text-h2 text-yellow">
-            START!
-          </h2>
-          <h3 v-else class="text-h4 text-white">
-            Neues Raumschiff wird vorbereitet...
-          </h3>
-          <p class="text-h6 q-mt-md">Leben übrig: {{ game.lives }}</p>
-        </div>
-      </div>
-
-      <!-- Controls -->
-      <div class="controls">
-        <!-- Keyboard Info -->
-        <div class="keyboard-info q-mb-md">
-          <small class="text-grey-5">
-            ⌨️ Desktop: Maus/← → Pfeiltasten zum Bewegen, Leertaste/Klick zum Schießen, P für Pause
-          </small>
-        </div>
-        
-        <!-- Mobile Touch Controls -->
-        <div class="mobile-controls q-mt-md">
-          <q-btn 
-            round 
-            color="primary" 
-            icon="chevron_left"
-            size="lg"
-            @touchstart="startMoveLeft"
-            @touchend="stopMove"
-            @mousedown="startMoveLeft"
-            @mouseup="stopMove"
-          />
-          <q-btn 
-            flat
-            dense
-            round 
-            color="grey-6" 
-            icon="pause"
-            size="sm"
-            @click="togglePause"
-            class="q-mx-md pause-btn"
-          />
-          <q-btn 
-            round 
-            color="primary" 
-            icon="chevron_right"
-            size="lg"
-            @touchstart="startMoveRight"
-            @touchend="stopMove"
-            @mousedown="startMoveRight"
-            @mouseup="stopMove"
-          />
-        </div>
-        
-        <div class="q-mt-md">
-          <q-btn 
-            color="green" 
-            label="🚀 FEUER" 
-            size="lg"
-            @click="shoot"
-            style="width: 200px;"
-          />
-        </div>
-      </div>
-
     </div>
   </q-page>
 </template>
@@ -164,6 +76,35 @@
 import { useMainStore } from 'src/stores/main'
 import { useSpaceInvadersStore } from 'src/stores/spaceInvaders'
 
+// --- Pixel-Sprites (1 = Pixel). Silhouetten der klassischen Invader. ---
+const SPRITES = {
+  // type 0 = squid, 1 = crab, 2 = octopus — je 2 Marsch-Frames
+  enemy: [
+    [
+      ['00011000', '00111100', '01111110', '11011011', '11111111', '00100100', '01011010', '10100101'],
+      ['00011000', '00111100', '01111110', '11011011', '11111111', '01000010', '10000001', '01000010'],
+    ],
+    [
+      ['00100000100', '00010001000', '00111111100', '01101110110', '11111111111', '10111111101', '10100000101', '00011011000'],
+      ['00100000100', '10010001001', '10111111101', '11101110111', '11111111111', '00111111100', '00100000100', '01000000010'],
+    ],
+    [
+      ['000011110000', '011111111110', '111111111111', '111001100111', '111111111111', '000111111000', '001100001100', '011000000110'],
+      ['000011110000', '011111111110', '111111111111', '111001100111', '111111111111', '001111111100', '011100001110', '000110011000'],
+    ],
+  ],
+  player: ['00000100000', '00001110000', '00001110000', '01111111110', '11111111111', '11111111111', '11111111111', '11111111111'],
+  ufo: [
+    '0000011111100000',
+    '0001111111111000',
+    '0011111111111100',
+    '0110110110110110',
+    '1111111111111111',
+    '0011001100110000',
+  ],
+}
+const ENEMY_COLORS = ['#5ad1ff', '#ffe14d', '#ff7a6b']
+
 export default {
   name: 'SpaceInvaders',
   setup() {
@@ -171,526 +112,372 @@ export default {
   },
   data() {
     return {
-      canvasWidth: 320,
+      canvasWidth: 320, // logische Auflösung (CSS skaliert scharf hoch)
       canvasHeight: 480,
+      displayW: 320,
+      displayH: 480,
       ctx: null,
       gameLoop: null,
-      enemyMoveInterval: null,
-      enemyShootInterval: null,
       moveDirection: null,
       moveInterval: null,
       keysPressed: {},
-      levelTransition: false
-    };
+      levelTransition: false,
+      isTouch: false,
+      touchMoved: false,
+    }
   },
   computed: {
     game() {
       return this.siStore.$state
     },
     respawnCountdownNumber() {
-      // 240 frames total (4 seconds)
-      // First 60 frames (1 sec): show message (return -1)
-      // Next 180 frames (3 sec): show 3, 2, 1
-      const countdown = this.game.respawnCountdown;
-      if (countdown > 180) {
-        return -1; // Show message
-      } else if (countdown > 120) {
-        return 3;
-      } else if (countdown > 60) {
-        return 2;
-      } else if (countdown > 20) {
-        return 1;
-      } else if (countdown > 0) {
-        return 0; // Show START
-      }
-      return -1;
-    }
+      const c = this.game.respawnCountdown
+      if (c > 180) return -1
+      if (c > 120) return 3
+      if (c > 60) return 2
+      if (c > 20) return 1
+      if (c > 0) return 0
+      return -1
+    },
   },
   mounted() {
-    this.initCanvas();
-    this.initGame();
-    this.startGame();
-    this.addKeyboardListeners();
+    this.isTouch = !!(this.$q.platform.has && this.$q.platform.has.touch)
+    this.computeSize()
+    this.initCanvas()
+    this.initGame()
+    this.startGame()
+    this.addKeyboardListeners()
+    window.addEventListener('resize', this.computeSize)
   },
   beforeUnmount() {
-    this.stopGame();
-    this.removeKeyboardListeners();
+    this.stopGame()
+    this.removeKeyboardListeners()
+    window.removeEventListener('resize', this.computeSize)
   },
   methods: {
+    computeSize() {
+      // Canvas füllt den verfügbaren Platz (Viewport minus Info/Controls), Seitenverhältnis 320:480
+      const reserved = this.isTouch ? 150 : 180 // Info + Steuerung
+      const availW = Math.min(window.innerWidth - 16, 520)
+      const availH = window.innerHeight - reserved
+      const scale = Math.min(availW / this.canvasWidth, availH / this.canvasHeight)
+      this.displayW = Math.max(200, Math.floor(this.canvasWidth * scale))
+      this.displayH = Math.floor(this.displayW * (this.canvasHeight / this.canvasWidth))
+    },
     initCanvas() {
-      const canvas = this.$refs.gameCanvas;
-      this.ctx = canvas.getContext('2d');
+      this.ctx = this.$refs.gameCanvas.getContext('2d')
+      this.ctx.imageSmoothingEnabled = false
     },
-    
     initGame() {
-      this.siStore.si_initGame({
-        canvasWidth: this.canvasWidth,
-        canvasHeight: this.canvasHeight
-      });
+      this.siStore.si_initGame({ canvasWidth: this.canvasWidth, canvasHeight: this.canvasHeight })
     },
-    
     startGame() {
-      // Main game loop
       this.gameLoop = setInterval(() => {
         if (!this.game.isPaused && !this.game.gameOver && !this.levelTransition) {
-          this.siStore.si_updateGame();
-          this.draw();
-          this.checkLevelComplete();
-          this.checkRespawn();
+          this.siStore.si_updateGame()
+          this.draw()
+          this.checkLevelComplete()
+          this.checkRespawn()
         }
-      }, 1000 / 60); // 60 FPS
-      
-      // Enemy movement (gets faster with each level)
-      const moveSpeed = Math.max(400, 800 - (this.game.level - 1) * 50);
-      this.enemyMoveInterval = setInterval(() => {
-        if (!this.levelTransition && !this.game.isRespawning) {
-          this.siStore.si_moveEnemies();
-        }
-      }, moveSpeed);
-      
-      // Enemy shooting (more frequent with each level)
-      const shootSpeed = Math.max(800, 1500 - (this.game.level - 1) * 100);
-      this.enemyShootInterval = setInterval(() => {
-        if (!this.levelTransition && !this.game.isRespawning) {
-          this.siStore.si_enemyShoot();
-        }
-      }, shootSpeed);
+      }, 1000 / 60)
     },
-    
     stopGame() {
-      if (this.gameLoop) clearInterval(this.gameLoop);
-      if (this.enemyMoveInterval) clearInterval(this.enemyMoveInterval);
-      if (this.enemyShootInterval) clearInterval(this.enemyShootInterval);
-      if (this.moveInterval) clearInterval(this.moveInterval);
-    },
-    
-    draw() {
-      // Clear canvas
-      this.ctx.fillStyle = '#000';
-      this.ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
-      
-      // Draw player
-      this.drawPlayer();
-      
-      // Draw bullets
-      this.drawBullets();
-      
-      // Draw enemies
-      this.drawEnemies();
-      
-      // Draw enemy bullets
-      this.drawEnemyBullets();
-      
-      // Draw explosions
-      this.drawExplosions();
-    },
-    
-    drawPlayer() {
-      // Don't draw player during death animation
-      if (this.game.isDying) {
-        return;
-      }
-      
-      const p = this.game.player;
-      
-      // Blink when invulnerable
-      if (this.game.isInvulnerable && Math.floor(this.game.invulnerabilityTimer / 5) % 2 === 0) {
-        return; // Skip drawing every other interval to create blink effect
-      }
-      
-      this.ctx.fillStyle = '#0f0';
-      
-      // Simple spaceship shape
-      this.ctx.beginPath();
-      this.ctx.moveTo(p.x + p.width / 2, p.y);
-      this.ctx.lineTo(p.x, p.y + p.height);
-      this.ctx.lineTo(p.x + p.width, p.y + p.height);
-      this.ctx.closePath();
-      this.ctx.fill();
-    },
-    
-    drawBullets() {
-      this.ctx.fillStyle = '#0f0';
-      this.game.bullets.forEach(bullet => {
-        this.ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
-      });
-    },
-    
-    drawEnemies() {
-      this.game.enemies.forEach(enemy => {
-        if (!enemy.alive) return;
-        
-        // Different colors for different enemy types
-        const colors = ['#f00', '#f80', '#ff0', '#0ff'];
-        this.ctx.fillStyle = colors[enemy.type] || '#f00';
-        
-        // Simple enemy shape (rectangle with eyes)
-        this.ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
-        
-        // Eyes
-        this.ctx.fillStyle = '#000';
-        this.ctx.fillRect(enemy.x + 8, enemy.y + 8, 4, 4);
-        this.ctx.fillRect(enemy.x + 18, enemy.y + 8, 4, 4);
-      });
-    },
-    
-    drawEnemyBullets() {
-      this.game.enemyBullets.forEach(bullet => {
-        // Draw laser beam with gradient
-        const gradient = this.ctx.createLinearGradient(bullet.x, bullet.y, bullet.x, bullet.y + bullet.height);
-        gradient.addColorStop(0, '#ff0000');
-        gradient.addColorStop(0.5, '#ff6600');
-        gradient.addColorStop(1, '#ff0000');
-        
-        this.ctx.fillStyle = gradient;
-        this.ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
-        
-        // Add glow effect
-        this.ctx.shadowBlur = 10;
-        this.ctx.shadowColor = '#ff0000';
-        this.ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
-        this.ctx.shadowBlur = 0;
-      });
-    },
-    
-    drawExplosions() {
-      this.game.explosions.forEach(explosion => {
-        this.ctx.save();
-        this.ctx.globalAlpha = explosion.alpha;
-        
-        // Different colors for different explosion types
-        const color = explosion.type === 'player' ? '#ff0000' : '#ffaa00';
-        
-        // Draw expanding circle
-        this.ctx.strokeStyle = color;
-        this.ctx.lineWidth = 3;
-        this.ctx.beginPath();
-        this.ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
-        this.ctx.stroke();
-        
-        // Draw inner glow
-        this.ctx.fillStyle = color;
-        this.ctx.globalAlpha = explosion.alpha * 0.3;
-        this.ctx.beginPath();
-        this.ctx.arc(explosion.x, explosion.y, explosion.radius * 0.6, 0, Math.PI * 2);
-        this.ctx.fill();
-        
-        this.ctx.restore();
-      });
-    },
-    
-    shoot() {
-      // Can't shoot while dying
-      if (this.game.isDying) return;
-      this.siStore.si_shoot();
-    },
-    
-    startMoveLeft() {
-      this.stopMove();
-      this.moveDirection = 'left';
-      this.siStore.si_movePlayer('left');
-      this.moveInterval = setInterval(() => {
-        this.siStore.si_movePlayer('left');
-      }, 50);
-    },
-    
-    startMoveRight() {
-      this.stopMove();
-      this.moveDirection = 'right';
-      this.siStore.si_movePlayer('right');
-      this.moveInterval = setInterval(() => {
-        this.siStore.si_movePlayer('right');
-      }, 50);
-    },
-    
-    stopMove() {
-      if (this.moveInterval) {
-        clearInterval(this.moveInterval);
-        this.moveInterval = null;
-      }
-      this.moveDirection = null;
-    },
-    
-    handleTouchStart(event) {
-      event.preventDefault();
-      const touch = event.touches[0];
-      const rect = this.$refs.gameCanvas.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      
-      this.siStore.si_setPlayerX(x);
-    },
-    
-    handleTouchMove(event) {
-      event.preventDefault();
-      const touch = event.touches[0];
-      const rect = this.$refs.gameCanvas.getBoundingClientRect();
-      const x = touch.clientX - rect.left;
-      
-      this.siStore.si_setPlayerX(x);
-    },
-    
-    handleTouchEnd(event) {
-      event.preventDefault();
-      // Shoot on touch release
-      this.shoot();
-    },
-    
-    handleMouseMove(event) {
-      // Move player to mouse position
-      const rect = this.$refs.gameCanvas.getBoundingClientRect();
-      const x = event.clientX - rect.left;
-      
-      this.siStore.si_setPlayerX(x);
-    },
-    
-    handleClick(event) {
-      // For desktop: click to shoot
-      this.shoot();
-    },
-    
-    togglePause() {
-      this.siStore.si_togglePause();
+      if (this.gameLoop) clearInterval(this.gameLoop)
+      if (this.moveInterval) clearInterval(this.moveInterval)
     },
 
+    // ---------- Rendering ----------
+    draw() {
+      const ctx = this.ctx
+      ctx.fillStyle = '#000'
+      ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight)
+      this.drawBunkers()
+      this.drawPlayer()
+      this.drawBullets()
+      this.drawEnemies()
+      this.drawUfo()
+      this.drawEnemyBullets()
+      this.drawExplosions()
+    },
+    drawSprite(bitmap, x, y, boxW, boxH, color) {
+      const ctx = this.ctx
+      const rows = bitmap.length
+      const cols = bitmap[0].length
+      const cw = boxW / cols
+      const ch = boxH / rows
+      ctx.fillStyle = color
+      for (let r = 0; r < rows; r++) {
+        const row = bitmap[r]
+        for (let c = 0; c < cols; c++) {
+          if (row[c] === '1') ctx.fillRect(x + c * cw, y + r * ch, Math.ceil(cw), Math.ceil(ch))
+        }
+      }
+    },
+    drawPlayer() {
+      if (this.game.isDying) return
+      if (this.game.isInvulnerable && Math.floor(this.game.invulnerabilityTimer / 5) % 2 === 0) return
+      const p = this.game.player
+      this.drawSprite(SPRITES.player, p.x, p.y, p.width, p.height, '#39ff5b')
+    },
+    drawBullets() {
+      this.ctx.fillStyle = '#aef'
+      this.game.bullets.forEach((b) => this.ctx.fillRect(b.x, b.y, b.width, b.height))
+    },
+    drawEnemies() {
+      const frame = this.game.animFrame
+      this.game.enemies.forEach((e) => {
+        if (!e.alive) return
+        const bmp = SPRITES.enemy[e.type][frame]
+        this.drawSprite(bmp, e.x, e.y, e.width, e.height, ENEMY_COLORS[e.type] || '#fff')
+      })
+    },
+    drawUfo() {
+      const u = this.game.ufo
+      if (!u) return
+      this.drawSprite(SPRITES.ufo, u.x, u.y, u.width, u.height, '#ff5cf0')
+    },
+    drawBunkers() {
+      this.ctx.fillStyle = '#36e06a'
+      this.game.bunkers.forEach((b) => {
+        for (let r = 0; r < b.rows; r++) {
+          for (let c = 0; c < b.cols; c++) {
+            if (b.grid[r][c]) this.ctx.fillRect(b.x + c * b.cell, b.y + r * b.cell, b.cell, b.cell)
+          }
+        }
+      })
+    },
+    drawEnemyBullets() {
+      const ctx = this.ctx
+      this.game.enemyBullets.forEach((b) => {
+        const g = ctx.createLinearGradient(b.x, b.y, b.x, b.y + b.height)
+        g.addColorStop(0, '#ff3b3b')
+        g.addColorStop(0.5, '#ff8a3b')
+        g.addColorStop(1, '#ff3b3b')
+        ctx.fillStyle = g
+        ctx.fillRect(b.x, b.y, b.width, b.height)
+      })
+    },
+    drawExplosions() {
+      const ctx = this.ctx
+      this.game.explosions.forEach((ex) => {
+        ctx.save()
+        ctx.globalAlpha = ex.alpha
+        const color = ex.type === 'player' ? '#ff3b3b' : ex.type === 'ufo' ? '#ff5cf0' : '#ffd23b'
+        ctx.strokeStyle = color
+        ctx.lineWidth = 2
+        ctx.beginPath()
+        ctx.arc(ex.x, ex.y, ex.radius, 0, Math.PI * 2)
+        ctx.stroke()
+        ctx.fillStyle = color
+        ctx.globalAlpha = ex.alpha * 0.3
+        ctx.beginPath()
+        ctx.arc(ex.x, ex.y, ex.radius * 0.6, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.restore()
+      })
+    },
+
+    // ---------- Steuerung ----------
+    shoot() {
+      if (this.game.isDying) return
+      this.siStore.si_shoot()
+    },
+    startMoveLeft() {
+      this.stopMove()
+      this.moveDirection = 'left'
+      this.siStore.si_movePlayer('left')
+      this.moveInterval = setInterval(() => this.siStore.si_movePlayer('left'), 30)
+    },
+    startMoveRight() {
+      this.stopMove()
+      this.moveDirection = 'right'
+      this.siStore.si_movePlayer('right')
+      this.moveInterval = setInterval(() => this.siStore.si_movePlayer('right'), 30)
+    },
+    stopMove() {
+      if (this.moveInterval) {
+        clearInterval(this.moveInterval)
+        this.moveInterval = null
+      }
+      this.moveDirection = null
+    },
+    _logicalX(clientX) {
+      const rect = this.$refs.gameCanvas.getBoundingClientRect()
+      return (clientX - rect.left) * (this.canvasWidth / rect.width)
+    },
+    onCanvasTouchStart(e) {
+      this.touchMoved = false
+      this.siStore.si_setPlayerX(this._logicalX(e.touches[0].clientX))
+    },
+    onCanvasTouchMove(e) {
+      this.touchMoved = true
+      this.siStore.si_setPlayerX(this._logicalX(e.touches[0].clientX))
+    },
+    onCanvasTouchEnd() {
+      // Tippen (ohne Ziehen) feuert
+      if (!this.touchMoved) this.shoot()
+    },
+    handleMouseMove(e) {
+      this.siStore.si_setPlayerX(this._logicalX(e.clientX))
+    },
+    handleClick() {
+      this.shoot()
+    },
+    togglePause() {
+      this.siStore.si_togglePause()
+    },
     goBack() {
       if (!this.game.isPaused && !this.game.gameOver) {
-        this.siStore.si_togglePause();
-        return;
+        this.siStore.si_togglePause()
+        return
       }
-      this.stopGame();
-      this.$router.push('/');
+      this.stopGame()
+      this.$router.push('/')
     },
-    
     resetGame() {
-      this.levelTransition = false;
-      this.stopGame();
-      this.initGame();
-      this.startGame();
+      this.levelTransition = false
+      this.stopGame()
+      this.initGame()
+      this.startGame()
     },
-    
     checkLevelComplete() {
-      const aliveEnemies = this.game.enemies.filter(e => e.alive);
-      if (aliveEnemies.length === 0 && !this.game.gameOver && !this.levelTransition) {
-        this.levelTransition = true;
-        
-        // Show level complete screen for 2 seconds
-        setTimeout(() => {
-          this.nextLevel();
-        }, 2000);
+      if (this.game.enemies.filter((e) => e.alive).length === 0 && !this.game.gameOver && !this.levelTransition) {
+        this.levelTransition = true
+        setTimeout(() => this.nextLevel(), 1800)
       }
     },
-    
     nextLevel() {
-      this.stopGame();
-      this.siStore.si_nextLevel({
-        canvasWidth: this.canvasWidth,
-        canvasHeight: this.canvasHeight
-      });
-      this.levelTransition = false;
-      this.startGame();
+      this.siStore.si_nextLevel({ canvasWidth: this.canvasWidth, canvasHeight: this.canvasHeight })
+      this.levelTransition = false
     },
-    
     checkRespawn() {
-      // If respawn countdown just finished
       if (this.game.isRespawning && this.game.respawnCountdown === 1) {
-        // Respawn player
-        this.siStore.si_respawnPlayer({
-          canvasWidth: this.canvasWidth,
-          canvasHeight: this.canvasHeight
-        });
+        this.siStore.si_respawnPlayer({ canvasWidth: this.canvasWidth, canvasHeight: this.canvasHeight })
       }
     },
-    
     addKeyboardListeners() {
-      window.addEventListener('keydown', this.handleKeyDown);
-      window.addEventListener('keyup', this.handleKeyUp);
+      window.addEventListener('keydown', this.handleKeyDown)
+      window.addEventListener('keyup', this.handleKeyUp)
     },
-    
     removeKeyboardListeners() {
-      window.removeEventListener('keydown', this.handleKeyDown);
-      window.removeEventListener('keyup', this.handleKeyUp);
+      window.removeEventListener('keydown', this.handleKeyDown)
+      window.removeEventListener('keyup', this.handleKeyUp)
     },
-    
-    handleKeyDown(event) {
-      // Prevent default for game keys
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(event.key)) {
-        event.preventDefault();
-      }
-      
-      // Avoid key repeat
-      if (this.keysPressed[event.key]) return;
-      this.keysPressed[event.key] = true;
-      
-      // Handle specific keys
-      switch(event.key) {
-        case 'ArrowLeft':
-          this.startMoveLeft();
-          break;
-        case 'ArrowRight':
-          this.startMoveRight();
-          break;
-        case ' ': // Space
-          this.shoot();
-          break;
-        case 'p':
-        case 'P':
-          this.togglePause();
-          break;
-        case 'Enter':
-          if (this.game.gameOver) {
-            this.resetGame();
-          }
-          break;
+    handleKeyDown(e) {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) e.preventDefault()
+      if (this.keysPressed[e.key]) return
+      this.keysPressed[e.key] = true
+      switch (e.key) {
+        case 'ArrowLeft': this.startMoveLeft(); break
+        case 'ArrowRight': this.startMoveRight(); break
+        case ' ': this.shoot(); break
+        case 'p': case 'P': this.togglePause(); break
+        case 'Enter': if (this.game.gameOver) this.resetGame(); break
       }
     },
-    
-    handleKeyUp(event) {
-      this.keysPressed[event.key] = false;
-      
-      // Stop movement when arrow key is released
-      if (event.key === 'ArrowLeft' && this.moveDirection === 'left') {
-        this.stopMove();
-      } else if (event.key === 'ArrowRight' && this.moveDirection === 'right') {
-        this.stopMove();
-      }
-    }
-  }
-};
+    handleKeyUp(e) {
+      this.keysPressed[e.key] = false
+      if (e.key === 'ArrowLeft' && this.moveDirection === 'left') this.stopMove()
+      else if (e.key === 'ArrowRight' && this.moveDirection === 'right') this.stopMove()
+    },
+  },
+}
 </script>
 
 <style scoped>
+.si-page {
+  background: #000;
+  display: flex;
+  justify-content: center;
+  min-height: 100vh;
+}
 .game-container {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   position: relative;
 }
-
 .back-btn {
   position: absolute;
-  top: 8px;
-  left: 8px;
+  top: 4px;
+  left: 4px;
   z-index: 50;
-  opacity: 0.5;
-  transition: opacity 0.3s;
+  opacity: 0.45;
 }
-
-.back-btn:hover {
-  opacity: 1;
-}
-
 .game-info {
   display: flex;
-  justify-content: space-around;
-  width: 100%;
-  max-width: 400px;
-  margin-bottom: 10px;
-  color: #0f0;
+  justify-content: space-between;
+  gap: 6px;
+  margin-bottom: 6px;
+  color: #39ff5b;
   font-family: 'Courier New', monospace;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
-  flex-wrap: wrap;
-  gap: 5px;
 }
-
 .info-item {
-  padding: 4px 8px;
-  background: rgba(0, 255, 0, 0.1);
-  border: 1px solid #0f0;
+  padding: 3px 8px;
+  background: rgba(57, 255, 91, 0.08);
+  border: 1px solid rgba(57, 255, 91, 0.5);
   border-radius: 4px;
-  flex: 1;
-  min-width: 80px;
   text-align: center;
+  white-space: nowrap;
 }
-
-.controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 20px;
+.canvas-wrap {
+  position: relative;
 }
-
-.keyboard-info {
-  text-align: center;
-  font-family: 'Courier New', monospace;
-}
-
-.mobile-controls {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-}
-
-.pause-btn {
-  opacity: 0.5;
-  transition: opacity 0.3s;
-}
-
-.pause-btn:hover {
-  opacity: 1;
-}
-
-.game-over-overlay,
-.pause-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 100;
-}
-
-.game-over-content,
-.pause-content {
-  text-align: center;
-  color: white;
-  padding: 30px;
-}
-
-.text-green {
-  color: #0f0;
-}
-
-.text-yellow {
-  color: #ff0;
-  animation: pulse 1s infinite;
-}
-
-.countdown-number {
-  font-size: 120px !important;
-  animation: countdown-pulse 0.8s ease-in-out;
-}
-
-@keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-
-@keyframes countdown-pulse {
-  0% { 
-    transform: scale(0.5);
-    opacity: 0;
-  }
-  50% { 
-    transform: scale(1.2);
-  }
-  100% { 
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
 canvas {
+  display: block;
+  border: 2px solid #1f7a33;
+  background: #000;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  cursor: crosshair;
 }
+.overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: #fff;
+  z-index: 20;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 12px;
+}
+.ctrl-btn {
+  font-size: 22px;
+}
+.ctrl-fire {
+  flex: 1;
+  max-width: 180px;
+  font-weight: bold;
+  height: 52px;
+}
+.ctrl-pause {
+  opacity: 0.6;
+}
+.keyboard-info {
+  margin-top: 10px;
+  color: #6b6b6b;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  text-align: center;
+  max-width: 360px;
+}
+.text-green { color: #39ff5b; }
+.text-yellow { color: #ff0; animation: pulse 1s infinite; }
+.countdown-number { animation: countdown-pulse 0.8s ease-in-out; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+@keyframes countdown-pulse { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
 </style>
-
