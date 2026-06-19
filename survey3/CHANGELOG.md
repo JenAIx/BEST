@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.11.1
+
+#### Fixed
+
+- [2026-06-19] `multiple_radio`: gesetzte `example_value` (Demo-Vorschau) konnte beim ersten Klick als echte Antwort einsickern — die Antwort wird jetzt immer aus dem tatsächlichen Wert (bzw. leerem Raster) aufgebaut, nie aus dem Beispielwert
+- [2026-06-19] ECOG-artige Konsistenz: „beantwortet"-Logik vereinheitlicht — Pflichtprüfung (`itemValidity`) und UI-Haken (`isAnswered`) nutzen jetzt denselben Wert-Check (zuvor leicht divergierende `multiple_radio`-Logik)
+
+#### Added
+
+- [2026-06-19] Datenmodell-Absicherung je Item-Typ (radio/checkbox/multiple_radio/number/slider/text/date/date_year/time/image): neue Unit-Tests (Wert-Form, Round-Trip, Scoring-Robustheit) und E2E-Tests (echte UI-Eingabe → Store-Wert/-Typ, inkl. Fokus-Modus) + verbindliche Referenz `docs/DATA_MODEL_ITEMS.md`
+
 ### v1.11.0
 
 #### Added
