@@ -234,9 +234,8 @@ export default {
     },
   },
   methods: {
-    user_new() {
-      const answ = confirm(this.$t('btn.confirm.new_user'));
-      if (!answ) return;
+    async user_new() {
+      if (!(await this.$confirm(this.$t('btn.confirm.new_user')))) return;
       this.mainStore.SETTINGS._USER.create();
     },
     doImportData(data) {

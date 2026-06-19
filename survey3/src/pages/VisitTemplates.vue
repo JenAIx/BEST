@@ -128,8 +128,8 @@ export default {
       this.editId = t.id
       this.form = { label: t.label, questionnaires: [...t.questionnaires] }
     },
-    deleteTemplate(t) {
-      if (!window.confirm(this.$t('visit.delete_template_confirm'))) return
+    async deleteTemplate(t) {
+      if (!(await this.$confirm(this.$t('visit.delete_template_confirm')))) return
       if (this.editId === t.id) this.resetForm()
       this.mainStore.VISIT_MAN.remove_template(t.id)
     },

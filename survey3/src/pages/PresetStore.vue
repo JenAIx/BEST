@@ -109,15 +109,13 @@
         ev.target.innerText = text
         this.needToSave[index] = true
       },
-      start_preset(index) {
-        var answer = window.confirm(this.$t('btn.confirm_start'));
-        if (!answer) return
+      async start_preset(index) {
+        if (!(await this.$confirm(this.$t('btn.confirm_start')))) return
         this.$router.push(
           `preset/${JSON.stringify({presets: this.mainStore.PRESET_STORE[index].value, mode: 'protected'})}`)
       },
-      delete_preset(index) {
-        var answer = window.confirm(this.$t('btn.confirm_delete'));
-        if (answer) this.mainStore.deletePreset(index);
+      async delete_preset(index) {
+        if (await this.$confirm(this.$t('btn.confirm_delete'))) this.mainStore.deletePreset(index);
       },
       // clear_preset() {
       //    var answer = window.confirm(this.TEXT.btn.confirm_delete);
