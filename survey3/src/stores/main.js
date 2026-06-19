@@ -131,9 +131,13 @@ export const useMainStore = defineStore('main', {
       // so this is a no-op placeholder kept for dispatch compatibility
     },
     storage_add(payload) {
+      // Einzelbogen-Response optional an einen vorhandenen Patienten koppeln
+      // (Auto-Link über die PID; kein Patient gefunden → null). Additiv, kein UI.
+      const patient = this.VISITMAN.get_patient_by_pid(payload.PID)
       const document = CDA.import_quest({
         data: {
           PID: payload.PID,
+          patientId: patient ? patient.id : null,
           quest: payload.quest,
         },
         investigator: {

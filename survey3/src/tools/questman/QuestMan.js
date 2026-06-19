@@ -309,7 +309,6 @@ export class QuestMan {
           break
 
         case undefined:
-        case 'seperator':
         case 'separator':
         case 'textbox':
           break

@@ -36,6 +36,17 @@ context('Item-type data model (UI → store)', () => {
     })
   })
 
+  it('number mit max: Über-Max-Eingabe wird im Store geklemmt', () => {
+    cy.visit(route('psqi'))
+    cy.get('[data-cy=page_quest]').should('exist')
+    // psqi #qitem_16 = "Alter" (min 0, max 120)
+    cy.get('#qitem_16 input').first().type('999')
+    storeValue(16, (v) => {
+      expect(v).to.equal(120) // geklemmt auf max
+      expect(v).to.be.a('number')
+    })
+  })
+
   it('radio (numerisch): Skalar-Zahl im Store', () => {
     cy.visit(route('biomag_fw'))
     cy.get('#qitem_4 .q-radio').eq(1).click({ force: true }) // opts [0,1] → 1

@@ -90,7 +90,7 @@
 import BACKBUTTON from 'src/components/BackButton.vue'
 import { useMainStore } from 'src/stores/main'
 import questPicker from 'src/mixins/questPicker'
-import { formatDay } from 'src/tools/dateUtils'
+import { formatDay, toTimestamp } from 'src/tools/dateUtils'
 import { statusMeta } from 'src/tools/visits/visit-ui'
 import { requiredFieldStats } from 'src/tools/visits/visit-model'
 
@@ -161,7 +161,8 @@ export default {
     saveEdit() {
       this.mainStore.VISIT_MAN.update_visit(this.visitId, {
         label: this.editForm.label,
-        date: this.editForm.date,
+        // System-Datum konsequent als ms halten (Konvention „ms intern")
+        date: toTimestamp(this.editForm.date),
         note: this.editForm.note,
       })
       this.showEdit = false

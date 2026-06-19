@@ -73,12 +73,15 @@ ISO-String hereinkommen, werden in den Konvertern toleriert (Pass-through).
 | Bezeichner | Bedeutung | Wo |
 |------------|-----------|-----|
 | `info.PID` | Vom Nutzer eingegebene Patienten-ID im **Einzelbogen-Flow** (Quest-Response) | `Storage.js`, `db.js`-Index, `CDA_H7_JSON.js` |
+| `info.patientId` | Optionaler **Link** einer Einzelbogen-Response an `patients.id` (Auto-Link über die PID) | `main.js storage_add`, `CDA_H7_JSON.js`, `db.js`-Index (v3) |
 | `patient.pid` | Patienten-ID im **Visiten-Flow** (Patienten-/Visiten-Datenmodell) | `VisitMan.js`, `export_app2.js` (`PATIENT_CD`) |
 | `patientId` | Technischer **UUID-Fremdschlüssel** Visite→Patient | `visit-model.js`, `VisitMan.js`, Route-Param |
 
-`info.PID` (Einzelbogen) und `patient.pid` (Visiten) sind **nicht** verknüpft:
-Einzelbogen-Responses hängen nicht an einem Patientendatensatz. Eine Kopplung wäre
-eine Daten-Migration und ist bewusst nicht umgesetzt.
+Einzelbogen-Responses werden beim Speichern über `info.patientId` **optional** an einen vorhandenen
+Patienten gekoppelt: existiert ein Patient mit der eingegebenen PID (`VISITMAN.get_patient_by_pid`),
+wird dessen `patients.id` gesetzt, sonst `null` (Auto-Link, additiv, kein UI/Backfill). Damit ist die
+Brücke `info.PID → patients.id` gelegt; ein rückwirkendes Verknüpfen bestehender Responses und das
+Anzeigen von Einzelbögen auf der Patientenseite bleiben als spätere Erweiterung offen.
 
 ## 4. Persistenz (IndexedDB / Dexie)
 

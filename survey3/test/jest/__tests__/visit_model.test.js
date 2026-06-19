@@ -98,7 +98,6 @@ describe('itemValidity', () => {
 
   test('nicht-interaktive Typen → null', () => {
     expect(itemValidity({ type: 'separator' })).toBeNull()
-    expect(itemValidity({ type: 'seperator' })).toBeNull()
     expect(itemValidity({ type: 'textbox' })).toBeNull()
     expect(itemValidity({})).toBeNull() // type undefined
   })

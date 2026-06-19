@@ -47,6 +47,8 @@
             "hint": "in Stunden:",
             "value": null,
             "type": "number",
+            "min": 0,
+            "max": 24,
             "inline": true,
             "id": 31
         },
@@ -56,6 +58,8 @@
             "hint": "Effektive Schlafzeit (Stunden) pro Nacht:",
             "value": null,
             "type": "number",
+            "min": 0,
+            "max": 24,
             "inline": true,
             "id": 4
         },
@@ -182,6 +186,8 @@
             "hint": "Jahre:",
             "value": null,
             "type": "number",
+            "min": 0,
+            "max": 120,
             "inline": true,
             "id": 25
         },
@@ -191,6 +197,8 @@
             "hint": "cm:",
             "value": null,
             "type": "number",
+            "min": 100,
+            "max": 250,
             "inline": true,
             "id": 26
         },
@@ -200,6 +208,8 @@
             "hint": "kg:",
             "value": null,
             "type": "number",
+            "min": 20,
+            "max": 300,
             "inline": true,
             "id": 27
         },
