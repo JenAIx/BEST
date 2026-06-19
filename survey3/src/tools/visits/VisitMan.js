@@ -271,22 +271,23 @@ class VisitMan {
     return { visit, summaries }
   }
 
-  build_visit_export(visitId, exportDate) {
+  build_visit_export(visitId, exportDate, options = {}) {
     const visit = this.get_visit(visitId)
     if (!visit) return undefined
     const patient = this.get_patient(visit.patientId)
     if (!patient) return undefined
     return buildImportStructure(
       [{ patient, visits: [this._visit_export_entry(visit)] }],
-      exportDate
+      exportDate,
+      options
     )
   }
 
-  build_patient_export(patientId, exportDate) {
+  build_patient_export(patientId, exportDate, options = {}) {
     const patient = this.get_patient(patientId)
     if (!patient) return undefined
     const visits = this.get_visits_for_patient(patientId).map((v) => this._visit_export_entry(v))
-    return buildImportStructure([{ patient, visits }], exportDate)
+    return buildImportStructure([{ patient, visits }], exportDate, options)
   }
 
   // Markiert eine Visite als exportiert (Badge in der UI).

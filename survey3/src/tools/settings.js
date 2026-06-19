@@ -1,3 +1,4 @@
+import { reactive } from "vue";
 import { USER } from "src/tools/User";
 import { log } from "./Logger";
 import { db } from "./db";
@@ -11,7 +12,11 @@ const emptySettings = {
 };
 
 class settings {
-  _DATA = emptySettings;
+  // Eigenständig reaktiv (stabile Objekt-Identität): die Settings-Instanz wird
+  // im Store mit markRaw gehalten, daher trägt _DATA selbst die Reaktivität.
+  // Init mutiert _DATA in-place (Object.assign) statt es zu ersetzen, damit
+  // bereits gerenderte Getter weiterhin dasselbe reaktive Objekt verfolgen.
+  _DATA = reactive({ ...emptySettings });
   _USER = USER;
 
   constructor() {
@@ -23,10 +28,10 @@ class settings {
     const row = await db.settings.get("main");
     if (row) {
       const { key, ...data } = row;
-      this._DATA = data;
+      Object.assign(this._DATA, data);
       this._USER.import(this._DATA.userdata);
     } else {
-      this._DATA = { ...emptySettings };
+      Object.assign(this._DATA, emptySettings);
       this._USER.create();
       this.save();
     }
