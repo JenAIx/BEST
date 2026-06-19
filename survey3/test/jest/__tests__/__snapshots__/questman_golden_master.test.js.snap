@@ -72,7 +72,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 443707009",
       "display": "Dynamic Gait Index",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "sum",
     "value": 24,
@@ -229,7 +229,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 718970003",
       "display": "McGill Pain Score",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "sum",
     "value": 45,
@@ -297,7 +297,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 443657009",
       "display": "Tinetti (gesamt)",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "Tinetti (gesamt)",
     "value": 0,
@@ -306,7 +306,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 443639008",
       "display": "Tinetti (Balance)",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "Tinetti (Balance)",
     "value": 0,
@@ -315,7 +315,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 443618001",
       "display": "Tinetti (Gang)",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "Tinetti (Gang)",
     "value": 0,
@@ -329,7 +329,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 273903006",
       "display": "VAS (score)",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "sum",
     "value": 0,
@@ -343,7 +343,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 443125007",
       "display": "Activities specific balance confidence score (observable entity)",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "avg",
     "value": 0,
@@ -839,7 +839,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 445035000",
       "display": "FES-I Score",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "sum",
     "value": 64,
@@ -984,7 +984,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 716138005",
       "display": "Hoehn and Yahr Scale score",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "label": "sum",
     "value": 5,
@@ -1860,7 +1860,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
     "coding": {
       "code": "SCTID: 444680009",
       "display": "Timed up and go mobility test score",
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
     },
     "evaluation": "Ausgeprägte Mobilitätseinschränkung",
     "label": "sum",

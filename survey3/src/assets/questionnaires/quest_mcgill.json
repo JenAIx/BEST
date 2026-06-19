@@ -3,7 +3,7 @@
   "short_title": "MPQ",
   "description": null,
   "coding": {
-    "system": "SNOMED-CT",
+    "system": "http://snomed.info/sct",
     "code": "SCTID: 446009008",
     "display": "McGill Pain Questionnaire"
   },
@@ -124,7 +124,7 @@
     "coding": {
       "display": "McGill Pain Score",
       "code": "SCTID: 718970003",
-      "system": "SNOMED-CT"
+      "system": "http://snomed.info/sct"
     }
   }
 }

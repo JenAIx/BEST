@@ -3,7 +3,7 @@
   "short_title": "fes-i",
   "description": "Einschätzung der Angst vor Stürzen",
   "coding": {
-    "system": "SNOMED-CT",
+    "system": "http://snomed.info/sct",
     "code": "SCTID: 445036004",
     "display": "Falls Efficacy Scale - internationale Version (FES-I)"
   },
@@ -319,7 +319,7 @@
   "results": { 
     "method": "sum",
     "coding": {
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
       "code": "SCTID: 445035000",
       "display": "FES-I Score"
     }

@@ -3,7 +3,7 @@
   "short_title": "sams_1",
   "description": "Fragen zum Umgang mit Medikamenten",
   "coding" : {
-    "system" : "SNOMED-CT",
+    "system" : "http://snomed.info/sct",
     "code" : "445536008",
     "display" : "SAMS (Stendal Adherence with Medication Score) / Teil 1",
     "version": "20231228"
@@ -93,7 +93,7 @@
     {
       "label": "Berufstätigkeit",
       "id": 7,
-      "coding": { "display" : "occupation", "code" : "14679004", "system" : "SNOMED-CT"},
+      "coding": { "display" : "occupation", "code" : "14679004", "system" : "http://snomed.info/sct"},
       "value": null,
       "type": "radio",
       "inline": true,

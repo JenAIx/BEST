@@ -186,7 +186,7 @@
       "coding": {
         "display": "Schulausbildung",
         "code": "302199004",
-        "system": "http: //snomed.info/sct"
+        "system": "http://snomed.info/sct"
       },
       "value": null,
       "type": "radio",
