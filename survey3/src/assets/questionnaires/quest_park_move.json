@@ -99,7 +99,7 @@
       "coding": {
         "display": "Hobbies",
         "code": "SCTID: 300758009",
-        "system": "SNOMNED-CT"
+        "system": "http://snomed.info/sct"
       },
       "value": null,
       "type": "text",
@@ -131,7 +131,7 @@
       "coding": {
         "display": "History of clinical findings in subject",
         "code": "SCTID: 417662000",
-        "system": "SNOMNED-CT"
+        "system": "http://snomed.info/sct"
       },
       "value": null,
       "type": "text",
@@ -144,7 +144,7 @@
       "coding": {
         "display": "care_level",
         "code": "SCTID: 78629008",
-        "system": "SNOMNED-CT"
+        "system": "http://snomed.info/sct"
       },
       "value": null,
       "type": "radio",
@@ -230,7 +230,7 @@
       "coding": {
         "display": "fall_consequences",
         "code": "SCTID: 298343000_MOD_CC982444-8E6B-43B3-9F55-1AD30B8BE728",
-        "system": "SCTID"
+        "system": "http://snomed.info/sct"
       },
       "value": null,
       "type": "text",
@@ -243,7 +243,7 @@
       "coding": {
         "display": "freezing_in_last_month",
         "code": "SCTID: 443544006",
-        "system": "SNOMNED-CT"
+        "system": "http://snomed.info/sct"
       },
       "value": null,
       "type": "radio",

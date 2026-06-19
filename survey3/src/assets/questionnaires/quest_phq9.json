@@ -13,7 +13,7 @@
     "items": [
     	{
             "label": "Geburtsdatum",
-            "coding": { "display" : "birth_date", "code" : "21112-8", "system" : "http://loinc.org"},
+            "coding": { "display" : "birth_date", "code" : "21112-8", "system" : "LOINC"},
             "value": null,
             "type": "date",
             "inline": false,

@@ -3,7 +3,7 @@
   "short_title": "sams_2",
   "description": "Fragen zum Umgang mit Medikamenten",
   "coding" : {
-    "system" : "SNOMED-CT",
+    "system" : "http://snomed.info/sct",
     "code" : "445536008",
     "display" : "SAMS (Stendal Adherence with Medication Score) / Teil 2",
     "version": "20231228"

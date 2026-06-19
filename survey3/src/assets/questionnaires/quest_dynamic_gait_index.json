@@ -7,7 +7,7 @@
     "coding": {
       "code": "SCTID: 443707009",
       "display": "Dynamic Gait Index",
-      "system": "SNOMED-CT"
+      "system": "http://snomed.info/sct"
     }
   },
   "short_title": "DGI",
@@ -15,7 +15,7 @@
   "coding": {
     "code": "SCTID: 445642004",
     "display": "Dynamic Gait Index",
-    "system": "SNOMED-CT"
+    "system": "http://snomed.info/sct"
   },
   "description": null,
   "items": [

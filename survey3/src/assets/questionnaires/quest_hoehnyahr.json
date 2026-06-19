@@ -35,7 +35,7 @@
     ],
     "results": {
         "method": "sum",
-        "coding": { "display" : "Hoehn and Yahr Scale score", "code" : "SCTID: 716138005", "system" : "SNOMED-CT"}
+        "coding": { "display" : "Hoehn and Yahr Scale score", "code" : "SCTID: 716138005", "system" : "http://snomed.info/sct"}
     }
 
 }

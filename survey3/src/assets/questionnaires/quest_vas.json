@@ -37,7 +37,7 @@
     "coding": {
       "display": "VAS (score)",
       "code": "SCTID: 273903006",
-      "system": "SNOMED-CT"
+      "system": "http://snomed.info/sct"
     }
   }
 }

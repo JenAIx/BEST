@@ -13,7 +13,7 @@
     "items": [
     	{
             "label": "Geburtsjahr",
-            "coding": { "display" : "year_of_birth", "code" : "80904-6", "system" : "http://loinc.org"},
+            "coding": { "display" : "year_of_birth", "code" : "80904-6", "system" : "LOINC"},
             "value": null,
             "type": "date_year",
             "inline": false,
