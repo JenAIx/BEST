@@ -136,8 +136,9 @@ export const useMainStore = defineStore('main', {
     },
     storage_add_from_file(payload) {
       return new Promise((res, rej) => {
-        if (payload === undefined || payload.cda === undefined) {
-          log({ error: 'import fehlgeschlagen', data: payload })
+        // Mindest-Schema eines importierbaren CDA-Dokuments
+        if (!payload || payload.cda === undefined || payload.hash === undefined || !payload.info) {
+          log({ error: 'import fehlgeschlagen: ungültiges Dokument', data: payload })
           rej(false)
           return
         }

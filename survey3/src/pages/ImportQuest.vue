@@ -65,8 +65,13 @@ export default {
           case "text/html":
             this.readhtml(e);
             break;
-          default:
-            log({ error: "type not found" });
+          default: {
+            // manche Browser liefern keinen MIME-Typ -> per Dateiendung entscheiden
+            const name = (this.file.name || "").toLowerCase();
+            if (name.endsWith(".json")) this.readjson(e);
+            else if (name.endsWith(".html")) this.readhtml(e);
+            else this.show_error("Dateityp nicht unterstützt");
+          }
         }
       };
       reader.readAsText(this.file);
@@ -99,61 +104,77 @@ export default {
     },
 
     readjson(e) {
-      let txt = e.target.result;
-      let json = JSON.parse(txt);
-      // unverschlüsseltes Dokument, dann ist ja alles gut
-      if (json.cda !== undefined) return this.importDocument(json);
-      // json als encrypted dokument
-      else if (json.encrypted_data !== undefined) {
-        let decrypted_text = decrypt(
-          {
-            encrypted_data: json.encrypted_data,
-            encrypted_key: json.encrypted_key,
-          },
+      let json;
+      try {
+        json = JSON.parse(e.target.result);
+      } catch (err) {
+        return this.show_error("ungültiges JSON");
+      }
+
+      // unverschlüsseltes Dokument
+      if (json && json.cda !== undefined) return this.importDocument(json);
+
+      // einzelnes verschlüsseltes Dokument
+      if (json && json.encrypted_data !== undefined) {
+        const doc = this.decryptDoc(json);
+        if (!doc) return this.show_error("Entschlüsselung fehlgeschlagen");
+        return this.importDocument(doc);
+      }
+
+      // Array verschlüsselter Dokumente (neu: 202204)
+      if (Array.isArray(json)) {
+        const docs = json
+          .filter((j) => j && j.encrypted_data !== undefined && j.encrypted_key !== undefined)
+          .map((j) => this.decryptDoc(j))
+          .filter((d) => this.isImportable(d));
+        if (!docs.length) return this.show_error("keine gültigen Daten gefunden");
+        return this.importBatch(docs);
+      }
+
+      return this.show_error("kein gültiges Dokument");
+    },
+
+    // Entschlüsselt + parst ein verschlüsseltes Dokument; null bei jedem Fehler.
+    decryptDoc(j) {
+      let text;
+      try {
+        text = decrypt(
+          { encrypted_data: j.encrypted_data, encrypted_key: j.encrypted_key },
           this.keyPair.privateKey
         );
-        if (
-          decrypted_text === null ||
-          decrypted_text === undefined ||
-          decrypted_text === "could not decrypt key"
-        )
-          return this.show_error(decrypted_text);
-
-        // else
-        this.importDocument(JSON.parse(decrypted_text));
-        return true;
+      } catch (err) {
+        return null;
       }
-
-      // eventuell ein ARRAY mit encrypted data? neu: 202204
-      else if (Array.isArray(json)) {
-        let status = false;
-        json.forEach((j) => {
-          if (j.encrypted_data !== undefined && j.encrypted_key !== undefined) {
-            status = true;
-            let decrypted_text = decrypt(
-              {
-                encrypted_data: j.encrypted_data,
-                encrypted_key: j.encrypted_key,
-              },
-              this.keyPair.privateKey
-            );
-            if (decrypted_text) this.importDocument(JSON.parse(decrypted_text));
-            else status = false;
-          }
-        });
-        if (status === false) this.show_error("invalid file");
-        else return true;
+      if (!text || text === "could not decrypt key") return null;
+      try {
+        return JSON.parse(text);
+      } catch (err) {
+        return null;
       }
+    },
 
-      //ELSE ERROR
+    // Minimal-Schemaprüfung eines CDA-Dokuments vor dem Import.
+    isImportable(doc) {
+      return !!(doc && doc.cda && doc.hash !== undefined && doc.info);
     },
 
     importDocument(document) {
-      this.mainStore.storage_add_from_file(document).then((res) => {
-        this.$q.notify({
-          message: this.$t('quest.import_success'),
-          color: "green",
-        });
+      if (!this.isImportable(document)) return this.show_error("kein gültiges Dokument");
+      this.mainStore
+        .storage_add_from_file(document)
+        .then(() => {
+          this.$q.notify({ message: this.$t("quest.import_success"), color: "green" });
+          this.$router.go(-1);
+        })
+        .catch(() => this.show_error(this.$t("quest.import_failed")));
+    },
+
+    // Mehrere Dokumente importieren, am Ende einmal Feedback + Navigation.
+    importBatch(docs) {
+      Promise.allSettled(docs.map((d) => this.mainStore.storage_add_from_file(d))).then((results) => {
+        const ok = results.filter((r) => r.status === "fulfilled").length;
+        if (ok === 0) return this.show_error(this.$t("quest.import_failed"));
+        this.$q.notify({ message: `${this.$t("quest.import_success")} (${ok})`, color: "green" });
         this.$router.go(-1);
       });
     },
