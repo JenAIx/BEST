@@ -56,11 +56,12 @@ export function recomputeVisitStatus(visit) {
 //   false = Pflichtfeld noch offen
 //   null  = nicht-interaktiv (separator / textbox / ohne Typ) → kein Pflichtfeld
 // value optional überschreibbar (z. B. aus einem Entwurf), sonst item.value.
-export function itemValidity(item, value) {
+// Reiner Wert-Check je Typ (OHNE Pflicht-/force-Logik): ist der Wert vorhanden
+// bzw. vollständig? Eine Wahrheit, geteilt von itemValidity (Pflichtprüfung) und
+// der UI (RenderQuest „beantwortet"-Marker). value optional überschreibbar.
+export function isAnswered(item, value) {
   const v = value !== undefined ? value : item.value
-  if (item.force === false) return true
   const t = item.type
-  if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === undefined) return null
   if (t === 'multiple_radio') {
     if (!Array.isArray(v) || v.length === 0) return false
     // Alle Teilfragen müssen beantwortet sein: Länge == Anzahl Teilfragen und kein null.
@@ -73,6 +74,13 @@ export function itemValidity(item, value) {
   // checkbox: mindestens eine Auswahl nötig (leeres [] zählt NICHT als ausgefüllt)
   if (t === 'checkbox') return Array.isArray(v) && v.length > 0
   return v !== undefined && v !== null
+}
+
+export function itemValidity(item, value) {
+  if (item.force === false) return true
+  const t = item.type
+  if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === undefined) return null
+  return isAnswered(item, value)
 }
 
 // Pflichtfeld-Statistik über einen Fragebogen, optional gegen index-ausgerichtete Werte
