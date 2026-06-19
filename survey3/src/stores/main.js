@@ -223,7 +223,9 @@ export const useMainStore = defineStore('main', {
 
     // --- Patienten/Visiten Export (app2-importStructure JSON) ---
     exportVisit(visitId) {
-      const data = this.VISITMAN.build_visit_export(visitId)
+      const data = this.VISITMAN.build_visit_export(visitId, undefined, {
+        providerId: this.SETTINGS.user_uid,
+      })
       if (data === undefined) return false
       const pid = (data.metadata.patientIds[0] || 'patient').replace(/[^a-zA-Z0-9_-]/g, '_')
       const filename = `survey3_visit_${pid}_${_stamp()}.json`
@@ -232,7 +234,9 @@ export const useMainStore = defineStore('main', {
       return ok
     },
     exportPatient(patientId) {
-      const data = this.VISITMAN.build_patient_export(patientId)
+      const data = this.VISITMAN.build_patient_export(patientId, undefined, {
+        providerId: this.SETTINGS.user_uid,
+      })
       if (data === undefined) return false
       const pid = (data.metadata.patientIds[0] || 'patient').replace(/[^a-zA-Z0-9_-]/g, '_')
       const filename = `survey3_patient_${pid}_${_stamp()}.json`

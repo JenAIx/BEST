@@ -7,6 +7,7 @@
 // Reine Logik (kein Dexie/Vue) → direkt mit Jest testbar.
 
 const SOURCE = 'SURVEY3'
+const PROVIDER_DEFAULT = '@' // i2b2-Platzhalter, wenn kein Investigator bekannt
 const VITAL_ALIVE = 'SCTID: 438949009' // alive
 const ACTIVE_STATUS = 'SCTID: 55561003' // active
 
@@ -74,8 +75,16 @@ export function buildVisitRecord(visit, patientNum, encounterNum) {
 }
 
 // Ein abgeschlossener Fragebogen → 1 Q-Observation + je numerischem Score 1 N-Observation.
-export function buildQuestionnaireObservations(summary, patientNum, encounterNum, fallbackDate) {
+// providerId = Investigator/Behandler-UID (Audit-Trail); Fallback '@' (i2b2-Platzhalter).
+export function buildQuestionnaireObservations(
+  summary,
+  patientNum,
+  encounterNum,
+  fallbackDate,
+  providerId
+) {
   const obs = []
+  const provider = providerId || PROVIDER_DEFAULT
   const start = isoFromTimestamp(summary.date_start) || isoFromTimestamp(fallbackDate)
   const end = isoFromTimestamp(summary.date_end) || start
 
@@ -84,7 +93,7 @@ export function buildQuestionnaireObservations(summary, patientNum, encounterNum
     PATIENT_NUM: patientNum,
     CATEGORY_CHAR: 'SURVEY_BEST',
     CONCEPT_CD: 'CUSTOM: QUESTIONNAIRE',
-    PROVIDER_ID: '@',
+    PROVIDER_ID: provider,
     START_DATE: start,
     INSTANCE_NUM: 1,
     VALTYPE_CD: 'Q',
@@ -107,7 +116,7 @@ export function buildQuestionnaireObservations(summary, patientNum, encounterNum
           PATIENT_NUM: patientNum,
           CATEGORY_CHAR: 'SURVEY_BEST',
           CONCEPT_CD: r.coding.code,
-          PROVIDER_ID: '@',
+          PROVIDER_ID: provider,
           START_DATE: start,
           INSTANCE_NUM: 1,
           VALTYPE_CD: 'N',
@@ -123,7 +132,8 @@ export function buildQuestionnaireObservations(summary, patientNum, encounterNum
               originalItem: r,
             },
           }),
-          SOURCESYSTEM_CD: r.coding.system === 'LOINC' ? 'LOINC' : SOURCE,
+          // SOURCESYSTEM = wer den Datensatz erzeugte (immer survey3), NICHT das Vokabular.
+          SOURCESYSTEM_CD: SOURCE,
           UPLOAD_ID: 1,
         })
       }
@@ -135,8 +145,11 @@ export function buildQuestionnaireObservations(summary, patientNum, encounterNum
 
 // patientsWithVisits: [ { patient, visits: [ { visit, summaries: [summary, ...] } ] } ]
 // Vergibt PATIENT_NUM / ENCOUNTER_NUM lokal 1-basiert (FK-Verknüpfung innerhalb der Datei).
-export function buildImportStructure(patientsWithVisits, exportDate) {
+// options.providerId: Investigator/Behandler-UID, die als PROVIDER_ID der Observations
+// durchgereicht wird (Audit-Trail/Signer); Fallback '@'.
+export function buildImportStructure(patientsWithVisits, exportDate, options = {}) {
   const date = exportDate || new Date().toISOString()
+  const providerId = options.providerId || PROVIDER_DEFAULT
   const patients = []
   const visits = []
   const observations = []
@@ -152,9 +165,13 @@ export function buildImportStructure(patientsWithVisits, exportDate) {
       encounterNum++
       visits.push(buildVisitRecord(vw.visit, patientNum, encounterNum))
       ;(vw.summaries || []).forEach((summary) => {
-        buildQuestionnaireObservations(summary, patientNum, encounterNum, vw.visit.date).forEach(
-          (o) => observations.push(o)
-        )
+        buildQuestionnaireObservations(
+          summary,
+          patientNum,
+          encounterNum,
+          vw.visit.date,
+          providerId
+        ).forEach((o) => observations.push(o))
       })
     })
   })
@@ -174,6 +191,7 @@ export function buildImportStructure(patientsWithVisits, exportDate) {
       source: 'survey3',
       version: '1.0',
       author: 'survey3',
+      investigator: providerId,
       patientCount: patients.length,
       visitCount: visits.length,
       observationCount: observations.length,

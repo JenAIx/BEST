@@ -66,7 +66,21 @@ describe('export_app2', () => {
     expect(n.VALTYPE_CD).toBe('N')
     expect(n.NVAL_NUM).toBe(6)
     expect(n.CONCEPT_CD).toBe('LID: 72172-0')
-    expect(n.SOURCESYSTEM_CD).toBe('LOINC')
+    // SOURCESYSTEM = Erzeuger des Datensatzes (immer survey3), NICHT das Vokabular.
+    expect(n.SOURCESYSTEM_CD).toBe('SURVEY3')
+  })
+
+  test('PROVIDER_ID: Default @ wenn kein Investigator, sonst durchgereichte UID', () => {
+    const def = buildQuestionnaireObservations(SUMMARY, 1, 1, 1000)
+    expect(def[0].PROVIDER_ID).toBe('@')
+    expect(def[1].PROVIDER_ID).toBe('@')
+
+    const withProvider = buildQuestionnaireObservations(SUMMARY, 1, 1, 1000, 'uid-123')
+    expect(withProvider[0].PROVIDER_ID).toBe('uid-123')
+    expect(withProvider[1].PROVIDER_ID).toBe('uid-123')
+    // SOURCESYSTEM bleibt unabhängig vom Provider survey3
+    expect(withProvider[0].SOURCESYSTEM_CD).toBe('SURVEY3')
+    expect(withProvider[1].SOURCESYSTEM_CD).toBe('SURVEY3')
   })
 
   test('blobFromSummary mappt short_title und questionnaire_code', () => {
@@ -110,6 +124,32 @@ describe('export_app2', () => {
     expect(structure.statistics.visitCount).toBe(1)
     expect(structure.statistics.observationCount).toBe(2)
     expect(structure.metadata.observationCount).toBe(2)
+  })
+
+  test('buildImportStructure reicht options.providerId an Observations + metadata durch', () => {
+    const structure = buildImportStructure(
+      [
+        {
+          patient: { pid: 'P1' },
+          visits: [{ visit: { date: '2024-11-29', label: 'V1' }, summaries: [SUMMARY] }],
+        },
+      ],
+      FIXED_DATE,
+      { providerId: 'investigator-uid-9' }
+    )
+    expect(structure.metadata.investigator).toBe('investigator-uid-9')
+    structure.data.observations.forEach((o) => {
+      expect(o.PROVIDER_ID).toBe('investigator-uid-9')
+    })
+  })
+
+  test('buildImportStructure ohne options → PROVIDER_ID @ / investigator @', () => {
+    const structure = buildImportStructure(
+      [{ patient: { pid: 'P1' }, visits: [{ visit: { date: '2024-11-29' }, summaries: [SUMMARY] }] }],
+      FIXED_DATE
+    )
+    expect(structure.metadata.investigator).toBe('@')
+    expect(structure.data.observations[0].PROVIDER_ID).toBe('@')
   })
 
   test('mehrere Patienten/Visiten vergeben fortlaufende NUMs', () => {
