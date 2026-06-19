@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.11.0
+
+#### Added
+
+- [2026-06-19] E2E-Store-Abdeckung: neuer Cypress-Spec füllt ~10 % der Fragebögen (11/107) über die echte UI aus und prüft im Pinia-Store, dass strukturierte Werte korrekt/geordnet im values-Array landen (insb. `multiple_radio`-Matrizen → ein Eintrag je Sub-Frage) und die Berechnungen exakt stimmen (sum/avg/ids-Domänen, Reverse-Scoring, Bereichs-Bewertung); zugleich Regressionsschutz für die Ausfüll→Store-Reaktivität
+- [2026-06-19] `ARCHITECTURE.md`: dokumentiert Store-Zugriffsmuster, Reaktivität (markRaw-Begründung) sowie Datums- (ms intern / ISO an der Schnittstelle) und PID-Konventionen
+
+#### Changed
+
+- [2026-06-19] State-Architektur vereinheitlicht: appweit eine QuestMan-Instanz (Store nutzt das Modul-Singleton); STORAGE/VISITMAN/SETTINGS via `markRaw` im Store (verwalten ihre Reaktivität selbst), QuestMan bleibt bewusst reaktiv-im-State für das Live-Ausfüllen
+- [2026-06-19] app2-Export gehärtet: `SOURCESYSTEM_CD` durchgehend `SURVEY3` (Erzeuger ≠ Vokabular), Investigator/Provider wird als `PROVIDER_ID` durchgereicht (Audit-Trail)
+- [2026-06-19] Bestätigungsdialoge appweit von `window.confirm` auf `$q.dialog` umgestellt (mobiltauglich), hartkodierte Strings nach i18n, `aria-label`s an Icon-Buttons (a11y)
+
+#### Fixed
+
+- [2026-06-19] ECOG: Domäne „Sprache" zählte `id 16` doppelt (Domänensumme 40 statt 39) — korrigiert
+- [2026-06-19] CDA-Export: Uhrzeit nutzte 12-Stunden-Format ohne AM/PM und ohne Padding (14:30 → „2:30") — auf 24-Stunden (`HH`) korrigiert
+- [2026-06-19] Import robuster: defensive Fehlerbehandlung/Schemaprüfung bei kaputtem/falsch entschlüsseltem Input (kein UI-Crash)
+- [2026-06-19] Coding-`system`-Werte in den Fragebogen-Daten kanonisiert (SNOMED/LOINC-Varianten & Tippfehler vereinheitlicht) für sauberen app2-Import
+
 ### v1.10.0
 
 #### Added
