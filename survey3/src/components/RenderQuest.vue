@@ -178,7 +178,7 @@
 import { log } from 'src/tools/Logger'
 import { parseRouteParams } from 'src/tools/routeParams'
 import { useMainStore } from 'src/stores/main'
-import { itemValidity, answerStats } from 'src/tools/visits/visit-model'
+import { itemValidity, answerStats, isAnswered as isItemAnswered } from 'src/tools/visits/visit-model'
 import QuestItemField from './QuestItemField.vue'
 import QuestIntro from './QuestIntro.vue'
 import QuestPidField from './QuestPidField.vue'
@@ -329,18 +329,9 @@ export default {
       if (this.isAnswered(item)) return 'done'
       return required ? 'required' : 'optional'
     },
+    // Delegiert an die geteilte Wert-Logik (eine Wahrheit mit itemValidity).
     isAnswered(item) {
-      const v = item.value
-      // multiple_radio: erst "beantwortet", wenn ALLE Teilfragen gesetzt sind
-      if (item.type === 'multiple_radio') {
-        const n = item.options && item.options.questions ? item.options.questions.length : 0
-        return Array.isArray(v) && n > 0 && v.length >= n && v.slice(0, n).every((x) => x !== null && x !== undefined)
-      }
-      // checkbox: mindestens eine Auswahl
-      if (item.type === 'checkbox') {
-        return Array.isArray(v) && v.length > 0 && v.some((x) => x !== null && x !== undefined)
-      }
-      return v !== null && v !== undefined
+      return isItemAnswered(item, item.value)
     },
     onValue(item, value) {
       item.value = value

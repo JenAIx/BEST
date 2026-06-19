@@ -27,7 +27,7 @@ export default configure(function (/* ctx */) {
       env: {
         LOG_LEVEL: process.env.LOG_LEVEL || 'warn',
         APP_NAME: process.env.APP_NAME || 'surveyBEST',
-        APP_VERSION: process.env.APP_VERSION || 'v1.11.0',
+        APP_VERSION: process.env.APP_VERSION || 'v1.11.1',
         APP_UPDATED: process.env.APP_UPDATED || '2026-06-19'
       },
 
