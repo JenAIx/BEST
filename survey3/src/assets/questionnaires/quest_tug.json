@@ -3,7 +3,7 @@
   "short_title": "timedupandgotest",
   "description": "Einschätzung von Beweglichkeit, Gleichgewicht und Sturzrisiko",
   "coding": {
-    "system": "SNOMED-CT",
+    "system": "http://snomed.info/sct",
     "code": "SCTID: 444781002",
     "display": "Timed up and go mobility test score (observable entity)"
   },
@@ -41,7 +41,7 @@
   "results": {
     "method": "sum",
     "coding": {
-      "system": "SNOMED-CT",
+      "system": "http://snomed.info/sct",
       "code": "SCTID: 444680009",
       "display": "Timed up and go mobility test score"
     },

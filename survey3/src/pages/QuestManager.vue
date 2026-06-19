@@ -99,9 +99,8 @@ export default {
         this.INDEX[i] = false
       }
     },
-    deleteSelected() {
-      const answ = confirm(this.$t('btn.confirm_delete'))
-      if (!answ) return
+    async deleteSelected() {
+      if (!(await this.$confirm(this.$t('btn.confirm_delete')))) return
       // else
       var idx = this.INDEX.indexOf(true)
       while (idx > -1) {
@@ -122,9 +121,8 @@ export default {
       this.mainStore.editquest = JSON.parse(JSON.stringify(this.QUESTMAN.get(this.QUEST_LIST[idx])))
       this.$router.push({ name: "questmanagercreate" })
     },
-    resetQuest() {
-      const answ = confirm(this.$t('btn.reset_confirm'))
-      if (!answ) return
+    async resetQuest() {
+      if (!(await this.$confirm(this.$t('btn.reset_confirm')))) return
       //else
       this.QUESTMAN._init()
     }

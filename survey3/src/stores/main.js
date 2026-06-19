@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia'
+import { markRaw } from 'vue'
 import { SETTINGS } from 'src/tools/settings'
 import { STORAGE } from 'src/tools/Storage'
 import { VISITMAN } from 'src/tools/visits/VisitMan'
-import { QuestMan } from 'src/tools/questman'
+import { QUESTMAN } from 'src/tools/questman'
 import { initQuestMan } from 'src/boot/db'
 import { Platform } from 'quasar'
 import * as CDA from 'src/tools/CDA_H7_JSON'
@@ -11,8 +12,12 @@ import { encrypt, verify } from 'src/tools/hhash'
 import { sendMail } from 'src/tools/mail'
 import { i18n } from 'src/boot/i18n'
 
-const _questMan = new QuestMan()
-const _questManReady = initQuestMan(_questMan)
+// EINE QuestMan-Instanz appweit: das Modul-Singleton aus tools/questman.
+// (Früher erzeugte der Store eine separate Instanz, die von den Tests
+//  abwich.) QuestMan bleibt bewusst reaktiv-im-State — das Live-Ausfüllen
+//  mutiert verschachtelte Item-Werte und braucht Pinias Tiefenreaktivität;
+//  daher KEIN markRaw (anders als STORAGE/VISITMAN/SETTINGS). Siehe ARCHITECTURE.md.
+const _questManReady = initQuestMan(QUESTMAN)
 
 // kompakter Zeitstempel YYYYMMDDHHmmss für Export-Dateinamen
 function _stamp() {
@@ -27,10 +32,14 @@ export const useMainStore = defineStore('main', {
       APP_UPDATED: process.env.APP_UPDATED,
     },
     leftDrawerOpen: true,
-    QuestMan: _questMan,
-    STORAGE: STORAGE,
-    VISITMAN: VISITMAN,
-    SETTINGS: SETTINGS,
+    QuestMan: QUESTMAN,
+    // markRaw: diese Singletons verwalten ihre reaktiven Daten selbst
+    // (Storage/VisitMan via interner reactive([])-Arrays, Settings via
+    //  reaktivem _DATA). Pinia soll die Klasseninstanzen NICHT zusätzlich
+    //  tief proxyen (Methoden, Settings._USER.keyPair = CryptoKeys u. Ä.).
+    STORAGE: markRaw(STORAGE),
+    VISITMAN: markRaw(VISITMAN),
+    SETTINGS: markRaw(SETTINGS),
     debug: false,
     PROTECTED_MODE: false,
     editquest: undefined,
@@ -136,8 +145,9 @@ export const useMainStore = defineStore('main', {
     },
     storage_add_from_file(payload) {
       return new Promise((res, rej) => {
-        if (payload === undefined || payload.cda === undefined) {
-          log({ error: 'import fehlgeschlagen', data: payload })
+        // Mindest-Schema eines importierbaren CDA-Dokuments
+        if (!payload || payload.cda === undefined || payload.hash === undefined || !payload.info) {
+          log({ error: 'import fehlgeschlagen: ungültiges Dokument', data: payload })
           rej(false)
           return
         }
@@ -222,7 +232,9 @@ export const useMainStore = defineStore('main', {
 
     // --- Patienten/Visiten Export (app2-importStructure JSON) ---
     exportVisit(visitId) {
-      const data = this.VISITMAN.build_visit_export(visitId)
+      const data = this.VISITMAN.build_visit_export(visitId, undefined, {
+        providerId: this.SETTINGS.user_uid,
+      })
       if (data === undefined) return false
       const pid = (data.metadata.patientIds[0] || 'patient').replace(/[^a-zA-Z0-9_-]/g, '_')
       const filename = `survey3_visit_${pid}_${_stamp()}.json`
@@ -231,7 +243,9 @@ export const useMainStore = defineStore('main', {
       return ok
     },
     exportPatient(patientId) {
-      const data = this.VISITMAN.build_patient_export(patientId)
+      const data = this.VISITMAN.build_patient_export(patientId, undefined, {
+        providerId: this.SETTINGS.user_uid,
+      })
       if (data === undefined) return false
       const pid = (data.metadata.patientIds[0] || 'patient').replace(/[^a-zA-Z0-9_-]/g, '_')
       const filename = `survey3_patient_${pid}_${_stamp()}.json`

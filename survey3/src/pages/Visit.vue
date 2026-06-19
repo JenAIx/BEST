@@ -146,8 +146,8 @@ export default {
       this.mainStore.VISIT_MAN.add_questionnaire(this.visitId, this.selectedQuest)
       this.selectedQuest = null
     },
-    removeSlot(slot) {
-      if (!window.confirm(this.$t('visit.delete_questionnaire_confirm'))) return
+    async removeSlot(slot) {
+      if (!(await this.$confirm(this.$t('visit.delete_questionnaire_confirm')))) return
       this.mainStore.VISIT_MAN.remove_questionnaire(this.visitId, slot.short_title)
     },
     openEdit() {
@@ -166,7 +166,7 @@ export default {
       })
       this.showEdit = false
     },
-    exportVisit() {
+    async exportVisit() {
       const items = this.visit ? this.visit.items : []
       const completed = items.filter((i) => i.status === 'completed').length
       const incomplete = items.length - completed
@@ -175,7 +175,7 @@ export default {
         return
       }
       if (incomplete > 0 &&
-        !window.confirm(this.$t('visit.export_incomplete_confirm', { count: incomplete, total: items.length }))) return
+        !(await this.$confirm(this.$t('visit.export_incomplete_confirm', { count: incomplete, total: items.length })))) return
       const ok = this.mainStore.exportVisit(this.visitId)
       this.$q.notify({
         message: ok ? this.$t('visit.export_ok') : this.$t('visit.export_empty'),

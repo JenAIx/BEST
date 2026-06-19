@@ -3,7 +3,7 @@
   "short_title": "6MWT",
   "description": null,
   "coding": {
-    "system": "SNOMED-CT",
+    "system": "http://snomed.info/sct",
     "code": "SCTID 252478000",
     "display": "6MWT"
   },

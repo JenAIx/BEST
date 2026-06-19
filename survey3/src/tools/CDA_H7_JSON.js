@@ -340,7 +340,9 @@ function extract_value(invalue) {
 
 // SOME DATE FUNCTIONS
 function formatDate(date_str) {
-  return dateFormat(date_str, "yyyy-mm-dd'T'h:MM:ssZ")
+  // HH = 24-Stunden mit führender Null (00–23). Vorher 'h' = 12-Stunden ohne
+  // AM/PM und ohne Padding → 14:30 wurde fälschlich zu "2:30".
+  return dateFormat(date_str, "yyyy-mm-dd'T'HH:MM:ssZ")
 }
 
 // function formatDay(date_str) {

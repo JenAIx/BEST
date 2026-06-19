@@ -85,8 +85,10 @@ class Storage {
   // STORAGE
 
   add(payload) {
-    if (payload.cda === undefined || payload.exported === undefined || payload.hash === undefined) return log({ error: 'Storage>add: payload not valid!', data: payload })
-    // else
+    if (!payload || payload.cda === undefined || payload.exported === undefined || payload.hash === undefined || !payload.info) {
+      log({ error: 'Storage>add: payload not valid!', data: payload })
+      return false
+    }
     log({ debug: 'Storage>add', data: `size: ${JSON.stringify(payload).length} bytes` })
     if (payload.info.uid === undefined) payload.info.uid = uuidv4()
     this._STORAGE.push(payload)

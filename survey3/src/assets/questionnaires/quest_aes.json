@@ -3,7 +3,7 @@
   "short_title": "aes_scale",
   "description": "",
   "coding": {
-    "system": "http: //snomed.info/sct",
+    "system": "http://snomed.info/sct",
     "code": "SCTID: 20602000",
     "display": "AES (Apathie-Skala)",
     "version": "20240205"

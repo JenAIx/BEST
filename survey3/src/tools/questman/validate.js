@@ -14,6 +14,9 @@ export const ITEM_METHODS = ['raw', 'multiply', 'range', 'count']
 export const DOMAIN_METHODS = [
   'sum', 'avg', 'multiply', 'sum_range', 'diff_range', 'sum_multiply', 'avg_multiply', 'sum_sub_multiply',
 ]
+// Kanonische coding.system-Werte. Abweichungen (z.B. "SNOMED-CT", Tippfehler)
+// werden geflaggt -> einheitliche Codes für Interop/app2-Import.
+export const KNOWN_SYSTEMS = ['http://snomed.info/sct', 'LOINC', 'CUSTOM', 'LEC-SEQ']
 
 const isStringNumeric = (v) => typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v))
 
@@ -37,6 +40,31 @@ export function collectItemIds(quest) {
 }
 
 /**
+ * Sammelt alle coding.system-Werte eines Fragebogens (quest/items/sub-fragen/
+ * antworten/results/domaine).
+ * @returns {Set<string>}
+ */
+export function collectCodingSystems(quest) {
+  const systems = new Set()
+  const add = (c) => {
+    if (c && c.system) systems.add(c.system)
+  }
+  add(quest.coding)
+  ;(quest.items || []).forEach((it) => {
+    add(it.coding)
+    if (it.options && it.options.questions) it.options.questions.forEach((q) => add(q.coding))
+    if (it.options && it.options.answers) it.options.answers.forEach((a) => add(a.coding))
+  })
+  const res = quest.results
+  if (res) {
+    add(res.coding)
+    ;(res.domaine || []).forEach((d) => add(d.coding))
+    ;(res.scoring || []).forEach((s) => add(s.coding))
+  }
+  return systems
+}
+
+/**
  * Validiert den results-Block eines Fragebogens.
  * @param {object} quest  ein geladener Fragebogen (mit .items, .results)
  * @returns {{errors: Array<{code,msg}>, warnings: Array<{code,msg}>}}
@@ -47,8 +75,13 @@ export function validateQuestScoring(quest) {
   const E = (code, msg) => errors.push({ code, msg })
   const W = (code, msg) => warnings.push({ code, msg })
 
+  // Coding-Systeme prüfen (gilt auch für unbepunktete Bögen)
+  collectCodingSystems(quest).forEach((sys) => {
+    if (!KNOWN_SYSTEMS.includes(sys)) W('UNKNOWN_CODING_SYSTEM', `coding.system "${sys}" ist nicht kanonisch`)
+  })
+
   const r = quest.results
-  if (!r || r.method === undefined) return { errors, warnings } // unbepunktet -> nichts zu prüfen
+  if (!r || r.method === undefined) return { errors, warnings } // unbepunktet -> nichts mehr zu prüfen
 
   if (!TOP_METHODS.includes(r.method)) E('UNKNOWN_METHOD', `results.method "${r.method}"`)
 
