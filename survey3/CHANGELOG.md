@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.12.0
+
+#### Added
+
+- [2026-06-22] Globale Fortschrittsanzeige über die Fragebogen-Kette ("Fragebogen X von Y" + dünner Balken), zusätzlich zur bestehenden Pro-Bogen-Anzeige. Quelle: neue `QuestMan`-Getter `preset_total`/`preset_index` (Position bleibt erhalten, obwohl die Queue beim `next()` geleert wird)
+- [2026-06-22] E2E-Test `preset_flow.spec.js`: klickt eine Mehr-Bogen-Kette in Fokus- und Listen-Modus durch und prüft den Store (Response-Anzahl, `info.PID`, Ketten-Position, Abschluss) + QuestMan-Unit-Tests für die Ketten-Zähler
+- [2026-06-22] `ARCHITECTURE.md`: Abschnitt zu Fragebogen-Routing & Direktlinks (stabile `short_title`-URLs, `mode`/`PID`-Semantik)
+
+#### Changed
+
+- [2026-06-22] Preset-Flow geglättet ("Untersucher wählt aus → Patient klickt durch"): Im durchgeklickten Preset-Flow entfällt der redundante PID-Schritt (PID kommt aus der URL) und der Review-Zwischenschritt am Bogen-Ende → nahtloser Übergang von Bogen zu Bogen. Einzelbogen/Direktlink (`mode: 'single'`) behalten PID-Schritt und Review
+- [2026-06-22] PID-Dopplung behoben: Ist die PID bereits vorgegeben, wird das PID-Eingabefeld im Bogen (Fokus- und Listen-Modus) nicht mehr angezeigt, sondern nur noch als read-only Kontext ("PID: …") im Kopf
+
 ### v1.11.2
 
 #### Fixed

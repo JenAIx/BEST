@@ -26,6 +26,10 @@ export class QuestMan {
   _QUESTS = {}
   _activeQuest = undefined
   _presets = []
+  // Gesamtzahl der in die aktuelle Kette aufgenommenen Bögen. _presets wird beim
+  // next() per shift() geleert; dieser Zähler bleibt erhalten, damit die UI die
+  // globale Position ("Bogen X von Y") anzeigen kann.
+  _presetTotal = 0
 
   constructor() {
     log({ debug: 'QuestMan initializing ...' })
@@ -225,12 +229,28 @@ export class QuestMan {
 
   add_preset(val) {
     if (val === undefined) return
-    if (this.quest_list.includes(val)) this._presets.push(val)
+    if (this.quest_list.includes(val)) {
+      this._presets.push(val)
+      this._presetTotal++
+    }
   }
 
   clear_preset() {
     this._presets = []
+    this._presetTotal = 0
     this._activeQuest = undefined
+  }
+
+  // Gesamtzahl der Bögen in der aktuellen Kette (0, wenn keine Kette aktiv).
+  get preset_total() {
+    return this._presetTotal
+  }
+
+  // 1-basierte Position des aktuell geladenen Bogens in der Kette. next() nimmt
+  // per shift() einen Bogen aus _presets; entsprechend ist die Position
+  // total − verbleibende. Vor dem ersten next() ist sie 0.
+  get preset_index() {
+    return this._presetTotal - this._presets.length
   }
 
   get next_preset() {

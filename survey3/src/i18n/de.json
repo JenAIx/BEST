@@ -103,6 +103,7 @@
     "next": "Weiter",
     "prev": "Zurück",
     "step_of": "Frage {current} von {total}",
+    "chain_of": "Fragebogen {current} von {total}",
     "answered": "{filled} von {total} beantwortet",
     "review_title": "Übersicht",
     "review_hint": "Tippen Sie auf eine Frage, um sie zu ändern.",

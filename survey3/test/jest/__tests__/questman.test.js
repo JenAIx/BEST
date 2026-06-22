@@ -39,6 +39,39 @@ describe('QuestMAN Class', () => {
       expect(QUESTMAN.next_preset).toBe(undefined)
     });
 
+    // GLOBALE KETTEN-POSITION (preset_total / preset_index)
+    it('QuestMAN preset chain counters', () => {
+      QUESTMAN.clear_preset()
+      expect(QUESTMAN.preset_total).toBe(0)
+      expect(QUESTMAN.preset_index).toBe(0)
+
+      QUESTMAN.presets = ['bdi2', 'nihs', 'phq_9']
+      expect(QUESTMAN.preset_total).toBe(3)
+      expect(QUESTMAN.preset_index).toBe(0) // vor dem ersten next()
+
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(1)
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(2)
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(3)
+      // Kette erschöpft: next() false, Position bleibt am Gesamtwert
+      expect(QUESTMAN.next()).toBe(false)
+      expect(QUESTMAN.preset_index).toBe(3)
+      expect(QUESTMAN.preset_total).toBe(3)
+
+      // clear_preset() setzt die Zähler zurück
+      QUESTMAN.clear_preset()
+      expect(QUESTMAN.preset_total).toBe(0)
+      expect(QUESTMAN.preset_index).toBe(0)
+
+      // Einzelbogen (String): total 1
+      QUESTMAN.presets = 'bdi2'
+      expect(QUESTMAN.preset_total).toBe(1)
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(1)
+    });
+
     it('manipulation in active Quest does not alter the QUEST LIST', () => {
       QUESTMAN.activeQuest = 'bfi';
       QUESTMAN.activeQuest.value.short_title = 'bfi2'

@@ -25,6 +25,10 @@
 
           <div class="col">
             <div class="text-h6" data-cy="quest_title">{{ QUEST.title }}</div>
+            <!-- PID-Kontext (read-only), wenn die PID bereits vorgegeben ist -->
+            <div v-if="!hasPidStep && subject_pid" class="text-caption text-grey-7" data-cy="quest_pid_context">
+              {{ $t('quest.pid') }}: {{ subject_pid }}
+            </div>
           </div>
 
           <!-- FOKUS ⇄ LISTE -->
@@ -37,6 +41,15 @@
           </div>
         </div>
       </q-card-section>
+
+      <!-- GLOBALER FORTSCHRITT (Fragebogen-Kette) -->
+      <div v-if="showChrome && chainTotal > 1" class="quest-chain">
+        <q-linear-progress :value="chainPercent / 100" rounded size="4px" color="secondary"
+          track-color="grey-3" data-cy="quest_chain_progress" />
+        <div class="text-caption text-grey-7 q-mt-xs text-center" data-cy="quest_chain">
+          {{ $t('quest.chain_of', { current: chainIndex, total: chainTotal }) }}
+        </div>
+      </div>
 
       <!-- PROGRESS -->
       <div v-if="showChrome" class="quest-progress">
@@ -60,8 +73,7 @@
           <!-- PID-SCHRITT -->
           <template v-if="step && step.kind === 'pid'">
             <div class="text-subtitle1 q-mb-md">{{ $t('quest.start') }}</div>
-            <QuestPidField v-model="subject_pid" :hint="PID_HINT_TEXT" :disable="PARAMS.PID !== undefined"
-              autofocus @enter="onEnter" />
+            <QuestPidField v-model="subject_pid" :hint="PID_HINT_TEXT" autofocus @enter="onEnter" />
           </template>
 
           <!-- FRAGE-SCHRITT -->
@@ -103,7 +115,7 @@
           <q-btn flat no-caps color="grey-8" icon="arrow_back" :label="$t('quest.prev')" :disable="currentStep === 0"
             data-cy="quest_prev" @click="goPrev()" />
 
-          <template v-if="step && step.kind === 'review'">
+          <template v-if="isFinalStep">
             <q-btn v-if="!embedded" rounded color="primary" :label="$t('btn.submit')" icon-right="check"
               data-cy="submitquest" @click="emitEvent()" />
             <q-chip v-else outline color="grey-7" icon="south">{{ $t('visit.finish') }}</q-chip>
@@ -115,9 +127,9 @@
 
       <!-- ============================ LISTEN-MODUS ============================ -->
       <template v-else>
-        <!-- PID (im Visiten-/Preview-Modus ausgeblendet) -->
-        <q-card-section v-if="!embedded && !isPreview">
-          <QuestPidField v-model="subject_pid" :hint="PID_HINT_TEXT" :disable="PARAMS.PID !== undefined" />
+        <!-- PID (im Visiten-/Preview-Modus sowie bei vorgegebener PID ausgeblendet) -->
+        <q-card-section v-if="hasPidStep">
+          <QuestPidField v-model="subject_pid" :hint="PID_HINT_TEXT" />
         </q-card-section>
 
         <q-card-section>
@@ -234,6 +246,33 @@ export default {
     autoAdvance() {
       return this.mainStore.SETTINGS.quest_auto_advance !== false
     },
+    // Durchgeklickter Preset-Flow (mehrere Bögen, vom Untersucher gestartet) —
+    // im Gegensatz zum Einzelbogen/Direktlink (mode 'single' bzw. ohne mode).
+    isPresetFlow() {
+      if (this.embedded || this.isPreview) return false
+      return !!this.PARAMS.mode && this.PARAMS.mode !== 'single'
+    },
+    // PID nur abfragen, wenn nicht bereits vorgegeben (Preset-Flow reicht sie durch).
+    hasPidStep() {
+      return !this.embedded && !this.isPreview && this.PARAMS.PID === undefined
+    },
+    // Review-Übersicht nur außerhalb des Preset-Flows zeigen (Embedded/Visit
+    // und Einzelbogen behalten sie; im Preset-Flow stört sie das Durchklicken).
+    showReview() {
+      return this.embedded || this.isPreview || !this.isPresetFlow
+    },
+    // --- globaler Fortschritt über die Fragebogen-Kette ---
+    chainTotal() {
+      return this.mainStore.QUESTMAN.preset_total
+    },
+    chainIndex() {
+      return this.mainStore.QUESTMAN.preset_index
+    },
+    chainPercent() {
+      if (this.chainTotal <= 0) return 0
+      const done = Math.max(0, this.chainIndex - 1)
+      return Math.round(((done + this.progress.percent / 100) / this.chainTotal) * 100)
+    },
     PID_HINT_TEXT() {
       if (this.PARAMS.PID !== undefined) return ''
       return this.$t('quest.pid_hint')
@@ -252,10 +291,12 @@ export default {
     progress() {
       return answerStats(this.items)
     },
-    // geordnete Schrittliste: [pid?] → Frage-Schritte (mit Intro-Kontext) → [info?] → review
+    // geordnete Schrittliste: [pid?] → Frage-Schritte (mit Intro-Kontext) → [info?] → [review?]
+    // PID-Schritt entfällt, wenn die PID bereits vorgegeben ist (Preset-Flow);
+    // Review-Schritt entfällt im durchgeklickten Preset-Flow (siehe showReview).
     steps() {
       const out = []
-      if (!this.embedded && !this.isPreview) out.push({ kind: 'pid' })
+      if (this.hasPidStep) out.push({ kind: 'pid' })
       let intro = []
       this.items.forEach((item, index) => {
         if (this.isInteractive(item)) {
@@ -266,8 +307,11 @@ export default {
         }
       })
       if (intro.length) out.push({ kind: 'info', intro })
-      out.push({ kind: 'review' })
+      if (this.showReview) out.push({ kind: 'review' })
       return out
+    },
+    isFinalStep() {
+      return this.currentStep >= this.steps.length - 1
     },
     itemSteps() {
       return this.steps.filter((s) => s.kind === 'item')
@@ -457,6 +501,10 @@ export default {
 @media (max-width: 599px)
   .quest-header
     padding-right: 48px
+
+.quest-chain
+  background: $surface
+  padding: $gap-sm $gap-md 0
 
 .quest-progress
   position: sticky
