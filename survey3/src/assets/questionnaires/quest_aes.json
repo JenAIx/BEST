@@ -23,7 +23,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "questions": [
           {

@@ -80,7 +80,7 @@
           <template v-else-if="step && step.kind === 'item'">
             <QuestIntro :blocks="step.intro" />
             <QuestItemField :item="step.item" :error="currentError" input-cy="item_input"
-              data-cy="list_entries" @emitValue="onValue(step.item, $event)" />
+              :preview="isPreview" data-cy="list_entries" @emitValue="onValue(step.item, $event)" />
           </template>
 
           <!-- INFO-SCHRITT (abschließende Hinweise) -->
@@ -140,6 +140,7 @@
               <q-item-section>
                 <!-- interaktive Frage -->
                 <QuestItemField v-if="isInteractive(item)" :item="item" input-cy="text"
+                  :preview="isPreview"
                   :error="submit_clicked && CHECK_FORM !== true && CHECK_FORM[indQ] === false"
                   @emitValue="item.value = $event" />
                 <!-- nicht-interaktiv: Überschrift / Hinweis / Bild -->

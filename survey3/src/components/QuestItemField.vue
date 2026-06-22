@@ -10,6 +10,7 @@
       :is="renderer"
       v-else
       :ITEM="item"
+      :preview="item.type === 'multiple_radio' ? preview : undefined"
       :data-cy="inputCy"
       @emitValue="$emit('emitValue', $event)"
     />
@@ -50,6 +51,8 @@ export default {
     item: { type: Object, required: true },
     error: { type: Boolean, default: false },
     inputCy: { default: 'item_input' },
+    // an RenderMultipleRadio durchgereicht: example_value nur in der Vorschau zeigen
+    preview: { type: Boolean, default: false },
   },
   emits: ['emitValue'],
   computed: {

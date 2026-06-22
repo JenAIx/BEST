@@ -31,11 +31,18 @@
 <script>
 export default {
   name: 'RenderMultipleRadio',
-  props: ['ITEM'],
+  // preview: nur in der QuestManager-Vorschau dürfen example_value-Demowerte als
+  // Auswahl angezeigt werden. Im echten Ausfüll-Flow würde das die Matrix
+  // fälschlich „beantwortet" aussehen lassen (obwohl item.value leer ist und das
+  // Absenden korrekt blockt) — daher dort leeres Raster.
+  props: {
+    ITEM: { required: true },
+    preview: { type: Boolean, default: false },
+  },
   computed: {
     val: {
       get() {
-        if (this.ITEM.example_value) return this.ITEM.example_value
+        if (this.preview && this.ITEM.example_value) return this.ITEM.example_value
         if (this.ITEM.value && this.ITEM.value.length > 0) return this.ITEM.value
         return new Array(this.ITEM.options.questions.length).fill(null)
       },

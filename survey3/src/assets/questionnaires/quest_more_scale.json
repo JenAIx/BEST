@@ -40,7 +40,7 @@
       ],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "vertical": true,
       "options": {
         "answers": [

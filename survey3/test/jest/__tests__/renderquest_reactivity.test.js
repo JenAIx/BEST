@@ -49,7 +49,8 @@ const multipleRadioDef = {
   computed: {
     val: {
       get() {
-        if (this.ITEM.example_value) return this.ITEM.example_value
+        // example_value nur in der Vorschau (preview); im echten Flow leeres Raster.
+        if (this.preview && this.ITEM.example_value) return this.ITEM.example_value
         if (this.ITEM.value && this.ITEM.value.length > 0) return this.ITEM.value
         return new Array(this.ITEM.options.questions.length).fill(null)
       },
@@ -230,7 +231,7 @@ describe('RenderQuest_text computed val', () => {
 // ─── RenderQuest_multipleradio ───
 
 describe('RenderQuest_multipleradio', () => {
-  function makeMultiRadioInstance(itemOverrides = {}) {
+  function makeMultiRadioInstance(itemOverrides = {}, preview = false) {
     const ITEM = {
       value: null,
       options: {
@@ -249,7 +250,7 @@ describe('RenderQuest_multipleradio', () => {
       rotate: false,
       ...itemOverrides
     }
-    return createMockInstance(multipleRadioDef, { ITEM })
+    return createMockInstance(multipleRadioDef, { ITEM, preview })
   }
 
   test('getter returns ITEM.value when populated', () => {
@@ -264,8 +265,14 @@ describe('RenderQuest_multipleradio', () => {
     expect(makeMultiRadioInstance({ value: null }).val).toEqual([null, null, null])
   })
 
-  test('getter returns example_value when present', () => {
-    expect(makeMultiRadioInstance({ example_value: [1, 1, 0] }).val).toEqual([1, 1, 0])
+  test('getter IGNORIERT example_value im echten Flow (kein preview)', () => {
+    // Im echten Ausfüll-Flow darf example_value die Matrix NICHT vorbefüllen,
+    // sonst sähe sie beantwortet aus, obwohl item.value leer ist.
+    expect(makeMultiRadioInstance({ example_value: [1, 1, 0] }).val).toEqual([null, null, null])
+  })
+
+  test('getter returns example_value nur in der Vorschau (preview=true)', () => {
+    expect(makeMultiRadioInstance({ example_value: [1, 1, 0] }, true).val).toEqual([1, 1, 0])
   })
 
   test('onRadioChange clones array and updates correct index', () => {

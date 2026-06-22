@@ -9,10 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### v1.12.0
 
+#### Fixed
+
+- [2026-06-22] Pflicht-Fragen im Fokus-Modus nicht mehr überspringbar: 10 Fragebögen (DGI, aes_scale, PANAS, shaps_d, More-scale, quiprs, MPQ, whoqol, FIM, Fugl-Meyer) hatten ihre `multiple_radio`-Matrizen im Bogen-JSON als `force: false` (optional) markiert — dadurch ließ sich im Fokus-Modus per „Weiter" ohne Antwort weiterspringen. Alle betroffenen Matrizen sind jetzt Pflicht (`force: true`); andere bewusst optionale Felder bleiben unverändert. (Die Validierungslogik selbst war korrekt; Ursache war die Bogen-Definition.)
+- [2026-06-22] `multiple_radio` + `example_value`: Demo-Beispielwerte wurden im echten Ausfüll-Flow als vorausgewählte Radios angezeigt (Matrix sah beantwortet aus, obwohl `item.value` leer war). `example_value` wird jetzt nur noch in der QuestManager-Vorschau gezeigt; im echten Flow startet die Matrix leer
+
 #### Added
 
 - [2026-06-22] Globale Fortschrittsanzeige über die Fragebogen-Kette ("Fragebogen X von Y" + dünner Balken), zusätzlich zur bestehenden Pro-Bogen-Anzeige. Quelle: neue `QuestMan`-Getter `preset_total`/`preset_index` (Position bleibt erhalten, obwohl die Queue beim `next()` geleert wird)
 - [2026-06-22] E2E-Test `preset_flow.spec.js`: klickt eine Mehr-Bogen-Kette in Fokus- und Listen-Modus durch und prüft den Store (Response-Anzahl, `info.PID`, Ketten-Position, Abschluss) + QuestMan-Unit-Tests für die Ketten-Zähler
+- [2026-06-22] E2E-Guard `focus_required_guard.spec.js`: Pflicht-Matrix blockt „Weiter" (leer + teilweise beantwortet) und „Absenden"; `multiradio_example_value.spec.js`: example_value erscheint nicht im echten Flow
 - [2026-06-22] `ARCHITECTURE.md`: Abschnitt zu Fragebogen-Routing & Direktlinks (stabile `short_title`-URLs, `mode`/`PID`-Semantik)
 
 #### Changed
