@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.11.2
+
+#### Fixed
+
+- [2026-06-22] Fragebogen-Migration: Beim Wechsel von der alten localStorage- auf die IndexedDB-Speicherung wurden gebündelte Fragebögen, die im alten Datenbestand (noch) fehlten, fälschlich als „vom Nutzer gelöscht" markiert und dauerhaft ausgeblendet — auf älteren iPads (iOS 17) sank die Liste so z. B. von 106 auf 75. Die Migration leitet Löschungen nicht mehr aus dem Fehlen im Alt-Blob ab; echte Löschungen kommen weiterhin ausschließlich aus dem expliziten `surveyBEST_DELETED_BUNDLED`-Schlüssel
+- [2026-06-22] Einmalige Reparatur (`deletedBundled_repair_v1`): Auf bereits betroffenen Geräten wird die fälschlich befüllte Lösch-Liste genau einmal zurückgesetzt, sodass alle gebündelten Fragebögen wieder erscheinen (bewusst ausgeblendete Bundle-Bögen können in der UI erneut gelöscht werden); Nutzer-Fragebögen bleiben unberührt
+- [2026-06-22] Race-Condition beim App-Start behoben: `QUESTMAN.init()` wurde bisher schon in der Import-Phase des Stores angestoßen und las die Datenbank teils, bevor Migration/Reparatur abgeschlossen waren (falsche Bogen-Anzahl beim ersten Laden). Die Initialisierung läuft jetzt im `db`-Boot-Default garantiert nach Migration und Reparatur
+
+#### Added
+
+- [2026-06-22] Tests: Unit-Tests für die Migrationslogik (`db_migrate.test.js`, inkl. „fehlende Bundle-Bögen werden nicht versteckt" und Idempotenz der Reparatur) sowie E2E-Regressionsschutz (`quest_count.spec.js`: frische Installation = 106, Migration aus Alt-Blob versteckt keine Bögen, Anzahl stabil nach Reload)
+
 ### v1.11.1
 
 #### Fixed

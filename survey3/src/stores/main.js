@@ -4,7 +4,6 @@ import { SETTINGS } from 'src/tools/settings'
 import { STORAGE } from 'src/tools/Storage'
 import { VISITMAN } from 'src/tools/visits/VisitMan'
 import { QUESTMAN } from 'src/tools/questman'
-import { initQuestMan } from 'src/boot/db'
 import { Platform } from 'quasar'
 import * as CDA from 'src/tools/CDA_H7_JSON'
 import { log } from 'src/tools/Logger'
@@ -17,7 +16,11 @@ import { i18n } from 'src/boot/i18n'
 //  abwich.) QuestMan bleibt bewusst reaktiv-im-State — das Live-Ausfüllen
 //  mutiert verschachtelte Item-Werte und braucht Pinias Tiefenreaktivität;
 //  daher KEIN markRaw (anders als STORAGE/VISITMAN/SETTINGS). Siehe ARCHITECTURE.md.
-const _questManReady = initQuestMan(QUESTMAN)
+//
+// QUESTMAN.init() wird NICHT mehr hier beim Modulladen angestoßen, sondern im
+// db-Boot-Default — erst NACH Migration/Reparatur (siehe boot/db.js). Sonst
+// liefe init() in der Import-Phase los und läse die DB vor der Migration (Race,
+// führte zu falscher Bogen-Anzahl beim ersten Laden).
 
 // kompakter Zeitstempel YYYYMMDDHHmmss für Export-Dateinamen
 function _stamp() {
