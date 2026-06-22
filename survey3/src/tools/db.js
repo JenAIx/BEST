@@ -24,3 +24,9 @@ db.version(2).stores({
   visitTemplates: 'id, label',
   visits:         'id, patientId, status, date'
 })
+
+// v3 — Einzelbogen-Responses optional an Patienten gekoppelt (info.patientId).
+// Rein additiver Index; bestehende Responses haben info.patientId === undefined.
+db.version(3).stores({
+  responses:      '++id, info.uid, info.date, info.PID, info.patientId, exported'
+})

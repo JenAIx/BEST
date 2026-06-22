@@ -116,7 +116,7 @@ function renderVas(item, label, ctx) {
 }
 
 function renderItem(item, ctx, imgBase) {
-  if (!item.type || item.type === 'separator' || item.type === 'seperator' || item.type === 'textbox') {
+  if (!item.type || item.type === 'separator' || item.type === 'textbox') {
     return renderSection(item)
   }
   if (item.type === 'image') return renderImage(item, imgBase)

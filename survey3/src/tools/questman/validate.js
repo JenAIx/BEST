@@ -80,6 +80,16 @@ export function validateQuestScoring(quest) {
     if (!KNOWN_SYSTEMS.includes(sys)) W('UNKNOWN_CODING_SYSTEM', `coding.system "${sys}" ist nicht kanonisch`)
   })
 
+  // number-Items: optionale min/max müssen konsistent sein (gilt auch für unbepunktete Bögen)
+  ;(quest.items || []).forEach((it, ix) => {
+    if (it.type !== 'number') return
+    const hasMin = typeof it.min === 'number'
+    const hasMax = typeof it.max === 'number'
+    if (hasMin && hasMax && it.min > it.max) {
+      E('NUMBER_RANGE', `item[${ix}] number: min (${it.min}) > max (${it.max})`)
+    }
+  })
+
   const r = quest.results
   if (!r || r.method === undefined) return { errors, warnings } // unbepunktet -> nichts mehr zu prüfen
 

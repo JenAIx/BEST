@@ -81,6 +81,31 @@ context('Patient/Visit Flow', () => {
     cy.contains('Export erfolgreich').should('exist')
   })
 
+  it('Visiten-Datum-Edit speichert ms-Timestamp (System-Datum)', () => {
+    cy.visit('/#/patients')
+    cy.get('[data-cy=new_pid]').type(`${PID}_d`)
+    cy.get('[data-cy=btn_add_patient]').click()
+    cy.get('[data-cy=select_template]').click()
+    cy.get('.q-menu').contains('Leere Visite').click()
+    cy.get('[data-cy=btn_add_visit]').click()
+    cy.get('[data-cy=page_visit]').should('exist')
+
+    // Visite-Datum editieren
+    cy.get('[data-cy=btn_edit_visit]').click()
+    cy.get('[data-cy=edit_date]').clear().type('2024-03-15')
+    cy.get('[data-cy=btn_save_visit]').click()
+    cy.get('[data-cy=page_visit]').should('exist')
+
+    // im Store muss visit.date eine Zahl (ms) sein, kein Locale-String
+    cy.hash().then((h) => {
+      const id = h.split('/').pop()
+      cy.window().then((win) => {
+        const v = win.__mainStore.VISITMAN.get_visit(id)
+        expect(v.date).to.be.a('number')
+      })
+    })
+  })
+
   it('blockt unvollständige Visite beim Patienten-Export nicht stillschweigend', () => {
     cy.visit('/#/patients')
     cy.get('[data-cy=new_pid]').type(`${PID}_c`)

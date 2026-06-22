@@ -34,7 +34,7 @@ export function import_quest(payload) {
   // NOW HASH THE TABLE
   const hash = sign(cda, payload.investigator.keyPair.privateKey, payload.investigator.keyPair.publicKey)
   hash.investigator_uid = payload.investigator.uid
-  return { cda, hash, exported: false, info: { title: payload.data.quest.title, label: payload.data.quest.label, PID: payload.data.PID, date: payload.data.quest.date_end, uid: uuidv4() } }
+  return { cda, hash, exported: false, info: { title: payload.data.quest.title, label: payload.data.quest.label, PID: payload.data.PID, patientId: payload.data.patientId !== undefined ? payload.data.patientId : null, date: payload.data.quest.date_end, uid: uuidv4() } }
 }
 
 // PREPARE EVALUATION

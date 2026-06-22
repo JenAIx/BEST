@@ -79,7 +79,7 @@ export function isAnswered(item, value) {
 export function itemValidity(item, value) {
   if (item.force === false) return true
   const t = item.type
-  if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === undefined) return null
+  if (t === 'textbox' || t === 'separator' || t === undefined) return null
   return isAnswered(item, value)
 }
 
@@ -113,7 +113,7 @@ export function answerStats(items, values) {
   let filled = 0
   items.forEach((item, i) => {
     const t = item.type
-    if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === 'image' || t === undefined) return
+    if (t === 'textbox' || t === 'separator' || t === 'image' || t === undefined) return
     const value = Array.isArray(values) ? values[i] : item.value
     if (t === 'multiple_radio') {
       const subs =

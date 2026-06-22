@@ -88,10 +88,11 @@ export default {
       const ORDERING = this.FILTER.order.value;
       switch (ORDERING) {
         case "date_up":
-          LISTE.sort((a, b) => (a.info.date < b.info.date ? 1 : -1));
+          // numerischer Vergleich (info.date ist ms); robust gegen String-Werte
+          LISTE.sort((a, b) => Number(b.info.date) - Number(a.info.date));
           break;
         case "date_down":
-          LISTE.sort((a, b) => (a.info.date > b.info.date ? 1 : -1));
+          LISTE.sort((a, b) => Number(a.info.date) - Number(b.info.date));
           break;
         case "pid_up":
           LISTE.sort((a, b) => (a.info.PID > b.info.PID ? 1 : -1));
