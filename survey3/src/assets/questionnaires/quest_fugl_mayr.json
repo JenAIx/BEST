@@ -22,7 +22,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "questions": [
           { "label": "Schulter (Elevation)", "tag": "elevation_shoulder", "id": 1 }
@@ -45,7 +45,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "questions": [
           { "label": "Ellbogen (Extension)", "tag": "extensor_synergy", "id": 2 }
@@ -68,7 +68,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "questions": [
           {
@@ -95,7 +95,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "questions": [
           {
@@ -122,7 +122,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "answers": [
           { "label": "Nicht ausführbar", "value": 0 },
@@ -149,7 +149,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "questions": [
           {

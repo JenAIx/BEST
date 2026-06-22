@@ -92,3 +92,42 @@ Anzeigen von Einzelbögen auf der Patientenseite bleiben als spätere Erweiterun
   bzw. `toRaw`), da Dexie keine Vue-Proxies serialisieren kann.
 - Schema-Upgrades in `src/tools/db.js` sind bisher rein additiv (neue Stores). Für
   künftige *breaking* Änderungen wäre ein `upgrade()`-Callback nötig.
+
+## 5. Fragebogen-Routing & Direktlinks
+
+Der Quest-Flow wird über einen **URL-kodierten Parameter** gesteuert (Hash-Mode):
+
+```
+/#/quest/<encodeURIComponent(JSON.stringify(params))>
+```
+
+`params` wird in `src/tools/routeParams.js` geparst (`decodeURIComponent` → `JSON.parse`,
+mit Fallback). Felder:
+
+| Feld | Typ | Bedeutung |
+|------|-----|-----------|
+| `presets` | `string` \| `string[]` | Ein **stabiler `short_title`** oder eine Liste davon (Reihenfolge = Durchlauf-Reihenfolge der Kette) |
+| `mode` | `'single'` \| `'new_preset'` \| `'protected'` \| `'encrypted'` | `single` = Einzelbogen (PID-Schritt + Review bleiben); alles andere = Preset-Flow (PID-Schritt entfällt bei gesetzter `PID`, Review wird übersprungen) |
+| `PID` | `string` | Optional vorgegebene Patienten-ID; wird durchgereicht, der PID-Schritt entfällt dann |
+| `email`, `pubKey` | `string` | Nur `mode: 'encrypted'` |
+
+**Direktlinks sind tragfähig**, weil `presets` auf `short_title` zeigt (stabil, versionsübergreifend –
+siehe Datenmodell-Absicherung). Beispiele:
+
+```
+# Einzelbogen, Patient gibt PID selbst ein:
+/#/quest/%7B%22presets%22%3A%22mrs%22%2C%22mode%22%3A%22single%22%7D
+  → { "presets": "mrs", "mode": "single" }
+
+# Kette aus drei Bögen, PID vorgegeben (Patient klickt nur durch):
+  → { "presets": ["mrs","phq_9","ess"], "PID": "P-001", "mode": "protected" }
+```
+
+Erzeugt werden die Links in `SelectQ.vue` (Auswahl), `Preset.vue` (Start/encrypted) und
+`PresetStore.vue` (gespeicherte Vorlagen). Ein eigenes „Link kopieren"-UI gibt es bewusst (noch) nicht;
+die Kodierung ist die Grundlage dafür, falls es später gewünscht wird.
+
+Die globale Ketten-Position (`„Fragebogen X von Y"`) liefert `QuestMan`: `preset_total` (Anzahl
+aufgenommener Bögen) und `preset_index` (`preset_total − verbleibende`, 1-basiert). `_presets` wird beim
+`next()` per `shift()` geleert, `_presetTotal` bleibt erhalten; beide werden in `clear_preset()`
+zurückgesetzt.
