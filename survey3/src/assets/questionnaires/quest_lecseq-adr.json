@@ -288,7 +288,8 @@
             "type": "separator"
         },
         {
-            "label": "Bei SAE: unverzügliche Meldung gemäß Studienvorgaben (Coordinating Investigator, Förderer/STADA Pharmakovigilanz, ggf. Ethikkommission)."
+            "label": "Bei SAE: unverzügliche Meldung gemäß Studienvorgaben (Coordinating Investigator, Förderer/STADA Pharmakovigilanz, ggf. Ethikkommission).",
+            "type": "textbox"
         },
         {
             "label": "Gemeldet an",

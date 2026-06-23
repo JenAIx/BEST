@@ -13,6 +13,7 @@
   "items": [
     {
       "label": "<b>Screening</b>",
+      "type": "textbox",
       "id": 0
     },
     {
@@ -170,7 +171,8 @@
       ]
     },
     {
-      "label": "<b>ASSESSMENT</b>"
+      "label": "<b>ASSESSMENT</b>",
+      "type": "textbox"
     },
     {
       "label": "G. Lebt der Patient eigenständig zu Hause?",

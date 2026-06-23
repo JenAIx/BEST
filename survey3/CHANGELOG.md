@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.13.0
+
+#### Added
+
+- [2026-06-23] Fragebogen-Standard maschinell festgeschrieben: neues JSON-Schema `docs/questionnaire.schema.json` (Single Source of Truth) und Beitrags-Anleitung `docs/ADDING_QUESTIONNAIRES.md` (wie neue Bögen aufgenommen werden — inkl. automatischer Test-Erfassung). `docs/DATA_MODEL_ITEMS.md` um Schema-/Validierungs-, Top-Level-, results- und force-Default-Abschnitte erweitert
+- [2026-06-23] Validator gehärtet (`validate.js`): prüft jetzt auch das Item-Schema (Pflicht `type` aus kanonischer `ITEM_TYPES`-Liste, `label`, Optionen je Typ; Warnung bei `multiple_radio`-Teilfragen ohne id). Der bestehende Schema-Guard erfasst damit automatisch jeden gebündelten Bogen
+- [2026-06-23] Import-/Speicher-Validierung verdrahtet: `QuestMan.add()` liefert `{ ok, errors }` und lehnt ungültige Bögen ab; QuestManager-Import und -Editor zeigen die konkreten Fehler im UI (statt stiller Konsolen-Logs)
+- [2026-06-23] Tests: `questman_schema_items.test.js` (Item-Schema-Regeln), `questionnaire_format.test.js` (LF-Zeilenenden + valides JSON), `add()`-Kontrakt in `questman.test.js`
+
+#### Changed
+
+- [2026-06-23] Datenmodell-Konsistenz: 23 Items ohne `type` (Überschriften/Spacer) auf `textbox`/`separator` gesetzt; 26 Bögen von CRLF auf LF normalisiert; `.gitattributes` (LF für Text-/Quelldateien) ergänzt; Builder-Typliste (`item_types`) um `textbox`/`date_year` angeglichen
+- [2026-06-23] Bewusst zurückgestellt (Tier-3-Follow-up, als Warnung sichtbar): Teilfragen-`id` für 17 `multiple_radio`, `coding.version`-Backfill, `results`-Key-Reihenfolge, `image` im Builder
+
 ### v1.12.0
 
 #### Fixed

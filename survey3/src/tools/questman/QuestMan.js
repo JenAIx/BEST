@@ -3,6 +3,7 @@ import { RANDOM, RANDOMWORD } from './helpers'
 import { calc_results, evaluate } from './scoring'
 import { buildResultItems } from './result-items'
 import { itemValidity } from '../visits/visit-model'
+import { validateQuestScoring } from './validate'
 import { db } from '../db'
 
 // Eagerly load all questionnaire JSON files via Vite's glob import
@@ -134,20 +135,37 @@ export class QuestMan {
     this._userQuests[quest.short_title] = quest
   }
 
+  // Importiert/speichert einen Fragebogen aus JSON-Text. Liefert ein Ergebnis
+  // { ok, errors }: bei ungültigem JSON, fehlenden Pflichtfeldern oder
+  // Schema-Fehlern (validateQuestScoring) wird NICHT gespeichert. Warnungen
+  // (z. B. fehlende Teilfragen-id) blockieren den Import bewusst nicht.
   add(quest_txt) {
-    if (quest_txt === null || quest_txt === undefined) return log({ error: "QuestMan>add", data: "no valid data" })
+    if (quest_txt === null || quest_txt === undefined) {
+      log({ error: 'QuestMan>add', data: 'no valid data' })
+      return { ok: false, errors: ['Keine Daten übergeben.'] }
+    }
     var json = undefined
     try {
       json = JSON.parse(quest_txt)
     } catch (e) {
-      log({ error: "QuestMan>add", data: e })
-      return false
+      log({ error: 'QuestMan>add', data: e })
+      return { ok: false, errors: ['Ungültiges JSON: ' + e.message] }
     }
 
-    if (json.items === undefined || json.title === undefined || json.short_title === undefined) return log({ error: "QuestMan>add", data: "no valid data" })
+    if (json.items === undefined || json.title === undefined || json.short_title === undefined) {
+      log({ error: 'QuestMan>add', data: 'no valid data' })
+      return { ok: false, errors: ['Pflichtfelder fehlen (title, short_title, items).'] }
+    }
+
+    const { errors } = validateQuestScoring(json)
+    if (errors.length) {
+      log({ error: 'QuestMan>add: Schema-Fehler', data: errors })
+      return { ok: false, errors: errors.map((e) => `${e.code}: ${e.msg}`) }
+    }
+
     this._add(json)
     this._save()
-    return true
+    return { ok: true, errors: [] }
   }
 
   remove_by_index(index) {

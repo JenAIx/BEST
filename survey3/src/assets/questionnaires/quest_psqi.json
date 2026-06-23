@@ -12,7 +12,8 @@
     "keywords": "schlaf sleep pittsburgh",
     "items": [
         {
-            "label": "Die folgenden Fragen beziehen sich auf Ihre üblichen Schlafgewohnheiten und zwar <b>nur während der letzten vier Wochen</b>. Ihre Antworten sollten möglichst genau sein und sich auf die Mehrzahl der Tage und Nächte während der letzten vier Wochen beziehen. Beantworten Sie bitte alle Fragen."
+            "label": "Die folgenden Fragen beziehen sich auf Ihre üblichen Schlafgewohnheiten und zwar <b>nur während der letzten vier Wochen</b>. Ihre Antworten sollten möglichst genau sein und sich auf die Mehrzahl der Tage und Nächte während der letzten vier Wochen beziehen. Beantworten Sie bitte alle Fragen.",
+            "type": "textbox"
         },
         {
             "label": "1. Wann sind Sie während der letzten vier Wochen gewöhnlich abends zu Bett gegangen?",
@@ -64,10 +65,12 @@
             "id": 4
         },
         {
-            "label": ""
+            "label": "",
+            "type": "separator"
         },
         {
-            "label": "Kreuzen Sie bitte für jede der folgenden Fragen die für Sie zutreffende Antwort an. Beantworten Sie bitte <b>alle</b> Fragen."
+            "label": "Kreuzen Sie bitte für jede der folgenden Fragen die für Sie zutreffende Antwort an. Beantworten Sie bitte <b>alle</b> Fragen.",
+            "type": "textbox"
         },
         {
             "label": "5. Wie oft haben Sie während der letzten vier Wochen schlecht geschlafen, ...",
@@ -178,7 +181,8 @@
             ]
         },
         {
-            "label": "Machen Sie bitte noch folgende Angaben zu Ihrer Person:"
+            "label": "Machen Sie bitte noch folgende Angaben zu Ihrer Person:",
+            "type": "textbox"
         },
         {
             "label": "Alter",

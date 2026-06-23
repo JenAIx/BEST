@@ -71,6 +71,34 @@ Fundament, um Einzel-Responses später an Patientenakten zu hängen. Der CDA-Has
   auftreten — derzeit kein einziger Fall. Daher keine automatische Zahl-Coercion (würde bei gemischten
   Spalten wie `"2-3"` nur inkonsistente Mixed-Typen erzeugen).
 - **`separator`** ist der einzig gültige Trenner-Typ; der frühere `seperator`-Tippfehler wurde in den Daten bereinigt und die Code-Toleranz entfernt.
-- **`example_value`** (nur `quest_hlq`, Demo-Zeile) wird rein visuell als Vorschau gezeigt; es fließt
-  **nicht** in die gespeicherte Antwort ein (`RenderQuest_multipleradio.onRadioChange` baut die Antwort
-  aus `item.value`/leerem Raster, nie aus `example_value`).
+- **`example_value`** (nur `quest_hlq`, Demo-Zeile) wird **ausschließlich in der QuestManager-Vorschau**
+  als Auswahl angezeigt (`preview`-Prop), **nicht** im echten Ausfüll-Flow (dort startet die Matrix leer).
+  Es fließt nie in die gespeicherte Antwort ein (`RenderQuest_multipleradio.onRadioChange` baut die
+  Antwort aus `item.value`/leerem Raster, nie aus `example_value`).
+
+## Schema & Validierung (kanonischer Standard)
+
+- **Maschinen-Schema:** [`questionnaire.schema.json`](./questionnaire.schema.json) ist die Single Source of
+  Truth für Top-Level-Felder, Item-Schema je Typ und den `results`-Block.
+- **Laufzeit-/Import-Validator:** `src/tools/questman/validate.js` (`validateQuestScoring`) gibt
+  `{ errors, warnings }` zurück. **Errors blockieren** den Import (`QuestMan.add()` speichert dann nicht
+  und zeigt die Fehler im UI); **Warnings** sind nicht blockierend.
+- **Guard (Test):** `test/jest/__tests__/questman_scoring_schema.test.js` validiert **alle** gebündelten
+  Bögen → jeder neue `quest_*.json` wird automatisch mitgeprüft (0 Errors Pflicht). `questionnaire_format.test.js`
+  sichert LF-Zeilenenden + valides JSON.
+
+**Top-Level-Felder:** `title`, `short_title` (eindeutig!), `items` sind Pflicht; `description`, `keywords`,
+`manual`, `coding`, `results` empfohlen. Ausnahmen ohne `coding` (IPAQ_short, PEM_Screening) bzw. ohne
+`results` (LEC-SEQ-Bögen: reine Datenerfassung) sind bewusst zulässig.
+
+**Item-Typen (`ITEM_TYPES`):** `radio, checkbox, text, number, date, date_year, time, slider,
+multiple_radio, separator, textbox, image`. Jedes Item braucht `type` + `label`.
+
+**`force`-Default:** **weggelassen ⇒ Pflicht** (`itemValidity`: nur `force === false` macht optional).
+Nicht-interaktive Typen (`separator/textbox/image`) sind nie Pflicht.
+
+**`results`-Reihenfolge (empfohlen, nicht erzwungen):** `method, coding, evaluation, scoring, domaine`.
+Methoden: top `sum/avg/count/count_targets/ids`; scoring `raw/multiply/range/count`;
+domaine `sum/avg/multiply/sum_range/diff_range/sum_multiply/avg_multiply/sum_sub_multiply`.
+
+> Anleitung zum Aufnehmen neuer Bögen: [`ADDING_QUESTIONNAIRES.md`](./ADDING_QUESTIONNAIRES.md).

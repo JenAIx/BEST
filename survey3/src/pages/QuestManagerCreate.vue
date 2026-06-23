@@ -333,8 +333,17 @@ export default {
         this.mainStore.QUESTMAN.remove_by_name(this.content.short_title)
       }
 
-      this.mainStore.QUESTMAN.add(JSON.stringify(this.content))
-      this.$q.notify({ message: this.$t('quest.export_success'), color: 'green' })
+      const res = this.mainStore.QUESTMAN.add(JSON.stringify(this.content))
+      if (res.ok) {
+        this.$q.notify({ message: this.$t('quest.export_success'), color: 'green' })
+      } else {
+        this.$q.notify({
+          message: `${this.$t('quest.import_failed')}: ${res.errors.join('; ')}`,
+          color: 'negative',
+          multiLine: true,
+          timeout: 8000,
+        })
+      }
     },
     exportQuest() {
       this.content_export = JSON.stringify(this.content)
