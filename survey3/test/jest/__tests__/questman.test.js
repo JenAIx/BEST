@@ -132,6 +132,27 @@ describe('QuestMAN Class', () => {
       expect(QUESTMAN.summary.results.length > 0).toBeTruthy()
     });
 
-
+    // IMPORT/ADD: { ok, errors }-Kontrakt inkl. Schema-Validierung
+    it('add() lehnt ungültige Bögen ab und akzeptiert valide', () => {
+      expect(QUESTMAN.add(null).ok).toBe(false)
+      expect(QUESTMAN.add('{ kein valides json').ok).toBe(false)
+      // Pflichtfelder fehlen
+      expect(QUESTMAN.add(JSON.stringify({ title: 'X' })).ok).toBe(false)
+      // Item ohne type → Schema-Fehler
+      const badType = QUESTMAN.add(JSON.stringify({
+        title: 'Bad', short_title: '__test_bad__', items: [{ label: 'frage ohne typ' }],
+      }))
+      expect(badType.ok).toBe(false)
+      expect(badType.errors.join(' ')).toMatch(/MISSING_TYPE/)
+      // valider Minimal-Bogen
+      const ok = QUESTMAN.add(JSON.stringify({
+        title: 'Gut', short_title: '__test_ok__',
+        items: [{ type: 'text', label: 'Name' }],
+      }))
+      expect(ok.ok).toBe(true)
+      expect(QUESTMAN.quest_list).toContain('__test_ok__')
+      // aufräumen, damit der Singleton-Zustand andere Tests nicht beeinflusst
+      QUESTMAN.remove_by_name('__test_ok__')
+    });
 
 })

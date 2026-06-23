@@ -1,0 +1,8 @@
+# Einheitliche Zeilenenden (LF) für Text-/Quelldateien — verhindert spurious
+# Diffs bei gemischten Editoren (Windows/Mac/Linux). Siehe ARCHITECTURE.md.
+*.json text eol=lf
+*.js   text eol=lf
+*.vue  text eol=lf
+*.md   text eol=lf
+*.sass text eol=lf
+*.css  text eol=lf

@@ -13,7 +13,8 @@
   "ref": "https://pubmed.ncbi.nlm.nih.gov/2516000/",
   "items": [
     {
-      "label": "<em>Wählen Sie die Angabe, die am besten wiedergibt, wie oft die Aussage Ihre Gefühle beschreibt.</em>"
+      "label": "<em>Wählen Sie die Angabe, die am besten wiedergibt, wie oft die Aussage Ihre Gefühle beschreibt.</em>",
+      "type": "textbox"
     },
     {
       "label": "<b>Zeitabhängig</b>",

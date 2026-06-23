@@ -12,7 +12,8 @@
   "keywords": "parkinson updrs",
   "items": [
     {
-      "label": "<b>Teil 2: Motorische Aspekte bei Erfahrungen des täglichen Lebens (M-EDL)</b>"
+      "label": "<b>Teil 2: Motorische Aspekte bei Erfahrungen des täglichen Lebens (M-EDL)</b>",
+      "type": "textbox"
     },
     {
       "label": "2.1 Sprechen",

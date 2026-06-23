@@ -6,7 +6,8 @@
   "keywords": "malaise, exertion, ",
   "items": [
     {
-      "label": "<b>Während der letzten 6 Monate</b>"
+      "label": "<b>Während der letzten 6 Monate</b>",
+      "type": "textbox"
     },
 
     {
@@ -84,7 +85,8 @@
     },
 
     {
-      "label": ""
+      "label": "",
+      "type": "separator"
     },
 
     {
@@ -163,7 +165,8 @@
     },
 
     {
-      "label": ""
+      "label": "",
+      "type": "separator"
     },
 
 
@@ -243,7 +246,8 @@
     },
 
     {
-      "label": ""
+      "label": "",
+      "type": "separator"
     },
 
     {
@@ -322,7 +326,8 @@
     },
 
     {
-      "label": ""
+      "label": "",
+      "type": "separator"
 
     },
 
@@ -403,7 +408,8 @@
     },
 
     {
-      "label": ""
+      "label": "",
+      "type": "separator"
     },
 
 

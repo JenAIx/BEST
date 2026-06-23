@@ -24,7 +24,10 @@ export const item_template = {
   "force": false
 }
 
-export const item_types = ["text", "number", "date", "time", "radio", "checkbox", "slider", "multiple_radio", "separator"]
+// Im Builder anbietbare Item-Typen. Deckungsgleich mit den Renderern; "image"
+// bleibt vorerst draußen (braucht Datei-Handling), ist aber im Validator-
+// Allowlist (ITEM_TYPES in tools/questman/validate.js) als gültig zugelassen.
+export const item_types = ["text", "number", "date", "date_year", "time", "radio", "checkbox", "slider", "multiple_radio", "separator", "textbox"]
 export const result_types = ["nothing", "sum", "count", "avg", "count_targets", "ids"]
 export const result_method_templates = {
   targets: { label: 'correct', value: 1, score: 1 },

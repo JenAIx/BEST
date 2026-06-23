@@ -59,14 +59,21 @@ export default {
 
   methods: {
     importQuest() {
-      const status = this.QUESTMAN.add(this.content);
-      if (status) {
+      const res = this.QUESTMAN.add(this.content);
+      if (res.ok) {
         this.$q.notify({
           message: `${this.$t('quest.import_success')}`,
           color: "green",
         });
         this.content = null;
-      } else this.$q.notify({ message: `Fehler: ${status}`, color: "warning" });
+      } else {
+        this.$q.notify({
+          message: `${this.$t('quest.import_failed')}: ${res.errors.join('; ')}`,
+          color: "negative",
+          multiLine: true,
+          timeout: 8000,
+        });
+      }
     },
   },
 };
