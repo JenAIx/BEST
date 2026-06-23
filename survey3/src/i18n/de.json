@@ -115,7 +115,8 @@
     "focus_mode": "Fokus-Modus",
     "list_mode": "Listen-Ansicht",
     "auto_advance": "Automatisch weiterspringen",
-    "start": "Fragebogen starten"
+    "start": "Fragebogen starten",
+    "clear_drawing": "Löschen"
   },
   "btn": {
     "close": {

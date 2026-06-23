@@ -92,7 +92,13 @@ Fundament, um Einzel-Responses später an Patientenakten zu hängen. Der CDA-Has
 `results` (LEC-SEQ-Bögen: reine Datenerfassung) sind bewusst zulässig.
 
 **Item-Typen (`ITEM_TYPES`):** `radio, checkbox, text, number, date, date_year, time, slider,
-multiple_radio, separator, textbox, image`. Jedes Item braucht `type` + `label`.
+multiple_radio, separator, textbox, image, drawing`. Jedes Item braucht `type` + `label`.
+
+**`drawing`** (quadratisches Zeichenfeld): `value` = Base64-PNG (`data:image/png;base64,…`),
+erst nach dem ersten Strich gesetzt (vorher leer ⇒ `force:true` blockt korrekt). Layoutfeld
+`canvas: { size, background }` (`background`: `blank` | `spiral` | `<datei>.png`; die Vorlage ist
+Teil des gespeicherten Bildes). Export: PDF bettet das Bild ein, CDA zeigt `[Zeichnung]` (Roh-Base64
+bleibt im strukturierten app2-/summary-Export). Siehe `quest_clock`/`quest_handwriting`/`quest_spiral`.
 
 **`force`-Default:** **weggelassen ⇒ Pflicht** (`itemValidity`: nur `force === false` macht optional).
 Nicht-interaktive Typen (`separator/textbox/image`) sind nie Pflicht.

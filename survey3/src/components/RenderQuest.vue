@@ -196,7 +196,7 @@ import QuestItemField from './QuestItemField.vue'
 import QuestIntro from './QuestIntro.vue'
 import QuestPidField from './QuestPidField.vue'
 
-const INTERACTIVE = ['radio', 'checkbox', 'text', 'number', 'date', 'date_year', 'time', 'slider', 'multiple_radio']
+const INTERACTIVE = ['radio', 'checkbox', 'text', 'number', 'date', 'date_year', 'time', 'slider', 'multiple_radio', 'drawing']
 
 export default {
   name: 'RenderQuest',

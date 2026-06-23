@@ -52,6 +52,12 @@ describe('Item-Schema-Validierung', () => {
     expect(codes(res)).toEqual(expect.arrayContaining(['MR_NO_QUESTIONS', 'MR_NO_ANSWERS']))
   })
 
+  test('drawing ist gültiger Typ, braucht keine options', () => {
+    const res = validateQuestScoring({ items: [{ type: 'drawing', label: 'Uhr zeichnen', canvas: { size: 360 } }] })
+    expect(res.errors).toEqual([])
+    expect(ITEM_TYPES).toContain('drawing')
+  })
+
   test('multiple_radio: Teilfrage ohne id → Warnung MR_QUESTION_NO_ID (kein Fehler)', () => {
     const quest = {
       items: [{

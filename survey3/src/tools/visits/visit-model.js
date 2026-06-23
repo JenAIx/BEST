@@ -73,6 +73,8 @@ export function isAnswered(item, value) {
   }
   // checkbox: mindestens eine Auswahl nötig (leeres [] zählt NICHT als ausgefüllt)
   if (t === 'checkbox') return Array.isArray(v) && v.length > 0
+  // drawing: erst beantwortet, wenn eine echte Zeichnung (data-URI PNG) vorliegt
+  if (t === 'drawing') return typeof v === 'string' && v.startsWith('data:image') && v.length > 100
   return v !== undefined && v !== null
 }
 
@@ -123,6 +125,9 @@ export function answerStats(items, values) {
     } else if (t === 'checkbox') {
       total += 1
       if (Array.isArray(value) && value.length > 0) filled += 1
+    } else if (t === 'drawing') {
+      total += 1
+      if (isAnswered(item, value)) filled += 1
     } else {
       total += 1
       if (value !== undefined && value !== null) filled += 1

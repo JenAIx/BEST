@@ -650,6 +650,8 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: clock 1`] = `{}`;
+
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: csas_e 1`] = `
 [
   {
@@ -910,6 +912,8 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
   },
 ]
 `;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: handwriting 1`] = `{}`;
 
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: health49_a 1`] = `
 [
@@ -1821,6 +1825,8 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
   },
 ]
 `;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: spiral 1`] = `{}`;
 
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sss 1`] = `
 [

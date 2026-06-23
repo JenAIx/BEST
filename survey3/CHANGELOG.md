@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+- [2026-06-23] Neuer Item-Typ **`drawing`** (quadratisches Zeichenfeld, Canvas/Pointer, touch-fähig): Ergebnis als Base64-PNG in `item.value`, „Löschen"-Funktion, optionale Vorlage (`canvas.background`: `blank`/`spiral`/Bilddatei). Pflicht-Zeichnungen (`force:true`) blocken das Absenden bis gezeichnet wurde. End-to-end integriert (Renderer, Validator/`ITEM_TYPES`, isAnswered/answerStats, Export PDF als Bild, CDA mit `[Zeichnung]`-Platzhalter bei vollem Roh-Wert im strukturierten Export)
+- [2026-06-23] Drei neue Bögen für den Zeichen-Flow: `clock` (Uhren-Zeichen-Test „10 nach 11"), `handwriting` (Schriftprobe), `spiral` (Archimedes-Spirale nachzeichnen) — als Preset-Kette nacheinander durchlaufbar (globaler Fortschritt, nahtloser Übergang)
+- [2026-06-23] Tests: `drawing_flow.spec.js` (Zeichnen→Store, Pflicht-Block, 3er-Kette), Unit-Tests für `drawing` in `visit-model`/`validate`
 - [2026-06-23] Bau-Tool (Phase 2): Items im Editor per **Drag & Drop** umsortieren (vuedraggable/SortableJS, touch-fähig) sowie per „Hoch/Runter"; Optionen, Antworten und Teilfragen (`multiple_radio`) lassen sich jetzt per „Hoch/Runter" umsortieren (vorher gar nicht). **Live-Validierung** zeigt Schema-Fehler/Warnungen direkt und blockiert das Speichern bei Fehlern (nutzt `validateQuestScoring`)
 
 ### v1.13.0
