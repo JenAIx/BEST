@@ -102,6 +102,14 @@ describe('itemValidity', () => {
     expect(itemValidity({})).toBeNull() // type undefined
   })
 
+  test('drawing: beantwortet erst mit data-URI; force greift', () => {
+    const png = 'data:image/png;base64,' + 'A'.repeat(120)
+    expect(itemValidity({ type: 'drawing', value: png })).toBe(true)
+    expect(itemValidity({ type: 'drawing', value: '' })).toBe(false)
+    expect(itemValidity({ type: 'drawing', value: null })).toBe(false)
+    expect(itemValidity({ type: 'drawing', force: false, value: '' })).toBe(true)
+  })
+
   test('multiple_radio: alle Teilantworten nötig', () => {
     expect(itemValidity({ type: 'multiple_radio', value: [1, 2, 3] })).toBe(true)
     expect(itemValidity({ type: 'multiple_radio', value: [1, null, 3] })).toBe(false)

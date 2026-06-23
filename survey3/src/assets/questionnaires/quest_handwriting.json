@@ -1,0 +1,25 @@
+{
+  "title": "Schriftprobe",
+  "short_title": "handwriting",
+  "description": "Abschreiben eines vorgegebenen Satzes (Schriftprobe)",
+  "keywords": "schrift, handschrift, schreiben, drawing, satz, probe",
+  "coding": {
+    "system": "CUSTOM",
+    "code": "HANDWRITING_SAMPLE",
+    "display": "Schriftprobe",
+    "version": "2026-06-23"
+  },
+  "manual": "",
+  "items": [
+    {
+      "id": 1,
+      "tag": "handwriting",
+      "type": "drawing",
+      "label": "Schreiben Sie den folgenden Satz ab: <b>„Heute scheint die Sonne am blauen Himmel.“</b>",
+      "value": null,
+      "force": true,
+      "canvas": { "size": 400, "background": "blank" },
+      "coding": { "system": "CUSTOM", "code": "HANDWRITING_IMG", "display": "Schriftprobe-Zeichnung" }
+    }
+  ]
+}

@@ -65,6 +65,16 @@ function renderOptions(item, label, ctx, shape) {
   return html + `</div></div>`
 }
 
+// drawing -> Label + Zeichenfläche. Gefüllt (data-URI) als Bild; leer als
+// quadratisches Kästchen (Blanko-Druckformular).
+function renderDrawing(item, label, ctx) {
+  const size = item.canvas && typeof item.canvas.size === 'number' ? item.canvas.size : 320
+  const box = (typeof item.value === 'string' && item.value.startsWith('data:image'))
+    ? `<img class="pdf-image" src="${item.value}" style="width:${size}px;height:${size}px;border:1px solid #bbb" alt="">`
+    : `<div style="width:${size}px;height:${size}px;border:1px solid #bbb"></div>`
+  return `<div class="item-block"><div class="item-label">${numPrefix(ctx.num, label)}${label}</div><div>${box}</div></div>`
+}
+
 // text -> Label + Schreiblinie
 function renderText(label, ctx) {
   return `<div class="item-block"><div class="item-label">${numPrefix(ctx.num, label)}${label}</div><div class="input-line"></div></div>`
@@ -128,6 +138,7 @@ function renderItem(item, ctx, imgBase) {
   if (item.type === 'radio' && item.options) return renderOptions(item, label, ctx, 'radio-circle')
   if (item.type === 'checkbox' && item.options) return renderOptions(item, label, ctx, 'check-box')
   if (item.type === 'slider') return renderVas(item, label, ctx)
+  if (item.type === 'drawing') return renderDrawing(item, label, ctx)
   if (item.type === 'text') return renderText(label, ctx)
   if (['number', 'date', 'date_year', 'time'].includes(item.type)) return renderShortInput(item, label, ctx)
   return renderText(label, ctx) // Fallback: Schreiblinie

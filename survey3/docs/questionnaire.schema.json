@@ -43,7 +43,7 @@
         "label": { "type": "string", "description": "HTML erlaubt. Bei separator/textbox die anzuzeigende Überschrift/Info." },
         "type": {
           "type": "string",
-          "enum": ["radio", "checkbox", "text", "number", "date", "date_year", "time", "slider", "multiple_radio", "separator", "textbox", "image"],
+          "enum": ["radio", "checkbox", "text", "number", "date", "date_year", "time", "slider", "multiple_radio", "separator", "textbox", "image", "drawing"],
           "description": "Deckt sich mit ITEM_TYPES in validate.js und den Renderern in QuestItemField.vue."
         },
         "id": {
@@ -60,6 +60,14 @@
         "rotate": { "type": "boolean", "description": "Layout (multiple_radio): lange Spaltenlabels schräg stellen." },
         "vertical": { "type": "boolean", "description": "Layout (slider): vertikale Ausrichtung." },
         "width": { "type": "number", "description": "Layout (image): Anzeigebreite in px." },
+        "canvas": {
+          "type": "object",
+          "description": "Layout (drawing): quadratisches Zeichenfeld.",
+          "properties": {
+            "size": { "type": "number", "description": "Kantenlänge in px (Default 320)." },
+            "background": { "type": "string", "description": "Vorlage: 'blank' | 'spiral' | '<datei>.png'." }
+          }
+        },
         "hint": { "type": "string", "description": "Platzhalter/Hinweis (text/number)." },
         "caption": { "type": "string" },
         "min": { "type": "number", "description": "number: untere Grenze (<= max)." },

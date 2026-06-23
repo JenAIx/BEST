@@ -23,7 +23,7 @@ export const KNOWN_SYSTEMS = ['http://snomed.info/sct', 'LOINC', 'CUSTOM', 'LEC-
 // dieser Typen tragen.
 export const ITEM_TYPES = [
   'radio', 'checkbox', 'text', 'number', 'date', 'date_year', 'time', 'slider',
-  'multiple_radio', 'separator', 'textbox', 'image',
+  'multiple_radio', 'separator', 'textbox', 'image', 'drawing',
 ]
 // Typen, die eine flache options-Liste [{label,value}] benötigen.
 const OPTION_LIST_TYPES = ['radio', 'checkbox']
