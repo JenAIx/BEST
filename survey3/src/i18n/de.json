@@ -124,6 +124,9 @@
     "up": {
       "label": "hoch"
     },
+    "down": {
+      "label": "runter"
+    },
     "toquest": "zum Fragebogen",
     "back": {
       "label": "zurück"

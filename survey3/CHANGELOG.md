@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.14.0
+
+#### Added
+
+- [2026-06-23] Bau-Tool (Phase 2): Items im Editor per **Drag & Drop** umsortieren (vuedraggable/SortableJS, touch-fähig) sowie per „Hoch/Runter"; Optionen, Antworten und Teilfragen (`multiple_radio`) lassen sich jetzt per „Hoch/Runter" umsortieren (vorher gar nicht). **Live-Validierung** zeigt Schema-Fehler/Warnungen direkt und blockiert das Speichern bei Fehlern (nutzt `validateQuestScoring`)
+
 ### v1.13.0
 
 #### Added
