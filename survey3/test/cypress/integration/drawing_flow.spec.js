@@ -28,6 +28,12 @@ function draw() {
     .trigger('pointerup', 90, 240, { pointerId: 1, force: true })
 }
 
+// Zeichnen + explizit „Übernehmen" (erst dann zählt die Zeichnung als beantwortet).
+function drawAndConfirm() {
+  draw()
+  cy.get('[data-cy=drawing_save]').click()
+}
+
 describe('Zeichen-Flow (Uhr / Schrift / Spirale)', () => {
   beforeEach(() => cy.viewport(1280, 900)) // Listen-Modus
 
@@ -41,8 +47,16 @@ describe('Zeichen-Flow (Uhr / Schrift / Spirale)', () => {
     cy.location('hash').should('not.include', '/finished_quest')
     cy.window().then((win) => expect(win.__mainStore.STORAGE.get().length).to.equal(0))
 
-    // zeichnen → absenden → gespeichert
+    // gezeichnet, aber NICHT übernommen → weiterhin blockiert (Wert noch leer)
     draw()
+    cy.get('[data-cy=drawing_unsaved]').should('exist')
+    cy.get('[data-cy=submitquest]').click()
+    cy.location('hash').should('not.include', '/finished_quest')
+    cy.window().then((win) => expect(win.__mainStore.STORAGE.get().length).to.equal(0))
+
+    // Übernehmen → absenden → gespeichert
+    cy.get('[data-cy=drawing_save]').click()
+    cy.get('[data-cy=drawing_unsaved]').should('not.exist')
     cy.get('[data-cy=submitquest]').click()
     cy.location('hash').should('include', '/finished_quest')
     cy.window().then((win) => {
@@ -59,17 +73,17 @@ describe('Zeichen-Flow (Uhr / Schrift / Spirale)', () => {
 
     // Bogen 1/3
     cy.get('[data-cy=quest_chain]').should('contain', 'Fragebogen 1 von 3')
-    draw()
+    drawAndConfirm()
     cy.get('[data-cy=submitquest]').click()
 
     // Bogen 2/3
     cy.get('[data-cy=quest_chain]').should('contain', 'Fragebogen 2 von 3')
-    draw()
+    drawAndConfirm()
     cy.get('[data-cy=submitquest]').click()
 
     // Bogen 3/3
     cy.get('[data-cy=quest_chain]').should('contain', 'Fragebogen 3 von 3')
-    draw()
+    drawAndConfirm()
     cy.get('[data-cy=submitquest]').click()
 
     cy.location('hash').should('include', '/finished_quest')

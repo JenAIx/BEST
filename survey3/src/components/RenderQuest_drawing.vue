@@ -14,20 +14,26 @@
         @pointercancel="onUp"
       />
     </div>
-    <div v-if="!preview" class="row justify-end q-mt-xs">
+    <div v-if="!preview" class="row justify-end items-center q-gutter-sm q-mt-xs">
+      <span v-if="dirty" class="text-caption text-orange-9" data-cy="drawing_unsaved">
+        {{ $t('quest.drawing_unsaved') }}
+      </span>
       <q-btn flat dense no-caps icon="delete" :label="$t('quest.clear_drawing')" color="grey-7"
         data-cy="drawing_clear" @click="clearCanvas" />
+      <q-btn unelevated no-caps icon="check" :label="$t('quest.confirm_drawing')" color="primary"
+        :disable="!dirty" data-cy="drawing_save" @click="confirmDrawing" />
     </div>
   </div>
 </template>
 
 <script>
 // Zeichen-Item: quadratisches Canvas, in dem der Proband zeichnet (Maus/Touch/Pen
-// via Pointer-Events). Das Ergebnis wird als Base64-PNG (data-URI) emittiert und in
-// item.value gespeichert. Optionaler Hintergrund (blank | spiral | <datei>.png) als
+// via Pointer-Events). Das Ergebnis wird als Base64-PNG (data-URI) in item.value
+// gespeichert — aber ERST, wenn der Nutzer die Zeichnung explizit per „Übernehmen"
+// bestätigt (nicht schon beim ersten Strich). So springt der Fortschritt nicht
+// verfrüht auf „beantwortet", und Pflichtfelder (force) bleiben offen, bis
+// übernommen wurde. Optionaler Hintergrund (blank | spiral | <datei>.png) als
 // Vorlage; der Hintergrund ist Teil des gespeicherten Bildes (hilft beim Befunden).
-// "Beantwortet" wird erst NACH dem ersten Strich emittiert (vorher leer), damit
-// Pflichtfelder (force) den Bogen korrekt blockieren.
 export default {
   name: 'RenderDrawing',
   props: {
@@ -36,7 +42,8 @@ export default {
   },
   emits: ['emitValue'],
   data() {
-    return { ctx: null, drawing: false, hasDrawn: false, last: null }
+    // dirty = es gibt noch nicht übernommene Striche.
+    return { ctx: null, drawing: false, hasDrawn: false, dirty: false, last: null }
   },
   computed: {
     size() {
@@ -126,15 +133,23 @@ export default {
       this.ctx.stroke()
       this.last = p
       this.hasDrawn = true
+      this.dirty = true // es gibt nicht übernommene Änderungen
     },
     onUp() {
       if (!this.drawing || this.preview) return
       this.drawing = false
-      if (this.hasDrawn) this.$emit('emitValue', this.$refs.canvas.toDataURL('image/png'))
+      // Bewusst KEIN emit hier — erst „Übernehmen" schreibt den Wert.
+    },
+    // Übernimmt die aktuelle Zeichnung als item.value (zählt erst jetzt als beantwortet).
+    confirmDrawing() {
+      if (!this.hasDrawn) return
+      this.dirty = false
+      this.$emit('emitValue', this.$refs.canvas.toDataURL('image/png'))
     },
     clearCanvas() {
       this.resetBackground()
       this.hasDrawn = false
+      this.dirty = false
       this.$emit('emitValue', '')
     },
   },

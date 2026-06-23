@@ -116,7 +116,9 @@
     "list_mode": "Listen-Ansicht",
     "auto_advance": "Automatisch weiterspringen",
     "start": "Fragebogen starten",
-    "clear_drawing": "Löschen"
+    "clear_drawing": "Löschen",
+    "confirm_drawing": "Übernehmen",
+    "drawing_unsaved": "noch nicht übernommen"
   },
   "btn": {
     "close": {
