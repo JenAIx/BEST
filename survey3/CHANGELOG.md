@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### v1.15.0
 
+#### Fixed
+
+- [2026-06-24] `/select` Auswahl-Bug: Die Mehrfachauswahl wurde per Filter-Index getrackt — nach einem Filterwechsel verrutschten die Häkchen auf andere Bögen. Auswahl jetzt per Bogen-Key (bleibt über Suche/Filter hinweg korrekt)
+
 #### Changed
 
 - [2026-06-24] Bau-Tool (Editor) komplett überarbeitet — elegant, intuitiv, funktional:
@@ -17,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Intelligente Namensgebung**: `short_title` automatisch aus dem Titel (slug), lesbare Default-Labels/Tags statt UUIDs, generisches Default-Coding („Klinisches Assessment" statt „Blepharospasm…").
   - **Schlüsselworte als Chips** mit kuratierten Vorschlägen aus dem Bestand (anklicken/entfernen, freie Eingabe).
   - **Einfache Auswertung**: Methode wählen (Summe/Mittelwert/Anzahl) + Bewertungsbereiche (von/bis/Label) per UI; komplexes ID-/Domänen-Scoring bleibt unter „Erweitert".
+- [2026-06-24] `/select` (Fragebogenauswahl) aufgehübscht: immer sichtbare Suche (Titel/Beschreibung/Schlüsselwort) mit Trefferzähler statt Filter-Button, Karten mit Schlüsselwort-Chips, klar erkennbare Mehrfachauswahl.
 - [2026-06-24] Editier-Stabilität: `CreateItem` synchronisiert seine lokale Kopie jetzt per Watcher auf Typänderung statt durch externen Re-Mount — kein Fokusverlust/DOM-Detach mehr beim Bearbeiten
 
 ### v1.14.1
