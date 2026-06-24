@@ -73,13 +73,15 @@ export function isAnswered(item, value) {
   }
   // checkbox: mindestens eine Auswahl nötig (leeres [] zählt NICHT als ausgefüllt)
   if (t === 'checkbox') return Array.isArray(v) && v.length > 0
+  // drawing: erst beantwortet, wenn eine echte Zeichnung (data-URI PNG) vorliegt
+  if (t === 'drawing') return typeof v === 'string' && v.startsWith('data:image') && v.length > 100
   return v !== undefined && v !== null
 }
 
 export function itemValidity(item, value) {
   if (item.force === false) return true
   const t = item.type
-  if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === undefined) return null
+  if (t === 'textbox' || t === 'separator' || t === undefined) return null
   return isAnswered(item, value)
 }
 
@@ -113,7 +115,7 @@ export function answerStats(items, values) {
   let filled = 0
   items.forEach((item, i) => {
     const t = item.type
-    if (t === 'textbox' || t === 'seperator' || t === 'separator' || t === 'image' || t === undefined) return
+    if (t === 'textbox' || t === 'separator' || t === 'image' || t === undefined) return
     const value = Array.isArray(values) ? values[i] : item.value
     if (t === 'multiple_radio') {
       const subs =
@@ -123,6 +125,9 @@ export function answerStats(items, values) {
     } else if (t === 'checkbox') {
       total += 1
       if (Array.isArray(value) && value.length > 0) filled += 1
+    } else if (t === 'drawing') {
+      total += 1
+      if (isAnswered(item, value)) filled += 1
     } else {
       total += 1
       if (value !== undefined && value !== null) filled += 1

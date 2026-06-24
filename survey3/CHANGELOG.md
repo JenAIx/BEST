@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.14.0
+
+#### Added
+
+- [2026-06-23] Neuer Item-Typ **`drawing`** (quadratisches Zeichenfeld, Canvas/Pointer, touch-fähig): Ergebnis als Base64-PNG in `item.value`. Die Zeichnung zählt erst als beantwortet, wenn sie per **„Übernehmen"** bestätigt wird (Striche allein setzen den Wert nicht — der Fortschritt springt nicht mehr verfrüht auf 1/1); Zwischenzustand „noch nicht übernommen" + „Löschen". Optionale Vorlage (`canvas.background`: `blank`/`spiral`/Bilddatei). Pflicht-Zeichnungen (`force:true`) blocken das Absenden bis übernommen. End-to-end integriert (Renderer, Validator/`ITEM_TYPES`, isAnswered/answerStats, Export PDF als Bild, CDA mit `[Zeichnung]`-Platzhalter bei vollem Roh-Wert im strukturierten Export)
+- [2026-06-23] Drei neue Bögen für den Zeichen-Flow: `clock` (Uhren-Zeichen-Test „10 nach 11"), `handwriting` (Schriftprobe), `spiral` (Archimedes-Spirale nachzeichnen) — als Preset-Kette nacheinander durchlaufbar (globaler Fortschritt, nahtloser Übergang). Je Bogen zusätzlich ein optionales Textfeld „Bemerkungen"
+- [2026-06-24] Storage-Detailansicht (`TableView`): Zeichnungen werden als **Bildvorschau** statt Roh-Base64 gezeigt, mit **PNG-Download** je Zeichnung; Druck/Print bettet das Bild ein; CSV-Export nutzt einen `[Zeichnung]`-Platzhalter (kein Base64 in der Zelle)
+- [2026-06-23] Tests: `drawing_flow.spec.js` (Zeichnen→Store, Pflicht-Block, 3er-Kette), Unit-Tests für `drawing` in `visit-model`/`validate`
+- [2026-06-23] Bau-Tool (Phase 2): Items im Editor per **Drag & Drop** umsortieren (vuedraggable/SortableJS, touch-fähig) sowie per „Hoch/Runter"; Optionen, Antworten und Teilfragen (`multiple_radio`) lassen sich jetzt per „Hoch/Runter" umsortieren (vorher gar nicht). **Live-Validierung** zeigt Schema-Fehler/Warnungen direkt und blockiert das Speichern bei Fehlern (nutzt `validateQuestScoring`)
+
+### v1.13.0
+
+#### Added
+
+- [2026-06-23] Fragebogen-Standard maschinell festgeschrieben: neues JSON-Schema `docs/questionnaire.schema.json` (Single Source of Truth) und Beitrags-Anleitung `docs/ADDING_QUESTIONNAIRES.md` (wie neue Bögen aufgenommen werden — inkl. automatischer Test-Erfassung). `docs/DATA_MODEL_ITEMS.md` um Schema-/Validierungs-, Top-Level-, results- und force-Default-Abschnitte erweitert
+- [2026-06-23] Validator gehärtet (`validate.js`): prüft jetzt auch das Item-Schema (Pflicht `type` aus kanonischer `ITEM_TYPES`-Liste, `label`, Optionen je Typ; Warnung bei `multiple_radio`-Teilfragen ohne id). Der bestehende Schema-Guard erfasst damit automatisch jeden gebündelten Bogen
+- [2026-06-23] Import-/Speicher-Validierung verdrahtet: `QuestMan.add()` liefert `{ ok, errors }` und lehnt ungültige Bögen ab; QuestManager-Import und -Editor zeigen die konkreten Fehler im UI (statt stiller Konsolen-Logs)
+- [2026-06-23] Tests: `questman_schema_items.test.js` (Item-Schema-Regeln), `questionnaire_format.test.js` (LF-Zeilenenden + valides JSON), `add()`-Kontrakt in `questman.test.js`
+
+#### Changed
+
+- [2026-06-23] Datenmodell-Konsistenz: 23 Items ohne `type` (Überschriften/Spacer) auf `textbox`/`separator` gesetzt; 26 Bögen von CRLF auf LF normalisiert; `.gitattributes` (LF für Text-/Quelldateien) ergänzt; Builder-Typliste (`item_types`) um `textbox`/`date_year` angeglichen
+- [2026-06-23] Bewusst zurückgestellt (Tier-3-Follow-up, als Warnung sichtbar): Teilfragen-`id` für 17 `multiple_radio`, `coding.version`-Backfill, `results`-Key-Reihenfolge, `image` im Builder
+
+### v1.12.0
+
+#### Fixed
+
+- [2026-06-22] Pflicht-Fragen im Fokus-Modus nicht mehr überspringbar: 10 Fragebögen (DGI, aes_scale, PANAS, shaps_d, More-scale, quiprs, MPQ, whoqol, FIM, Fugl-Meyer) hatten ihre `multiple_radio`-Matrizen im Bogen-JSON als `force: false` (optional) markiert — dadurch ließ sich im Fokus-Modus per „Weiter" ohne Antwort weiterspringen. Alle betroffenen Matrizen sind jetzt Pflicht (`force: true`); andere bewusst optionale Felder bleiben unverändert. (Die Validierungslogik selbst war korrekt; Ursache war die Bogen-Definition.)
+- [2026-06-22] `multiple_radio` + `example_value`: Demo-Beispielwerte wurden im echten Ausfüll-Flow als vorausgewählte Radios angezeigt (Matrix sah beantwortet aus, obwohl `item.value` leer war). `example_value` wird jetzt nur noch in der QuestManager-Vorschau gezeigt; im echten Flow startet die Matrix leer
+
+#### Added
+
+- [2026-06-22] Globale Fortschrittsanzeige über die Fragebogen-Kette ("Fragebogen X von Y" + dünner Balken), zusätzlich zur bestehenden Pro-Bogen-Anzeige. Quelle: neue `QuestMan`-Getter `preset_total`/`preset_index` (Position bleibt erhalten, obwohl die Queue beim `next()` geleert wird)
+- [2026-06-22] E2E-Test `preset_flow.spec.js`: klickt eine Mehr-Bogen-Kette in Fokus- und Listen-Modus durch und prüft den Store (Response-Anzahl, `info.PID`, Ketten-Position, Abschluss) + QuestMan-Unit-Tests für die Ketten-Zähler
+- [2026-06-22] E2E-Guard `focus_required_guard.spec.js`: Pflicht-Matrix blockt „Weiter" (leer + teilweise beantwortet) und „Absenden"; `multiradio_example_value.spec.js`: example_value erscheint nicht im echten Flow
+- [2026-06-22] `ARCHITECTURE.md`: Abschnitt zu Fragebogen-Routing & Direktlinks (stabile `short_title`-URLs, `mode`/`PID`-Semantik)
+
+#### Changed
+
+- [2026-06-22] Preset-Flow geglättet ("Untersucher wählt aus → Patient klickt durch"): Im durchgeklickten Preset-Flow entfällt der redundante PID-Schritt (PID kommt aus der URL) und der Review-Zwischenschritt am Bogen-Ende → nahtloser Übergang von Bogen zu Bogen. Einzelbogen/Direktlink (`mode: 'single'`) behalten PID-Schritt und Review
+- [2026-06-22] PID-Dopplung behoben: Ist die PID bereits vorgegeben, wird das PID-Eingabefeld im Bogen (Fokus- und Listen-Modus) nicht mehr angezeigt, sondern nur noch als read-only Kontext ("PID: …") im Kopf
+
+### v1.11.2
+
+#### Fixed
+
+- [2026-06-22] Fragebogen-Migration: Beim Wechsel von der alten localStorage- auf die IndexedDB-Speicherung wurden gebündelte Fragebögen, die im alten Datenbestand (noch) fehlten, fälschlich als „vom Nutzer gelöscht" markiert und dauerhaft ausgeblendet — auf älteren iPads (iOS 17) sank die Liste so z. B. von 106 auf 75. Die Migration leitet Löschungen nicht mehr aus dem Fehlen im Alt-Blob ab; echte Löschungen kommen weiterhin ausschließlich aus dem expliziten `surveyBEST_DELETED_BUNDLED`-Schlüssel
+- [2026-06-22] Einmalige Reparatur (`deletedBundled_repair_v1`): Auf bereits betroffenen Geräten wird die fälschlich befüllte Lösch-Liste genau einmal zurückgesetzt, sodass alle gebündelten Fragebögen wieder erscheinen (bewusst ausgeblendete Bundle-Bögen können in der UI erneut gelöscht werden); Nutzer-Fragebögen bleiben unberührt
+- [2026-06-22] Race-Condition beim App-Start behoben: `QUESTMAN.init()` wurde bisher schon in der Import-Phase des Stores angestoßen und las die Datenbank teils, bevor Migration/Reparatur abgeschlossen waren (falsche Bogen-Anzahl beim ersten Laden). Die Initialisierung läuft jetzt im `db`-Boot-Default garantiert nach Migration und Reparatur
+
+#### Added
+
+- [2026-06-22] Tests: Unit-Tests für die Migrationslogik (`db_migrate.test.js`, inkl. „fehlende Bundle-Bögen werden nicht versteckt" und Idempotenz der Reparatur) sowie E2E-Regressionsschutz (`quest_count.spec.js`: frische Installation = 106, Migration aus Alt-Blob versteckt keine Bögen, Anzahl stabil nach Reload)
+
 ### v1.11.1
 
 #### Fixed

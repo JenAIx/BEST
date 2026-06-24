@@ -10,6 +10,7 @@
       :is="renderer"
       v-else
       :ITEM="item"
+      :preview="(item.type === 'multiple_radio' || item.type === 'drawing') ? preview : undefined"
       :data-cy="inputCy"
       @emitValue="$emit('emitValue', $event)"
     />
@@ -30,6 +31,7 @@ import RenderDate from './RenderQuest_date.vue'
 import RenderTime from './RenderQuest_time.vue'
 import RenderText from './RenderQuest_text.vue'
 import RenderRadio from './RenderQuest_radio.vue'
+import RenderDrawing from './RenderQuest_drawing.vue'
 
 const RENDERER = {
   radio: 'RenderRadio',
@@ -41,15 +43,18 @@ const RENDERER = {
   time: 'RenderTime',
   slider: 'RenderSlider',
   multiple_radio: 'RenderMultipleRadio',
+  drawing: 'RenderDrawing',
 }
 
 export default {
   name: 'QuestItemField',
-  components: { RenderSlider, RenderMultipleRadio, RenderDate, RenderTime, RenderText, RenderRadio },
+  components: { RenderSlider, RenderMultipleRadio, RenderDate, RenderTime, RenderText, RenderRadio, RenderDrawing },
   props: {
     item: { type: Object, required: true },
     error: { type: Boolean, default: false },
     inputCy: { default: 'item_input' },
+    // an RenderMultipleRadio durchgereicht: example_value nur in der Vorschau zeigen
+    preview: { type: Boolean, default: false },
   },
   emits: ['emitValue'],
   computed: {

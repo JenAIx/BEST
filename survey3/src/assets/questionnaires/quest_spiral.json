@@ -1,0 +1,35 @@
+{
+  "title": "Archimedes-Spirale",
+  "short_title": "spiral",
+  "description": "Nachzeichnen einer vorgegebenen Spirale (Tremor-/Motorik-Test)",
+  "keywords": "spirale, archimedes, nachzeichnen, drawing, tremor, motorik",
+  "coding": {
+    "system": "CUSTOM",
+    "code": "ARCHIMEDES_SPIRAL",
+    "display": "Archimedes-Spirale",
+    "version": "2026-06-23"
+  },
+  "manual": "",
+  "items": [
+    {
+      "id": 1,
+      "tag": "spiral",
+      "type": "drawing",
+      "label": "Zeichnen Sie die vorgegebene Spirale möglichst genau nach (ohne abzusetzen).",
+      "value": null,
+      "force": true,
+      "canvas": { "size": 360, "background": "spiral" },
+      "coding": { "system": "CUSTOM", "code": "SPIRAL_IMG", "display": "Spirale-Zeichnung" }
+    },
+    {
+      "id": 2,
+      "tag": "remarks",
+      "type": "text",
+      "label": "Bemerkungen",
+      "hint": "optionale Anmerkungen",
+      "value": null,
+      "force": false,
+      "coding": { "system": "CUSTOM", "code": "SPIRAL_REMARKS", "display": "Bemerkungen" }
+    }
+  ]
+}

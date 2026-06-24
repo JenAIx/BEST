@@ -98,9 +98,16 @@ describe('itemValidity', () => {
 
   test('nicht-interaktive Typen → null', () => {
     expect(itemValidity({ type: 'separator' })).toBeNull()
-    expect(itemValidity({ type: 'seperator' })).toBeNull()
     expect(itemValidity({ type: 'textbox' })).toBeNull()
     expect(itemValidity({})).toBeNull() // type undefined
+  })
+
+  test('drawing: beantwortet erst mit data-URI; force greift', () => {
+    const png = 'data:image/png;base64,' + 'A'.repeat(120)
+    expect(itemValidity({ type: 'drawing', value: png })).toBe(true)
+    expect(itemValidity({ type: 'drawing', value: '' })).toBe(false)
+    expect(itemValidity({ type: 'drawing', value: null })).toBe(false)
+    expect(itemValidity({ type: 'drawing', force: false, value: '' })).toBe(true)
   })
 
   test('multiple_radio: alle Teilantworten nötig', () => {

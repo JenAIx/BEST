@@ -20,7 +20,7 @@
               class="bg-grey-1 q-pa-sm"
             >
               <q-input data-cy="quest_title" v-model="content.title" dense label="Titel" />
-              <q-input  v-model="content.short_title" dense label="Kurzer Titel (Klein, keine Sonderzeichen / Leerzeichen)" />
+              <q-input data-cy="quest_short_title" v-model="content.short_title" dense label="Kurzer Titel (Klein, keine Sonderzeichen / Leerzeichen)" />
               <q-input  v-model="content.description" dense label="Beschreibung" />
               <q-input  v-model="content.manual" dense label="Anleitung" />
               <q-input  v-model="content.keywords" dense label="Schlüsselworte / Suchworte" />
@@ -57,42 +57,59 @@
               class="bg-grey-1"
               data-cy="btn_items"
             >
-              <!-- ALL ELEMENTS -->
-              <div  class="q-pa-md row items-center q-y-gutter-sm" v-for="(item, inditem) in content.items" :key="inditem+date_str">
-                <div class="col-11">
-                  <q-expansion-item
-                    :data-cy="`item_expanse_${inditem}`"
-                    class="bg-grey-3"
-                    v-model="expanded[inditem]"
-                    :icon="return_icon_quest(item.type)"
-                    :label="item.label"
-                    :caption="item.type"
-                  >
-                  <CREATEITEM :item="item" :index="inditem" @updateItem="updateItem($event, item)" />
-                  </q-expansion-item>
-                </div>
-                <div class="col-1">
-                  <q-btn  color="grey-7" round flat icon="more_vert" data-cy="btn_options">
-                    <q-menu cover auto-close>
-                      <q-list>
-                        <q-item v-if="inditem > 0" class="my-btn text-center" data-cy="back_root" clickable @click="moveItem('up', inditem)">
-                          <q-item-section >{{$t('btn.up.label')}}</q-item-section>
-                        </q-item>
-                        <q-separator/>
-                        <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="removeItem(inditem)">
-                          <q-item-section >{{$t('btn.delete.label')}}</q-item-section>
-                        </q-item>
-                        <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="copyItem(inditem)">
-                          <q-item-section >{{$t('btn.duplicate.label')}}</q-item-section>
-                        </q-item>
-                        <q-item  class="my-btn text-center" data-cy="back_root" clickable @click="previewItem(item)">
-                          <q-item-section >{{$t('btn.preview.label')}}</q-item-section>
-                        </q-item>
-                      </q-list>
-                    </q-menu>
-                  </q-btn>
-                </div>
-              </div>
+              <!-- ALL ELEMENTS (per Drag-&-Drop oder Hoch/Runter sortierbar) -->
+              <draggable
+                v-model="content.items"
+                :item-key="itemKey"
+                handle=".drag-handle"
+                ghost-class="drag-ghost"
+                @end="updateID()"
+              >
+                <template #item="{ element: item, index: inditem }">
+                  <div class="q-pa-md row items-center q-y-gutter-sm" :data-cy="`item_row_${inditem}`">
+                    <div class="col-auto">
+                      <q-icon class="drag-handle cursor-move" name="drag_indicator" size="sm" color="grey-6"
+                        :data-cy="`item_drag_${inditem}`" />
+                    </div>
+                    <div class="col">
+                      <q-expansion-item
+                        :data-cy="`item_expanse_${inditem}`"
+                        class="bg-grey-3"
+                        v-model="expanded[inditem]"
+                        :icon="return_icon_quest(item.type)"
+                        :label="item.label"
+                        :caption="item.type"
+                      >
+                      <CREATEITEM :key="'ci_' + inditem + '_' + date_str" :item="item" :index="inditem" @updateItem="updateItem($event, item)" />
+                      </q-expansion-item>
+                    </div>
+                    <div class="col-auto">
+                      <q-btn  color="grey-7" round flat icon="more_vert" data-cy="btn_options">
+                        <q-menu cover auto-close>
+                          <q-list>
+                            <q-item v-if="inditem > 0" class="my-btn text-center" :data-cy="`item_up_${inditem}`" clickable @click="moveItem('up', inditem)">
+                              <q-item-section >{{$t('btn.up.label')}}</q-item-section>
+                            </q-item>
+                            <q-item v-if="inditem < content.items.length - 1" class="my-btn text-center" :data-cy="`item_down_${inditem}`" clickable @click="moveItem('down', inditem)">
+                              <q-item-section >{{$t('btn.down.label')}}</q-item-section>
+                            </q-item>
+                            <q-separator/>
+                            <q-item  class="my-btn text-center" :data-cy="`item_delete_${inditem}`" clickable @click="removeItem(inditem)">
+                              <q-item-section >{{$t('btn.delete.label')}}</q-item-section>
+                            </q-item>
+                            <q-item  class="my-btn text-center" :data-cy="`item_copy_${inditem}`" clickable @click="copyItem(inditem)">
+                              <q-item-section >{{$t('btn.duplicate.label')}}</q-item-section>
+                            </q-item>
+                            <q-item  class="my-btn text-center" clickable @click="previewItem(item)">
+                              <q-item-section >{{$t('btn.preview.label')}}</q-item-section>
+                            </q-item>
+                          </q-list>
+                        </q-menu>
+                      </q-btn>
+                    </div>
+                  </div>
+                </template>
+              </draggable>
 
               <!-- ADD BUTTON -->
               <q-btn data-cy="btn_items_add" class="q-my-md" icon="add" @click="addItem()" />
@@ -117,11 +134,24 @@
         </q-scroll-area>
       </div>
 
+      <!-- LIVE-VALIDIERUNG -->
+      <div v-if="content !== null" class="col-auto q-px-md" style="width: 100%; max-width: 720px">
+        <q-banner v-if="validation.errors.length" dense class="bg-red-1 text-red-9 q-mb-xs" data-cy="validation_errors">
+          <template v-slot:avatar><q-icon name="error" color="negative" /></template>
+          <div class="text-weight-medium">{{ validation.errors.length }} Fehler — Speichern blockiert:</div>
+          <div v-for="(e, i) in validation.errors" :key="'e'+i" class="text-caption">{{ e.code }}: {{ e.msg }}</div>
+        </q-banner>
+        <q-banner v-else dense class="bg-green-1 text-green-9 q-mb-xs" data-cy="validation_ok">
+          <template v-slot:avatar><q-icon name="check_circle" color="positive" /></template>
+          Schema gültig{{ validation.warnings.length ? ` (${validation.warnings.length} Warnung(en))` : '' }}.
+        </q-banner>
+      </div>
+
       <!-- ACTIONBTTNS -->
       <div class="col-2 text-center q-gutter-md justify-around" style="width: 100%">
           <MYBUTTON data-cy="btn_preview" :icon="$t('btn.preview.icon')"  @click="preview" :label="$t('btn.preview.label')" />
           <br>
-          <MYBUTTON @click="saveQuest()" :label="$t('btn.save.label')" />
+          <MYBUTTON data-cy="btn_save" @click="saveQuest()" :label="$t('btn.save.label')" />
           <MYBUTTON @click="exportQuest()" :label="$t('btn.export.label_short')" />
       </div>
 
@@ -182,6 +212,8 @@ import { quest_template, item_template } from 'assets/questionnaires/list_quest'
 import { uuidv4 } from 'src/tools/hhash'
 import {log} from 'src/tools/Logger'
 import myMixins from 'src/mixins/modes'
+import draggable from 'vuedraggable'
+import { validateQuestScoring } from 'src/tools/questman/validate'
 
 import BACKBUTTON from 'src/components/BackButton.vue'
 import CREATEITEM from 'src/components/CreateItem.vue'
@@ -196,7 +228,7 @@ export default {
     return { mainStore: useMainStore() }
   },
   mixins: [myMixins],
-  components: {BACKBUTTON, CREATEITEM, CREATERESULTS, PREVIEWITEM, MYBUTTON},
+  components: {BACKBUTTON, CREATEITEM, CREATERESULTS, PREVIEWITEM, MYBUTTON, draggable},
   data () {
     return {
       content: null,
@@ -216,10 +248,26 @@ export default {
 
   },
   computed: {
-
+    // Live-Schema-Validierung des aktuell bearbeiteten Bogens. date_str triggert
+    // die Neuberechnung bei jeder Item-/Result-Änderung (gleicher Mechanismus wie
+    // die v-for-Aktualisierung).
+    validation() {
+      // eslint-disable-next-line no-unused-expressions
+      this.date_str
+      if (this.content === null) return { errors: [], warnings: [] }
+      try {
+        return validateQuestScoring(this.content)
+      } catch (e) {
+        return { errors: [{ code: 'INVALID', msg: String(e && e.message || e) }], warnings: [] }
+      }
+    },
   },
 // METHODS
   methods: {
+    // stabiler Key fürs Drag-&-Drop (Position in der Liste reicht zum Tracken).
+    itemKey(el) {
+      return this.content && this.content.items ? this.content.items.indexOf(el) : 0
+    },
     open_coding(val){
       var link = undefined
       switch(val) {
@@ -327,28 +375,52 @@ export default {
         return
       }
 
+      // Live-Validierung: bei Schema-Fehlern nicht speichern
+      if (this.validation.errors.length) {
+        this.$q.notify({
+          message: `${this.$t('quest.import_failed')}: ${this.validation.errors.map(e => e.code).join(', ')}`,
+          color: 'negative', multiLine: true, timeout: 8000,
+        })
+        return
+      }
+
       // check if short_title exists
       if (this.mainStore.QUEST_LIST.includes(this.content.short_title)) {
         if (!(await this.$confirm(this.$t('btn.overwrite_confirm')))) return
         this.mainStore.QUESTMAN.remove_by_name(this.content.short_title)
       }
 
-      this.mainStore.QUESTMAN.add(JSON.stringify(this.content))
-      this.$q.notify({ message: this.$t('quest.export_success'), color: 'green' })
+      const res = this.mainStore.QUESTMAN.add(JSON.stringify(this.content))
+      if (res.ok) {
+        this.$q.notify({ message: this.$t('quest.export_success'), color: 'green' })
+      } else {
+        this.$q.notify({
+          message: `${this.$t('quest.import_failed')}: ${res.errors.join('; ')}`,
+          color: 'negative',
+          multiLine: true,
+          timeout: 8000,
+        })
+      }
     },
     exportQuest() {
       this.content_export = JSON.stringify(this.content)
       this.show_export = true
     },
     moveItem(action, index) {
-      if (index === undefined || index === 0) return
-      switch (action) {
-        default:
-          const tmp = this.content.items[index]
-          this.content.items[index] = this.content.items[index-1]
-          this.content.items[index-1] = tmp
-          break
+      if (index === undefined) return
+      const items = this.content.items
+      if (action === 'down') {
+        if (index >= items.length - 1) return
+        const tmp = items[index]
+        items[index] = items[index + 1]
+        items[index + 1] = tmp
+      } else {
+        if (index === 0) return
+        const tmp = items[index]
+        items[index] = items[index - 1]
+        items[index - 1] = tmp
       }
+      this.updateID()
       this.date_str = Date.now() //this triggers an update of the v-for
     },
 

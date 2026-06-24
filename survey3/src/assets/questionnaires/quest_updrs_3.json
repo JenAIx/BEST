@@ -12,7 +12,8 @@
   "keywords": "parkinson updrs",
   "items": [
     {
-      "label": "<b>Motorische Untersuchung</b>"
+      "label": "<b>Motorische Untersuchung</b>",
+      "type": "textbox"
     },
     {
       "label": "Klinischer Status",

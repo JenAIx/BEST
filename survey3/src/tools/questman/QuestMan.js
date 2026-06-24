@@ -3,6 +3,7 @@ import { RANDOM, RANDOMWORD } from './helpers'
 import { calc_results, evaluate } from './scoring'
 import { buildResultItems } from './result-items'
 import { itemValidity } from '../visits/visit-model'
+import { validateQuestScoring } from './validate'
 import { db } from '../db'
 
 // Eagerly load all questionnaire JSON files via Vite's glob import
@@ -26,6 +27,10 @@ export class QuestMan {
   _QUESTS = {}
   _activeQuest = undefined
   _presets = []
+  // Gesamtzahl der in die aktuelle Kette aufgenommenen Bögen. _presets wird beim
+  // next() per shift() geleert; dieser Zähler bleibt erhalten, damit die UI die
+  // globale Position ("Bogen X von Y") anzeigen kann.
+  _presetTotal = 0
 
   constructor() {
     log({ debug: 'QuestMan initializing ...' })
@@ -130,20 +135,37 @@ export class QuestMan {
     this._userQuests[quest.short_title] = quest
   }
 
+  // Importiert/speichert einen Fragebogen aus JSON-Text. Liefert ein Ergebnis
+  // { ok, errors }: bei ungültigem JSON, fehlenden Pflichtfeldern oder
+  // Schema-Fehlern (validateQuestScoring) wird NICHT gespeichert. Warnungen
+  // (z. B. fehlende Teilfragen-id) blockieren den Import bewusst nicht.
   add(quest_txt) {
-    if (quest_txt === null || quest_txt === undefined) return log({ error: "QuestMan>add", data: "no valid data" })
+    if (quest_txt === null || quest_txt === undefined) {
+      log({ error: 'QuestMan>add', data: 'no valid data' })
+      return { ok: false, errors: ['Keine Daten übergeben.'] }
+    }
     var json = undefined
     try {
       json = JSON.parse(quest_txt)
     } catch (e) {
-      log({ error: "QuestMan>add", data: e })
-      return false
+      log({ error: 'QuestMan>add', data: e })
+      return { ok: false, errors: ['Ungültiges JSON: ' + e.message] }
     }
 
-    if (json.items === undefined || json.title === undefined || json.short_title === undefined) return log({ error: "QuestMan>add", data: "no valid data" })
+    if (json.items === undefined || json.title === undefined || json.short_title === undefined) {
+      log({ error: 'QuestMan>add', data: 'no valid data' })
+      return { ok: false, errors: ['Pflichtfelder fehlen (title, short_title, items).'] }
+    }
+
+    const { errors } = validateQuestScoring(json)
+    if (errors.length) {
+      log({ error: 'QuestMan>add: Schema-Fehler', data: errors })
+      return { ok: false, errors: errors.map((e) => `${e.code}: ${e.msg}`) }
+    }
+
     this._add(json)
     this._save()
-    return true
+    return { ok: true, errors: [] }
   }
 
   remove_by_index(index) {
@@ -225,12 +247,28 @@ export class QuestMan {
 
   add_preset(val) {
     if (val === undefined) return
-    if (this.quest_list.includes(val)) this._presets.push(val)
+    if (this.quest_list.includes(val)) {
+      this._presets.push(val)
+      this._presetTotal++
+    }
   }
 
   clear_preset() {
     this._presets = []
+    this._presetTotal = 0
     this._activeQuest = undefined
+  }
+
+  // Gesamtzahl der Bögen in der aktuellen Kette (0, wenn keine Kette aktiv).
+  get preset_total() {
+    return this._presetTotal
+  }
+
+  // 1-basierte Position des aktuell geladenen Bogens in der Kette. next() nimmt
+  // per shift() einen Bogen aus _presets; entsprechend ist die Position
+  // total − verbleibende. Vor dem ersten next() ist sie 0.
+  get preset_index() {
+    return this._presetTotal - this._presets.length
   }
 
   get next_preset() {
@@ -309,7 +347,6 @@ export class QuestMan {
           break
 
         case undefined:
-        case 'seperator':
         case 'separator':
         case 'textbox':
           break

@@ -39,6 +39,39 @@ describe('QuestMAN Class', () => {
       expect(QUESTMAN.next_preset).toBe(undefined)
     });
 
+    // GLOBALE KETTEN-POSITION (preset_total / preset_index)
+    it('QuestMAN preset chain counters', () => {
+      QUESTMAN.clear_preset()
+      expect(QUESTMAN.preset_total).toBe(0)
+      expect(QUESTMAN.preset_index).toBe(0)
+
+      QUESTMAN.presets = ['bdi2', 'nihs', 'phq_9']
+      expect(QUESTMAN.preset_total).toBe(3)
+      expect(QUESTMAN.preset_index).toBe(0) // vor dem ersten next()
+
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(1)
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(2)
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(3)
+      // Kette erschöpft: next() false, Position bleibt am Gesamtwert
+      expect(QUESTMAN.next()).toBe(false)
+      expect(QUESTMAN.preset_index).toBe(3)
+      expect(QUESTMAN.preset_total).toBe(3)
+
+      // clear_preset() setzt die Zähler zurück
+      QUESTMAN.clear_preset()
+      expect(QUESTMAN.preset_total).toBe(0)
+      expect(QUESTMAN.preset_index).toBe(0)
+
+      // Einzelbogen (String): total 1
+      QUESTMAN.presets = 'bdi2'
+      expect(QUESTMAN.preset_total).toBe(1)
+      expect(QUESTMAN.next()).toBe(true)
+      expect(QUESTMAN.preset_index).toBe(1)
+    });
+
     it('manipulation in active Quest does not alter the QUEST LIST', () => {
       QUESTMAN.activeQuest = 'bfi';
       QUESTMAN.activeQuest.value.short_title = 'bfi2'
@@ -99,6 +132,27 @@ describe('QuestMAN Class', () => {
       expect(QUESTMAN.summary.results.length > 0).toBeTruthy()
     });
 
-
+    // IMPORT/ADD: { ok, errors }-Kontrakt inkl. Schema-Validierung
+    it('add() lehnt ungültige Bögen ab und akzeptiert valide', () => {
+      expect(QUESTMAN.add(null).ok).toBe(false)
+      expect(QUESTMAN.add('{ kein valides json').ok).toBe(false)
+      // Pflichtfelder fehlen
+      expect(QUESTMAN.add(JSON.stringify({ title: 'X' })).ok).toBe(false)
+      // Item ohne type → Schema-Fehler
+      const badType = QUESTMAN.add(JSON.stringify({
+        title: 'Bad', short_title: '__test_bad__', items: [{ label: 'frage ohne typ' }],
+      }))
+      expect(badType.ok).toBe(false)
+      expect(badType.errors.join(' ')).toMatch(/MISSING_TYPE/)
+      // valider Minimal-Bogen
+      const ok = QUESTMAN.add(JSON.stringify({
+        title: 'Gut', short_title: '__test_ok__',
+        items: [{ type: 'text', label: 'Name' }],
+      }))
+      expect(ok.ok).toBe(true)
+      expect(QUESTMAN.quest_list).toContain('__test_ok__')
+      // aufräumen, damit der Singleton-Zustand andere Tests nicht beeinflusst
+      QUESTMAN.remove_by_name('__test_ok__')
+    });
 
 })

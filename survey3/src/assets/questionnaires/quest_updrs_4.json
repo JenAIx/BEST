@@ -12,7 +12,8 @@
   "keywords": "parkinson updrs",
   "items": [
     {
-      "label": "<b>A. Dyskinesien [ohne OFF-Stadium Dystonie]</b>"
+      "label": "<b>A. Dyskinesien [ohne OFF-Stadium Dystonie]</b>",
+      "type": "textbox"
     },
     {
       "label": "4.1 Dauer von Dyskinesien",
@@ -83,7 +84,8 @@
       ]
     },
     {
-      "label": "<b>B. Motorische Fluktuationen</b>"
+      "label": "<b>B. Motorische Fluktuationen</b>",
+      "type": "textbox"
     },
     {
       "label": "4.3 Dauer der OFF-Phase",
@@ -188,7 +190,8 @@
       ]
     },
     {
-      "label": "<b>C. „OFF“-Dystonie</b>"
+      "label": "<b>C. „OFF“-Dystonie</b>",
+      "type": "textbox"
     },
     {
       "label": "4.6 Schmerzhafte OFF-Stadium Dystonie",

@@ -33,11 +33,15 @@
         OPTIONS: 
         <!-- CHECKBOX&RADIO -->
         <div v-if="item_copy.type === 'radio' || item_copy.type === 'checkbox'">
-          <q-btn icon="add" round @click="addOption()"></q-btn>
-          <div class="row text-left" v-for="(opt, indopt) in item_copy.options" :key="indopt+date_str">
-              <q-input class="col-9" v-model="opt.label" @blur="changeOpt(opt, indopt)" dense label="Label" />
+          <q-btn data-cy="opt_add" icon="add" round @click="addOption()"></q-btn>
+          <div class="row text-left items-center" v-for="(opt, indopt) in item_copy.options" :key="indopt+date_str">
+              <q-input class="col-7" v-model="opt.label" @blur="changeOpt(opt, indopt)" dense label="Label" />
               <q-input class="col-2" input-class="text-center" v-model="opt.value" @blur="changeOpt(opt, indopt)" dense label="Value" />
-              <q-btn class="col-1" flat rounded size="md" icon="highlight_off" @click="removeOpt(indopt)"/>
+              <div class="col-3 row no-wrap justify-end">
+                <q-btn flat dense size="sm" icon="arrow_upward" :disable="indopt === 0" :data-cy="`opt_up_${indopt}`" @click="moveInArray(item_copy.options, indopt, 'up')" />
+                <q-btn flat dense size="sm" icon="arrow_downward" :disable="indopt === item_copy.options.length - 1" :data-cy="`opt_down_${indopt}`" @click="moveInArray(item_copy.options, indopt, 'down')" />
+                <q-btn flat dense size="sm" icon="highlight_off" @click="removeOpt(indopt)"/>
+              </div>
           </div>
         </div>
         <!-- SLIDER -->
@@ -65,21 +69,29 @@
               <q-checkbox v-if="item_copy.options.answers !== undefined" class="col-5" v-model="item_copy.longanswers" label="überlange Antworten" @click.native="updateItem('longanswers')" />
             </div>
             
-            <div class="row" v-for="(optansw, indoptansw) in item_copy.options.answers" :key="indoptansw+date_str">
-              <q-input class="col-9" v-model="optansw.label" @blur="changeOptAnsw(optansw, indoptansw)" dense label="Label" />
+            <div class="row items-center" v-for="(optansw, indoptansw) in item_copy.options.answers" :key="indoptansw+date_str">
+              <q-input class="col-7" v-model="optansw.label" @blur="changeOptAnsw(optansw, indoptansw)" dense label="Label" />
               <q-input class="col-2" input-class="text-center" v-model="optansw.value" @blur="changeOptAnsw(optansw, indoptansw)" dense label="Value" />
-              <q-btn class="col-1" flat rounded size="md" icon="highlight_off" @click="removeOptAnsw(indoptansw)"/>
+              <div class="col-3 row no-wrap justify-end">
+                <q-btn flat dense size="sm" icon="arrow_upward" :disable="indoptansw === 0" :data-cy="`answ_up_${indoptansw}`" @click="moveInArray(item_copy.options.answers, indoptansw, 'up')" />
+                <q-btn flat dense size="sm" icon="arrow_downward" :disable="indoptansw === item_copy.options.answers.length - 1" :data-cy="`answ_down_${indoptansw}`" @click="moveInArray(item_copy.options.answers, indoptansw, 'down')" />
+                <q-btn flat dense size="sm" icon="highlight_off" @click="removeOptAnsw(indoptansw)"/>
+              </div>
             </div>
  
           </div>
           <!-- FRAGEN -->
           <div>
             Fragen: <q-btn icon="add" round @click="addMultiQuest()" />
-            <div class="row" v-for="(optquest, indoptquest) in item_copy.options.questions" :key="indoptquest+date_str">
-              <q-input class="col-8" v-model="optquest.label" @blur="changeOptQuest(optquest, indoptquest)" dense label="Label" />
+            <div class="row items-center" v-for="(optquest, indoptquest) in item_copy.options.questions" :key="indoptquest+date_str">
+              <q-input class="col-6" v-model="optquest.label" @blur="changeOptQuest(optquest, indoptquest)" dense label="Label" />
               <q-input class="col-2" input-class="text-center" v-model="optquest.value" @blur="changeOptQuest(optquest, indoptquest)" dense label="Value" />
-              <q-input readonly class="col-1" input-class="text-center" v-model="optquest.id" @blur="changeOptQuest(optquest, indoptquest)" dense label="ID" />
-              <q-btn class="col-1" flat rounded size="md" icon="highlight_off" @click="removeOptQuest(indoptquest)"/>
+              <q-input readonly class="col-1" input-class="text-center" v-model="optquest.id" dense label="ID" />
+              <div class="col-3 row no-wrap justify-end">
+                <q-btn flat dense size="sm" icon="arrow_upward" :disable="indoptquest === 0" :data-cy="`mq_up_${indoptquest}`" @click="moveInArray(item_copy.options.questions, indoptquest, 'up', true)" />
+                <q-btn flat dense size="sm" icon="arrow_downward" :disable="indoptquest === item_copy.options.questions.length - 1" :data-cy="`mq_down_${indoptquest}`" @click="moveInArray(item_copy.options.questions, indoptquest, 'down', true)" />
+                <q-btn flat dense size="sm" icon="highlight_off" @click="removeOptQuest(indoptquest)"/>
+              </div>
             </div>
           </div>
 
@@ -223,6 +235,18 @@ export default {
       const options = this.item_copy.options
       options.questions[ind] = opt
       this.$emit('updateItem', {field: 'options', value: options})
+    },
+    // Verschiebt einen Eintrag (Option/Antwort/Frage) um eine Position. Bei
+    // multiple_radio-Fragen updateID=true, damit die Teilfragen-ids neu vergeben werden.
+    moveInArray(arr, index, dir, updateID = false) {
+      if (!Array.isArray(arr)) return
+      const j = dir === 'up' ? index - 1 : index + 1
+      if (j < 0 || j >= arr.length) return
+      const tmp = arr[index]
+      arr[index] = arr[j]
+      arr[j] = tmp
+      this.date_str = Date.now()
+      this.$emit('updateItem', {field: 'options', value: this.item_copy.options, updateID})
     }
 
   }

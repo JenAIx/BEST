@@ -21,7 +21,7 @@
     "value": [null, null, null, null, null, null, null, null, null, null, null, null, null, null],
     "type": "multiple_radio",
     "inline": false,
-    "force": false,
+    "force": true,
     "options": {
       "answers": [{
         "label": "Ich stimme überhaupt nicht zu",

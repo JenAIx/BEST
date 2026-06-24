@@ -18,6 +18,16 @@ export const DOMAIN_METHODS = [
 // werden geflaggt -> einheitliche Codes für Interop/app2-Import.
 export const KNOWN_SYSTEMS = ['http://snomed.info/sct', 'LOINC', 'CUSTOM', 'LEC-SEQ']
 
+// Kanonische Item-Typen (single source of truth, deckt sich mit den Renderern in
+// QuestItemField.vue + den nicht-interaktiven Block-Typen). Jedes Item MUSS einen
+// dieser Typen tragen.
+export const ITEM_TYPES = [
+  'radio', 'checkbox', 'text', 'number', 'date', 'date_year', 'time', 'slider',
+  'multiple_radio', 'separator', 'textbox', 'image', 'drawing',
+]
+// Typen, die eine flache options-Liste [{label,value}] benötigen.
+const OPTION_LIST_TYPES = ['radio', 'checkbox']
+
 const isStringNumeric = (v) => typeof v === 'string' && v.trim() !== '' && !Number.isNaN(Number(v))
 
 /**
@@ -78,6 +88,44 @@ export function validateQuestScoring(quest) {
   // Coding-Systeme prüfen (gilt auch für unbepunktete Bögen)
   collectCodingSystems(quest).forEach((sys) => {
     if (!KNOWN_SYSTEMS.includes(sys)) W('UNKNOWN_CODING_SYSTEM', `coding.system "${sys}" ist nicht kanonisch`)
+  })
+
+  // --- Item-Schema (jedes Item: type + label; Optionen je nach Typ) ---
+  ;(quest.items || []).forEach((it, ix) => {
+    if (it.type === undefined || it.type === null || it.type === '') {
+      E('MISSING_TYPE', `item[${ix}] hat kein type-Feld`)
+    } else if (!ITEM_TYPES.includes(it.type)) {
+      E('UNKNOWN_TYPE', `item[${ix}] type "${it.type}" ist nicht kanonisch`)
+    }
+    if (typeof it.label !== 'string') {
+      E('MISSING_LABEL', `item[${ix}] hat kein label (String)`)
+    }
+    if (OPTION_LIST_TYPES.includes(it.type)) {
+      if (!Array.isArray(it.options) || it.options.length === 0) {
+        E('MISSING_OPTIONS', `item[${ix}] (${it.type}) braucht eine nicht-leere options-Liste`)
+      }
+    }
+    if (it.type === 'multiple_radio') {
+      const q = it.options && it.options.questions
+      const a = it.options && it.options.answers
+      if (!Array.isArray(q) || q.length === 0) E('MR_NO_QUESTIONS', `item[${ix}] multiple_radio: options.questions fehlt/leer`)
+      if (!Array.isArray(a) || a.length === 0) E('MR_NO_ANSWERS', `item[${ix}] multiple_radio: options.answers fehlt/leer`)
+      if (Array.isArray(q)) {
+        q.forEach((sub, qi) => {
+          if (sub && sub.id === undefined) W('MR_QUESTION_NO_ID', `item[${ix}] multiple_radio: Teilfrage[${qi}] ohne id (kein Sub-Scoring möglich)`)
+        })
+      }
+    }
+  })
+
+  // number-Items: optionale min/max müssen konsistent sein (gilt auch für unbepunktete Bögen)
+  ;(quest.items || []).forEach((it, ix) => {
+    if (it.type !== 'number') return
+    const hasMin = typeof it.min === 'number'
+    const hasMax = typeof it.max === 'number'
+    if (hasMin && hasMax && it.min > it.max) {
+      E('NUMBER_RANGE', `item[${ix}] number: min (${it.min}) > max (${it.max})`)
+    }
   })
 
   const r = quest.results

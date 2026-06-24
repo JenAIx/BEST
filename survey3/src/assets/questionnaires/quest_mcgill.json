@@ -27,7 +27,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "answers": [
           { "label": "keine", "value": 0 },
@@ -62,7 +62,7 @@
       "value": [],
       "type": "multiple_radio",
       "inline": false,
-      "force": false,
+      "force": true,
       "options": {
         "answers": [
           { "label": "keine", "value": 0 },

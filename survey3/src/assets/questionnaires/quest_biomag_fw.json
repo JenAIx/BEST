@@ -21,6 +21,8 @@
       },
       "value": null,
       "type": "number",
+      "min": 0,
+      "max": 120,
       "inline": false,
       "force": false
     },
@@ -51,6 +53,8 @@
       },
       "value": null,
       "type": "number",
+      "min": 20,
+      "max": 300,
       "inline": false,
       "force": true,
       "id": 3
@@ -64,6 +68,8 @@
       },
       "value": null,
       "type": "number",
+      "min": 100,
+      "max": 250,
       "inline": false,
       "force": true,
       "id": 4

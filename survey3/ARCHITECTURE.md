@@ -73,12 +73,15 @@ ISO-String hereinkommen, werden in den Konvertern toleriert (Pass-through).
 | Bezeichner | Bedeutung | Wo |
 |------------|-----------|-----|
 | `info.PID` | Vom Nutzer eingegebene Patienten-ID im **Einzelbogen-Flow** (Quest-Response) | `Storage.js`, `db.js`-Index, `CDA_H7_JSON.js` |
+| `info.patientId` | Optionaler **Link** einer Einzelbogen-Response an `patients.id` (Auto-Link über die PID) | `main.js storage_add`, `CDA_H7_JSON.js`, `db.js`-Index (v3) |
 | `patient.pid` | Patienten-ID im **Visiten-Flow** (Patienten-/Visiten-Datenmodell) | `VisitMan.js`, `export_app2.js` (`PATIENT_CD`) |
 | `patientId` | Technischer **UUID-Fremdschlüssel** Visite→Patient | `visit-model.js`, `VisitMan.js`, Route-Param |
 
-`info.PID` (Einzelbogen) und `patient.pid` (Visiten) sind **nicht** verknüpft:
-Einzelbogen-Responses hängen nicht an einem Patientendatensatz. Eine Kopplung wäre
-eine Daten-Migration und ist bewusst nicht umgesetzt.
+Einzelbogen-Responses werden beim Speichern über `info.patientId` **optional** an einen vorhandenen
+Patienten gekoppelt: existiert ein Patient mit der eingegebenen PID (`VISITMAN.get_patient_by_pid`),
+wird dessen `patients.id` gesetzt, sonst `null` (Auto-Link, additiv, kein UI/Backfill). Damit ist die
+Brücke `info.PID → patients.id` gelegt; ein rückwirkendes Verknüpfen bestehender Responses und das
+Anzeigen von Einzelbögen auf der Patientenseite bleiben als spätere Erweiterung offen.
 
 ## 4. Persistenz (IndexedDB / Dexie)
 
@@ -89,3 +92,42 @@ eine Daten-Migration und ist bewusst nicht umgesetzt.
   bzw. `toRaw`), da Dexie keine Vue-Proxies serialisieren kann.
 - Schema-Upgrades in `src/tools/db.js` sind bisher rein additiv (neue Stores). Für
   künftige *breaking* Änderungen wäre ein `upgrade()`-Callback nötig.
+
+## 5. Fragebogen-Routing & Direktlinks
+
+Der Quest-Flow wird über einen **URL-kodierten Parameter** gesteuert (Hash-Mode):
+
+```
+/#/quest/<encodeURIComponent(JSON.stringify(params))>
+```
+
+`params` wird in `src/tools/routeParams.js` geparst (`decodeURIComponent` → `JSON.parse`,
+mit Fallback). Felder:
+
+| Feld | Typ | Bedeutung |
+|------|-----|-----------|
+| `presets` | `string` \| `string[]` | Ein **stabiler `short_title`** oder eine Liste davon (Reihenfolge = Durchlauf-Reihenfolge der Kette) |
+| `mode` | `'single'` \| `'new_preset'` \| `'protected'` \| `'encrypted'` | `single` = Einzelbogen (PID-Schritt + Review bleiben); alles andere = Preset-Flow (PID-Schritt entfällt bei gesetzter `PID`, Review wird übersprungen) |
+| `PID` | `string` | Optional vorgegebene Patienten-ID; wird durchgereicht, der PID-Schritt entfällt dann |
+| `email`, `pubKey` | `string` | Nur `mode: 'encrypted'` |
+
+**Direktlinks sind tragfähig**, weil `presets` auf `short_title` zeigt (stabil, versionsübergreifend –
+siehe Datenmodell-Absicherung). Beispiele:
+
+```
+# Einzelbogen, Patient gibt PID selbst ein:
+/#/quest/%7B%22presets%22%3A%22mrs%22%2C%22mode%22%3A%22single%22%7D
+  → { "presets": "mrs", "mode": "single" }
+
+# Kette aus drei Bögen, PID vorgegeben (Patient klickt nur durch):
+  → { "presets": ["mrs","phq_9","ess"], "PID": "P-001", "mode": "protected" }
+```
+
+Erzeugt werden die Links in `SelectQ.vue` (Auswahl), `Preset.vue` (Start/encrypted) und
+`PresetStore.vue` (gespeicherte Vorlagen). Ein eigenes „Link kopieren"-UI gibt es bewusst (noch) nicht;
+die Kodierung ist die Grundlage dafür, falls es später gewünscht wird.
+
+Die globale Ketten-Position (`„Fragebogen X von Y"`) liefert `QuestMan`: `preset_total` (Anzahl
+aufgenommener Bögen) und `preset_index` (`preset_total − verbleibende`, 1-basiert). `_presets` wird beim
+`next()` per `shift()` geleert, `_presetTotal` bleibt erhalten; beide werden in `clear_preset()`
+zurückgesetzt.

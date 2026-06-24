@@ -43,7 +43,7 @@
 
         {
         	"label": "",
-        	"type": "seperator"
+        	"type": "separator"
         },
         {
             "label": "<b>Teil 1</b> des Fragebogens beginnt hier. <br>Bitte geben Sie an, ob und wie stark die folgenden Aussagen <b>auf Sie zutreffen</b>",
@@ -132,7 +132,7 @@
 
         {
         	"label": "",
-        	"type": "seperator"
+        	"type": "separator"
         },
 
         {

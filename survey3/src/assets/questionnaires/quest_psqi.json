@@ -12,7 +12,8 @@
     "keywords": "schlaf sleep pittsburgh",
     "items": [
         {
-            "label": "Die folgenden Fragen beziehen sich auf Ihre üblichen Schlafgewohnheiten und zwar <b>nur während der letzten vier Wochen</b>. Ihre Antworten sollten möglichst genau sein und sich auf die Mehrzahl der Tage und Nächte während der letzten vier Wochen beziehen. Beantworten Sie bitte alle Fragen."
+            "label": "Die folgenden Fragen beziehen sich auf Ihre üblichen Schlafgewohnheiten und zwar <b>nur während der letzten vier Wochen</b>. Ihre Antworten sollten möglichst genau sein und sich auf die Mehrzahl der Tage und Nächte während der letzten vier Wochen beziehen. Beantworten Sie bitte alle Fragen.",
+            "type": "textbox"
         },
         {
             "label": "1. Wann sind Sie während der letzten vier Wochen gewöhnlich abends zu Bett gegangen?",
@@ -47,6 +48,8 @@
             "hint": "in Stunden:",
             "value": null,
             "type": "number",
+            "min": 0,
+            "max": 24,
             "inline": true,
             "id": 31
         },
@@ -56,14 +59,18 @@
             "hint": "Effektive Schlafzeit (Stunden) pro Nacht:",
             "value": null,
             "type": "number",
+            "min": 0,
+            "max": 24,
             "inline": true,
             "id": 4
         },
         {
-            "label": ""
+            "label": "",
+            "type": "separator"
         },
         {
-            "label": "Kreuzen Sie bitte für jede der folgenden Fragen die für Sie zutreffende Antwort an. Beantworten Sie bitte <b>alle</b> Fragen."
+            "label": "Kreuzen Sie bitte für jede der folgenden Fragen die für Sie zutreffende Antwort an. Beantworten Sie bitte <b>alle</b> Fragen.",
+            "type": "textbox"
         },
         {
             "label": "5. Wie oft haben Sie während der letzten vier Wochen schlecht geschlafen, ...",
@@ -174,7 +181,8 @@
             ]
         },
         {
-            "label": "Machen Sie bitte noch folgende Angaben zu Ihrer Person:"
+            "label": "Machen Sie bitte noch folgende Angaben zu Ihrer Person:",
+            "type": "textbox"
         },
         {
             "label": "Alter",
@@ -182,6 +190,8 @@
             "hint": "Jahre:",
             "value": null,
             "type": "number",
+            "min": 0,
+            "max": 120,
             "inline": true,
             "id": 25
         },
@@ -191,6 +201,8 @@
             "hint": "cm:",
             "value": null,
             "type": "number",
+            "min": 100,
+            "max": 250,
             "inline": true,
             "id": 26
         },
@@ -200,6 +212,8 @@
             "hint": "kg:",
             "value": null,
             "type": "number",
+            "min": 20,
+            "max": 300,
             "inline": true,
             "id": 27
         },

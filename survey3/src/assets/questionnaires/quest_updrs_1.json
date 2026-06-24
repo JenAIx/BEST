@@ -12,7 +12,8 @@
   "keywords": "parkinson updrs",
   "items": [
     {
-      "label": "<b>Teil IA: Erfahrungen des täglichen Lebens - nicht-motorische Aspekte (nM-EDL)</b>"
+      "label": "<b>Teil IA: Erfahrungen des täglichen Lebens - nicht-motorische Aspekte (nM-EDL)</b>",
+      "type": "textbox"
     },
     {
       "label": "1.1 Kognitive Beeinträchtigung",
@@ -219,7 +220,8 @@
       ]
     },
     {
-      "label": "<b>Teil IB: Erfahrungen des täglichen Lebens (nM-EDL) – nicht-motorische Aspekte</b>"
+      "label": "<b>Teil IB: Erfahrungen des täglichen Lebens (nM-EDL) – nicht-motorische Aspekte</b>",
+      "type": "textbox"
     },
     {
       "label": "1.7 Schlafstörungen",

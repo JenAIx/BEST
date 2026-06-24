@@ -103,6 +103,7 @@
     "next": "Weiter",
     "prev": "Zurück",
     "step_of": "Frage {current} von {total}",
+    "chain_of": "Fragebogen {current} von {total}",
     "answered": "{filled} von {total} beantwortet",
     "review_title": "Übersicht",
     "review_hint": "Tippen Sie auf eine Frage, um sie zu ändern.",
@@ -114,7 +115,10 @@
     "focus_mode": "Fokus-Modus",
     "list_mode": "Listen-Ansicht",
     "auto_advance": "Automatisch weiterspringen",
-    "start": "Fragebogen starten"
+    "start": "Fragebogen starten",
+    "clear_drawing": "Löschen",
+    "confirm_drawing": "Übernehmen",
+    "drawing_unsaved": "noch nicht übernommen"
   },
   "btn": {
     "close": {
@@ -122,6 +126,9 @@
     },
     "up": {
       "label": "hoch"
+    },
+    "down": {
+      "label": "runter"
     },
     "toquest": "zum Fragebogen",
     "back": {

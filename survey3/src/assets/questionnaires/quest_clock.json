@@ -1,0 +1,35 @@
+{
+  "title": "Uhren-Zeichen-Test",
+  "short_title": "clock",
+  "description": "Zeichnen einer Uhr mit vorgegebener Uhrzeit (kognitives Screening)",
+  "keywords": "uhr, clock, zeichnen, drawing, kognition, demenz, screening",
+  "coding": {
+    "system": "CUSTOM",
+    "code": "CLOCK_DRAWING_TEST",
+    "display": "Uhren-Zeichen-Test",
+    "version": "2026-06-23"
+  },
+  "manual": "",
+  "items": [
+    {
+      "id": 1,
+      "tag": "clock",
+      "type": "drawing",
+      "label": "Zeichnen Sie das Ziffernblatt einer Uhr mit allen Zahlen und stellen Sie die Zeiger auf <b>10 nach 11</b> ein.",
+      "value": null,
+      "force": true,
+      "canvas": { "size": 360, "background": "blank" },
+      "coding": { "system": "CUSTOM", "code": "CLOCK_IMG", "display": "Uhr-Zeichnung" }
+    },
+    {
+      "id": 2,
+      "tag": "remarks",
+      "type": "text",
+      "label": "Bemerkungen",
+      "hint": "optionale Anmerkungen",
+      "value": null,
+      "force": false,
+      "coding": { "system": "CUSTOM", "code": "CLOCK_REMARKS", "display": "Bemerkungen" }
+    }
+  ]
+}

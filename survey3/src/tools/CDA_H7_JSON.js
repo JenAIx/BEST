@@ -34,7 +34,7 @@ export function import_quest(payload) {
   // NOW HASH THE TABLE
   const hash = sign(cda, payload.investigator.keyPair.privateKey, payload.investigator.keyPair.publicKey)
   hash.investigator_uid = payload.investigator.uid
-  return { cda, hash, exported: false, info: { title: payload.data.quest.title, label: payload.data.quest.label, PID: payload.data.PID, date: payload.data.quest.date_end, uid: uuidv4() } }
+  return { cda, hash, exported: false, info: { title: payload.data.quest.title, label: payload.data.quest.label, PID: payload.data.PID, patientId: payload.data.patientId !== undefined ? payload.data.patientId : null, date: payload.data.quest.date_end, uid: uuidv4() } }
 }
 
 // PREPARE EVALUATION
@@ -150,9 +150,10 @@ function prepare_findings(cda, data) {
     }
 
     if (item.coding !== undefined) entry.title = item.coding.display
-    entry.text.div = `<table><tbody><tr><td>${entry.title}</td></tr><tr><td>${entry.value}</td></tr></tbody></table>`
+    const shown = display_value(item.value)
+    entry.text.div = `<table><tbody><tr><td>${entry.title}</td></tr><tr><td>${shown}</td></tr></tbody></table>`
     div_header += `<td>${entry.title}</td>`
-    div_main += `<td>${entry.value}</td>`
+    div_main += `<td>${shown}</td>`
     // push entry
     findings.entry.push(entry)
   })
@@ -287,7 +288,7 @@ function prepare_row(data) {
   // items
   data.quest.items.forEach(item => {
     header.push(item.label)
-    row.push(extract_value(item.value))
+    row.push(display_value(item.value))
   })
 
   return { header, row, evaluation }
@@ -327,6 +328,8 @@ function prepare_header(cda, payload) {
 }
 
 // return item value
+// Strukturierter Roh-Wert (bleibt vollständig im CDA-entry / Export erhalten,
+// inkl. Base64-PNG von Zeichnungen).
 function extract_value(invalue) {
   var outvalue = ''
   if (!Array.isArray(invalue)) outvalue = invalue
@@ -336,6 +339,14 @@ function extract_value(invalue) {
   })
 
   return outvalue
+}
+
+// Anzeige-Wert für HTML-Tabellen: Zeichnungen (Base64-PNG data-URI) würden die
+// Darstellung sprengen → Platzhalter. Der volle Wert bleibt strukturiert erhalten
+// (extract_value im entry.value).
+function display_value(invalue) {
+  if (typeof invalue === 'string' && invalue.startsWith('data:image')) return '[Zeichnung]'
+  return extract_value(invalue)
 }
 
 // SOME DATE FUNCTIONS

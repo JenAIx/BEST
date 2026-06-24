@@ -21,7 +21,20 @@ function safeParse(key) {
   }
 }
 
-export async function migrateFromLocalStorage() {
+// In-Flight-Guards: Sollte migrate/repair je mehr als einmal angestoßen werden
+// (z. B. künftig aus mehreren Boot-Pfaden), könnten zwei nebenläufige Läufe
+// beide den meta-Flag-Check passieren und Daten doppelt importieren. Der
+// gemerkte Promise stellt sicher, dass die eigentliche Arbeit pro Seitenladung
+// genau einmal läuft.
+let _migratePromise = null
+let _repairPromise = null
+
+export function migrateFromLocalStorage() {
+  if (!_migratePromise) _migratePromise = _migrateFromLocalStorageImpl()
+  return _migratePromise
+}
+
+async function _migrateFromLocalStorageImpl() {
   // Check if migration already done
   const flag = await db.meta.get('migration')
   if (flag && flag.done) return
@@ -59,11 +72,14 @@ export async function migrateFromLocalStorage() {
           }
         }
 
-        for (const name of Object.keys(bundledQuests)) {
-          if (!(name in legacyQuests)) {
-            await db.deletedBundled.put({ name })
-          }
-        }
+        // BEWUSST KEINE Ableitung von Löschungen aus "fehlt im Alt-Blob":
+        // Der alte monolithische Key (surveyBEST_QUESTS) war ein Schnappschuss
+        // einer älteren App-Version mit weniger gebündelten Fragebögen. Später
+        // hinzugekommene Bundle-Bögen fehlen dort zwangsläufig — das bedeutet
+        // NICHT, dass der Nutzer sie gelöscht hat. Die frühere Logik markierte
+        // sie fälschlich als deletedBundled und ließ sie dauerhaft verschwinden
+        // (z. B. 106 → 75 auf älteren iPads). Echte Löschungen werden ausschließlich
+        // über den expliziten Key surveyBEST_DELETED_BUNDLED übernommen (s. u.).
       }
 
       // --- Migrate responses ---
@@ -112,5 +128,35 @@ export async function migrateFromLocalStorage() {
     log({ debug: 'db-migrate: migration complete, localStorage keys removed' })
   } catch (e) {
     log({ error: 'db-migrate: migration failed, localStorage left intact', data: e })
+  }
+}
+
+// Einmalige Reparatur: deletedBundled zurücksetzen.
+//
+// Frühere Migrationen (localStorage-_migrate UND der erste IndexedDB-Pfad)
+// leiteten "gelöschte" Bundle-Bögen aus deren Fehlen im alten monolithischen
+// Blob ab. Dadurch wurden in späteren App-Versionen hinzugekommene Fragebögen
+// fälschlich versteckt (z. B. 106 → 75 auf älteren iPads). Diese falschen
+// Einträge stecken bereits dauerhaft in IndexedDB und lassen sich im Nachhinein
+// nicht mehr von echten Nutzer-Löschungen unterscheiden.
+//
+// Da der Datenverlust (fehlende klinische Fragebögen) deutlich schwerer wiegt
+// als das erneute Auftauchen eines bewusst ausgeblendeten Bundle-Bogens (der
+// sich in der UI jederzeit erneut löschen lässt), wird die Liste genau einmal
+// pro Gerät geleert. Nutzer-Fragebögen (userQuests) sind nicht betroffen.
+export function repairDeletedBundled() {
+  if (!_repairPromise) _repairPromise = _repairDeletedBundledImpl()
+  return _repairPromise
+}
+
+async function _repairDeletedBundledImpl() {
+  const flag = await db.meta.get('deletedBundled_repair_v1')
+  if (flag && flag.done) return
+  try {
+    await db.deletedBundled.clear()
+    await db.meta.put({ key: 'deletedBundled_repair_v1', done: true })
+    log({ debug: 'db-migrate: deletedBundled zurückgesetzt (Reparatur v1)' })
+  } catch (e) {
+    log({ error: 'db-migrate: deletedBundled-Reparatur fehlgeschlagen', data: e })
   }
 }
