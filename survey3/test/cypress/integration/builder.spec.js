@@ -32,9 +32,9 @@ describe('Bau-Tool (Builder, Redesign)', () => {
     cy.get('.builder-editor [data-cy=quest_title]').type('Mein Test Bogen')
     cy.get('.builder-editor [data-cy=quest_short_title]').should('have.value', 'mein_test_bogen')
 
-    // zwei Felder hinzufügen (werden auto-expandiert)
-    cy.get('[data-cy=btn_items_add]').click()
-    cy.get('[data-cy=btn_items_add]').click()
+    // zwei Felder über die Palette hinzufügen (werden auto-expandiert)
+    cy.get('[data-cy=add_type_text]').click()
+    cy.get('[data-cy=add_type_text]').click()
 
     // Labels setzen (Felder sind bereits offen)
     cy.get('[data-cy=item_label_0]').clear().type('AAA').blur()
@@ -61,13 +61,47 @@ describe('Bau-Tool (Builder, Redesign)', () => {
     })
   })
 
+  it('Schlüsselwort-Chips + einfache Auswertung (Summe + Bewertungsbereich)', () => {
+    cy.visit('/#/questman/create', freshLoad())
+    cy.get('[data-cy=questman_create]').should('exist')
+    cy.get('.builder-editor [data-cy=quest_title]').type('Score Bogen')
+
+    // ein Zahl-Feld (damit die Summe etwas hat)
+    cy.get('[data-cy=add_type_number]').click()
+    cy.get('[data-cy=item_label_0]').clear().type('Punkte').blur()
+
+    // Schlüsselwort-Chip aus den Vorschlägen
+    cy.get('[data-cy=btn_advanced]').click()
+    cy.get('[data-cy=quest_keywords]').click()
+    cy.contains('.q-item__label', 'depression').click()
+    cy.get('body').click(0, 0)
+
+    // Auswertung: Methode Summe + ein Bewertungsbereich
+    cy.get('[data-cy=btn_results]').click()
+    cy.get('[data-cy=result_method]').click()
+    cy.contains('.q-item__label', 'Summe').click()
+    cy.get('[data-cy=eval_add]').click()
+    cy.get('[data-cy=eval_row_0]').find('input').eq(0).type('0')
+    cy.get('[data-cy=eval_row_0]').find('input').eq(1).type('9')
+    cy.get('[data-cy=eval_row_0]').find('input').eq(2).type('unauffällig')
+
+    cy.get('[data-cy=btn_save]').click()
+    cy.window().then((win) => {
+      const q = win.__mainStore.QUESTMAN.get('score_bogen')
+      expect(q, 'gespeichert').to.exist
+      expect(q.keywords).to.contain('depression')
+      expect(q.results.method).to.equal('sum')
+      expect(q.results.evaluation[0].range).to.deep.equal([0, 9])
+      expect(q.results.evaluation[0].label).to.equal('unauffällig')
+    })
+  })
+
   it('Feldtyp über Typ-Auswahl hinzufügen (radio) + Optionen umsortieren', () => {
     cy.visit('/#/questman/create', freshLoad())
     cy.get('[data-cy=questman_create]').should('exist')
     cy.get('.builder-editor [data-cy=quest_title]').type('Opt Test')
 
-    // direkt als radio anlegen (Typ-Auswahl)
-    cy.get('[data-cy=btn_items_add_menu]').click()
+    // direkt als radio anlegen (Palette)
     cy.get('[data-cy=add_type_radio]').click()
 
     // radio bringt 2 Default-Optionen mit → Option 0 nach unten

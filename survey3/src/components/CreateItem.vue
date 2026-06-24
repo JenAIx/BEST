@@ -3,31 +3,8 @@
   <q-card v-if="item_copy !== undefined">
     <!-- TYPE -->
     <q-card-section>
-      <!-- HEADER -->
-      <div class="row">
-        <q-input :data-cy="`item_label_${INDEX}`" class="col-10" v-model="item_copy.label" @blur="updateItem('label')" dense label="Label" />
-        <q-input v-if="!ISSEP" class="col-2" input-class="text-center" v-model="item_copy.id" @blur="updateItem('id')" type="number" readonly dense label="ID" />
-        <q-input v-if="!ISSEP" class="col-8" v-model="item_copy.coding.display" @blur="updateItem('coding')" dense label="Coding: Tag" />
-        <q-input v-if="!ISSEP" class="col-4" v-model="item_copy.coding.code" @blur="updateItem('coding')" dense label="Coding: Code" />
-        <q-input v-if="!ISSEP" class="col-12" v-model="item_copy.coding.system" @blur="updateItem('coding')" dense label="Coding: System" />
-      </div>
-      <!-- SOME OPTIONS -->
-      <q-checkbox v-if="!ISSEP" class="col-4" v-model="item_copy.inline" label="inline" @click.native="updateItem('inline')" />
-      <q-checkbox v-if="!ISSEP" class="col-4" v-model="item_copy.force" label="force" @click.native="updateItem('force')" />
-      <q-checkbox v-if="!ISSEP" class="col-4" v-model="item_copy.ignore_for_result" label="ignore" @click.native="updateItem('ignore_for_result')" />
-      <!-- TYPE -->
-      <q-btn-dropdown  class="col-12 text-left" color="dark" flat :label="`Type: ${item.type || 'bitte auswählen'}`">
-        <q-list>
-          <q-item 
-            v-for="(type, indtype) in ITEMTYPES" :key="indtype+Date.now()"
-            clickable v-close-popup @click="onTypeClick(type)"
-          >
-            <q-item-section>
-              <q-item-label>{{type}}</q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-list>
-      </q-btn-dropdown>
+      <!-- Label, Typ und Flags werden in der Feld-Karte (oben) bearbeitet.
+           Hier nur typ-spezifische Optionen + (eingeklapptes) Coding. -->
       <!-- OPTIONS -->
       <div v-if="item_copy.options !== undefined" class="bg-grey-1">
         OPTIONS: 
@@ -98,6 +75,17 @@
         </div>
       <!-- ENDE OPTIONS -->
       </div>
+
+      <!-- CODING (eingeklappt, optional) -->
+      <q-expansion-item v-if="!ISSEP" dense-toggle label="Coding (optional)" data-cy="item_coding"
+        header-class="text-grey-7 q-px-none q-mt-sm">
+        <div class="row q-col-gutter-xs">
+          <q-input class="col-12" v-model="item_copy.tag" @blur="updateItem('tag')" dense filled label="Tag" />
+          <q-input class="col-8" v-model="item_copy.coding.display" @blur="updateItem('coding')" dense filled label="Coding: Anzeige" />
+          <q-input class="col-4" v-model="item_copy.coding.code" @blur="updateItem('coding')" dense filled label="Code" />
+          <q-input class="col-12" v-model="item_copy.coding.system" @blur="updateItem('coding')" dense filled label="System" />
+        </div>
+      </q-expansion-item>
 
     </q-card-section>
 

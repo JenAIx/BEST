@@ -1,7 +1,7 @@
 <template>
   <div class="quest-question">
-    <div class="text-subtitle1 quest-question__label"><span v-html="item.label" /></div>
-    <div v-if="item.caption" class="text-caption text-grey-7 q-mb-sm"><span v-html="item.caption" /></div>
+    <div v-if="!hideLabel" class="text-subtitle1 quest-question__label"><span v-html="item.label" /></div>
+    <div v-if="!hideLabel && item.caption" class="text-caption text-grey-7 q-mb-sm"><span v-html="item.caption" /></div>
 
     <span v-if="item.type === 'image'">
       <img v-for="(img, i) of item.value" :key="i + 'img'" :src="`img/${img}`" alt="" :style="`width: ${item.width}px`" />
@@ -55,6 +55,8 @@ export default {
     inputCy: { default: 'item_input' },
     // an RenderMultipleRadio durchgereicht: example_value nur in der Vorschau zeigen
     preview: { type: Boolean, default: false },
+    // Label/Caption ausblenden (im Builder wird das Label separat oben editiert)
+    hideLabel: { type: Boolean, default: false },
   },
   emits: ['emitValue'],
   computed: {

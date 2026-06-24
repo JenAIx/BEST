@@ -4,7 +4,7 @@
     <div v-if="content !== null" class="builder-bar row items-center no-wrap q-px-md">
       <q-btn flat round dense icon="arrow_back" @click="$router.back()" class="q-mr-sm" />
       <div class="column">
-        <div class="text-subtitle1 text-weight-medium ellipsis" style="max-width: 46vw">
+        <div class="text-subtitle1 text-weight-medium ellipsis" style="max-width: 42vw">
           {{ content.title || $t('settings.questman.create.label') }}
         </div>
         <div class="text-caption text-grey-6">{{ content.short_title || $t('settings.questman.create.please_fill') }}</div>
@@ -28,8 +28,26 @@
       </q-btn>
     </div>
 
-    <!-- BODY: EDITOR | LIVE-VORSCHAU -->
+    <!-- BODY: PALETTE | EDITOR | LIVE-VORSCHAU -->
     <div v-if="content !== null" class="builder-body row no-wrap col">
+      <!-- ============ PALETTE (Feldtypen: klicken oder ziehen) ============ -->
+      <div class="builder-palette column no-wrap">
+        <div class="palette-title text-overline text-grey-6">{{ $t('builder.add_field') }}</div>
+        <q-scroll-area class="col">
+          <draggable class="palette" :list="ITEMTYPES" :clone="cloneType" :sort="false"
+            :group="{ name: 'builderFields', pull: 'clone', put: false }" :item-key="(el) => el">
+            <template #item="{ element: t }">
+              <div class="palette-tile column items-center justify-center" :data-cy="`add_type_${t}`"
+                @click="addItemOfType(t)">
+                <q-icon :name="return_icon_quest(t)" size="20px" color="grey-8" />
+                <div class="palette-tile-label">{{ $t('builder.type.' + t) }}</div>
+                <q-tooltip anchor="center right" self="center left">{{ $t('builder.drag_or_click') }}</q-tooltip>
+              </div>
+            </template>
+          </draggable>
+        </q-scroll-area>
+      </div>
+
       <!-- ============ EDITOR ============ -->
       <div class="builder-editor col">
         <q-scroll-area class="fit">
@@ -54,7 +72,10 @@
                 <q-expansion-item dense-toggle :label="$t('builder.advanced')" header-class="text-grey-7 q-px-none q-mt-xs"
                   data-cy="btn_advanced">
                   <q-input v-model="content.manual" :label="$t('builder.manual')" filled dense class="q-mt-xs" />
-                  <q-input v-model="content.keywords" :label="$t('builder.keywords')" filled dense class="q-mt-xs" />
+                  <q-select v-model="keywordsArray" :options="keywordOptions" use-chips use-input multiple
+                    new-value-mode="add-unique" input-debounce="0" @filter="filterKeywords" filled dense
+                    :label="$t('builder.keywords')" :hint="$t('builder.keywords_hint')" data-cy="quest_keywords"
+                    class="q-mt-xs" />
                   <q-input v-model="content.ref" label="Referenz (z. B. Pubmed-Link)" filled dense class="q-mt-xs" />
                   <div class="row q-col-gutter-sm q-mt-xs items-center">
                     <q-input class="col-12" readonly dense filled label="Coding System">
@@ -79,38 +100,46 @@
             <!-- FELDER -->
             <div class="row items-center q-mb-sm">
               <div class="text-overline text-grey-6">{{ $t('builder.fields') }} ({{ content.items.length }})</div>
-              <q-space />
-              <q-btn-dropdown outline no-caps dense color="primary" icon="add" :label="$t('builder.add_field')"
-                data-cy="btn_items_add_menu">
-                <q-list style="min-width: 180px">
-                  <q-item v-for="t in ITEMTYPES" :key="t" clickable v-close-popup @click="addItemOfType(t)"
-                    :data-cy="`add_type_${t}`">
-                    <q-item-section avatar><q-icon :name="return_icon_quest(t)" /></q-item-section>
-                    <q-item-section>{{ $t('builder.type.' + t) }}</q-item-section>
-                  </q-item>
-                </q-list>
-              </q-btn-dropdown>
             </div>
 
             <draggable v-model="content.items" :item-key="itemKey" handle=".drag-handle" ghost-class="drag-ghost"
-              animation="160" @end="updateID()">
+              animation="160" :group="{ name: 'builderFields', pull: true, put: true }"
+              @change="onItemsChange" @end="updateID()" class="fields-dropzone">
               <template #item="{ element: item, index: inditem }">
-                <q-card flat bordered class="field-card q-mb-sm" :data-cy="`item_row_${inditem}`">
-                  <div class="row items-center no-wrap q-pa-sm">
-                    <q-icon class="drag-handle cursor-move q-mr-xs" name="drag_indicator" size="sm" color="grey-5"
+                <q-card flat bordered class="field-card q-mb-sm" :class="{ 'field-card--editing': expanded[inditem] }"
+                  :data-cy="`item_row_${inditem}`">
+                  <!-- KOMPAKTE TOOLBAR -->
+                  <div class="field-bar row items-center no-wrap">
+                    <q-icon class="drag-handle cursor-move" name="drag_indicator" size="20px" color="grey-5"
                       :data-cy="`item_drag_${inditem}`" />
-                    <q-avatar size="32px" color="grey-2" text-color="grey-8" class="q-mr-sm">
-                      <q-icon :name="return_icon_quest(item.type)" size="18px" />
-                    </q-avatar>
-                    <div class="col" style="min-width: 0" @click="toggleExpand(inditem)">
-                      <div class="text-body2 ellipsis">{{ plainLabel(item.label) || $t('builder.untitled') }}</div>
-                      <div class="text-caption text-grey-6">{{ $t('builder.type.' + item.type) || item.type }}
-                        <span v-if="item.force === false" class="text-grey-5"> · {{ $t('builder.optional') }}</span>
-                      </div>
-                    </div>
-                    <q-btn flat round dense :icon="expanded[inditem] ? 'expand_less' : 'edit'" color="grey-7"
-                      :data-cy="`item_expanse_${inditem}`" @click="toggleExpand(inditem)" />
-                    <q-btn flat round dense icon="more_vert" color="grey-7" data-cy="btn_options">
+                    <q-chip v-if="idChip(item)" dense square color="blue-grey-1" text-color="blue-grey-8"
+                      class="id-chip">{{ idChip(item) }}</q-chip>
+                    <q-chip dense outline color="grey-6" class="type-chip">
+                      <q-icon :name="return_icon_quest(item.type)" size="14px" class="q-mr-xs" />{{ $t('builder.type.' + item.type) }}
+                    </q-chip>
+                    <q-space />
+                    <!-- Flags direkt umschaltbar -->
+                    <template v-if="isFlaggable(item)">
+                      <q-chip clickable dense :outline="item.force !== false"
+                        :color="item.force === false ? 'orange-3' : 'grey-3'"
+                        :text-color="item.force === false ? 'orange-10' : 'grey-7'"
+                        :data-cy="`flag_force_${inditem}`" @click.stop="toggleFlag(item, 'force')">
+                        {{ item.force === false ? $t('builder.optional') : $t('builder.required') }}
+                        <q-tooltip>{{ $t('builder.flag_force_hint') }}</q-tooltip>
+                      </q-chip>
+                      <q-chip clickable dense :outline="!item.inline" color="grey-3" text-color="grey-7"
+                        :data-cy="`flag_inline_${inditem}`" @click.stop="toggleFlag(item, 'inline')">
+                        inline<q-tooltip>{{ $t('builder.flag_inline_hint') }}</q-tooltip>
+                      </q-chip>
+                      <q-chip clickable dense :outline="!item.ignore_for_result" color="grey-3" text-color="grey-7"
+                        :data-cy="`flag_ignore_${inditem}`" @click.stop="toggleFlag(item, 'ignore_for_result')">
+                        {{ $t('builder.flag_ignore') }}<q-tooltip>{{ $t('builder.flag_ignore_hint') }}</q-tooltip>
+                      </q-chip>
+                    </template>
+                    <q-btn flat round dense size="sm" :icon="expanded[inditem] ? 'expand_less' : 'edit'" color="grey-7"
+                      :data-cy="`item_expanse_${inditem}`" @click="toggleExpand(inditem)">
+                      <q-tooltip>{{ $t('builder.edit') }}</q-tooltip></q-btn>
+                    <q-btn flat round dense size="sm" icon="more_vert" color="grey-7" data-cy="btn_options">
                       <q-menu auto-close>
                         <q-list>
                           <q-item v-if="inditem > 0" clickable :data-cy="`item_up_${inditem}`" @click="moveItem('up', inditem)">
@@ -126,6 +155,19 @@
                       </q-menu>
                     </q-btn>
                   </div>
+
+                  <!-- LABEL (oben, direkt editierbar) + WYSIWYG-VORSCHAU -->
+                  <div class="field-preview">
+                    <q-input borderless dense v-model="item.label" :data-cy="`item_label_${inditem}`"
+                      class="field-label-input" :placeholder="$t('builder.label_placeholder')"
+                      @update:model-value="touchField" />
+                    <div v-if="!isNonInput(item)" class="field-preview-inner"
+                      @click="!expanded[inditem] && toggleExpand(inditem)">
+                      <QuestItemField :item="item" :preview="true" :hide-label="true" />
+                    </div>
+                  </div>
+
+                  <!-- EDIT (Zusatzinfos) -->
                   <q-slide-transition>
                     <div v-show="expanded[inditem]" class="field-card-body">
                       <CREATEITEM :key="'ci_' + inditem" :item="item" :index="inditem"
@@ -136,16 +178,41 @@
               </template>
             </draggable>
 
-            <!-- Schnell-Hinzufügen (Default-Feld) -->
-            <q-btn flat no-caps dense icon="add" :label="$t('builder.add_field')" color="primary" class="q-mt-xs"
-              data-cy="btn_items_add" @click="addItem()" />
+            <div v-if="content.items.length === 0" class="empty-hint text-center text-grey-5 q-pa-lg">
+              {{ $t('builder.empty_hint') }}
+            </div>
 
-            <!-- AUSWERTUNG -->
+            <!-- AUSWERTUNG (einfach) -->
             <q-card flat bordered class="q-mt-md">
               <q-expansion-item icon="functions" :label="$t('settings.questman.create.results')"
-                :caption="$t('settings.questman.create.results_details')" data-cy="btn_results">
+                :caption="$t('builder.results_caption')" data-cy="btn_results">
                 <q-card-section>
-                  <CREATERESULTS :results="content.results" @updateResult="updateResult($event)" />
+                  <q-select v-model="resultMethod" :options="methodOptions" emit-value map-options filled dense
+                    :label="$t('builder.method')" data-cy="result_method" />
+
+                  <!-- Bewertungsbereiche (nur sinnvoll bei Summe/Mittelwert) -->
+                  <template v-if="resultMethod === 'sum' || resultMethod === 'avg'">
+                    <div class="text-caption text-grey-7 q-mt-md q-mb-xs">{{ $t('builder.eval_title') }}</div>
+                    <div v-for="(ev, i) in evalRanges" :key="'ev' + i" class="row q-col-gutter-xs items-center q-mb-xs"
+                      :data-cy="`eval_row_${i}`">
+                      <q-input class="col-2" type="number" v-model.number="ev.range[0]" filled dense
+                        :label="$t('builder.from')" @update:model-value="touchResults" />
+                      <q-input class="col-2" type="number" v-model.number="ev.range[1]" filled dense
+                        :label="$t('builder.to')" @update:model-value="touchResults" />
+                      <q-input class="col" v-model="ev.label" filled dense :label="$t('builder.eval_label')"
+                        @update:model-value="touchResults" />
+                      <q-btn class="col-auto" flat round dense icon="close" color="grey-6"
+                        :data-cy="`eval_del_${i}`" @click="removeEvalRange(i)" />
+                    </div>
+                    <q-btn flat no-caps dense icon="add" color="primary" :label="$t('builder.add_range')"
+                      data-cy="eval_add" @click="addEvalRange" />
+                  </template>
+
+                  <!-- Erweitertes Scoring (IDs, Domänen) -->
+                  <q-expansion-item dense-toggle :label="$t('builder.advanced_scoring')" data-cy="btn_results_advanced"
+                    header-class="text-grey-7 q-px-none q-mt-sm">
+                    <CREATERESULTS :results="content.results" @updateResult="updateResult($event)" />
+                  </q-expansion-item>
                 </q-card-section>
               </q-expansion-item>
             </q-card>
@@ -223,6 +290,18 @@ import { validateQuestScoring } from 'src/tools/questman/validate'
 import CREATEITEM from 'src/components/CreateItem.vue'
 import CREATERESULTS from 'src/components/CreateResults.vue'
 import PREVIEWITEM from 'src/components/PreviewItem.vue'
+import QuestItemField from 'src/components/QuestItemField.vue'
+
+// Kuratierte Schlüsselwort-Vorschläge (aus dem Bestands-Korpus destilliert) —
+// per Chip anklickbar; freie Eingaben sind zusätzlich möglich.
+const KEYWORD_SUGGESTIONS = [
+  'parkinson', 'demenz', 'dementia', 'depression', 'angst', 'anxiety', 'screening',
+  'assessment', 'kognition', 'cognitive', 'gedächtnis', 'memory', 'exekutiv', 'executive',
+  'lebensqualität', 'quality of life', 'schlaf', 'sleep', 'müdigkeit', 'fatigue', 'apathie',
+  'schmerz', 'pain', 'sturz', 'falls', 'mobilität', 'gang', 'tremor', 'dystonie', 'motorik',
+  'autonom', 'alltag', 'adl', 'aktivität', 'stimmung', 'neurologie', 'geriatrie', 'zeichnen',
+  'uhrentest', 'visuokonstruktion', 'wohlbefinden', 'belastung', 'angehörige',
+]
 
 // Slug für intelligente Namensgebung: ASCII, lowercase, _-getrennt, max 40.
 function slugify(str) {
@@ -242,7 +321,7 @@ export default {
     return { mainStore: useMainStore() }
   },
   mixins: [myMixins],
-  components: { CREATEITEM, CREATERESULTS, PREVIEWITEM, draggable },
+  components: { CREATEITEM, CREATERESULTS, PREVIEWITEM, QuestItemField, draggable },
   data() {
     return {
       content: null,
@@ -255,6 +334,7 @@ export default {
       shortTitleTouched: false,
       previewContent: null,
       _previewTimer: null,
+      keywordOptions: KEYWORD_SUGGESTIONS.slice(),
     }
   },
   mounted() {
@@ -263,7 +343,6 @@ export default {
       this.mainStore.editquest = this.content
     } else {
       this.content = this.mainStore.editquest
-      // bestehender Bogen: short_title gilt als bewusst gesetzt
       if (this.content.short_title) this.shortTitleTouched = true
     }
     this.previewContent = JSON.parse(JSON.stringify(this.content))
@@ -272,9 +351,8 @@ export default {
     clearTimeout(this._previewTimer)
   },
   watch: {
-    // Live-Vorschau entkoppelt aktualisieren: nicht bei jedem Tastendruck
-    // synchron neu rendern (Performance + verhindert DOM-Detach beim Tippen),
-    // sondern 200 ms nach der letzten Änderung mit einem stabilen Klon.
+    // Live-Vorschau entkoppelt aktualisieren (debounced) — kein synchrones
+    // Re-Rendern bei jedem Tastendruck (Performance + kein DOM-Detach).
     content: {
       deep: true,
       handler() {
@@ -292,7 +370,38 @@ export default {
     valid() {
       return this.validation.errors.length === 0
     },
-    // Live-Schema-Validierung; date_str triggert die Neuberechnung bei Änderungen.
+    // Schlüsselworte als Array (UI-Chips) ⇄ Komma-String (Datenmodell).
+    keywordsArray: {
+      get() {
+        if (!this.content || !this.content.keywords) return []
+        return this.content.keywords.split(',').map((k) => k.trim()).filter(Boolean)
+      },
+      set(val) {
+        this.content.keywords = (val || []).join(', ')
+      },
+    },
+    methodOptions() {
+      return [
+        { label: this.$t('builder.method_none'), value: 'none' },
+        { label: this.$t('builder.method_sum'), value: 'sum' },
+        { label: this.$t('builder.method_avg'), value: 'avg' },
+        { label: this.$t('builder.method_count'), value: 'count' },
+      ]
+    },
+    resultMethod: {
+      get() {
+        return (this.content && this.content.results && this.content.results.method) || 'none'
+      },
+      set(val) {
+        if (!this.content.results) this.content.results = {}
+        if (val === 'none') delete this.content.results.method
+        else this.content.results.method = val
+        this.touchResults()
+      },
+    },
+    evalRanges() {
+      return (this.content && this.content.results && this.content.results.evaluation) || []
+    },
     validation() {
       // eslint-disable-next-line no-unused-expressions
       this.date_str
@@ -308,13 +417,58 @@ export default {
     itemKey(el) {
       return this.content && this.content.items ? this.content.items.indexOf(el) : 0
     },
-    plainLabel(html) {
-      const tmp = document.createElement('div')
-      tmp.innerHTML = html || ''
-      return (tmp.textContent || tmp.innerText || '').trim()
-    },
     toggleExpand(i) {
       this.expanded[i] = !this.expanded[i]
+    },
+    touchField() {
+      this.date_str = Date.now()
+    },
+    // separator/textbox haben kein Antwort-Control (nur Label/Abschnitt).
+    isNonInput(item) {
+      return ['separator', 'textbox'].includes(item.type)
+    },
+    // Flags (Pflicht/inline/ohne Wertung) sind nur für interaktive Items sinnvoll.
+    isFlaggable(item) {
+      return !['separator', 'textbox', 'image'].includes(item.type)
+    },
+    toggleFlag(item, flag) {
+      if (flag === 'force') item.force = item.force === false ? true : false
+      else item[flag] = !item[flag]
+      this.touchField()
+    },
+    filterKeywords(val, update) {
+      const n = (val || '').toLowerCase()
+      update(() => {
+        this.keywordOptions = n
+          ? KEYWORD_SUGGESTIONS.filter((k) => k.toLowerCase().includes(n))
+          : KEYWORD_SUGGESTIONS.slice()
+      })
+    },
+    touchResults() {
+      this.date_str = Date.now()
+    },
+    addEvalRange() {
+      if (!this.content.results) this.content.results = { method: 'sum' }
+      if (!Array.isArray(this.content.results.evaluation)) this.content.results.evaluation = []
+      this.content.results.evaluation.push({ range: [0, 0], label: '' })
+      this.touchResults()
+    },
+    removeEvalRange(i) {
+      if (this.content.results && Array.isArray(this.content.results.evaluation)) {
+        this.content.results.evaluation.splice(i, 1)
+        if (this.content.results.evaluation.length === 0) delete this.content.results.evaluation
+        this.touchResults()
+      }
+    },
+    // ID-Chip vor der Frage (read-only; passt sich bei Reorder via updateID an).
+    idChip(item) {
+      if (item.id === undefined || item.id === null) return null
+      if (typeof item.id === 'number') return '#' + item.id
+      try {
+        const a = JSON.parse(item.id)
+        if (Array.isArray(a) && a.length) return '#' + a[0] + (a.length > 1 ? '–' + a[a.length - 1] : '')
+      } catch (e) { /* ignore */ }
+      return null
     },
     // --- intelligente Namensgebung ---
     onTitleChange(val) {
@@ -347,11 +501,6 @@ export default {
         default: return 'text_fields'
       }
     },
-    previewItem(item) {
-      this.content_single_item = JSON.parse(JSON.stringify(this.content))
-      this.content_single_item.items = [item]
-      this.show_preview = true
-    },
     updateID() {
       let id = 1
       this.content.items.forEach((item) => {
@@ -375,11 +524,8 @@ export default {
         }
       })
     },
-    // Default-Feld (Text) mit menschenlesbarem Namen statt UUID.
-    addItem() {
-      this.addItemOfType('text')
-    },
-    addItemOfType(type) {
+    // Erzeugt ein neues Feld-Objekt eines Typs (lesbarer Name statt UUID).
+    buildItem(type) {
       const item = JSON.parse(JSON.stringify(item_template))
       const n = this.content.items.length + 1
       item.type = type
@@ -389,7 +535,6 @@ export default {
         ? this.$t('builder.new_section')
         : `${this.$t('builder.new_field')} ${n}`
       item.tag = slugify(item.label)
-      // typ-spezifische Initialisierung (analog CreateItem.onTypeClick)
       switch (type) {
         case 'multiple_radio':
           item.value = []
@@ -418,8 +563,27 @@ export default {
           item.options = undefined
           break
       }
-      this.content.items.push(item)
+      return item
+    },
+    // Klick auf Paletten-Kachel: Feld am Ende anhängen + aufklappen.
+    addItem() {
+      this.addItemOfType('text')
+    },
+    addItemOfType(type) {
+      this.content.items.push(this.buildItem(type))
       this.expanded[this.content.items.length - 1] = true
+      this.updateID()
+      this.date_str = Date.now()
+    },
+    // Drag aus der Palette: Clone-Funktion liefert das einzufügende Feld-Objekt.
+    cloneType(type) {
+      return this.buildItem(type)
+    },
+    // Reaktion auf draggable-Änderungen (Drag aus Palette ODER Umsortieren).
+    onItemsChange(evt) {
+      if (evt && evt.added) {
+        this.expanded.splice(evt.added.newIndex, 0, true)
+      }
       this.updateID()
       this.date_str = Date.now()
     },
@@ -434,6 +598,7 @@ export default {
       const item = JSON.parse(JSON.stringify(this.content.items[index]))
       item.id = -1
       this.content.items.splice(index + 1, 0, item)
+      this.expanded.splice(index + 1, 0, false)
       this.updateID()
       this.date_str = Date.now()
     },
@@ -511,8 +676,46 @@ export default {
   background: $surface
 
 .builder-body
-  min-height: 0  // erlaubt scrollende Kinder im Flex
+  min-height: 0
 
+// ---- PALETTE ----
+.builder-palette
+  width: 116px
+  min-width: 116px
+  border-right: 1px solid $line
+  background: $surface
+  overflow-x: hidden
+
+.palette-title
+  padding: 8px 6px 2px
+  text-align: center
+  line-height: 1.1
+
+.palette
+  padding: 6px
+
+.palette-tile
+  border: 1px solid $line
+  border-radius: $radius-sm
+  padding: 8px 4px
+  margin-bottom: 6px
+  cursor: grab
+  background: $surface
+  transition: all 0.12s ease
+  &:hover
+    border-color: $primary
+    background: rgba(25, 118, 210, 0.06)
+
+.palette-tile-label
+  font-size: 0.66rem
+  line-height: 1.1
+  text-align: center
+  color: $grey-8
+  margin-top: 3px
+  overflow-wrap: anywhere
+  hyphens: auto
+
+// ---- EDITOR ----
 .builder-editor
   min-width: 0
   background: $surface-muted
@@ -521,11 +724,40 @@ export default {
   max-width: 760px
   margin: 0 auto
 
+.fields-dropzone
+  min-height: 40px
+
 .field-card
   border-radius: $radius-sm
-  transition: box-shadow 0.15s ease
-  &:hover
-    box-shadow: $shadow-soft
+  transition: box-shadow 0.15s ease, border-color 0.15s ease
+
+.field-card--editing
+  border-color: $primary
+  box-shadow: $shadow-soft
+
+.field-bar
+  padding: 4px 6px 0 6px
+
+.id-chip
+  font-weight: 600
+  margin-left: 2px
+
+.type-chip
+  margin-left: 4px
+
+.field-preview
+  padding: 0 14px 12px
+
+.field-label-input
+  & :deep(input)
+    font-size: 1rem
+    font-weight: 500
+    color: $dark
+
+.field-preview-inner
+  pointer-events: none   // Vorschau ist nicht interaktiv (Klick öffnet Edit)
+  & :deep(.quest-question__label)
+    font-size: 0.95rem
 
 .field-card-body
   border-top: 1px solid $line
@@ -535,6 +767,11 @@ export default {
   opacity: 0.5
   background: rgba(25, 118, 210, 0.08)
 
+.empty-hint
+  border: 1px dashed $line
+  border-radius: $radius-sm
+
+// ---- PREVIEW ----
 .builder-preview
   border-left: 1px solid $line
   background: $grey-3
