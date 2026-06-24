@@ -313,5 +313,42 @@
       "title": "Change Log",
       "caption": "Änderungen und Neuerungen"
     }
+  },
+  "builder": {
+    "valid": "Schema gültig",
+    "errors": "Fehler",
+    "errors_block": "Fehler — Speichern blockiert:",
+    "warnings": "Warnung(en)",
+    "section_head": "Kopfdaten",
+    "title": "Titel",
+    "short_title": "Kurzname",
+    "short_title_hint": "wird automatisch aus dem Titel erzeugt",
+    "regen": "aus Titel erzeugen",
+    "description": "Beschreibung",
+    "advanced": "Erweitert (Coding, Schlüsselworte, Anleitung)",
+    "manual": "Anleitung",
+    "keywords": "Schlüsselworte / Suchworte",
+    "fields": "Felder",
+    "add_field": "Feld hinzufügen",
+    "untitled": "(ohne Titel)",
+    "optional": "optional",
+    "new_field": "Neue Frage",
+    "new_section": "Neue Überschrift",
+    "live_preview": "Live-Vorschau",
+    "type": {
+      "text": "Text",
+      "number": "Zahl",
+      "date": "Datum",
+      "date_year": "Jahr",
+      "time": "Uhrzeit",
+      "radio": "Einfachauswahl",
+      "checkbox": "Mehrfachauswahl",
+      "slider": "Schieberegler",
+      "multiple_radio": "Matrix",
+      "separator": "Trenner",
+      "textbox": "Infotext",
+      "drawing": "Zeichnung",
+      "image": "Bild"
+    }
   }
 }

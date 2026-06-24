@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.15.0
+
+#### Changed
+
+- [2026-06-24] Bau-Tool (Editor) komplett überarbeitet: elegantes zweispaltiges Layout mit **Live-Vorschau** (debounced, rechts neben dem Editor; auf Mobil als Vollbild-Dialog), Feld-Karten mit Drag-&-Drop + Hoch/Runter, Typ-Auswahl beim Hinzufügen, Validierungs-Chip in der Kopfzeile. **Intelligente Namensgebung**: `short_title` wird automatisch aus dem Titel erzeugt (slug), neue Felder bekommen lesbare Default-Labels/Tags statt UUIDs
+- [2026-06-24] Editier-Stabilität: `CreateItem` synchronisiert seine lokale Kopie jetzt per Watcher auf Typänderung statt durch externen Re-Mount — kein Fokusverlust/DOM-Detach mehr beim Bearbeiten
+
 ### v1.14.1
 
 #### Added

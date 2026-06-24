@@ -119,11 +119,15 @@ export default {
     }
   },
   mounted() {
-    this.item_copy = JSON.parse(JSON.stringify(this.item))
-    if (this.item_copy.coding === undefined) {
-      this.item_copy.coding = item_template.coding
-      if (this.item_copy.tag !== undefined) this.item_copy.coding.display = this.item_copy.tag
-    }
+    this.syncCopy()
+  },
+  watch: {
+    // Bei Typwechsel die lokale Kopie neu aus dem Item aufbauen, damit die
+    // typ-spezifische UI (Optionen etc.) erscheint — ohne die Komponente extern
+    // neu zu mounten (verhindert DOM-Detach/Fokusverlust beim Editieren).
+    'item.type'() {
+      this.syncCopy()
+    },
   },
 
   computed: {
@@ -139,6 +143,13 @@ export default {
     }
   },
   methods: {
+    syncCopy() {
+      this.item_copy = JSON.parse(JSON.stringify(this.item))
+      if (this.item_copy.coding === undefined) {
+        this.item_copy.coding = JSON.parse(JSON.stringify(item_template.coding))
+        if (this.item_copy.tag !== undefined) this.item_copy.coding.display = this.item_copy.tag
+      }
+    },
     updateItem(tag) {
       if (this.item_copy === undefined) return false
       this.$emit('updateItem', {field: tag, value: this.item_copy[tag]})
