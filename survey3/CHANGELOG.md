@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.15.0
+
+#### Changed
+
+- [2026-06-24] Bau-Tool (Editor) komplett überarbeitet — elegant, intuitiv, funktional:
+  - **Dreispaltiges Layout**: vertikale **Feldtyp-Palette** (klicken ODER per Drag direkt an die richtige Stelle ziehen), Editor in der Mitte, **Live-Vorschau** rechts (debounced; auf Mobil als Vollbild-Dialog).
+  - **WYSIWYG-Feldkarten**: das Item wird gerendert dargestellt (kompakt); **ID als Chip** vor der Frage (read-only, passt sich bei Reorder an); **Label oben direkt editierbar**; **Flags (Pflicht/inline/ohne Wertung) als klickbare Chips** in der Kopfzeile; Detail-Bearbeitung (Optionen, Coding eingeklappt) erst beim Aufklappen — kein Typ-Selektor mehr (Typ liegt fest).
+  - **Intelligente Namensgebung**: `short_title` automatisch aus dem Titel (slug), lesbare Default-Labels/Tags statt UUIDs, generisches Default-Coding („Klinisches Assessment" statt „Blepharospasm…").
+  - **Schlüsselworte als Chips** mit kuratierten Vorschlägen aus dem Bestand (anklicken/entfernen, freie Eingabe).
+  - **Einfache Auswertung**: Methode wählen (Summe/Mittelwert/Anzahl) + Bewertungsbereiche (von/bis/Label) per UI; komplexes ID-/Domänen-Scoring bleibt unter „Erweitert".
+- [2026-06-24] Editier-Stabilität: `CreateItem` synchronisiert seine lokale Kopie jetzt per Watcher auf Typänderung statt durch externen Re-Mount — kein Fokusverlust/DOM-Detach mehr beim Bearbeiten
+
 ### v1.14.1
 
 #### Added
