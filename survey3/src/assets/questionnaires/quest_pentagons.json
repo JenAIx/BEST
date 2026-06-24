@@ -1,0 +1,39 @@
+{
+  "title": "Sich überschneidende Fünfecke",
+  "short_title": "pentagons",
+  "description": "Abzeichnen zweier sich überschneidender Fünfecke (Visuokonstruktion)",
+  "keywords": "fünfecke, pentagon, abzeichnen, visuokonstruktion, kognition, demenz, drawing",
+  "coding": {
+    "system": "CUSTOM",
+    "code": "PENTAGONS_COPY",
+    "display": "Sich überschneidende Fünfecke (Copy)",
+    "version": "2026-06-24"
+  },
+  "manual": "",
+  "items": [
+    {
+      "type": "textbox",
+      "label": "Bitte zeichnen Sie die folgende Figur möglichst genau ab:<br><svg width='190' height='150' viewBox='0 0 160 150'><g fill='none' stroke='#111' stroke-width='2'><polygon points='60,40 98,68 84,112 37,112 22,68'/><polygon points='100,40 138,68 124,112 77,112 62,68'/></g></svg>"
+    },
+    {
+      "id": 1,
+      "tag": "pentagons",
+      "type": "drawing",
+      "label": "Ihre Abzeichnung",
+      "value": null,
+      "force": true,
+      "canvas": { "size": 360, "background": "blank" },
+      "coding": { "system": "CUSTOM", "code": "PENTAGONS_IMG", "display": "Fünfecke-Abzeichnung" }
+    },
+    {
+      "id": 2,
+      "tag": "remarks",
+      "type": "text",
+      "label": "Bemerkungen",
+      "hint": "optionale Anmerkungen",
+      "value": null,
+      "force": false,
+      "coding": { "system": "CUSTOM", "code": "PENTAGONS_REMARKS", "display": "Bemerkungen" }
+    }
+  ]
+}

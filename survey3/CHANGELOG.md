@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.14.1
+
+#### Added
+
+- [2026-06-24] Visuokonstruktions-Zeichenbatterie: zwei neue Copy-Bögen `pentagons` (sich überschneidende Fünfecke) und `cube` (Würfel abzeichnen) — Modell-Figur als Inline-SVG + leeres Zeichenfeld (Pflicht) + optionales „Bemerkungen"-Feld. Ergänzt Uhr/Schrift/Spirale zu einer gemeinfreien Graphomotorik-/Visuokonstruktions-Batterie für Demenz-/Parkinson-Screening. E2E `visuoconstruction.spec.js`
+
 ### v1.14.0
 
 #### Added

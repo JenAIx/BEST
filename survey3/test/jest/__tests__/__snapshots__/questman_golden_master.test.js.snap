@@ -666,6 +666,8 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: cube 1`] = `{}`;
+
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: daily_activity 1`] = `
 [
   {
@@ -1415,6 +1417,8 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
   },
 ]
 `;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pentagons 1`] = `{}`;
 
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: phq_9 1`] = `
 [
