@@ -1,15 +1,18 @@
 {
-    "title": "PHQ-9",
+    "title": "PHQ-9 – Gesundheitsfragebogen (Depression)",
     "short_title": "phq_9",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "SCTID: 720433000",
         "display" : "PHQ-9 (Patient Health Questionnaire 9 Item score)",
         "version": "20230126"
     },
-    "description": "PHQ-9",
+    "description": "Screening und Schweregrad depressiver Symptome (9 Items).",
     "manual": "",
-    "keywords": "depression, screening",
+    "keywords": "Depression, Screening, Selbstbeurteilung",
     "items": [
     	{
             "label": "Geburtsdatum",

@@ -1,15 +1,18 @@
 {
-    "title": "RBD-SQ",
+    "title": "RBD-SQ – REM-Schlaf-Verhaltensstörung (Screening)",
     "short_title": "rbd_sq",
+    "version": "1.0",
+    "updated": "2007-01-01",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding": {
         "system": "http://snomed.info/sct",
         "code": "446004",
         "display": "REM Sleep Behavior Disorder Screening Questionnaire",
         "version": "20070101"
     },
-    "description": "RBD-SQ – REM Sleep Behavior Disorder Screening Questionnaire",
+    "description": "Screening auf eine REM-Schlaf-Verhaltensstörung.",
     "manual": "Bitte beantworten Sie die folgenden Fragen mit <b>Ja</b> oder <b>Nein</b>.",
-    "keywords": "RBD, REM, Schlaf, sleep, behavior, disorder, screening, Traum",
+    "keywords": "REM-Schlafstörung, Schlaf, Screening",
     "ref": "Stiasny-Kolster K et al. (2007). The REM sleep behavior disorder screening questionnaire. Movement Disorders, 22(16), 2386-2393.",
     "items": [
         {

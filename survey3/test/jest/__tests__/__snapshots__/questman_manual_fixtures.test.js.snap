@@ -172,7 +172,7 @@ exports[`QuestMan manuelle Fixtures badl: avg with ignore_zeros 1`] = `
       "value": 5.5,
     },
   ],
-  "title": "Bayer-ADL-Skala",
+  "title": "B-ADL – Bayer-Alltagsaktivitäten-Skala",
 }
 `;
 
@@ -409,7 +409,7 @@ exports[`QuestMan manuelle Fixtures bdi2: sum + reverse-mapping + evaluation 1`]
       "value": 23,
     },
   ],
-  "title": "BDI 2",
+  "title": "BDI-II – Beck-Depressions-Inventar",
 }
 `;
 
@@ -531,7 +531,7 @@ exports[`QuestMan manuelle Fixtures bfi10: avg subscales + reverse scoring 1`] =
       "value": 1,
     },
   ],
-  "title": "Big-Five-Inventory",
+  "title": "BFI-10 – Big Five Inventory (Persönlichkeit)",
 }
 `;
 
@@ -623,7 +623,7 @@ exports[`QuestMan manuelle Fixtures biomag_handedness: top-level count 1`] = `
       "value": 2,
     },
   ],
-  "title": "Händigkeit BIOMAG",
+  "title": "Händigkeitsfragebogen (BIOMAG)",
 }
 `;
 
@@ -684,7 +684,7 @@ exports[`QuestMan manuelle Fixtures caide: top-level sum 1`] = `
       "value": 15,
     },
   ],
-  "title": "CAIDE",
+  "title": "CAIDE – Demenz-Risiko-Score",
 }
 `;
 
@@ -821,7 +821,7 @@ exports[`QuestMan manuelle Fixtures cfsme: count + sum_range + chained sum + eva
       "value": 6,
     },
   ],
-  "title": "Kanadische Kriterien für CFS/ME",
+  "title": "CFS/ME – Kanadische Kriterien (Erschöpfungssyndrom)",
 }
 `;
 
@@ -915,7 +915,7 @@ exports[`QuestMan manuelle Fixtures falling_stick: raw + avg domains 1`] = `
       "value": 157.67,
     },
   ],
-  "title": "Fallstab Beidseits",
+  "title": "Fallstab-Test (Reaktionszeit)",
 }
 `;
 
@@ -971,7 +971,7 @@ exports[`QuestMan manuelle Fixtures iqcode: top-level avg 1`] = `
       "value": 2.57,
     },
   ],
-  "title": "IQCODE",
+  "title": "IQCODE – Kognitiver Abbau (Fremdbeurteilung)",
 }
 `;
 
@@ -1178,7 +1178,7 @@ exports[`QuestMan manuelle Fixtures mwtb: count_targets 1`] = `
       "value": 10,
     },
   ],
-  "title": "MWT-B",
+  "title": "MWT-B – Mehrfachwahl-Wortschatz-Intelligenztest",
 }
 `;
 
@@ -1335,7 +1335,7 @@ exports[`QuestMan manuelle Fixtures psqi: multiply + range + sum_range + chained
       "value": 12,
     },
   ],
-  "title": "PSQI",
+  "title": "PSQI – Pittsburgh-Schlafqualitätsindex",
 }
 `;
 
@@ -1416,7 +1416,7 @@ exports[`QuestMan manuelle Fixtures sus: sum_multiply x2.5 + reverse scoring 1`]
       "value": 50,
     },
   ],
-  "title": "SUS",
+  "title": "SUS – System Usability Scale (Gebrauchstauglichkeit)",
 }
 `;
 
@@ -1661,7 +1661,7 @@ exports[`QuestMan manuelle Fixtures twstrs: sum_multiply + chained pain domain (
       "value": 47,
     },
   ],
-  "title": "TWSTRS - Toronto Western Spasmodic Torticollis Rating Scale",
+  "title": "TWSTRS – Torticollis-Schweregradskala",
 }
 `;
 
@@ -1866,6 +1866,6 @@ exports[`QuestMan manuelle Fixtures whoqol: avg_multiply + chained sum_sub_multi
       "value": 75,
     },
   ],
-  "title": "WHOQOL-BREF",
+  "title": "WHOQOL-BREF – Lebensqualität (WHO)",
 }
 `;

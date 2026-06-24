@@ -1,15 +1,18 @@
 {
-  "title": "BSI",
+  "title": "BSI – Brief Symptom Inventory",
   "short_title": "bsi",
+  "version": "1.0",
+  "updated": "2021-10-26",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "868186005",
     "display": "Brief Symptom Inventory",
     "version": "20211026"
   },
-  "description": "Brief Symptom Inventory",
+  "description": "Screening psychischer Symptombelastung über mehrere Dimensionen.",
   "manual": "Sie finden nachstehend eine Liste von Problemen und Beschwerden, die man manchmal hat. Bitte lesen Sie jede Frage einzeln sorgfältig durch und entscheiden Sie, wie stark Sie durch diese Beschwerden gestört oder bedrängt worden sind, und zwar <b>während der vergangenen sieben Tage bis heute</b>. Überlegen Sie bitte nicht erst, welche Antwort den \"besten Eindruck\" machen könnte, sondern antworten Sie so, wie es für Sie persönlich zutrifft. Kreuzen Sie bitte bei jeder Frage die für Sie am besten zutreffende Antwort an. <br><b>Bitte beantworten Sie jede Frage!</b>",
-  "keywords": "symptom, inventory, anxiety, depression",
+  "keywords": "Depression, Angst, Screening, Selbstbeurteilung",
   "ref": "https://doi.org/0022-3956(75)90026-6",
   "items": [
     {

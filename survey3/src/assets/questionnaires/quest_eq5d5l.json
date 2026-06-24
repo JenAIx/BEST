@@ -1,15 +1,18 @@
 {
-  "title": "EQ-5D-5L",
+  "title": "EQ-5D-5L – Gesundheitsbezogene Lebensqualität (5 Stufen)",
   "short_title": "eq5d5l",
+  "version": "1.0",
+  "updated": "2024-01-26",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "736535009",
     "display": "EQ-5D-5L (EuroQol five dimension five level scale)",
     "version": "20240126"
   },
-  "description": "EQ-5D-5L - Fragebogen zur gesundheitsbezogenen Lebensqualität",
+  "description": "Generisches Maß der gesundheitsbezogenen Lebensqualität (fünfstufig).",
   "manual": "<b>EQ-5D-5L – Beschreibendes System</b><br><br>Bitte kreuzen Sie unter jeder Überschrift eine Box an, die Ihren Gesundheitszustand <b>heute</b> am besten beschreibt.",
-  "keywords": "quality, of, life, qol, health, qualität, lebensqualität, euroqol, eq5d, gesundheitszustand",
+  "keywords": "Lebensqualität, Gesundheitszustand",
   "ref": "EuroQol Group (1990). EuroQol - a new facility for the measurement of health-related quality of life. Health Policy, 16(3), 199-208.",
   "items": [
     {

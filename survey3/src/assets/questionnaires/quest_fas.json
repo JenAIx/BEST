@@ -1,15 +1,18 @@
 {
-    "title": "FAS",
+    "title": "FAS – Fatigue Assessment Scale",
     "short_title": "fas",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "443226002",
         "display" : "Fatigue Assessment Scale",
         "version": "20211026"
     },
-    "description": "Fragebogen über Ermüdungserscheinungen: Fatigue Assessment Scale",
+    "description": "Selbstbeurteilung von Ermüdung und Fatigue.",
     "manual": "Die folgenden zehn Aussagen betreffen Ihr normales Befinden. Bitte wählen Sie die Antwort, die am besten zu Ihnen passt. Beantworten Sie bitte jede Frage, auch wenn Sie momentan keine Beschwerden haben. Sie können pro Aussage zwischen 5 Antwortmöglichkeiten wählen, variierend von 'niemals' bis 'immer'. <br><b>1. niemals</b> <br><b>2. manchmal </b> (d.h. monatlich oder weniger) <br><b>3. regelmäßig </b> (d.h. ein paar Mal pro Monat) <br><b>4. oft </b> (d.h. wöchentlich) <br> <b>5. immer</b> (d.h. täglich)",
-    "keywords": "Fatigue, Scale, tiredness, sleepy, ermüdung, müdigkeit, mattheit",
+    "keywords": "Fatigue, Erschöpfung, Selbstbeurteilung",
     "items": [
     	{
             "label": "",

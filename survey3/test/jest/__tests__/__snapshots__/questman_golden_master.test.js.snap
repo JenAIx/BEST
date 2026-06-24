@@ -132,8 +132,6 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
-exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: Fragebogen für ein standardisiertes Gespräch bei V.a. ND 1`] = `{}`;
-
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: GDS 1`] = `
 [
   {
@@ -1007,6 +1005,20 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: klein_score 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: NP_KLEIN_SUM",
+      "display": "KLeiN_score",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 2,
+  },
+]
+`;
+
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: lecseq-adr 1`] = `{}`;
 
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: lecseq-anamnese-v1 1`] = `{}`;
@@ -1113,6 +1125,8 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: mymop2g_pre 1`] = `{}`;
 
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: neurodeg_screening 1`] = `{}`;
+
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: nihs 1`] = `
 [
   {
@@ -1128,6 +1142,20 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 `;
 
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: nms_quest 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: SCORES_NMSQUEST",
+      "display": "NMS Quest - Parkinson",
+      "system": "CUSTOM",
+    },
+    "label": "sum",
+    "value": 0,
+  },
+]
+`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: nms_quest_alt 1`] = `
 [
   {
     "coding": {
@@ -1566,20 +1594,6 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
-exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: schnelles Demenzscreening 1`] = `
-[
-  {
-    "coding": {
-      "code": "CUSTOM: NP_KLEIN_SUM",
-      "display": "KLeiN_score",
-      "system": "CUSTOM",
-    },
-    "label": "sum",
-    "value": 2,
-  },
-]
-`;
-
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: schwab_england 1`] = `
 [
   {
@@ -1680,7 +1694,7 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
-exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sf36 mod 1`] = `
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: sf36_mod 1`] = `
 [
   {
     "coding": {
@@ -1851,15 +1865,6 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
   {
     "label": "Raw sum",
     "value": 50,
-  },
-]
-`;
-
-exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: test 1`] = `
-[
-  {
-    "label": "sum",
-    "value": 15,
   },
 ]
 `;

@@ -1,15 +1,18 @@
 {
-    "title": "PDQ - 39 (deutsche Version)",
+    "title": "PDQ-39 – Parkinson-Lebensqualität (39 Items)",
     "short_title": "pdq39",
+    "version": "1.0",
+    "updated": "2023-07-13",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "CUSTOM",
         "code" : "CUSTOM: SCORE_PDQ39",
         "display" : "Fragebogen zur Erfassung der Stimmungs- und Verhaltensänderungen bei Parkinson (PDQ-39)",
         "version": "20230713"
     },
-    "description": "Fragebogen zur Erfassung der Stimmungs- und Verhaltensänderungen bei Parkinson (PDQ-39)",
+    "description": "Krankheitsspezifische Lebensqualität bei Parkinson.",
     "manual": "Bitte lesen Sie jede Frage einzeln sorgfältig durch und entscheiden Sie, wie häufig das vorkommt. Kreuzen Sie bitte bei jeder Frage die für Sie am besten zutreffende Antwort an. <br><b>Bitte beantworten Sie jede Frage!</b>",
-    "keywords": "parkionson, depression, angst, stimmung, verhalten, pdq39",
+    "keywords": "Parkinson, Lebensqualität, Selbstbeurteilung",
     "items": [
         {
             "label": "Wie oft haben Sie im letzten Monat wegen Ihrer Parkinson-Erkrankung ...",

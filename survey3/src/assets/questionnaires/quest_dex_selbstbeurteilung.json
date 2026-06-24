@@ -1,15 +1,18 @@
 {
-    "title": "DEX Selbstbeurteilung",
+    "title": "DEX – Dysexekutiv-Fragebogen (Selbstbeurteilung)",
     "short_title": "dex",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445813009",
         "display" : "Dysexecutive Questionnaire (self)",
         "version": "20211026"
     },
-    "description": "Dysexecutive Questionnaire",
+    "description": "Selbstbeurteilung dysexekutiver Alltagsprobleme.",
     "manual": "",
-    "keywords": "dysexecutive, self, assessment, evaluation, executive",
+    "keywords": "exekutive Funktion, Kognition, Selbstbeurteilung",
     "items": [ 	
         {
             "label": "Dieser Fragebogen beschreibt einige der Schwierigkeiten, die Patienten nach einer Gehirnverletzung haben können. Wir bitten Sie, sich die einzelnen Aussagen sorgfältig durchzulesen und anzugeben, wie oft Sie selbst diese Erfahrung machen. Bitte kreuzen Sie das entsprechende Kästchen an.",

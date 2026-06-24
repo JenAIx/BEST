@@ -1,14 +1,17 @@
 {
-  "title": "Functional Independence Measure (FIM)",
+  "title": "FIM – Functional Independence Measure",
   "short_title": "FIM",
-  "description": "Mit dem Instrument FIM™ (Functional Independence Measure) werden funktionelle Einschränkungen von Patienten anhand von 18 Merkmalen gemessen. Dabei wird eine für alle Merkmale einheitliche Skala mit 7 Ausprägungen angewandt.",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
+  "description": "Fremdbeurteilung der Selbstständigkeit bei Alltagsfunktionen (Rehabilitation).",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "225398001",
     "display": "FIM Score"
   },
   "manual": "FIM Bewertungsskale: 1 = Total abhängig, 2 = Maximal abhängig, 3 = Stark abhängig, 4 = Mäßig abhängig, 5 = Leicht abhängig, 6 = Unabhängig mit Hilfsmittel, 7 = Unabhängig ohne Hilfsmittel",
-  "keywords": "FIM, physio, ergo",
+  "keywords": "Selbstständigkeit, Alltagsaktivitäten, Rehabilitation, Fremdbeurteilung",
   "ref": null,
   "items": [
     {

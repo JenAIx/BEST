@@ -49,6 +49,41 @@ Minimalbeispiel:
 }
 ```
 
+## 2b. Metadaten-Standards (title / short_title / description / keywords)
+
+Damit Liste, Suche (`/select`) und Vorlagen konsistent bleiben, gelten feste
+Regeln. Sie werden teils durch den Lint-Test `keyword_vocab.test.js` erzwungen.
+
+- **`short_title` = Maschinen-Schlüssel.** Referenziert in Visiten-Vorlagen
+  (`src/tools/visits/default-templates.js`), Tests und in gespeicherten Antworten
+  (`info.label`). **Niemals nachträglich umbenennen** — sonst brechen Vorlagen und
+  historische Daten verlieren ihren Bezug. Format: kurz, `snake_case`, eindeutig,
+  ohne Leerzeichen (z. B. `phq_9`, `nms_quest`, `sf36_mod`).
+- **`title` = „Abk. – Deutscher Name (Domäne)".** Bloße Abkürzungen ausschreiben.
+  Die Domäne in Klammern nur, wenn sie nicht schon im Namen steckt. Beispiele:
+  `"BDI-II – Beck-Depressions-Inventar"`, `"ESS – Epworth-Schläfrigkeitsskala"`,
+  `"PHQ-9 – Gesundheitsfragebogen (Depression)"`, `"mRS – Modified Rankin Scale (Behinderungsgrad)"`.
+- **`description` = knapper deutscher Einzeiler:** was gemessen wird + Umfang/Quelle.
+- **`keywords` = 3–6 Begriffe, ausschließlich aus dem kontrollierten Vokabular**
+  `src/tools/questman/keywords.js` (`KEYWORD_VOCAB`), komma-getrennt. Primär deutsche
+  **Domänen-Begriffe**, abgeleitet aus den *Items* — **nie** der Instrumentenname
+  oder dessen Abkürzung, keine Selbstbenennung. Gegenbeispiele:
+  - ❌ BFI mit `brief, fatigue, inventory` (Instrumentenname) → ✅ `Fatigue, Erschöpfung`
+  - ❌ „Bayer"-Skala mit Keyword `bayer` → ✅ `Alltagsaktivitäten, Demenz`
+
+  Braucht ein Bogen einen Begriff, der noch fehlt: **erst zum `KEYWORD_VOCAB`
+  hinzufügen** (eine Quelle für Builder-Vorschläge *und* Lint), dann verwenden.
+- **`version` / `updated`**: jeder Bogen trägt `version` (z. B. `"1.0"`) und
+  `updated` (Stand-/Änderungsdatum `YYYY-MM-DD`). Beides wird in `/select` dezent
+  rechts unten angezeigt (`v1.0 · Stand 2024-12-10`). Bei neuen Bögen: `"1.0"` +
+  heutiges Datum.
+- **`license`** (Pflicht bei neuen Bögen): `{ "status": "...", "note": "..." }` mit
+  `status ∈ { free, licensed, unclear }` — wird in `/select` oben rechts als
+  Indikator gezeigt (🔓 frei / 🔒 Lizenz / ❔ unklar), Hover zeigt `note`.
+  **Konservativ einstufen**: nur sicher Freies/Gemeinfreies/Eigenentwicklungen als
+  `free`; klar kommerziell/geschützt als `licensed`; im Zweifel `unclear`. Die
+  Angabe ist Orientierung (keine Rechtsberatung) — vgl. Disclaimer in *About*.
+
 ## 3. Durch Tests „aufnehmen"
 
 Ein neuer Bogen wird **ohne weiteres Zutun** von zwei Guards mitgeprüft:
@@ -59,6 +94,9 @@ Ein neuer Bogen wird **ohne weiteres Zutun** von zwei Guards mitgeprüft:
   eine Scoring-`id` ins Leere zeigt oder `value/score`-Längen nicht passen.
 - **Format-Guard** `test/jest/__tests__/questionnaire_format.test.js` — verlangt
   valides JSON und LF-Zeilenenden.
+- **Keyword-Guard** `test/jest/__tests__/keyword_vocab.test.js` — verlangt
+  nicht-leere `keywords`, die **ausschließlich** aus `KEYWORD_VOCAB`
+  (`src/tools/questman/keywords.js`) stammen. Neuer Begriff → erst dort eintragen.
 
 Ausführen:
 

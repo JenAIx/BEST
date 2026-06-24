@@ -1,15 +1,18 @@
 {
-    "title": "MDT-PD",
+    "title": "MDT-PD – Münchener Dysphagie-Test (Parkinson)",
     "short_title": "mdt",
+    "version": "1.0",
+    "updated": "2012-01-01",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding": {
         "system": "http://snomed.info/sct",
         "code": "288939007",
         "display": "Münchener Dysphagie Test – Parkinson's Disease",
         "version": "20120101"
     },
-    "description": "Münchener Dysphagie Test – Parkinson's Disease (MDT-PD)",
+    "description": "Selbstbeurteilung von Schluckstörungen bei Parkinson.",
     "manual": "<b>Vorbemerkungen</b><br><br>Dieser Screening-Fragebogen wurde speziell für Parkinson-Patienten konzipiert, um Dysphagien (Schluckstörungen) frühestmöglich erkennen zu können.<br><br>Bitte nehmen Sie sich Zeit, die Fragen aufmerksam durchzulesen und diejenigen Antworten anzukreuzen, die Ihre Situation am ehesten beschreiben.<br><br>Da vollständig ausgefüllte Fragebögen ausgewertet werden können, ist es sehr wichtig, dass Sie <b>alle Fragen</b> beantworten.",
-    "keywords": "dysphagie, schluckstörung, schlucken, parkinson, MDT, screening",
+    "keywords": "Dysphagie, Parkinson, Selbstbeurteilung",
     "ref": "A. Janine Simons (2012), www.mdt-parkinson.de",
     "items": [
         {

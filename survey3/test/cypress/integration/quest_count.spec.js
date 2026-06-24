@@ -6,7 +6,7 @@
 // werden. Wir seeden einen Alt-Blob (wie auf einer alten iPad-App-Version)
 // und prüfen, dass danach weiterhin ALLE gebündelten Bögen sichtbar sind.
 
-const EXPECTED_COUNT = 111 // 112 JSON-Dateien, 1 doppelter short_title (nms_quest)
+const EXPECTED_COUNT = 111 // 111 JSON-Dateien, alle short_titles eindeutig
 
 // Lädt die App mit frischer IndexedDB (Bug tritt nur bei frischer Migration auf)
 // und optionalem Alt-Blob im localStorage. DB-Löschung + Seed laufen in

@@ -1,9 +1,12 @@
 {
-  "title": "AEB - Akutmaß Erholung und Beanspruchung",
+  "title": "AEB – Akutmaß für Erholung und Beanspruchung",
   "short_title": "AEB",
-  "description": "Akutmaß Erholung und Beanspruchung",
+  "version": "1.0",
+  "updated": "2024-12-10",
+  "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
+  "description": "Erfassung von körperlicher und mentaler Erholung bzw. Beanspruchung.",
   "manual": "Hier finden Sie eine Reihe von Aussagen, die sich auf <b>Ihr körperliches und seelisches Befinden</b> beziehen. Bitte überlegen Sie bei jeder Aussage, in welchem Maße diese auf Sie zutrifft. Bitte denken Sie nicht zu lange über eine Aussage nach, sondern treffen Sie möglichst spontan eine Wahl. Überlegen Sie bitte nicht, welche Beantwortung möglicherweise auf den ersten Blick einen bestimmten Eindruck vermittelt, sondern stufen Sie die Aussagen so ein, wie es für Sie persönlich am ehesten zutrifft. Es gibt dabei keine richtigen oder falschen Antworten. <br><b>Wichtig ist nur, dass Sie keine Frage unbeantwortet lassen.</b>",
-  "keywords": "Erholung, Beanspruchung, Leistungsfähigkeit, körperlich, mental",
+  "keywords": "Erschöpfung, Wohlbefinden, Selbstbeurteilung",
   "coding": {
     "system": "CUSTOM",
     "code": "CUSTOM: NP\\AEB",

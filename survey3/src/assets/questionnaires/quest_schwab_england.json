@@ -1,15 +1,18 @@
 {
-    "title": "Schwab-England Skala",
+    "title": "Schwab & England – Alltagsaktivitäten (Parkinson)",
     "short_title": "schwab_england",
+    "version": "1.0",
+    "updated": "2024-01-01",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding": {
         "system": "http://snomed.info/sct",
         "code": "273544001",
         "display": "Schwab and England Activities of Daily Living Scale",
         "version": "20240101"
     },
-    "description": "Schwab-England Skala – Aktivitäten des täglichen Lebens",
+    "description": "Einschätzung der Selbstständigkeit im Alltag bei Parkinson.",
     "manual": "<b>Anleitung</b>: Bitte wählen Sie den Prozentsatz, der den aktuellen Zustand des Patienten am besten beschreibt.",
-    "keywords": "Schwab, England, ADL, Aktivitäten, tägliches Leben, Parkinson, Unabhängigkeit",
+    "keywords": "Alltagsaktivitäten, Selbstständigkeit, Parkinson",
     "ref": "Schwab RS, England AC (1969). Projection technique for evaluating surgery in Parkinson's disease.",
     "items": [
         {

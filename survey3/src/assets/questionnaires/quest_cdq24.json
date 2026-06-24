@@ -1,14 +1,17 @@
 {
-    "title": "CDQ-24",
+    "title": "CDQ-24 – Fragebogen bei zervikaler Dystonie",
     "short_title": "cdq24",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "225398001",
         "display" : "CDQ-24",
         "version": "20211026"
     },
-    "description": "Craniocervical dystonia questionnaire",
-    "keywords": "neuro dystonia",
+    "description": "Krankheitsspezifische Lebensqualität bei zervikaler Dystonie.",
+    "keywords": "Dystonie, Lebensqualität, Selbstbeurteilung",
     "ref": "https://jnnp.bmj.com/content/75/5/749",
     "manual": "",
     "items": [

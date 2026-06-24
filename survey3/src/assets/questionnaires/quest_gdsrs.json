@@ -1,14 +1,17 @@
 {
-    "title": "GDS (RS)",
+    "title": "GDS – Globale Dystonie-Schweregradskala",
     "short_title": "gds_dystonia",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "225398001",
         "display" : "Global Dystonia Severity Rating Scale (GDS)",
         "version": "20211026"
     },
-    "description": "Global Dystonia Severity Rating Scale",
-    "keywords": "neurology, dystonia",
+    "description": "Fremdbeurteilung des Schweregrads der Dystonie nach Körperregion.",
+    "keywords": "Dystonie, Motorik, Fremdbeurteilung",
     "manual": "",
     "items": [
         {

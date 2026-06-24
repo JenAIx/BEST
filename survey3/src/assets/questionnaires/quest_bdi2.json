@@ -1,15 +1,18 @@
 {
-    "title": "BDI 2",
+    "title": "BDI-II – Beck-Depressions-Inventar",
     "short_title": "bdi2",
+    "version": "1.0",
+    "updated": "2023-01-24",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "SCTID: 717268000",
         "display" : "Becks depression inventar II",
         "version": "20230124"
     },
-    "description": "",
+    "description": "Selbstbeurteilung der Schwere depressiver Symptome (21 Items).",
     "manual": "<b>Anleitung</b>: Dieser Fragebogen enthält 21 Gruppen von Aussagen. Bitte lesen Sie jede dieser Gruppen von Aussagen sorgfältig durch und suchen Sie sich dann in jeder Gruppe <b>eine Aussage</b> heraus, die am besten beschreibt, wie Sie sich <b>in den letzten zwei Wochen, einschließlich heute, gefühlt haben</b>. Kreuzen Sie die Zahl neben der Aussage an, die Sie sich herausgesucht haben (0, 1, 2 oder 3). Falls in einer Gruppe mehrere Aussagen gleichermaßen auf Sie zutreffen, kreuzen Sie die Aussage mit der höheren Zahl an. Achten Sie bitte darauf, dass Sie in jeder Gruppe nicht mehr als eine Aussage ankreuzen, das gilt auch für Gruppe 16 (Veränderung der Schlafgewohnheiten) oder Gruppe 18 (Veränderungen des Appetits).",
-    "keywords": "psych depression",
+    "keywords": "Depression, Stimmung, Selbstbeurteilung",
     "items": [
 
         {

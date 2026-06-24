@@ -1,14 +1,17 @@
 {
-    "title": "DNMSQuest",
+    "title": "DNMSQuest – Nicht-motorische Symptome bei Dystonie",
     "short_title": "dnmsquest",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "CUSTOM",
         "code" : "CUSTOM: SCORES\\DNMSQUEST",
         "display" : "DNMSQuest",
         "version": "20230126"
     },
-    "description": "Dystonia Non-Motor Symptoms Questionnaire",
-    "keywords": "neurology, dystonia",
+    "description": "Screening nicht-motorischer Symptome bei Dystonie.",
+    "keywords": "Dystonie, Schlaf, Screening",
     "manual": "",
     "items": [
         {

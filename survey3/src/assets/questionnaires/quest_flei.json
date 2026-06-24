@@ -1,15 +1,18 @@
 {
-    "title": "Fragebogen zur Erfassung der geistigen Leistungsfähigkeit (FLei)",
+    "title": "FLei – Fragebogen zur geistigen Leistungsfähigkeit",
     "short_title": "flei",
+    "version": "1.0",
+    "updated": "2023-07-13",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "868186005",
         "display" : "Fragebogen zur Erfassung der geistigen Leistungsfähigkeit",
         "version": "20230713"
     },
-    "description": "Fragebogen zur Erfassung der geistigen Leistungsfähigkeit",
+    "description": "Selbstbeurteilung von Konzentration, Gedächtnis und exekutiven Funktionen.",
     "manual": "Bitte lesen Sie jede Frage einzeln sorgfältig durch und entscheiden Sie, wie häufig das vorkommt. Kreuzen Sie bitte bei jeder Frage die für Sie am besten zutreffende Antwort an. <br><b>Bitte beantworten Sie jede Frage!</b>",
-    "keywords": "geistige Leistungsfähigkeit, Konzentration, Gedächtnis, Planung",
+    "keywords": "Kognition, Gedächtnis, Konzentration, Selbstbeurteilung",
     "items": [
         {
             "label": "Wie häufig kommt das vor...",

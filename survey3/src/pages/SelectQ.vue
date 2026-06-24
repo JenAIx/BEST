@@ -23,15 +23,24 @@
               :color="isSelected(item) ? 'primary' : 'grey-5'" size="24px" />
           </q-item-section>
           <q-item-section :data-cy="'quest_' + index">
-            <q-item-label class="text-weight-medium">{{ QUESTMAN.get(item).title }}</q-item-label>
+            <q-item-label class="text-weight-medium title-row">{{ QUESTMAN.get(item).title }}</q-item-label>
             <q-item-label v-if="QUESTMAN.get(item).description" caption lines="2">
               {{ QUESTMAN.get(item).description }}
             </q-item-label>
-            <div v-if="keywordsOf(item).length" class="q-mt-xs">
+            <div v-if="keywordsOf(item).length" class="q-mt-xs kw-row">
               <q-chip v-for="(kw, ki) in keywordsOf(item)" :key="ki" dense square size="sm"
                 color="blue-grey-1" text-color="blue-grey-8" class="kw-chip">{{ kw }}</q-chip>
             </div>
           </q-item-section>
+          <!-- Lizenz-Indikator oben rechts, Detail per Hover -->
+          <div class="card-license" :class="'lic-' + licenseOf(item).status" :data-cy="'license_' + index">
+            <q-icon :name="licenseOf(item).icon" size="14px" class="q-mr-xs" />{{ licenseOf(item).label }}
+            <q-tooltip anchor="bottom right" self="top right" :delay="200" max-width="260px"
+              class="bg-grey-9 text-body2">{{ licenseOf(item).note }}</q-tooltip>
+          </div>
+          <div v-if="versionOf(item)" class="card-version text-grey-5">
+            <q-icon name="update" size="12px" class="q-mr-xs" />{{ versionOf(item) }}
+          </div>
         </q-item>
       </div>
       <div v-else class="text-grey-6 text-center q-pa-xl">
@@ -104,6 +113,29 @@ export default {
       if (!kw) return []
       return kw.split(',').map((k) => k.trim()).filter(Boolean).slice(0, 3)
     },
+    // Version + Stand-Datum (top-level version/updated; Fallback coding.version).
+    // Dezent rechts unten im Listen-Item.
+    versionOf(key) {
+      const q = this.QUESTMAN.get(key)
+      const ver = q.version
+      const date = q.updated || q.coding?.version
+      const parts = []
+      if (ver) parts.push(`v${ver}`)
+      if (date) parts.push(`Stand ${date}`)
+      return parts.length ? parts.join(' · ') : null
+    },
+    // Lizenz-Indikator: status ∈ {free, licensed, unclear}. Konservativ — im Zweifel
+    // 'unclear'. Hinweistext (note) kommt aus dem Bogen, Anzeige per Hover.
+    licenseOf(key) {
+      const lic = this.QUESTMAN.get(key).license || {}
+      const map = {
+        free: { icon: 'lock_open', label: 'frei', note: 'Freie Verwendung.' },
+        licensed: { icon: 'lock', label: 'Lizenz', note: 'Für die Verwendung ist eine Lizenzierung erforderlich.' },
+        unclear: { icon: 'help_outline', label: 'unklar', note: 'Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen.' },
+      }
+      const status = map[lic.status] ? lic.status : 'unclear'
+      return { status, ...map[status], note: lic.note || map[status].note }
+    },
     gotopreset() {
       const presets = Object.keys(this.selected)
       this.$router.push({
@@ -123,9 +155,12 @@ export default {
 
 <style lang="sass" scoped>
 .select-page
-  height: 100%
+  min-height: 100%
 
 .select-header
+  position: sticky
+  top: 0
+  z-index: 10
   border-bottom: 1px solid $line
   background: $surface
 
@@ -135,7 +170,6 @@ export default {
 
 .select-scroll
   min-height: 0
-  overflow-y: auto
 
 .select-grid
   max-width: 720px
@@ -145,6 +179,7 @@ export default {
   gap: 8px
 
 .select-card
+  position: relative
   background: $surface
   border: 1px solid $line
   border-radius: $radius
@@ -153,6 +188,48 @@ export default {
   &:hover
     box-shadow: $shadow-hover
     transform: translateY(-1px)
+
+.card-version
+  position: absolute
+  right: 10px
+  bottom: 6px
+  font-size: 0.6rem
+  line-height: 1
+  white-space: nowrap
+  pointer-events: none
+
+.kw-row
+  padding-right: 92px
+
+// Lizenz-Indikator oben rechts
+.title-row
+  padding-right: 96px
+
+.card-license
+  position: absolute
+  top: 8px
+  right: 10px
+  display: inline-flex
+  align-items: center
+  font-size: 0.6rem
+  font-weight: 600
+  line-height: 1.5
+  padding: 1px 7px 1px 5px
+  border-radius: 9px
+  cursor: help
+  white-space: nowrap
+
+.lic-free
+  background: rgba(#2e7d32, 0.12)
+  color: #2e7d32
+
+.lic-licensed
+  background: rgba(#c62828, 0.12)
+  color: #c62828
+
+.lic-unclear
+  background: rgba(#616161, 0.14)
+  color: #616161
 
 .select-card--active
   border-color: $primary
@@ -163,6 +240,9 @@ export default {
   margin: 2px 4px 0 0
 
 .select-actions
+  position: sticky
+  bottom: 0
+  z-index: 10
   border-top: 1px solid $line
   background: $surface
   min-height: 56px

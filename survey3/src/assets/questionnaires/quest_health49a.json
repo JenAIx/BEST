@@ -1,15 +1,18 @@
 {
-    "title": "Health_49_A",
+    "title": "HEALTH-49 – Modul A (Hamburger Module)",
     "short_title": "health49_a",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "225885004",
         "display" : "Hamburger Module (HEALTH-49) - A",
         "version": "20211026"
     },
-    "description": "Hamburger Module (HEALTH-49) - A",
+    "description": "Selbstbeurteilung psychischer und somatischer Beschwerden.",
     "manual": "",
-    "keywords": "health, hamburg, hamburger, depression, anxiety, pain, schmerz, angst",
+    "keywords": "Depression, Angst, Wohlbefinden, Selbstbeurteilung",
     "items": [
         {
             "label": "<b>A</b> Nachstehend finden Sie eine Liste von <b>Problemen und Beschwerden</b>. Bitte lesen Sie sich jede Frage sorgfältig durch und entscheiden Sie, wie sehr Sie <b>in den letzten zwei Wochen durch diese Beschwerden gestört oder belastet</b> worden sind. Machen Sie bitte hinter jeder Frage nur ein Kreuz in das Kästchen mit der für Sie am besten zutreffende Antwort. <br>Bitte beantworten Sie jede Frage!",

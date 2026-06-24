@@ -1,14 +1,17 @@
 {
-    "title": "NMSS",
+    "title": "NMSS – Non-Motor Symptom Scale (Parkinson)",
     "short_title": "nmss",
+    "version": "1.0",
+    "updated": "2026-06-03",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding": {
         "system": "LEC-SEQ",
         "code": "CUSTOM: NMSS",
         "display": "Non-Motor Symptom Scale",
         "version": "20260603"
     },
-    "description": "Non-Motor Symptom Scale (NMSS) – vollständig, 9 Bereiche / 30 Items (Storch et al. 2010)",
-    "keywords": "parkinson nicht-motorisch non-motor lec-seq nmss",
+    "description": "Fremdbeurteilung der Schwere nicht-motorischer Symptome bei Parkinson.",
+    "keywords": "Parkinson, autonome Symptome, Fremdbeurteilung",
     "manual": "<b>Rater-administriert · Erhebung V1 + V4.</b><br>Je Item: <b>Schwere</b> 0 keine · 1 leicht · 2 mäßig · 3 erheblich <b>×</b> <b>Häufigkeit</b> 1 selten (&lt;1×/Wo) · 2 gelegentlich (1×/Wo) · 3 häufig (mehrmals/Wo) · 4 sehr häufig (täglich) → Item-Score 0–12. Bezug: letzte 4 Wochen. Bereichssummen, Gesamtscore (0–360) und Belastungsgrad werden automatisch berechnet.",
     "items": [
         {

@@ -1,15 +1,18 @@
 {
-  "title": "Fragebogen - Standard BIOMAG 1",
+  "title": "BIOMAG – Standardfragebogen 1",
   "short_title": "biomag_fw",
+  "version": "1.0",
+  "updated": "2023-01-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "444061006",
     "display": "Standard BIOMAG 1",
     "version": "20230124"
   },
-  "description": "Standardfragebogen v1 fw",
+  "description": "Allgemeine Anamnese- und Basisdaten (BIOMAG-Studie).",
   "manual": "<b>Sehr geehrte*r Studienteilnehmer*in,</b>: Wir danken Ihnen für die Teilnahme an unserer Untersuchung. Wir bitten Sie zunächst einige Fragen zu ihrem aktuellen Gesundheitsstand, beziehungsweise Vorerkrankungen zu beantworten. Gerne werden Sie bei unklar halten bei den Fragen durch unser Team unterstützt.",
-  "keywords": "biomag general",
+  "keywords": "Parkinson, Anamnese",
   "items": [
     {
       "label": "Alter",

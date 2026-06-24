@@ -1,7 +1,10 @@
 {
-  "title": "Stendal Adherence with Medication Score: Teil 2 Fragen zur Medikamenteneinnahme",
+  "title": "SAMS – Stendaler Adhärenz-Score (Teil 2)",
   "short_title": "sams_2",
-  "description": "Fragen zum Umgang mit Medikamenten",
+  "version": "1.0",
+  "updated": "2023-12-28",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Erfassung der Medikamenten-Adhärenz (Wissen und Einnahme).",
   "coding" : {
     "system" : "http://snomed.info/sct",
     "code" : "445536008",
@@ -9,7 +12,7 @@
     "version": "20231228"
   },
   "manual": "SAMS Teil 1 Angaben zur Person und Teil 2 Fragen zur Medikamenteneinnahme bearbeiten",
-  "keywords": "adherence, medication, sams",
+  "keywords": "Adhärenz, Medikation, Selbstbeurteilung",
   "ref": "DOI: 10.1016/j.dib.2019.103855",
   "items": [
     {

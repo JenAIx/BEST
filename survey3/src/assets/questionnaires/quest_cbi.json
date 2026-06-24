@@ -1,15 +1,18 @@
 {
-  "title": "CBI",
+  "title": "CBI – Caregiver Burden Inventory (pflegende Angehörige)",
   "short_title": "cbi",
+  "version": "1.0",
+  "updated": "2024-02-06",
+  "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "868186005",
     "display": "CBI (Caregiver Burden Inventory)",
     "version": "20240206"
   },
-  "description": "CBI (Caregiver Burden Inventory)",
+  "description": "Erfassung der Belastung pflegender Angehöriger.",
   "manual": "Der CBI (Caregiver Burden Inventory) ist ein Fragebogen zur Erfassung der Belastung von Pflegenden. Er besteht aus 24 Items, die in 5 Subskalen zusammengefasst werden: Zeitbelastung, Belastung durch die körperliche Pflege, Belastung durch die emotionale Betreuung, Belastung durch die soziale Betreuung und die Belastung durch die finanzielle Betreuung. Die Items werden auf einer 5-stufigen Skala von 0 (keine Belastung) bis 4 (sehr starke Belastung) beantwortet. Die Summe der 24 Items ergibt den Gesamtwert des CBI. Ein höherer Wert bedeutet eine höhere Belastung.",
-  "keywords": "caregiver quality of life",
+  "keywords": "Belastung, Angehörige, Fremdbeurteilung",
   "ref": "https://pubmed.ncbi.nlm.nih.gov/2516000/",
   "items": [
     {

@@ -41,6 +41,6 @@ describe('/select — Suche & Auswahl', () => {
     cy.get('[data-cy=questlist0]', { timeout: 10000 }).should('exist')
     cy.get('[data-cy=filter_input]').type('Rankin')
     cy.get('[data-cy=questlistRoot] .select-card').should('have.length', 1)
-    cy.get('[data-cy=questlist0]').should('contain', 'MRS')
+    cy.get('[data-cy=questlist0]').should('contain', 'Rankin')
   })
 })

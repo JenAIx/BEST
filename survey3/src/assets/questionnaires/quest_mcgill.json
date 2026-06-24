@@ -1,14 +1,17 @@
 {
-  "title": "McGill Pain Questionnaire",
+  "title": "MPQ – McGill-Schmerzfragebogen",
   "short_title": "MPQ",
-  "description": null,
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
+  "description": "Erfassung von Qualität und Intensität von Schmerzen.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "SCTID: 446009008",
     "display": "McGill Pain Questionnaire"
   },
   "manual": null,
-  "keywords": null,
+  "keywords": "Schmerz, Selbstbeurteilung",
   "ref": null,
   "items": [
     {

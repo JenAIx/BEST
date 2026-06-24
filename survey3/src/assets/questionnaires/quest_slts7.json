@@ -1,14 +1,17 @@
 {
-    "title": "SLTS-7",
+    "title": "SLTS-7 – Zufriedenheit mit Leben und Therapie (Parkinson)",
     "short_title": "slts7",
+    "version": "1.0",
+    "updated": "2026-06-01",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding": {
         "system": "LEC-SEQ",
         "code": "CUSTOM: SLTS7",
         "display": "Satisfaction with Life and Treatment Scale (SLTS-7)",
         "version": "20260601"
     },
-    "description": "SLTS-7 – Zufriedenheit mit Leben und Behandlung (Sauerbier et al. 2022), 7 Items",
-    "keywords": "parkinson lec-seq zufriedenheit lebensqualität treatment satisfaction slts",
+    "description": "Erfassung der Lebens- und Behandlungszufriedenheit (Studie).",
+    "keywords": "Patientenzufriedenheit, Lebensqualität, Parkinson",
     "manual": "<b>Selbstauskunft Patient:in · 7 Items · Erhebung V1–V4.</b><br>Skala 1–10. Items 1–6: 1 = überhaupt nicht zufrieden … 10 = sehr zufrieden. Item 7: 1 = überhaupt nicht … 10 = absolut. Höhere Werte = höhere Zufriedenheit.<br><span style=\"color:#b71c1c\">⚠ Arbeitsübersetzung — vor Studieneinsatz lizenzierte deutsche Version absichern (Original englisch validiert).</span>",
     "items": [
         {

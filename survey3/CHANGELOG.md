@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.16.0
+
+#### Added
+
+- [2026-06-24] **Lizenz-Indikator je Fragebogen** (`license { status, note }`, neu in allen 111 Bögen): Status `free` / `licensed` / `unclear`. Anzeige oben rechts im `/select`-Listeneintrag (🔓 frei / 🔒 Lizenz / ❔ unklar) mit Hover-Detail. Einstufung **konservativ** (im Zweifel `unclear`/`licensed`); ausführlicher Disclaimer (unverbindliche Orientierung, keine Rechtsberatung) im *About*.
+- [2026-06-24] **Version/Stand je Bogen**: Felder `version` (`"1.0"`) + `updated` (Datum) in allen Bögen; Anzeige `v1.0 · Stand …` dezent rechts unten im `/select`-Eintrag. Fehlende Stand-Daten mit heutigem Datum gefüllt.
+- [2026-06-24] **Kontrolliertes Keyword-Vokabular** (`src/tools/questman/keywords.js`) als einzige Quelle für Builder-Vorschläge und Lint; neuer Guard `keyword_vocab.test.js` (jeder Bogen trägt nicht-leere Keywords ausschließlich aus dem Vokabular).
+- [2026-06-24] **Skill + Doku „neuer-fragebogen"** (`.claude/skills/`, `docs/ADDING_QUESTIONNAIRES.md` §2b): Metadaten-Standards (Titelformat, Keyword-Vokabular, short_title-Regel, Lizenz/Version) für konforme neue Fragebögen; Schema-Doku um `license`/`version`/`updated` erweitert.
+
+#### Changed
+
+- [2026-06-24] **Metadaten aller 111 Fragebögen standardisiert**: Titel im Format „Abk. – Deutscher Name (Domäne)", knappe deutsche Beschreibungen, kuratierte deutsche **Domänen**-Keywords (keine Instrumentennamen/Abkürzungen, z. B. BFI → „Fatigue, Erschöpfung" statt „brief fatigue inventory"). 4 kaputte `short_titles` korrigiert (`neurodeg_screening`, `klein_score`, `sf36_mod`, `nms_quest_alt`), Dummy-Bogen `test` entfernt → 111 eindeutige Bögen.
+
+#### Fixed
+
+- [2026-06-24] `/select`: Such-Header und Aktionsleiste bleiben jetzt fix (sticky), die Liste scrollt sauber dazwischen — Start-/Vorlage-Button verschwindet nicht mehr unter dem Fold (auch ohne aktive Auswahl).
+
 ### v1.15.0
 
 #### Fixed

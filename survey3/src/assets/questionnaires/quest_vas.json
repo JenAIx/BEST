@@ -1,7 +1,10 @@
 {
-  "title": "Visuelle Analogskala",
+  "title": "VAS – Visuelle Analogskala (Schmerz)",
   "short_title": "VAS",
-  "description": null,
+  "version": "1.0",
+  "updated": "2024-01-26",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Visuelle Analogskala zur Erfassung der Schmerzintensität.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "225398001",
@@ -9,7 +12,7 @@
     "version": "20240126"
   },
   "manual": null,
-  "keywords": "VAS, Schmerz, Schmerzintensität, Schmerzstärke, Schmerzskala, Schmerzskalen, Schmerz",
+  "keywords": "Schmerz, Selbstbeurteilung",
   "ref": null,
   "items": [
     {

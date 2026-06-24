@@ -1,15 +1,18 @@
 {
-    "title": "CFQ-G",
+    "title": "CFQ – Fragebogen zu kognitiven Fehlleistungen",
     "short_title": "cfqg",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "273375008",
         "display" : "Cognitive failure questionnaire (CFQ-G)",
         "version": "20211026"
     },
-    "description": "Cognitive failure questionnaire",
+    "description": "Selbstbeurteilung alltäglicher kognitiver Fehler (Gedächtnis, Aufmerksamkeit).",
     "manual": "Bei den folgenden Fragen geht es um kleinere Fehler, die jedem von Zeit zu Zeit unterlaufen, einige häufiger, andere seltener. Wir möchten nun wissen, wie oft bei Ihnen solche Ereignisse auftreten. Bitte geben Sie durch ankreuzen an, wie häufig jedes der aufgeführten Ereignisse bei Ihnen <b>in den letzten vier Wochen</b> vorkam: \"fast nie\", \"selten\", \"gelegentlich\", \"oft\" oder \"sehr oft\". <br>Bitte bewerten Sie die Aussagen so, wie es Ihrem <b>natürlichen Zustand</b> der letzten Wochen entspricht; vor allem sind keine Medikamenten- oder Suchtmittelwirkungen (z.b.Alkohol) gemeint",
-    "keywords": "cognitive, failure, slips, mistake, fehler, kognitiv",
+    "keywords": "Kognition, Gedächtnis, Aufmerksamkeit, Selbstbeurteilung",
     "items": [
     	{
             "label": "",
