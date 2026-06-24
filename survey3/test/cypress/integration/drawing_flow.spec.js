@@ -67,6 +67,27 @@ describe('Zeichen-Flow (Uhr / Schrift / Spirale)', () => {
     })
   })
 
+  it('Storage-Ansicht zeigt die Zeichnung als Bild (kein Roh-Base64)', () => {
+    cy.visit(`/#/quest/${encodeURIComponent(JSON.stringify({ presets: 'clock', mode: 'single', PID }))}`, freshLoad())
+    cy.get('[data-cy=drawing_canvas]').should('exist')
+    drawAndConfirm()
+    cy.get('[data-cy=submitquest]').click()
+    cy.location('hash').should('include', '/finished_quest')
+    // in-memory persistiert; kurz warten, dann Storage-Seite laden (re-init aus IndexedDB)
+    cy.window().then((win) => expect(win.__mainStore.STORAGE.get().length).to.equal(1))
+    cy.wait(500)
+
+    cy.visit('/#/storage')
+    cy.get('[data-cy=items] [data-cy=item_0]', { timeout: 12000 }).should('exist').click()
+    // echte Bildvorschau statt Base64-Text
+    cy.get('.tv-drawing').should('exist').and(($img) => {
+      expect($img[0].naturalWidth, 'Bild geladen').to.be.greaterThan(0)
+    })
+    // PNG-Download-Button vorhanden, kein roher data:image-Text in der Zelle
+    cy.get('.tv-drawing-actions').should('exist')
+    cy.get('.tv-item-value').invoke('text').should('not.contain', 'data:image')
+  })
+
   it('3er-Kette: jede Zeichnung wird als Base64-PNG gespeichert', () => {
     cy.visit(`/#/quest/${encodeURIComponent(JSON.stringify({ presets: ['clock', 'handwriting', 'spiral'], mode: 'protected', PID }))}`, freshLoad())
     cy.get('[data-cy=page_quest]').should('exist')

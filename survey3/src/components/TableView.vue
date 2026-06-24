@@ -98,7 +98,16 @@
                 <tr v-for="(f, i) in findings" :key="'find_' + i">
                   <td class="tv-item-num">{{ i + 1 }}</td>
                   <td class="tv-item-label">{{ f.title }}</td>
-                  <td class="tv-item-value">{{ f.value }}</td>
+                  <td class="tv-item-value">
+                    <template v-if="isImage(f.value)">
+                      <img :src="f.value" class="tv-drawing" alt="Zeichnung" />
+                      <div class="tv-drawing-actions no-print">
+                        <q-btn flat dense size="sm" icon="file_download" label="PNG" no-caps
+                          @click="downloadImage(f)" />
+                      </div>
+                    </template>
+                    <span v-else>{{ f.value }}</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -187,6 +196,19 @@ export default {
     },
   },
   methods: {
+    isImage(v) {
+      return typeof v === 'string' && v.startsWith('data:image')
+    },
+    downloadImage(f) {
+      const pid = (this.pid || 'export').replace(/[^a-zA-Z0-9_-]/g, '_')
+      const name = (f.title || 'zeichnung').replace(/[^a-zA-Z0-9_-]/g, '_')
+      const a = document.createElement('a')
+      a.href = f.value
+      a.download = `${pid}_${name}.png`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    },
     checkQuest() {
       this.mainStore.verify_quest_signature(this.QUEST)
         .then(() => this.$q.notify({ message: "Das Dokument ist valide.", color: 'green' }))
@@ -207,7 +229,8 @@ export default {
       })
       this.findings.forEach(f => {
         headers.push(f.title)
-        values.push(f.value)
+        // Zeichnungen (Base64) nicht in die CSV-Zelle kippen — Platzhalter
+        values.push(this.isImage(f.value) ? '[Zeichnung]' : f.value)
       })
 
       rows.push(headers.map(h => csvCell(h)).join(sep))
@@ -249,6 +272,8 @@ export default {
   .tv-item-num { color: #9E9E9E; width: 30px; }
   .tv-item-value { color: #1976D2; font-weight: 500; }
   .tv-eval { background: #F5F5F5; padding: 10px; border-radius: 4px; font-size: 10pt; color: #1D1D1D; }
+  .tv-drawing { max-width: 340px; width: 100%; border: 1px solid #bbb; border-radius: 4px; break-inside: avoid; }
+  .no-print { display: none !important; }
   @page { margin: 15mm; }
 </style></head><body>`)
       win.document.write(el.innerHTML)
@@ -388,6 +413,22 @@ function csvCell(val) {
 .tv-item-value
   font-weight: 500
   color: $primary
+
+/* Zeichnung-Vorschau in der Items-Tabelle */
+.tv-drawing
+  display: block
+  max-width: 280px
+  width: 100%
+  border: 1px solid $grey-4
+  border-radius: $radius-sm
+  background: #fff
+
+.tv-drawing-actions
+  margin-top: 4px
+
+@media print
+  .no-print
+    display: none !important
 
 @media print
   .tv-toolbar

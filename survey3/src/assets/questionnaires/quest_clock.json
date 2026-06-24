@@ -20,6 +20,16 @@
       "force": true,
       "canvas": { "size": 360, "background": "blank" },
       "coding": { "system": "CUSTOM", "code": "CLOCK_IMG", "display": "Uhr-Zeichnung" }
+    },
+    {
+      "id": 2,
+      "tag": "remarks",
+      "type": "text",
+      "label": "Bemerkungen",
+      "hint": "optionale Anmerkungen",
+      "value": null,
+      "force": false,
+      "coding": { "system": "CUSTOM", "code": "CLOCK_REMARKS", "display": "Bemerkungen" }
     }
   ]
 }
