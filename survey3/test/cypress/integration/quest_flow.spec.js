@@ -18,8 +18,7 @@ context('Single Questionnaire Flow', () => {
     cy.visit('/#/select')
     cy.get('[data-cy=selectquest]').should('exist')
 
-    // filtern auf "Rankin" → nur MRS bleibt übrig
-    cy.get('[data-cy=filter_btn]').click()
+    // filtern auf "Rankin" → nur MRS bleibt übrig (Suche immer sichtbar)
     cy.get('[data-cy=filter_input]').type('Rankin')
     cy.get('[data-cy=questlist0]').should('contain', 'MRS').click()
     cy.get('[data-cy=btn_gotoquest]').click()

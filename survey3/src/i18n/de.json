@@ -81,7 +81,11 @@
   },
   "select_quest": {
     "label": "Fragebogenauswahl",
-    "empty": "Wähle einen der verfügbaren Fragebögen aus. <br>Wähle mehrere aus, um eine neue Vorlage zu erstellen."
+    "empty": "Wähle einen der verfügbaren Fragebögen aus. <br>Wähle mehrere aus, um eine neue Vorlage zu erstellen.",
+    "search": "Suchen (Titel, Beschreibung, Schlüsselwort)…",
+    "selected": "ausgewählt",
+    "no_match": "Keine Treffer für die Suche.",
+    "hint_select": "Bogen wählen — mehrere für eine Vorlage"
   },
   "quest": {
     "label": "Fragebogen",
