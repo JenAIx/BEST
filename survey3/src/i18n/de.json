@@ -338,6 +338,8 @@
     "optional": "optional",
     "required": "Pflicht",
     "label_placeholder": "Frage / Beschriftung eingeben…",
+    "tag": "Tag",
+    "regen_tag": "Tag aus dem Label erzeugen (maschinenlesbare Kennung)",
     "flag_force_hint": "Pflichtfeld – muss beantwortet werden (klicken zum Umschalten)",
     "flag_inline_hint": "Optionen nebeneinander statt untereinander",
     "flag_ignore": "ohne Wertung",

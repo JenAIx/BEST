@@ -62,7 +62,7 @@
             Fragen: <q-btn icon="add" round @click="addMultiQuest()" />
             <div class="row items-center" v-for="(optquest, indoptquest) in item_copy.options.questions" :key="indoptquest+date_str">
               <q-input class="col-6" v-model="optquest.label" @blur="changeOptQuest(optquest, indoptquest)" dense label="Label" />
-              <q-input class="col-2" input-class="text-center" v-model="optquest.value" @blur="changeOptQuest(optquest, indoptquest)" dense label="Value" />
+              <q-input class="col-2" input-class="text-center" v-model="optquest.tag" @blur="changeOptQuest(optquest, indoptquest)" dense label="Tag" />
               <q-input readonly class="col-1" input-class="text-center" v-model="optquest.id" dense label="ID" />
               <div class="col-3 row no-wrap justify-end">
                 <q-btn flat dense size="sm" icon="arrow_upward" :disable="indoptquest === 0" :data-cy="`mq_up_${indoptquest}`" @click="moveInArray(item_copy.options.questions, indoptquest, 'up', true)" />
@@ -80,7 +80,6 @@
       <q-expansion-item v-if="!ISSEP" dense-toggle label="Coding (optional)" data-cy="item_coding"
         header-class="text-grey-7 q-px-none q-mt-sm">
         <div class="row q-col-gutter-xs">
-          <q-input class="col-12" v-model="item_copy.tag" @blur="updateItem('tag')" dense filled label="Tag" />
           <q-input class="col-8" v-model="item_copy.coding.display" @blur="updateItem('coding')" dense filled label="Coding: Anzeige" />
           <q-input class="col-4" v-model="item_copy.coding.code" @blur="updateItem('coding')" dense filled label="Code" />
           <q-input class="col-12" v-model="item_copy.coding.system" @blur="updateItem('coding')" dense filled label="System" />

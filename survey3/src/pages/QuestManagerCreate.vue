@@ -156,11 +156,22 @@
                     </q-btn>
                   </div>
 
-                  <!-- LABEL (oben, direkt editierbar) + WYSIWYG-VORSCHAU -->
+                  <!-- LABEL (links) + maschinenlesbarer TAG (rechts) + WYSIWYG-VORSCHAU -->
                   <div class="field-preview">
-                    <q-input borderless dense v-model="item.label" :data-cy="`item_label_${inditem}`"
-                      class="field-label-input" :placeholder="$t('builder.label_placeholder')"
-                      @update:model-value="touchField" />
+                    <div class="row no-wrap items-end q-gutter-sm">
+                      <q-input class="col field-label-input" borderless dense v-model="item.label"
+                        :data-cy="`item_label_${inditem}`" :placeholder="$t('builder.label_placeholder')"
+                        @update:model-value="touchField" />
+                      <q-input v-if="isFlaggable(item)" class="field-tag-input col-auto" dense filled
+                        v-model="item.tag" :data-cy="`item_tag_${inditem}`" :label="$t('builder.tag')"
+                        @update:model-value="touchField">
+                        <template #append>
+                          <q-icon name="auto_fix_high" size="16px" class="cursor-pointer" @click="regenTag(item)">
+                            <q-tooltip>{{ $t('builder.regen_tag') }}</q-tooltip>
+                          </q-icon>
+                        </template>
+                      </q-input>
+                    </div>
                     <div v-if="!isNonInput(item)" class="field-preview-inner"
                       @click="!expanded[inditem] && toggleExpand(inditem)">
                       <QuestItemField :item="item" :preview="true" :hide-label="true" />
@@ -434,6 +445,10 @@ export default {
     toggleFlag(item, flag) {
       if (flag === 'force') item.force = item.force === false ? true : false
       else item[flag] = !item[flag]
+      this.touchField()
+    },
+    regenTag(item) {
+      item.tag = slugify(this.plainLabel(item.label))
       this.touchField()
     },
     filterKeywords(val, update) {
@@ -753,6 +768,13 @@ export default {
     font-size: 1rem
     font-weight: 500
     color: $dark
+
+.field-tag-input
+  width: 150px
+  min-width: 120px
+  & :deep(input)
+    font-family: monospace
+    font-size: 0.82rem
 
 .field-preview-inner
   pointer-events: none   // Vorschau ist nicht interaktiv (Klick öffnet Edit)
