@@ -1,14 +1,17 @@
 {
-  "title": "QUIP-RS",
+  "title": "QUIP-RS – Impulskontrollstörungen (Parkinson)",
   "short_title": "quiprs",
-  "description": "QUIP-RS: Questionnaire for Impulsive-Compulsive Disorders in Parkinson’s Disease–Rating Scale",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
+  "description": "Schweregrad von Impulskontrollstörungen unter Parkinson-Therapie.",
   "coding": {
     "system": "CUSTOM",
     "code": "CUSTOM: SCORES_QUIP_RS",
     "display": "QUIP-RS: Questionnaire for Impulsive-Compulsive Disorders in Parkinson’s Disease–Rating Scale"
   },
   "manual": null,
-  "keywords": "quip, parkinson, impuls, impulskontrollstörung",
+  "keywords": "Parkinson, Sucht, Selbstbeurteilung",
   "ref": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC3537263/",
   "items": [
     {

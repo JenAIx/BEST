@@ -1,15 +1,18 @@
 {
-    "title": "HLQ",
+    "title": "HLQ – Health Literacy Questionnaire (Gesundheitskompetenz)",
     "short_title": "hlq",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "225885004",
         "display" : "HLQ",
         "version": "20211026"
     },
-    "description": "Fragebogen zum Verständnis von Gesundheit und Gesundheitsversorgung",
+    "description": "Erfassung der Gesundheitskompetenz und Versorgungsnutzung.",
     "manual": "<b>Fragebogen zum Verständnis von Gesundheit und Gesundheitsversorgung</b> <br>Vielen Dank, dass Sie sich die Zeit nehmen, unseren Fragebogen auszufüllen. Die Ergebnisse sollen helfen, die Gesundheitsversorgung in Deutschland zu verbessern. <br>Mit unserer Befragung möchten wir herausfinden, wie Sie Informationen zu gesundheitsrelevanten Themen suchen, wie Sie diese Informationen verstehen und wie Sie sie nutzen. Zudem interessiert uns, wie Sie mit Ihrer Gesundheit umgehen und mit Ärzten, Therapeuten und anderen Ansprechpartners im Gesundeitswesen kommunizieren.",
-    "keywords": "health, supply, provision, care, gesundheit, versorgung, gesundheitsversorgung",
+    "keywords": "Versorgung, Gesundheitszustand, Selbstbeurteilung",
     "items": [
      {
             "label": "<b>Informationen zum Fragebogen und Hinweise zum Ausfüllen</b> <br>Dieser Fragebogen besteht aus zwei Teilen. In <b>Teil 1</b> werden Sie gefragt, ob und inwieweit eine Reihe von Aussagen auf Sie <b>zutrifft</b>. In <b>Teil 2</b> werden Sie gefragt, wie <b>schwierig</b> oder <b>einfach</b> Sie bestimmte Anforderungen finden. <br>Jede der nachfolgenden Aussagen bezieht sich auf <b>heute</b>.",

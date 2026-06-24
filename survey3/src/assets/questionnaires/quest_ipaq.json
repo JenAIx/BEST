@@ -1,9 +1,12 @@
 {
-  "title": "International physical activity questionnaire - Short last 7 days self-administered format - German version",
+  "title": "IPAQ – Internationaler Fragebogen zur körperlichen Aktivität (Kurzform)",
   "short_title": "IPAQ_short",
-  "description": "(IPAQ) Physical Activity",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Selbstbeurteilung der körperlichen Aktivität der letzten sieben Tage.",
   "manual": "",
-  "keywords": "physical, activity, sport, körperliche, Aktivität",
+  "keywords": "körperliche Aktivität, Selbstbeurteilung",
   "items": [
     {
       "label": "Wir sind daran interessiert herauszufinden, welche Arten von körperlichen Aktivitäten Menschen in ihrem alltäglichen Leben vollziehen. Die Befragung bezieht sich auf die Zeit die Sie während der <b>letzten 7 Tage</b> in körperlicher Aktivität verbracht haben. Bitte beantworten Sie alle Fragen (auch wenn Sie sich selbst nicht als aktive Person ansehen). Bitte berücksichten Sie die Aktivitäten im Rahmen Ihrer Arbeit, in Haus und Garten, um von einem Ort zum anderen zu kommen und in Ihrer Freizeit für Erholung, Leibesübungen und Sport. \n Denken Sie an all Ihre <b>anstrengenden</b> und <b>moderaten</b> Aktivitäten in den <b>vergangenen 7 Tagen</b>. <b>Anstrengende</b> Aktivitäten bezeichnen Aktivitäten, die starke körperliche Anstrengungen erfordern und bei denen Sie deutlich stärker atmen als normal. <b>Moderate</b> Aktivitäten bezeichnen Aktivitäten mit moderater körperlicher Anstrengung bei denen Sie ein wenig stärker atmen als normal.",

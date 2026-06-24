@@ -1,15 +1,18 @@
 {
-  "title": "Short-Form Patient Satisfaction Questionnaire (PSQ-18)",
+  "title": "PSQ-18 – Patientenzufriedenheit (Kurzform)",
   "short_title": "psq18",
+  "version": "1.0",
+  "updated": "2024-02-06",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "868186005",
     "display": "Short-Form Patient Satisfaction Questionnaire (PSQ-18)",
     "version": "20240206"
   },
-  "description": "Short-Form Patient Satisfaction Questionnaire (PSQ-18)",
+  "description": "Erfassung der Zufriedenheit mit der medizinischen Versorgung.",
   "manual": "Unten sehen Sie eine Liste mit Aussagen zur medizinischen Versorgung. Bitte lesen Sie jede Aussage sorgfältig durch. Denken Sie dabei an die Behandlung, die Sie zurzeit erhalten bzw. die Ihr Kind zurzeit erhält. Wir interessieren uns dafür, wie Sie Ihre medizinische Behandlung empfinden, egal ob gut oder schlecht. „Medizinisches Personal“ bezieht sich dabei auf Ärzte und Ärztinnen, Arzthelferinnen und Krankenpfleger und –schwestern.",
-  "keywords": "Patientenzufriedenheit patient satisfaction",
+  "keywords": "Patientenzufriedenheit, Versorgung, Selbstbeurteilung",
   "ref": "https://doi.org/10.3402/meo.v18i0.21747",
   "items": [
     {

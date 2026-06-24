@@ -1,7 +1,10 @@
 {
-  "title": "VR Studie: Abschlussfragebogen Tag 5",
+  "title": "VR-Studie – Abschlussfragebogen (Tag 5)",
   "short_title": "AbschlussVRTag5",
-  "description": null,
+  "version": "1.0",
+  "updated": "2025-03-06",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Abschlusserfassung von Befinden und Nebenwirkungen (VR-Studie).",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "225398001",
@@ -9,7 +12,7 @@
     "version": "20250306"
   },
   "manual": "Wie war ihr Befinden während und direkt nach dem Virtual-Reallity-Spiel",
-  "keywords": "VR, Virtual Reality, Abschlussfragebogen, Tag 5",
+  "keywords": "Wohlbefinden, Selbstbeurteilung",
   "ref": null,
   "items": [
     {

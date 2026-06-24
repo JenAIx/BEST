@@ -1,14 +1,17 @@
 {
-  "title": "Activities-Specific Balance Confidence-Skala (ABC-D Skala)",
+  "title": "ABC-D – Activities-Specific Balance Confidence-Skala",
   "short_title": "abc-d",
-  "description": "Ein Test zur Erfassung der sturzassoziierten Selbstwirksamkeit",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Selbsteinschätzung des Vertrauens in das Gleichgewicht bei Alltagsaktivitäten.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "SCTID: 443322002",
     "display": "Activities specific balance confidence scale (assessment scale)                                          |"
   },
   "manual": "Wenn Sie bestimmte Aktivitäten z. Zt. nicht ausführen, dann versuchen Sie sich vorzustellen, wie zuversichtlich Sie wären, wenn Sie die Aktivität ausführen würden. Es geht dabei um Ihr persönliches Erleben! Wenn Sie normalerweise Hilfsmittel wie eine Gehhilfe nutzen, dann stellen Sie sich die Aktivität unter deren Zuhilfenahme vor. Die Abschätzung erfolgt von 0-100 %, dabei entspricht 0 % „überhaupt nicht zuversichtlich\" und 100 % „absolut zuversichtlich\".  „Wie zuversichtlich sind Sie, dass Sie ihr Gleichgewicht halten können bzw. nicht ins Wanken geraten, wenn Sie . . .“",
-  "keywords": "Balance, Sturz, Selbstbeurteilung, Selbstwirksamkeit, Aktivität",
+  "keywords": "Gleichgewicht, Sturzangst, Alltagsaktivitäten, Selbstbeurteilung",
   "ref": "https://www.testarchiv.eu/de/test/9006151   https://pubmed.ncbi.nlm.nih.gov/7814786/",
   "items": [
     {

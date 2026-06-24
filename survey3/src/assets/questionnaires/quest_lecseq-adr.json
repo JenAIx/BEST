@@ -1,14 +1,17 @@
 {
-    "title": "ADR-Bogen LECIG (LEC-SEQ)",
+    "title": "ADR-Erfassungsbogen LECIG (LEC-SEQ)",
     "short_title": "lecseq-adr",
+    "version": "1.0",
+    "updated": "2026-06-01",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding": {
         "system": "LEC-SEQ",
         "code": "CUSTOM: LECSEQ_ADR",
         "display": "ADR-Erfassungsbogen LECIG (LEC-SEQ)",
         "version": "20260601"
     },
-    "description": "Erfassung einer unerwünschten Arzneimittelwirkung (UAW/ADR) unter LECIG-Pumpentherapie — ein Bogen pro Ereignis",
-    "keywords": "parkinson lec-seq lecigon adr uaw sicherheit pharmakovigilanz sae",
+    "description": "Erfassung unerwünschter Arzneimittelwirkungen unter LECIG-Pumpentherapie (Studie).",
+    "keywords": "Parkinson, Medikation, Verlauf",
     "manual": "<b>Pro unerwünschtem Ereignis (UAW/ADR) ein Bogen.</b> Zu dokumentieren ab Einwilligung + erster LECIG-Gabe bis Studienende — auch zwischen Visiten, telefonisch und bei ungeplanten Kontakten. <b>Verdacht genügt → sofort erfassen.</b><br><span style=\"color:#b71c1c\">⚠ Entwurf — UAW-Kategorien an der aktuellen Fachinformation Lecigon gegenprüfen. Ersetzt nicht die gesetzlichen Pharmakovigilanz-/SAE-Meldepflichten.</span>",
     "items": [
         {

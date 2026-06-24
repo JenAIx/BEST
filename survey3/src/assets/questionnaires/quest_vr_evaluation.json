@@ -1,7 +1,10 @@
 {
-  "title": "VR Studie: Bewertung VR-Spiel",
+  "title": "VR-Studie – Bewertung VR-Spiel",
   "short_title": "BewertungSpielVR",
-  "description": null,
+  "version": "1.0",
+  "updated": "2025-03-06",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Bewertung eines VR-Spiels (Studie).",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "225398001",
@@ -9,7 +12,7 @@
     "version": "20250306"
   },
   "manual": "Wie fanden Sie das VR-Spiel? Bitte ankreuzen",
-  "keywords": "VR, Virtual Reality, Bewertung, VR-Spiel",
+  "keywords": "Selbstbeurteilung, Wohlbefinden",
   "ref": null,
   "items": [
     {

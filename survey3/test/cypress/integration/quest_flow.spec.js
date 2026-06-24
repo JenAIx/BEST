@@ -20,7 +20,7 @@ context('Single Questionnaire Flow', () => {
 
     // filtern auf "Rankin" → nur MRS bleibt übrig (Suche immer sichtbar)
     cy.get('[data-cy=filter_input]').type('Rankin')
-    cy.get('[data-cy=questlist0]').should('contain', 'MRS').click()
+    cy.get('[data-cy=questlist0]').should('contain', 'Rankin').click()
     cy.get('[data-cy=btn_gotoquest]').click()
 
     // Quest ausfüllen (Listen-Modus = Standard)

@@ -1,14 +1,17 @@
 {
-  "title": "MoCA",
+  "title": "MoCA – Montreal Cognitive Assessment",
   "short_title": "moca",
-  "description": "Montreal Cognitive Assessment",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
+  "description": "Kognitives Screening über mehrere Domänen.",
   "coding": {
     "system": "LOINC",
     "code": "LID: 72133-2",
     "display": "MoCA"
   },
   "manual": "Montreal Cognitive Assessment",
-  "keywords": "screening, demenz, kognition",
+  "keywords": "Kognition, Demenz, Screening",
   "ref": "https://pubmed.ncbi.nlm.nih.gov/15817019/",
   "items": [
     {

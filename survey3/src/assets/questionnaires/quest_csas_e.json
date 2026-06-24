@@ -1,15 +1,18 @@
 {
-  "title": "CSAS-E: Computerspielabhängigkeitsskala für Erwachsene",
+  "title": "CSAS-E – Computerspielabhängigkeitsskala (Erwachsene)",
   "short_title": "csas_e",
+  "version": "1.0",
+  "updated": "2023-01-24",
+  "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "444061006",
     "display": "CSAS-E",
     "version": "20230124"
   },
-  "description": "Ein Verfahren zur Erfassung der Internet Gaming Disorder nach DSM-5",
+  "description": "Selbstbeurteilung problematischen bzw. abhängigen Computerspielverhaltens.",
   "manual": "<b>Sehr geehrte*r Studienteilnehmer*in,</b>: Wir danken Ihnen für die Teilnahme an unserer Untersuchung. ",
-  "keywords": "Computerspielabhängigkeitsskala für Erwachsene, CSAS-E, Internet Gaming Disorder DSM-5",
+  "keywords": "Sucht, Selbstbeurteilung",
   
     "items": [
       {

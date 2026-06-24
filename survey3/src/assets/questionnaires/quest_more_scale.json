@@ -1,14 +1,17 @@
 {
-  "title": "MORE Scale - Motivation in stroke patients for Rehabilitation",
+  "title": "MORE-Skala – Motivation in der Rehabilitation",
   "short_title": "More-scale",
-  "description": "Motivation in stroke patients for Rehabilitation ",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
+  "description": "Erfassung der Rehabilitationsmotivation bei Schlaganfallpatienten.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "CUSTOM: MORE_SCALE_STROKE",
     "display": "Motivation in stroke patients for Rehabilitation Scale"
   },
   "manual": null,
-  "keywords": "MORE, more",
+  "keywords": "Motivation, Rehabilitation, Schlaganfall, Selbstbeurteilung",
   "ref": "https://doi.org/10.1371/journal.pone.0265214",
   "items": [
     {

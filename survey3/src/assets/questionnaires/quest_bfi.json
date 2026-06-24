@@ -1,7 +1,10 @@
 {
-    "title": "BFI",
-    "description": "",
+    "title": "BFI – Brief Fatigue Inventory (Müdigkeit)",
+    "description": "Selbstbeurteilung von Ausmaß und Beeinträchtigung durch Müdigkeit/Fatigue.",
     "short_title": "bfi",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "709474002",
@@ -9,7 +12,7 @@
         "version": "20211026"
     },
     "manual": "",
-    "keywords": "brief, fatigue, inventory, tired, tiredness, sleepy, müdigkeit, mattheit, schlaf",
+    "keywords": "Fatigue, Erschöpfung, Selbstbeurteilung",
     "items": [
         {
             "label": "Im Laufe unseres Lebens haben die meisten von uns Zeiten, in denen sie sich sehr müde oder matt fühlen. Haben Sie sich in der letzten Woche ungewöhnlich matt gefühlt?",

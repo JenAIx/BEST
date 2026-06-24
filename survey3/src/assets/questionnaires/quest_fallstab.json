@@ -1,14 +1,17 @@
 {
-  "title": "Fallstab Beidseits",
+  "title": "Fallstab-Test (Reaktionszeit)",
   "short_title": "falling_stick",
-  "description": "Fallstab Test",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Messung der Reaktionsgeschwindigkeit beidseits mittels Fallstab.",
   "coding": {
     "system": "CUSTOM",
     "code": "\\CUSTOM\\SCORES\\FALLING_STICK",
     "display": "Fallstab"
   },
   "manual": "Wird vom Untersucher ausgefüllt",
-  "keywords": "Fallstab, motorisch",
+  "keywords": "Motorik, Aufmerksamkeit",
   "ref": "https://doi.org/10.1111/jsr.13459",
   "items": [
     {

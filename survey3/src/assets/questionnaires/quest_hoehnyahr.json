@@ -1,15 +1,18 @@
 {
-    "title": "Hoehn und Yahr - Skala",
+    "title": "Hoehn & Yahr – Stadieneinteilung (Parkinson)",
     "short_title": "hoehnyahr",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "404684003",
         "display" : "Hoehn und Yahr - Skala",
         "version": "20230126"
     },
-    "description": "",
+    "description": "Stadieneinteilung des Parkinson-Syndroms.",
     "manual": "Für die Erfassung der Krankheitsstadien bzw. der Schwere der Krankheit (Schweregrad) wird die nach den amerikanischen Parkinson-Experten benannte, modifizierte HOEHN-YAHR-Skala verwendet.",
-    "keywords": "parkinson",
+    "keywords": "Parkinson, Motorik, Fremdbeurteilung",
     "items": [
 
         {

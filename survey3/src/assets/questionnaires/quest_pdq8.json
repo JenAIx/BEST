@@ -1,15 +1,18 @@
 {
-    "title": "PDQ-8",
+    "title": "PDQ-8 – Parkinson-Lebensqualität (Kurzform)",
     "short_title": "pdq8",
+    "version": "1.0",
+    "updated": "2022-03-17",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445536008",
         "display" : "PDQ-8",
         "version": "20220317"
     },
-    "description": "Lebensqualität bei Parkinson",
+    "description": "Krankheitsspezifische Lebensqualität bei Parkinson (Kurzform).",
     "manual": "",
-    "keywords": "parkinson qualitiy of life",
+    "keywords": "Parkinson, Lebensqualität, Selbstbeurteilung",
     "items": [
     
         {

@@ -15,6 +15,18 @@
     },
     "description": { "type": "string" },
     "keywords": { "type": "string", "description": "Komma-separierte Suchbegriffe." },
+    "version": { "type": "string", "description": "Versionskennung des Bogens (Default \"1.0\"). Wird in /select angezeigt." },
+    "updated": { "type": "string", "description": "Stand-/Änderungsdatum (ISO YYYY-MM-DD). Wird in /select als \"Stand …\" angezeigt." },
+    "license": {
+      "type": "object",
+      "description": "Unverbindliche Lizenz-Einschätzung (Orientierung, keine Rechtsberatung). Konservativ: im Zweifel 'unclear'/'licensed'.",
+      "required": ["status"],
+      "properties": {
+        "status": { "type": "string", "enum": ["free", "licensed", "unclear"], "description": "free=frei nutzbar/gemeinfrei/Eigenentwicklung, licensed=Lizenz erforderlich, unclear=Status unklar." },
+        "note": { "type": "string", "description": "Hinweistext (Hover im Listen-Item)." }
+      },
+      "additionalProperties": true
+    },
     "manual": { "type": "string", "description": "Optionaler Hinweistext (HTML erlaubt)." },
     "coding": {
       "$ref": "#/$defs/coding",

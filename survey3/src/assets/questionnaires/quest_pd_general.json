@@ -1,14 +1,17 @@
 {
-    "title": "PD-Allgemein",
+    "title": "Parkinson-Fragebogen (allgemein, BIOMAG)",
     "short_title": "pd_general",
-    "description": null,
+    "version": "1.0",
+    "updated": "2026-06-24",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+    "description": "Allgemeine Anamnese zum Parkinson-Syndrom.",
     "coding": {
         "system": "http://snomed.info/sct",
         "code": "225398001",
         "display": "Parkinsonfragebogen / Biomag"
     },
     "manual": null,
-    "keywords": "parkinson, allgemein, anamnese",
+    "keywords": "Parkinson, Anamnese",
     "ref": null,
     "items": [
         {

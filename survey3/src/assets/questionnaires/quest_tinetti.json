@@ -1,14 +1,17 @@
 {
-  "title": "Mobilitätstest nach Tinetti",
+  "title": "Tinetti – Mobilitäts- und Gleichgewichtstest",
   "short_title": "Tinetti",
-  "description": null,
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Beurteilung von Gleichgewicht und Gang (Sturzrisiko).",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "404934007",
     "display": "Mobilitätstest nach Tinetti"
   },
   "manual": null,
-  "keywords": "physio assessment balance gait",
+  "keywords": "Gleichgewicht, Gangbild, Sturz, Fremdbeurteilung",
   "ref": null,
   "items": [
     {

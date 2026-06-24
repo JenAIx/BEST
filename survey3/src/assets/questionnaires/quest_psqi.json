@@ -1,15 +1,18 @@
 {
-    "title": "PSQI",
+    "title": "PSQI – Pittsburgh-Schlafqualitätsindex",
     "short_title": "psqi",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "699200007",
         "display" : "PSQI (Pittsburgh sleep quality index)",
         "version": "20230126"
     },
-    "description": "Schlafqualitäts-Fragebogen",
+    "description": "Erfassung der Schlafqualität der letzten vier Wochen.",
     "manual": "",
-    "keywords": "schlaf sleep pittsburgh",
+    "keywords": "Schlaf, Selbstbeurteilung",
     "items": [
         {
             "label": "Die folgenden Fragen beziehen sich auf Ihre üblichen Schlafgewohnheiten und zwar <b>nur während der letzten vier Wochen</b>. Ihre Antworten sollten möglichst genau sein und sich auf die Mehrzahl der Tage und Nächte während der letzten vier Wochen beziehen. Beantworten Sie bitte alle Fragen.",

@@ -1,15 +1,18 @@
 {
-    "title": "Bayer-ADL-Skala",
+    "title": "B-ADL – Bayer-Alltagsaktivitäten-Skala",
     "short_title": "badl",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "273534002",
         "display" : "Bayer-ADL-Skala",
         "version": "20230126"
     },
-    "description": "Skala zur Einschätzung der Alltagskompetenz - Fremdeinschätzung",
+    "description": "Fremdbeurteilung der Alltagskompetenz bei kognitiven Beeinträchtigungen.",
     "manual": "In den folgenden Fragen geht es um Alltagsaktivitäten, mit denen die Person, über die Sie befragt werden, möglicherweise Schwierigkeiten hat. Bitte geben Sie an, wie oft Schwierigkeiten auftreten, indem Sie die entsprechende Zahl ankreuzen. Je größer die Zahl ist, um so mehr Schwierigkeiten hat die Person mit der betreffenden Aktivität. Wenn nie Schwierigkeiten auftreten, markieren Sie bitte die 1, wenn immer Schwierigkeiten auftreten, die 10. Wenn eine Frage aus irgendeinem Grund auf die Person nicht zutrifft, kreuzen Sie bitte E (entfällt) an. Wenn Sie sich nicht sicher sind, kreuzen Sie bitte WN (weiß nicht) an. Wenn Sie Probleme haben, eine Frage zu verstehen, bitten Sie um Hilfe.",
-    "keywords": "bayer, scale, skala, Alltagskompetenz, daily, routine, third-party, assessment, Fremdeinschätzung, fremdbeurteilung",
+    "keywords": "Alltagsaktivitäten, Selbstständigkeit, Demenz, Fremdbeurteilung",
     "items": [
     	{
             "label": "Name der Person, über die Sie befragt werden",

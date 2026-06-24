@@ -1,8 +1,11 @@
 {
-  "title": "Uhren-Zeichen-Test",
+  "title": "Uhren-Zeichen-Test (CDT)",
   "short_title": "clock",
-  "description": "Zeichnen einer Uhr mit vorgegebener Uhrzeit (kognitives Screening)",
-  "keywords": "uhr, clock, zeichnen, drawing, kognition, demenz, screening",
+  "version": "1.0",
+  "updated": "2026-06-23",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Visuokonstruktive Zeichenaufgabe (Uhr auf 10 nach 11) zum kognitiven Screening.",
+  "keywords": "Visuokonstruktion, Kognition, Demenz, Screening",
   "coding": {
     "system": "CUSTOM",
     "code": "CLOCK_DRAWING_TEST",

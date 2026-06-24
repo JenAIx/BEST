@@ -1,14 +1,17 @@
 {
-  "title": "Timed-up-and-go-Test (TUG)",
+  "title": "TUG – Timed Up and Go (Mobilität)",
   "short_title": "timedupandgotest",
-  "description": "Einschätzung von Beweglichkeit, Gleichgewicht und Sturzrisiko",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Zeitmessung für Aufstehen, Gehen und Hinsetzen (Sturzrisiko).",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "SCTID: 444781002",
     "display": "Timed up and go mobility test score (observable entity)"
   },
   "manual": "Messung der Zeit (in Sekunden), die benötigt wird, um aus einem Stuhl mit Armlehnen aufzustehen, 3 m weit zu gehen, sich umzudrehen und wieder in den Stuhl zu setzen (der Rücken sollte dabei die Stuhllehne berühren).  Die Nutzung von Gehhilfen beim Laufen ist möglich. Eine Demonstration durch den Untersucher ist möglich, ebenso ein einmaliges ausprobieren des Bewegungsablaufs durch den Probanden.",
-  "keywords": "Sturzrisiko, Mobilität, Gleichgewicht, ",
+  "keywords": "Mobilität, Gleichgewicht, Sturz",
   "ref": "https://www.neurologienetz.de/fachliches/skalen-scores/timed-up-and-go-test.   Amboss.de",
   "items": [
     {

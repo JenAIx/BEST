@@ -1,8 +1,11 @@
 {
-  "title": "Archimedes-Spirale",
+  "title": "Archimedes-Spirale (Tremor/Graphomotorik)",
   "short_title": "spiral",
-  "description": "Nachzeichnen einer vorgegebenen Spirale (Tremor-/Motorik-Test)",
-  "keywords": "spirale, archimedes, nachzeichnen, drawing, tremor, motorik",
+  "version": "1.0",
+  "updated": "2026-06-23",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Nachzeichnen einer vorgegebenen Spirale zur Beurteilung von Tremor und Feinmotorik.",
+  "keywords": "Tremor, Motorik, Visuokonstruktion",
   "coding": {
     "system": "CUSTOM",
     "code": "ARCHIMEDES_SPIRAL",

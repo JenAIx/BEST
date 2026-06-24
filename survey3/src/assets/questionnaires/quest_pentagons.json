@@ -1,8 +1,11 @@
 {
-  "title": "Sich überschneidende Fünfecke",
+  "title": "Sich überschneidende Fünfecke (Visuokonstruktion)",
   "short_title": "pentagons",
-  "description": "Abzeichnen zweier sich überschneidender Fünfecke (Visuokonstruktion)",
-  "keywords": "fünfecke, pentagon, abzeichnen, visuokonstruktion, kognition, demenz, drawing",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Abzeichnen zweier sich überschneidender Fünfecke (kognitives Screening).",
+  "keywords": "Visuokonstruktion, Kognition, Demenz, Screening",
   "coding": {
     "system": "CUSTOM",
     "code": "PENTAGONS_COPY",

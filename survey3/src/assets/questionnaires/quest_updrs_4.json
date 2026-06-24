@@ -1,15 +1,18 @@
 {
-  "title": "MDS-UPDRS IV - Motorische Komplikationen",
+  "title": "MDS-UPDRS IV – Motorische Komplikationen",
   "short_title": "updrs_4",
+  "version": "1.0",
+  "updated": "2023-11",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "445536008",
     "display": "MDS-UPDRS IV - Motorische Komplikationen",
     "version": "202311"
   },
-  "description": "UPDRS IV - Motorische Komplikationen",
+  "description": "Dyskinesien und motorische Fluktuationen bei Parkinson.",
   "manual": "Bitte beantworten Sie folgenden Fragen",
-  "keywords": "parkinson updrs",
+  "keywords": "Parkinson, Dyskinesie, Fluktuation, Fremdbeurteilung",
   "items": [
     {
       "label": "<b>A. Dyskinesien [ohne OFF-Stadium Dystonie]</b>",

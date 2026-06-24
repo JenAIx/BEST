@@ -48,9 +48,9 @@ context('Patient/Visit Flow', () => {
     cy.get('[data-cy=btn_add_visit]').click()
     cy.get('[data-cy=page_visit]').should('exist')
 
-    // Fragebogen MRS ergänzen (ein einzelnes Radio-Item)
-    cy.get('[data-cy=select_questionnaire]').click().type('MRS')
-    cy.get('.q-menu').contains('MRS').click()
+    // Fragebogen mRS ergänzen (ein einzelnes Radio-Item)
+    cy.get('[data-cy=select_questionnaire]').click().type('Rankin')
+    cy.get('.q-menu').contains('Rankin').click()
     cy.get('[data-cy=btn_add_questionnaire]').click()
 
     // Slot ist offen mit 0 %
@@ -116,8 +116,8 @@ context('Patient/Visit Flow', () => {
     cy.get('[data-cy=page_visit]').should('exist')
 
     // Fragebogen ergänzen, aber NICHT ausfüllen
-    cy.get('[data-cy=select_questionnaire]').click().type('MRS')
-    cy.get('.q-menu').contains('MRS').click()
+    cy.get('[data-cy=select_questionnaire]').click().type('Rankin')
+    cy.get('.q-menu').contains('Rankin').click()
     cy.get('[data-cy=btn_add_questionnaire]').click()
     cy.get('[data-cy=slot_item]').should('contain', 'offen')
 

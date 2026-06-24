@@ -73,7 +73,7 @@ describe('Bau-Tool (Builder, Redesign)', () => {
     // Schlüsselwort-Chip aus den Vorschlägen
     cy.get('[data-cy=btn_advanced]').click()
     cy.get('[data-cy=quest_keywords]').click()
-    cy.contains('.q-item__label', 'depression').click()
+    cy.contains('.q-item__label', 'Depression').click()
     cy.get('body').click(0, 0)
 
     // Auswertung: Methode Summe + ein Bewertungsbereich
@@ -89,7 +89,7 @@ describe('Bau-Tool (Builder, Redesign)', () => {
     cy.window().then((win) => {
       const q = win.__mainStore.QUESTMAN.get('score_bogen')
       expect(q, 'gespeichert').to.exist
-      expect(q.keywords).to.contain('depression')
+      expect(q.keywords).to.contain('Depression')
       expect(q.results.method).to.equal('sum')
       expect(q.results.evaluation[0].range).to.deep.equal([0, 9])
       expect(q.results.evaluation[0].label).to.equal('unauffällig')

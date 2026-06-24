@@ -1,14 +1,17 @@
 {
-    "title": "MRS",
+    "title": "mRS – Modified Rankin Scale (Behinderungsgrad)",
     "short_title": "mrs",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "SCTID: 840318003",
         "display" : "Modified Rankin Scale (mRS)",
         "version": "20230126"
     },
-    "description": "Modified Rankin Scale (mRS)",
-    "keywords": "neuro",
+    "description": "Beurteilung des Behinderungsgrades nach Schlaganfall.",
+    "keywords": "Behinderung, Schlaganfall, Fremdbeurteilung",
     "manual": "<b>Anleitung</b>: keine besonderen Anweisungen ...",
     "items": [
         {

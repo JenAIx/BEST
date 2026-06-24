@@ -1,14 +1,17 @@
 {
-    "title": "TWSTRS - Toronto Western Spasmodic Torticollis Rating Scale",
+    "title": "TWSTRS – Torticollis-Schweregradskala",
     "short_title": "twstrs",
-    "description": "Toronto Western Spasmodic Torticollis Rating Scale (TWSTRS)",
+    "version": "1.0",
+    "updated": "2026-06-24",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
+    "description": "Beurteilung von Schweregrad, Behinderung und Schmerz bei zervikaler Dystonie.",
     "coding": {
         "system": "http://snomed.info/sct",
         "code": "SCTID: 225398001",
         "display": "TWSTRS - Toronto Western Spasmodic Torticollis Rating Scale"
     },
     "manual": null,
-    "keywords": "dystonia, dystonie, torticollis",
+    "keywords": "Dystonie, Torticollis, Schmerz, Fremdbeurteilung",
     "ref": "https://www.ncbi.nlm.nih.gov/books/NBK535053/",
     "items": [
         {

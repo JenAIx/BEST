@@ -1,7 +1,10 @@
 {
-    "title": "MYMOP2-G (prä)",
+    "title": "MYMOP2-G – Individuelle Beschwerden (Baseline)",
     "short_title": "mymop2g_pre",
-    "description": " MYMOP2 (Measure Yourself Outcome Profile) ",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+    "description": "Patientendefinierte Beschwerden zu Beginn.",
     "coding":
     {
         "system": "http://snomed.info/sct",
@@ -10,7 +13,7 @@
         "version": "20211026"
     },
     "manual": "Der MYMOP2 (Measure Yourself Outcome Profile) wurde für die Primärversorgung entwickelt, um die aus Patientensicht führende Beschwerde im Verlauf zu erfassen. Die Beschwerde kann physischer, psychischer oder sozialer Natur sein. <br><b>Bitte machen Sie jeweils ein Kreuz (X) auf der für Sie zutreffenden Zahl:<b>",
-    "keywords": null,
+    "keywords": "Wohlbefinden, Anamnese, Selbstbeurteilung",
     "ref": "https://www.klinikum.uni-heidelberg.de/kliniken-institute/institute/abteilung-allgemeinmedizin-und-versorgungsforschung/forschung/instrumente/inventar-fuer-praxisforschung/mymop2",
     "items":
     [

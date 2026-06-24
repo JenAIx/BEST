@@ -1,15 +1,18 @@
 {
-    "title": "WHOQOL-BREF",
+    "title": "WHOQOL-BREF – Lebensqualität (WHO)",
     "short_title": "whoqol",
+    "version": "1.0",
+    "updated": "2011-11-03",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "709503007",
         "display" : "WHOQOL-BREF",
         "version": "20111103"
     },
-    "description": "World Health Organization - Qualitiy of Life BREF",
+    "description": "WHO-Maß der allgemeinen Lebensqualität.",
     "manual": "",
-    "keywords": "quality, of, life, who, world, health, organization, brief, bref, short",
+    "keywords": "Lebensqualität, Wohlbefinden, Gesundheitszustand, Selbstbeurteilung",
     "items": [
         {
             "label": "Was ist Ihr Geschlecht?",

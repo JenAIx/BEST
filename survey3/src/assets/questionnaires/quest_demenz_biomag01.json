@@ -1,7 +1,10 @@
 {
-    "title": "Screening Neurodegeneration 01",
-    "short_title": "Fragebogen für ein standardisiertes Gespräch bei V.a. ND",
-    "description": null,
+    "title": "Screening Neurodegeneration (BIOMAG)",
+    "short_title": "neurodeg_screening",
+    "version": "1.0",
+    "updated": "2026-06-24",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+    "description": "Strukturiertes Gespräch zum Screening bei Verdacht auf eine neurodegenerative Erkrankung.",
     "coding":
     {
         "system": "http://snomed.info/sct",
@@ -9,7 +12,7 @@
         "display": "Demenz Screening - BIOMAG"
     },
     "manual": null,
-    "keywords": "dementia, screening, Demenz",
+    "keywords": "Demenz, Screening, Anamnese",
     "ref": null,
     "items":
     [

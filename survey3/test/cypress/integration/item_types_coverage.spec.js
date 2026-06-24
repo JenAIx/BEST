@@ -103,7 +103,7 @@ context('Item-type data model (UI → store)', () => {
   })
 
   it('image: nicht-interaktiv, kein Crash, summary verfügbar', () => {
-    cy.visit(route('schnelles Demenzscreening'))
+    cy.visit(route('klein_score'))
     cy.get('[data-cy=page_quest]').should('exist')
     cy.get('#qitem_14 img').should('exist') // Bild gerendert
     cy.window().then((win) => {

@@ -1,14 +1,17 @@
 {
-  "title": "Start von On-Demand Therapien bei Parkinson",
+  "title": "On-Demand-Therapie bei Parkinson (OFF-Phasen)",
   "short_title": "pd_ondemand",
-  "description": "Dokumentationsguide zum Start von On-Demand Therapien bei Parkinson",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Erfassung von OFF-Phasen und des Bedarfs an On-Demand-Therapie.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "225398001",
     "display": "Start von On-Demand Therapien bei Parkinson"
   },
   "manual": null,
-  "keywords": "parkinson, bedarfstherapie, off-phase, pd, therapie",
+  "keywords": "Parkinson, Fluktuation, Wearing-off, Medikation",
   "ref": null,
   "items": [
     {

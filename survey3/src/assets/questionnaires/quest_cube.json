@@ -1,8 +1,11 @@
 {
-  "title": "Würfel abzeichnen",
+  "title": "Würfel abzeichnen (Visuokonstruktion)",
   "short_title": "cube",
-  "description": "Abzeichnen eines dreidimensionalen Würfels (Visuokonstruktion)",
-  "keywords": "würfel, cube, abzeichnen, visuokonstruktion, kognition, demenz, drawing",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Abzeichnen eines dreidimensionalen Würfels zur Erfassung visuokonstruktiver Fähigkeiten.",
+  "keywords": "Visuokonstruktion, Kognition, Demenz, Screening",
   "coding": {
     "system": "CUSTOM",
     "code": "CUBE_COPY",

@@ -1,9 +1,12 @@
 {
-  "title": "Screening auf Post-Exertionelle-Malaise (PEM)",
+  "title": "PEM-Screening – Post-Exertionelle Malaise",
   "short_title": "PEM_Screening",
-  "description": "PEM_Screening für Erwachsene",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Screening auf Zustandsverschlechterung nach körperlicher/geistiger Belastung.",
   "manual": "",
-  "keywords": "malaise, exertion, ",
+  "keywords": "Erschöpfung, Fatigue, Screening",
   "items": [
     {
       "label": "<b>Während der letzten 6 Monate</b>",

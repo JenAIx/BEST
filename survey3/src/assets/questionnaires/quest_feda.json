@@ -1,15 +1,18 @@
 {
-    "title": "FEDA (AK Aufmerksamkeit und Gedächtnis)",
+    "title": "FEDA – Aufmerksamkeit und Gedächtnis im Alltag",
     "short_title": "feda",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "311474001",
         "display" : "FEDA (AK Aufmerksamkeit und Gedächtnis)",
         "version": "20211026"
     },
-    "description": "",
+    "description": "Selbstbeurteilung von Aufmerksamkeits- und Gedächtnisproblemen im Alltag.",
     "manual": "Der folgende Fragebogen enthält Fragestellungen über Schwierigkeiten in alltäglichen Situationen. Zu jeder Feststellung sollen Sie angeben, wie häufig diese für Sie zutrifft: sehr häufig - häufig - manchmal - selten - nie.",
-    "keywords": "attention, memory, daily",
+    "keywords": "Aufmerksamkeit, Gedächtnis, Kognition, Selbstbeurteilung",
     "items": [
         {
             "label": "Bitte geben Sie zu jeder Feststellung eine Antwort. Schreiben Sie Ihren Eindruck ohne langes Grübeln hin. Entscheidend ist, wie Sie die Situation erleben.",

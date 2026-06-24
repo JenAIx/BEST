@@ -1,14 +1,17 @@
 {
-    "title": "Verlaufs-Interview (LEC-SEQ)",
+    "title": "Verlaufs-Interview V2–V4 (LEC-SEQ)",
     "short_title": "lecseq-verlauf",
+    "version": "1.0",
+    "updated": "2026-06-03",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding": {
         "system": "LEC-SEQ",
         "code": "CUSTOM: LECSEQ_VERLAUF",
         "display": "Verlaufs-Interview V2-V4 (LEC-SEQ)",
         "version": "20260603"
     },
-    "description": "Strukturiertes Verlaufs-Interview seit der letzten Visite (Erhebung V2, V3, V4)",
-    "keywords": "parkinson lec-seq lecigon verlauf interview pumpe adhärenz",
+    "description": "Strukturiertes Verlaufs-Interview unter LECIG-Therapie (Studie).",
+    "keywords": "Parkinson, Verlauf",
     "manual": "<b>Kurzes strukturiertes Interview zum Verlauf seit der letzten Visite.</b><br>Erfasst subjektiven Verlauf, Pumpen-/PEG-J-Handhabung, Adhärenz, Gerätestörungen, ADR-Prompt und Zufriedenheits-Tendenz. Erhebung V2, V3, V4.",
     "items": [
         {

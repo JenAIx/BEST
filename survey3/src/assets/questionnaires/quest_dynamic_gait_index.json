@@ -1,5 +1,5 @@
 {
-  "keywords": null,
+  "keywords": "Gangbild, Gleichgewicht, Sturz, Fremdbeurteilung",
   "manual": null,
   "ref": null,
   "results": {
@@ -11,13 +11,16 @@
     }
   },
   "short_title": "DGI",
-  "title": "Dynamic Gait Index",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "title": "DGI – Dynamic Gait Index",
   "coding": {
     "code": "SCTID: 445642004",
     "display": "Dynamic Gait Index",
     "system": "http://snomed.info/sct"
   },
-  "description": null,
+  "description": "Beurteilung von Gang und Gleichgewicht bei dynamischen Aufgaben (Sturzrisiko).",
   "items": [
     {
       "coding": {

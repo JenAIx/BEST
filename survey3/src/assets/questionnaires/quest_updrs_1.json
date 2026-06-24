@@ -1,15 +1,18 @@
 {
-  "title": "MDS-UPDRS IA/IB - nicht-motorische Aspekte",
+  "title": "MDS-UPDRS I – Nicht-motorische Aspekte des Alltags",
   "short_title": "updrs_1",
+  "version": "1.0",
+  "updated": "2023-11",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "445536008",
     "display": "MDS-UPDRS IA/IB - nicht-motorische Aspekte",
     "version": "202311"
   },
-  "description": "UPDRS I - Erfahrungen des täglichen Lebens",
+  "description": "Nicht-motorische Erfahrungen des täglichen Lebens (Parkinson).",
   "manual": "Bitte beantworten Sie folgenden Fragen",
-  "keywords": "parkinson updrs",
+  "keywords": "Parkinson, autonome Symptome, Stimmung",
   "items": [
     {
       "label": "<b>Teil IA: Erfahrungen des täglichen Lebens - nicht-motorische Aspekte (nM-EDL)</b>",

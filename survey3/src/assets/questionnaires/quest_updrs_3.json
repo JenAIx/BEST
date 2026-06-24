@@ -1,15 +1,18 @@
 {
-  "title": "MDS-UPDRS III - Motorik",
+  "title": "MDS-UPDRS III – Motorische Untersuchung",
   "short_title": "updrs_3",
+  "version": "1.0",
+  "updated": "2023-11",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "445536008",
     "display": "MDS-UPDRS III - Motorik",
     "version": "202311"
   },
-  "description": "UPDRS III - Motorik",
+  "description": "Klinische motorische Untersuchung bei Parkinson.",
   "manual": "Bitte beantworten Sie folgenden Fragen",
-  "keywords": "parkinson updrs",
+  "keywords": "Parkinson, Motorik, Fremdbeurteilung",
   "items": [
     {
       "label": "<b>Motorische Untersuchung</b>",

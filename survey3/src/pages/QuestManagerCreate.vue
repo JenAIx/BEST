@@ -297,22 +297,15 @@ import { log } from 'src/tools/Logger'
 import myMixins from 'src/mixins/modes'
 import draggable from 'vuedraggable'
 import { validateQuestScoring } from 'src/tools/questman/validate'
+import { KEYWORD_VOCAB } from 'src/tools/questman/keywords'
 
 import CREATEITEM from 'src/components/CreateItem.vue'
 import CREATERESULTS from 'src/components/CreateResults.vue'
 import PREVIEWITEM from 'src/components/PreviewItem.vue'
 import QuestItemField from 'src/components/QuestItemField.vue'
 
-// Kuratierte Schlüsselwort-Vorschläge (aus dem Bestands-Korpus destilliert) —
-// per Chip anklickbar; freie Eingaben sind zusätzlich möglich.
-const KEYWORD_SUGGESTIONS = [
-  'parkinson', 'demenz', 'dementia', 'depression', 'angst', 'anxiety', 'screening',
-  'assessment', 'kognition', 'cognitive', 'gedächtnis', 'memory', 'exekutiv', 'executive',
-  'lebensqualität', 'quality of life', 'schlaf', 'sleep', 'müdigkeit', 'fatigue', 'apathie',
-  'schmerz', 'pain', 'sturz', 'falls', 'mobilität', 'gang', 'tremor', 'dystonie', 'motorik',
-  'autonom', 'alltag', 'adl', 'aktivität', 'stimmung', 'neurologie', 'geriatrie', 'zeichnen',
-  'uhrentest', 'visuokonstruktion', 'wohlbefinden', 'belastung', 'angehörige',
-]
+// Schlüsselwort-Vorschläge = das kontrollierte Vokabular (single source of truth).
+const KEYWORD_SUGGESTIONS = KEYWORD_VOCAB
 
 // Slug für intelligente Namensgebung: ASCII, lowercase, _-getrennt, max 40.
 function slugify(str) {

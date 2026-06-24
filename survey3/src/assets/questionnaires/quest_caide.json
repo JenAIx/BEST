@@ -1,14 +1,17 @@
 {
-    "title": "CAIDE",
+    "title": "CAIDE – Demenz-Risiko-Score",
     "short_title": "caide",
+    "version": "1.0",
+    "updated": "2023-02-01",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445536008",
         "display" : "CAIDE Dementia Risk Score",
         "version": "20230201"
     },
-    "description": "CAIDE Dementia Risk Score in the FINGER trial",
-    "keywords": "dementia, Demenz, risk, Risiko",
+    "description": "Risikoabschätzung für eine spätere Demenz anhand von Faktoren des mittleren Lebensalters.",
+    "keywords": "Demenz, Screening",
     "items": [
        
         {

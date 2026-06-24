@@ -1,14 +1,17 @@
 {
     "title": "Aufnahmebogen V1 (LEC-SEQ)",
     "short_title": "lecseq-anamnese-v1",
+    "version": "1.0",
+    "updated": "2026-06-01",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding": {
         "system": "LEC-SEQ",
         "code": "CUSTOM: LECSEQ_ANAMNESE_V1",
         "display": "Aufnahmebogen V1 - Einwilligung/Anamnese/Vortherapie (LEC-SEQ)",
         "version": "20260601"
     },
-    "description": "Baseline-Aufnahme bei V1: Einwilligung, Anamnese, Vortherapie und Eignungsprüfung (vor LECIG-Start)",
-    "keywords": "parkinson lec-seq lecigon anamnese baseline einwilligung vortherapie eignung v1",
+    "description": "Baseline-Aufnahme und Anamnese vor LECIG-Start (Studie).",
+    "keywords": "Parkinson, Anamnese",
     "manual": "<b>Parkinson-spezifische Baseline-Erhebung bei V1</b> (vor LECIG-Start), durch Studienpersonal. Deckt Einwilligung + Anamnese + Vortherapie-Doku der Erhebungsmatrix ab.",
     "items": [
         { "label": "1 — Stammdaten", "type": "separator" },

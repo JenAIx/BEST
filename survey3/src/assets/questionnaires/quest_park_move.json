@@ -1,14 +1,17 @@
 {
-  "title": "Anamnese Fragebogen Parkinson",
+  "title": "PARK-MOVE – Anamnese Parkinson",
   "short_title": "PARK_MOVE",
-  "description": null,
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Strukturierte Anamnese beim Parkinson-Syndrom.",
   "coding": {
     "system": "CUSTOM",
     "code": "CUSTOM: ASSESSMENT_PARK_MOVE",
     "display": "Anamnese Fragebogen Parkinson - PARK_MOVE"
   },
   "manual": null,
-  "keywords": null,
+  "keywords": "Parkinson, Anamnese",
   "ref": null,
   "items": [
     {
