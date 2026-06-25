@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.16.1
+
+#### Fixed
+
+- [2026-06-25] Inventar-Review: `nihs` Keyword `Neurorehabilitation` → `Motorik` (NIHSS ist Akut-Schweregrad, keine Reha); `gds_dystonia` Titel `GDS …` → `GDRS …` (Kollision mit der Geriatrischen Depressionsskala `GDS` aufgelöst). Inventar (`docs/QUESTIONNAIRE_INVENTORY.md`) neu generiert.
+
 ### v1.16.0
 
 #### Added
