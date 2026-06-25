@@ -53,7 +53,7 @@
 | `quest_fugl_mayr.json` | `fuglmayrshort` | Fugl-Meyer (Kurzform, obere Extremität) | Beurteilung der motorischen Funktion der oberen Extremität (Schlaganfall). | 🔓 frei | Motorik, Schlaganfall, Rehabilitation, Fremdbeurteilung |
 | `quest_gas.json` | `gas` | GAS – Goal Attainment Scaling (Zielerreichung) | Individuelle Skalierung des Erreichungsgrades von Therapiezielen. | 🔓 frei | Zielerreichung, Rehabilitation, Fremdbeurteilung |
 | `quest_gds.json` | `GDS` | GDS – Geriatrische Depressionsskala (Kurzform) | Screening depressiver Symptome bei älteren Menschen. | 🔓 frei | Depression, Geriatrie, Screening, Selbstbeurteilung |
-| `quest_gdsrs.json` | `gds_dystonia` | GDS – Globale Dystonie-Schweregradskala | Fremdbeurteilung des Schweregrads der Dystonie nach Körperregion. | 🔓 frei | Dystonie, Motorik, Fremdbeurteilung |
+| `quest_gdsrs.json` | `gds_dystonia` | GDRS – Globale Dystonie-Schweregradskala | Fremdbeurteilung des Schweregrads der Dystonie nach Körperregion. | 🔓 frei | Dystonie, Motorik, Fremdbeurteilung |
 | `quest_hadsd.json` | `hads_d` | HADS-D – Hospital Anxiety and Depression Scale (deutsch) | Screening von Angst und Depression im somatischen Versorgungskontext. | 🔒 Lizenz | Angst, Depression, Screening, Selbstbeurteilung |
 | `quest_handwriting.json` | `handwriting` | Schriftprobe (Graphomotorik) | Abschreiben eines Satzes zur Erfassung der Schreib-/Handmotorik. | 🔓 frei | Motorik, Visuokonstruktion |
 | `quest_health49a.json` | `health49_a` | HEALTH-49 – Modul A (Hamburger Module) | Selbstbeurteilung psychischer und somatischer Beschwerden. | 🔓 frei | Depression, Angst, Wohlbefinden, Selbstbeurteilung |
@@ -77,7 +77,7 @@
 | `quest_mymop2_followup.json` | `mymop2g_followup` | MYMOP2-G – Individuelle Beschwerden (Verlauf) | Patientendefinierte Beschwerden und deren Verlauf. | 🔓 frei | Wohlbefinden, Verlauf, Selbstbeurteilung |
 | `quest_mymop2_pre.json` | `mymop2g_pre` | MYMOP2-G – Individuelle Beschwerden (Baseline) | Patientendefinierte Beschwerden zu Beginn. | 🔓 frei | Wohlbefinden, Anamnese, Selbstbeurteilung |
 | `quest_demenz_biomag01.json` | `neurodeg_screening` | Screening Neurodegeneration (BIOMAG) | Strukturiertes Gespräch zum Screening bei Verdacht auf eine neurodegenerative Erkrankung. | 🔓 frei | Demenz, Screening, Anamnese |
-| `quest_nihs.json` | `nihs` | NIHSS – Schlaganfall-Schweregradskala | Neurologische Schweregradbeurteilung beim akuten Schlaganfall. | 🔓 frei | Schlaganfall, Neurorehabilitation, Fremdbeurteilung |
+| `quest_nihs.json` | `nihs` | NIHSS – Schlaganfall-Schweregradskala | Neurologische Schweregradbeurteilung beim akuten Schlaganfall. | 🔓 frei | Schlaganfall, Motorik, Fremdbeurteilung |
 | `quest_nmsquest.json` | `nms_quest` | NMSQuest – Nicht-motorische Symptome (Parkinson) | Screening nicht-motorischer Symptome bei Parkinson. | 🔓 frei | Parkinson, autonome Symptome, Screening, Selbstbeurteilung |
 | `quest_nmsquest_alt.json` | `nms_quest_alt` | NMSQuest – Nicht-motorische Symptome (Parkinson, Variante) | Screening nicht-motorischer Symptome bei Parkinson. | 🔓 frei | Parkinson, autonome Symptome, Screening, Selbstbeurteilung |
 | `quest_nmss.json` | `nmss` | NMSS – Non-Motor Symptom Scale (Parkinson) | Fremdbeurteilung der Schwere nicht-motorischer Symptome bei Parkinson. | 🔒 Lizenz | Parkinson, autonome Symptome, Fremdbeurteilung |
