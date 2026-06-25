@@ -97,10 +97,16 @@ Ein neuer Bogen wird **ohne weiteres Zutun** von zwei Guards mitgeprüft:
 - **Keyword-Guard** `test/jest/__tests__/keyword_vocab.test.js` — verlangt
   nicht-leere `keywords`, die **ausschließlich** aus `KEYWORD_VOCAB`
   (`src/tools/questman/keywords.js`) stammen. Neuer Begriff → erst dort eintragen.
+- **Inventar-Guard** `test/jest/__tests__/inventory.test.js` — verlangt, dass das
+  Inventar `docs/QUESTIONNAIRE_INVENTORY.md` synchron ist (jeder Bogen erfasst,
+  Lizenzstatus gesetzt). **Pflicht bei jedem neuen/geänderten Bogen**: danach
+  `npm run inventory` ausführen und die aktualisierte Datei mit-committen (das
+  Inventar wird generiert, nicht von Hand gepflegt).
 
 Ausführen:
 
 ```bash
+npm run inventory            # Inventar nach jedem neuen/geänderten Bogen neu erzeugen
 npm run test:unit test/jest/__tests__/questman_scoring_schema.test.js
 npm run test:unit            # gesamte Unit-Suite
 ```
