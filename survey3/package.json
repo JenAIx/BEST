@@ -11,6 +11,7 @@
     "build": "quasar build -m pwa",
     "build_app": "quasar build --mode electron",
     "icons": "icongenie generate -i ./public/icons/surveyBest_icon1024.png",
+    "inventory": "node scripts/generate-inventory.js",
     "upload": "sh upload_to_server.sh",
     "lint": "eslint --ext .js,.vue ./",
     "format": "prettier --write \"**/*.{js,vue,html,md,json}\" --ignore-path .gitignore",
