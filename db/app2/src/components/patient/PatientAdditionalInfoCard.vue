@@ -38,6 +38,10 @@
           <span class="info-label">Location</span>
           <span class="info-value">{{ patient.STATECITYZIP_PATH }}</span>
         </div>
+        <div v-for="field in viewCustomFields" :key="field.label" class="info-row">
+          <span class="info-label">{{ field.label }}</span>
+          <span class="info-value">{{ field.value }}</span>
+        </div>
       </div>
 
       <!-- Edit Mode -->
@@ -46,13 +50,28 @@
         <q-select v-model="editForm.race" :options="raceOptions" label="Race" outlined dense emit-value map-options />
         <q-select v-model="editForm.maritalStatus" :options="maritalStatusOptions" label="Marital Status" outlined dense emit-value map-options />
         <q-select v-model="editForm.religion" :options="religionOptions" label="Religion" outlined dense emit-value map-options />
+        <q-input v-model="editForm.location" label="Location" outlined dense clearable />
+
+        <q-separator />
+
+        <div class="row items-center justify-between">
+          <div class="text-subtitle2">{{ $t('patient.customFields') }}</div>
+          <q-btn flat dense icon="add" :label="$t('patient.addField')" color="primary" size="sm" @click="addCustomField" />
+        </div>
+        <div v-for="(field, idx) in editForm.customFields" :key="idx" class="row items-center no-wrap q-gutter-sm">
+          <q-input v-model="field.label" :label="$t('patient.fieldName')" outlined dense class="col" />
+          <q-input v-model="field.value" :label="$t('patient.fieldValue')" outlined dense class="col" />
+          <q-btn flat round dense icon="delete" color="negative" size="sm" @click="removeCustomField(idx)">
+            <q-tooltip>{{ $t('patient.removeField') }}</q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </q-card-section>
   </q-card>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -80,7 +99,53 @@ const editForm = ref({
   race: '',
   maritalStatus: '',
   religion: '',
+  location: '',
+  customFields: [],
 })
+
+// PATIENT_BLOB keys owned by other features (name display, notes) — never
+// surfaced or overwritten as custom fields here.
+const RESERVED_BLOB_KEYS = ['name', 'notes', 'firstName', 'lastName', 'customFields']
+
+const parseBlob = () => {
+  if (!props.patient.PATIENT_BLOB) return {}
+  try {
+    const blob = JSON.parse(props.patient.PATIENT_BLOB)
+    return blob && typeof blob === 'object' && !Array.isArray(blob) ? blob : {}
+  } catch {
+    return {}
+  }
+}
+
+// Custom fields = blob.customFields plus any non-reserved scalar top-level
+// keys (e.g. metadata written by importers), so nothing is invisible in edit mode.
+const extractCustomFields = () => {
+  const blob = parseBlob()
+  const fields = []
+  const cf = blob.customFields
+  if (cf && typeof cf === 'object' && !Array.isArray(cf)) {
+    for (const [label, value] of Object.entries(cf)) {
+      fields.push({ label, value: value == null ? '' : String(value) })
+    }
+  }
+  for (const [key, value] of Object.entries(blob)) {
+    if (RESERVED_BLOB_KEYS.includes(key)) continue
+    if (['string', 'number', 'boolean'].includes(typeof value)) {
+      fields.push({ label: key, value: String(value) })
+    }
+  }
+  return fields
+}
+
+const viewCustomFields = computed(() => extractCustomFields().filter((f) => f.value !== ''))
+
+const addCustomField = () => {
+  editForm.value.customFields.push({ label: '', value: '' })
+}
+
+const removeCustomField = (idx) => {
+  editForm.value.customFields.splice(idx, 1)
+}
 
 // Options
 const languageOptions = ref([])
@@ -137,6 +202,8 @@ const startEdit = () => {
   editForm.value.race = currentRace
   editForm.value.maritalStatus = currentMaritalStatus
   editForm.value.religion = currentReligion
+  editForm.value.location = props.patient.STATECITYZIP_PATH || ''
+  editForm.value.customFields = extractCustomFields()
 
   editing.value = true
 }
@@ -147,6 +214,8 @@ const cancelEdit = () => {
   editForm.value.race = ''
   editForm.value.maritalStatus = ''
   editForm.value.religion = ''
+  editForm.value.location = ''
+  editForm.value.customFields = []
 }
 
 const save = async () => {
@@ -163,6 +232,33 @@ const save = async () => {
     }
     if (editForm.value.religion !== props.patient.RELIGION_CD) {
       updates.RELIGION_CD = editForm.value.religion
+    }
+    if ((editForm.value.location || '') !== (props.patient.STATECITYZIP_PATH || '')) {
+      updates.STATECITYZIP_PATH = editForm.value.location || null
+    }
+
+    // Rebuild PATIENT_BLOB: keep reserved keys as-is, absorb loose scalar
+    // keys into customFields (they were shown as custom fields in the editor).
+    const blob = parseBlob()
+    for (const key of Object.keys(blob)) {
+      if (!RESERVED_BLOB_KEYS.includes(key) && ['string', 'number', 'boolean'].includes(typeof blob[key])) {
+        delete blob[key]
+      }
+    }
+    const customFields = {}
+    for (const field of editForm.value.customFields) {
+      const label = (field.label || '').trim()
+      if (!label) continue
+      customFields[label] = field.value ?? ''
+    }
+    if (Object.keys(customFields).length > 0) {
+      blob.customFields = customFields
+    } else {
+      delete blob.customFields
+    }
+    const newBlob = Object.keys(blob).length > 0 ? JSON.stringify(blob) : null
+    if (newBlob !== (props.patient.PATIENT_BLOB || null)) {
+      updates.PATIENT_BLOB = newBlob
     }
 
     if (Object.keys(updates).length > 0) {
