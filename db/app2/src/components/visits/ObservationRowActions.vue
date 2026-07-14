@@ -10,14 +10,9 @@
 
     <!-- For regular observations -->
     <template v-else>
-      <!-- Save Button - only show if changed -->
-      <q-btn v-if="row.hasChanges" flat round icon="save" size="sm" color="primary" :loading="row.saving" @click="$emit('save-row', row)" class="save-btn">
-        <q-tooltip>Save changes</q-tooltip>
-      </q-btn>
-
-      <!-- Cancel Button - only show if changed -->
-      <q-btn v-if="row.hasChanges" flat round icon="close" size="sm" color="grey-6" :disabled="row.saving" @click="$emit('cancel-changes', row)" class="cancel-btn">
-        <q-tooltip>Cancel changes</q-tooltip>
+      <!-- Revert Button - undo the last autosave, visible for a short window -->
+      <q-btn v-if="row.canRevert && !row.hasChanges" flat round icon="undo" size="sm" color="orange" :loading="row.saving" @click="$emit('revert-row', row)" class="revert-btn">
+        <q-tooltip>{{ $t('observation.revertLastSave') }}</q-tooltip>
       </q-btn>
 
       <!-- Remove Button - show on hover -->
@@ -63,7 +58,7 @@ defineProps({
   },
 })
 
-defineEmits(['save-row', 'cancel-changes', 'remove-row', 'clone-from-previous', 'duplicate-value'])
+defineEmits(['save-row', 'cancel-changes', 'revert-row', 'remove-row', 'clone-from-previous', 'duplicate-value'])
 </script>
 
 <style lang="scss" scoped>
@@ -73,18 +68,14 @@ defineEmits(['save-row', 'cancel-changes', 'remove-row', 'clone-from-previous', 
   align-items: center;
   justify-content: center;
 
-  .save-btn {
-    background: rgba($primary, 0.1);
-    border: 1px solid $primary;
+  .revert-btn {
+    background: rgba($orange, 0.1);
+    border: 1px solid $orange;
 
     &:hover {
-      background: $primary;
+      background: $orange;
       color: white;
     }
-  }
-
-  .cancel-btn:hover {
-    background: rgba($grey-6, 0.1);
   }
 
   .remove-button-container {

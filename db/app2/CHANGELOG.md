@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dateneingabe: Autosave + Undo-Fenster** — Observation-Eingaben in der
+  Visiten-Dateneingabe speichern jetzt automatisch beim Verlassen des Feldes
+  (Blur), bei Enter (Shift+Enter erzeugt im Textfeld weiter einen
+  Zeilenumbruch) bzw. sofort bei Auswahl einer Option (S/F/A-Selects).
+  Die bisherigen Save-/Cancel-Buttons pro Zeile entfallen. Nach jedem
+  Speichern erscheinen für 10 Sekunden ein grünes Häkchen am Feld
+  (ersetzt den Erfolgs-Toast) und ein Undo-Button (orange, `undo`-Icon)
+  in der Aktionsspalte, der den Wert von vor dem Speichern wiederherstellt
+  (schreibt ihn zurück in die DB). "Duplicate previous value" speichert
+  jetzt direkt (vorher: nur als pending markiert). Betroffen:
+  `ObservationValueEditor.vue` (Blur/Enter/Select-Trigger, Häkchen),
+  `ObservationFieldSet.vue` (`recentSaves`-Fenster, `revertRow`,
+  NaN-Guard für leere Numerik), `ObservationsTable.vue` /
+  `ObservationRowActions.vue` (Event-Durchleitung, Undo-Button).
+
+- **Zusätzliche-Infos-Karte: Location editierbar + eigene Felder** — siehe
+  Merge `features/patient-additional-info-edit`: Location (`STATECITYZIP_PATH`)
+  ist im Edit-Modus editierbar; frei definierbare Zusatzfelder können angelegt/
+  gelöscht werden (JSON in `PATIENT_BLOB.customFields`, reservierte Keys
+  `name`/`notes`/`firstName`/`lastName` bleiben unangetastet).
+
 ## [0.3_20260521] - 2026-05-21
 
 ### Datentabellen-Editor: per-observation date (right-click → edit / reset)

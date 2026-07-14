@@ -87,6 +87,7 @@
           :previous-visits="previousVisits"
           @save-row="(row) => $emit('save-row', row)"
           @cancel-changes="(row) => $emit('cancel-changes', row)"
+          @revert-row="(row) => $emit('revert-row', row)"
           @remove-row="(row) => $emit('remove-row', row)"
           @clone-from-previous="(row) => $emit('clone-from-previous', row)"
           @duplicate-value="(data) => $emit('duplicate-value', data)"
@@ -140,7 +141,7 @@ const props = defineProps({
   },
 })
 
-defineEmits(['enter-medication-edit-mode', 'value-changed', 'save-requested', 'save-row', 'cancel-changes', 'remove-row', 'clone-from-previous', 'duplicate-value'])
+defineEmits(['enter-medication-edit-mode', 'value-changed', 'save-requested', 'save-row', 'cancel-changes', 'revert-row', 'remove-row', 'clone-from-previous', 'duplicate-value'])
 
 const loggingStore = useLoggingStore()
 const medicationsStore = useMedicationsStore()

@@ -355,6 +355,8 @@
     "filledObservations": "{count} filled observation(s)",
     "unfilledObservations": "{count} unfilled observation(s)",
     "noObservationsYet": "No observations yet",
+    "revertLastSave": "Restore previous value",
+    "autoSaved": "Saved",
     "addObservationsHint": "Add observations from the available options below",
     "observationCategories": "Field Groups",
     "alreadyInVisit": "This observation already exists in the current visit",
