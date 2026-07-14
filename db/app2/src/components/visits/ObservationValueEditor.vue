@@ -2,7 +2,18 @@
   <div class="observation-value-editor">
     <!-- Numeric Input -->
     <div v-if="actualValueType === 'N'" class="numeric-input">
-      <q-input :model-value="currentValue" @update:model-value="onValueChange" type="number" placeholder="Enter number" outlined dense class="compact-input" :loading="loading">
+      <q-input
+        :model-value="currentValue"
+        @update:model-value="onValueChange"
+        @blur="onEditingDone"
+        @keyup.enter="onEditingDone"
+        type="number"
+        placeholder="Enter number"
+        outlined
+        dense
+        class="compact-input"
+        :loading="loading"
+      >
         <template v-slot:append v-if="rowData.unit">
           <q-chip size="sm" color="grey-3" text-color="grey-7" dense class="unit-chip">
             {{ rowData.unit }}
@@ -11,21 +22,34 @@
       </q-input>
     </div>
 
-    <!-- Text Input -->
+    <!-- Text Input (Enter saves, Shift+Enter inserts a newline) -->
     <div v-else-if="actualValueType === 'T'" class="text-input">
-      <q-input :model-value="currentValue" @update:model-value="onValueChange" placeholder="Enter text" type="textarea" rows="1" outlined dense class="compact-input" :loading="loading" autogrow />
+      <q-input
+        :model-value="currentValue"
+        @update:model-value="onValueChange"
+        @blur="onEditingDone"
+        @keydown.enter.exact.prevent="onEditingDone"
+        placeholder="Enter text"
+        type="textarea"
+        rows="1"
+        outlined
+        dense
+        class="compact-input"
+        :loading="loading"
+        autogrow
+      />
     </div>
 
     <!-- Date Input -->
     <div v-else-if="actualValueType === 'D'" class="date-input">
-      <q-input :model-value="currentValue" @update:model-value="onValueChange" type="date" placeholder="Select date" outlined dense class="compact-input" :loading="loading" />
+      <q-input :model-value="currentValue" @update:model-value="onValueChange" @blur="onEditingDone" @keyup.enter="onEditingDone" type="date" placeholder="Select date" outlined dense class="compact-input" :loading="loading" />
     </div>
 
     <!-- Selection Input (for coded values) -->
     <div v-else-if="actualValueType === 'S'" class="selection-input">
       <q-select
         :model-value="currentValue"
-        @update:model-value="onValueChange"
+        @update:model-value="onSelectionChange"
         :options="selectionOptions"
         placeholder="Select option"
         outlined
@@ -41,7 +65,7 @@
     <div v-else-if="actualValueType === 'F'" class="finding-input">
       <q-select
         :model-value="currentValue"
-        @update:model-value="onValueChange"
+        @update:model-value="onSelectionChange"
         :options="selectionOptions"
         placeholder="Select finding"
         outlined
@@ -57,7 +81,7 @@
     <div v-else-if="actualValueType === 'A'" class="answer-input">
       <q-select
         :model-value="currentValue"
-        @update:model-value="onValueChange"
+        @update:model-value="onSelectionChange"
         :options="selectionOptions"
         placeholder="Select answer"
         outlined
@@ -95,7 +119,7 @@
 
     <!-- Default/Unknown Input -->
     <div v-else class="default-input">
-      <q-input :model-value="currentValue" @update:model-value="onValueChange" placeholder="Enter value" outlined dense class="compact-input" :loading="loading">
+      <q-input :model-value="currentValue" @update:model-value="onValueChange" @blur="onEditingDone" @keyup.enter="onEditingDone" placeholder="Enter value" outlined dense class="compact-input" :loading="loading">
         <template v-slot:prepend>
           <q-icon name="help" size="16px" color="orange" />
           <q-tooltip>Unknown value type: {{ actualValueType }}</q-tooltip>
@@ -107,6 +131,12 @@
     <div v-if="hasChanges && !loading" class="status-indicator">
       <q-icon name="edit" size="14px" color="warning" />
       <q-tooltip>Unsaved changes</q-tooltip>
+    </div>
+
+    <!-- Saved Indicator - green check while the revert window is open (~10s) -->
+    <div v-else-if="rowData.canRevert && !loading" class="status-indicator saved-indicator">
+      <q-icon name="check_circle" size="14px" color="positive" />
+      <q-tooltip>{{ $t('observation.autoSaved') }}</q-tooltip>
     </div>
 
     <!-- File Preview Dialog -->
@@ -207,6 +237,24 @@ const onValueChange = (newValue) => {
     oldValue: props.rowData.currentValue,
     newValue,
   })
+}
+
+// Autosave: editing finished (blur / Enter) — parent decides whether a
+// pending change exists and persists it.
+const onEditingDone = () => {
+  emit('save-requested', props.rowData)
+
+  logger.debug('Editing done, save requested', {
+    rowId: props.rowData.id,
+    conceptCode: props.rowData.conceptCode,
+    value: currentValue.value,
+  })
+}
+
+// Selections are complete the moment an option is picked — save immediately.
+const onSelectionChange = (newValue) => {
+  onValueChange(newValue)
+  emit('save-requested', props.rowData)
 }
 
 const loadSelectionOptions = async () => {
@@ -499,6 +547,21 @@ watch(
     border-radius: 50%;
     padding: 2px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+
+    &.saved-indicator {
+      animation: saved-fade-in 0.25s ease;
+    }
+  }
+
+  @keyframes saved-fade-in {
+    from {
+      opacity: 0;
+      transform: scale(0.5);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 }
 

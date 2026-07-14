@@ -36,6 +36,7 @@
           @save-requested="onSaveRequested"
           @save-row="saveRow"
           @cancel-changes="cancelChanges"
+          @revert-row="revertRow"
           @remove-row="removeRow"
           @clone-from-previous="cloneFromPrevious"
           @duplicate-value="onDuplicateValue"
@@ -71,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useMedicationsStore } from 'src/stores/medications-store'
@@ -120,6 +121,8 @@ const loading = ref(false)
 const removedConcepts = ref(new Set()) // Track concepts removed by user
 const resolvedConceptData = ref(new Map()) // Cache for resolved concept data
 const pendingChanges = ref(new Map()) // Track pending changes per row
+const recentSaves = ref(new Map()) // rowId -> { previousValue, timerId } — revert window after autosave
+const REVERT_WINDOW_MS = 10000
 
 // Medication editing state
 const showMedicationEditDialog = ref(false)
@@ -144,6 +147,14 @@ onMounted(async () => {
 
   // Resolve concept names for all concepts in the field set
   await resolveFieldSetConceptNames()
+})
+
+onUnmounted(() => {
+  // Clear revert-window timers to avoid mutating state after unmount
+  for (const { timerId } of recentSaves.value.values()) {
+    clearTimeout(timerId)
+  }
+  recentSaves.value.clear()
 })
 
 // Resolve concept names using concept resolution store
@@ -254,6 +265,7 @@ const tableRows = computed(() => {
         unit: observation.unit,
         category: observation.category || observation.CATEGORY_CHAR,
         hasChanges: pendingValue !== undefined && pendingValue !== actualValue,
+        canRevert: pendingValue === undefined && recentSaves.value.has(rowId),
         saving: false,
         previousValue: getPreviousValue(observation.conceptCode),
         displayValue: formatDisplayValue(observation),
@@ -629,11 +641,36 @@ const onValueChanged = (rowData, newValue) => {
   })
 }
 
+// Autosave entry point (blur / Enter / selection picked). Reads the pending
+// value from the map instead of the row snapshot — the event can fire before
+// the tableRows computed has re-rendered with the latest keystroke.
 const onSaveRequested = async (rowData) => {
-  await saveRow(rowData)
+  const pending = pendingChanges.value.get(rowData.id)
+  if (pending === undefined) return // nothing typed — no-op blur
+
+  if (String(pending ?? '') === String(rowData.origVal ?? '')) {
+    // Value was changed back to the original — just drop the pending state
+    pendingChanges.value.delete(rowData.id)
+    return
+  }
+
+  await saveRow({ ...rowData, currentVal: pending })
 }
 
-const saveRow = async (row) => {
+// Remember the pre-save value for a short revert window (undo button)
+const recordRecentSave = (rowId, previousValue) => {
+  const existing = recentSaves.value.get(rowId)
+  if (existing) clearTimeout(existing.timerId)
+
+  const timerId = setTimeout(() => {
+    recentSaves.value.delete(rowId)
+  }, REVERT_WINDOW_MS)
+
+  recentSaves.value.set(rowId, { previousValue, timerId })
+}
+
+const saveRow = async (row, { isRevert = false } = {}) => {
+  const previousValue = row.origVal // pre-save value for the revert window
   try {
     row.saving = true
     logger.info('Saving row', {
@@ -662,11 +699,14 @@ const saveRow = async (row) => {
       const updateData = {}
 
       switch (row.valueType) {
-        case 'N': // Numeric
-          updateData.NVAL_NUM = parseFloat(row.currentVal)
+        case 'N': {
+          // Numeric — an empty value (e.g. revert to an unfilled state) stores NULL
+          const numericValue = parseFloat(row.currentVal)
+          updateData.NVAL_NUM = Number.isFinite(numericValue) ? numericValue : null
           updateData.TVAL_CHAR = null
           updateData.OBSERVATION_BLOB = null
           break
+        }
 
         case 'S': // Selection
         case 'F': // Finding
@@ -705,7 +745,8 @@ const saveRow = async (row) => {
     if (row.rawObservation) {
       switch (row.valueType) {
         case 'N': {
-          const numericValue = parseFloat(row.currentVal)
+          const parsed = parseFloat(row.currentVal)
+          const numericValue = Number.isFinite(parsed) ? parsed : null
           row.rawObservation.NVAL_NUM = numericValue
           row.rawObservation.nval_num = numericValue
           // Clear text fields for numeric values
@@ -746,9 +787,18 @@ const saveRow = async (row) => {
       observationId: row.observationId,
     })
 
-    notify.success('Observation saved successfully')
+    // Open the revert window (not for reverts themselves and not for medications).
+    // No success toast for regular saves — the green check on the field
+    // (driven by the same window) is the feedback.
+    if (!isRevert && !row.isMedication && String(previousValue ?? '') !== String(row.currentVal ?? '')) {
+      recordRecentSave(row.id, previousValue)
+    }
 
-    logger.success('Row saved successfully', { rowId: row.id })
+    if (isRevert) {
+      notify.success('Original value restored')
+    }
+
+    logger.success('Row saved successfully', { rowId: row.id, isRevert })
 
     // No delayed refresh needed - the computed property will update automatically
     // when pendingChanges is cleared
@@ -758,6 +808,25 @@ const saveRow = async (row) => {
   } finally {
     row.saving = false
   }
+}
+
+// Undo the last (auto)save within the revert window — writes the pre-save
+// value back to the database and closes the window for this row.
+const revertRow = async (row) => {
+  const saved = recentSaves.value.get(row.id)
+  if (saved === undefined) return
+
+  clearTimeout(saved.timerId)
+  recentSaves.value.delete(row.id)
+  pendingChanges.value.delete(row.id)
+
+  logger.info('Reverting row to pre-save value', {
+    rowId: row.id,
+    conceptCode: row.conceptCode,
+    revertTo: saved.previousValue,
+  })
+
+  await saveRow({ ...row, currentVal: saved.previousValue }, { isRevert: true })
 }
 
 const cancelChanges = (row) => {
@@ -832,10 +901,10 @@ const onDuplicateValue = async (data) => {
     if (rowIndex !== -1) {
       const row = tableRows.value[rowIndex]
 
-      // Update the current value and mark as changed
-      row.currentVal = data.value
-      row.hasChanges = true
+      // Apply the value and autosave immediately (there is no manual save
+      // button anymore) — the revert window allows undoing this too.
       pendingChanges.value.set(row.id, data.value)
+      await saveRow({ ...row, currentVal: data.value })
 
       logger.success('Value duplicated successfully', {
         conceptCode: data.conceptCode,

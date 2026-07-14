@@ -355,6 +355,8 @@
     "filledObservations": "{count} ausgefüllte Beobachtung(en)",
     "unfilledObservations": "{count} nicht ausgefüllte Beobachtung(en)",
     "noObservationsYet": "Noch keine Beobachtungen",
+    "revertLastSave": "Ursprünglichen Wert wiederherstellen",
+    "autoSaved": "Gespeichert",
     "addObservationsHint": "Beobachtungen aus den verfügbaren Optionen unten hinzufügen",
     "observationCategories": "Feldgruppen",
     "alreadyInVisit": "Diese Beobachtung existiert bereits in dieser Visite",
