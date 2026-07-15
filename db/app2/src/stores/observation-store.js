@@ -299,8 +299,7 @@ export const useObservationStore = defineStore('observation', () => {
       })
 
       // Get current user for PROVIDER_ID
-      const currentUser = authStore.currentUser
-      const providerId = currentUser?.USER_CD || 'SYSTEM'
+      const providerId = authStore.providerId
 
       // Get concept metadata
       const conceptMetadata = await getConceptMetadata(observationData.CONCEPT_CD)
@@ -337,6 +336,11 @@ export const useObservationStore = defineStore('observation', () => {
       logger.info('Updating observation', { observationId, updateData })
 
       let enhancedUpdateData = { ...updateData }
+
+      // Stamp the current user as last editor (unless a provider was passed explicitly)
+      if (!enhancedUpdateData.PROVIDER_ID) {
+        enhancedUpdateData.PROVIDER_ID = authStore.providerId
+      }
 
       // If updating CONCEPT_CD, also update metadata
       if (updateData.CONCEPT_CD) {

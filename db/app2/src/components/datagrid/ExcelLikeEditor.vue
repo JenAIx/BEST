@@ -245,6 +245,7 @@
                     'value-type-n': concept.valueType === 'N',
                     'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
                     'obs-cell-placeholder': row.isPlaceholder,
+                    'obs-cell-locked': isCellLocked(row, concept),
                     'is-focused': focusedColumn === concept.code,
                   }
                 ]"
@@ -253,10 +254,15 @@
                 <div v-if="row.isPlaceholder" class="obs-placeholder">—</div>
                 <!-- Custom questionnaire cell for Q type -->
                 <div v-else-if="concept.valueType === 'Q'" class="questionnaire-cell">
-                  <!-- Filled questionnaire -->
+                  <!-- Filled questionnaire (viewing stays allowed when locked) -->
                   <div v-if="getCellValue(row, concept)" class="questionnaire-content" @click="openQuestionnairePreview(row, concept)">
                     {{ getCellValue(row, concept) }}
                     <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]"> Click to view questionnaire data </q-tooltip>
+                  </div>
+                  <!-- Locked empty questionnaire: no fill action -->
+                  <div v-else-if="isCellLocked(row, concept)" class="locked-cell-indicator">
+                    <q-icon name="lock" size="14px" color="grey-5" />
+                    <q-tooltip>{{ $t('dataGrid.cellLockedTooltip') }}</q-tooltip>
                   </div>
                   <!-- Empty questionnaire - clickable to fill -->
                   <div v-else class="questionnaire-empty" @click="openQuestionnaireFillDialog(row, concept)">
@@ -266,24 +272,28 @@
                   </div>
                 </div>
                 <!-- Medication cell for M type or LID: 52418-1 -->
-                <div 
-                  v-else-if="isMedicationConcept(concept)" 
+                <div
+                  v-else-if="isMedicationConcept(concept)"
                   class="medication-cell medication-icon-display"
-                  @click="openMedicationOverviewDialog(row)"
+                  @click="isCellLocked(row, concept) ? undefined : openMedicationOverviewDialog(row)"
                 >
-                  <div class="medication-icon-wrapper">
-                    <q-icon 
-                      :name="getMedicationCount(row, concept) > 0 ? 'medication' : 'add'" 
-                      :color="getMedicationCount(row, concept) > 0 ? 'primary' : 'grey-5'" 
+                  <div v-if="isCellLocked(row, concept) && getMedicationCount(row, concept) === 0" class="locked-cell-indicator">
+                    <q-icon name="lock" size="14px" color="grey-5" />
+                    <q-tooltip>{{ $t('dataGrid.cellLockedTooltip') }}</q-tooltip>
+                  </div>
+                  <div v-else class="medication-icon-wrapper">
+                    <q-icon
+                      :name="getMedicationCount(row, concept) > 0 ? 'medication' : 'add'"
+                      :color="getMedicationCount(row, concept) > 0 ? 'primary' : 'grey-5'"
                       size="22px"
                     />
-                    <span 
+                    <span
                       v-if="getMedicationCount(row, concept) > 0"
                       class="medication-count-text"
                     >
                       {{ getMedicationCount(row, concept) }}
                     </span>
-                    <q-tooltip>{{ $t('dataGrid.editMedication') }}</q-tooltip>
+                    <q-tooltip>{{ isCellLocked(row, concept) ? $t('dataGrid.cellLockedTooltip') : $t('dataGrid.editMedication') }}</q-tooltip>
                   </div>
                 </div>
                 <!-- Regular editable cell for other types -->
@@ -298,6 +308,7 @@
                   :patient-id="row.patientId"
                   :encounter-num="row.encounterNum"
                   :observation-id="getCellObservationId(row, concept)"
+                  :locked="isCellLocked(row, concept)"
                   @update="onCellUpdate"
                   @save="onCellSave"
                   @error="onCellError"
@@ -551,7 +562,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -725,43 +736,12 @@ const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObser
 // the existing single-row per-concept header still drives the data cells.
 const conceptGroups = computed(() => groupConceptsByCategory(visibleObservationConcepts.value))
 
-// Visit-type metadata loaded once from CODE_LOOKUP. Keyed by CODE_CD (e.g.
-// 'stroke_lipid_v0'), values are {label, icon, color} pulled from LOOKUP_BLOB.
-// This lets every visit row render a chip without per-row DB queries.
-const visitTypeMeta = ref(new Map())
-async function loadVisitTypeMeta() {
-  try {
-    const result = await databaseStore.executeQuery(
-      `SELECT CODE_CD, NAME_CHAR, LOOKUP_BLOB
-         FROM CODE_LOOKUP
-        WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = 'VISIT_TYPE_CD'`,
-    )
-    if (!result?.success) return
-    const map = new Map()
-    for (const r of result.data) {
-      let label = r.NAME_CHAR
-      let icon = null
-      let color = null
-      if (r.LOOKUP_BLOB) {
-        try {
-          const blob = typeof r.LOOKUP_BLOB === 'string' ? JSON.parse(r.LOOKUP_BLOB) : r.LOOKUP_BLOB
-          if (blob?.label) label = blob.label
-          if (blob?.icon) icon = blob.icon
-          if (blob?.color) color = blob.color
-        } catch {
-          // ignore malformed blob - fall back to NAME_CHAR
-        }
-      }
-      map.set(r.CODE_CD, { label, icon, color })
-    }
-    visitTypeMeta.value = map
-  } catch (e) {
-    logger.warn('Failed to load visit-type metadata', e)
-  }
-}
+// Visit-type metadata ({label, icon, color} per CODE_CD) comes from the data
+// grid store, which builds it from the same CODE_LOOKUP query as the
+// visit-type lock map — one query serves both.
 function getVisitTypeMeta(code) {
   if (!code) return null
-  return visitTypeMeta.value.get(code) || null
+  return dataGridStore?.visitTypeMeta?.get(code) || null
 }
 
 // Filter table rows: drop visits the user hid, and — when the audit filter is
@@ -872,6 +852,9 @@ const getPatientInitials = dataGridStore?.getPatientInitials || (() => 'U')
 const formatDate = dataGridStore?.formatDate || ((date) => date || '')
 const getCellValue = dataGridStore?.getCellValue || (() => '')
 const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
+// Visit-type lock (viewOptions.visitTypeLockActive): cells whose concept
+// belongs to other visit types' field sets render locked on this row.
+const isCellLocked = dataGridStore?.isCellLocked || (() => false)
 // Read OBSERVATION_FACT.VALUEFLAG_CD for a cell. Used by EditableCell to render
 // the 3-state numeric pattern: NVAL set -> value shown, VALUEFLAG_CD='NV' -> "no
 // value" indicator, neither -> empty.
@@ -1950,15 +1933,6 @@ const removePatientFromGrid = async () => {
   }
 }
 
-// Watch for view options changes (store handles persistence)
-watch(
-  () => dataGridStore.viewOptions,
-  () => {
-    // Store automatically handles persistence
-  },
-  { deep: true },
-)
-
 // Lifecycle
 onMounted(async () => {
   // Load medication options
@@ -1972,10 +1946,8 @@ onMounted(async () => {
     await conceptStore.initialize()
   }
 
-  // Load visit-type label/icon/color map (one query, ~3-10 rows). Used by
-  // visit-col rendering to show a chip under each visit date.
-  await loadVisitTypeMeta()
-
+  // Visit-type meta (row chips) + lock map load inside loadGridData —
+  // one CODE_LOOKUP query serves both.
   await loadPatientData()
 
   window.addEventListener('keydown', onGridKeydown)
@@ -2595,6 +2567,31 @@ onBeforeUnmount(() => {
 .obs-cell-placeholder {
   background: rgba(0, 0, 0, 0.02);
   cursor: not-allowed;
+}
+
+// Visit-type lock: clearly disabled look — grey base with diagonal hatching,
+// desaturated/dimmed content, blocked cursor. Existing values stay readable,
+// only editing entry points are disabled.
+.obs-cell-locked {
+  background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.07) 0px, rgba(0, 0, 0, 0.07) 5px, rgba(0, 0, 0, 0.015) 5px, rgba(0, 0, 0, 0.015) 10px), #f4f4f4;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  cursor: not-allowed;
+
+  .questionnaire-empty,
+  .questionnaire-content,
+  .medication-cell {
+    cursor: not-allowed;
+    opacity: 0.5;
+    filter: grayscale(0.8);
+  }
+}
+
+.locked-cell-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  user-select: none;
 }
 
 .obs-placeholder {

@@ -86,7 +86,7 @@ describe('data-grid-store.setObservationStartDate', () => {
     const [sql, params] = executeQueryMock.mock.calls[0]
     expect(sql).toContain('UPDATE OBSERVATION_FACT')
     expect(sql).toContain('START_DATE = ?')
-    expect(params).toEqual(['2026-01-10', 101])
+    expect(params).toEqual(['2026-01-10', 'SYSTEM', 101])
 
     expect(store.tableRows[0].observations.LDL.startDate).toBe('2026-01-10')
   })
@@ -130,7 +130,7 @@ describe('data-grid-store.setObservationStartDate', () => {
       startDate: row.visitDate,
     })
     expect(executeQueryMock).toHaveBeenCalledOnce()
-    expect(executeQueryMock.mock.calls[0][1]).toEqual(['2026-02-01', 201])
+    expect(executeQueryMock.mock.calls[0][1]).toEqual(['2026-02-01', 'SYSTEM', 201])
     expect(row.observations.LDL.startDate).toBe('2026-02-01')
   })
 

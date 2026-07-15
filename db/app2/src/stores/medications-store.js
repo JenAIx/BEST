@@ -8,11 +8,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store.js'
+import { useAuthStore } from './auth-store.js'
 import { useGlobalSettingsStore } from './global-settings-store.js'
 import { useLoggingStore } from './logging-store.js'
 
 export const useMedicationsStore = defineStore('medications', () => {
   const dbStore = useDatabaseStore()
+  const authStore = useAuthStore()
   const globalSettingsStore = useGlobalSettingsStore()
   const loggingStore = useLoggingStore()
   const logger = loggingStore.createLogger('MedicationsStore')
@@ -101,7 +103,7 @@ export const useMedicationsStore = defineStore('medications', () => {
         OBSERVATION_BLOB: JSON.stringify(medicationBlob), // Complete medication data
         START_DATE: new Date().toISOString().split('T')[0],
         CATEGORY_CHAR: 'Medications', // Force medications category
-        PROVIDER_ID: 'SYSTEM',
+        PROVIDER_ID: authStore.providerId,
         LOCATION_CD: 'VISITS_PAGE',
         SOURCESYSTEM_CD: defaultSourceSystem,
         INSTANCE_NUM: 1,
@@ -171,11 +173,12 @@ export const useMedicationsStore = defineStore('medications', () => {
             NVAL_NUM = ?,
             UNIT_CD = ?,
             OBSERVATION_BLOB = ?,
+            PROVIDER_ID = ?,
             UPDATE_DATE = datetime('now')
         WHERE OBSERVATION_ID = ?
       `
 
-      const params = [normalized.drugName, normalized.dosage, normalized.dosageUnit, JSON.stringify(medicationBlob), observationId]
+      const params = [normalized.drugName, normalized.dosage, normalized.dosageUnit, JSON.stringify(medicationBlob), authStore.providerId, observationId]
 
       logger.debug('Executing medication update', {
         query: updateQuery,
@@ -376,11 +379,12 @@ export const useMedicationsStore = defineStore('medications', () => {
             NVAL_NUM = NULL,
             UNIT_CD = 'mg',
             OBSERVATION_BLOB = ?,
+            PROVIDER_ID = ?,
             UPDATE_DATE = datetime('now')
         WHERE OBSERVATION_ID = ?
       `
 
-      const params = [JSON.stringify(emptyBlob), observationId]
+      const params = [JSON.stringify(emptyBlob), authStore.providerId, observationId]
 
       const result = await dbStore.executeQuery(updateQuery, params)
 

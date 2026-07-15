@@ -53,6 +53,20 @@
           <span class="stat-label">{{ $t('dataGrid.cells') }}</span>
         </div>
 
+        <!-- Visit-type lock: clickable chip toggling viewOptions.visitTypeLockActive. -->
+        <q-chip
+          dense
+          clickable
+          :icon="visitTypeLockActive ? 'lock' : 'lock_open'"
+          :color="visitTypeLockActive ? 'primary' : 'grey-3'"
+          :text-color="visitTypeLockActive ? 'white' : 'grey-8'"
+          class="q-ml-sm"
+          @click="onToggleVisitTypeLock"
+        >
+          {{ $t('dataGrid.visitTypeLock') }}
+          <q-tooltip>{{ $t('dataGrid.visitTypeLockHint') }}</q-tooltip>
+        </q-chip>
+
         <!-- Open audits: clickable chip that toggles the audit-only filter. -->
         <q-chip
           v-if="statistics.openAuditsCount > 0 || auditFilterActive"
@@ -85,9 +99,14 @@ const unsavedChangesCount = computed(() => dataGridStore?.unsavedChangesCount ||
 const lastUpdateTime = computed(() => dataGridStore?.lastUpdateTime || '')
 const statistics = computed(() => dataGridStore?.statistics || null)
 const auditFilterActive = computed(() => !!dataGridStore?.auditFilterActive)
+const visitTypeLockActive = computed(() => dataGridStore?.viewOptions?.visitTypeLockActive === true)
 
 const onToggleAuditFilter = () => {
   dataGridStore?.toggleAuditFilter?.()
+}
+
+const onToggleVisitTypeLock = () => {
+  dataGridStore?.updateViewOptions?.({ visitTypeLockActive: !visitTypeLockActive.value })
 }
 </script>
 
