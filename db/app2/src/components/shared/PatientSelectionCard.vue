@@ -127,17 +127,11 @@ const searchPatients = async () => {
   }
 
   try {
-    const result = await dbStore.executeQuery(
-      `SELECT PATIENT_NUM, PATIENT_CD, PATIENT_BLOB, AGE_IN_YEARS
-       FROM PATIENT_DIMENSION
-       WHERE PATIENT_CD LIKE ? OR PATIENT_BLOB LIKE ?
-       ORDER BY PATIENT_CD
-       LIMIT 10`,
-      [`%${patientSearch.value}%`, `%${patientSearch.value}%`],
-    )
+    // Access-controlled search (regular users only see their own/public patients)
+    const result = await dbStore.getPatientsPaginated(1, 10, { searchTerm: patientSearch.value })
 
-    if (result.success) {
-      patients.value = result.data.map((patient) => {
+    {
+      patients.value = (result.patients || []).map((patient) => {
         // Try to parse PATIENT_BLOB for additional info
         let additionalInfo = {}
         try {
@@ -187,11 +181,11 @@ const loadRecentPatients = async () => {
     const recent = localSettings.getSetting('visits.recentPatients') || []
 
     if (recent.length > 0 && dbStore.canPerformOperations) {
-      const patientRepo = dbStore.getRepository('patient')
       const patientDetails = await Promise.all(
         recent.slice(0, 5).map(async (patientId) => {
           try {
-            const patient = await patientRepo.findByPatientCode(patientId)
+            // Access-controlled: inaccessible recents drop out instead of rendering
+            const patient = await dbStore.getAccessiblePatientByCode(patientId)
             if (patient) {
               const lastVisitDate = await getLastVisitDate(patient.PATIENT_NUM)
               return {

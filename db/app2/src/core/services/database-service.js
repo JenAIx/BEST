@@ -28,6 +28,7 @@ import { passwordHashing } from '../database/migrations/008-password-hashing.js'
 import { fixPatientCascade } from '../database/migrations/009-fix-patient-cascade.js'
 import { strokeLipidSeed } from '../database/migrations/010-stroke-lipid-seed.js'
 import { auditValueflags } from '../database/migrations/011-audit-valueflags.js'
+import { publicPatientAccess } from '../database/migrations/012-public-patient-access.js'
 
 class DatabaseService {
   constructor() {
@@ -80,6 +81,7 @@ class DatabaseService {
       this.migrationManager.registerMigration(fixPatientCascade)
       this.migrationManager.registerMigration(strokeLipidSeed)
       this.migrationManager.registerMigration(auditValueflags)
+      this.migrationManager.registerMigration(publicPatientAccess)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()

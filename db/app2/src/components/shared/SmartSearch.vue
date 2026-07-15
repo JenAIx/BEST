@@ -185,11 +185,6 @@ const performSearch = async () => {
 
   isSearching.value = true
   try {
-    const patientRepo = dbStore.getRepository('patient')
-    if (!patientRepo) {
-      throw new Error('Patient repository not available')
-    }
-
     // Build search criteria
     const criteria = {
       searchTerm: searchQuery.value.trim(),
@@ -199,7 +194,8 @@ const performSearch = async () => {
       },
     }
 
-    const result = await patientRepo.getPatientsPaginated(1, 10, criteria)
+    // dbStore wrapper applies user access control (regular users: own + public)
+    const result = await dbStore.getPatientsPaginated(1, 10, criteria)
     searchResults.value = (result.patients || []).map((patient) => ({
       id: patient.PATIENT_NUM,
       patientId: patient.PATIENT_CD,

@@ -44,8 +44,11 @@
               <div class="col-12 col-sm-6">
                 <q-select v-model="filters.vitalStatus" :options="vitalStatusOptions" :label="$t('patient.vitalStatus')" outlined dense clearable emit-value map-options />
               </div>
-              <div class="col-12">
+              <div class="col-12 col-sm-6">
                 <q-select v-model="filters.studies" :options="studyOptions" :label="$t('study.studies')" outlined dense clearable multiple emit-value map-options :loading="loadingStudies" />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-select v-model="filters.createdBy" :options="userOptions" :label="$t('visits.filterByCreator')" outlined dense clearable emit-value map-options :loading="loadingUsers" />
               </div>
             </div>
             <div class="row justify-end q-mt-md">
@@ -135,6 +138,7 @@ const filters = ref({
   vitalStatus: null,
   ageRange: { ...DEFAULT_AGE_RANGE },
   studies: [],
+  createdBy: null,
 })
 
 // Filter option lists
@@ -142,25 +146,30 @@ const sexOptions = ref([])
 const vitalStatusOptions = ref([])
 const studyOptions = ref([])
 const loadingStudies = ref(false)
+const userOptions = ref([])
+const loadingUsers = ref(false)
 
 const hasActiveFilters = computed(() =>
   !!filters.value.sex ||
   !!filters.value.vitalStatus ||
   filters.value.ageRange.min !== DEFAULT_AGE_RANGE.min ||
   filters.value.ageRange.max !== DEFAULT_AGE_RANGE.max ||
-  (filters.value.studies && filters.value.studies.length > 0),
+  (filters.value.studies && filters.value.studies.length > 0) ||
+  filters.value.createdBy !== null,
 )
 
 const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.value)
 
 // Methods
-const mapPatientForCard = async (patient) => ({
+const mapPatientForCard = async (patient, access = null) => ({
   id: patient.PATIENT_CD,
   name: getPatientName(patient),
   age: patient.AGE_IN_YEARS,
   gender: patient.SEX_RESOLVED || patient.SEX_CD,
   lastVisit: await getLastVisitDate(patient.PATIENT_NUM),
   visitCount: await getVisitCount(patient.PATIENT_NUM),
+  owner: access?.ownerUserCd || null,
+  isPublic: access?.isPublic || false,
 })
 
 const loadLatestAddedPatients = async () => {
@@ -170,7 +179,9 @@ const loadLatestAddedPatients = async () => {
       orderDirection: 'DESC',
     },
   })
-  return await Promise.all((result.patients || []).map(mapPatientForCard))
+  const patients = result.patients || []
+  const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+  return await Promise.all(patients.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM))))
 }
 
 const loadRecentPatients = async () => {
@@ -180,27 +191,29 @@ const loadRecentPatients = async () => {
     const recent = localSettings.getSetting('visits.recentPatients') || []
 
     if (recent.length > 0) {
-      const patientRepo = dbStore.getRepository('patient')
+      // Access-controlled lookup: entries the current user may not see
+      // (e.g. left over from an admin session) drop out here instead of
+      // rendering cards whose click would then be denied.
       const patientDetails = await Promise.all(
         recent.slice(0, 5).map(async (patientId) => {
           try {
-            const patient = await patientRepo.findByPatientCode(patientId)
-            return patient ? await mapPatientForCard(patient) : null
+            return await dbStore.getAccessiblePatientByCode(patientId)
           } catch (error) {
             logger.warn('Failed to load recent patient', { patientId, error })
             return null
           }
         }),
       )
-      const filtered = patientDetails.filter((p) => p !== null)
-      if (filtered.length > 0) {
-        recentPatients.value = filtered
+      const accessible = patientDetails.filter((p) => p !== null)
+      if (accessible.length > 0) {
+        const accessMap = await dbStore.getPatientAccessInfo(accessible.map((p) => p.PATIENT_NUM))
+        recentPatients.value = await Promise.all(accessible.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM))))
         recentPatientsSource.value = 'history'
         return
       }
     }
 
-    // No history yet — fall back to the most recently added patients
+    // No (accessible) history yet — fall back to the most recently added patients
     recentPatients.value = await loadLatestAddedPatients()
     recentPatientsSource.value = 'latest'
   } catch (error) {
@@ -254,16 +267,33 @@ const runSearch = async () => {
       }
     }
 
+    // Creator filter: resolve the patients created by the selected user
+    // (same PATIENT_NUM-prefilter pattern as the study filter above)
+    let patientNumFilter = enrolledPatientNums
+    if (filters.value.createdBy !== null && filters.value.createdBy !== undefined) {
+      const lookupRepo = dbStore.getRepository('userPatientLookup')
+      const createdNums = new Set(await lookupRepo.getPatientNumsCreatedBy(filters.value.createdBy))
+      patientNumFilter = patientNumFilter ? new Set([...patientNumFilter].filter((num) => createdNums.has(num))) : createdNums
+      if (patientNumFilter.size === 0) {
+        searchResults.value = []
+        return
+      }
+    }
+
     const criteria = buildSearchCriteria()
-    if (enrolledPatientNums && enrolledPatientNums.size > 0) {
-      criteria.patientNums = Array.from(enrolledPatientNums)
+    if (patientNumFilter && patientNumFilter.size > 0) {
+      criteria.patientNums = Array.from(patientNumFilter)
     }
 
     const result = await dbStore.getPatientsPaginated(1, 25, criteria)
 
+    const patients = result.patients || []
+    const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+
     const enhanced = await Promise.all(
-      (result.patients || []).map(async (patient) => {
+      patients.map(async (patient) => {
         const visitCount = await getVisitCount(patient.PATIENT_NUM)
+        const access = accessMap.get(patient.PATIENT_NUM)
         return {
           id: patient.PATIENT_CD,
           name: getPatientName(patient),
@@ -271,6 +301,8 @@ const runSearch = async () => {
           gender: patient.SEX_RESOLVED || patient.SEX_CD,
           visitCount,
           lastVisit: visitCount > 0 ? await getLastVisitDate(patient.PATIENT_NUM) : null,
+          owner: access?.ownerUserCd || null,
+          isPublic: access?.isPublic || false,
         }
       }),
     )
@@ -297,6 +329,7 @@ const resetFilters = () => {
     vitalStatus: null,
     ageRange: { ...DEFAULT_AGE_RANGE },
     studies: [],
+    createdBy: null,
   }
 }
 
@@ -407,11 +440,29 @@ const formatVisitDate = (dateStr) => {
   })
 }
 
+const loadUserOptions = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+    loadingUsers.value = true
+    const result = await dbStore.executeQuery('SELECT USER_ID, USER_CD, NAME_CHAR FROM USER_MANAGEMENT ORDER BY USER_CD')
+    userOptions.value = (result.success ? result.data : []).map((user) => ({
+      label: user.NAME_CHAR ? `${user.NAME_CHAR} (${user.USER_CD})` : user.USER_CD,
+      value: user.USER_ID,
+    }))
+  } catch (error) {
+    logger.warn('Failed to load user options', error)
+    userOptions.value = []
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   await loadRecentPatients()
   loadFilterOptions()
   loadStudyOptions()
+  loadUserOptions()
 })
 
 watch(

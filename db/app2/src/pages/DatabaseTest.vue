@@ -390,6 +390,7 @@ const createDemoPatients = async () => {
       visitRepository: databaseStore.getRepository('visit'),
       observationRepository: databaseStore.getRepository('observation'),
       conceptRepository: databaseStore.getRepository('concept'),
+      userPatientLookupRepository: databaseStore.getRepository('userPatientLookup'),
     }
 
     notify.info('Creating 20 demo patients with visits and observations...', { timeout: 2000 })

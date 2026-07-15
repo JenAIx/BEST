@@ -198,7 +198,6 @@ const loadTableData = async () => {
     if (!dbStore.canPerformOperations) return
 
     loading.value = true
-    const patientRepo = dbStore.getRepository('patient')
 
     // Build filter criteria - need to map resolved names back to codes
     const criteria = {}
@@ -232,8 +231,9 @@ const loadTableData = async () => {
       orderDirection: pagination.value.descending ? 'DESC' : 'ASC',
     }
 
-    // Use server-side pagination with sorting
-    const result = await patientRepo.getPatientsPaginated(pagination.value.page, pagination.value.rowsPerPage, {
+    // Use server-side pagination with sorting.
+    // dbStore wrapper applies user access control (regular users: own + public)
+    const result = await dbStore.getPatientsPaginated(pagination.value.page, pagination.value.rowsPerPage, {
       ...criteria,
       options: sortOptions,
     })

@@ -20,12 +20,38 @@ export class DatabaseImportService extends BaseImportService {
     this.visitRepo = this.databaseService.getRepository('visit')
     this.observationRepo = this.databaseService.getRepository('observation')
     this.conceptRepo = this.databaseService.getRepository('concept')
+    this.userPatientLookupRepo = this.databaseService.getRepository('userPatientLookup')
 
     // Configuration
     this.config = {
       duplicateStrategy: 'skip', // 'skip', 'update', 'error'
       batchSize: 100,
       transactionTimeout: 30000, // 30 seconds
+      // Access control for newly imported patients: public by default (matching
+      // the create-patient dialog and migration 012); creator row when the
+      // caller provides the importing user's id.
+      assignPublicAccess: true,
+      currentUserId: null,
+    }
+  }
+
+  /**
+   * Write USER_PATIENT_LOOKUP rows for a newly imported patient so it is
+   * visible to regular users (public) and attributed to the importer (creator).
+   * Without these rows an imported patient is only visible to admins.
+   */
+  async assignPatientAccess(patientNum, config) {
+    if (!this.userPatientLookupRepo || !patientNum) return
+
+    if (config.currentUserId) {
+      await this.userPatientLookupRepo.addAssociationIfMissing(config.currentUserId, patientNum, {
+        nameChar: 'Creator access - auto-assigned',
+      })
+    }
+    if (config.assignPublicAccess !== false) {
+      await this.userPatientLookupRepo.addAssociationIfMissing(0, patientNum, {
+        nameChar: 'Public access - import',
+      })
     }
   }
 
@@ -198,6 +224,10 @@ export class DatabaseImportService extends BaseImportService {
           SOURCESYSTEM_CD: patient.SOURCESYSTEM_CD || 'IMPORT',
           UPLOAD_ID: patient.UPLOAD_ID || 1,
         })
+
+        // Access rows (public + creator) — otherwise the imported patient is
+        // invisible to every regular user
+        await this.assignPatientAccess(createdPatient.PATIENT_NUM, config)
 
         results.imported++
         results.idMap[patientCd] = createdPatient.PATIENT_NUM

@@ -697,6 +697,9 @@ const updateObservation = async () => {
   } else {
     updates.TVAL_CHAR = editValue.value
     updates.NVAL_NUM = null // Clear numeric value for text
+    // Clear any stale NV/AUDIT/CONFIRMED flag — saveEdit emits valueFlag=null
+    // for non-numeric edits, so the DB must match the local mirror.
+    updates.VALUEFLAG_CD = null
   }
 
   const setClause = Object.keys(updates)

@@ -692,11 +692,15 @@ const saveRow = async (row, { isRevert = false } = {}) => {
         TVAL_CHAR: medicationData.drugName, // Only drug name in TVAL_CHAR
         NVAL_NUM: medicationData.dosage ? parseFloat(medicationData.dosage) : null,
         OBSERVATION_BLOB: JSON.stringify(medicationData), // Full structured data
+        VALUEFLAG_CD: null, // Writing a value clears any NV/AUDIT/CONFIRMED flag (CLAUDE.md §3)
       }
       await visitObservationService.updateObservation(row.observationId, updateData, { skipReload: true })
     } else {
-      // Handle regular observation updates based on value type
-      const updateData = {}
+      // Handle regular observation updates based on value type.
+      // Writing a value always clears the VALUEFLAG_CD state (NV means "no
+      // value" and must not survive a real value; stale AUDIT/CONFIRMED
+      // flags are reset by an edit — same policy as the grid editor).
+      const updateData = { VALUEFLAG_CD: null }
 
       switch (row.valueType) {
         case 'N': {
@@ -743,6 +747,9 @@ const saveRow = async (row, { isRevert = false } = {}) => {
     // Update the raw observation in our local data to reflect the save
     // This prevents the need for a full refresh
     if (row.rawObservation) {
+      // Mirror the flag reset (see updateData.VALUEFLAG_CD above)
+      row.rawObservation.VALUEFLAG_CD = null
+      row.rawObservation.valueFlag = null
       switch (row.valueType) {
         case 'N': {
           const parsed = parseFloat(row.currentVal)
