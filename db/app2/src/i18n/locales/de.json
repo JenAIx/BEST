@@ -244,6 +244,10 @@
     "visitsObservationsSummary": "Besuche & Beobachtungen Übersicht",
     "additionalInfoCard": "Zusätzliche Infos",
     "customFields": "Eigene Felder",
+    "publicToggle": "Öffentlich – für alle Nutzer sichtbar",
+    "publicToggleHint": "Wenn aktiviert, können alle Nutzer diesen Patienten sehen. Wenn deaktiviert, nur Sie und Administratoren.",
+    "publicAccess": "Öffentlich (für alle Nutzer sichtbar)",
+    "owner": "Angelegt von",
     "addField": "Feld hinzufügen",
     "removeField": "Feld löschen",
     "fieldName": "Feldname",
@@ -903,6 +907,7 @@
     "findPatient": "Patient finden",
     "searchPatientPlaceholder": "Nach Name oder Patienten-ID suchen...",
     "advancedFilters": "Erweiterte Filter",
+    "filterByCreator": "Angelegt von",
     "dragToResize": "Ziehen zum Ändern der Beobachtungsspalten-Größe"
   },
   "notifications": {

@@ -156,11 +156,6 @@ const onSearchInput = async () => {
     searching.value = true
     if (!dbStore.canPerformOperations) return
 
-    const patientRepo = dbStore.getRepository('patient')
-    if (!patientRepo) {
-      throw new Error('Patient repository not available')
-    }
-
     // Build search criteria (matching SmartSearch.vue pattern)
     const criteria = {
       searchTerm: patientSearchQuery.value.trim(),
@@ -170,7 +165,8 @@ const onSearchInput = async () => {
       },
     }
 
-    const result = await patientRepo.getPatientsPaginated(1, 10, criteria)
+    // dbStore wrapper applies user access control (regular users: own + public)
+    const result = await dbStore.getPatientsPaginated(1, 10, criteria)
 
     // Filter out already enrolled patients
     const enrolledSet = new Set(props.enrolledPatientNums)

@@ -65,7 +65,13 @@
                   </q-item-section>
                   <q-item-section>
                     <q-item-label>{{ patient.name }}</q-item-label>
-                    <q-item-label caption>ID: {{ patient.id }} | Age: {{ patient.age }}</q-item-label>
+                    <q-item-label caption>
+                      ID: {{ patient.id }} | Age: {{ patient.age }}
+                      <template v-if="patient.owner"> | {{ $t('patient.owner') }}: {{ patient.owner }}</template>
+                      <q-icon v-if="patient.isPublic" name="public" size="12px" class="q-ml-xs">
+                        <q-tooltip>{{ $t('patient.publicAccess') }}</q-tooltip>
+                      </q-icon>
+                    </q-item-label>
                   </q-item-section>
                   <q-item-section side>
                     <q-item-label caption>{{ patient.lastVisit }}</q-item-label>
@@ -306,9 +312,18 @@
             @row-click="onPatientClick"
             class="cursor-pointer"
           >
+            <template v-slot:body-cell-owner="props">
+              <q-td :props="props">
+                <span>{{ props.row.owner || '—' }}</span>
+                <q-icon v-if="props.row.isPublic" name="public" size="14px" color="grey-6" class="q-ml-xs">
+                  <q-tooltip>{{ $t('patient.publicAccess') }}</q-tooltip>
+                </q-icon>
+              </q-td>
+            </template>
             <template v-slot:body-cell-actions="props">
               <q-td :props="props" @click.stop>
-                <div class="patient-delete-btn">
+                <!-- Delete only for admins or the patient's creator -->
+                <div v-if="canDeletePatient(props.row)" class="patient-delete-btn">
                   <AppRemoveConfirmationButton @remove-confirmed="confirmDeletePatient(props.row)" />
                 </div>
               </q-td>
@@ -445,6 +460,12 @@ const tableColumns = [
     align: 'center',
   },
   {
+    name: 'owner',
+    label: 'Owner',
+    field: 'owner',
+    align: 'center',
+  },
+  {
     name: 'actions',
     label: '',
     field: 'actions',
@@ -480,6 +501,9 @@ const translatedTableColumns = computed(() => {
           case 'status':
             translatedLabel = t('patient.vitalStatus')
             break
+          case 'owner':
+            translatedLabel = t('patient.owner')
+            break
           default:
             translatedLabel = col.label
         }
@@ -503,6 +527,14 @@ const hasActiveFilters = computed(() => {
   return filters.value.search || filters.value.gender || filters.value.status
 })
 
+// Deletion is restricted to admins and the patient's creator (matches the
+// guard in database-store.deletePatient)
+const canDeletePatient = (row) => {
+  if (authStore.isAdmin) return true
+  const currentUserId = authStore.currentUser?.USER_ID
+  return currentUserId !== undefined && currentUserId !== null && row.ownerUserId === currentUserId
+}
+
 // Data loading methods
 const loadRecentPatients = async () => {
   try {
@@ -516,12 +548,17 @@ const loadRecentPatients = async () => {
       },
     })
 
-    recentPatients.value = (result.patients || []).map((patient) => ({
+    const patients = result.patients || []
+    const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+
+    recentPatients.value = patients.map((patient) => ({
       id: patient.PATIENT_CD,
       name: getPatientName(patient),
       age: patient.AGE_IN_YEARS || 'Unknown',
       lastVisit: formatRelativeTime(patient.UPDATE_DATE || patient.IMPORT_DATE || patient.CREATED_AT),
       patient_num: patient.PATIENT_NUM,
+      owner: accessMap.get(patient.PATIENT_NUM)?.ownerUserCd || null,
+      isPublic: accessMap.get(patient.PATIENT_NUM)?.isPublic || false,
       // Include original patient data for PatientAvatar component
       SEX_RESOLVED: patient.SEX_RESOLVED,
       SEX_CD: patient.SEX_CD,
@@ -675,13 +712,19 @@ const loadTableData = async () => {
       options: sortOptions,
     })
 
-    tableData.value = (result.patients || []).map((patient) => ({
+    const patients = result.patients || []
+    const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+
+    tableData.value = patients.map((patient) => ({
       id: patient.PATIENT_CD,
       name: getPatientName(patient),
       age: patient.AGE_IN_YEARS || 'Unknown',
       gender: patient.SEX_RESOLVED || patient.SEX_CD || 'Unknown',
       lastChanged: formatDate(patient.UPDATE_DATE || patient.IMPORT_DATE || patient.CREATED_AT),
       status: patient.VITAL_STATUS_RESOLVED || patient.VITAL_STATUS_CD || 'Unknown',
+      owner: accessMap.get(patient.PATIENT_NUM)?.ownerUserCd || null,
+      ownerUserId: accessMap.get(patient.PATIENT_NUM)?.ownerUserId ?? null,
+      isPublic: accessMap.get(patient.PATIENT_NUM)?.isPublic || false,
       patient_num: patient.PATIENT_NUM, // Include PATIENT_NUM for deletion
       // Include original patient data for PatientAvatar component and deletion
       SEX_RESOLVED: patient.SEX_RESOLVED,

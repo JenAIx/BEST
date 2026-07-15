@@ -244,6 +244,10 @@
     "visitsObservationsSummary": "Visits & Observations Summary",
     "additionalInfoCard": "Additional Info",
     "customFields": "Custom Fields",
+    "publicToggle": "Public – visible to all users",
+    "publicToggleHint": "When enabled, all users can see this patient. When disabled, only you and administrators.",
+    "publicAccess": "Public (visible to all users)",
+    "owner": "Created by",
     "addField": "Add Field",
     "removeField": "Remove Field",
     "fieldName": "Field Name",
@@ -903,6 +907,7 @@
     "findPatient": "Find Patient",
     "searchPatientPlaceholder": "Search by name or Patient ID...",
     "advancedFilters": "Advanced Filters",
+    "filterByCreator": "Created by",
     "dragToResize": "Drag to resize observation column"
   },
   "notifications": {

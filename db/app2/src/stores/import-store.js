@@ -341,10 +341,20 @@ export const useImportStore = defineStore('import', () => {
       importProgress.value = 'Importing to database...'
       importProgressValue.value = 60
 
-      // Import to database using the DatabaseImportService
+      // Import to database using the DatabaseImportService.
+      // Pass the importing user so new patients get creator + public access rows.
+      let currentUserId = null
+      try {
+        const { useAuthStore } = await import('./auth-store.js')
+        currentUserId = useAuthStore().currentUser?.USER_ID ?? null
+      } catch {
+        // No auth context (e.g. headless import) — patients still become public
+      }
+
       const dbResult = await dbImportService.importToDatabase(processedStructure, {
         duplicateStrategy: options.duplicateStrategy || 'skip',
         importToDatabase: true,
+        currentUserId,
       })
 
       importProgress.value = 'Finalizing import...'

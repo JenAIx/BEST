@@ -342,7 +342,7 @@ function generateObservationData(patientNum, encounterNum, obsIndex, visitDate) 
  * @returns {Promise<Object>} Creation results
  */
 export async function createDemoPatients(repositories, count = 20) {
-  const { patientRepository, visitRepository, observationRepository, conceptRepository } = repositories
+  const { patientRepository, visitRepository, observationRepository, conceptRepository, userPatientLookupRepository } = repositories
 
   const results = {
     patients: [],
@@ -373,6 +373,14 @@ export async function createDemoPatients(repositories, count = 20) {
         const patientData = generatePatientData(i, conceptAnswers)
         const patient = await patientRepository.createPatient(patientData)
         results.patients.push(patient)
+
+        // Public access row — without it the demo patient is invisible to
+        // every regular user (see USER_PATIENT_LOOKUP access model)
+        if (userPatientLookupRepository) {
+          await userPatientLookupRepository.addAssociationIfMissing(0, patient.PATIENT_NUM, {
+            nameChar: 'Public access - demo data',
+          })
+        }
 
         // Create 2-3 visits per patient
         const visitCount = Math.floor(Math.random() * 2) + 2 // 2-3 visits

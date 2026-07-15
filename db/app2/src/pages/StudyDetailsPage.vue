@@ -428,8 +428,8 @@ const loadEnrolledPatients = async () => {
     loadingPatients.value = true
     if (!dbStore.canPerformOperations) return
 
-    const studyRepo = dbStore.getRepository('study')
-    const patients = await studyRepo.getEnrolledPatients(studyId)
+    // Access-filtered: regular users only see enrolled patients they may access
+    const patients = await dbStore.getEnrolledPatientsForStudy(studyId)
     
     // Transform patient data
     enrolledPatients.value = patients.map((p) => ({

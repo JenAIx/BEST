@@ -156,6 +156,11 @@
               <q-icon name="notes" />
             </template>
           </q-input>
+
+          <!-- Access: public toggle (default on) -->
+          <q-toggle v-model="isPublic" :label="$t('patient.publicToggle')" color="primary" icon="public" left-label>
+            <q-tooltip>{{ $t('patient.publicToggleHint') }}</q-tooltip>
+          </q-toggle>
         </q-form>
       </q-card-section>
 
@@ -229,6 +234,7 @@ const formData = ref({
 // Additional form fields
 const patientName = ref('')
 const patientNotes = ref('')
+const isPublic = ref(true) // Default: patient visible to all users
 
 // Dynamic options loaded from concept store
 const genderOptions = ref([])
@@ -276,6 +282,7 @@ const resetForm = async () => {
   }
   patientName.value = ''
   patientNotes.value = ''
+  isPublic.value = true
 }
 
 const generatePatientId = async () => {
@@ -455,7 +462,7 @@ const handleSubmit = async () => {
     }
 
     // Create the patient using database store
-    const createdPatient = await databaseStore.createPatient(patientData)
+    const createdPatient = await databaseStore.createPatient(patientData, { isPublic: isPublic.value })
 
     notify.success(`Patient created successfully (ID: ${createdPatient.PATIENT_CD})`, {
       timeout: 3000,

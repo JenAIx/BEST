@@ -1,5 +1,15 @@
 <template>
   <q-card :class="cardClasses" flat @click="selectPatient">
+    <!-- Owner badge (top right, ellipsis overflow, full text in tooltip) -->
+    <div v-if="patient.owner || patient.isPublic" class="owner-badge" :class="`owner-badge--${variant}`">
+      <q-icon :name="patient.isPublic ? 'public' : 'person'" size="11px" />
+      <span v-if="patient.owner" class="owner-badge-text">{{ patient.owner }}</span>
+      <q-tooltip>
+        <template v-if="patient.owner">{{ $t('patient.owner') }}: {{ patient.owner }}</template>
+        <template v-if="patient.owner && patient.isPublic"> · </template>
+        <template v-if="patient.isPublic">{{ $t('patient.publicAccess') }}</template>
+      </q-tooltip>
+    </div>
     <q-card-section class="patient-card-content">
       <q-avatar :size="variant === 'recent' ? '40px' : '36px'" :color="variant === 'recent' ? 'primary' : 'secondary'" text-color="white">
         {{ patientInitials }}
@@ -145,6 +155,35 @@ const selectPatient = () => {
     display: flex;
     align-items: center;
     line-height: 1.3;
+  }
+}
+
+.owner-badge {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 45%;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  background: $grey-2;
+  color: $grey-7;
+
+  .owner-badge-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &--recent {
+    background: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.9);
   }
 }
 

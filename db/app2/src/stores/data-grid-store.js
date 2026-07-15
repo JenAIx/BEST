@@ -216,12 +216,16 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       const cleanedIds = cleanPatientIds(patientIds)
       logger.info('Loading grid data for patients', { patientIds: cleanedIds, count: cleanedIds.length })
 
-      // Load patient data using the database store
+      // Load patient data using the database store (access-filtered:
+      // inaccessible IDs from stored selections are dropped)
       const patients = await dbStore.loadBatchPatientData(cleanedIds)
       patientData.value = patients
 
-      // Load observation data
-      const observations = await dbStore.loadBatchObservationData(cleanedIds)
+      // Load observation data ONLY for the patients that passed the access
+      // filter — otherwise observations of inaccessible patients would be
+      // synthesized into grid rows by processObservationDataForGrid.
+      const accessibleIds = patients.map((entry) => String(entry.patient.PATIENT_CD))
+      const observations = accessibleIds.length > 0 ? await dbStore.loadBatchObservationData(accessibleIds) : []
 
       // Process the data for grid display
       const processed = dbStore.processObservationDataForGrid(observations, patients)

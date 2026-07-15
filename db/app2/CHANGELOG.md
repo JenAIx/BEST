@@ -9,6 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **User-Access: Public-Patienten, Owner-Anzeige, Creator-Filter** —
+  - Patient-Neuanlage hat einen "Öffentlich"-Toggle (default an): public
+    Patienten bekommen zusätzlich zur Creator-Zuordnung eine
+    `USER_PATIENT_LOOKUP`-Zeile mit `USER_ID = 0` und sind damit für alle
+    Nutzer sichtbar (`database-store.createPatient({ isPublic })`).
+  - Migration `012-public-patient-access`: Bestandspatienten ohne
+    Nutzer-Zuordnung (u. a. die 425 Lipid-Import-Patienten) werden public.
+  - Owner-Badge (rechts oben, Ellipsis + Tooltip) auf den Patientenkarten in
+    `/visits`; Owner-Spalte in der Dashboard-Tabelle und Owner in der
+    "Recent Patients"-Liste. Auflösung batch-weise über
+    `UserPatientLookupRepository.getPatientAccessInfo`.
+  - Neuer Filter "Angelegt von" in den erweiterten Filtern des
+    Patient-Selectors und auf der Data-Grid-Auswahlseite
+    (`getPatientNumsCreatedBy`; Auswahl des Public-Users filtert auf
+    öffentliche Patienten). Owner-Anzeige (dezent) auch in der
+    Data-Grid-Patiententabelle.
+
+### Fixed
+
+- **User-Access: ungefilterte Anzeigepfade** — "Zuletzt"-Karten im
+  Patient-Selector und die Suche/Recents der PatientSelectionCard umgingen die
+  Zugriffskontrolle (direktes `findByPatientCode`/SQL): Nutzer sahen Karten,
+  deren Klick dann mit "Patient not found or access denied" scheiterte. Alle
+  UI-Lookups laufen jetzt über `findAccessiblePatientByCode` bzw.
+  `getPatientsPaginated` (beide USER_PATIENT_LOOKUP-gefiltert, Public-User 0
+  eingeschlossen). Tests: `tests/unit/20_user-access.test.js`.
+- **User-Access-Review (alle Query-Pfade)** — weitere ungefilterte Pfade
+  geschlossen: Header-Suche (`SmartSearch`), Studien-Einschreibung
+  (`EnrollPatientDialog`), Export-Patiententabelle (`ExportPage`) riefen
+  `patientRepo.getPatientsPaginated` ohne User-Kontext auf; der
+  Data-Grid-Editor lud gespeicherte Auswahlen ungefiltert
+  (`loadBatchPatientData` → neu `findAccessiblePatientsByCodes`).
+  `countByCriteriaFromView` warf bei Regular-Usern mit `patientNums`-Kriterium
+  "ambiguous column name: PATIENT_NUM" (fehlender Alias) und zählte
+  searchTerm-Treffer ohne Access-Filter — beides gefixt. Das
+  Zugriffs-Prädikat ist jetzt in `PatientRepository.getAccessFilter()`
+  zentralisiert (ein Ort statt fünf SQL-Duplikate).
+- **Tiefenanalyse User-Access + Audit-Workflow** (3 parallele Code-Audits):
+  - Import-Pfade (CSV/Survey/HL7/JSON via `database-import-service`) und der
+    Demo-Generator legten Patienten ohne `USER_PATIENT_LOOKUP`-Zeilen an
+    (unsichtbar für normale Nutzer). Importe schreiben jetzt Creator- +
+    Public-Zeilen (`assignPatientAccess`, Optionen `currentUserId` /
+    `assignPublicAccess`), Demo-Patienten werden public.
+  - Patienten-Löschung war für jeden sichtbaren Patienten möglich (inkl.
+    public). Jetzt: nur Admins oder der Ersteller (Guard in
+    `database-store.deletePatient` + Button-Gating im Dashboard).
+  - `StudyDetailsPage` zeigte alle eingeschriebenen Patienten einer Studie
+    ungefiltert (Name, ID, Demografie). `getEnrolledPatients` unterstützt
+    jetzt `userAccess`; die Seite lädt über den gefilterten Wrapper
+    `dbStore.getEnrolledPatientsForStudy`.
+  - Grid-Editor lud Observations ungefiltert und synthetisierte daraus
+    Zeilen für unzugängliche Patienten — Observations werden jetzt nur für
+    die zugriffsgefilterte Patientenliste geladen.
+  - `VALUEFLAG_CD`-Konsistenz: Der Visits-Editor ließ Flags beim
+    Wertschreiben stehen (NV+Wert-Inkonsistenz möglich), das Grid löschte
+    Flags bei Nicht-Numerik nur lokal, nicht in der DB (Divergenz). Beide
+    Editoren setzen jetzt bei jedem Wertschreiben `VALUEFLAG_CD = NULL`
+    (DB + lokaler Spiegel), gemäß CLAUDE.md §3.
+  - Export-Service nutzt im UI-Pfad den zugriffsgefilterten Lookup
+    (Defense-in-depth; Headless-Skripte unverändert).
+
 - **Dateneingabe: Autosave + Undo-Fenster** — Observation-Eingaben in der
   Visiten-Dateneingabe speichern jetzt automatisch beim Verlassen des Feldes
   (Blur), bei Enter (Shift+Enter erzeugt im Textfeld weiter einen

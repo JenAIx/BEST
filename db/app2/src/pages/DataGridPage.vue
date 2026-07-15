@@ -48,13 +48,16 @@
                 </template>
               </q-input>
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
               <q-select v-model="filters.gender" :options="genderOptions" label="Gender" outlined dense clearable emit-value map-options />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
               <q-select v-model="filters.status" :options="statusOptions" label="Vital Status" outlined dense clearable emit-value map-options />
             </div>
-            <div class="col-12 col-md-2 text-right">
+            <div class="col-12 col-md-3">
+              <q-select v-model="filters.createdBy" :options="userOptions" :label="$t('visits.filterByCreator')" outlined dense clearable emit-value map-options />
+            </div>
+            <div class="col-12 col-md-1 text-right">
               <q-btn round flat icon="clear_all" color="grey-7" @click="clearFilters" size="md">
                 <q-tooltip>Clear all filters</q-tooltip>
               </q-btn>
@@ -127,7 +130,13 @@
                   </q-avatar>
                   <div>
                     <div class="text-weight-medium">{{ props.row.name }}</div>
-                    <div class="text-caption text-grey-6">ID: {{ props.row.id }}</div>
+                    <div class="text-caption text-grey-6">
+                      ID: {{ props.row.id }}
+                      <template v-if="props.row.owner"> • {{ props.row.owner }}</template>
+                      <q-icon v-if="props.row.isPublic" name="public" size="11px" class="q-ml-xs">
+                        <q-tooltip>{{ $t('patient.publicAccess') }}</q-tooltip>
+                      </q-icon>
+                    </div>
                   </div>
                 </div>
               </q-td>
@@ -184,11 +193,13 @@ const filters = ref({
   search: '',
   gender: null,
   status: null,
+  createdBy: null,
 })
 
 // Dynamic filter options loaded from concept store
 const genderOptions = ref([])
 const statusOptions = ref([])
+const userOptions = ref([])
 
 // Pagination
 const pagination = ref({
@@ -254,7 +265,7 @@ const tableData = ref([])
 
 // Computed properties
 const hasActiveFilters = computed(() => {
-  return filters.value.search || filters.value.gender || filters.value.status
+  return filters.value.search || filters.value.gender || filters.value.status || filters.value.createdBy !== null
 })
 
 const storedPatientIds = computed(() => {
@@ -289,6 +300,18 @@ const loadTableData = async () => {
       criteria.VITAL_STATUS_CD = filters.value.status
     }
 
+    // Creator filter: prefilter by PATIENT_NUM (public user 0 = public patients)
+    if (filters.value.createdBy !== null && filters.value.createdBy !== undefined) {
+      const lookupRepo = dbStore.getRepository('userPatientLookup')
+      const createdNums = await lookupRepo.getPatientNumsCreatedBy(filters.value.createdBy)
+      if (createdNums.length === 0) {
+        tableData.value = []
+        pagination.value.rowsNumber = 0
+        return
+      }
+      criteria.patientNums = createdNums
+    }
+
     // Add sorting options
     const sortOptions = {
       orderBy:
@@ -313,9 +336,11 @@ const loadTableData = async () => {
     // Get visit and observation counts for each patient
     const patientIds = (result.patients || []).map((p) => p.PATIENT_CD)
     const visitsObsCounts = await getVisitsAndObservationCounts(patientIds)
+    const accessMap = await dbStore.getPatientAccessInfo((result.patients || []).map((p) => p.PATIENT_NUM))
 
     tableData.value = (result.patients || []).map((patient) => {
       const counts = visitsObsCounts[patient.PATIENT_CD] || { visits: 0, observations: 0 }
+      const access = accessMap.get(patient.PATIENT_NUM)
       return {
         id: patient.PATIENT_CD,
         name: getPatientName(patient),
@@ -323,6 +348,8 @@ const loadTableData = async () => {
         gender: patient.SEX_RESOLVED || patient.SEX_CD || 'Unknown',
         lastVisit: formatDate(patient.CREATED_AT),
         status: patient.VITAL_STATUS_RESOLVED || patient.VITAL_STATUS_CD || 'Unknown',
+        owner: access?.ownerUserCd || null,
+        isPublic: access?.isPublic || false,
         visitCount: counts.visits,
         observationCount: counts.observations,
         visitsObsDisplay: `${counts.visits}/${counts.observations}`,
@@ -429,6 +456,17 @@ const loadFilterOptions = async () => {
     genderOptions.value = conceptStore.getFallbackOptions('gender')
     statusOptions.value = conceptStore.getFallbackOptions('vital_status')
   }
+
+  try {
+    const result = await dbStore.executeQuery('SELECT USER_ID, USER_CD, NAME_CHAR FROM USER_MANAGEMENT ORDER BY USER_CD')
+    userOptions.value = (result.success ? result.data : []).map((user) => ({
+      label: user.NAME_CHAR ? `${user.NAME_CHAR} (${user.USER_CD})` : user.USER_CD,
+      value: user.USER_ID,
+    }))
+  } catch (error) {
+    logger.error('Failed to load user filter options', error)
+    userOptions.value = []
+  }
 }
 
 // Helper methods
@@ -482,6 +520,7 @@ const clearFilters = async () => {
     search: '',
     gender: null,
     status: null,
+    createdBy: null,
   }
   pagination.value.page = 1
   pagination.value.sortBy = 'id'

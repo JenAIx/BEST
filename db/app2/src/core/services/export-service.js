@@ -141,12 +141,18 @@ export class ExportService {
       this.logger.info(null, `Fetching data for ${patientIds.length} patients`)
       const patients = []
 
+      // Defense-in-depth: when running against the database STORE (UI path),
+      // use the access-controlled lookup so a manipulated selection cannot
+      // export patients the current user may not see. Headless scripts pass
+      // the raw database service (no wrapper) and stay unfiltered.
+      const hasAccessLookup = typeof this.databaseService.getAccessiblePatientByCode === 'function'
+
       for (const patientId of patientIds) {
-        const patient = await patientRepo.findByPatientCode(patientId)
+        const patient = hasAccessLookup ? await this.databaseService.getAccessiblePatientByCode(patientId) : await patientRepo.findByPatientCode(patientId)
         if (patient) {
           patients.push(patient)
         } else {
-          this.logger.warn(null, `Patient not found: ${patientId}`)
+          this.logger.warn(null, `Patient not found or not accessible: ${patientId}`)
         }
       }
 
