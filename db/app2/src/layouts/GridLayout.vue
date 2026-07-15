@@ -39,14 +39,12 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
-import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import GridFooter from 'src/components/datagrid/GridFooter.vue'
 
 const $q = useQuasar()
 
-const notify = useNotify()
 const router = useRouter()
 const dataGridStore = useDataGridStore()
 const { t } = useI18n()
@@ -67,6 +65,17 @@ const gridInfo = computed(() => {
 })
 
 const exitDataGrid = () => {
+  // Go back to where the editor was opened from (e.g. a patient card's
+  // context menu on the dashboard); default: the grid's patient selection.
+  const navigateBack = () => {
+    const previous = router.options.history.state?.back
+    if (previous && !String(previous).startsWith('/data-grid')) {
+      router.back()
+    } else {
+      router.push('/data-grid')
+    }
+  }
+
   // Check if there are unsaved changes
   if (dataGridStore?.hasUnsavedChanges) {
     $q.dialog({
@@ -76,17 +85,11 @@ const exitDataGrid = () => {
       persistent: true,
     }).onOk(() => {
       // Keep stored patient selection for reopen capability
-      // Don't clear - just navigate back
-      router.push('/data-grid')
+      navigateBack()
     })
   } else {
-    // No unsaved changes, navigate directly
-    // Keep stored patient selection for reopen capability
-    // Don't clear - just navigate back
-
-    notify.info(t('dataGrid.returnedToPatientSelection'))
-
-    router.push('/data-grid')
+    // No unsaved changes — keep stored patient selection for reopen capability
+    navigateBack()
   }
 }
 </script>

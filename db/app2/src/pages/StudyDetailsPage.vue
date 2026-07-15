@@ -234,6 +234,7 @@
                 removable
                 @select="onPatientSelect"
                 @remove="confirmWithdrawPatient"
+                @changed="onPatientChanged"
               />
             </div>
             <div v-if="filteredEnrolledPatients.length > enrolledPageSize" class="row justify-center q-mt-md">
@@ -650,6 +651,11 @@ const getEnrollmentStatusColor = (status) => {
 
 const goToStudySearch = () => {
   router.push('/studies')
+}
+
+// Context-menu mutation — refresh study + enrolled list
+const onPatientChanged = async () => {
+  await Promise.all([loadStudy(), loadEnrolledPatients()])
 }
 
 const onPatientSelect = (patient) => {

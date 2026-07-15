@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Rechtsklick-Kontextmenü auf der Standard-Patientenkarte**
+  (`PatientCardMenu.vue`, automatisch auf allen 8 Karten-Flächen):
+  Visiten öffnen, Patientendaten anzeigen/ändern (öffnet die
+  Patientendaten-Ansicht in /visits via `?view=patient`), im
+  Datentabellen-Editor öffnen (setzt die Grid-Auswahl auf diesen
+  Patienten), Patienten-ID kopieren, Studie zuordnen (Submenü mit
+  Häkchen für bereits eingeschriebene), Patient exportieren
+  (Format-Dialog CSV/HL7, Direkt-Download inkl. Visiten/Observations).
+  Für Admin + Owner zusätzlich: Öffentlich machen/entziehen, Owner
+  ändern (Creator-Rolle wechselt, alter Owner behält Zugriff —
+  `transferOwnership`), Löschen (bestehender Dialog + Store-Guard).
+  Berechtigungen laden lazy beim Menü-Öffnen; mutierende Aktionen
+  emittieren `changed`, alle Listen-Seiten laden dann neu.
+  Store-Guards `transferPatientOwnership`/`setPatientPublicAccess`
+  (Admin oder aktueller Owner). 4 neue Tests
+  (`transferOwnership`, `setPublicAccess`).
+  Zurück-Pfeil des Grid-Editors führt zur Herkunftsseite zurück
+  (Router-History, wie der /visits-Zurück-Fix) statt immer zur
+  Grid-Patientenauswahl; Unsaved-Changes-Dialog bleibt davor.
+
 ### Changed
 
 - **/studies platzoptimiert, Studien direkt sichtbar** — Die Studienliste
