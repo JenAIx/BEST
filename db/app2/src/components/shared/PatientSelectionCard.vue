@@ -1,106 +1,90 @@
 <template>
   <q-card flat bordered class="patient-selection-card">
     <q-card-section>
-      <div class="text-h6 q-mb-md">{{ title }}</div>
-      <div class="text-body2 text-grey-6 q-mb-lg">{{ description }}</div>
+      <div v-if="title" class="row items-center q-mb-xs">
+        <q-icon name="person_search" size="20px" color="primary" class="q-mr-sm" />
+        <div class="text-subtitle1 text-weight-medium">{{ title }}</div>
+      </div>
+      <div v-if="description" class="text-caption text-grey-6 q-mb-md">{{ description }}</div>
 
       <!-- Patient Search/Selector -->
-      <div class="patient-selection">
-        <q-input v-model="patientSearch" :label="searchLabel" outlined dense clearable :placeholder="searchPlaceholder" @update:model-value="searchPatients" class="q-mb-md">
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-        </q-input>
+      <q-input
+        v-model="patientSearch"
+        :label="searchLabel || $t('patient.patientSearch')"
+        outlined
+        dense
+        clearable
+        :placeholder="searchPlaceholder || $t('visits.searchPatientPlaceholder')"
+        @update:model-value="searchPatients"
+      >
+        <template v-slot:prepend>
+          <q-icon name="search" />
+        </template>
+      </q-input>
 
-        <!-- Recent Patients (shown when not searching) -->
-        <div v-if="!patientSearch && recentPatients.length > 0" class="recent-patients-section q-mb-md">
-          <div class="text-subtitle2 text-grey-7 q-mb-sm">
-            <q-icon name="history" size="16px" class="q-mr-xs" />
-            Recent Patients
-          </div>
-          <div class="recent-patients-grid">
-            <div v-for="patient in recentPatients" :key="patient.id" class="recent-patient-card q-mb-sm">
-              <q-card flat bordered clickable @click="selectPatient(patient)" class="cursor-pointer" :class="{ 'bg-blue-1': selectedPatient?.PATIENT_CD === patient.id }">
-                <q-card-section class="row items-center q-pa-md">
-                  <q-avatar color="primary" text-color="white" size="32px" class="q-mr-md">
-                    {{ getPatientInitials(patient) }}
-                  </q-avatar>
-                  <div class="col">
-                    <div class="text-body1 text-weight-medium">{{ patient.name }}</div>
-                    <div class="text-caption text-grey-6">
-                      ID: {{ patient.id }}
-                      <span v-if="patient.visitCount"> • {{ patient.visitCount }} visits</span>
-                      <span v-if="patient.lastVisit"> • Last: {{ formatDate(patient.lastVisit) }}</span>
-                    </div>
-                  </div>
-                  <q-icon name="chevron_right" color="grey-5" />
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
+      <!-- Quick scope toggle: all available (own + public) vs. only assigned to me -->
+      <div class="row justify-end q-mb-sm">
+        <q-toggle v-model="onlyMine" :label="$t('visits.onlyMyPatients')" size="sm" dense color="primary" left-label class="text-grey-7">
+          <q-tooltip>{{ $t('visits.onlyMyPatientsHint') }}</q-tooltip>
+        </q-toggle>
+      </div>
+
+      <!-- Recent Patients (shown when not searching) -->
+      <div v-if="!patientSearch && visibleRecentPatients.length > 0">
+        <div class="text-subtitle2 text-grey-7 q-mb-sm">
+          <q-icon name="history" size="16px" class="q-mr-xs" />
+          {{ $t('visit.recentPatients') }}
         </div>
-
-        <!-- Search Results -->
-        <q-list v-if="patientSearch && patients.length > 0" bordered separator class="q-mb-md">
-          <div class="text-subtitle2 text-grey-7 q-mb-sm q-pa-md">
-            <q-icon name="search" size="16px" class="q-mr-xs" />
-            Search Results ({{ patients.length }})
-          </div>
-          <q-item
-            v-for="patient in patients"
-            :key="patient.PATIENT_NUM"
-            clickable
-            v-ripple
-            @click="selectPatient(patient)"
-            :class="{ 'bg-blue-1': selectedPatient?.PATIENT_NUM === patient.PATIENT_NUM }"
-          >
-            <q-item-section avatar>
-              <q-avatar color="primary" text-color="white">
-                {{ getPatientInitials(patient) }}
-              </q-avatar>
-            </q-item-section>
-            <q-item-section>
-              <q-item-label>{{ getPatientName(patient) }}</q-item-label>
-              <q-item-label caption>ID: {{ patient.PATIENT_CD }}</q-item-label>
-              <q-item-label caption>Age: {{ patient.AGE_IN_YEARS || 'N/A' }}</q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-list>
-
-        <!-- No Search Results -->
-        <div v-if="patientSearch && patients.length === 0" class="text-center q-pa-lg">
-          <q-icon name="person_off" size="48px" color="grey-4" />
-          <div class="text-subtitle1 text-grey-6 q-mt-sm">No patients found</div>
-          <div class="text-body2 text-grey-5">Try a different search term</div>
+        <div class="patient-cards-grid">
+          <PatientCard v-for="patient in visibleRecentPatients" :key="patient.id" :patient="patient" :selected="isSelected(patient)" @select="selectPatient" />
         </div>
+      </div>
+
+      <!-- Search Results -->
+      <div v-if="patientSearch && patients.length > 0">
+        <div class="text-subtitle2 text-grey-7 q-mb-sm">
+          <q-icon name="search" size="16px" class="q-mr-xs" />
+          {{ $t('visit.searchResults', { count: patients.length }) }}
+        </div>
+        <div class="patient-cards-grid">
+          <PatientCard v-for="patient in patients" :key="patient.id" :patient="patient" :selected="isSelected(patient)" @select="selectPatient" />
+        </div>
+      </div>
+
+      <!-- No Search Results -->
+      <div v-if="patientSearch && patients.length === 0" class="text-center q-pa-lg">
+        <q-icon name="person_off" size="48px" color="grey-4" />
+        <div class="text-subtitle1 text-grey-6 q-mt-sm">{{ $t('visit.noPatientsFound') }}</div>
+        <div class="text-body2 text-grey-5">{{ $t('visit.tryDifferentSearch') }}</div>
       </div>
     </q-card-section>
   </q-card>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from '../../stores/database-store.js'
 import { useLocalSettingsStore } from '../../stores/local-settings-store.js'
 import { logger } from '../../core/services/logging-service.js'
+import PatientCard from './PatientCard.vue'
 
-defineProps({
+const props = defineProps({
   title: {
     type: String,
-    default: 'Select Patient',
+    default: '',
   },
   description: {
     type: String,
-    default: 'Choose the patient for whom you want to proceed.',
+    default: '',
   },
   searchLabel: {
     type: String,
-    default: 'Search Patient',
+    default: '', // falls back to $t('patient.patientSearch')
   },
   searchPlaceholder: {
     type: String,
-    default: 'Enter patient ID, name, or identifier...',
+    default: '', // falls back to $t('visits.searchPatientPlaceholder')
   },
   selectedPatient: {
     type: Object,
@@ -118,6 +102,35 @@ const localSettings = useLocalSettingsStore()
 const patientSearch = ref('')
 const patients = ref([])
 const recentPatients = ref([])
+const onlyMine = ref(false)
+const myPatientNums = ref(null) // Set<PATIENT_NUM> | null (lazy)
+
+// PATIENT_NUMs directly assigned to the current user (creator or manual grant)
+const ensureMyPatientNums = async () => {
+  if (myPatientNums.value) return myPatientNums.value
+  let nums = []
+  try {
+    const { useAuthStore } = await import('../../stores/auth-store.js')
+    const currentUserId = useAuthStore().currentUser?.USER_ID
+    if (currentUserId !== undefined && currentUserId !== null) {
+      nums = await dbStore.getRepository('userPatientLookup').getPatientNumsAssignedTo(currentUserId)
+    }
+  } catch (error) {
+    logger.warn('Failed to resolve own patients for scope toggle', error)
+  }
+  myPatientNums.value = new Set(nums)
+  return myPatientNums.value
+}
+
+const visibleRecentPatients = computed(() => {
+  if (!onlyMine.value || !myPatientNums.value) return recentPatients.value
+  return recentPatients.value.filter((p) => myPatientNums.value.has(p.PATIENT_NUM))
+})
+
+watch(onlyMine, async (active) => {
+  if (active) await ensureMyPatientNums()
+  if (patientSearch.value) await searchPatients()
+})
 
 // Methods
 const searchPatients = async () => {
@@ -128,29 +141,47 @@ const searchPatients = async () => {
 
   try {
     // Access-controlled search (regular users only see their own/public patients)
-    const result = await dbStore.getPatientsPaginated(1, 10, { searchTerm: patientSearch.value })
+    const criteria = { searchTerm: patientSearch.value }
 
-    {
-      patients.value = (result.patients || []).map((patient) => {
-        // Try to parse PATIENT_BLOB for additional info
-        let additionalInfo = {}
-        try {
-          if (patient.PATIENT_BLOB) {
-            additionalInfo = JSON.parse(patient.PATIENT_BLOB)
-          }
-        } catch {
-          // Intentionally ignore JSON parsing errors for patient blob
-          Promise.resolve().catch(() => {
-            /* intentionally ignored */
-          })
-        }
-
-        return {
-          ...patient,
-          ...additionalInfo,
-        }
-      })
+    // "Only my patients": prefilter by direct assignments
+    if (onlyMine.value) {
+      const mine = await ensureMyPatientNums()
+      if (mine.size === 0) {
+        patients.value = []
+        emit('patient-search', { patients: [], searchTerm: patientSearch.value })
+        return
+      }
+      criteria.patientNums = Array.from(mine)
     }
+
+    const result = await dbStore.getPatientsPaginated(1, 10, criteria)
+    const rows = result.patients || []
+    const accessMap = await dbStore.getPatientAccessInfo(rows.map((p) => p.PATIENT_NUM))
+
+    patients.value = rows.map((patient) => {
+      // Try to parse PATIENT_BLOB for additional info
+      let additionalInfo = {}
+      try {
+        if (patient.PATIENT_BLOB) {
+          additionalInfo = JSON.parse(patient.PATIENT_BLOB)
+        }
+      } catch {
+        // Intentionally ignore JSON parsing errors for patient blob
+      }
+
+      // Raw DB fields stay on the object (consumers rely on PATIENT_NUM /
+      // PATIENT_CD); card display fields are layered on top.
+      const merged = { ...patient, ...additionalInfo }
+      const access = accessMap.get(patient.PATIENT_NUM)
+      return {
+        ...merged,
+        id: patient.PATIENT_CD,
+        name: getPatientName(merged),
+        age: patient.AGE_IN_YEARS ?? null,
+        owner: access?.ownerUserCd || null,
+        isPublic: access?.isPublic || false,
+      }
+    })
 
     emit('patient-search', { patients: patients.value, searchTerm: patientSearch.value })
   } catch (error) {
@@ -191,9 +222,9 @@ const loadRecentPatients = async () => {
               return {
                 id: patient.PATIENT_CD,
                 name: getPatientName(patient),
-                age: patient.AGE_IN_YEARS,
+                age: patient.AGE_IN_YEARS ?? null,
                 gender: patient.SEX_RESOLVED || patient.SEX_CD,
-                lastVisit: lastVisitDate,
+                lastVisit: lastVisitDate ? formatDate(lastVisitDate) : null,
                 visitCount: await getVisitCount(patient.PATIENT_NUM),
                 PATIENT_NUM: patient.PATIENT_NUM,
                 PATIENT_CD: patient.PATIENT_CD,
@@ -205,7 +236,13 @@ const loadRecentPatients = async () => {
           return null
         }),
       )
-      recentPatients.value = patientDetails.filter((p) => p !== null)
+      const accessible = patientDetails.filter((p) => p !== null)
+      const accessMap = await dbStore.getPatientAccessInfo(accessible.map((p) => p.PATIENT_NUM))
+      recentPatients.value = accessible.map((p) => ({
+        ...p,
+        owner: accessMap.get(p.PATIENT_NUM)?.ownerUserCd || null,
+        isPublic: accessMap.get(p.PATIENT_NUM)?.isPublic || false,
+      }))
     }
   } catch (error) {
     logger.error('Failed to load recent patients', error)
@@ -259,6 +296,15 @@ const getPatientInitials = (patient) => {
   return name.substring(0, 2).toUpperCase()
 }
 
+// Selected highlight — the selectedPatient prop may carry a raw DB row or a
+// card-shaped object, so compare on PATIENT_NUM first, then code/id.
+const isSelected = (patient) => {
+  const sel = props.selectedPatient
+  if (!sel) return false
+  if (sel.PATIENT_NUM != null && patient.PATIENT_NUM != null) return sel.PATIENT_NUM === patient.PATIENT_NUM
+  return (sel.PATIENT_CD || sel.id) === (patient.PATIENT_CD || patient.id)
+}
+
 // Load recent patients on mount
 onMounted(() => {
   loadRecentPatients()
@@ -273,32 +319,16 @@ defineExpose({
 })
 </script>
 
-<style scoped>
-.patient-selection-card {
-  .patient-selection {
-    max-width: 600px;
-  }
+<style lang="scss" scoped>
+.patient-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
+}
 
-  .recent-patients-section {
-    .recent-patients-grid {
-      .recent-patient-card {
-        .q-card {
-          border: 1px solid rgba(0, 0, 0, 0.12);
-          border-radius: 8px;
-          transition: all 0.2s ease;
-
-          &:hover {
-            border-color: #1976d2;
-            box-shadow: 0 2px 8px rgba(25, 118, 210, 0.2);
-          }
-
-          &.bg-blue-1 {
-            border-color: #1976d2;
-            background-color: rgba(25, 118, 210, 0.04);
-          }
-        }
-      }
-    }
+@media (max-width: 768px) {
+  .patient-cards-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

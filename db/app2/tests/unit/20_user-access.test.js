@@ -225,6 +225,20 @@ describe('UserPatientLookupRepository.getPatientNumsCreatedBy', () => {
     expect(nums).toEqual([4, 8])
   })
 
+  it('getPatientNumsAssignedTo returns direct assignments (creator + manual, not public)', async () => {
+    const connection = makeConnection()
+    connection.executeQuery.mockResolvedValue({ success: true, data: [{ PATIENT_NUM: 4 }, { PATIENT_NUM: 9 }] })
+    const repo = new UserPatientLookupRepository(connection)
+
+    const nums = await repo.getPatientNumsAssignedTo(3)
+
+    const [sql, params] = connection.executeQuery.mock.calls[0]
+    expect(sql).toContain('WHERE USER_ID = ?')
+    expect(sql).not.toContain('NAME_CHAR')
+    expect(params).toEqual([3])
+    expect(nums).toEqual([4, 9])
+  })
+
   it('returns all public patients for the public user (0), regardless of NAME_CHAR', async () => {
     const connection = makeConnection()
     connection.executeQuery.mockResolvedValue({ success: true, data: [{ PATIENT_NUM: 925 }] })

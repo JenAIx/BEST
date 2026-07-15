@@ -29,6 +29,13 @@
           </template>
         </q-input>
 
+        <!-- Quick scope toggle: all available (own + public) vs. only assigned to me -->
+        <div class="row justify-end q-mt-xs">
+          <q-toggle v-model="filters.onlyMine" :label="$t('visits.onlyMyPatients')" size="sm" dense color="primary" left-label class="text-grey-7">
+            <q-tooltip>{{ $t('visits.onlyMyPatientsHint') }}</q-tooltip>
+          </q-toggle>
+        </div>
+
         <!-- Advanced Filters -->
         <q-slide-transition>
           <div v-show="showAdvancedFilters" class="q-mt-md q-pa-md bg-grey-1 rounded-borders">
@@ -65,7 +72,7 @@
           {{ recentPatientsSource === 'latest' ? $t('visit.latestPatients') : $t('visit.recentPatients') }}
         </div>
         <div class="recent-patients-grid">
-          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" variant="recent" @select="selectPatient" />
+          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="selectPatient" />
         </div>
       </q-card-section>
 
@@ -76,7 +83,7 @@
           {{ $t('visit.searchResults', { count: searchResults.length }) }}
         </div>
         <div class="search-results">
-          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" variant="search" @select="selectPatient" />
+          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" @select="selectPatient" />
         </div>
       </q-card-section>
 
@@ -96,6 +103,23 @@
           <div class="text-body2 text-grey-6 q-mt-sm">{{ $t('visit.searchingPatients') }}</div>
         </div>
       </q-card-section>
+
+      <!-- Patient counts footer -->
+      <q-separator />
+      <q-card-section class="patient-stats-footer">
+        <span>
+          <q-icon name="groups" size="14px" />
+          {{ $t('visits.statsAvailable', { n: patientStats.total }) }}
+        </span>
+        <span>
+          <q-icon name="public" size="14px" />
+          {{ $t('visits.statsPublic', { n: patientStats.publicCount }) }}
+        </span>
+        <span>
+          <q-icon name="person" size="14px" />
+          {{ $t('visits.statsMine', { n: patientStats.mine }) }}
+        </span>
+      </q-card-section>
     </q-card>
 
     <CreatePatientDialog v-model="showCreateDialog" @patient-created="onPatientCreated" />
@@ -109,7 +133,7 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
-import PatientCard from './PatientCard.vue'
+import PatientCard from 'src/components/shared/PatientCard.vue'
 import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
 import { useRouter } from 'vue-router'
 
@@ -139,6 +163,7 @@ const filters = ref({
   ageRange: { ...DEFAULT_AGE_RANGE },
   studies: [],
   createdBy: null,
+  onlyMine: false,
 })
 
 // Filter option lists
@@ -148,6 +173,7 @@ const studyOptions = ref([])
 const loadingStudies = ref(false)
 const userOptions = ref([])
 const loadingUsers = ref(false)
+const patientStats = ref({ total: 0, publicCount: 0, mine: 0 })
 
 const hasActiveFilters = computed(() =>
   !!filters.value.sex ||
@@ -155,7 +181,8 @@ const hasActiveFilters = computed(() =>
   filters.value.ageRange.min !== DEFAULT_AGE_RANGE.min ||
   filters.value.ageRange.max !== DEFAULT_AGE_RANGE.max ||
   (filters.value.studies && filters.value.studies.length > 0) ||
-  filters.value.createdBy !== null,
+  filters.value.createdBy !== null ||
+  filters.value.onlyMine,
 )
 
 const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.value)
@@ -280,6 +307,22 @@ const runSearch = async () => {
       }
     }
 
+    // "Only my patients": direct assignments to the current user (created by
+    // or granted to them) — public visibility alone doesn't qualify
+    if (filters.value.onlyMine) {
+      const { useAuthStore } = await import('src/stores/auth-store')
+      const currentUserId = useAuthStore().currentUser?.USER_ID
+      if (currentUserId !== undefined && currentUserId !== null) {
+        const lookupRepo = dbStore.getRepository('userPatientLookup')
+        const mineNums = new Set(await lookupRepo.getPatientNumsAssignedTo(currentUserId))
+        patientNumFilter = patientNumFilter ? new Set([...patientNumFilter].filter((num) => mineNums.has(num))) : mineNums
+        if (patientNumFilter.size === 0) {
+          searchResults.value = []
+          return
+        }
+      }
+    }
+
     const criteria = buildSearchCriteria()
     if (patientNumFilter && patientNumFilter.size > 0) {
       criteria.patientNums = Array.from(patientNumFilter)
@@ -330,6 +373,7 @@ const resetFilters = () => {
     ageRange: { ...DEFAULT_AGE_RANGE },
     studies: [],
     createdBy: null,
+    onlyMine: false,
   }
 }
 
@@ -433,7 +477,8 @@ const getVisitCount = async (patientNum) => {
 const formatVisitDate = (dateStr) => {
   if (!dateStr) return null
   const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
+  // System/browser locale so the date matches the UI language
+  return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
@@ -457,12 +502,39 @@ const loadUserOptions = async () => {
   }
 }
 
+// Footer counts: available (access-filtered), public, assigned to me
+const loadPatientStats = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+
+    // Access-filtered total via the paginated count (limit 1 — count only)
+    const result = await dbStore.getPatientsPaginated(1, 1, {})
+    const total = result.pagination?.totalCount ?? 0
+
+    const publicResult = await dbStore.executeQuery('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = 0')
+    const publicCount = publicResult.success ? publicResult.data[0]?.count || 0 : 0
+
+    let mine = 0
+    const { useAuthStore } = await import('src/stores/auth-store')
+    const currentUserId = useAuthStore().currentUser?.USER_ID
+    if (currentUserId !== undefined && currentUserId !== null) {
+      const lookupRepo = dbStore.getRepository('userPatientLookup')
+      mine = (await lookupRepo.getPatientNumsAssignedTo(currentUserId)).length
+    }
+
+    patientStats.value = { total, publicCount, mine }
+  } catch (error) {
+    logger.warn('Failed to load patient stats', error)
+  }
+}
+
 // Lifecycle
 onMounted(async () => {
   await loadRecentPatients()
   loadFilterOptions()
   loadStudyOptions()
   loadUserOptions()
+  loadPatientStats()
 })
 
 watch(
@@ -517,16 +589,26 @@ watch(
   background: rgba(255, 255, 255, 0.95);
 }
 
-.recent-patients-grid {
+.recent-patients-grid,
+.search-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
 }
 
-.search-results {
+.patient-stats-footer {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 8px 16px;
+  font-size: 0.72rem;
+  color: $grey-6;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
 }
 
 .no-results,
@@ -548,7 +630,8 @@ watch(
     }
   }
 
-  .recent-patients-grid {
+  .recent-patients-grid,
+  .search-results {
     grid-template-columns: 1fr;
   }
 }

@@ -866,17 +866,15 @@ authStore.login(username, password, databasePath)
 
 #### DashboardPage.vue (`/dashboard`)
 
-**Two-mode dashboard with statistics and quick actions**
+**Single-view dashboard with statistics and quick actions** *(the former
+"Deep Work Mode" with its patient table was removed July 2026 — patient
+search/management lives on `/visits`)*
 
-- **Visit Mode**:
-  - Quick patient search, new patient, visits today, import
-  - Recent patients list
-  - Current studies list
-  - Today's statistics (patients seen, visits, reports, active studies)
-- **Deep Work Mode**:
-  - Data overview cards (total patients, active studies, new today, data quality)
-  - Advanced patient data explorer with filters
-  - Full patient table with search/filter/sort
+- Quick actions: patient search, new patient, visits today, import
+- Recent patients as compact card grid (shared `PatientCard`, owner badge)
+- Current studies list
+- Today's statistics (patients seen, visits, reports, active studies; for
+  non-admins additionally visible/hidden patient counts)
 
 **Key Features**: Real-time statistics, patient creation, study management
 
@@ -1368,6 +1366,13 @@ console.log($t('category.key'))
 
 ### When Creating UI Components
 
+- **Standard patient card**: `src/components/shared/PatientCard.vue` is THE
+  patient card for every patient list/grid (dashboard, /visits recents +
+  search results, …). Don't build new patient card/list-item markup — pass
+  `{ id, name, age?, visitCount?, lastVisit?, owner?, isPublic? }` and listen
+  to `@select`. It handles name-vs-ID fallback (no duplicate ID, person icon
+  instead of digit "initials"), the two-part meta line, and the owner badge.
+  Render collections in a grid: `repeat(auto-fill, minmax(280px, 1fr))`.
 - Follow Quasar component conventions
 - Use I18n for all user-facing text
 - Implement proper loading states

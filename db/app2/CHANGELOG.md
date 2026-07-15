@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Dashboard vereinfacht: nur noch eine Ansicht, einheitliche Patientenkarten** —
+  Der "Deep Work Mode" (Datenübersichts-Karten + Patiententabelle mit
+  Filtern/Löschen) und der Light/Deep-Umschalter im Header sind entfernt;
+  die bisherige Light-Ansicht ist das Dashboard (Patientenverwaltung läuft
+  über `/visits`). Neue gemeinsame `src/components/shared/PatientCard.vue`
+  (neutral, kompakt: weiß, 1px Rand, Hover-Primärfarbe, 32px-Avatar, eine
+  Meta-Zeile, Owner-Badge oben rechts) ersetzt die bisherigen
+  Karten-Varianten (lila Gradient entfällt). Dashboard "Recent Patients"
+  und /visits (Zuletzt + Suchergebnisse) rendern die Karten im Grid
+  2–3 nebeneinander (`repeat(auto-fill, minmax(280px, 1fr))`).
+  Karten-Feinschliff (live per CDP-Screenshot verifiziert): keine
+  ID-Dublette mehr (Titel = Name ODER ID), Person-Icon statt
+  Ziffern-"Initialen" bei namenlosen Patienten, Meta-Zeile zweigeteilt
+  (Fakten links, Zeitpunkt mit Uhr-Icon rechts, kein Ellipsis-Gedränge),
+  korrekte Pluralisierung ("1 Besuch"/"n Besuche") und locale-abhängiges
+  Datumsformat. Die Karte ist als Standard-Patientenkarte in CLAUDE.md
+  festgeschrieben. Quick Actions aufgeräumt: "Schnelle Patientensuche" und
+  "Patientenbesuche" (beide → /visits) zu einer Karte "Patienten & Besuche"
+  zusammengefasst (3 statt 4 Quick-Action-Karten).
+  "Patient auswählen" (PatientSelectionCard: /questionnaires, /import,
+  Grid-Editor) auf die Standard-Karte umgestellt — Karten-Grid statt
+  Eigenbau-Liste, Auswahl-Highlight über neues `selected`-Prop der
+  PatientCard, Owner-Badges, i18n statt hartkodiertem Englisch
+  (Titel/Beschreibung/Suchfeld). Neuer Schnellfilter "Nur meine Patienten"
+  in der /visits-Patientensuche (aus = alle verfügbaren: eigene +
+  öffentliche; an = nur zugewiesene/selbst angelegte;
+  `getPatientNumsAssignedTo`); derselbe Toggle auch in der
+  PatientSelectionCard (/questionnaires, /import, Grid-Editor) und in den
+  Filtern der Export-Seite. Footer in der /visits-Patientenauswahl mit
+  Zählern: verfügbar (zugriffsgefiltert) / öffentlich / mir zugewiesen.
+  Export-Seite: q-table durch das Standard-Karten-Grid ersetzt — Karten
+  anklicken toggelt die Auswahl (selected-State), "Alle auswählen" wählt
+  alle zum Filter passenden Patienten (nicht nur die Seite), Abwählen
+  über das bestehende "Clear Selection"; zentrierte Pagination
+  (24/Seite), Owner-Badges auch hier. Data-Grid-Auswahlseite auf dasselbe
+  Muster umgestellt (Karten-Grid statt q-table, Klick-Auswahl, "Alle
+  auswählen", Pagination); Besuchs-/Beobachtungszahlen in der
+  Karten-Meta-Zeile (`observationCount` in der Standard-Karte).
+  Ungenutzte Deep-only-i18n-Keys entfernt.
+
 ### Added
 
 - **User-Access: Public-Patienten, Owner-Anzeige, Creator-Filter** —
