@@ -50,7 +50,7 @@
         </div>
 
         <!-- Unfilled Observations - Compact Chips -->
-        <UnfilledObservationsChips :unfilled-concepts="unfilledConcepts" @create-observation="createObservationFromChip" />
+        <UnfilledObservationsChips :unfilled-concepts="unfilledConcepts" :creating-all="creatingAllObservations" @create-observation="createObservationFromChip" @create-all="createAllUnfilledObservations" />
 
         <!-- Add medication button (only for medications fieldset) -->
         <MedicationSection :field-set-id="fieldSet.id" @add-empty-medication="addEmptyMedication" />
@@ -73,6 +73,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNotify } from 'src/composables/useNotify'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useMedicationsStore } from 'src/stores/medications-store'
@@ -110,6 +111,7 @@ const props = defineProps({
 const emit = defineEmits(['observation-updated', 'clone-from-previous', 'refresh-requested'])
 
 const notify = useNotify()
+const { t } = useI18n()
 const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
 const conceptStore = useConceptResolutionStore()
@@ -931,6 +933,22 @@ const onDuplicateValue = async (data) => {
   }
 }
 
+// Shared payload for an empty observation of a field-set concept
+const buildEmptyObservationData = (concept) => ({
+  PATIENT_NUM: props.patient.PATIENT_NUM,
+  ENCOUNTER_NUM: props.visit.id,
+  CONCEPT_CD: concept.code,
+  VALTYPE_CD: concept.valueType,
+  START_DATE: new Date().toISOString().split('T')[0],
+  LOCATION_CD: 'VISITS_PAGE',
+  INSTANCE_NUM: 1,
+  UPLOAD_ID: 1,
+  TVAL_CHAR: concept.valueType === 'N' ? null : '',
+  NVAL_NUM: null,
+  UNIT_CD: concept.unit || null,
+  OBSERVATION_BLOB: null,
+})
+
 const createObservationFromChip = async (concept) => {
   try {
     logger.info('Creating observation from chip', {
@@ -938,24 +956,8 @@ const createObservationFromChip = async (concept) => {
       conceptName: concept.name,
     })
 
-    // Get default values
-    const observationData = {
-      PATIENT_NUM: props.patient.PATIENT_NUM,
-      ENCOUNTER_NUM: props.visit.id,
-      CONCEPT_CD: concept.code,
-      VALTYPE_CD: concept.valueType,
-      START_DATE: new Date().toISOString().split('T')[0],
-      LOCATION_CD: 'VISITS_PAGE',
-      INSTANCE_NUM: 1,
-      UPLOAD_ID: 1,
-      TVAL_CHAR: concept.valueType === 'N' ? null : '',
-      NVAL_NUM: concept.valueType === 'N' ? null : null,
-      UNIT_CD: concept.unit || null,
-      OBSERVATION_BLOB: null,
-    }
-
     // Use service to create observation
-    await visitObservationService.createObservation(observationData)
+    await visitObservationService.createObservation(buildEmptyObservationData(concept))
 
     // Emit update to refresh the field set
     emit('observation-updated', {
@@ -977,6 +979,38 @@ const createObservationFromChip = async (concept) => {
 
     const displayName = resolvedConceptData.value.get(concept.code)?.label || concept.name
     notify.error(`Failed to add ${displayName}`)
+  }
+}
+
+// "+ Alle hinzufügen": create every unfilled field-set concept as an empty
+// observation in one go (medications excluded — they have their own flow)
+const creatingAllObservations = ref(false)
+const createAllUnfilledObservations = async () => {
+  if (creatingAllObservations.value) return
+  const concepts = unfilledConcepts.value.filter((concept) => concept.valueType !== 'M')
+  if (concepts.length === 0) return
+
+  creatingAllObservations.value = true
+  let created = 0
+  try {
+    for (const concept of concepts) {
+      try {
+        await visitObservationService.createObservation(buildEmptyObservationData(concept))
+        created++
+      } catch (error) {
+        logger.error('Failed to create observation in bulk add', error, { conceptCode: concept.code })
+      }
+    }
+
+    emit('observation-updated', { added: true, bulk: true })
+    if (created > 0) {
+      notify.success(t('observation.allObservationsAdded', { count: created }))
+    }
+    if (created < concepts.length) {
+      notify.warning(t('observation.someObservationsFailed', { count: concepts.length - created }))
+    }
+  } finally {
+    creatingAllObservations.value = false
   }
 }
 

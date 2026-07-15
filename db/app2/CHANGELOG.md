@@ -29,6 +29,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Router-History, wie der /visits-Zurück-Fix) statt immer zur
   Grid-Patientenauswahl; Unsaved-Changes-Dialog bleibt davor.
 
+### Added
+
+- **Dateneingabe: "Alle hinzufügen" für verfügbare Beobachtungen** —
+  Der "Verfügbare Beobachtungen"-Abschnitt jedes Feldsets hat jetzt
+  einen Button, der alle noch nicht angelegten Konzepte auf einmal als
+  leere Observations anlegt (Medikamente ausgenommen — eigener Flow);
+  Sammel-Notify mit Anzahl, Teilfehler werden gemeldet. Abschnitt
+  nebenbei i18n-fähig gemacht.
+
+### Fixed
+
+- **Neue Visite wurde nach dem Anlegen manchmal nicht ausgewählt** —
+  Ursachenkette: (1) `electron-preload.js` band den sqlite3-`run`-Callback
+  per `.bind(this)` ans Preload-Objekt, wodurch `lastID`/`changes` immer
+  `undefined` waren (sqlite3 liefert beide über das Callback-eigene
+  `this`); (2) der dadurch immer aktive Fallback in `visit-repository`
+  ermittelte die neue ENCOUNTER_NUM über "neueste Visite nach
+  START_DATE" — bei rückdatierten oder datumsgleichen Visiten die
+  falsche. Fix: Binding entfernt (lastID funktioniert wieder überall;
+  greift nach Electron-Neustart) und die Fallbacks in visit- und
+  observation-repository auf deterministisches
+  `MAX(ENCOUNTER_NUM/OBSERVATION_ID)` umgestellt. 3 Regressionstests
+  (`tests/unit/21_new-visit-id.test.js`).
+
 ### Changed
 
 - **/studies platzoptimiert, Studien direkt sichtbar** — Die Studienliste

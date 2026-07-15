@@ -152,25 +152,26 @@ const dbman = {
         return
       }
 
-      // Use serialize to ensure operations complete in order
+      // Use serialize to ensure operations complete in order.
+      // IMPORTANT: the run callback must NOT be bound — sqlite3 exposes
+      // lastID/changes on the callback's own `this` (the statement context).
+      // The previous `.bind(this)` rebound it to the preload object, so
+      // lastID/changes were always undefined and every repository had to
+      // fall back to fragile "fetch the most recent row" workarounds.
       this.database.serialize(() => {
-        this.database.run(
-          sql,
-          params,
-          function (err) {
-            if (err) {
-              console.error('Run error:', err.message)
-              reject(err)
-            } else {
-              const result = {
-                lastID: this.lastID,
-                changes: this.changes,
-              }
-              console.log(`SQL executed: ${sql.substring(0, 50)}... Changes: ${result.changes}`)
-              resolve(result)
+        this.database.run(sql, params, function (err) {
+          if (err) {
+            console.error('Run error:', err.message)
+            reject(err)
+          } else {
+            const result = {
+              lastID: this.lastID,
+              changes: this.changes,
             }
-          }.bind(this),
-        ) // Bind this to preserve context
+            console.log(`SQL executed: ${sql.substring(0, 50)}... Changes: ${result.changes}`)
+            resolve(result)
+          }
+        })
       })
     })
   },
