@@ -31,6 +31,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Kontextmenü "Studie zuordnen": Toggle statt deaktiviertem Häkchen** —
+  Bereits eingeschriebene Studien sind im Submenü nicht mehr disabled,
+  sondern bieten das Austragen an (person_remove-Icon, Caption
+  "eingeschrieben", Tooltip; `withdrawPatient` setzt den Status auf
+  withdrawn, erneutes Zuordnen reaktiviert die Einschreibung).
+
 - **Dateneingabe: "Alle hinzufügen" für verfügbare Beobachtungen** —
   Der "Verfügbare Beobachtungen"-Abschnitt jedes Feldsets hat jetzt
   einen Button, der alle noch nicht angelegten Konzepte auf einmal als

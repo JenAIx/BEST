@@ -32,11 +32,15 @@
             <q-item v-if="studyItems.length === 0" disable>
               <q-item-section class="text-grey-6">{{ $t('study.noStudiesFound') }}</q-item-section>
             </q-item>
-            <q-item v-for="study in studyItems" :key="study.value" clickable :disable="study.enrolled" v-close-popup @click="assignToStudy(study)">
+            <q-item v-for="study in studyItems" :key="study.value" clickable v-close-popup @click="study.enrolled ? unassignFromStudy(study) : assignToStudy(study)">
               <q-item-section avatar>
-                <q-icon :name="study.enrolled ? 'check' : 'add'" size="16px" :color="study.enrolled ? 'positive' : 'grey-7'" />
+                <q-icon :name="study.enrolled ? 'person_remove' : 'add'" size="16px" :color="study.enrolled ? 'negative' : 'grey-7'" />
               </q-item-section>
-              <q-item-section>{{ study.label }}</q-item-section>
+              <q-item-section>
+                {{ study.label }}
+                <q-item-label v-if="study.enrolled" caption class="text-positive">{{ $t('patient.menuEnrolledHint') }}</q-item-label>
+              </q-item-section>
+              <q-tooltip>{{ study.enrolled ? $t('patient.menuUnassignHint') : $t('patient.menuAssignHint') }}</q-tooltip>
             </q-item>
           </q-list>
         </q-menu>
@@ -230,6 +234,19 @@ const assignToStudy = async (study) => {
   } catch (error) {
     logger.error('Failed to assign patient to study', error)
     notify.error(t('study.failedToEnroll'))
+  }
+}
+
+const unassignFromStudy = async (study) => {
+  try {
+    if (patientNum.value == null) return
+    const studyRepo = dbStore.getRepository('study')
+    await studyRepo.withdrawPatient(study.value, patientNum.value)
+    notify.success(t('patient.menuUnassignedFromStudy', { study: study.label }))
+    emit('changed')
+  } catch (error) {
+    logger.error('Failed to withdraw patient from study', error)
+    notify.error(t('study.failedToWithdraw'))
   }
 }
 

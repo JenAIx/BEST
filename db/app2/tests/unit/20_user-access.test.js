@@ -336,6 +336,30 @@ describe('StudyRepository.getEnrolledPatients (access)', () => {
   })
 })
 
+describe('StudyRepository.withdrawPatient', () => {
+  it('updates UPDATE_DATE (not the non-existent UPDATED_AT) and sets withdrawn', async () => {
+    const connection = makeConnection()
+    const repo = new StudyRepository(connection)
+
+    await repo.withdrawPatient(4, 931)
+
+    const [sql, params] = connection.executeCommand.mock.calls[0]
+    expect(sql).toContain("ENROLLMENT_STATUS_CD = 'withdrawn'")
+    expect(sql).toContain('UPDATE_DATE = CURRENT_TIMESTAMP')
+    expect(sql).not.toContain('UPDATED_AT')
+    expect(params[1]).toBe(4)
+    expect(params[2]).toBe(931)
+  })
+
+  it('throws when the command fails instead of reporting success', async () => {
+    const connection = makeConnection()
+    connection.executeCommand.mockResolvedValue({ success: false, error: 'no such column: X' })
+    const repo = new StudyRepository(connection)
+
+    await expect(repo.withdrawPatient(4, 931)).rejects.toThrow('no such column: X')
+  })
+})
+
 describe('DatabaseImportService.assignPatientAccess', () => {
   const callWith = async (config, lookupRepo) => {
     await DatabaseImportService.prototype.assignPatientAccess.call({ userPatientLookupRepo: lookupRepo }, 42, config)
