@@ -7,6 +7,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
+import { useAuthStore } from './auth-store'
 import { useLocalSettingsStore } from './local-settings-store'
 import { useLoggingStore } from './logging-store'
 import { getPatientInitials, formatDate } from 'src/shared/utils/medical-utils'
@@ -21,10 +22,13 @@ import {
   createChangeKey,
   getDefaultViewOptions,
   validateViewOptions,
+  buildVisitTypeLockMap,
+  isCellVisitTypeLocked,
 } from 'src/shared/utils/grid-utils'
 
 export const useDataGridStore = defineStore('dataGrid', () => {
   const dbStore = useDatabaseStore()
+  const authStore = useAuthStore()
   const localSettings = useLocalSettingsStore()
   const logger = useLoggingStore().createLogger('DataGridStore')
 
@@ -59,6 +63,21 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // contain at least one cell with VALUEFLAG_CD = 'AUDIT'. Toggled from
   // the GridFooter chip.
   const auditFilterActive = ref(false)
+
+  // Visit-type lock: concept↔visit-type mapping derived from CODE_LOOKUP
+  // (visit types → field sets → concepts/categories). Loaded once per grid
+  // load; null until loaded. See isCellLocked / viewOptions.visitTypeLockActive.
+  const visitTypeLockMap = ref(null)
+
+  // Visit-type display metadata (label/icon/color per CODE_CD), built from the
+  // same CODE_LOOKUP query as the lock map — one query serves both the lock
+  // and the per-row visit-type chip in the editor.
+  const visitTypeMeta = ref(new Map())
+
+  // Memo for isCellLocked: the verdict only depends on (visitTypeCode,
+  // concept.code, concept.category) and the loaded lock map. Non-reactive on
+  // purpose; cleared whenever the lock map reloads.
+  const lockVerdictCache = new Map()
 
   // Getters
   const totalObservations = computed(() => {
@@ -216,6 +235,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       const cleanedIds = cleanPatientIds(patientIds)
       logger.info('Loading grid data for patients', { patientIds: cleanedIds, count: cleanedIds.length })
 
+      // Load the visit-type lock map alongside (non-fatal on failure)
+      const lockMapPromise = loadVisitTypeLockData()
+
       // Load patient data using the database store (access-filtered:
       // inaccessible IDs from stored selections are dropped)
       const patients = await dbStore.loadBatchPatientData(cleanedIds)
@@ -287,6 +309,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         const visibilityObject = Object.fromEntries(columnVisibility.value)
         localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
       }
+
+      // Lock map should be in place before the grid renders locked cells
+      await lockMapPromise
 
       lastUpdateTime.value = new Date().toLocaleTimeString()
 
@@ -379,6 +404,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         updates.TVAL_CHAR = value === null || value === '' ? null : String(value)
         updates.NVAL_NUM = null
       }
+      // Stamp the current user as last editor
+      updates.PROVIDER_ID = authStore.providerId
       const setClause = Object.keys(updates).map((k) => `${k} = ?`).join(', ')
       const params = [...Object.values(updates), observationId]
       const sql = `UPDATE OBSERVATION_FACT SET ${setClause}, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?`
@@ -410,9 +437,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
     const clearValue = flag === 'NV'
     const sql = clearValue
-      ? 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, NVAL_NUM = NULL, TVAL_CHAR = NULL, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-      : 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-    const result = await dbStore.executeQuery(sql, [flag, observationId])
+      ? 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, NVAL_NUM = NULL, TVAL_CHAR = NULL, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
+      : 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
+    const result = await dbStore.executeQuery(sql, [flag, authStore.providerId, observationId])
     if (!result.success) {
       throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
     }
@@ -489,8 +516,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       throw new Error('setObservationStartDate requires a non-empty startDate')
     }
 
-    const sql = 'UPDATE OBSERVATION_FACT SET START_DATE = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-    const result = await dbStore.executeQuery(sql, [startDate, observationId])
+    const sql = 'UPDATE OBSERVATION_FACT SET START_DATE = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
+    const result = await dbStore.executeQuery(sql, [startDate, authStore.providerId, observationId])
     if (!result.success) {
       throw new Error(result.error || 'Failed to update observation START_DATE')
     }
@@ -628,6 +655,70 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       viewOptions.value = { ...viewOptions.value, ...savedOptions }
       logger.debug('Loaded saved view options', { savedOptions })
     }
+  }
+
+  // Visit-type lock -----------------------------------------------------------
+  //
+  // Loads visit types + field sets from CODE_LOOKUP and derives, per visit
+  // type, the set of concept codes/categories its field sets claim. Failure is
+  // non-fatal: without the map no cell ever renders locked.
+  const loadVisitTypeLockData = async () => {
+    try {
+      const lookupSql = "SELECT CODE_CD, NAME_CHAR, LOOKUP_BLOB FROM CODE_LOOKUP WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = ?"
+      const [visitTypesResult, fieldSetsResult] = await Promise.all([
+        dbStore.executeQuery(lookupSql, ['VISIT_TYPE_CD']),
+        dbStore.executeQuery(lookupSql, ['FIELD_SET_CD']),
+      ])
+      if (!visitTypesResult.success || !fieldSetsResult.success) {
+        throw new Error(visitTypesResult.error || fieldSetsResult.error || 'CODE_LOOKUP query failed')
+      }
+      visitTypeLockMap.value = buildVisitTypeLockMap(visitTypesResult.data, fieldSetsResult.data)
+      lockVerdictCache.clear()
+
+      // Derive display metadata from the same rows (label/icon/color chips)
+      const meta = new Map()
+      for (const row of visitTypesResult.data) {
+        let label = row.NAME_CHAR || row.CODE_CD
+        let icon = null
+        let color = null
+        if (row.LOOKUP_BLOB) {
+          try {
+            const blob = typeof row.LOOKUP_BLOB === 'string' ? JSON.parse(row.LOOKUP_BLOB) : row.LOOKUP_BLOB
+            if (blob?.label) label = blob.label
+            if (blob?.icon) icon = blob.icon
+            if (blob?.color) color = blob.color
+          } catch {
+            // ignore malformed blob - fall back to NAME_CHAR
+          }
+        }
+        meta.set(row.CODE_CD, { label, icon, color })
+      }
+      visitTypeMeta.value = meta
+
+      logger.debug('Visit-type lock map loaded', {
+        visitTypes: visitTypeLockMap.value.byVisitType.size,
+        claimedConcepts: visitTypeLockMap.value.claimedConcepts.size,
+      })
+    } catch (error) {
+      visitTypeLockMap.value = null
+      lockVerdictCache.clear()
+      logger.error('Failed to load visit-type lock data — lock disabled', error)
+    }
+  }
+
+  // Whether a cell is locked under the visit-type lock (viewOptions toggle).
+  // Memoized per (visitType, concept) — the template asks several times per
+  // cell on every re-render, so repeated Set lookups are cached away.
+  const isCellLocked = (row, concept) => {
+    if (!viewOptions.value.visitTypeLockActive) return false
+    if (!row || !concept || row.isPlaceholder || !row.visitTypeCode) return false
+    const key = `${row.visitTypeCode}|${concept.code}|${concept.category || ''}`
+    let verdict = lockVerdictCache.get(key)
+    if (verdict === undefined) {
+      verdict = isCellVisitTypeLocked(visitTypeLockMap.value, row, concept)
+      lockVerdictCache.set(key, verdict)
+    }
+    return verdict
   }
 
   // Column visibility management
@@ -909,6 +1000,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     columnVisibility,
     columnOrder,
     auditFilterActive,
+    visitTypeLockMap,
+    visitTypeMeta,
 
     // Getters
     totalObservations,
@@ -946,6 +1039,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     setObservationFlag,
     deleteObservationFromGrid,
     toggleAuditFilter,
+    loadVisitTypeLockData,
+    isCellLocked,
     setObservationStartDate,
 
     // Undo/redo

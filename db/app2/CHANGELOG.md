@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Visitentyp-Sperre im Datentabellen-Editor** (UI-seitig, abschaltbar):
+  Neuer Toggle in den Anzeigeoptionen + Chip im Grid-Footer
+  (`viewOptions.visitTypeLockActive`, persistiert). Wenn aktiv, werden Zellen
+  gesperrt (Schraffur, Schloss-Icon, Editieren/Kontextmenü/Fragebogen-
+  Ausfüllen/Medikations-Dialog blockiert), deren Concept über die
+  FieldSets anderer Visitentypen definiert ist, aber nicht zum Visitentyp
+  der Zeile gehört. Zweistufiges Matching, explizit schlägt Kategorie:
+  explizit in `concepts[]` gelistete Concepts sind an genau die Visitentypen
+  gebunden, die sie listen (das Kategorie-Fallback rettet sie nicht — z.B.
+  bleibt `STROKE_LIPID:V2:DOSE_INCREASED` trotz Kategorie `Stroke` V2-only);
+  nirgends gelistete Concepts matchen per `categories[]`.
+  Vorhandene Werte bleiben sichtbar (read-only).
+  Konservativ: Visiten ohne/mit unbekanntem Visitentyp, Concepts ohne
+  FieldSet-Zuordnung und verwaiste FieldSets sperren nie.
+  (`grid-utils.buildVisitTypeLockMap`/`isCellVisitTypeLocked`,
+  `data-grid-store.isCellLocked`, Tests `tests/unit/23_visit-type-lock.test.js`)
+
+- **Provider-Stempel auf Observations**: Beim Erstellen _und_ Ändern einer
+  Observation (Dateneingabe, Datentabellen-Editor inkl. Flag-/Datums-Menü,
+  Medikamente, Questionnaires) wird der eingeloggte Nutzer als
+  `OBSERVATION_FACT.PROVIDER_ID` (= `USER_CD`) vermerkt — Last-Editor-Semantik.
+  Zentraler Getter `auth-store.providerId` (Fallback `'SYSTEM'`). Migration
+  013 befüllt `PROVIDER_DIMENSION` aus `USER_MANAGEMENT` (ein Provider pro
+  User, selbstheilender Upsert, plus Legacy-Einträge `SYSTEM`/`@`);
+  `UserRepository.createUser`/`updateUser` halten den Abgleich aktuell.
+  Tests: `tests/unit/22_observation-provider.test.js` + angepasste
+  Grid-Tests (15/17/18).
+
 - **Rechtsklick-Kontextmenü auf der Standard-Patientenkarte**
   (`PatientCardMenu.vue`, automatisch auf allen 8 Karten-Flächen):
   Visiten öffnen, Patientendaten anzeigen/ändern (öffnet die

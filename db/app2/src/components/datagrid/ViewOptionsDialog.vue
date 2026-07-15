@@ -9,6 +9,20 @@
     :content-padding="false"
   >
     <div class="column-management-content non-selectable">
+      <!-- Display options: visit-type lock -->
+      <div class="view-options-section">
+        <q-toggle
+          :model-value="localOptions.visitTypeLockActive === true"
+          :label="$t('dataGrid.visitTypeLock')"
+          color="primary"
+          dense
+          @update:model-value="onToggleVisitTypeLock"
+        />
+        <div class="text-caption text-grey-6 q-ml-xl">{{ $t('dataGrid.visitTypeLockHint') }}</div>
+      </div>
+
+      <q-separator />
+
       <!-- Compact Header with Controls -->
       <div class="compact-header">
         <div class="header-left">
@@ -139,7 +153,21 @@ const dialogVisible = ref(false)
 const totalColumns = computed(() => localColumns.value.length)
 const visibleColumns = computed(() => localColumns.value.filter((col) => col.visible).length)
 
+// Keep local view options in sync when the store-side options change
+watch(
+  () => props.viewOptions,
+  (newOptions) => {
+    localOptions.value = { ...newOptions }
+  },
+  { deep: true },
+)
+
 // Methods
+const onToggleVisitTypeLock = (value) => {
+  localOptions.value = { ...localOptions.value, visitTypeLockActive: value === true }
+  emit('update:viewOptions', { visitTypeLockActive: value === true })
+}
+
 const toggleColumnVisibility = (columnCode) => {
   const columnIndex = localColumns.value.findIndex((col) => col.code === columnCode)
   if (columnIndex !== -1) {
@@ -302,6 +330,11 @@ onMounted(() => {
 <style scoped>
 .column-management-content {
   min-height: 500px;
+}
+
+.view-options-section {
+  padding: 12px 16px;
+  background: white;
 }
 
 .compact-header {
