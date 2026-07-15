@@ -442,12 +442,15 @@ class StudyRepository extends BaseRepository {
         UPDATE STUDY_PATIENT_LOOKUP
         SET ENROLLMENT_STATUS_CD = 'withdrawn',
             WITHDRAWAL_DATE = ?,
-            UPDATED_AT = CURRENT_TIMESTAMP
+            UPDATE_DATE = CURRENT_TIMESTAMP
         WHERE STUDY_NUM = ? AND PATIENT_NUM = ?
       `
 
       const withdrawalDateStr = withdrawalDate || new Date().toISOString().split('T')[0]
-      await this.connection.executeCommand(sql, [withdrawalDateStr, studyId, patientId])
+      const result = await this.connection.executeCommand(sql, [withdrawalDateStr, studyId, patientId])
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Withdraw command failed')
+      }
 
       this.logger.success('Patient withdrawn from study', { studyId, patientId })
 
