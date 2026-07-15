@@ -220,6 +220,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useAuthStore } from 'src/stores/auth-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useMedicationsStore } from 'src/stores/medications-store'
@@ -265,6 +266,7 @@ const emit = defineEmits(['update:modelValue', 'medications-updated'])
 const { t } = useI18n()
 const notify = useNotify()
 const databaseStore = useDatabaseStore()
+const authStore = useAuthStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const medicationsStore = useMedicationsStore()
 const loggingStore = useLoggingStore()
@@ -355,6 +357,7 @@ const saveMedication = async (index) => {
       TVAL_CHAR: normalizedMedicationData.drugName,
       NVAL_NUM: normalizedMedicationData.dosage ? parseFloat(normalizedMedicationData.dosage) : null,
       OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
+      PROVIDER_ID: authStore.providerId,
     }
 
     if (med.observationId) {
@@ -394,7 +397,7 @@ const saveMedication = async (index) => {
         OBSERVATION_BLOB: JSON.stringify(normalizedMedicationData),
         START_DATE: visitStartDate,
         CATEGORY_CHAR: defaultCategory,
-        PROVIDER_ID: 'SYSTEM',
+        PROVIDER_ID: authStore.providerId,
         LOCATION_CD: 'DATAGRID',
         SOURCESYSTEM_CD: defaultSourceSystem,
         INSTANCE_NUM: 1,

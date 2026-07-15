@@ -29,6 +29,7 @@ import { fixPatientCascade } from '../database/migrations/009-fix-patient-cascad
 import { strokeLipidSeed } from '../database/migrations/010-stroke-lipid-seed.js'
 import { auditValueflags } from '../database/migrations/011-audit-valueflags.js'
 import { publicPatientAccess } from '../database/migrations/012-public-patient-access.js'
+import { providerUserSync } from '../database/migrations/013-provider-user-sync.js'
 
 class DatabaseService {
   constructor() {
@@ -82,6 +83,7 @@ class DatabaseService {
       this.migrationManager.registerMigration(strokeLipidSeed)
       this.migrationManager.registerMigration(auditValueflags)
       this.migrationManager.registerMigration(publicPatientAccess)
+      this.migrationManager.registerMigration(providerUserSync)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()

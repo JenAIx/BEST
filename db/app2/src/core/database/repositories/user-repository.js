@@ -214,7 +214,32 @@ class UserRepository extends BaseRepository {
       UPLOAD_ID: userData.UPLOAD_ID || 1,
     }
 
-    return await this.create(userWithAudit)
+    const createdUser = await this.create(userWithAudit)
+
+    // Keep PROVIDER_DIMENSION in sync: observation writes stamp USER_CD into
+    // OBSERVATION_FACT.PROVIDER_ID, so every user needs a resolvable provider
+    // row (migration 013 covers pre-existing users).
+    await this.syncProviderForUser(userData.USER_CD, userData.NAME_CHAR)
+
+    return createdUser
+  }
+
+  /**
+   * Upsert the PROVIDER_DIMENSION row matching a user (PROVIDER_ID = USER_CD)
+   * @param {string} userCd - User code (doubles as PROVIDER_ID)
+   * @param {string} [nameChar] - Display name (falls back to userCd)
+   * @returns {Promise<void>}
+   */
+  async syncProviderForUser(userCd, nameChar) {
+    if (!userCd) return
+    await this.connection.executeCommand(
+      `INSERT INTO PROVIDER_DIMENSION (PROVIDER_ID, PROVIDER_PATH, NAME_CHAR, SOURCESYSTEM_CD, UPDATE_DATE, IMPORT_DATE)
+       VALUES (?, ?, ?, 'USER_SYNC', datetime('now'), datetime('now'))
+       ON CONFLICT(PROVIDER_ID) DO UPDATE SET
+         NAME_CHAR = excluded.NAME_CHAR,
+         UPDATE_DATE = excluded.UPDATE_DATE`,
+      [userCd, `\\Provider\\${userCd}\\`, nameChar || userCd],
+    )
   }
 
   /**
@@ -234,7 +259,17 @@ class UserRepository extends BaseRepository {
       UPDATE_DATE: new Date().toISOString(),
     }
 
-    return await this.update(userId, updateWithAudit)
+    const result = await this.update(userId, updateWithAudit)
+
+    // Mirror name/code changes into PROVIDER_DIMENSION (see createUser)
+    if (updateData.USER_CD || updateData.NAME_CHAR) {
+      const user = await this.findById(userId)
+      if (user?.USER_CD) {
+        await this.syncProviderForUser(user.USER_CD, user.NAME_CHAR)
+      }
+    }
+
+    return result
   }
 
   /**
