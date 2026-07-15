@@ -181,6 +181,43 @@ describe('data-grid-store.isCellLocked', () => {
     expect(executeQueryMock).toHaveBeenCalledTimes(2)
   })
 
+  it('statistics exclude locked cells from the filled quota (audits still counted)', async () => {
+    const store = useDataGridStore()
+    await store.loadVisitTypeLockData()
+
+    // One v0 row, two concepts: DRUG:V1 is locked on v0 (explicit elsewhere),
+    // the baseline concept stays active. The locked cell holds a legacy value
+    // with an open audit.
+    store.observationConcepts = [
+      { code: 'DRUG:V1', name: 'Drug', valueType: 'N', category: 'Medications' },
+      { code: 'SCTID: 49436004', name: 'Baseline', valueType: 'N', category: 'Stroke' },
+    ]
+    store.tableRows = [
+      {
+        patientId: 'P1',
+        encounterNum: 1,
+        visitTypeCode: 'v0',
+        observations: {
+          'DRUG:V1': { observationId: 1, value: '40', valueFlag: 'AUDIT' },
+          'SCTID: 49436004': { observationId: 2, value: '120', valueFlag: null },
+        },
+      },
+    ]
+
+    // Lock inactive: both cells count, both filled
+    expect(store.statistics.totalCells).toBe(2)
+    expect(store.statistics.filledCells).toBe(2)
+    expect(store.statistics.lockedCellsCount).toBe(0)
+
+    store.updateViewOptions({ visitTypeLockActive: true })
+    expect(store.statistics.totalCells).toBe(1)
+    expect(store.statistics.filledCells).toBe(1)
+    expect(store.statistics.filledCellsPercentage).toBe(100)
+    expect(store.statistics.lockedCellsCount).toBe(1)
+    // The audit on the locked cell is still reported
+    expect(store.statistics.openAuditsCount).toBe(1)
+  })
+
   it('fails open: lookup errors disable the lock instead of locking everything', async () => {
     executeQueryMock.mockResolvedValue({ success: false, error: 'boom' })
     const store = useDataGridStore()

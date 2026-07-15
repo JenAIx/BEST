@@ -78,11 +78,21 @@
       <div class="text-h6 q-mt-md">Loading patient data...</div>
     </div>
 
-    <!-- Excel-like Table -->
+    <!-- Excel-like Table (row-virtualized: only the scroll window + overscan
+         is in the DOM; spacer rows keep scrollbar geometry + sticky headers) -->
     <div v-else class="excel-table-container">
-      <q-scroll-area class="excel-scroll-area" :thumb-style="thumbStyle" :bar-style="barStyle">
+      <div ref="scrollEl" class="excel-scroll-area" @scroll.passive="onGridScroll">
         <div class="excel-table-wrapper" :style="zoomWrapperStyle">
           <table class="excel-table" :style="tableZoomStyle">
+          <!-- Fixed column widths (table-layout: fixed): keeps column geometry
+               stable while virtualized rows enter/leave the DOM. -->
+          <colgroup>
+            <col style="width: 200px" />
+            <col style="width: 120px" />
+            <template v-for="g in conceptGroups" :key="`col-grp-${g.category}`">
+              <col v-for="concept in g.concepts" :key="`col-${concept.code}`" :style="{ width: conceptColWidth(concept) }" />
+            </template>
+          </colgroup>
           <!-- Header Rows: category band + per-concept header -->
           <thead>
             <!-- Category band: one cell per group spanning its concept columns.
@@ -133,9 +143,12 @@
             </tr>
           </thead>
 
-          <!-- Data Rows -->
+          <!-- Data Rows (virtual window) -->
           <tbody>
-            <tr v-for="row in tableRows" :key="`${row.patientId}-${row.encounterNum}`" class="data-row" :class="{ 'has-changes': hasRowChanges(row) }">
+            <tr v-if="virtualWindow.topPad > 0" class="virtual-spacer" aria-hidden="true">
+              <td :colspan="totalColumnCount" :style="{ height: `${virtualWindow.topPad}px` }"></td>
+            </tr>
+            <tr v-for="row in renderedRows" :key="`${row.patientId}-${row.encounterNum}`" class="data-row" :class="{ 'has-changes': hasRowChanges(row) }">
               <!-- Fixed columns -->
               <td class="fixed-col patient-col" :class="{ 'subsequent-visit': !isFirstVisitForPatient(row) }">
                 <div class="patient-info">
@@ -323,10 +336,13 @@
               </td>
               </template>
             </tr>
+            <tr v-if="virtualWindow.bottomPad > 0" class="virtual-spacer" aria-hidden="true">
+              <td :colspan="totalColumnCount" :style="{ height: `${virtualWindow.bottomPad}px` }"></td>
+            </tr>
           </tbody>
         </table>
         </div>
-      </q-scroll-area>
+      </div>
     </div>
 
     <!-- View Options Dialog -->
@@ -562,7 +578,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -583,7 +599,7 @@ import { useI18n } from 'vue-i18n'
 import { useVisitStore } from 'src/stores/visit-store'
 import MedicationOverviewDialog from './MedicationOverviewDialog.vue'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
-import { groupConceptsByCategory } from 'src/shared/utils/grid-utils'
+import { groupConceptsByCategory, computeVirtualWindow } from 'src/shared/utils/grid-utils'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -778,20 +794,69 @@ const gridPatients = computed(() => {
 })
 
 // Scroll area styling
-const thumbStyle = {
-  right: '4px',
-  borderRadius: '5px',
-  backgroundColor: '#027be3',
-  width: '5px',
-  opacity: 0.75,
+// Row virtualization -------------------------------------------------------
+//
+// Only the rows inside the scroll viewport (+ overscan) are mounted; spacer
+// <tr>s above/below keep the scrollbar geometry and the sticky header/column
+// positions correct. Row height is measured from the first rendered data row
+// (uniform by CSS), zoom is compensated inside computeVirtualWindow.
+const scrollEl = ref(null)
+const measuredRowHeight = ref(44)
+const scrollState = ref({ scrollTop: 0, viewportHeight: 0 })
+let resizeObserver = null
+
+const virtualWindow = computed(() =>
+  computeVirtualWindow({
+    scrollTop: scrollState.value.scrollTop,
+    viewportHeight: scrollState.value.viewportHeight,
+    rowHeight: measuredRowHeight.value,
+    totalRows: tableRows.value.length,
+    zoom: zoomLevel.value,
+  }),
+)
+
+const renderedRows = computed(() => tableRows.value.slice(virtualWindow.value.start, virtualWindow.value.end))
+
+const totalColumnCount = computed(() => 2 + (visibleObservationConcepts.value?.length || 0))
+
+// Chromium already aligns scroll events to frames, and rAF is unreliable in
+// throttled/occluded windows — sync directly on every scroll event.
+const onGridScroll = () => {
+  syncScrollState()
 }
 
-const barStyle = {
-  right: '2px',
-  borderRadius: '9px',
-  backgroundColor: '#027be3',
-  width: '9px',
-  opacity: 0.2,
+const syncScrollState = () => {
+  const el = scrollEl.value
+  if (!el) return
+  scrollState.value = { scrollTop: el.scrollTop, viewportHeight: el.clientHeight }
+}
+
+// Measure the real (uniform) row height once rows are in the DOM, so spacer
+// math matches actual layout regardless of theme/density tweaks.
+const measureRowHeight = async () => {
+  await nextTick()
+  const rowEl = scrollEl.value?.querySelector('tbody tr.data-row')
+  if (rowEl && rowEl.offsetHeight > 0) {
+    measuredRowHeight.value = rowEl.offsetHeight
+  }
+}
+
+watch(
+  () => tableRows.value.length,
+  () => {
+    syncScrollState()
+    measureRowHeight()
+  },
+)
+
+// Fixed column widths for the virtualized table (table-layout: fixed via
+// <colgroup>): mirrors the per-value-type CSS widths + the focus-column mode.
+const conceptColWidth = (concept) => {
+  if (focusedColumn.value === concept.code) return '220px'
+  if (concept.valueType === 'D') return '96px'
+  if (concept.valueType === 'N') return '72px'
+  if (concept.valueType === 'M' || isMedicationConcept(concept)) return '84px'
+  return '90px'
 }
 
 // Data loading methods (using store functions)
@@ -1076,14 +1141,22 @@ const onMedicationsUpdated = async () => {
 }
 
 // Check if this is the first visit row for a patient
+// First (lowest encounterNum) visit per patient — computed once per rows
+// change instead of filter+sort per cell call (was O(rows²) per render).
+const firstEncounterByPatient = computed(() => {
+  const map = new Map()
+  for (const row of tableRows.value || []) {
+    const current = map.get(row.patientId)
+    if (current === undefined || row.encounterNum < current) {
+      map.set(row.patientId, row.encounterNum)
+    }
+  }
+  return map
+})
+
 const isFirstVisitForPatient = (row) => {
-  const rows = tableRows.value || []
-  const patientRows = rows.filter(r => r.patientId === row.patientId)
-  if (patientRows.length === 0) return true
-  
-  // Sort by encounter number to find the first visit
-  const sortedRows = [...patientRows].sort((a, b) => a.encounterNum - b.encounterNum)
-  return sortedRows[0].encounterNum === row.encounterNum
+  const first = firstEncounterByPatient.value.get(row.patientId)
+  return first === undefined || first === row.encounterNum
 }
 
 // Helper function to get observation count for a visit
@@ -1951,10 +2024,24 @@ onMounted(async () => {
   await loadPatientData()
 
   window.addEventListener('keydown', onGridKeydown)
+
+  // Virtualization: track viewport size + take the initial measurements once
+  // the table is in the DOM.
+  await nextTick()
+  if (scrollEl.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => syncScrollState())
+    resizeObserver.observe(scrollEl.value)
+  }
+  syncScrollState()
+  measureRowHeight()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGridKeydown)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 </script>
 
@@ -1995,6 +2082,20 @@ onBeforeUnmount(() => {
 .excel-scroll-area {
   height: 100%;
   overflow: auto;
+
+  // Native scroll container (virtualization needs direct scrollTop access);
+  // scrollbar styling approximates the previous q-scroll-area look.
+  &::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(2, 123, 227, 0.55);
+    border-radius: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(2, 123, 227, 0.08);
+  }
 }
 
 .excel-table-wrapper {
@@ -2012,6 +2113,17 @@ onBeforeUnmount(() => {
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.875rem;
+  // Fixed layout: column widths come from <colgroup>, so they stay stable
+  // while virtualized rows enter/leave the DOM (no width jitter on scroll).
+  table-layout: fixed;
+
+  // Spacer rows that stand in for the off-screen part of the virtual window.
+  .virtual-spacer td {
+    padding: 0;
+    border: none;
+    height: auto;
+    background: transparent;
+  }
 
   // Category band: top header row that groups concept columns by CATEGORY_CHAR.
   // Per-category background tints give visual scanning cues for the dense grid.
@@ -2182,7 +2294,11 @@ onBeforeUnmount(() => {
       border-top: none;
       vertical-align: middle;
       text-align: center;
-      height: 40px;
+      // Uniform row height — required by the virtualization spacer math
+      // (every data row must have the same height). Inner containers below
+      // are capped so no cell content can stretch a row.
+      height: 56px;
+      overflow: hidden;
 
       &.fixed-col {
         position: sticky;
@@ -2409,6 +2525,8 @@ onBeforeUnmount(() => {
           justify-content: center;
           cursor: pointer;
           height: 100%;
+          max-height: 48px; // uniform row height (virtualization)
+          overflow: hidden;
           padding: 4px 6px;
           border-radius: 4px;
           transition: all 0.2s ease;
@@ -2467,6 +2585,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  max-height: 48px; // uniform row height (virtualization)
+  overflow: hidden;
 
   .patient-name {
     font-weight: 500;
@@ -2516,6 +2636,8 @@ onBeforeUnmount(() => {
   padding: 4px;
   cursor: help;
   height: 100%;
+  max-height: 48px; // uniform row height (virtualization)
+  overflow: hidden;
   gap: 2px;
 
   &:hover .visit-edit-icon {

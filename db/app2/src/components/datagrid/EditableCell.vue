@@ -270,7 +270,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useAuthStore } from 'src/stores/auth-store'
@@ -896,6 +896,15 @@ const onKeyDown = (event) => {
     }
   }
 }
+
+// Virtualized grid: a cell can unmount mid-edit (scrolled out of the render
+// window). Commit the pending edit instead of silently dropping it — saveEdit
+// no-ops when nothing changed and guards against concurrent saves.
+onBeforeUnmount(() => {
+  if (isEditing.value) {
+    saveEdit()
+  }
+})
 
 // Watch for external value changes
 watch(
