@@ -499,6 +499,36 @@ class StudyRepository extends BaseRepository {
   }
 
   /**
+   * Batch: study memberships for a set of patients (withdrawn excluded).
+   * Used for the study tags on patient cards.
+   *
+   * @param {number[]} patientNums
+   * @returns {Promise<Map<number, Array<{code: string, name: string}>>>}
+   */
+  async getPatientStudyTags(patientNums) {
+    const map = new Map()
+    if (!Array.isArray(patientNums) || patientNums.length === 0) return map
+
+    const placeholders = patientNums.map(() => '?').join(', ')
+    const result = await this.connection.executeQuery(
+      `SELECT spl.PATIENT_NUM, s.STUDY_CD, s.NAME_CHAR
+       FROM STUDY_PATIENT_LOOKUP spl
+       JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
+       WHERE spl.PATIENT_NUM IN (${placeholders})
+         AND (spl.ENROLLMENT_STATUS_CD IS NULL OR spl.ENROLLMENT_STATUS_CD != 'withdrawn')
+       ORDER BY s.NAME_CHAR`,
+      patientNums,
+    )
+    if (!result.success) return map
+
+    for (const row of result.data) {
+      if (!map.has(row.PATIENT_NUM)) map.set(row.PATIENT_NUM, [])
+      map.get(row.PATIENT_NUM).push({ code: row.STUDY_CD, name: row.NAME_CHAR })
+    }
+    return map
+  }
+
+  /**
    * Get studies for a patient
    * @param {number} patientId - Patient ID
    * @returns {Promise<Array>} Array of patient's studies

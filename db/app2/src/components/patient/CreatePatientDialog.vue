@@ -13,9 +13,9 @@
       <q-card-section>
         <div class="text-body2 text-grey-6 q-mb-md">{{ $t('patient.addPatientHint') }}</div>
 
-        <q-form @submit="handleSubmit" class="q-gutter-md">
+        <q-form @submit="handleSubmit" class="q-gutter-sm">
           <!-- Patient ID and Name -->
-          <div class="row q-gutter-md">
+          <div class="row q-gutter-sm">
             <div class="col">
               <q-input
                 v-model="formData.PATIENT_CD"
@@ -47,7 +47,7 @@
           </div>
 
           <!-- Demographics -->
-          <div class="row q-gutter-md">
+          <div class="row q-gutter-sm">
             <div class="col">
               <q-input v-model="formData.BIRTH_DATE" type="date" label="Birth Date" outlined dense clearable @blur="onBirthDateBlur">
                 <template v-slot:prepend>
@@ -65,7 +65,7 @@
           </div>
 
           <!-- Gender and Vital Status -->
-          <div class="row q-gutter-md">
+          <div class="row q-gutter-sm">
             <div class="col">
               <q-select v-model="formData.SEX_CD" :options="genderOptions" label="Gender" outlined dense clearable emit-value map-options>
                 <template v-slot:prepend>
@@ -83,7 +83,7 @@
           </div>
 
           <!-- Language and Race -->
-          <div class="row q-gutter-md">
+          <div class="row q-gutter-sm">
             <div class="col">
               <q-select v-model="formData.LANGUAGE_CD" :options="languageOptions" label="Language" outlined dense clearable emit-value map-options>
                 <template v-slot:prepend>
@@ -101,7 +101,7 @@
           </div>
 
           <!-- Marital Status and Religion -->
-          <div class="row q-gutter-md">
+          <div class="row q-gutter-sm">
             <div class="col">
               <q-select v-model="formData.MARITAL_STATUS_CD" :options="maritalStatusOptions" label="Marital Status" outlined dense clearable emit-value map-options>
                 <template v-slot:prepend>
@@ -119,7 +119,7 @@
           </div>
 
           <!-- Location and Source System -->
-          <div class="row q-gutter-md">
+          <div class="row q-gutter-sm">
             <div class="col">
               <q-input v-model="formData.STATECITYZIP_PATH" label="Location" outlined dense clearable placeholder="e.g., City, State, ZIP">
                 <template v-slot:prepend>
@@ -137,7 +137,7 @@
           </div>
 
           <!-- Death Date (only show if vital status indicates deceased) -->
-          <div v-if="showDeathDate" class="row q-gutter-md">
+          <div v-if="showDeathDate" class="row q-gutter-sm">
             <div class="col">
               <q-input v-model="formData.DEATH_DATE" type="date" label="Death Date" outlined dense clearable>
                 <template v-slot:prepend>
@@ -151,11 +151,18 @@
           </div>
 
           <!-- Notes -->
-          <q-input v-model="patientNotes" label="Notes" type="textarea" outlined rows="3" clearable placeholder="Additional notes about the patient...">
+          <q-input v-model="patientNotes" label="Notes" type="textarea" outlined dense rows="2" clearable placeholder="Additional notes about the patient...">
             <template v-slot:prepend>
               <q-icon name="notes" />
             </template>
           </q-input>
+
+          <!-- Optional: assign the new patient to a study right away -->
+          <q-select v-model="selectedStudy" :options="studyOptions" :label="$t('patient.assignStudy')" outlined dense clearable emit-value map-options>
+            <template v-slot:prepend>
+              <q-icon name="biotech" />
+            </template>
+          </q-select>
 
           <!-- Access: public toggle (default on) -->
           <q-toggle v-model="isPublic" :label="$t('patient.publicToggle')" color="primary" icon="public" left-label>
@@ -174,6 +181,7 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useNotify } from 'src/composables/useNotify'
 import { useRouter } from 'vue-router'
 import { useDatabaseStore } from 'src/stores/database-store'
@@ -200,6 +208,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'patientCreated'])
 
 const notify = useNotify()
+const { t } = useI18n()
 const router = useRouter()
 const databaseStore = useDatabaseStore()
 const conceptStore = useConceptResolutionStore()
@@ -217,7 +226,7 @@ const showDialog = computed({
 // Form data with defaults
 const formData = ref({
   PATIENT_CD: '',
-  VITAL_STATUS_CD: 'SCTID: 55561003', // Active by default
+  VITAL_STATUS_CD: 'SCTID: 438949009', // alive — must be one of the hierarchical vital_status answer codes so the select can resolve the label
   BIRTH_DATE: null,
   DEATH_DATE: null,
   AGE_IN_YEARS: null,
@@ -235,6 +244,22 @@ const formData = ref({
 const patientName = ref('')
 const patientNotes = ref('')
 const isPublic = ref(true) // Default: patient visible to all users
+const selectedStudy = ref(null) // Optional: STUDY_NUM to enroll into on create
+const studyOptions = ref([])
+
+const loadStudyOptions = async () => {
+  try {
+    if (!databaseStore.canPerformOperations) return
+    const result = await databaseStore.executeQuery('SELECT STUDY_NUM, STUDY_CD, NAME_CHAR FROM STUDY_DIMENSION ORDER BY NAME_CHAR')
+    studyOptions.value = (result.success ? result.data : []).map((study) => ({
+      label: study.NAME_CHAR,
+      value: study.STUDY_NUM,
+    }))
+  } catch (error) {
+    logger.warn('Failed to load study options', error)
+    studyOptions.value = []
+  }
+}
 
 // Dynamic options loaded from concept store
 const genderOptions = ref([])
@@ -267,7 +292,7 @@ const resetForm = async () => {
 
   formData.value = {
     PATIENT_CD: '',
-    VITAL_STATUS_CD: 'SCTID: 55561003', // Active by default
+    VITAL_STATUS_CD: 'SCTID: 438949009', // alive — must be one of the hierarchical vital_status answer codes so the select can resolve the label
     BIRTH_DATE: null,
     DEATH_DATE: null,
     AGE_IN_YEARS: null,
@@ -283,6 +308,7 @@ const resetForm = async () => {
   patientName.value = ''
   patientNotes.value = ''
   isPublic.value = true
+  selectedStudy.value = null
 }
 
 const generatePatientId = async () => {
@@ -464,6 +490,21 @@ const handleSubmit = async () => {
     // Create the patient using database store
     const createdPatient = await databaseStore.createPatient(patientData, { isPublic: isPublic.value })
 
+    // Optional study assignment — a failure here must not undo the created
+    // patient; surface it as a warning instead.
+    if (selectedStudy.value && createdPatient?.PATIENT_NUM) {
+      try {
+        const studyRepo = databaseStore.getRepository('study')
+        await studyRepo.enrollPatient(selectedStudy.value, createdPatient.PATIENT_NUM, {
+          ENROLLMENT_STATUS_CD: 'active',
+        })
+        logger.info('New patient enrolled in study', { patientNum: createdPatient.PATIENT_NUM, studyNum: selectedStudy.value })
+      } catch (enrollError) {
+        logger.error('Failed to enroll new patient in study', enrollError)
+        notify.warning(t('patient.assignStudyFailed'))
+      }
+    }
+
     notify.success(`Patient created successfully (ID: ${createdPatient.PATIENT_CD})`, {
       timeout: 3000,
       actions: [
@@ -505,6 +546,7 @@ watch(showDialog, async (newValue) => {
   if (newValue) {
     await resetForm()
     await loadConceptOptions() // Wait for concept options to load before dialog is fully ready
+    loadStudyOptions()
   }
 })
 
@@ -543,11 +585,6 @@ onMounted(() => {
   letter-spacing: -0.025em;
 }
 
-.q-form {
-  .q-field {
-    margin-bottom: 8px;
-  }
-}
 
 // Custom styling for required field indicators
 .q-field--outlined .q-field__control:before {

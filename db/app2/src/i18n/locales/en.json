@@ -47,6 +47,7 @@
     "selected": "selected",
     "actions": "Actions",
     "notProvided": "Not provided",
+    "notSet": "Not set",
     "years": "years"
   },
   "database": {
@@ -237,6 +238,9 @@
     "yearsShort": "yrs",
     "visitCountShort": "{n} visit | {n} visits",
     "obsShort": "obs",
+    "noOwnerOption": "No owner (public only)",
+    "assignStudy": "Assign study (optional)",
+    "assignStudyFailed": "Patient created, but study assignment failed",
     "addField": "Add Field",
     "removeField": "Remove Field",
     "fieldName": "Field Name",
@@ -431,6 +435,10 @@
     "activeStudies": "Active Studies",
     "researchCategories": "Research Categories",
     "studiesCount": "{count} studies",
+    "allStudies": "All Studies",
+    "unassignedSuggestions": "Suggestions: patients not in any study (10 newest)",
+    "selectedForEnrollment": "Selected ({count})",
+    "patientsEnrolledCount": "{count} patient(s) enrolled",
     "researchResults": "Research Results",
     "searchingStudies": "Searching research studies...",
     "viewStudy": "View Study",

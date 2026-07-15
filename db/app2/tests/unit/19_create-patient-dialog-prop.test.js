@@ -31,10 +31,14 @@ vi.mock('vue-router', () => ({
 
 const createPatientMock = vi.fn()
 const findPatientByCodeMock = vi.fn().mockResolvedValue(null)
+const executeQueryMock = vi.fn().mockResolvedValue({ success: true, data: [] })
+const enrollPatientMock = vi.fn().mockResolvedValue({ success: true })
 vi.mock('src/stores/database-store', () => ({
   useDatabaseStore: () => ({
     createPatient: createPatientMock,
     findPatientByCode: findPatientByCodeMock,
+    executeQuery: executeQueryMock,
+    getRepository: () => ({ enrollPatient: enrollPatientMock }),
     canPerformOperations: true,
     isConnected: true,
   }),
@@ -126,5 +130,68 @@ describe('CreatePatientDialog redirectOnCreate prop', () => {
     const emitted = wrapper.emitted('patientCreated') || []
     expect(emitted.length).toBe(1)
     expect(emitted[0][0]).toMatchObject({ PATIENT_CD: 'TEST_GRID_001' })
+  })
+})
+
+describe('CreatePatientDialog study assignment', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    routerPushMock.mockReset()
+    createPatientMock.mockReset()
+    createPatientMock.mockResolvedValue({
+      PATIENT_CD: 'TEST_GRID_001',
+      PATIENT_NUM: 4242,
+    })
+    findPatientByCodeMock.mockClear()
+    findPatientByCodeMock.mockResolvedValue(null)
+    enrollPatientMock.mockClear()
+    enrollPatientMock.mockResolvedValue({ success: true })
+    executeQueryMock.mockClear()
+    executeQueryMock.mockResolvedValue({ success: true, data: [{ STUDY_NUM: 7, STUDY_CD: 'STROKE_LIPID', NAME_CHAR: 'Stroke-Lipid Management 2026' }] })
+  })
+
+  it('enrolls the new patient when a study is selected', async () => {
+    const wrapper = mountDialog()
+    await flushPromises()
+
+    wrapper.vm.formData.PATIENT_CD = 'TEST_GRID_001'
+    wrapper.vm.selectedStudy = 7
+    await nextTick()
+    await wrapper.vm.handleSubmit()
+    await flushPromises()
+
+    expect(createPatientMock).toHaveBeenCalledOnce()
+    expect(enrollPatientMock).toHaveBeenCalledOnce()
+    expect(enrollPatientMock).toHaveBeenCalledWith(7, 4242, { ENROLLMENT_STATUS_CD: 'active' })
+  })
+
+  it('does not enroll when no study is selected', async () => {
+    const wrapper = mountDialog()
+    await flushPromises()
+
+    wrapper.vm.formData.PATIENT_CD = 'TEST_GRID_001'
+    await nextTick()
+    await wrapper.vm.handleSubmit()
+    await flushPromises()
+
+    expect(createPatientMock).toHaveBeenCalledOnce()
+    expect(enrollPatientMock).not.toHaveBeenCalled()
+  })
+
+  it('a failed enrollment does not break patient creation (emit + redirect still happen)', async () => {
+    enrollPatientMock.mockRejectedValueOnce(new Error('enroll failed'))
+    const wrapper = mountDialog()
+    await flushPromises()
+
+    wrapper.vm.formData.PATIENT_CD = 'TEST_GRID_001'
+    wrapper.vm.selectedStudy = 7
+    await nextTick()
+    await wrapper.vm.handleSubmit()
+    await flushPromises()
+
+    expect(createPatientMock).toHaveBeenCalledOnce()
+    const emitted = wrapper.emitted('patientCreated') || []
+    expect(emitted.length).toBe(1)
+    expect(routerPushMock).toHaveBeenCalledOnce()
   })
 })

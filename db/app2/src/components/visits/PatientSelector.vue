@@ -188,7 +188,7 @@ const hasActiveFilters = computed(() =>
 const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.value)
 
 // Methods
-const mapPatientForCard = async (patient, access = null) => ({
+const mapPatientForCard = async (patient, access = null, studies = []) => ({
   id: patient.PATIENT_CD,
   name: getPatientName(patient),
   age: patient.AGE_IN_YEARS,
@@ -197,7 +197,14 @@ const mapPatientForCard = async (patient, access = null) => ({
   visitCount: await getVisitCount(patient.PATIENT_NUM),
   owner: access?.ownerUserCd || null,
   isPublic: access?.isPublic || false,
+  studies,
 })
+
+const loadPatientCardMaps = async (patients) => {
+  const patientNums = patients.map((p) => p.PATIENT_NUM)
+  const [accessMap, studyMap] = await Promise.all([dbStore.getPatientAccessInfo(patientNums), dbStore.getPatientStudyInfo(patientNums)])
+  return { accessMap, studyMap }
+}
 
 const loadLatestAddedPatients = async () => {
   const result = await dbStore.getPatientsPaginated(1, 3, {
@@ -207,8 +214,8 @@ const loadLatestAddedPatients = async () => {
     },
   })
   const patients = result.patients || []
-  const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
-  return await Promise.all(patients.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM))))
+  const { accessMap, studyMap } = await loadPatientCardMaps(patients)
+  return await Promise.all(patients.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM), studyMap.get(p.PATIENT_NUM) || [])))
 }
 
 const loadRecentPatients = async () => {
@@ -233,8 +240,8 @@ const loadRecentPatients = async () => {
       )
       const accessible = patientDetails.filter((p) => p !== null)
       if (accessible.length > 0) {
-        const accessMap = await dbStore.getPatientAccessInfo(accessible.map((p) => p.PATIENT_NUM))
-        recentPatients.value = await Promise.all(accessible.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM))))
+        const { accessMap, studyMap } = await loadPatientCardMaps(accessible)
+        recentPatients.value = await Promise.all(accessible.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM), studyMap.get(p.PATIENT_NUM) || [])))
         recentPatientsSource.value = 'history'
         return
       }
@@ -331,7 +338,7 @@ const runSearch = async () => {
     const result = await dbStore.getPatientsPaginated(1, 25, criteria)
 
     const patients = result.patients || []
-    const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+    const { accessMap, studyMap } = await loadPatientCardMaps(patients)
 
     const enhanced = await Promise.all(
       patients.map(async (patient) => {
@@ -346,6 +353,7 @@ const runSearch = async () => {
           lastVisit: visitCount > 0 ? await getLastVisitDate(patient.PATIENT_NUM) : null,
           owner: access?.ownerUserCd || null,
           isPublic: access?.isPublic || false,
+          studies: studyMap.get(patient.PATIENT_NUM) || [],
         }
       }),
     )

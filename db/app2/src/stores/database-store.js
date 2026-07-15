@@ -395,6 +395,12 @@ export const useDatabaseStore = defineStore('database', () => {
     return await lookupRepo.getPatientAccessInfo(patientNums)
   }
 
+  // Batch study memberships for patient cards (study tags)
+  const getPatientStudyInfo = async (patientNums) => {
+    const studyRepo = getRepository('study')
+    return await studyRepo.getPatientStudyTags(patientNums)
+  }
+
   // Access-controlled enrolled-patients list for study pages
   const getEnrolledPatientsForStudy = async (studyId) => {
     const userAccess = await resolveUserAccess()
@@ -1072,6 +1078,7 @@ export const useDatabaseStore = defineStore('database', () => {
     getPatientsPaginated,
     getAccessiblePatientByCode,
     getPatientAccessInfo,
+    getPatientStudyInfo,
     getEnrolledPatientsForStudy,
 
     // Raw data operations

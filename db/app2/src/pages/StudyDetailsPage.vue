@@ -179,52 +179,72 @@
       <q-card>
         <q-card-section>
           <div class="row items-center justify-between q-mb-md">
-            <div class="text-subtitle1">{{ $t('study.enrolledPatients') }}</div>
+            <div class="text-subtitle1">
+              {{ $t('study.enrolledPatients') }}
+              <span v-if="hasPatientFilters" class="text-caption text-grey-6 q-ml-sm">({{ filteredEnrolledPatients.length }} / {{ enrolledPatients.length }})</span>
+            </div>
             <q-btn color="primary" icon="add" :label="$t('study.enrollPatient')" @click="showEnrollDialog = true" />
           </div>
+
+          <!-- Patient search + filters (same pattern as /visits) -->
+          <q-input v-model="patientFilters.search" :placeholder="$t('visits.searchPatientPlaceholder')" outlined dense clearable debounce="300" class="q-mb-sm">
+            <template v-slot:prepend>
+              <q-icon name="search" />
+            </template>
+            <template v-slot:append>
+              <q-btn flat round dense icon="tune" :color="hasPatientFilters ? 'primary' : ''" @click="showPatientFilters = !showPatientFilters">
+                <q-tooltip>{{ $t('visits.advancedFilters') }}</q-tooltip>
+              </q-btn>
+            </template>
+          </q-input>
+
+          <q-slide-transition>
+            <div v-show="showPatientFilters" class="q-mb-md q-pa-md bg-grey-1 rounded-borders">
+              <div class="row q-col-gutter-md">
+                <div class="col-12">
+                  <q-range v-model="patientFilters.ageRange" :min="0" :max="120" label color="primary" />
+                  <div class="text-caption text-grey-6">{{ $t('patient.age') }}: {{ patientFilters.ageRange.min }} - {{ patientFilters.ageRange.max }}</div>
+                </div>
+                <div class="col-12 col-sm-6">
+                  <q-select v-model="patientFilters.sex" :options="enrolledSexOptions" :label="$t('patient.gender')" outlined dense clearable emit-value map-options />
+                </div>
+                <div class="col-12 col-sm-6">
+                  <q-select v-model="patientFilters.owner" :options="enrolledOwnerOptions" :label="$t('patient.owner')" outlined dense clearable emit-value map-options />
+                </div>
+              </div>
+              <div class="row justify-end q-mt-sm">
+                <q-btn flat dense size="sm" :label="$t('common.reset')" @click="resetPatientFilters" />
+              </div>
+            </div>
+          </q-slide-transition>
 
           <!-- Loading -->
           <div v-if="loadingPatients" class="text-center q-py-md">
             <q-spinner color="primary" size="32px" />
           </div>
 
-          <!-- Patients Table -->
-          <q-table
-            v-else
-            :rows="enrolledPatients"
-            :columns="patientColumns"
-            row-key="PATIENT_NUM"
-            :rows-per-page-options="[10, 25, 50]"
-            flat
-            bordered
-            @row-click="onPatientRowClick"
-          >
-            <template v-slot:body-cell-name="props">
-              <q-td :props="props">
-                <div class="row items-center q-gutter-sm">
-                  <q-icon name="person" size="20px" :color="getPatientStatusColor(props.row)" />
-                  <span>{{ getPatientName(props.row) }}</span>
-                </div>
-                <q-tooltip>{{ $t('study.goToPatientPage') }}</q-tooltip>
-              </q-td>
-            </template>
+          <!-- Patient Cards -->
+          <template v-else>
+            <div class="patient-cards-grid">
+              <PatientCard
+                v-for="patient in pagedEnrolledPatients"
+                :key="patient.PATIENT_NUM"
+                :patient="patient"
+                :status="{ label: patient.ENROLLMENT_STATUS_CD || 'active', color: getEnrollmentStatusColor(patient.ENROLLMENT_STATUS_CD) }"
+                removable
+                @select="onPatientSelect"
+                @remove="confirmWithdrawPatient"
+              />
+            </div>
+            <div v-if="filteredEnrolledPatients.length > enrolledPageSize" class="row justify-center q-mt-md">
+              <q-pagination v-model="enrolledPage" :max="Math.ceil(filteredEnrolledPatients.length / enrolledPageSize)" :max-pages="7" direction-links boundary-links size="sm" />
+            </div>
 
-            <template v-slot:body-cell-status="props">
-              <q-td :props="props">
-                <q-chip :color="getEnrollmentStatusColor(props.row.ENROLLMENT_STATUS_CD)" text-color="white" size="sm">
-                  {{ props.row.ENROLLMENT_STATUS_CD || 'active' }}
-                </q-chip>
-              </q-td>
-            </template>
-
-            <template v-slot:body-cell-actions="props">
-              <q-td :props="props" @click.stop>
-                <q-btn flat round dense icon="delete" color="negative" size="sm" @click="confirmWithdrawPatient(props.row)">
-                  <q-tooltip>{{ $t('study.withdrawPatient') }}</q-tooltip>
-                </q-btn>
-              </q-td>
-            </template>
-          </q-table>
+            <div v-if="hasPatientFilters && filteredEnrolledPatients.length === 0" class="text-center q-py-lg text-grey-6">
+              <q-icon name="person_off" size="40px" class="q-mb-sm" />
+              <div>{{ $t('visit.noPatientsFound') }}</div>
+            </div>
+          </template>
 
           <!-- No Patients -->
           <div v-if="!loadingPatients && enrolledPatients.length === 0" class="text-center q-py-xl">
@@ -279,7 +299,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
@@ -287,6 +307,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useStudyStore } from 'src/stores/study-store'
 import { useExportStore } from 'src/stores/export-store'
 import EnrollPatientDialog from 'src/components/study/EnrollPatientDialog.vue'
+import PatientCard from 'src/components/shared/PatientCard.vue'
 import StudyInsights from 'src/components/study/StudyInsights.vue'
 
 const route = useRoute()
@@ -304,6 +325,83 @@ const study = ref(null)
 const editMode = ref(false)
 const editData = ref({})
 const enrolledPatients = ref([])
+const enrolledPage = ref(1)
+const enrolledPageSize = 24
+
+// Quick filters over the loaded enrolled list (client-side; same UX as /visits)
+const showPatientFilters = ref(false)
+const DEFAULT_PATIENT_AGE_RANGE = { min: 0, max: 120 }
+const patientFilters = ref({
+  search: '',
+  sex: null,
+  owner: null,
+  ageRange: { ...DEFAULT_PATIENT_AGE_RANGE },
+})
+
+const hasPatientFilters = computed(
+  () =>
+    !!patientFilters.value.search ||
+    !!patientFilters.value.sex ||
+    !!patientFilters.value.owner ||
+    patientFilters.value.ageRange.min !== DEFAULT_PATIENT_AGE_RANGE.min ||
+    patientFilters.value.ageRange.max !== DEFAULT_PATIENT_AGE_RANGE.max,
+)
+
+// Options derived from the actual list, so they always match the data
+const enrolledSexOptions = computed(() => [...new Set(enrolledPatients.value.map((p) => p.SEX_CD).filter(Boolean))].map((v) => ({ label: v, value: v })))
+
+// Owner options: real owners plus an explicit "no owner" entry — imported
+// patients usually have only public access and no creator row
+const NO_OWNER = '__none__'
+const enrolledOwnerOptions = computed(() => {
+  const options = [...new Set(enrolledPatients.value.map((p) => p.owner).filter(Boolean))].map((v) => ({ label: v, value: v }))
+  if (enrolledPatients.value.some((p) => !p.owner)) {
+    options.push({ label: t('patient.noOwnerOption'), value: NO_OWNER })
+  }
+  return options
+})
+
+const filteredEnrolledPatients = computed(() => {
+  const f = patientFilters.value
+  const query = (f.search || '').toLowerCase().trim()
+  return enrolledPatients.value.filter((p) => {
+    if (query && !(String(p.name || '').toLowerCase().includes(query) || String(p.PATIENT_CD || '').toLowerCase().includes(query))) return false
+    if (f.sex && p.SEX_CD !== f.sex) return false
+    if (f.owner === NO_OWNER) {
+      if (p.owner) return false
+    } else if (f.owner && p.owner !== f.owner) {
+      return false
+    }
+    if (f.ageRange.min !== DEFAULT_PATIENT_AGE_RANGE.min || f.ageRange.max !== DEFAULT_PATIENT_AGE_RANGE.max) {
+      const age = p.AGE_IN_YEARS
+      if (age == null || age < f.ageRange.min || age > f.ageRange.max) return false
+    }
+    return true
+  })
+})
+
+const resetPatientFilters = () => {
+  patientFilters.value = {
+    search: '',
+    sex: null,
+    owner: null,
+    ageRange: { ...DEFAULT_PATIENT_AGE_RANGE },
+  }
+}
+
+// Back to page 1 whenever the filter changes
+watch(
+  patientFilters,
+  () => {
+    enrolledPage.value = 1
+  },
+  { deep: true },
+)
+
+const pagedEnrolledPatients = computed(() => {
+  const start = (enrolledPage.value - 1) * enrolledPageSize
+  return filteredEnrolledPatients.value.slice(start, start + enrolledPageSize)
+})
 const loadingPatients = ref(false)
 const showEnrollDialog = ref(false)
 const enrolling = ref(false)
@@ -365,42 +463,6 @@ const statusOptions = [
   { label: 'Completed', value: 'completed' },
 ]
 
-const patientColumns = [
-  {
-    name: 'name',
-    label: t('patient.name'),
-    field: 'name',
-    align: 'left',
-    sortable: true,
-  },
-  {
-    name: 'patientCode',
-    label: t('patient.patientId'),
-    field: 'PATIENT_CD',
-    align: 'left',
-    sortable: true,
-  },
-  {
-    name: 'enrollmentDate',
-    label: t('study.enrollmentDate'),
-    field: 'ENROLLMENT_DATE',
-    align: 'left',
-    sortable: true,
-  },
-  {
-    name: 'status',
-    label: t('study.enrollmentStatus'),
-    field: 'ENROLLMENT_STATUS_CD',
-    align: 'center',
-    sortable: true,
-  },
-  {
-    name: 'actions',
-    label: t('common.actions'),
-    field: 'actions',
-    align: 'center',
-  },
-]
 
 // Methods
 const loadStudy = async () => {
@@ -430,11 +492,17 @@ const loadEnrolledPatients = async () => {
 
     // Access-filtered: regular users only see enrolled patients they may access
     const patients = await dbStore.getEnrolledPatientsForStudy(studyId)
-    
-    // Transform patient data
+    const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+
+    // Transform to the standard PatientCard shape (raw fields kept for withdraw)
     enrolledPatients.value = patients.map((p) => ({
       ...p,
+      id: p.PATIENT_CD,
       name: getPatientName(p),
+      age: p.AGE_IN_YEARS ?? null,
+      lastVisit: p.ENROLLMENT_DATE ? formatDate(p.ENROLLMENT_DATE) : null,
+      owner: accessMap.get(p.PATIENT_NUM)?.ownerUserCd || null,
+      isPublic: accessMap.get(p.PATIENT_NUM)?.isPublic || false,
     }))
   } catch (error) {
     console.error('Failed to load enrolled patients:', error)
@@ -484,16 +552,18 @@ const cancelEdit = () => {
   editMode.value = false
 }
 
-const handleEnrollPatient = async ({ patientNum, enrollmentDate }) => {
+const handleEnrollPatient = async ({ patientNums, enrollmentDate }) => {
   try {
     enrolling.value = true
     if (!dbStore.canPerformOperations) return
 
     const studyRepo = dbStore.getRepository('study')
-    await studyRepo.enrollPatient(studyId, patientNum, {
-      ENROLLMENT_DATE: enrollmentDate,
-      ENROLLMENT_STATUS_CD: 'active',
-    })
+    for (const patientNum of patientNums) {
+      await studyRepo.enrollPatient(studyId, patientNum, {
+        ENROLLMENT_DATE: enrollmentDate,
+        ENROLLMENT_STATUS_CD: 'active',
+      })
+    }
 
     // Reload data
     await loadStudy()
@@ -501,9 +571,9 @@ const handleEnrollPatient = async ({ patientNum, enrollmentDate }) => {
 
     showEnrollDialog.value = false
 
-    notify.success(t('study.patientEnrolled'))
+    notify.success(t('study.patientsEnrolledCount', { count: patientNums.length }))
   } catch (error) {
-    console.error('Failed to enroll patient:', error)
+    console.error('Failed to enroll patients:', error)
     notify.error(t('study.failedToEnroll'))
   } finally {
     enrolling.value = false
@@ -569,14 +639,6 @@ const getPatientName = (patient) => {
 }
 
 
-const getPatientStatusColor = (patient) => {
-  const status = patient.VITAL_STATUS_CD || patient.VITAL_STATUS_RESOLVED
-  if (!status) return 'grey'
-  if (status.includes('alive') || status === 'A') return 'positive'
-  if (status.includes('dead') || status === 'D') return 'negative'
-  return 'grey'
-}
-
 const getEnrollmentStatusColor = (status) => {
   const colors = {
     active: 'positive',
@@ -590,10 +652,10 @@ const goToStudySearch = () => {
   router.push('/studies')
 }
 
-const onPatientRowClick = (evt, row) => {
-  // Navigate to patient page using PATIENT_CD
-  if (row.PATIENT_CD) {
-    router.push(`/patient/${row.PATIENT_CD}`)
+const onPatientSelect = (patient) => {
+  // Navigate to patient page using PATIENT_CD (redirects to /visits/:id)
+  if (patient.PATIENT_CD) {
+    router.push(`/patient/${patient.PATIENT_CD}`)
   }
 }
 
@@ -607,6 +669,18 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
+.patient-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .patient-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .q-card {
   border-radius: 12px;
 }

@@ -9,6 +9,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **/studies platzoptimiert, Studien direkt sichtbar** — Die Studienliste
+  lädt und rendert sofort beim Seitenaufruf ("Alle Studien"), statt erst
+  nach Suche/Kategorie-Klick. Hero-Block der Suchkarte entfernt (Titel
+  stand doppelt), Suchfeld als schmale Zeile. Die vier großen
+  Statistik-Karten sind eine kompakte Inline-Zeile, die
+  Forschungskategorien klickbare Chips daneben (filtern wie zuvor).
+  Studienkarten kompakter (einzeilige Kopfzeile mit Kategorie/Patienten,
+  Status-Chip, Analytics-Button; Beschreibung auf 2 Zeilen geklammert,
+  keine fixe 200px-Höhe mehr); redundanter "View"-Button entfernt
+  (Kartenklick öffnet die Studie). Aktive Filter erscheinen als
+  entfernbare Chips neben der Ergebnis-Überschrift plus
+  "Filter zurücksetzen"; das Entfernen des letzten Filters lädt die
+  ungefilterte Liste neu.
+  Studien-Detailseite: eingeschriebene Patienten als Standard-
+  Patientenkarten (Status-Chip, Entfernen-Button = Austragen aus der
+  Studie via neuer `status`-/`removable`-Props der PatientCard,
+  Owner-Badge, Einschreibedatum), client-seitige Pagination (24/Seite).
+  Zurück-Pfeil in /visits führt jetzt zur Herkunftsseite zurück
+  (z. B. Studien-Detailseite), statt immer zur Patientenauswahl.
+  Eingeschriebene Patienten filterbar wie in /visits: Suchfeld
+  (Name/ID) + aufklappbare Filter (Alters-Range, Geschlecht, Owner —
+  Optionen aus den tatsächlichen Listen-Werten abgeleitet),
+  client-seitig mit Treffer-Zähler und Filter-Reset.
+  "Patient einschreiben"-Dialog zeigt beim Öffnen Vorschläge:
+  Patienten ohne jede Studienzuordnung (zugriffsgefiltert, max. 10
+  neueste) als Standard-Karten. Mehrfachauswahl: angeklickte Patienten
+  wandern platzsparend aus der Liste in eine Chip-Zeile "Ausgewählt (n)"
+  (X am Chip legt sie zurück in die Liste); der Enroll-Button schreibt
+  alle Ausgewählten mit gemeinsamem Datum ein.
+  Owner-Filter der eingeschriebenen Patienten bietet "Ohne Owner
+  (nur öffentlich)" an, wenn ownerlose Patienten in der Liste sind.
+  Studien-Tags auf den Patientenkarten (Dashboard + /visits): kurzer
+  Badge aus dem STUDY_CD (max. 8 Zeichen, z. B. "STROKE") links vom
+  Owner-Badge, voller Studienname im Tooltip; max. 2 Tags plus
+  "+n"-Sammler, zurückgezogene Einschreibungen zählen nicht
+  (`getPatientStudyTags` Batch-Query).
+  "Patient erstellen"-Dialog: neues optionales Feld "Studie zuweisen" —
+  zeigt alle Studien, bei Auswahl wird der neue Patient direkt aktiv
+  eingeschrieben (Fehler bei der Zuweisung bricht die Anlage nicht ab,
+  nur Warn-Hinweis; 3 neue Tests in
+  `tests/unit/19_create-patient-dialog-prop.test.js`). Dialog-Layout
+  verdichtet (q-gutter-sm statt -md, Feld-Margins entfernt,
+  Notizfeld 2 Zeilen dense). Vital-Status-Default zeigte den rohen Code
+  "SCTID: 55561003" statt eines Labels — der hartkodierte Default stand
+  nicht in den hierarchischen vital_status-Antwortoptionen
+  (\\SNOMED-CT\\365860008\\LA\\: alive/dead/unknown); Default jetzt
+  'SCTID: 438949009' (alive), löst korrekt auf.
+  Patientenkarten-Avatar als Geschlechtsindikator: weiblich → rosa
+  (pink-4), männlich → blau (light-blue-6), unbekannt → primary
+  (wertet gender/SEX_RESOLVED/SEX_CD aus, de/en-tauglich).
+  Fehlender i18n-Key `common.notSet` ergänzt.
+
 - **Dashboard vereinfacht: nur noch eine Ansicht, einheitliche Patientenkarten** —
   Der "Deep Work Mode" (Datenübersichts-Karten + Patiententabelle mit
   Filtern/Löschen) und der Light/Deep-Umschalter im Header sind entfernt;
