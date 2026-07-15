@@ -1,15 +1,18 @@
 {
-    "title": "FACT Cog",
+    "title": "FACT-Cog – Kognitive Funktion",
     "short_title": "fact_cog",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "113024001",
         "display" : "FACT-Cognitive Function (Version 3)",
         "version": "20211026"
     },
-    "description": "FACT-Cognitive Function (Version 3)",
+    "description": "Selbstbeurteilung kognitiver Beeinträchtigungen und ihrer Auswirkungen.",
     "manual": "",
-    "keywords": "functional, assessment, cognitive, function, impairment, self, other, selbstbeurteilung, chronisch, kognitiv, funktion",
+    "keywords": "Kognition, Gedächtnis, Lebensqualität, Selbstbeurteilung",
     "items": [
     	{
     		"label": "Es folgt eine Liste mit Aussagen, die andere Personen in Ihrer Situation als wichtig bezeichnet haben. ",

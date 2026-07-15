@@ -1,16 +1,19 @@
 {
-    "title": "Kanadische Kriterien für CFS/ME",
+    "title": "CFS/ME – Kanadische Kriterien (Erschöpfungssyndrom)",
     "short_title": "cfsme",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "52702003",
         "display" : "Kanadische Kriterien für CFS/ME",
         "version": "20211026"
     },
-    "description": "modifiziert nach Carruthers BM Myalgic encephalomyelitis: International Consensus Criteria 2003",
+    "description": "Symptom-Checkliste für das chronische Erschöpfungssyndrom (CFS/ME).",
     "manual": "Bitte kreuzen Sie die für Sie zutreffenden Symptome an.",
     "ref": "https://cfc.charite.de/fileadmin/user_upload/microsites/kompetenzzentren/cfc/Landing_Page/Kanadische_Kriterien_Bell.pdf",
-    "keywords": "fatigue cfs covid",
+    "keywords": "Erschöpfung, Fatigue, Screening",
     "items": [
         {
             "label": "1. Erschöpfung/Fatigue und Zustandsverschlechterung nach Belastung",

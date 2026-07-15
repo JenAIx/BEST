@@ -1,15 +1,18 @@
 {
-    "title": "GAS",
+    "title": "GAS – Goal Attainment Scaling (Zielerreichung)",
     "short_title": "gas",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "770551000",
         "display" : "Goal Attainment Scaling",
         "version": "20211026"
     },
-    "description": "Goal Attainment Scaling",
+    "description": "Individuelle Skalierung des Erreichungsgrades von Therapiezielen.",
     "manual": "<b>Anleitung</b>: Goal Attainment Scaling ist ein Instrument zur Überprüfung selbst gesteckter Ziele. Es erfordert zunächst die Festlegung eines oder mehrerer konkreter und messbarer Ziele. Für jedes Ziel werden dann Indikatoren ausgewählt, mit deren Hilfe die Zielerreichung überprüft werden kann. Diese Indikatoren werden in eine 5-stufige Skala überführt, in deren Mitte das erwartete Ergebnis steht. Davon ausgehend werden je zwei Stufen nach oben („mehr als erwartet“ und „viel mehr als erwartet“) und zwei Stufen nach unten („weniger als erwartet“ und „viel weniger als erwartet“) gebildet. GAS ermöglicht damit eine klare Zieldefinition zu Beginn eines Projektes (Planungsqualität) sowie die (ggf. prozessbegleitende) Überprüfung der Zielerreichung (Prozess- und/oder Ergebnisqualität). ",
-    "keywords": "neuro general",
+    "keywords": "Zielerreichung, Rehabilitation, Fremdbeurteilung",
     "ref": "https://www.lzg.nrw.de/_php/login/dl.php?u=/_media/pdf/evalua_tools/leitfaden_gas_endversion.pdf",
     "items": [
         

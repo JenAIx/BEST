@@ -1,15 +1,18 @@
 {
-    "title": "DEX Fremdbeurteilung männlicher Patient",
+    "title": "DEX – Dysexekutiv-Fragebogen (Fremdbeurteilung, Patient)",
     "short_title": "dex_male",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445813009",
         "display" : "Dysexecutive Questionnaire (male)",
         "version": "20211026"
     },
-    "description": "Dysexecutive Questionnaire",
+    "description": "Fremdbeurteilung dysexekutiver Alltagsprobleme (männlicher Patient).",
     "manual": "",
-    "keywords": "dysexecutive, thrid-party, assessment, male, patient, executive",
+    "keywords": "exekutive Funktion, Kognition, Fremdbeurteilung",
     "items": [
     	{
             "label": "Name / Code des Patienten",

@@ -1,15 +1,18 @@
 {
-    "title": "SUS",
+    "title": "SUS – System Usability Scale (Gebrauchstauglichkeit)",
     "short_title": "sus",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445536008",
         "display" : "System Usability Scale (NeuroNation)",
         "version": "20211026"
     },
-    "description": "System Usability Scale - NeuroNation",
+    "description": "Bewertung der Gebrauchstauglichkeit eines Systems.",
     "manual": "user, usability, system, neuronation",
-    "keywords": "sus_usability",
+    "keywords": "Selbstbeurteilung, Patientenzufriedenheit",
     "items": [
     	{
             "label": "Visit-Datum",

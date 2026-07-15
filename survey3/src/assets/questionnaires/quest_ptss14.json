@@ -1,15 +1,18 @@
 {
-    "title": "PTSS-14",
+    "title": "PTSS-14 – Posttraumatische Stressskala",
     "short_title": "ptss14",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445536008",
         "display" : "Die posttraumatische Stressskala-14 (PTSS-14)",
         "version": "20211026"
     },
-    "description": "Die posttraumatische Stressskala-14 (PTSS-14)",
+    "description": "Screening posttraumatischer Belastungssymptome.",
     "manual": "",
-    "keywords": ": posttraumatic, traumatic, hospital, anxiety, depression, traumatisch, posttraumatisch, ptbs, ptsd, krankenhaus, angst",
+    "keywords": "posttraumatisch, Angst, Belastung, Screening",
     "items": [
     	{
             "label": "A. Wenn ich zurückdenke an die Zeit meiner schweren Erkrankung und an meinen Aufenthalt im Krankenhaus, erinnere ich mich an:",

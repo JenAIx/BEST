@@ -1,15 +1,18 @@
 {
-    "title": "ECOG - Kognitive Fähigkeiten im Alltag (Everyday Cognition)",
+    "title": "ECOG – Everyday Cognition (kognitive Alltagsfähigkeiten)",
     "short_title": "ECOG",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445536008",
         "display" : "ECOG",
         "version": "20230126"
     },
-    "description": "",
+    "description": "Beurteilung kognitiver Fähigkeiten im Alltag.",
     "manual": "",
-    "keywords": "Gedächtnis, Sprache, exekutive, Funktion, Subjektiv, Abbau",
+    "keywords": "Kognition, Gedächtnis, Alltagsaktivitäten",
     "items": [
         {
             "label": "Gedächtnis - Im Vergleich zu der Zeit vor 10 Jahren, sind bei Ihnen irgendwelche Veränderungen aufgetreten im Bezug auf...",

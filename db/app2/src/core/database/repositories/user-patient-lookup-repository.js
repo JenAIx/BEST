@@ -62,6 +62,79 @@ class UserPatientLookupRepository extends BaseRepository {
     return result
   }
 
+  /**
+   * Batch-resolve access info for a set of patients.
+   *
+   * Owner semantics: the creator row is the USER_PATIENT_LOOKUP entry written by
+   * database-store.createPatient with NAME_CHAR = 'Creator access - auto-assigned'.
+   * Public = an entry linking the patient to the public user (USER_ID = 0).
+   *
+   * @param {number[]} patientNums
+   * @returns {Promise<Map<number, {ownerUserId: number|null, ownerUserCd: string|null, ownerName: string|null, isPublic: boolean}>>}
+   */
+  async getPatientAccessInfo(patientNums) {
+    const accessMap = new Map()
+    if (!Array.isArray(patientNums) || patientNums.length === 0) return accessMap
+
+    const placeholders = patientNums.map(() => '?').join(', ')
+    const result = await this.connection.executeQuery(
+      `SELECT upl.PATIENT_NUM, upl.USER_ID, upl.NAME_CHAR as UPL_NAME, u.USER_CD, u.NAME_CHAR as USER_NAME
+       FROM USER_PATIENT_LOOKUP upl
+       JOIN USER_MANAGEMENT u ON u.USER_ID = upl.USER_ID
+       WHERE upl.PATIENT_NUM IN (${placeholders})`,
+      patientNums,
+    )
+    if (!result.success) return accessMap
+
+    for (const row of result.data) {
+      const entry = accessMap.get(row.PATIENT_NUM) || { ownerUserId: null, ownerUserCd: null, ownerName: null, isPublic: false }
+      if (row.UPL_NAME === 'Creator access - auto-assigned') {
+        entry.ownerUserId = row.USER_ID
+        entry.ownerUserCd = row.USER_CD
+        entry.ownerName = row.USER_NAME
+      }
+      if (row.USER_ID === 0) {
+        entry.isPublic = true
+      }
+      accessMap.set(row.PATIENT_NUM, entry)
+    }
+    return accessMap
+  }
+
+  /**
+   * PATIENT_NUMs of all patients created by a given user (creator rows only).
+   * Used by the "created by" filter in the patient selector.
+   *
+   * Special case: the public user (USER_ID 0) never creates patients — its rows
+   * mark public visibility. Selecting it in the filter returns all public
+   * patients instead (any NAME_CHAR, e.g. 'Public access', migration backfill).
+   *
+   * @returns {Promise<number[]>}
+   */
+  async getPatientNumsCreatedBy(userId) {
+    const result =
+      userId === 0
+        ? await this.connection.executeQuery(`SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID = 0`)
+        : await this.connection.executeQuery(
+            `SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP
+             WHERE USER_ID = ? AND NAME_CHAR = 'Creator access - auto-assigned'`,
+            [userId],
+          )
+    return result.success ? result.data.map((row) => row.PATIENT_NUM) : []
+  }
+
+  /**
+   * PATIENT_NUMs of all patients directly assigned to a user (creator rows AND
+   * manual grants — public rows of USER_ID 0 do NOT count). Backs the
+   * "only my patients" quick filter in the patient search.
+   *
+   * @returns {Promise<number[]>}
+   */
+  async getPatientNumsAssignedTo(userId) {
+    const result = await this.connection.executeQuery(`SELECT DISTINCT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID = ?`, [userId])
+    return result.success ? result.data.map((row) => row.PATIENT_NUM) : []
+  }
+
   async removeByUserAndPatient(userId, patientNum) {
     const result = await this.connection.executeCommand(
       `DELETE FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?`,

@@ -1,15 +1,18 @@
 {
-  "title": "SF-36 (mod)",
-  "description": "sf36_mod",
+  "title": "SF-36 – Gesundheitsbezogene Lebensqualität (modifiziert)",
+  "description": "Generisches Maß der gesundheitsbezogenen Lebensqualität (modifizierte Version).",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "SCTID: 770636004",
     "display": "SF-36",
     "version": "20231204"
   },
-  "short_title": "sf36 mod",
+  "short_title": "sf36_mod",
+  "version": "1.0",
+  "updated": "2023-12-04",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "manual": "<b>Anleitung</b>: In diesem Fragebogen geht es um Ihre Beurteilung Ihres Gesundheitszustandes während der letzten 14 Tage. Der Bogen ermöglicht es, im Zeitverlauf nachzuvollziehen, wie <b>Sie sich fühlen</b> und wie <b>Sie im Alltag zurecht kommen</b>. Bitte beantworten Sie jede der folgenden Fragen, in dem Sie bei den Antwortmöglichkeiten die Zahl ankreuzen, die am besten auf Sie zutrifft. <br><b>Bitte kreuzen Sie in jeder  Reihe ein Kästchen an!</b>",
-  "keywords": "health, 14, days, routine, daily, quality, of, life, qol, alltag, lebensqualität",
+  "keywords": "Lebensqualität, Gesundheitszustand, Selbstbeurteilung",
   "items": [
     {
       "label": "1. Wie würden Sie Ihren Gesundheitszustand im Allgemeinen beschreiben?",

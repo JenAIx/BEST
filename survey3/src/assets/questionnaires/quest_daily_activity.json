@@ -1,6 +1,6 @@
 {
-    "title": "Alltagsaktivitäten",
-    "description": "Fragebogen zu Alltagsaktivitäten",
+    "title": "Fragebogen zu Alltagsaktivitäten",
+    "description": "Erfassung von Häufigkeit und Umfang alltäglicher Aktivitäten.",
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "129025006",
@@ -9,7 +9,10 @@
     },
     "manual": "",
     "short_title": "daily_activity",
-    "keywords": "Alltagsaktivitäten",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+    "keywords": "Alltagsaktivitäten, körperliche Aktivität",
     "items": [
         {
             "label": "Wie oft haben Sie folgende Tätigkeiten in den letzten <b>6 Monaten</b> ausgeführt?",

@@ -29,7 +29,7 @@
         <div v-if="currentStep === 'patient'" class="step-content">
           <PatientSelectionCard
             :title="$t('visit.selectPatient')"
-            description="Choose the patient for whom you want to complete a questionnaire."
+            :description="$t('questionnaire.selectPatientHint')"
             :selected-patient="selectedPatient"
             @patient-selected="selectPatient"
             @patient-search="onPatientSearch"

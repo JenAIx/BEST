@@ -1,14 +1,17 @@
 {
-  "title": "6-Minuten-Gehtest",
+  "title": "6MWT – 6-Minuten-Gehtest",
   "short_title": "6MWT",
-  "description": null,
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Standardisierter Gehtest zur Beurteilung von Gehstrecke und Ausdauer.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "SCTID 252478000",
     "display": "6MWT"
   },
   "manual": null,
-  "keywords": null,
+  "keywords": "Mobilität, Gangbild, körperliche Aktivität",
   "ref": null,
   "items": [
     {

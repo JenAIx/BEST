@@ -1,7 +1,10 @@
 {
-  "title": "PANAS - Positive and Negative Affect Schedule",
+  "title": "PANAS – Positive und negative Affektivität",
   "short_title": "PANAS",
-  "description": "Intensität von Gefühlen und Empfindungen",
+  "version": "1.0",
+  "updated": "2021-10-26",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Selbstbeurteilung positiver und negativer Affekte.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "225398001",
@@ -9,7 +12,7 @@
     "version": "20211026"
   },
   "manual": "Dieser Fragebogen enhält eine Reihe von Wörtern, die unterschiedliche Gefühle und Empfindungen beschreiben. <br>Lesen Sie jedes Wort und tragen Sie dann in die Skala neben jedem Wort die Intensität ein. Sie haben die Möglichkeit, zwischen fünf Abstufungen zu wählen. <br><br>Geben Sie bitte an, wie Sie sich in den letzten 2 Wochen gefühlt haben.",
-  "keywords": "PANAS",
+  "keywords": "Stimmung, Selbstbeurteilung",
   "ref": "https://zis.gesis.org/pdfFiles/Dokumentation/Janke_%2B_Deutsche_Version_der_Positive_and_Negative_Affect_Schedule_(PANAS)_c.pdf",
   "items": [
     {

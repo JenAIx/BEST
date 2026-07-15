@@ -1,15 +1,18 @@
 {
-    "title": "HADS-D",
+    "title": "HADS-D – Hospital Anxiety and Depression Scale (deutsch)",
     "short_title": "hads_d",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "SCTID: 273524006",
         "display" : "Hospital anxiety and depression  (HADS-D)",
         "version": "20230126"
     },
-    "description": "Hospital anxiety and depression",
+    "description": "Screening von Angst und Depression im somatischen Versorgungskontext.",
     "manual": "<b>Sehr geehrte Patientin, sehr geehrter Patient!</b> <br>Sie werden von uns wegen körperlichen Beschwerden untersucht und behandelt. Zur vollständigen Beurteilung Ihrer vermuteten oder bereits bekannten Erkrankung bitten wir Sie im vorliegenden Fragebogen um einige persönliche Angaben. Man weiß heute, dass körperliche Krankheit und seelisches Befinden oft eng zusammenhängen. Deshalb beziehen sich die Fragen ausdrücklich auf Ihre allgemeine und seelische Verfassung. Die Beantwortung ist selbstverständlich freiwillig. Wit bitten Sie jedoch, jede Frage zu beantworten, und zwar so, wie es für Sie persönlich <b>in der letzten Woche</b> am ehesten zutraf. Machen Sie bitte nur ein Kreuz pro Frage und lassen Sie bitte keine Frage aus! Überlegen Sie bitte nicht lange, sondern wählen Sie die Antwort aus, die Ihnen auf Anhieb am zutreffendsten erscheint! Alle Ihre Antworten unterliegen der ärztlichen Schweigepflicht.",
-    "keywords": "hospital, anxiety, depression, angst, krankenhaus",
+    "keywords": "Angst, Depression, Screening, Selbstbeurteilung",
     "items": [
         {
             "label": "Geschlecht",

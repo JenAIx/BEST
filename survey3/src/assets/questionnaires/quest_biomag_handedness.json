@@ -1,14 +1,17 @@
 {
-    "title": "Händigkeit BIOMAG",
+    "title": "Händigkeitsfragebogen (BIOMAG)",
     "short_title": "biomag_handedness",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "364940007",
         "display" : "Händigkeit",
         "version": "20211026"
     },
-    "description": "Inventar f. Händigkeit",
-    "keywords": "biomag",
+    "description": "Erfassung der Händigkeit anhand alltäglicher Tätigkeiten.",
+    "keywords": "Motorik, Anamnese",
     "manual": "",
     "items": [
         {

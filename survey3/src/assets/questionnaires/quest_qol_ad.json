@@ -1,15 +1,18 @@
 {
-  "title": "QoL-AD",
+  "title": "QoL-AD – Lebensqualität bei Demenz",
   "short_title": "qol_ad",
+  "version": "1.0",
+  "updated": "2024-02-06",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "868186005",
     "display": "Qol-AD (Quality of Life in Alzheimer's Disease)",
     "version": "20240206"
   },
-  "description": "Quality of Life in Alzheimer's Disease",
+  "description": "Erfassung der Lebensqualität bei Alzheimer-Demenz.",
   "manual": "Der QoL-AD ist ein Fragebogen zur Lebensqualität bei Alzheimer-Patienten. Er besteht aus 13 Fragen, die in vier Kategorien unterteilt sind: körperliche Gesundheit, Energie, Stimmung und geistige Fähigkeiten. Die Fragen werden auf einer Skala von 1 bis 4 beantwortet, wobei 1 „gar nicht“ und 4 „sehr“ bedeutet. Der Fragebogen wurde entwickelt, um die Lebensqualität von Alzheimer-Patienten zu messen und um die Auswirkungen der Krankheit auf die Lebensqualität zu erfassen. <B>Bitte getrennt für Patienten / Angehörige ausfüllen.</B>",
-  "keywords": "alzheimer dementia quality of life",
+  "keywords": "Lebensqualität, Demenz, Selbstbeurteilung",
   "ref": "https://doi.org/10.1097/00006842-200205000-00016",
   "items": [
     {

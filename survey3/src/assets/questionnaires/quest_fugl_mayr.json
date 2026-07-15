@@ -1,14 +1,17 @@
 {
-  "title": "Fugl-Mayr-Short-Version (obere Extremität)",
+  "title": "Fugl-Meyer (Kurzform, obere Extremität)",
   "short_title": "fuglmayrshort",
-  "description": "Beurteilung der motorischen Funktion der oberen Extremität mittels eines numerischen Bewertungssystems.",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Beurteilung der motorischen Funktion der oberen Extremität (Schlaganfall).",
   "coding": {
     "system": "CUSTOM",
     "code": "CUSTOM: FUGL_MEYER",
     "display": "Fugl-Mayr-Short-Version"
   },
   "manual": "Immer zuerst die gesunde und dann die betroffene Seite testen. Benötigte Utensilien: Blatt Papier",
-  "keywords": null,
+  "keywords": "Motorik, Schlaganfall, Rehabilitation, Fremdbeurteilung",
   "ref": "https://summer-carpenter-3d6.notion.site/Anleitungen-Assessment-b6fff9e34bcf4524b2c60d7aa1737ee5",
   "items": [
     {

@@ -177,6 +177,36 @@ VALUES (1, 42, 'Access granted for study XYZ', datetime('now'));
 - ✅ Admin UI: `/users` → "Patient Access" tab for management
 - ✅ All query paths secured: pagination, search, direct lookup
 - ✅ Bug fixed: Consistent filtering across all methods (2025-12-30)
+- ✅ Public-by-default: CreatePatientDialog has a "Public" toggle (default ON) —
+  public patients get an additional lookup row with `USER_ID = 0` (public user),
+  which every access-filtered query treats as "visible to all users"
+- ✅ Owner semantics: the creator row is the lookup entry with
+  `NAME_CHAR = 'Creator access - auto-assigned'` (written by
+  `database-store.createPatient`); UI resolves owner/public via
+  `UserPatientLookupRepository.getPatientAccessInfo(patientNums)` (batch)
+- ✅ Migration 012 backfills `USER_ID = 0` access for every patient without any
+  lookup row (e.g. bulk imports), idempotent via `NOT EXISTS`
+- ✅ UI lookups use `PatientRepository.findAccessiblePatientByCode` /
+  `findAccessiblePatientsByCodes` / `dbStore.getAccessiblePatientByCode` —
+  `findByPatientCode` stays unfiltered for internal checks (duplicate
+  detection on create) and must not be used for user-facing lists (2026-07-14)
+- ✅ Single source of the access predicate: `PatientRepository.getAccessFilter(userAccess)`
+  returns `{join, condition, param}` (or null for admins) — every filtered
+  query composes from it; never inline the UPL join by hand. For list queries
+  in components, always call the `dbStore` wrappers (`getPatientsPaginated`,
+  `getAccessiblePatientByCode`), never `patientRepo.*` directly — the repo
+  methods don't resolve the auth context themselves
+- ✅ Every patient-creating path MUST write access rows: interactive creation
+  via `database-store.createPatient` (creator + optional public), imports via
+  `database-import-service.assignPatientAccess` (creator + public by default),
+  demo data via public row. A patient without any UPL row is invisible to all
+  regular users
+- ✅ Deletion policy: only admins or the patient's creator may delete a patient
+  (guard in `database-store.deletePatient`; dashboard hides the button for
+  others). Public visibility alone does NOT grant deletion
+- ✅ Study enrolment lists are access-filtered too:
+  `dbStore.getEnrolledPatientsForStudy(studyId)` (regular users only see
+  enrolled patients they may access)
 
 **Relationship Diagram**:
 
@@ -836,17 +866,15 @@ authStore.login(username, password, databasePath)
 
 #### DashboardPage.vue (`/dashboard`)
 
-**Two-mode dashboard with statistics and quick actions**
+**Single-view dashboard with statistics and quick actions** *(the former
+"Deep Work Mode" with its patient table was removed July 2026 — patient
+search/management lives on `/visits`)*
 
-- **Visit Mode**:
-  - Quick patient search, new patient, visits today, import
-  - Recent patients list
-  - Current studies list
-  - Today's statistics (patients seen, visits, reports, active studies)
-- **Deep Work Mode**:
-  - Data overview cards (total patients, active studies, new today, data quality)
-  - Advanced patient data explorer with filters
-  - Full patient table with search/filter/sort
+- Quick actions: patient search, new patient, visits today, import
+- Recent patients as compact card grid (shared `PatientCard`, owner badge)
+- Current studies list
+- Today's statistics (patients seen, visits, reports, active studies; for
+  non-admins additionally visible/hidden patient counts)
 
 **Key Features**: Real-time statistics, patient creation, study management
 
@@ -1338,6 +1366,13 @@ console.log($t('category.key'))
 
 ### When Creating UI Components
 
+- **Standard patient card**: `src/components/shared/PatientCard.vue` is THE
+  patient card for every patient list/grid (dashboard, /visits recents +
+  search results, …). Don't build new patient card/list-item markup — pass
+  `{ id, name, age?, visitCount?, lastVisit?, owner?, isPublic? }` and listen
+  to `@select`. It handles name-vs-ID fallback (no duplicate ID, person icon
+  instead of digit "initials"), the two-part meta line, and the owner badge.
+  Render collections in a grid: `repeat(auto-fill, minmax(280px, 1fr))`.
 - Follow Quasar component conventions
 - Use I18n for all user-facing text
 - Implement proper loading states

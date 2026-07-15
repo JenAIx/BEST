@@ -1,14 +1,17 @@
 {
-  "title": "Falls Efficacy Scale - internationale Version (FES-I)",
+  "title": "FES-I – Falls Efficacy Scale International (Sturzangst)",
   "short_title": "fes-i",
-  "description": "Einschätzung der Angst vor Stürzen",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Selbsteinschätzung der Sturzangst bei Alltagsaktivitäten.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "SCTID: 445036004",
     "display": "Falls Efficacy Scale - internationale Version (FES-I)"
   },
   "manual": "Wir würden Ihnen gerne einige Fragen darüber stellen, welche Bedenken Sie haben hinzufallen, wenn Sie bestimmte Aktivitäten ausführen. Bitte denken Sie noch einmal darüber nach, wie Sie diese Aktivität normalerweise ausführen. Wenn Sie die Aktivität z. Zt. nicht ausführen (z. B. wenn jemand Ihren Einkauf erledigt), geben Sie bitte (trotzdem) eine Antwort, um anzuzeigen, ob Sie Bedenken hätten zu stürzen, wenn Sie die Aktivität ausführen würden. Markieren Sie bitte diejenige Angabe, die am ehesten Ihrem eigenen Empfinden entspricht, um anzuzeigen, welche Bedenken Sie haben zu stürzen, wenn Sie diese Aktivität ausüben. ",
-  "keywords": "Sturzangst, Sturz, Selbsteinschätzung, Alltagsaktivitäten",
+  "keywords": "Sturzangst, Sturz, Alltagsaktivitäten, Selbstbeurteilung",
   "ref": "https://www.thieme-connect.de/products/ejournals/html/10.1055/s-0030-1248931    https://sites.manchester.ac.uk/fes-i/",
   "items": [
     {

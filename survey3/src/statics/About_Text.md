@@ -43,9 +43,17 @@ Diese App ist **kein zugelassenes Medizinprodukt** im Sinne der EU-Medizinproduk
 
 Der Nutzer ist eigenverantwortlich für die sichere Aufbewahrung, den Export und die Löschung der auf dem Gerät gespeicherten Daten. Beim Löschen des Browser-Speichers oder bei Deinstallation der App gehen alle lokal gespeicherten Daten unwiderruflich verloren.
 
-### Urheberrecht bei Fragebogeninhalten
+### Urheberrecht und Lizenzstatus bei Fragebogeninhalten
 
 Die in dieser App verwendeten oder importierten Fragebogentemplates können urheberrechtlich geschütztem Material Dritter unterliegen. Der Nutzer ist selbst dafür verantwortlich, die erforderlichen Nutzungsrechte und Lizenzen bei den jeweiligen Rechteinhabern einzuholen, bevor ein Fragebogen eingesetzt wird.
+
+Zur **Orientierung** trägt jeder gebündelte Fragebogen in der Auswahlliste (oben rechts) einen Lizenz-Indikator:
+
+- 🔓 **frei** — der Fragebogen ist nach unserem Kenntnisstand gemeinfrei, ausdrücklich frei nutzbar oder eine Eigenentwicklung.
+- 🔒 **Lizenz** — für die Verwendung ist nach unserem Kenntnisstand eine Lizenzierung bzw. Genehmigung des Rechteinhabers erforderlich.
+- ❔ **unklar** — der Lizenzstatus konnte nicht zweifelsfrei geklärt werden; bitte vor der Verwendung selbst prüfen.
+
+Dieser Indikator ist eine **unverbindliche Einschätzung nach bestem Wissen und ohne Gewähr** — er ist **keine Rechtsberatung** und ersetzt nicht die eigene Prüfung. Im Zweifel wurde bewusst konservativ eingestuft (eher „Lizenz"/„unklar" als „frei"). Die Verantwortung für eine rechtmäßige Nutzung — insbesondere für kommerzielle Zwecke — liegt allein beim Nutzer. Ein als „frei" markierter Bogen kann je nach Einsatzzweck (z. B. kommerziell) dennoch Lizenzpflichten unterliegen.
 
 ### Haftungsbeschränkung
 

@@ -1,15 +1,18 @@
 {
-    "title": "Big-Five-Inventory",
+    "title": "BFI-10 – Big Five Inventory (Persönlichkeit)",
     "short_title": "bfi10",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "CUSTOM",
         "code" : "CUSTOM: NP\\BFI10",
         "display" : "BFI-10 (Big Five Inventory)",
         "version": "20230126"
     },
-    "description": "Brief personality questionnaire, big five",
+    "description": "Kurzskala zur Erfassung der fünf Persönlichkeitsdimensionen.",
     "manual": "",
-    "keywords": "Persönlichkeit, personality, questionnaire",
+    "keywords": "Persönlichkeit, Selbstbeurteilung",
     "items": [
         {
             "label": "Inwieweit treffen die folgenden Aussagen auf Sie zu?",

@@ -1,15 +1,18 @@
 {
-    "title": "GDS - Geriatrische Depressionsskala",
+    "title": "GDS – Geriatrische Depressionsskala (Kurzform)",
     "short_title": "GDS",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445041007",
         "display" : "Geriatrische Depressionsskala (short)",
         "version": "20211026"
     },
-    "description": "Geriatrische Depressionsskala - Kurzform",
+    "description": "Screening depressiver Symptome bei älteren Menschen.",
     "manual": "",
-    "keywords": "depression, old, older, elderly, geriatric, short, kurz",
+    "keywords": "Depression, Geriatrie, Screening, Selbstbeurteilung",
     "items": [
     	{
             "label": "Es folgt eine Liste mit Aussagen. Bitte geben Sie an, ob diese jeweils Ihren Zustand <b>innerhalb der letzten 7 Tage</b> beschreiben. Dabei gibt es keine richtigen oder falschen Antworten! Bitte beantworten Sie jede Frage.",

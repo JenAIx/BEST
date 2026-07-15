@@ -7,6 +7,184 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **/studies platzoptimiert, Studien direkt sichtbar** — Die Studienliste
+  lädt und rendert sofort beim Seitenaufruf ("Alle Studien"), statt erst
+  nach Suche/Kategorie-Klick. Hero-Block der Suchkarte entfernt (Titel
+  stand doppelt), Suchfeld als schmale Zeile. Die vier großen
+  Statistik-Karten sind eine kompakte Inline-Zeile, die
+  Forschungskategorien klickbare Chips daneben (filtern wie zuvor).
+  Studienkarten kompakter (einzeilige Kopfzeile mit Kategorie/Patienten,
+  Status-Chip, Analytics-Button; Beschreibung auf 2 Zeilen geklammert,
+  keine fixe 200px-Höhe mehr); redundanter "View"-Button entfernt
+  (Kartenklick öffnet die Studie). Aktive Filter erscheinen als
+  entfernbare Chips neben der Ergebnis-Überschrift plus
+  "Filter zurücksetzen"; das Entfernen des letzten Filters lädt die
+  ungefilterte Liste neu.
+  Studien-Detailseite: eingeschriebene Patienten als Standard-
+  Patientenkarten (Status-Chip, Entfernen-Button = Austragen aus der
+  Studie via neuer `status`-/`removable`-Props der PatientCard,
+  Owner-Badge, Einschreibedatum), client-seitige Pagination (24/Seite).
+  Zurück-Pfeil in /visits führt jetzt zur Herkunftsseite zurück
+  (z. B. Studien-Detailseite), statt immer zur Patientenauswahl.
+  Eingeschriebene Patienten filterbar wie in /visits: Suchfeld
+  (Name/ID) + aufklappbare Filter (Alters-Range, Geschlecht, Owner —
+  Optionen aus den tatsächlichen Listen-Werten abgeleitet),
+  client-seitig mit Treffer-Zähler und Filter-Reset.
+  "Patient einschreiben"-Dialog zeigt beim Öffnen Vorschläge:
+  Patienten ohne jede Studienzuordnung (zugriffsgefiltert, max. 10
+  neueste) als Standard-Karten. Mehrfachauswahl: angeklickte Patienten
+  wandern platzsparend aus der Liste in eine Chip-Zeile "Ausgewählt (n)"
+  (X am Chip legt sie zurück in die Liste); der Enroll-Button schreibt
+  alle Ausgewählten mit gemeinsamem Datum ein.
+  Owner-Filter der eingeschriebenen Patienten bietet "Ohne Owner
+  (nur öffentlich)" an, wenn ownerlose Patienten in der Liste sind.
+  Studien-Tags auf den Patientenkarten (Dashboard + /visits): kurzer
+  Badge aus dem STUDY_CD (max. 8 Zeichen, z. B. "STROKE") links vom
+  Owner-Badge, voller Studienname im Tooltip; max. 2 Tags plus
+  "+n"-Sammler, zurückgezogene Einschreibungen zählen nicht
+  (`getPatientStudyTags` Batch-Query).
+  "Patient erstellen"-Dialog: neues optionales Feld "Studie zuweisen" —
+  zeigt alle Studien, bei Auswahl wird der neue Patient direkt aktiv
+  eingeschrieben (Fehler bei der Zuweisung bricht die Anlage nicht ab,
+  nur Warn-Hinweis; 3 neue Tests in
+  `tests/unit/19_create-patient-dialog-prop.test.js`). Dialog-Layout
+  verdichtet (q-gutter-sm statt -md, Feld-Margins entfernt,
+  Notizfeld 2 Zeilen dense). Vital-Status-Default zeigte den rohen Code
+  "SCTID: 55561003" statt eines Labels — der hartkodierte Default stand
+  nicht in den hierarchischen vital_status-Antwortoptionen
+  (\\SNOMED-CT\\365860008\\LA\\: alive/dead/unknown); Default jetzt
+  'SCTID: 438949009' (alive), löst korrekt auf.
+  Patientenkarten-Avatar als Geschlechtsindikator: weiblich → rosa
+  (pink-4), männlich → blau (light-blue-6), unbekannt → primary
+  (wertet gender/SEX_RESOLVED/SEX_CD aus, de/en-tauglich).
+  Fehlender i18n-Key `common.notSet` ergänzt.
+
+- **Dashboard vereinfacht: nur noch eine Ansicht, einheitliche Patientenkarten** —
+  Der "Deep Work Mode" (Datenübersichts-Karten + Patiententabelle mit
+  Filtern/Löschen) und der Light/Deep-Umschalter im Header sind entfernt;
+  die bisherige Light-Ansicht ist das Dashboard (Patientenverwaltung läuft
+  über `/visits`). Neue gemeinsame `src/components/shared/PatientCard.vue`
+  (neutral, kompakt: weiß, 1px Rand, Hover-Primärfarbe, 32px-Avatar, eine
+  Meta-Zeile, Owner-Badge oben rechts) ersetzt die bisherigen
+  Karten-Varianten (lila Gradient entfällt). Dashboard "Recent Patients"
+  und /visits (Zuletzt + Suchergebnisse) rendern die Karten im Grid
+  2–3 nebeneinander (`repeat(auto-fill, minmax(280px, 1fr))`).
+  Karten-Feinschliff (live per CDP-Screenshot verifiziert): keine
+  ID-Dublette mehr (Titel = Name ODER ID), Person-Icon statt
+  Ziffern-"Initialen" bei namenlosen Patienten, Meta-Zeile zweigeteilt
+  (Fakten links, Zeitpunkt mit Uhr-Icon rechts, kein Ellipsis-Gedränge),
+  korrekte Pluralisierung ("1 Besuch"/"n Besuche") und locale-abhängiges
+  Datumsformat. Die Karte ist als Standard-Patientenkarte in CLAUDE.md
+  festgeschrieben. Quick Actions aufgeräumt: "Schnelle Patientensuche" und
+  "Patientenbesuche" (beide → /visits) zu einer Karte "Patienten & Besuche"
+  zusammengefasst (3 statt 4 Quick-Action-Karten).
+  "Patient auswählen" (PatientSelectionCard: /questionnaires, /import,
+  Grid-Editor) auf die Standard-Karte umgestellt — Karten-Grid statt
+  Eigenbau-Liste, Auswahl-Highlight über neues `selected`-Prop der
+  PatientCard, Owner-Badges, i18n statt hartkodiertem Englisch
+  (Titel/Beschreibung/Suchfeld). Neuer Schnellfilter "Nur meine Patienten"
+  in der /visits-Patientensuche (aus = alle verfügbaren: eigene +
+  öffentliche; an = nur zugewiesene/selbst angelegte;
+  `getPatientNumsAssignedTo`); derselbe Toggle auch in der
+  PatientSelectionCard (/questionnaires, /import, Grid-Editor) und in den
+  Filtern der Export-Seite. Footer in der /visits-Patientenauswahl mit
+  Zählern: verfügbar (zugriffsgefiltert) / öffentlich / mir zugewiesen.
+  Export-Seite: q-table durch das Standard-Karten-Grid ersetzt — Karten
+  anklicken toggelt die Auswahl (selected-State), "Alle auswählen" wählt
+  alle zum Filter passenden Patienten (nicht nur die Seite), Abwählen
+  über das bestehende "Clear Selection"; zentrierte Pagination
+  (24/Seite), Owner-Badges auch hier. Data-Grid-Auswahlseite auf dasselbe
+  Muster umgestellt (Karten-Grid statt q-table, Klick-Auswahl, "Alle
+  auswählen", Pagination); Besuchs-/Beobachtungszahlen in der
+  Karten-Meta-Zeile (`observationCount` in der Standard-Karte).
+  Ungenutzte Deep-only-i18n-Keys entfernt.
+
+### Added
+
+- **User-Access: Public-Patienten, Owner-Anzeige, Creator-Filter** —
+  - Patient-Neuanlage hat einen "Öffentlich"-Toggle (default an): public
+    Patienten bekommen zusätzlich zur Creator-Zuordnung eine
+    `USER_PATIENT_LOOKUP`-Zeile mit `USER_ID = 0` und sind damit für alle
+    Nutzer sichtbar (`database-store.createPatient({ isPublic })`).
+  - Migration `012-public-patient-access`: Bestandspatienten ohne
+    Nutzer-Zuordnung (u. a. die 425 Lipid-Import-Patienten) werden public.
+  - Owner-Badge (rechts oben, Ellipsis + Tooltip) auf den Patientenkarten in
+    `/visits`; Owner-Spalte in der Dashboard-Tabelle und Owner in der
+    "Recent Patients"-Liste. Auflösung batch-weise über
+    `UserPatientLookupRepository.getPatientAccessInfo`.
+  - Neuer Filter "Angelegt von" in den erweiterten Filtern des
+    Patient-Selectors und auf der Data-Grid-Auswahlseite
+    (`getPatientNumsCreatedBy`; Auswahl des Public-Users filtert auf
+    öffentliche Patienten). Owner-Anzeige (dezent) auch in der
+    Data-Grid-Patiententabelle.
+
+### Fixed
+
+- **User-Access: ungefilterte Anzeigepfade** — "Zuletzt"-Karten im
+  Patient-Selector und die Suche/Recents der PatientSelectionCard umgingen die
+  Zugriffskontrolle (direktes `findByPatientCode`/SQL): Nutzer sahen Karten,
+  deren Klick dann mit "Patient not found or access denied" scheiterte. Alle
+  UI-Lookups laufen jetzt über `findAccessiblePatientByCode` bzw.
+  `getPatientsPaginated` (beide USER_PATIENT_LOOKUP-gefiltert, Public-User 0
+  eingeschlossen). Tests: `tests/unit/20_user-access.test.js`.
+- **User-Access-Review (alle Query-Pfade)** — weitere ungefilterte Pfade
+  geschlossen: Header-Suche (`SmartSearch`), Studien-Einschreibung
+  (`EnrollPatientDialog`), Export-Patiententabelle (`ExportPage`) riefen
+  `patientRepo.getPatientsPaginated` ohne User-Kontext auf; der
+  Data-Grid-Editor lud gespeicherte Auswahlen ungefiltert
+  (`loadBatchPatientData` → neu `findAccessiblePatientsByCodes`).
+  `countByCriteriaFromView` warf bei Regular-Usern mit `patientNums`-Kriterium
+  "ambiguous column name: PATIENT_NUM" (fehlender Alias) und zählte
+  searchTerm-Treffer ohne Access-Filter — beides gefixt. Das
+  Zugriffs-Prädikat ist jetzt in `PatientRepository.getAccessFilter()`
+  zentralisiert (ein Ort statt fünf SQL-Duplikate).
+- **Tiefenanalyse User-Access + Audit-Workflow** (3 parallele Code-Audits):
+  - Import-Pfade (CSV/Survey/HL7/JSON via `database-import-service`) und der
+    Demo-Generator legten Patienten ohne `USER_PATIENT_LOOKUP`-Zeilen an
+    (unsichtbar für normale Nutzer). Importe schreiben jetzt Creator- +
+    Public-Zeilen (`assignPatientAccess`, Optionen `currentUserId` /
+    `assignPublicAccess`), Demo-Patienten werden public.
+  - Patienten-Löschung war für jeden sichtbaren Patienten möglich (inkl.
+    public). Jetzt: nur Admins oder der Ersteller (Guard in
+    `database-store.deletePatient` + Button-Gating im Dashboard).
+  - `StudyDetailsPage` zeigte alle eingeschriebenen Patienten einer Studie
+    ungefiltert (Name, ID, Demografie). `getEnrolledPatients` unterstützt
+    jetzt `userAccess`; die Seite lädt über den gefilterten Wrapper
+    `dbStore.getEnrolledPatientsForStudy`.
+  - Grid-Editor lud Observations ungefiltert und synthetisierte daraus
+    Zeilen für unzugängliche Patienten — Observations werden jetzt nur für
+    die zugriffsgefilterte Patientenliste geladen.
+  - `VALUEFLAG_CD`-Konsistenz: Der Visits-Editor ließ Flags beim
+    Wertschreiben stehen (NV+Wert-Inkonsistenz möglich), das Grid löschte
+    Flags bei Nicht-Numerik nur lokal, nicht in der DB (Divergenz). Beide
+    Editoren setzen jetzt bei jedem Wertschreiben `VALUEFLAG_CD = NULL`
+    (DB + lokaler Spiegel), gemäß CLAUDE.md §3.
+  - Export-Service nutzt im UI-Pfad den zugriffsgefilterten Lookup
+    (Defense-in-depth; Headless-Skripte unverändert).
+
+- **Dateneingabe: Autosave + Undo-Fenster** — Observation-Eingaben in der
+  Visiten-Dateneingabe speichern jetzt automatisch beim Verlassen des Feldes
+  (Blur), bei Enter (Shift+Enter erzeugt im Textfeld weiter einen
+  Zeilenumbruch) bzw. sofort bei Auswahl einer Option (S/F/A-Selects).
+  Die bisherigen Save-/Cancel-Buttons pro Zeile entfallen. Nach jedem
+  Speichern erscheinen für 10 Sekunden ein grünes Häkchen am Feld
+  (ersetzt den Erfolgs-Toast) und ein Undo-Button (orange, `undo`-Icon)
+  in der Aktionsspalte, der den Wert von vor dem Speichern wiederherstellt
+  (schreibt ihn zurück in die DB). "Duplicate previous value" speichert
+  jetzt direkt (vorher: nur als pending markiert). Betroffen:
+  `ObservationValueEditor.vue` (Blur/Enter/Select-Trigger, Häkchen),
+  `ObservationFieldSet.vue` (`recentSaves`-Fenster, `revertRow`,
+  NaN-Guard für leere Numerik), `ObservationsTable.vue` /
+  `ObservationRowActions.vue` (Event-Durchleitung, Undo-Button).
+
+- **Zusätzliche-Infos-Karte: Location editierbar + eigene Felder** — siehe
+  Merge `features/patient-additional-info-edit`: Location (`STATECITYZIP_PATH`)
+  ist im Edit-Modus editierbar; frei definierbare Zusatzfelder können angelegt/
+  gelöscht werden (JSON in `PATIENT_BLOB.customFields`, reservierte Keys
+  `name`/`notes`/`firstName`/`lastName` bleiben unangetastet).
+
 ## [0.3_20260521] - 2026-05-21
 
 ### Datentabellen-Editor: per-observation date (right-click → edit / reset)

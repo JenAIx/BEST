@@ -29,6 +29,13 @@
           </template>
         </q-input>
 
+        <!-- Quick scope toggle: all available (own + public) vs. only assigned to me -->
+        <div class="row justify-end q-mt-xs">
+          <q-toggle v-model="filters.onlyMine" :label="$t('visits.onlyMyPatients')" size="sm" dense color="primary" left-label class="text-grey-7">
+            <q-tooltip>{{ $t('visits.onlyMyPatientsHint') }}</q-tooltip>
+          </q-toggle>
+        </div>
+
         <!-- Advanced Filters -->
         <q-slide-transition>
           <div v-show="showAdvancedFilters" class="q-mt-md q-pa-md bg-grey-1 rounded-borders">
@@ -44,8 +51,11 @@
               <div class="col-12 col-sm-6">
                 <q-select v-model="filters.vitalStatus" :options="vitalStatusOptions" :label="$t('patient.vitalStatus')" outlined dense clearable emit-value map-options />
               </div>
-              <div class="col-12">
+              <div class="col-12 col-sm-6">
                 <q-select v-model="filters.studies" :options="studyOptions" :label="$t('study.studies')" outlined dense clearable multiple emit-value map-options :loading="loadingStudies" />
+              </div>
+              <div class="col-12 col-sm-6">
+                <q-select v-model="filters.createdBy" :options="userOptions" :label="$t('visits.filterByCreator')" outlined dense clearable emit-value map-options :loading="loadingUsers" />
               </div>
             </div>
             <div class="row justify-end q-mt-md">
@@ -62,7 +72,7 @@
           {{ recentPatientsSource === 'latest' ? $t('visit.latestPatients') : $t('visit.recentPatients') }}
         </div>
         <div class="recent-patients-grid">
-          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" variant="recent" @select="selectPatient" />
+          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="selectPatient" />
         </div>
       </q-card-section>
 
@@ -73,7 +83,7 @@
           {{ $t('visit.searchResults', { count: searchResults.length }) }}
         </div>
         <div class="search-results">
-          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" variant="search" @select="selectPatient" />
+          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" @select="selectPatient" />
         </div>
       </q-card-section>
 
@@ -93,6 +103,23 @@
           <div class="text-body2 text-grey-6 q-mt-sm">{{ $t('visit.searchingPatients') }}</div>
         </div>
       </q-card-section>
+
+      <!-- Patient counts footer -->
+      <q-separator />
+      <q-card-section class="patient-stats-footer">
+        <span>
+          <q-icon name="groups" size="14px" />
+          {{ $t('visits.statsAvailable', { n: patientStats.total }) }}
+        </span>
+        <span>
+          <q-icon name="public" size="14px" />
+          {{ $t('visits.statsPublic', { n: patientStats.publicCount }) }}
+        </span>
+        <span>
+          <q-icon name="person" size="14px" />
+          {{ $t('visits.statsMine', { n: patientStats.mine }) }}
+        </span>
+      </q-card-section>
     </q-card>
 
     <CreatePatientDialog v-model="showCreateDialog" @patient-created="onPatientCreated" />
@@ -106,7 +133,7 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
-import PatientCard from './PatientCard.vue'
+import PatientCard from 'src/components/shared/PatientCard.vue'
 import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
 import { useRouter } from 'vue-router'
 
@@ -135,6 +162,8 @@ const filters = ref({
   vitalStatus: null,
   ageRange: { ...DEFAULT_AGE_RANGE },
   studies: [],
+  createdBy: null,
+  onlyMine: false,
 })
 
 // Filter option lists
@@ -142,26 +171,40 @@ const sexOptions = ref([])
 const vitalStatusOptions = ref([])
 const studyOptions = ref([])
 const loadingStudies = ref(false)
+const userOptions = ref([])
+const loadingUsers = ref(false)
+const patientStats = ref({ total: 0, publicCount: 0, mine: 0 })
 
 const hasActiveFilters = computed(() =>
   !!filters.value.sex ||
   !!filters.value.vitalStatus ||
   filters.value.ageRange.min !== DEFAULT_AGE_RANGE.min ||
   filters.value.ageRange.max !== DEFAULT_AGE_RANGE.max ||
-  (filters.value.studies && filters.value.studies.length > 0),
+  (filters.value.studies && filters.value.studies.length > 0) ||
+  filters.value.createdBy !== null ||
+  filters.value.onlyMine,
 )
 
 const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.value)
 
 // Methods
-const mapPatientForCard = async (patient) => ({
+const mapPatientForCard = async (patient, access = null, studies = []) => ({
   id: patient.PATIENT_CD,
   name: getPatientName(patient),
   age: patient.AGE_IN_YEARS,
   gender: patient.SEX_RESOLVED || patient.SEX_CD,
   lastVisit: await getLastVisitDate(patient.PATIENT_NUM),
   visitCount: await getVisitCount(patient.PATIENT_NUM),
+  owner: access?.ownerUserCd || null,
+  isPublic: access?.isPublic || false,
+  studies,
 })
+
+const loadPatientCardMaps = async (patients) => {
+  const patientNums = patients.map((p) => p.PATIENT_NUM)
+  const [accessMap, studyMap] = await Promise.all([dbStore.getPatientAccessInfo(patientNums), dbStore.getPatientStudyInfo(patientNums)])
+  return { accessMap, studyMap }
+}
 
 const loadLatestAddedPatients = async () => {
   const result = await dbStore.getPatientsPaginated(1, 3, {
@@ -170,7 +213,9 @@ const loadLatestAddedPatients = async () => {
       orderDirection: 'DESC',
     },
   })
-  return await Promise.all((result.patients || []).map(mapPatientForCard))
+  const patients = result.patients || []
+  const { accessMap, studyMap } = await loadPatientCardMaps(patients)
+  return await Promise.all(patients.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM), studyMap.get(p.PATIENT_NUM) || [])))
 }
 
 const loadRecentPatients = async () => {
@@ -180,27 +225,29 @@ const loadRecentPatients = async () => {
     const recent = localSettings.getSetting('visits.recentPatients') || []
 
     if (recent.length > 0) {
-      const patientRepo = dbStore.getRepository('patient')
+      // Access-controlled lookup: entries the current user may not see
+      // (e.g. left over from an admin session) drop out here instead of
+      // rendering cards whose click would then be denied.
       const patientDetails = await Promise.all(
         recent.slice(0, 5).map(async (patientId) => {
           try {
-            const patient = await patientRepo.findByPatientCode(patientId)
-            return patient ? await mapPatientForCard(patient) : null
+            return await dbStore.getAccessiblePatientByCode(patientId)
           } catch (error) {
             logger.warn('Failed to load recent patient', { patientId, error })
             return null
           }
         }),
       )
-      const filtered = patientDetails.filter((p) => p !== null)
-      if (filtered.length > 0) {
-        recentPatients.value = filtered
+      const accessible = patientDetails.filter((p) => p !== null)
+      if (accessible.length > 0) {
+        const { accessMap, studyMap } = await loadPatientCardMaps(accessible)
+        recentPatients.value = await Promise.all(accessible.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM), studyMap.get(p.PATIENT_NUM) || [])))
         recentPatientsSource.value = 'history'
         return
       }
     }
 
-    // No history yet — fall back to the most recently added patients
+    // No (accessible) history yet — fall back to the most recently added patients
     recentPatients.value = await loadLatestAddedPatients()
     recentPatientsSource.value = 'latest'
   } catch (error) {
@@ -254,16 +301,49 @@ const runSearch = async () => {
       }
     }
 
+    // Creator filter: resolve the patients created by the selected user
+    // (same PATIENT_NUM-prefilter pattern as the study filter above)
+    let patientNumFilter = enrolledPatientNums
+    if (filters.value.createdBy !== null && filters.value.createdBy !== undefined) {
+      const lookupRepo = dbStore.getRepository('userPatientLookup')
+      const createdNums = new Set(await lookupRepo.getPatientNumsCreatedBy(filters.value.createdBy))
+      patientNumFilter = patientNumFilter ? new Set([...patientNumFilter].filter((num) => createdNums.has(num))) : createdNums
+      if (patientNumFilter.size === 0) {
+        searchResults.value = []
+        return
+      }
+    }
+
+    // "Only my patients": direct assignments to the current user (created by
+    // or granted to them) — public visibility alone doesn't qualify
+    if (filters.value.onlyMine) {
+      const { useAuthStore } = await import('src/stores/auth-store')
+      const currentUserId = useAuthStore().currentUser?.USER_ID
+      if (currentUserId !== undefined && currentUserId !== null) {
+        const lookupRepo = dbStore.getRepository('userPatientLookup')
+        const mineNums = new Set(await lookupRepo.getPatientNumsAssignedTo(currentUserId))
+        patientNumFilter = patientNumFilter ? new Set([...patientNumFilter].filter((num) => mineNums.has(num))) : mineNums
+        if (patientNumFilter.size === 0) {
+          searchResults.value = []
+          return
+        }
+      }
+    }
+
     const criteria = buildSearchCriteria()
-    if (enrolledPatientNums && enrolledPatientNums.size > 0) {
-      criteria.patientNums = Array.from(enrolledPatientNums)
+    if (patientNumFilter && patientNumFilter.size > 0) {
+      criteria.patientNums = Array.from(patientNumFilter)
     }
 
     const result = await dbStore.getPatientsPaginated(1, 25, criteria)
 
+    const patients = result.patients || []
+    const { accessMap, studyMap } = await loadPatientCardMaps(patients)
+
     const enhanced = await Promise.all(
-      (result.patients || []).map(async (patient) => {
+      patients.map(async (patient) => {
         const visitCount = await getVisitCount(patient.PATIENT_NUM)
+        const access = accessMap.get(patient.PATIENT_NUM)
         return {
           id: patient.PATIENT_CD,
           name: getPatientName(patient),
@@ -271,6 +351,9 @@ const runSearch = async () => {
           gender: patient.SEX_RESOLVED || patient.SEX_CD,
           visitCount,
           lastVisit: visitCount > 0 ? await getLastVisitDate(patient.PATIENT_NUM) : null,
+          owner: access?.ownerUserCd || null,
+          isPublic: access?.isPublic || false,
+          studies: studyMap.get(patient.PATIENT_NUM) || [],
         }
       }),
     )
@@ -297,6 +380,8 @@ const resetFilters = () => {
     vitalStatus: null,
     ageRange: { ...DEFAULT_AGE_RANGE },
     studies: [],
+    createdBy: null,
+    onlyMine: false,
   }
 }
 
@@ -400,11 +485,55 @@ const getVisitCount = async (patientNum) => {
 const formatVisitDate = (dateStr) => {
   if (!dateStr) return null
   const date = new Date(dateStr)
-  return date.toLocaleDateString('en-US', {
+  // System/browser locale so the date matches the UI language
+  return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
+}
+
+const loadUserOptions = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+    loadingUsers.value = true
+    const result = await dbStore.executeQuery('SELECT USER_ID, USER_CD, NAME_CHAR FROM USER_MANAGEMENT ORDER BY USER_CD')
+    userOptions.value = (result.success ? result.data : []).map((user) => ({
+      label: user.NAME_CHAR ? `${user.NAME_CHAR} (${user.USER_CD})` : user.USER_CD,
+      value: user.USER_ID,
+    }))
+  } catch (error) {
+    logger.warn('Failed to load user options', error)
+    userOptions.value = []
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+// Footer counts: available (access-filtered), public, assigned to me
+const loadPatientStats = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+
+    // Access-filtered total via the paginated count (limit 1 — count only)
+    const result = await dbStore.getPatientsPaginated(1, 1, {})
+    const total = result.pagination?.totalCount ?? 0
+
+    const publicResult = await dbStore.executeQuery('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = 0')
+    const publicCount = publicResult.success ? publicResult.data[0]?.count || 0 : 0
+
+    let mine = 0
+    const { useAuthStore } = await import('src/stores/auth-store')
+    const currentUserId = useAuthStore().currentUser?.USER_ID
+    if (currentUserId !== undefined && currentUserId !== null) {
+      const lookupRepo = dbStore.getRepository('userPatientLookup')
+      mine = (await lookupRepo.getPatientNumsAssignedTo(currentUserId)).length
+    }
+
+    patientStats.value = { total, publicCount, mine }
+  } catch (error) {
+    logger.warn('Failed to load patient stats', error)
+  }
 }
 
 // Lifecycle
@@ -412,6 +541,8 @@ onMounted(async () => {
   await loadRecentPatients()
   loadFilterOptions()
   loadStudyOptions()
+  loadUserOptions()
+  loadPatientStats()
 })
 
 watch(
@@ -466,16 +597,26 @@ watch(
   background: rgba(255, 255, 255, 0.95);
 }
 
-.recent-patients-grid {
+.recent-patients-grid,
+.search-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
 }
 
-.search-results {
+.patient-stats-footer {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 8px 16px;
+  font-size: 0.72rem;
+  color: $grey-6;
+
+  span {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
 }
 
 .no-results,
@@ -497,7 +638,8 @@ watch(
     }
   }
 
-  .recent-patients-grid {
+  .recent-patients-grid,
+  .search-results {
     grid-template-columns: 1fr;
   }
 }

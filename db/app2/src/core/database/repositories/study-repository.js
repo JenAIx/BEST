@@ -461,26 +461,71 @@ class StudyRepository extends BaseRepository {
   /**
    * Get patients enrolled in a study
    * @param {number} studyId - Study ID
+   * @param {{userId: number, isAdmin: boolean}|null} userAccess - Optional user
+   *   access context. When given (regular user), only enrolled patients the
+   *   user may see (own or public via USER_PATIENT_LOOKUP) are returned —
+   *   study enrolment alone must not disclose other users' patients.
    * @returns {Promise<Array>} Array of enrolled patients
    */
-  async getEnrolledPatients(studyId) {
+  async getEnrolledPatients(studyId, userAccess = null) {
     try {
       this.logger.debug('Getting enrolled patients', { studyId })
+
+      let accessClause = ''
+      const params = [studyId]
+      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+        accessClause = `
+          AND EXISTS (
+            SELECT 1 FROM USER_PATIENT_LOOKUP upl
+            WHERE upl.PATIENT_NUM = p.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
+          )`
+        params.push(userAccess.userId)
+      }
 
       const sql = `
         SELECT p.*, sp.ENROLLMENT_DATE, sp.WITHDRAWAL_DATE, sp.ENROLLMENT_STATUS_CD
         FROM PATIENT_DIMENSION p
         INNER JOIN STUDY_PATIENT_LOOKUP sp ON p.PATIENT_NUM = sp.PATIENT_NUM
-        WHERE sp.STUDY_NUM = ?
+        WHERE sp.STUDY_NUM = ?${accessClause}
         ORDER BY sp.ENROLLMENT_DATE DESC
       `
 
-      const result = await this.connection.executeQuery(sql, [studyId])
+      const result = await this.connection.executeQuery(sql, params)
       return result.success ? result.data : []
     } catch (error) {
       this.logger.error('Failed to get enrolled patients', error)
       throw error
     }
+  }
+
+  /**
+   * Batch: study memberships for a set of patients (withdrawn excluded).
+   * Used for the study tags on patient cards.
+   *
+   * @param {number[]} patientNums
+   * @returns {Promise<Map<number, Array<{code: string, name: string}>>>}
+   */
+  async getPatientStudyTags(patientNums) {
+    const map = new Map()
+    if (!Array.isArray(patientNums) || patientNums.length === 0) return map
+
+    const placeholders = patientNums.map(() => '?').join(', ')
+    const result = await this.connection.executeQuery(
+      `SELECT spl.PATIENT_NUM, s.STUDY_CD, s.NAME_CHAR
+       FROM STUDY_PATIENT_LOOKUP spl
+       JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
+       WHERE spl.PATIENT_NUM IN (${placeholders})
+         AND (spl.ENROLLMENT_STATUS_CD IS NULL OR spl.ENROLLMENT_STATUS_CD != 'withdrawn')
+       ORDER BY s.NAME_CHAR`,
+      patientNums,
+    )
+    if (!result.success) return map
+
+    for (const row of result.data) {
+      if (!map.has(row.PATIENT_NUM)) map.set(row.PATIENT_NUM, [])
+      map.get(row.PATIENT_NUM).push({ code: row.STUDY_CD, name: row.NAME_CHAR })
+    }
+    return map
   }
 
   /**

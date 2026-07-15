@@ -1,15 +1,18 @@
 {
-  "title": "WHODAS 2.0 (12-Item)",
+  "title": "WHODAS 2.0 – Funktionsfähigkeit und Behinderung (12 Items)",
   "short_title": "whodas2",
+  "version": "1.0",
+  "updated": "2024-01-26",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "450738001",
     "display": "WHODAS 2.0 (World Health Organization Disability Assessment Schedule version 2.0)",
     "version": "20240126"
   },
-  "description": "WHODAS 2.0 - WHO Disability Assessment Schedule (Kurzversion, 12 Items)",
+  "description": "WHO-Maß der Funktionsfähigkeit und Behinderung.",
   "manual": "<b>WHODAS 2.0 – 12-Item Version (deutsche Adaptation, Selbstbeurteilung)</b><br><br><b>Erhebungszeitraum:</b> Bitte geben Sie an, wie viele Schwierigkeiten Sie in den <b>letzten 30 Tagen</b> mit den folgenden Tätigkeiten hatten.<br><br>Bitte kreuzen Sie in jeder Zeile eine Antwort an.",
-  "keywords": "disability, behinderung, funktionsfähigkeit, WHO, aktivität, teilhabe, partizipation, ICF",
+  "keywords": "Funktionsfähigkeit, Behinderung, Selbstbeurteilung",
   "ref": "Kirchberger I, et al. (2014). Feasibility and psychometric properties of the German 12-item WHO Disability Assessment Schedule 2.0 (WHODAS 2.0). Population Health Metrics, 12:27. © World Health Organization",
   "items": [
     {

@@ -1,15 +1,18 @@
 {
-    "title": "WOQ-9 (Wearing-off Fragebogen)",
+    "title": "WOQ-9 – Wearing-off-Fragebogen (Parkinson)",
     "short_title": "woq9",
+    "version": "1.0",
+    "updated": "2024-01-01",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding": {
         "system": "http://snomed.info/sct",
         "code": "443679007",
         "display": "Wearing-off Questionnaire 9",
         "version": "20240101"
     },
-    "description": "WOQ-9 - Wearing-off Fragebogen",
+    "description": "Erkennung von Wearing-off-Symptomen unter Parkinson-Therapie.",
     "manual": "Kreuzen Sie bitte in <b>Spalte A &bdquo;Ja&ldquo;</b> f\u00fcr alle Symptome an, die bei Ihnen an einem typischen Tag im vergangenen Monat aufgetreten sind.<br><br>Kreuzen Sie in <b>Spalte B &bdquo;Ja&ldquo;</b> an, wenn sich dieses Symptom normalerweise verbessert oder verschwindet, nachdem Sie die n\u00e4chste Dosis Ihrer Parkinson-Medikation eingenommen haben.<br><br>Kreuzen Sie in <b>Spalte B &bdquo;Nein&ldquo;</b> an, wenn sich das Symptom nach Einnahme der n\u00e4chsten Dosis Ihrer Parkinson-Medikation nicht verbessert oder verschwindet.",
-    "keywords": "wearing-off, WOQ, Parkinson, Medikation, Fluktuation, Wirkungsschwankung",
+    "keywords": "Parkinson, Wearing-off, Fluktuation, Medikation",
     "ref": null,
     "items": [
         {

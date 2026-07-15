@@ -200,8 +200,24 @@ export const useDatabaseStore = defineStore('database', () => {
     return await databaseService.executeTransaction(commands)
   }
 
+  // Resolve the current auth context for access-controlled queries
+  // (dynamic import to avoid circular dependency with auth-store)
+  const resolveUserAccess = async () => {
+    try {
+      const { useAuthStore } = await import('./auth-store')
+      const authStore = useAuthStore()
+      const userId = authStore.currentUser?.USER_ID
+      if (userId === undefined || userId === null) return null
+      return { userId, isAdmin: authStore.isAdmin }
+    } catch (error) {
+      const loggingStore = useLoggingStore()
+      loggingStore.warn('DatabaseStore', 'Could not resolve auth context for access control', error)
+      return null
+    }
+  }
+
   // Patient operations
-  const createPatient = async (patientData) => {
+  const createPatient = async (patientData, { isPublic = false } = {}) => {
     const loggingStore = useLoggingStore()
     const patientRepo = getPatientRepository()
 
@@ -231,6 +247,18 @@ export const useDatabaseStore = defineStore('database', () => {
         })
         loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
           userId: currentUserId,
+          patientNum: createdPatient.PATIENT_NUM,
+        })
+      }
+
+      // Public patients are additionally assigned to the public user (USER_ID 0),
+      // which every access-filtered query treats as "visible to all users".
+      if (isPublic && createdPatient.PATIENT_NUM) {
+        const lookupRepo = getRepository('userPatientLookup')
+        await lookupRepo.addAssociationIfMissing(0, createdPatient.PATIENT_NUM, {
+          nameChar: 'Public access',
+        })
+        loggingStore.success('DatabaseStore', 'Public access entry committed', {
           patientNum: createdPatient.PATIENT_NUM,
         })
       }
@@ -295,6 +323,19 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const deletePatient = async (id) => {
+    // Destructive + shared data: only admins or the patient's creator may
+    // delete. Public visibility alone must not grant deletion — it would let
+    // any user remove a patient (and its public access row) for everyone.
+    const userAccess = await resolveUserAccess()
+    if (userAccess && !userAccess.isAdmin) {
+      const lookupRepo = getRepository('userPatientLookup')
+      const creatorRow = await lookupRepo.findByUserAndPatient(userAccess.userId, id)
+      const isCreator = creatorRow?.NAME_CHAR === 'Creator access - auto-assigned'
+      if (!isCreator) {
+        throw new Error('Only administrators or the patient creator can delete a patient')
+      }
+    }
+
     // Defensive cascade in JS: NOTE_FACT.PATIENT_NUM and USER_PATIENT_LOOKUP.PATIENT_NUM
     // have FKs without ON DELETE CASCADE, and the trigger-based cascade leaves
     // patient-only NOTE_FACT rows behind. Clearing children explicitly inside a
@@ -335,21 +376,36 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const getPatientsPaginated = async (page = 1, pageSize = 20, criteria = {}) => {
-    // Get current user context for access control (dynamic import to avoid circular dependency)
-    let currentUserId = null
-    let isAdmin = false
-    
-    try {
-      const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      currentUserId = authStore.currentUser?.USER_ID
-      isAdmin = authStore.isAdmin
-    } catch (error) {
-      console.warn('Could not get auth context for patient query:', error)
-    }
-    
+    const userAccess = await resolveUserAccess()
     const patientRepo = getPatientRepository()
-    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, currentUserId, isAdmin)
+    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, userAccess?.userId ?? null, userAccess?.isAdmin ?? false)
+  }
+
+  // Access-controlled single-patient lookup for UI paths (recent patients,
+  // selection cards, direct loads). Returns null when not found OR not accessible.
+  const getAccessiblePatientByCode = async (patientCode) => {
+    const userAccess = await resolveUserAccess()
+    const patientRepo = getPatientRepository()
+    return await patientRepo.findAccessiblePatientByCode(patientCode, userAccess)
+  }
+
+  // Batch owner/public resolution for patient lists (cards, dashboard table)
+  const getPatientAccessInfo = async (patientNums) => {
+    const lookupRepo = getRepository('userPatientLookup')
+    return await lookupRepo.getPatientAccessInfo(patientNums)
+  }
+
+  // Batch study memberships for patient cards (study tags)
+  const getPatientStudyInfo = async (patientNums) => {
+    const studyRepo = getRepository('study')
+    return await studyRepo.getPatientStudyTags(patientNums)
+  }
+
+  // Access-controlled enrolled-patients list for study pages
+  const getEnrolledPatientsForStudy = async (studyId) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getEnrolledPatients(studyId, userAccess)
   }
 
   // Raw data/file upload operations
@@ -658,12 +714,10 @@ export const useDatabaseStore = defineStore('database', () => {
 
       // Two bulk queries instead of 2*N round-trips: one for the patients, one for
       // their visits joined to observation counts. We then bucket visits in JS.
-      const placeholders = cleanPatientIds.map(() => '?').join(',')
-      const patientResult = await executeQuery(
-        `SELECT * FROM PATIENT_DIMENSION WHERE PATIENT_CD IN (${placeholders})`,
-        cleanPatientIds,
-      )
-      const patients = patientResult.success ? patientResult.data : []
+      // Access-controlled: stored selections may contain IDs from another user's
+      // session — regular users only get their own/public patients back.
+      const userAccess = await resolveUserAccess()
+      const patients = await getPatientRepository().findAccessiblePatientsByCodes(cleanPatientIds, userAccess)
 
       const missing = cleanPatientIds.filter(
         (id) => !patients.some((p) => String(p.PATIENT_CD) === id),
@@ -1022,6 +1076,10 @@ export const useDatabaseStore = defineStore('database', () => {
     getPatientStatistics,
     searchPatients,
     getPatientsPaginated,
+    getAccessiblePatientByCode,
+    getPatientAccessInfo,
+    getPatientStudyInfo,
+    getEnrolledPatientsForStudy,
 
     // Raw data operations
     uploadRawData,

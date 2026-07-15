@@ -1,8 +1,11 @@
 {
-  "title": "Schriftprobe",
+  "title": "Schriftprobe (Graphomotorik)",
   "short_title": "handwriting",
-  "description": "Abschreiben eines vorgegebenen Satzes (Schriftprobe)",
-  "keywords": "schrift, handschrift, schreiben, drawing, satz, probe",
+  "version": "1.0",
+  "updated": "2026-06-23",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Abschreiben eines Satzes zur Erfassung der Schreib-/Handmotorik.",
+  "keywords": "Motorik, Visuokonstruktion",
   "coding": {
     "system": "CUSTOM",
     "code": "HANDWRITING_SAMPLE",

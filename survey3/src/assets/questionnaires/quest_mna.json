@@ -1,7 +1,10 @@
 {
-  "title": "Mini Nutritional Assessment (MNA)",
+  "title": "MNA – Mini Nutritional Assessment (Ernährung)",
   "short_title": "mna",
-  "description": "Erfassung des Ernährungszustands älterer Personen mittels MNA-Fragebogen",
+  "version": "1.0",
+  "updated": "2009",
+  "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
+  "description": "Screening des Ernährungszustands bei älteren Menschen.",
   "manual": "<b>Hinweis:</b> Bitte beantworten Sie die folgenden Fragen ehrlich. Die Ergebnisse helfen, den Ernährungszustand besser einzuschätzen.",
   "coding": {
     "system": "http://snomed.info/sct",
@@ -9,7 +12,7 @@
     "display": "Mini Nutritional Assessment",
     "version": "2009"
   },
-  "keywords": "mna, ernährung, geriatrie, screening, assessment, mangelernährung",
+  "keywords": "Ernährung, Geriatrie, Screening",
   "items": [
     {
       "label": "<b>Screening</b>",

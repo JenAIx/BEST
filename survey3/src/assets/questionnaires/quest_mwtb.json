@@ -1,15 +1,18 @@
 {
-    "title": "MWT-B",
+    "title": "MWT-B – Mehrfachwahl-Wortschatz-Intelligenztest",
     "short_title": "mwtb",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
     "coding" : {
         "system" : "CUSTOM",
         "code" : "CUSTOM: NP\\MWTB",
         "display" : "Mehrfachwahl-Wortschatz-Intelligenztest B (MWT-B)",
         "version": "20230126"
     },
-    "description": "MWT-B",
+    "description": "Erfassung des prämorbiden (kristallinen) Intelligenzniveaus.",
     "manual": "",
-    "keywords": ": intelligence, verbal, vocabulary, lexicon, kristallin, intelligenz, screening, wort, wortschatz",
+    "keywords": "Intelligenz, Kognition",
     "items": [
     	{
             "label": "Beruf",

@@ -1,15 +1,18 @@
 {
-    "title": "HEALTH-49 - BD",
+    "title": "HEALTH-49 – Modul BD (Wohlbefinden)",
     "short_title": "health49_bd",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "225885004",
         "display" : "Hamburger Module (HEALTH-49) - BD",
         "version": "20211026"
     },
-    "description": "Hamburger Module (HEALTH-49) - BD",
+    "description": "Selbstbeurteilung des psychischen Wohlbefindens.",
     "manual": "",
-    "keywords": "Health_49bd",
+    "keywords": "Wohlbefinden, Stimmung, Selbstbeurteilung",
     "items": [
         {
             "label": "<b>B</b> Im Folgenden finden Sie einige Aussagen, mit denen man beschreiben kann, <b>wie man sich fühlt.</b> Bitte geben Sie an, wie oft Sie sich <b>in den letzen zwei Wochen</b> so gefühlt haben!",

@@ -3,31 +3,8 @@
   <q-card v-if="item_copy !== undefined">
     <!-- TYPE -->
     <q-card-section>
-      <!-- HEADER -->
-      <div class="row">
-        <q-input :data-cy="`item_label_${INDEX}`" class="col-10" v-model="item_copy.label" @blur="updateItem('label')" dense label="Label" />
-        <q-input v-if="!ISSEP" class="col-2" input-class="text-center" v-model="item_copy.id" @blur="updateItem('id')" type="number" readonly dense label="ID" />
-        <q-input v-if="!ISSEP" class="col-8" v-model="item_copy.coding.display" @blur="updateItem('coding')" dense label="Coding: Tag" />
-        <q-input v-if="!ISSEP" class="col-4" v-model="item_copy.coding.code" @blur="updateItem('coding')" dense label="Coding: Code" />
-        <q-input v-if="!ISSEP" class="col-12" v-model="item_copy.coding.system" @blur="updateItem('coding')" dense label="Coding: System" />
-      </div>
-      <!-- SOME OPTIONS -->
-      <q-checkbox v-if="!ISSEP" class="col-4" v-model="item_copy.inline" label="inline" @click.native="updateItem('inline')" />
-      <q-checkbox v-if="!ISSEP" class="col-4" v-model="item_copy.force" label="force" @click.native="updateItem('force')" />
-      <q-checkbox v-if="!ISSEP" class="col-4" v-model="item_copy.ignore_for_result" label="ignore" @click.native="updateItem('ignore_for_result')" />
-      <!-- TYPE -->
-      <q-btn-dropdown  class="col-12 text-left" color="dark" flat :label="`Type: ${item.type || 'bitte auswählen'}`">
-        <q-list>
-          <q-item 
-            v-for="(type, indtype) in ITEMTYPES" :key="indtype+Date.now()"
-            clickable v-close-popup @click="onTypeClick(type)"
-          >
-            <q-item-section>
-              <q-item-label>{{type}}</q-item-label>
-            </q-item-section>
-          </q-item>
-        </q-list>
-      </q-btn-dropdown>
+      <!-- Label, Typ und Flags werden in der Feld-Karte (oben) bearbeitet.
+           Hier nur typ-spezifische Optionen + (eingeklapptes) Coding. -->
       <!-- OPTIONS -->
       <div v-if="item_copy.options !== undefined" class="bg-grey-1">
         OPTIONS: 
@@ -85,7 +62,7 @@
             Fragen: <q-btn icon="add" round @click="addMultiQuest()" />
             <div class="row items-center" v-for="(optquest, indoptquest) in item_copy.options.questions" :key="indoptquest+date_str">
               <q-input class="col-6" v-model="optquest.label" @blur="changeOptQuest(optquest, indoptquest)" dense label="Label" />
-              <q-input class="col-2" input-class="text-center" v-model="optquest.value" @blur="changeOptQuest(optquest, indoptquest)" dense label="Value" />
+              <q-input class="col-2" input-class="text-center" v-model="optquest.tag" @blur="changeOptQuest(optquest, indoptquest)" dense label="Tag" />
               <q-input readonly class="col-1" input-class="text-center" v-model="optquest.id" dense label="ID" />
               <div class="col-3 row no-wrap justify-end">
                 <q-btn flat dense size="sm" icon="arrow_upward" :disable="indoptquest === 0" :data-cy="`mq_up_${indoptquest}`" @click="moveInArray(item_copy.options.questions, indoptquest, 'up', true)" />
@@ -98,6 +75,16 @@
         </div>
       <!-- ENDE OPTIONS -->
       </div>
+
+      <!-- CODING (eingeklappt, optional) -->
+      <q-expansion-item v-if="!ISSEP" dense-toggle label="Coding (optional)" data-cy="item_coding"
+        header-class="text-grey-7 q-px-none q-mt-sm">
+        <div class="row q-col-gutter-xs">
+          <q-input class="col-8" v-model="item_copy.coding.display" @blur="updateItem('coding')" dense filled label="Coding: Anzeige" />
+          <q-input class="col-4" v-model="item_copy.coding.code" @blur="updateItem('coding')" dense filled label="Code" />
+          <q-input class="col-12" v-model="item_copy.coding.system" @blur="updateItem('coding')" dense filled label="System" />
+        </div>
+      </q-expansion-item>
 
     </q-card-section>
 
@@ -119,11 +106,15 @@ export default {
     }
   },
   mounted() {
-    this.item_copy = JSON.parse(JSON.stringify(this.item))
-    if (this.item_copy.coding === undefined) {
-      this.item_copy.coding = item_template.coding
-      if (this.item_copy.tag !== undefined) this.item_copy.coding.display = this.item_copy.tag
-    }
+    this.syncCopy()
+  },
+  watch: {
+    // Bei Typwechsel die lokale Kopie neu aus dem Item aufbauen, damit die
+    // typ-spezifische UI (Optionen etc.) erscheint — ohne die Komponente extern
+    // neu zu mounten (verhindert DOM-Detach/Fokusverlust beim Editieren).
+    'item.type'() {
+      this.syncCopy()
+    },
   },
 
   computed: {
@@ -139,6 +130,13 @@ export default {
     }
   },
   methods: {
+    syncCopy() {
+      this.item_copy = JSON.parse(JSON.stringify(this.item))
+      if (this.item_copy.coding === undefined) {
+        this.item_copy.coding = JSON.parse(JSON.stringify(item_template.coding))
+        if (this.item_copy.tag !== undefined) this.item_copy.coding.display = this.item_copy.tag
+      }
+    },
     updateItem(tag) {
       if (this.item_copy === undefined) return false
       this.$emit('updateItem', {field: tag, value: this.item_copy[tag]})

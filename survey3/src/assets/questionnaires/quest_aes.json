@@ -1,7 +1,10 @@
 {
-  "title": "AES (Apathie-Skala)",
+  "title": "AES – Apathie-Skala (Apathy Evaluation Scale)",
   "short_title": "aes_scale",
-  "description": "",
+  "version": "1.0",
+  "updated": "2024-02-05",
+  "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
+  "description": "Selbstbeurteilung von Apathie und Antriebsminderung.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "SCTID: 20602000",
@@ -9,7 +12,7 @@
     "version": "20240205"
   },
   "manual": "Kreuzen Sie bitte die Antwort an, die Ihre Verhaltensweisen während der letzten 4 Wochen am besten beschreibt. Schätzen Sie sich selbst ein.",
-  "keywords": null,
+  "keywords": "Apathie, Stimmung, Selbstbeurteilung",
   "ref": "https://www.klinikum.uni-heidelberg.de/fileadmin/gerontopsychiatrie/pdf/pdf_074_2006_Lueken_Die_Apathy_Evaluation.pdf",
   "items": [
     {

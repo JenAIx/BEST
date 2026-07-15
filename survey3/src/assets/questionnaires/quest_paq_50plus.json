@@ -1,15 +1,18 @@
 {
-    "title": "PAQ 50plus",
+    "title": "PAQ-50+ – Körperliche Aktivität (ältere Menschen)",
     "short_title": "paq_50plus",
+    "version": "1.0",
+    "updated": "2021-10-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "398636004",
         "display" : "PAQ 50plus (Physical activity)",
         "version": "20211026"
     },
-    "description": "",
+    "description": "Selbstbeurteilung der körperlichen Aktivität bei über 50-Jährigen.",
     "manual": "Die folgenden Fragen beziehen sich auf eine Ihren normalen Alltag entsprechende Woche innerhalb des letzten Monats. Bitte denken Sie also nicht ausschließlich and die letzte Woche, sondern an eine durchschnittliche Woche im letzten Monat. Bitte beantworten Sie jede Frage. Bei Optionen, die nicht auf Sie zutreffen, geben Sie einfach \"0\" an.",
-    "keywords": "daily psych alltag",
+    "keywords": "körperliche Aktivität, Alltagsaktivitäten, Geriatrie",
     "items": [
         {
         	"label": "<b>Hausarbeit</b> <br>Wie viele Stunden pro Woche haben Sie im <b>letzten Monat</b>...",

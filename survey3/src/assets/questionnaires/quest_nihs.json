@@ -1,15 +1,18 @@
 {
-    "title": "NIHSS",
+    "title": "NIHSS – Schlaganfall-Schweregradskala",
     "short_title": "nihs",
+    "version": "1.0",
+    "updated": "2023-01-24",
+    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "450741005",
         "display" : "NIHSS - assessment scale",
         "version": "20230124"
     },
-    "description": "National Institute of Health Stroke Scale",
+    "description": "Neurologische Schweregradbeurteilung beim akuten Schlaganfall.",
     "manual": "<b>Anleitung</b>: Der NIHSS dient der detaillierten neurologischen Analyse. Dabei kann der Score einerseits als Verlaufsparameter, andererseits aber auch zur Beurteilung einer möglichen Therapie von ischämischen Insulten beigezogen werden. Eine intraarterielle Lyse bei ischämischem Infarkt ist unter Erfüllung der übrigen Voraussetzungen und fehlenden Kontraindikationen bei einem NIHSS-Wert >6 und <22 indiziert.<br><br><b>Formel</b><br>Summe der Punkte aus den Fragen 1-11, wobei maximal 42 Punkte möglich sind.",
-    "keywords": "stroke, neuro, neurorehabilitation, reha, rehabilitation, ischemic, schlaganfall",
+    "keywords": "Schlaganfall, Motorik, Fremdbeurteilung",
     "items": [
        
         {

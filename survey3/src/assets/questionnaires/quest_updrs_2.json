@@ -1,15 +1,18 @@
 {
-  "title": "MDS-UPDRS II - M-EDL",
+  "title": "MDS-UPDRS II – Motorische Aspekte des Alltags (M-EDL)",
   "short_title": "updrs_2",
+  "version": "1.0",
+  "updated": "2023-11",
+  "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "445536008",
     "display": "MDS-UPDRS II - M-EDL",
     "version": "202311"
   },
-  "description": "UPDRS II - Erfahrungen des täglichen Lebens",
+  "description": "Motorische Erfahrungen des täglichen Lebens (Parkinson).",
   "manual": "Bitte beantworten Sie folgenden Fragen",
-  "keywords": "parkinson updrs",
+  "keywords": "Parkinson, Motorik, Alltagsaktivitäten, Selbstbeurteilung",
   "items": [
     {
       "label": "<b>Teil 2: Motorische Aspekte bei Erfahrungen des täglichen Lebens (M-EDL)</b>",

@@ -5,7 +5,7 @@
     :ok-label="$t('study.enroll')"
     :cancel-label="$t('common.cancel')"
     :loading="enrolling"
-    :disabled="!selectedPatient || !enrollmentData.enrollmentDate"
+    :disabled="selectedPatients.length === 0 || !enrollmentData.enrollmentDate"
     :persistent="true"
     @ok="handleEnroll"
     @cancel="handleCancel"
@@ -32,10 +32,10 @@
       </q-input>
 
       <!-- Search Suggestions -->
-      <div v-if="patientSearchQuery && suggestions.length > 0" class="suggestions-container q-mt-sm">
+      <div v-if="patientSearchQuery && visibleSearchSuggestions.length > 0" class="suggestions-container q-mt-sm">
         <q-list bordered separator class="rounded-borders">
           <q-item
-            v-for="(patient, index) in suggestions"
+            v-for="(patient, index) in visibleSearchSuggestions"
             :key="patient.PATIENT_NUM"
             clickable
             v-ripple
@@ -62,29 +62,31 @@
         </q-list>
       </div>
 
-      <!-- Selected Patient Display -->
-      <div v-if="selectedPatient && !patientSearchQuery" class="selected-patient q-mt-sm">
-        <q-card flat bordered class="bg-blue-1">
-          <q-card-section class="row items-center">
-            <q-avatar color="primary" text-color="white" size="40px" class="q-mr-md">
-              {{ getPatientInitials(selectedPatient) }}
-            </q-avatar>
-            <div class="col">
-              <div class="text-subtitle1">{{ getPatientName(selectedPatient) }}</div>
-              <div class="text-caption text-grey-7">
-                {{ selectedPatient.PATIENT_CD }}
-                <span v-if="getPatientAge(selectedPatient)"> • {{ getPatientAge(selectedPatient) }}</span>
-              </div>
-            </div>
-            <q-btn flat round dense icon="close" @click="clearSelectedPatient" />
-          </q-card-section>
-        </q-card>
+      <!-- Selected patients (chips; X puts them back into the list) -->
+      <div v-if="selectedPatients.length > 0" class="q-mt-sm">
+        <div class="text-caption text-grey-6 q-mb-xs">{{ $t('study.selectedForEnrollment', { count: selectedPatients.length }) }}</div>
+        <div class="row q-gutter-xs">
+          <q-chip v-for="patient in selectedPatients" :key="patient.PATIENT_NUM" removable dense color="primary" text-color="white" icon="person" @remove="removeSelected(patient)">
+            {{ getPatientName(patient) }}
+          </q-chip>
+        </div>
       </div>
 
       <!-- No Results -->
-      <div v-if="patientSearchQuery && suggestions.length === 0 && !searching" class="q-mt-sm text-center text-grey-6">
+      <div v-if="patientSearchQuery && visibleSearchSuggestions.length === 0 && !searching" class="q-mt-sm text-center text-grey-6">
         <q-icon name="person_off" size="24px" class="q-mr-xs" />
         <span class="text-caption">{{ $t('study.noPatientsFound') }}</span>
+      </div>
+
+      <!-- Suggestions: patients not enrolled in any study (newest first, capped) -->
+      <div v-if="!patientSearchQuery && visibleUnassignedSuggestions.length > 0" class="q-mt-sm">
+        <div class="text-caption text-grey-6 q-mb-xs">
+          <q-icon name="lightbulb" size="14px" class="q-mr-xs" />
+          {{ $t('study.unassignedSuggestions') }}
+        </div>
+        <div class="suggestion-cards">
+          <PatientCard v-for="patient in visibleUnassignedSuggestions" :key="patient.PATIENT_NUM" :patient="patient" @select="selectPatient" />
+        </div>
       </div>
     </div>
 
@@ -106,6 +108,7 @@ import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useNotify } from 'src/composables/useNotify'
 import AppInputDialog from 'src/components/shared/AppInputDialog.vue'
+import PatientCard from 'src/components/shared/PatientCard.vue'
 
 const props = defineProps({
   modelValue: {
@@ -127,12 +130,56 @@ const notify = useNotify()
 const patientSearchQuery = ref('')
 const searching = ref(false)
 const suggestions = ref([])
-const selectedPatient = ref(null)
+const selectedPatients = ref([])
 const selectedSuggestionIndex = ref(-1)
+
+// Selected patients disappear from both lists (saves space); removing the
+// chip puts them back
+const isSelected = (patient) => selectedPatients.value.some((p) => p.PATIENT_NUM === patient.PATIENT_NUM)
+const visibleSearchSuggestions = computed(() => suggestions.value.filter((p) => !isSelected(p)))
+const visibleUnassignedSuggestions = computed(() => unassignedSuggestions.value.filter((p) => !isSelected(p)))
 const enrollmentData = ref({
   enrollmentDate: new Date().toISOString().split('T')[0],
 })
 const enrolling = ref(false)
+const unassignedSuggestions = ref([])
+
+// Suggested candidates: accessible patients enrolled in NO study,
+// newest first, capped — keeps the list small and relevant.
+const SUGGESTION_LIMIT = 10
+const loadUnassignedSuggestions = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+
+    const numsResult = await dbStore.executeQuery('SELECT PATIENT_NUM FROM PATIENT_DIMENSION WHERE PATIENT_NUM NOT IN (SELECT PATIENT_NUM FROM STUDY_PATIENT_LOOKUP)')
+    const enrolledSet = new Set(props.enrolledPatientNums)
+    const nums = (numsResult.success ? numsResult.data : []).map((row) => row.PATIENT_NUM).filter((num) => !enrolledSet.has(num))
+    if (nums.length === 0) {
+      unassignedSuggestions.value = []
+      return
+    }
+
+    // Access-filtered, newest first
+    const result = await dbStore.getPatientsPaginated(1, SUGGESTION_LIMIT, {
+      patientNums: nums,
+      options: { orderBy: 'UPDATE_DATE_WITH_FALLBACK', orderDirection: 'DESC' },
+    })
+    const patients = result.patients || []
+    const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+
+    unassignedSuggestions.value = patients.map((p) => ({
+      ...p,
+      id: p.PATIENT_CD,
+      name: getPatientName(p),
+      age: p.AGE_IN_YEARS ?? null,
+      owner: accessMap.get(p.PATIENT_NUM)?.ownerUserCd || null,
+      isPublic: accessMap.get(p.PATIENT_NUM)?.isPublic || false,
+    }))
+  } catch (error) {
+    console.error('Failed to load unassigned patient suggestions:', error)
+    unassignedSuggestions.value = []
+  }
+}
 
 // Computed
 const dialogModel = computed({
@@ -156,11 +203,6 @@ const onSearchInput = async () => {
     searching.value = true
     if (!dbStore.canPerformOperations) return
 
-    const patientRepo = dbStore.getRepository('patient')
-    if (!patientRepo) {
-      throw new Error('Patient repository not available')
-    }
-
     // Build search criteria (matching SmartSearch.vue pattern)
     const criteria = {
       searchTerm: patientSearchQuery.value.trim(),
@@ -170,7 +212,8 @@ const onSearchInput = async () => {
       },
     }
 
-    const result = await patientRepo.getPatientsPaginated(1, 10, criteria)
+    // dbStore wrapper applies user access control (regular users: own + public)
+    const result = await dbStore.getPatientsPaginated(1, 10, criteria)
 
     // Filter out already enrolled patients
     const enrolledSet = new Set(props.enrolledPatientNums)
@@ -188,15 +231,21 @@ const onSearchInput = async () => {
 }
 
 const selectPatient = (patient) => {
-  selectedPatient.value = patient
+  if (!isSelected(patient)) {
+    selectedPatients.value = [...selectedPatients.value, patient]
+  }
   patientSearchQuery.value = ''
   suggestions.value = []
   selectedSuggestionIndex.value = -1
 }
 
+const removeSelected = (patient) => {
+  selectedPatients.value = selectedPatients.value.filter((p) => p.PATIENT_NUM !== patient.PATIENT_NUM)
+}
+
 const selectFirstSuggestion = () => {
-  if (suggestions.value.length > 0) {
-    selectPatient(suggestions.value[0])
+  if (visibleSearchSuggestions.value.length > 0) {
+    selectPatient(visibleSearchSuggestions.value[0])
   }
 }
 
@@ -206,18 +255,18 @@ const clearSearch = () => {
   selectedSuggestionIndex.value = -1
 }
 
-const clearSelectedPatient = () => {
-  selectedPatient.value = null
+const clearSelectedPatients = () => {
+  selectedPatients.value = []
   enrollmentData.value.enrollmentDate = defaultEnrollmentDate.value
 }
 
 const handleEnroll = async () => {
-  if (!selectedPatient.value) return
+  if (selectedPatients.value.length === 0) return
 
   enrolling.value = true
   try {
     emit('enroll', {
-      patientNum: selectedPatient.value.PATIENT_NUM,
+      patientNums: selectedPatients.value.map((p) => p.PATIENT_NUM),
       enrollmentDate: enrollmentData.value.enrollmentDate,
     })
   } finally {
@@ -227,7 +276,7 @@ const handleEnroll = async () => {
 
 const handleCancel = () => {
   clearSearch()
-  clearSelectedPatient()
+  clearSelectedPatients()
   emit('cancel')
 }
 
@@ -271,8 +320,9 @@ const getPatientInitials = (patient) => {
 watch(dialogModel, (newValue) => {
   if (newValue) {
     clearSearch()
-    clearSelectedPatient()
+    clearSelectedPatients()
     enrollmentData.value.enrollmentDate = defaultEnrollmentDate.value
+    loadUnassignedSuggestions()
   }
 })
 </script>
@@ -288,6 +338,13 @@ watch(dialogModel, (newValue) => {
   .q-card {
     border-left: 4px solid $primary;
   }
+}
+
+.suggestion-cards {
+  display: grid;
+  gap: 0.4rem;
+  max-height: 300px;
+  overflow-y: auto;
 }
 </style>
 

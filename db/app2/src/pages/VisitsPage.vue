@@ -141,8 +141,14 @@ const onPatientSelected = async (patient) => {
 const deselectPatient = () => {
   visitObservationService.clearAllData()
   viewMode.value = 'timeline'
-  // Navigate back to visits list
-  router.push('/visits')
+  // Go back to where the user came from (e.g. a study's enrolled-patients
+  // list or the dashboard); default to the visits patient list.
+  const previous = router.options.history.state?.back
+  if (previous && !String(previous).startsWith('/visits')) {
+    router.back()
+  } else {
+    router.push('/visits')
+  }
 }
 
 const showPatientData = () => {

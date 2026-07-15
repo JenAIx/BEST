@@ -1,0 +1,42 @@
+{
+  "title": "Würfel abzeichnen (Visuokonstruktion)",
+  "short_title": "cube",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Abzeichnen eines dreidimensionalen Würfels zur Erfassung visuokonstruktiver Fähigkeiten.",
+  "keywords": "Visuokonstruktion, Kognition, Demenz, Screening",
+  "coding": {
+    "system": "CUSTOM",
+    "code": "CUBE_COPY",
+    "display": "Würfel abzeichnen (Copy)",
+    "version": "2026-06-24"
+  },
+  "manual": "",
+  "items": [
+    {
+      "type": "textbox",
+      "label": "Bitte zeichnen Sie den folgenden Würfel möglichst genau ab:<br><svg width='170' height='160' viewBox='0 0 170 160'><g fill='none' stroke='#111' stroke-width='2'><rect x='30' y='55' width='80' height='80'/><rect x='60' y='25' width='80' height='80'/><line x1='30' y1='55' x2='60' y2='25'/><line x1='110' y1='55' x2='140' y2='25'/><line x1='30' y1='135' x2='60' y2='105'/><line x1='110' y1='135' x2='140' y2='105'/></g></svg>"
+    },
+    {
+      "id": 1,
+      "tag": "cube",
+      "type": "drawing",
+      "label": "Ihre Abzeichnung",
+      "value": null,
+      "force": true,
+      "canvas": { "size": 360, "background": "blank" },
+      "coding": { "system": "CUSTOM", "code": "CUBE_IMG", "display": "Würfel-Abzeichnung" }
+    },
+    {
+      "id": 2,
+      "tag": "remarks",
+      "type": "text",
+      "label": "Bemerkungen",
+      "hint": "optionale Anmerkungen",
+      "value": null,
+      "force": false,
+      "coding": { "system": "CUSTOM", "code": "CUBE_REMARKS", "display": "Bemerkungen" }
+    }
+  ]
+}

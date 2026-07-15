@@ -1,14 +1,17 @@
 {
-  "title": "SHAPS-D",
+  "title": "SHAPS-D – Snaith-Hamilton-Anhedonie-Skala",
   "short_title": "shaps_d",
-  "description": "In diesem Fragebogen soll eingeschätzt werden, inwieweit Ihnen etwas Freude bereiten kann.",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Erfassung von Anhedonie (verminderte Freudfähigkeit).",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "273828004",
     "display": "SHAPS-D"
   },
   "manual": "In diesem Fragebogen soll eingeschätzt werden, inwieweit Ihnen etwas Freude bereiten kann. Sie werden gebeten, sich bestimmte Situationen oder Dinge vorzustellen. Geben sie bitte an, ob Sie sich in der jeweiligen Situation freuen könnten. Die Aussagen beziehen sich auf heute und die letzten Tage. Es kommt nicht darauf an, dass Sie die jeweilige Situation tatsächlich erlebt haben. Kreuzen Sie jeweils ein Kästchen an, um zu zeigen, wie sehr Sie jeder Aussage zustimmen bzw. nicht zustimmen. Es ist wichtig, dass Sie jede Aussage sehr sorgfältig lesen.",
-  "keywords": "Depression, Anhedonie",
+  "keywords": "Anhedonie, Depression, Selbstbeurteilung",
   "ref": "https://www.thieme-connect.com/products/ejournals/pdf/10.1055/s-2007-995279.pdf",
   "items": [{
     "label": "Bitte beantworten Sie die folgenden Fragen:",

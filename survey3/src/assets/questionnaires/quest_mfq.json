@@ -1,15 +1,18 @@
 {
-    "title": "MFQ - Fragebogen zur Gedächtnisfunktion (Memory Functioning Questionnaire)",
+    "title": "MFQ – Fragebogen zur Gedächtnisfunktion",
     "short_title": "MFQ",
+    "version": "1.0",
+    "updated": "2023-01-26",
+    "license": { "status": "unclear", "note": "Lizenzstatus unklar — bitte vor Verwendung die Rechte prüfen." },
     "coding" : {
         "system" : "http://snomed.info/sct",
         "code" : "445536008",
         "display" : "MFQ - Fragebogen zur Gedächtnisfunktion",
         "version": "20230126"
     },
-    "description": "",
+    "description": "Selbstbeurteilung der subjektiven Gedächtnisleistung.",
     "manual": "Die ist ein Fragebogen darüber, wie Sie sich an Informationen erinnern. Es gibt keine richtigen oder falschen Antworten. Kreuzen Sie eine Zahl zwischen 1 und 7 an, die Ihr Urteil über Ihr Gedächtnis am besten zeigt. Denken Sie sorgfältig über Ihre Antworten nach und versuchen Sie, so realistisch wie möglich zu sein, wenn Sie sie abgeben. Beantworten Sie bitte alle Fragen.",
-    "keywords": "Gedächtnis, Erinnern, Subjektiv, Abbau",
+    "keywords": "Gedächtnis, Kognition, Selbstbeurteilung",
     "items": [
         {
             "label": "1. Wie würden Sie Ihr Gedächtnis in Bezug auf die Art von Problemen, die Sie haben, bewerten?",

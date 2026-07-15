@@ -1,14 +1,17 @@
 {
-  "title": "KLeiN-Score",
-  "short_title": "schnelles Demenzscreening",
-  "description": null,
+  "title": "KLeiN-Score – Schnelles Demenzscreening",
+  "short_title": "klein_score",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Kurzes orientierendes Screening auf kognitive Beeinträchtigung.",
   "coding": {
     "system": "CUSTOM",
     "code": "CUSTOM: NP_KLEIN",
     "display": "KLeiN_score"
   },
   "manual": "Wird vom Untersucher ausgefüllt",
-  "keywords": "dementia, demenz, screening",
+  "keywords": "Demenz, Kognition, Screening",
   "ref": null,
   "items": [
     {

@@ -7,7 +7,7 @@
       </div>
 
       <!-- Patient Selection Card -->
-      <q-card style="height: calc(100vh - 200px)">
+      <q-card>
         <q-card-section>
           <div class="row items-center justify-between">
             <div>
@@ -48,34 +48,38 @@
                 </template>
               </q-input>
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
               <q-select v-model="filters.gender" :options="genderOptions" label="Gender" outlined dense clearable emit-value map-options />
             </div>
-            <div class="col-12 col-md-3">
+            <div class="col-12 col-md-2">
               <q-select v-model="filters.status" :options="statusOptions" label="Vital Status" outlined dense clearable emit-value map-options />
             </div>
-            <div class="col-12 col-md-2 text-right">
+            <div class="col-12 col-md-3">
+              <q-select v-model="filters.createdBy" :options="userOptions" :label="$t('visits.filterByCreator')" outlined dense clearable emit-value map-options />
+            </div>
+            <div class="col-12 col-md-1 text-right">
               <q-btn round flat icon="clear_all" color="grey-7" @click="clearFilters" size="md">
                 <q-tooltip>Clear all filters</q-tooltip>
               </q-btn>
             </div>
           </div>
 
-          <!-- Patient Count Info -->
-          <div class="row q-mt-sm">
-            <div class="col-12">
-              <div class="text-caption text-grey-6 q-px-sm">
-                <q-icon name="people" size="14px" class="q-mr-xs" />
-                <span class="q-mr-md"
-                  >Total: <strong>{{ totalPatients }}</strong></span
-                >
-                <span v-if="hasActiveFilters"
-                  >• Filtered: <strong>{{ pagination.rowsNumber }}</strong></span
-                >
-                <span v-if="selectedPatients.length > 0" class="text-primary">
-                  • Selected: <strong>{{ selectedPatients.length }}</strong>
-                </span>
-              </div>
+          <!-- Patient Count Info + Selection Controls -->
+          <div class="row q-mt-sm items-center justify-between">
+            <div class="text-caption text-grey-6 q-px-sm">
+              <q-icon name="people" size="14px" class="q-mr-xs" />
+              <span class="q-mr-md"
+                >Total: <strong>{{ totalPatients }}</strong></span
+              >
+              <span v-if="hasActiveFilters"
+                >• Filtered: <strong>{{ pagination.rowsNumber }}</strong></span
+              >
+              <span v-if="selectedPatients.length > 0" class="text-primary">
+                • Selected: <strong>{{ selectedPatients.length }}</strong>
+              </span>
+            </div>
+            <div v-if="selectedPatients.length === 0">
+              <q-btn flat dense size="sm" color="primary" icon="done_all" :label="$t('export.selectAllFiltered')" :loading="selectingAll" @click="selectAllFiltered" />
             </div>
           </div>
         </q-card-section>
@@ -93,60 +97,25 @@
           </div>
         </q-card-section>
 
-        <!-- Data Table -->
-        <q-card-section class="q-pa-none">
-          <q-table
-            :rows="tableData"
-            :columns="tableColumns"
-            row-key="id"
-            v-model:pagination="pagination"
-            :loading="loading"
-            @request="onTableRequest"
-            flat
-            bordered
-            selection="multiple"
-            v-model:selected="selectedPatients"
-            class="data-grid-table"
-          >
-            <!-- Custom header for selection column -->
-            <template v-slot:header-selection="scope">
-              <q-checkbox v-model="scope.selected" />
-            </template>
+        <!-- Patient Cards (click to select) -->
+        <q-card-section>
+          <div v-if="loading" class="q-pa-md text-center">
+            <q-spinner color="primary" size="32px" />
+          </div>
 
-            <!-- Custom body for selection column -->
-            <template v-slot:body-selection="scope">
-              <q-checkbox :model-value="scope.selected" @update:model-value="scope.selected = $event" />
-            </template>
+          <template v-else-if="tableData.length > 0">
+            <div class="patient-cards-grid">
+              <PatientCard v-for="patient in tableData" :key="patient.id" :patient="patient" :selected="isPatientSelected(patient)" @select="toggleSelection" />
+            </div>
+            <div class="row justify-center q-mt-md">
+              <q-pagination v-model="pagination.page" :max="totalPages" :max-pages="7" direction-links boundary-links size="sm" @update:model-value="loadTableData" />
+            </div>
+          </template>
 
-            <!-- Custom body for name column to show patient info -->
-            <template v-slot:body-cell-name="props">
-              <q-td :props="props">
-                <div class="flex items-center">
-                  <q-avatar size="32px" color="primary" text-color="white" class="q-mr-sm">
-                    {{ getPatientInitials(props.row.name) }}
-                  </q-avatar>
-                  <div>
-                    <div class="text-weight-medium">{{ props.row.name }}</div>
-                    <div class="text-caption text-grey-6">ID: {{ props.row.id }}</div>
-                  </div>
-                </div>
-              </q-td>
-            </template>
-
-            <!-- Custom body for visits/observations column -->
-            <template v-slot:body-cell-visits_observations="props">
-              <q-td :props="props">
-                <div class="visits-obs-display">
-                  <div class="text-weight-medium">{{ props.row.visitsObsDisplay }}</div>
-                  <div class="text-caption text-grey-6">
-                    <q-icon name="event" size="12px" class="q-mr-xs" />visits
-                    <span class="q-mx-xs">•</span>
-                    <q-icon name="assignment" size="12px" class="q-mr-xs" />obs
-                  </div>
-                </div>
-              </q-td>
-            </template>
-          </q-table>
+          <div v-else class="q-pa-lg text-center text-grey-6">
+            <q-icon name="person_off" size="48px" class="q-mb-sm" />
+            <div>{{ $t('visit.noPatientsFound') }}</div>
+          </div>
         </q-card-section>
       </q-card>
     </div>
@@ -162,6 +131,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import PatientCard from 'src/components/shared/PatientCard.vue'
 
 const notify = useNotify()
 const { t } = useI18n()
@@ -184,77 +154,31 @@ const filters = ref({
   search: '',
   gender: null,
   status: null,
+  createdBy: null,
 })
 
 // Dynamic filter options loaded from concept store
 const genderOptions = ref([])
 const statusOptions = ref([])
+const userOptions = ref([])
 
 // Pagination
 const pagination = ref({
   page: 1,
-  rowsPerPage: 10,
+  rowsPerPage: 24,
   rowsNumber: 0,
   sortBy: 'id',
   descending: false,
 })
 
-// Table configuration
-const tableColumns = [
-  {
-    name: 'id',
-    label: 'Patient ID',
-    field: (row) => row.id,
-    align: 'left',
-    sortable: true,
-  },
-  {
-    name: 'name',
-    label: 'Name',
-    field: (row) => row.name,
-    align: 'left',
-    sortable: true,
-  },
-  {
-    name: 'age',
-    label: 'Age',
-    field: 'age',
-    align: 'center',
-    sortable: true,
-  },
-  {
-    name: 'gender',
-    label: 'Gender',
-    field: 'gender',
-    align: 'center',
-  },
-  {
-    name: 'lastVisit',
-    label: 'Created',
-    field: 'lastVisit',
-    align: 'left',
-    sortable: true,
-  },
-  {
-    name: 'status',
-    label: 'Vital Status',
-    field: 'status',
-    align: 'center',
-  },
-  {
-    name: 'visits_observations',
-    label: 'Visits/Obs',
-    field: 'visitsObsDisplay',
-    align: 'center',
-    sortable: false,
-  },
-]
+const totalPages = computed(() => Math.max(1, Math.ceil(pagination.value.rowsNumber / pagination.value.rowsPerPage)))
 
+// Table configuration
 const tableData = ref([])
 
 // Computed properties
 const hasActiveFilters = computed(() => {
-  return filters.value.search || filters.value.gender || filters.value.status
+  return filters.value.search || filters.value.gender || filters.value.status || filters.value.createdBy !== null
 })
 
 const storedPatientIds = computed(() => {
@@ -266,27 +190,63 @@ const hasStoredSelection = computed(() => {
 })
 
 // Data loading methods
+// Shared filter criteria for the card list and "select all".
+// Returns null when the creator filter matches nothing.
+const buildCriteria = async () => {
+  const criteria = {}
+
+  if (filters.value.search && filters.value.search.trim()) {
+    criteria.searchTerm = filters.value.search.trim()
+  }
+
+  if (filters.value.gender) {
+    // The filter value is already the code (from options loader)
+    criteria.SEX_CD = filters.value.gender
+  }
+
+  if (filters.value.status) {
+    // The filter value is already the code (from options loader)
+    criteria.VITAL_STATUS_CD = filters.value.status
+  }
+
+  // Creator filter: prefilter by PATIENT_NUM (public user 0 = public patients)
+  if (filters.value.createdBy !== null && filters.value.createdBy !== undefined) {
+    const lookupRepo = dbStore.getRepository('userPatientLookup')
+    const createdNums = await lookupRepo.getPatientNumsCreatedBy(filters.value.createdBy)
+    if (createdNums.length === 0) return null
+    criteria.patientNums = createdNums
+  }
+
+  return criteria
+}
+
+// Map a raw patient row to the standard PatientCard shape (raw row kept for the grid)
+const mapPatientForCard = (patient, counts, accessMap) => ({
+  id: patient.PATIENT_CD,
+  name: getPatientName(patient),
+  age: patient.AGE_IN_YEARS ?? null,
+  gender: patient.SEX_RESOLVED || patient.SEX_CD || 'Unknown',
+  lastVisit: formatDate(patient.CREATED_AT),
+  status: patient.VITAL_STATUS_RESOLVED || patient.VITAL_STATUS_CD || 'Unknown',
+  owner: accessMap.get(patient.PATIENT_NUM)?.ownerUserCd || null,
+  isPublic: accessMap.get(patient.PATIENT_NUM)?.isPublic || false,
+  visitCount: counts.visits,
+  observationCount: counts.observations,
+  // Store original patient data
+  originalData: patient,
+})
+
 const loadTableData = async () => {
   try {
     if (!dbStore.canPerformOperations) return
 
     loading.value = true
 
-    // Build filter criteria
-    const criteria = {}
-
-    if (filters.value.search && filters.value.search.trim()) {
-      criteria.searchTerm = filters.value.search.trim()
-    }
-
-    if (filters.value.gender) {
-      // The filter value is already the code (from options loader)
-      criteria.SEX_CD = filters.value.gender
-    }
-
-    if (filters.value.status) {
-      // The filter value is already the code (from options loader)
-      criteria.VITAL_STATUS_CD = filters.value.status
+    const criteria = await buildCriteria()
+    if (criteria === null) {
+      tableData.value = []
+      pagination.value.rowsNumber = 0
+      return
     }
 
     // Add sorting options
@@ -313,23 +273,9 @@ const loadTableData = async () => {
     // Get visit and observation counts for each patient
     const patientIds = (result.patients || []).map((p) => p.PATIENT_CD)
     const visitsObsCounts = await getVisitsAndObservationCounts(patientIds)
+    const accessMap = await dbStore.getPatientAccessInfo((result.patients || []).map((p) => p.PATIENT_NUM))
 
-    tableData.value = (result.patients || []).map((patient) => {
-      const counts = visitsObsCounts[patient.PATIENT_CD] || { visits: 0, observations: 0 }
-      return {
-        id: patient.PATIENT_CD,
-        name: getPatientName(patient),
-        age: patient.AGE_IN_YEARS || 'Unknown',
-        gender: patient.SEX_RESOLVED || patient.SEX_CD || 'Unknown',
-        lastVisit: formatDate(patient.CREATED_AT),
-        status: patient.VITAL_STATUS_RESOLVED || patient.VITAL_STATUS_CD || 'Unknown',
-        visitCount: counts.visits,
-        observationCount: counts.observations,
-        visitsObsDisplay: `${counts.visits}/${counts.observations}`,
-        // Store original patient data
-        originalData: patient,
-      }
-    })
+    tableData.value = (result.patients || []).map((patient) => mapPatientForCard(patient, visitsObsCounts[patient.PATIENT_CD] || { visits: 0, observations: 0 }, accessMap))
 
     // Update pagination with total count from server
     pagination.value.rowsNumber = result.pagination?.totalCount || 0
@@ -429,6 +375,17 @@ const loadFilterOptions = async () => {
     genderOptions.value = conceptStore.getFallbackOptions('gender')
     statusOptions.value = conceptStore.getFallbackOptions('vital_status')
   }
+
+  try {
+    const result = await dbStore.executeQuery('SELECT USER_ID, USER_CD, NAME_CHAR FROM USER_MANAGEMENT ORDER BY USER_CD')
+    userOptions.value = (result.success ? result.data : []).map((user) => ({
+      label: user.NAME_CHAR ? `${user.NAME_CHAR} (${user.USER_CD})` : user.USER_CD,
+      value: user.USER_ID,
+    }))
+  } catch (error) {
+    logger.error('Failed to load user filter options', error)
+    userOptions.value = []
+  }
 }
 
 // Helper methods
@@ -445,15 +402,6 @@ const getPatientName = (patient) => {
   return patient.PATIENT_CD || 'Unknown Patient'
 }
 
-const getPatientInitials = (name) => {
-  return name
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2)
-}
-
 const formatDate = (dateStr) => {
   if (!dateStr) return 'Unknown'
   return new Date(dateStr).toLocaleDateString()
@@ -465,16 +413,38 @@ const formatStoredDate = () => {
   return new Date(lastUsed).toLocaleString()
 }
 
-// Event handlers
-const onTableRequest = async (props) => {
-  // Update pagination state
-  pagination.value.page = props.pagination.page
-  pagination.value.rowsPerPage = props.pagination.rowsPerPage
-  pagination.value.sortBy = props.pagination.sortBy
-  pagination.value.descending = props.pagination.descending
+// Card selection (click toggles membership)
+const isPatientSelected = (patient) => selectedPatients.value.some((p) => p.id === patient.id)
 
-  // Load data with new pagination/sorting
-  await loadTableData()
+const toggleSelection = (patient) => {
+  if (isPatientSelected(patient)) {
+    selectedPatients.value = selectedPatients.value.filter((p) => p.id !== patient.id)
+  } else {
+    selectedPatients.value = [...selectedPatients.value, patient]
+  }
+}
+
+// Select every patient matching the current filters (not just the page)
+const selectingAll = ref(false)
+const selectAllFiltered = async () => {
+  try {
+    selectingAll.value = true
+    const criteria = await buildCriteria()
+    if (criteria === null) {
+      selectedPatients.value = []
+      return
+    }
+    const result = await dbStore.getPatientsPaginated(1, 10000, criteria)
+    const patients = result.patients || []
+    const accessMap = await dbStore.getPatientAccessInfo(patients.map((patient) => patient.PATIENT_NUM))
+    selectedPatients.value = patients.map((patient) => mapPatientForCard(patient, { visits: 0, observations: 0 }, accessMap))
+    notify.info(`${selectedPatients.value.length} patients selected`)
+  } catch (error) {
+    logger.error('Failed to select all patients', error)
+    notify.error('Failed to select all patients')
+  } finally {
+    selectingAll.value = false
+  }
 }
 
 const clearFilters = async () => {
@@ -482,6 +452,7 @@ const clearFilters = async () => {
     search: '',
     gender: null,
     status: null,
+    createdBy: null,
   }
   pagination.value.page = 1
   pagination.value.sortBy = 'id'
@@ -596,46 +567,15 @@ watch(
   min-height: calc(100vh - 50px);
 }
 
-.data-grid-table {
-  :deep(.q-table tbody tr) {
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: $grey-2;
-    }
-  }
-
-  :deep(.q-table__top) {
-    padding: 12px 16px;
-  }
-
-  :deep(.q-checkbox) {
-    .q-checkbox__inner {
-      font-size: 18px;
-    }
-  }
+.patient-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 0.5rem;
 }
 
-// Enhanced styling for patient cards in table
-:deep(.q-td) {
-  .q-avatar {
-    font-size: 0.75rem;
-    font-weight: 600;
-  }
-}
-
-// Styling for visits/observations display
-.visits-obs-display {
-  text-align: center;
-
-  .text-weight-medium {
-    font-size: 0.9rem;
-    color: $primary;
-  }
-
-  .text-caption {
-    font-size: 0.7rem;
-    white-space: nowrap;
+@media (max-width: 768px) {
+  .patient-cards-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

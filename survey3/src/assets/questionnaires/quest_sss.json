@@ -1,14 +1,17 @@
 {
-  "title": "Stanford Sleepiness Scale",
+  "title": "SSS – Stanford Sleepiness Scale",
   "short_title": "sss",
-  "description": "Erfassung der aktuellen Müdigkeit",
+  "version": "1.0",
+  "updated": "2026-06-24",
+  "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
+  "description": "Momentane Einschätzung der Schläfrigkeit.",
   "coding": {
     "system": "http://snomed.info/sct",
     "code": "225398001",
     "display": "stanford sleepiness scale"
   },
   "manual": "Bitte kreuzen Sie an, wie müde Sie sich gerade fühlen",
-  "keywords": "Müdigkeit, Sleepiness, sss",
+  "keywords": "Tagesschläfrigkeit, Schlaf, Selbstbeurteilung",
   "ref": "https://www.webofscience.com/wos/woscc/full-record/WOS:A1972M317100233?SID=EUW1ED0F78n9kyAHZcgzN7cUHdWfS",
   "items": [
     {

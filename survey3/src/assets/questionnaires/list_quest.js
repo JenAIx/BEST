@@ -4,8 +4,8 @@ export const quest_template = {
   description: null,
   coding: {
     system: "http://snomed.info/sct",
-    code: "225398001",
-    display: "Blepharospasm severity scale"
+    code: "386053000",
+    display: "Klinisches Assessment"
   },
   manual: null,
   keywords: null,
