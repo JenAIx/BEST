@@ -25,6 +25,7 @@
     "build": "quasar build",
     "build:electron": "quasar build -m electron",
     "build:win-x64": "quasar build -m electron --target win32 --arch x64",
+    "build:win-x86": "quasar build -m electron --target win32 --arch ia32",
     "build:mac-arm64": "quasar build -m electron --target darwin --arch arm64 && npm run package:mac-arm64",
     "package:win-x64": "quasar build -m electron --target win32 --arch x64 && node -e \"console.log('Portable build at dist/electron/Builder')\"",
     "package:mac-arm64": "mkdir -p dist/builds && if [ -d \"dist/electron/Packaged/mac-arm64\" ]; then cd dist/electron/Packaged && if command -v hdiutil >/dev/null 2>&1; then hdiutil create -volname \"Best - Scientific DB Manager\" -srcfolder \"mac-arm64/Best - Scientific DB Manager.app\" -ov -format UDZO \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).dmg\"; else tar -czf \"../../builds/best-mac-arm64-$(date +%Y-%m-%d-%H-%M-%S).tar.gz\" \"mac-arm64/Best - Scientific DB Manager.app\"; fi; else echo \"Error: Build output not found at dist/electron/Packaged/mac-arm64. Please run the build first.\"; exit 1; fi",
@@ -32,7 +33,6 @@
     "icon": "icongenie g -i ./public/icons/app_logo.png"
   },
   "dependencies": {
-    "@dbbest/clinical-schema": "file:../../clinical-schema/js",
     "@quasar/extras": "^1.16.4",
     "axios": "^1.2.1",
     "bcryptjs": "^3.0.3",
@@ -49,6 +49,7 @@
     "vuedraggable": "^4.1.0"
   },
   "devDependencies": {
+    "@dbbest/clinical-schema": "file:../../clinical-schema/js",
     "@electron/packager": "^18.4.2",
     "@eslint/js": "^9.14.0",
     "@quasar/app-vite": "^2.1.0",
