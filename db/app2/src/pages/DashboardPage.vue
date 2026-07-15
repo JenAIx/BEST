@@ -229,7 +229,8 @@ const loadRecentPatients = async () => {
     })
 
     const patients = result.patients || []
-    const accessMap = await dbStore.getPatientAccessInfo(patients.map((p) => p.PATIENT_NUM))
+    const patientNums = patients.map((p) => p.PATIENT_NUM)
+    const [accessMap, studyMap] = await Promise.all([dbStore.getPatientAccessInfo(patientNums), dbStore.getPatientStudyInfo(patientNums)])
 
     recentPatients.value = patients.map((patient) => ({
       id: patient.PATIENT_CD,
@@ -239,6 +240,7 @@ const loadRecentPatients = async () => {
       patient_num: patient.PATIENT_NUM,
       owner: accessMap.get(patient.PATIENT_NUM)?.ownerUserCd || null,
       isPublic: accessMap.get(patient.PATIENT_NUM)?.isPublic || false,
+      studies: studyMap.get(patient.PATIENT_NUM) || [],
       // Original patient fields for downstream consumers
       SEX_RESOLVED: patient.SEX_RESOLVED,
       SEX_CD: patient.SEX_CD,

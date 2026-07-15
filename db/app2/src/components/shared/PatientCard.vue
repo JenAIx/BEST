@@ -1,18 +1,24 @@
 <template>
   <q-card class="patient-card" :class="{ 'patient-card--selected': selected }" flat bordered @click="selectPatient">
-    <!-- Owner badge (top right, ellipsis overflow, full text in tooltip) -->
-    <div v-if="patient.owner || patient.isPublic" class="owner-badge">
-      <q-icon :name="patient.isPublic ? 'public' : 'person'" size="10px" />
-      <span v-if="patient.owner" class="owner-badge-text">{{ patient.owner }}</span>
-      <q-tooltip>
-        <template v-if="patient.owner">{{ $t('patient.owner') }}: {{ patient.owner }}</template>
-        <template v-if="patient.owner && patient.isPublic"> · </template>
-        <template v-if="patient.isPublic">{{ $t('patient.publicAccess') }}</template>
-      </q-tooltip>
+    <!-- Top-right badges: study tags + owner (ellipsis overflow, details in tooltips) -->
+    <div v-if="studyTags.length > 0 || patient.owner || patient.isPublic" class="card-badges">
+      <span v-for="tag in studyTags" :key="tag.short" class="study-badge">
+        {{ tag.short }}
+        <q-tooltip>{{ $t('study.study') }}: {{ tag.tooltip }}</q-tooltip>
+      </span>
+      <div v-if="patient.owner || patient.isPublic" class="owner-badge">
+        <q-icon :name="patient.isPublic ? 'public' : 'person'" size="10px" />
+        <span v-if="patient.owner" class="owner-badge-text">{{ patient.owner }}</span>
+        <q-tooltip>
+          <template v-if="patient.owner">{{ $t('patient.owner') }}: {{ patient.owner }}</template>
+          <template v-if="patient.owner && patient.isPublic"> · </template>
+          <template v-if="patient.isPublic">{{ $t('patient.publicAccess') }}</template>
+        </q-tooltip>
+      </div>
     </div>
 
     <q-card-section class="patient-card-content">
-      <q-avatar size="34px" color="primary" text-color="white">
+      <q-avatar size="34px" :color="avatarColor" text-color="white">
         <template v-if="hasRealName">{{ patientInitials }}</template>
         <q-icon v-else name="person" size="19px" />
       </q-avatar>
@@ -26,6 +32,12 @@
           </span>
         </div>
       </div>
+      <q-chip v-if="status" :color="status.color" text-color="white" size="sm" dense class="status-chip">
+        {{ status.label }}
+      </q-chip>
+      <q-btn v-if="removable" flat round dense size="sm" icon="person_remove" color="negative" @click.stop="emit('remove', patient)">
+        <q-tooltip>{{ $t('common.remove') }}</q-tooltip>
+      </q-btn>
       <q-icon name="chevron_right" size="16px" class="chevron" />
     </q-card-section>
   </q-card>
@@ -44,15 +56,36 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Optional status chip, e.g. enrollment status: { label: 'active', color: 'positive' }
+  status: {
+    type: Object,
+    default: null,
+  },
+  // Optional remove action (e.g. withdraw from study) — emits 'remove'
+  removable: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['select'])
+const emit = defineEmits(['select', 'remove'])
 
 const { t } = useI18n()
 
 // Patients without a name in PATIENT_BLOB fall back to their PATIENT_CD as
 // "name" — don't fake initials from digits and don't repeat the ID in the meta line.
 const hasRealName = computed(() => !!props.patient.name && props.patient.name !== props.patient.id)
+
+// Avatar color doubles as gender indicator: female/weiblich → pink,
+// male/männlich → blue, unknown → neutral primary
+const avatarColor = computed(() => {
+  const raw = String(props.patient.gender || props.patient.SEX_RESOLVED || props.patient.SEX_CD || '')
+    .trim()
+    .toLowerCase()
+  if (raw.startsWith('f') || raw.startsWith('w')) return 'pink-4'
+  if (raw.startsWith('m')) return 'light-blue-6'
+  return 'primary'
+})
 
 const patientInitials = computed(() => {
   return (props.patient.name || '')
@@ -61,6 +94,22 @@ const patientInitials = computed(() => {
     .join('')
     .toUpperCase()
     .slice(0, 2)
+})
+
+// Study tags: short uppercase token from STUDY_CD (fallback: study name),
+// max 2 shown, the rest folded into a "+n" badge
+const studyTags = computed(() => {
+  const studies = Array.isArray(props.patient.studies) ? props.patient.studies : []
+  const short = (study) => {
+    const source = study.code || study.name || ''
+    const token = source.replace(/[^A-Za-z0-9]+/g, ' ').trim().split(/\s+/)[0] || ''
+    return token.slice(0, 8).toUpperCase()
+  }
+  const tags = studies.slice(0, 2).map((study) => ({ short: short(study), tooltip: study.name || study.code }))
+  if (studies.length > 2) {
+    tags.push({ short: `+${studies.length - 2}`, tooltip: studies.slice(2).map((study) => study.name || study.code).join(', ') })
+  }
+  return tags
 })
 
 const metaFacts = computed(() => {
@@ -174,15 +223,38 @@ const selectPatient = () => {
   transition: color 0.2s ease;
 }
 
-.owner-badge {
+.status-chip {
+  flex: 0 0 auto;
+}
+
+.card-badges {
   position: absolute;
   top: 4px;
   right: 6px;
   z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 60%;
+}
+
+.study-badge {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border-radius: 7px;
+  font-size: 0.6rem;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  background: rgba($primary, 0.1);
+  color: $primary;
+}
+
+.owner-badge {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  max-width: 45%;
+  min-width: 0;
   padding: 0 5px;
   border-radius: 7px;
   font-size: 0.6rem;
