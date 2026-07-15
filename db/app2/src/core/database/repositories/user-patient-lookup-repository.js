@@ -123,6 +123,18 @@ class UserPatientLookupRepository extends BaseRepository {
     return result.success ? result.data.map((row) => row.PATIENT_NUM) : []
   }
 
+  /**
+   * PATIENT_NUMs of all patients directly assigned to a user (creator rows AND
+   * manual grants — public rows of USER_ID 0 do NOT count). Backs the
+   * "only my patients" quick filter in the patient search.
+   *
+   * @returns {Promise<number[]>}
+   */
+  async getPatientNumsAssignedTo(userId) {
+    const result = await this.connection.executeQuery(`SELECT DISTINCT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID = ?`, [userId])
+    return result.success ? result.data.map((row) => row.PATIENT_NUM) : []
+  }
+
   async removeByUserAndPatient(userId, patientNum) {
     const result = await this.connection.executeCommand(
       `DELETE FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?`,

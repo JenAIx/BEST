@@ -13,20 +13,6 @@
           <q-tooltip>{{ $t('auth.appName') }}, click to go to the {{ $t('common.dashboard') }}</q-tooltip>
         </q-toolbar-title>
 
-        <!-- Mode Toggle - Only show on Dashboard -->
-        <q-btn-toggle
-          v-if="isDashboard"
-          v-model="viewMode"
-          toggle-color="primary"
-          :options="[
-            { label: $t('dashboard.visitMode'), value: 'visit', icon: 'person' },
-            { label: $t('dashboard.deepWork'), value: 'deep', icon: 'analytics' },
-          ]"
-          unelevated
-          size="sm"
-          class="q-mr-md"
-        />
-
         <!-- Smart Search -->
         <SmartSearch class="q-mr-md" @search-active="onSearchActive" @search-cleared="onSearchCleared" />
 
@@ -246,7 +232,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useNotify } from 'src/composables/useNotify'
@@ -270,7 +256,6 @@ const localSettingsStore = useLocalSettingsStore()
 // UI State
 const leftDrawerOpen = ref(false)
 const miniState = ref(true)
-const viewMode = ref('visit')
 const isSearchActive = ref(false)
 
 // User Info
@@ -325,9 +310,6 @@ const toggleLanguage = () => {
     notify.error('Error switching language')
   }
 }
-
-// Check if current page is Dashboard
-const isDashboard = computed(() => route.path === '/dashboard')
 
 // Breadcrumbs
 const breadcrumbs = computed(() => {
@@ -388,21 +370,6 @@ const onLogout = async () => {
     router.push('/login')
     notify.info(t('auth.loggedOut'))
   })
-}
-
-// Watch for view mode changes
-watch(viewMode, (newMode) => {
-  // Store view mode preference
-  localStorage.setItem('viewMode', newMode)
-
-  // Emit event for components to react to mode change
-  window.dispatchEvent(new CustomEvent('viewModeChanged', { detail: newMode }))
-})
-
-// Initialize view mode from storage
-const savedMode = localStorage.getItem('viewMode')
-if (savedMode) {
-  viewMode.value = savedMode
 }
 
 // --- Session-Timeout enforcement -------------------------------------------
