@@ -237,7 +237,7 @@ const loadPatientFromRoute = async () => {
     // Patient is already loaded and matches route
     // Save to recent patients and set view mode
     addToRecentPatients(patientId)
-    viewMode.value = 'timeline'
+    viewMode.value = route.query.view === 'patient' ? 'patient' : 'timeline'
     return
   }
 
@@ -252,7 +252,8 @@ const loadPatientFromRoute = async () => {
     if (loadedPatient) {
       // Save patient to recent patients when loaded from route
       addToRecentPatients(patientId)
-      viewMode.value = 'timeline'
+      // ?view=patient opens the patient-data view directly (context menu)
+      viewMode.value = route.query.view === 'patient' ? 'patient' : 'timeline'
     } else {
       // Patient not found, redirect to visits list
       router.push('/visits')

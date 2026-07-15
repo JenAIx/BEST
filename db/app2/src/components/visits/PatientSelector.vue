@@ -72,7 +72,7 @@
           {{ recentPatientsSource === 'latest' ? $t('visit.latestPatients') : $t('visit.recentPatients') }}
         </div>
         <div class="recent-patients-grid">
-          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="selectPatient" />
+          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="selectPatient" @changed="onPatientChanged" />
         </div>
       </q-card-section>
 
@@ -83,7 +83,7 @@
           {{ $t('visit.searchResults', { count: searchResults.length }) }}
         </div>
         <div class="search-results">
-          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" @select="selectPatient" />
+          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" @select="selectPatient" @changed="onPatientChanged" />
         </div>
       </q-card-section>
 
@@ -190,6 +190,7 @@ const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.va
 // Methods
 const mapPatientForCard = async (patient, access = null, studies = []) => ({
   id: patient.PATIENT_CD,
+  PATIENT_NUM: patient.PATIENT_NUM,
   name: getPatientName(patient),
   age: patient.AGE_IN_YEARS,
   gender: patient.SEX_RESOLVED || patient.SEX_CD,
@@ -346,6 +347,7 @@ const runSearch = async () => {
         const access = accessMap.get(patient.PATIENT_NUM)
         return {
           id: patient.PATIENT_CD,
+          PATIENT_NUM: patient.PATIENT_NUM,
           name: getPatientName(patient),
           age: patient.AGE_IN_YEARS,
           gender: patient.SEX_RESOLVED || patient.SEX_CD,
@@ -491,6 +493,13 @@ const formatVisitDate = (dateStr) => {
     month: 'short',
     day: 'numeric',
   })
+}
+
+// Context-menu mutation (study/owner/public/delete) — refresh the visible lists
+const onPatientChanged = async () => {
+  await loadRecentPatients()
+  loadPatientStats()
+  if (isSearchActive.value) await runSearch()
 }
 
 const loadUserOptions = async () => {

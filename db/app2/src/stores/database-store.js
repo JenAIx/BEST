@@ -395,6 +395,32 @@ export const useDatabaseStore = defineStore('database', () => {
     return await lookupRepo.getPatientAccessInfo(patientNums)
   }
 
+  // Admin or current owner only — shared guard for owner/public mutations
+  const assertOwnerOrAdmin = async (patientNum) => {
+    const userAccess = await resolveUserAccess()
+    if (!userAccess || userAccess.isAdmin) return
+    const lookupRepo = getRepository('userPatientLookup')
+    const accessMap = await lookupRepo.getPatientAccessInfo([patientNum])
+    const ownerUserId = accessMap.get(patientNum)?.ownerUserId ?? null
+    if (ownerUserId !== userAccess.userId) {
+      throw new Error('Only administrators or the patient owner can change this')
+    }
+  }
+
+  // Transfer the owner (creator) role to another user (admin or current owner)
+  const transferPatientOwnership = async (patientNum, newUserId) => {
+    await assertOwnerOrAdmin(patientNum)
+    const lookupRepo = getRepository('userPatientLookup')
+    return await lookupRepo.transferOwnership(patientNum, newUserId)
+  }
+
+  // Grant/revoke public visibility (admin or current owner)
+  const setPatientPublicAccess = async (patientNum, isPublic) => {
+    await assertOwnerOrAdmin(patientNum)
+    const lookupRepo = getRepository('userPatientLookup')
+    return await lookupRepo.setPublicAccess(patientNum, isPublic)
+  }
+
   // Batch study memberships for patient cards (study tags)
   const getPatientStudyInfo = async (patientNums) => {
     const studyRepo = getRepository('study')
@@ -1080,6 +1106,8 @@ export const useDatabaseStore = defineStore('database', () => {
     getPatientAccessInfo,
     getPatientStudyInfo,
     getEnrolledPatientsForStudy,
+    transferPatientOwnership,
+    setPatientPublicAccess,
 
     // Raw data operations
     uploadRawData,

@@ -81,7 +81,7 @@
 
           <template v-else-if="tableData.length > 0">
             <div class="patient-cards-grid">
-              <PatientCard v-for="patient in tableData" :key="patient.id" :patient="patient" :selected="isPatientSelected(patient)" @select="toggleSelection" />
+              <PatientCard v-for="patient in tableData" :key="patient.id" :patient="patient" :selected="isPatientSelected(patient)" @select="toggleSelection" @changed="loadTableData" />
             </div>
             <div class="row justify-center q-mt-md">
               <q-pagination v-model="pagination.page" :max="totalPages" :max-pages="7" direction-links boundary-links size="sm" @update:model-value="loadTableData" />

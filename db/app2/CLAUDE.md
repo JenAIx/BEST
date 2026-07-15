@@ -1369,10 +1369,15 @@ console.log($t('category.key'))
 - **Standard patient card**: `src/components/shared/PatientCard.vue` is THE
   patient card for every patient list/grid (dashboard, /visits recents +
   search results, …). Don't build new patient card/list-item markup — pass
-  `{ id, name, age?, visitCount?, lastVisit?, owner?, isPublic? }` and listen
-  to `@select`. It handles name-vs-ID fallback (no duplicate ID, person icon
-  instead of digit "initials"), the two-part meta line, and the owner badge.
-  Render collections in a grid: `repeat(auto-fill, minmax(280px, 1fr))`.
+  `{ id, name, age?, visitCount?, lastVisit?, owner?, isPublic?, studies?,
+  PATIENT_NUM? }` and listen to `@select`. It handles name-vs-ID fallback
+  (no duplicate ID, person icon instead of digit "initials"), the two-part
+  meta line, gender-colored avatar, study tags, and the owner badge.
+  Right-click opens the built-in context menu (`PatientCardMenu.vue`:
+  open visits, copy ID, assign study, export, public toggle / owner change /
+  delete for admin+owner) — listen to `@changed` and reload your list after
+  menu mutations. Render collections in a grid:
+  `repeat(auto-fill, minmax(280px, 1fr))`.
 - Follow Quasar component conventions
 - Use I18n for all user-facing text
 - Implement proper loading states

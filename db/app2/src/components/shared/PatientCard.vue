@@ -40,12 +40,16 @@
       </q-btn>
       <q-icon name="chevron_right" size="16px" class="chevron" />
     </q-card-section>
+
+    <!-- Right-click context menu (visits, study, export, owner, delete, …) -->
+    <PatientCardMenu :patient="patient" @changed="emit('changed')" />
   </q-card>
 </template>
 
 <script setup>
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import PatientCardMenu from './PatientCardMenu.vue'
 
 const props = defineProps({
   patient: {
@@ -68,7 +72,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['select', 'remove'])
+const emit = defineEmits(['select', 'remove', 'changed'])
 
 const { t } = useI18n()
 

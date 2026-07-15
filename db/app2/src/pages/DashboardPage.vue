@@ -47,7 +47,7 @@
               </div>
 
               <div v-else-if="recentPatients.length > 0" class="patient-cards-grid">
-                <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="onPatientClick(null, $event)" />
+                <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="onPatientClick(null, $event)" @changed="onPatientChanged" />
               </div>
 
               <div v-else class="q-pa-lg text-center text-grey-6">
@@ -238,6 +238,7 @@ const loadRecentPatients = async () => {
       age: patient.AGE_IN_YEARS ?? null,
       lastVisit: formatRelativeTime(patient.UPDATE_DATE || patient.IMPORT_DATE || patient.CREATED_AT),
       patient_num: patient.PATIENT_NUM,
+      PATIENT_NUM: patient.PATIENT_NUM,
       owner: accessMap.get(patient.PATIENT_NUM)?.ownerUserCd || null,
       isPublic: accessMap.get(patient.PATIENT_NUM)?.isPublic || false,
       studies: studyMap.get(patient.PATIENT_NUM) || [],
@@ -435,6 +436,11 @@ const onPatientCreated = async (createdPatient) => {
       },
     ],
   })
+}
+
+// Context-menu mutation — refresh dashboard lists and stats
+const onPatientChanged = async () => {
+  await Promise.all([loadRecentPatients(), loadDashboardStatistics()])
 }
 
 // Initialize dashboard data
