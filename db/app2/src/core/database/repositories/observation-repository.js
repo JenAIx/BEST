@@ -49,19 +49,19 @@ class ObservationRepository extends BaseRepository {
     // Create the observation
     const createdObservation = await this.create(observationWithDefaults)
 
-    // If lastID is undefined, fetch the most recent observation for this encounter
-    // This is a workaround for Electron preload script not returning lastID
+    // Fallback if the connection did not return lastID: the just-created row is
+    // the one with the highest OBSERVATION_ID (AUTOINCREMENT) for this encounter
+    // — deterministic, unlike any date/order-based "most recent" heuristic.
     if (createdObservation.OBSERVATION_ID === undefined) {
       try {
-        const recentObservations = await this.findByEncounterNum(observationData.ENCOUNTER_NUM)
-        if (recentObservations && recentObservations.length > 0) {
-          // Get the most recent observation (assuming it's the one we just created)
-          const mostRecentObservation = recentObservations[0]
-          return { ...createdObservation, OBSERVATION_ID: mostRecentObservation.OBSERVATION_ID }
+        const result = await this.connection.executeQuery(`SELECT MAX(OBSERVATION_ID) as maxId FROM ${this.tableName} WHERE ENCOUNTER_NUM = ?`, [observationData.ENCOUNTER_NUM])
+        const maxId = result.success && result.data.length > 0 ? result.data[0].maxId : null
+        if (maxId != null) {
+          return { ...createdObservation, OBSERVATION_ID: maxId }
         }
       } catch (error) {
         // In case of error (e.g., in unit tests), just return the created observation
-        console.warn('Could not fetch recent observations for workaround:', error.message)
+        console.warn('Could not resolve new observation id for workaround:', error.message)
       }
     }
 

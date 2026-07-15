@@ -49,19 +49,21 @@ class VisitRepository extends BaseRepository {
     // Create the visit
     const createdVisit = await this.create(visitWithDefaults)
 
-    // If lastID is undefined, fetch the most recent visit for this patient
-    // This is a workaround for Electron preload script not returning lastID
+    // Fallback if the connection did not return lastID: the just-created visit
+    // is the one with the highest ENCOUNTER_NUM (AUTOINCREMENT) for this
+    // patient. NOTE: never resolve this via START_DATE ordering — a back-dated
+    // visit is NOT the most recent by date, which used to select the wrong
+    // visit after creation.
     if (createdVisit.ENCOUNTER_NUM === undefined) {
       try {
-        const recentVisits = await this.findByPatientNum(visitData.PATIENT_NUM)
-        if (recentVisits && recentVisits.length > 0) {
-          // Get the most recent visit (assuming it's the one we just created)
-          const mostRecentVisit = recentVisits[0]
-          return { ...createdVisit, ENCOUNTER_NUM: mostRecentVisit.ENCOUNTER_NUM }
+        const result = await this.connection.executeQuery(`SELECT MAX(ENCOUNTER_NUM) as maxId FROM ${this.tableName} WHERE PATIENT_NUM = ?`, [visitData.PATIENT_NUM])
+        const maxId = result.success && result.data.length > 0 ? result.data[0].maxId : null
+        if (maxId != null) {
+          return { ...createdVisit, ENCOUNTER_NUM: maxId }
         }
       } catch (error) {
         // In case of error (e.g., in unit tests), just return the created visit
-        console.warn('Could not fetch recent visits for workaround:', error.message)
+        console.warn('Could not resolve new visit id for workaround:', error.message)
       }
     }
 
