@@ -45,12 +45,20 @@
           <q-icon name="check_circle" size="14px" color="positive" />
           <span class="stat-value">{{ statistics.filledCellsPercentage }}%</span>
           <span class="stat-label">{{ $t('dataGrid.filled') }}</span>
+          <q-tooltip v-if="statistics.lockedCellsCount > 0">{{ $t('dataGrid.filledExcludesLocked') }}</q-tooltip>
         </div>
 
         <div class="stat-item">
           <q-icon name="analytics" size="14px" color="info" />
           <span class="stat-value">{{ statistics.totalCells }}</span>
           <span class="stat-label">{{ $t('dataGrid.cells') }}</span>
+        </div>
+
+        <!-- Cells excluded by the visit-type lock (only while the lock is on) -->
+        <div class="stat-item" v-if="statistics.lockedCellsCount > 0">
+          <q-icon name="lock" size="14px" color="grey-6" />
+          <span class="stat-value">{{ statistics.lockedCellsCount }}</span>
+          <span class="stat-label">{{ $t('dataGrid.lockedCells') }}</span>
         </div>
 
         <!-- Visit-type lock: clickable chip toggling viewOptions.visitTypeLockActive. -->

@@ -171,18 +171,28 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       let totalCells = 0
       let filledCells = 0
       let openAuditsCount = 0
+      let lockedCellsCount = 0
 
       rows.forEach((row) => {
         visibleConcepts.forEach((concept) => {
-          totalCells++
           try {
+            // Open audits stay counted even on locked cells — their red border
+            // remains visible and they still need attention.
+            if (getCellValueFlag(row, concept) === 'AUDIT') {
+              openAuditsCount++
+            }
+            // Visit-type lock: locked cells are not expected to be filled for
+            // this row's visit type, so they leave the filled-quota entirely
+            // (numerator and denominator). No-op while the lock is inactive.
+            if (isCellLocked(row, concept)) {
+              lockedCellsCount++
+              return
+            }
+            totalCells++
             const cellValue = getCellValue(row, concept)
             // Consider a cell filled if it has a non-empty value
             if (cellValue !== null && cellValue !== undefined && cellValue !== 'NULL' && (typeof cellValue === 'string' ? cellValue.trim() !== '' : String(cellValue).trim() !== '')) {
               filledCells++
-            }
-            if (getCellValueFlag(row, concept) === 'AUDIT') {
-              openAuditsCount++
             }
           } catch (error) {
             logger.warn('Error getting cell value for statistics', { row, concept, error })
@@ -201,6 +211,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         filledCells,
         filledCellsPercentage,
         openAuditsCount,
+        lockedCellsCount,
       }
     } catch (error) {
       logger.warn('Error calculating statistics', error)
@@ -212,6 +223,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         filledCells: 0,
         filledCellsPercentage: 0,
         openAuditsCount: 0,
+        lockedCellsCount: 0,
       }
     }
   })

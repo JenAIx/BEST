@@ -212,6 +212,49 @@ export const validateViewOptions = (options = {}) => {
 }
 
 /**
+ * Compute the visible row window for the virtualized grid body.
+ *
+ * The table lives inside a wrapper scaled by `zoom` (CSS transform), so the
+ * scroll container reports VISUAL pixels while spacer heights are LAYOUT
+ * pixels — scrollTop/viewportHeight are divided by zoom before mapping to row
+ * indices; topPad/bottomPad are returned unscaled.
+ *
+ * @param {Object} opts
+ * @param {number} opts.scrollTop - Scroll offset of the container (visual px)
+ * @param {number} opts.viewportHeight - Container height (visual px)
+ * @param {number} opts.rowHeight - Uniform data-row height (layout px, > 0)
+ * @param {number} opts.totalRows - Total number of data rows
+ * @param {number} [opts.overscan=10] - Extra rows rendered above/below
+ * @param {number} [opts.zoom=1] - Current zoom scale factor
+ * @returns {{start: number, end: number, topPad: number, bottomPad: number}}
+ *   Render rows[start..end); pad tbody with spacers of topPad/bottomPad px.
+ */
+export const computeVirtualWindow = ({ scrollTop, viewportHeight, rowHeight, totalRows, overscan = 10, zoom = 1 }) => {
+  if (!totalRows || totalRows <= 0) {
+    return { start: 0, end: 0, topPad: 0, bottomPad: 0 }
+  }
+  const safeRowHeight = rowHeight > 0 ? rowHeight : 40
+  const safeZoom = zoom > 0 ? zoom : 1
+  const layoutScrollTop = Math.max(0, scrollTop / safeZoom)
+  const layoutViewport = Math.max(0, viewportHeight / safeZoom)
+
+  // Clamp: scrollTop can exceed the content height when rows shrink while
+  // scrolled down (e.g. audit filter toggled) or during elastic scrolling.
+  const firstVisible = Math.min(Math.floor(layoutScrollTop / safeRowHeight), totalRows - 1)
+  const visibleCount = Math.ceil(layoutViewport / safeRowHeight) + 1
+
+  const start = Math.max(0, firstVisible - overscan)
+  const end = Math.min(totalRows, firstVisible + visibleCount + overscan)
+
+  return {
+    start,
+    end,
+    topPad: start * safeRowHeight,
+    bottomPad: (totalRows - end) * safeRowHeight,
+  }
+}
+
+/**
  * Build the visit-type lock map from CODE_LOOKUP rows.
  *
  * Inputs are the raw rows of CODE_LOOKUP(VISIT_DIMENSION/VISIT_TYPE_CD) and

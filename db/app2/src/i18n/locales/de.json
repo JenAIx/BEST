@@ -600,6 +600,8 @@
     "showOnlyAudits": "Nur offene Audits anzeigen",
     "auditFilterActive": "Filter aktiv – Klick zum Aufheben",
     "visitTypeLock": "Visitentyp-Sperre",
+    "lockedCells": "gesperrt",
+    "filledExcludesLocked": "Gesperrte Zellen (Visitentyp-Sperre) sind aus der Ausfüllquote ausgenommen",
     "visitTypeLockHint": "Zellen sperren, deren Beobachtung nicht zum Visitentyp der Zeile gehört",
     "cellLockedTooltip": "Gehört nicht zum Visitentyp dieser Visite (Visitentyp-Sperre aktiv)",
     "viewOptions": "Anzeigeoptionen",

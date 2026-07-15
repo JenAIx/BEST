@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Zeilen-Virtualisierung im Datentabellen-Editor**: Nur die sichtbaren
+  Zeilen (+ Überhang) stehen im DOM; Spacer-Zeilen erhalten Scrollbar-Geometrie
+  und Sticky-Header/-Spalten. Stresstest 425 Patienten / 1037 Visiten /
+  47 Spalten (~49k Zellen): Aufbau in ~1,5s, konstant ~25–35 Zeilen im DOM
+  statt 1037, flüssiges Scrollen, 0 Konsolen-Fehler. Dazu: `table-layout:
+  fixed` + `colgroup` (stabile Spaltenbreiten beim Scrollen), einheitliche
+  Zeilenhöhe, `q-scroll-area` durch nativen Scroll-Container ersetzt,
+  Zoom-kompensierte Fenster-Berechnung (`grid-utils.computeVirtualWindow`,
+  Tests `tests/unit/24_grid-virtualization.test.js`), EditableCell committet
+  pending Edits beim Unmount (Zelle aus dem Fenster gescrollt),
+  `isFirstVisitForPatient` von O(Zeilen²) pro Render auf einmalige Map.
+- **Visitentyp-Sperre in der Footer-Statistik**: Bei aktiver Sperre fallen
+  gesperrte Zellen aus „% Ausgefüllt" und „Zellen" heraus (sie sind für den
+  Visitentyp der Zeile nicht vorgesehen); offene Audits auf gesperrten Zellen
+  zählen weiter. Neuer Footer-Eintrag „gesperrt: N" bei aktiver Sperre.
+
+
 - **Visitentyp-Sperre im Datentabellen-Editor** (UI-seitig, abschaltbar):
   Neuer Toggle in den Anzeigeoptionen + Chip im Grid-Footer
   (`viewOptions.visitTypeLockActive`, persistiert). Wenn aktiv, werden Zellen

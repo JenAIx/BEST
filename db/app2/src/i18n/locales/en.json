@@ -600,6 +600,8 @@
     "showOnlyAudits": "Show only open audits",
     "auditFilterActive": "Filter active – click to clear",
     "visitTypeLock": "Visit-type lock",
+    "lockedCells": "locked",
+    "filledExcludesLocked": "Locked cells (visit-type lock) are excluded from the filled quota",
     "visitTypeLockHint": "Lock cells whose observation does not belong to the row's visit type",
     "cellLockedTooltip": "Not part of this visit's visit type (visit-type lock active)",
     "viewOptions": "View Options",
