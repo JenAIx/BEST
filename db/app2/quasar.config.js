@@ -203,10 +203,10 @@ export default defineConfig((/* ctx */) => {
           target: [
             {
               target: 'portable',
-              arch: ['x64'],
+              arch: ['x64', 'ia32'],
             },
           ],
-          artifactName: 'best-win-x64-${version}-portable.exe',
+          artifactName: 'best-win-${arch}-${version}-portable.exe',
         },
         mac: {
           target: [
