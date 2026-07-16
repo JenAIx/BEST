@@ -78,7 +78,8 @@
     "export": "Export",
     "import": "Import",
     "databaseTest": "Datenbanktest",
-    "feedback": "Feedback"
+    "feedback": "Feedback",
+    "help": "Hilfe"
   },
   "auth": {
     "appName": "BEST Medical System",
@@ -1151,5 +1152,12 @@
     "feedbackDeleted": "Feedback erfolgreich gelöscht",
     "deleteError": "Feedback konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
     "loadError": "Feedback-Daten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+  },
+  "help": {
+    "title": "Hilfe & Anleitung",
+    "subtitle": "Workflows, Funktionen und Konzepte der gesamten Anwendung",
+    "searchPlaceholder": "Hilfe durchsuchen…",
+    "noResults": "Keine Hilfe-Abschnitte zu Ihrer Suche gefunden",
+    "stepsTitle": "Schritt für Schritt"
   }
 }

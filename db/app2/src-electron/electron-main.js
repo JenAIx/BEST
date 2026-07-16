@@ -10,6 +10,12 @@ const __dirname = path.dirname(__filename)
 // needed in case process is undefined under Linux
 const platform = process.platform || os.platform()
 
+// Dev tooling: expose the Chrome DevTools Protocol for automation (e.g. the
+// help-page screenshot script). Only active when explicitly requested.
+if (process.env.REMOTE_DEBUG_PORT) {
+  app.commandLine.appendSwitch('remote-debugging-port', process.env.REMOTE_DEBUG_PORT)
+}
+
 let mainWindow
 
 async function createWindow() {
