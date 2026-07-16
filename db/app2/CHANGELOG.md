@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4_20260716] - 2026-07-16
+
 ### Added
 
 - **SmartButton Messenger** (Notizen mit Special-Tag `CATEGORY_CHAR='MESSAGE'`,
@@ -853,6 +855,7 @@ changes from the recent commit history (see `git log` for full detail).
 - `test(dbBEST)`: smoke tests for UI-prep foundation (notify, session monitor, error boundary).
 - `refactor(dbBEST)`: migrated all `$q.notify` calls to `useNotify` composable.
 
-[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.3_20260521...HEAD
+[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.4_20260716...HEAD
+[0.4_20260716]: https://github.com/JenAIx/BEST/releases/tag/v0.4_20260716
 [0.3_20260521]: https://github.com/JenAIx/BEST/releases/tag/v0.3_20260521
 [0.2_20260516]: https://github.com/JenAIx/BEST/releases/tag/v0.2_20260516
