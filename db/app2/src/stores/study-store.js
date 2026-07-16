@@ -40,6 +40,14 @@ export const useStudyStore = defineStore('study', () => {
   // decide whether to trust the cached payload or re-load for a new study.
   const cohortInsightsStudyCd = ref(null)
 
+  // Study audit — open audits (VALUEFLAG_CD='AUDIT') + enrollment status
+  // counts for one study. Loaded lazily by StudyAuditPanel via loadStudyAudit.
+  const auditSummary = ref(null)
+  const auditSummaryLoading = ref(false)
+  const auditSummaryError = ref(null)
+  const auditSummaryStudyId = ref(null)
+  const enrollmentStatusCounts = ref(null)
+
   // Getters
   const hasStudies = computed(() => studies.value.length > 0)
 
@@ -561,10 +569,11 @@ export const useStudyStore = defineStore('study', () => {
       const selectionCodes = options.selectionCodes ?? ['STROKE_LIPID:ETIOLOGY', 'STROKE_LIPID:EVENT_TYPE']
       const labCodes = options.labCodes ?? ['LID: 22748-8', 'LID: 14646-4']
 
-      const [counts, drugs, findings, ...rest] = await Promise.all([
+      const [counts, drugs, findings, userStats, ...rest] = await Promise.all([
         repo.getCohortPatientCount(studyCd),
         repo.getCohortDrugUsage(studyCd, drugPrefix),
         repo.getCohortFindingPrevalence(studyCd),
+        dbStore.getCohortUserStats(studyCd),
         ...selectionCodes.map((c) => repo.getCohortSelectionDistribution(studyCd, c)),
         ...labCodes.map((c) => repo.getCohortLabSummary(studyCd, c)),
       ])
@@ -575,6 +584,7 @@ export const useStudyStore = defineStore('study', () => {
         counts,
         drugs,
         findings,
+        userStats,
         selections: selectionCodes.map((code, i) => ({ code, data: selections[i] || [] })),
         labs: labCodes.map((code, i) => ({ code, data: labs[i] || [] })),
       }
@@ -591,6 +601,90 @@ export const useStudyStore = defineStore('study', () => {
       throw err
     } finally {
       cohortInsightsLoading.value = false
+    }
+  }
+
+  /**
+   * Load open-audit summary + enrollment status counts for a study.
+   * Cached per study; re-call to refresh (e.g. after grid edits).
+   */
+  const loadStudyAudit = async (studyId) => {
+    if (!studyId) {
+      auditSummary.value = null
+      enrollmentStatusCounts.value = null
+      auditSummaryStudyId.value = null
+      return
+    }
+    auditSummaryLoading.value = true
+    auditSummaryError.value = null
+    try {
+      const [summary, statusCounts] = await Promise.all([
+        dbStore.getStudyAuditSummary(studyId),
+        dbStore.getStudyEnrollmentStatusCounts(studyId),
+      ])
+      auditSummary.value = summary
+      enrollmentStatusCounts.value = statusCounts
+      auditSummaryStudyId.value = studyId
+      logger.info('Study audit loaded', { studyId, openAudits: summary.total })
+    } catch (err) {
+      auditSummaryError.value = err.message
+      logger.error('Failed to load study audit', err, { studyId })
+      throw err
+    } finally {
+      auditSummaryLoading.value = false
+    }
+  }
+
+  /**
+   * Set the enrollment status ('active' | 'completed' | 'withdrawn') for one
+   * or more patients in a study, then refresh the audit/status caches.
+   */
+  const setEnrollmentStatus = async (studyId, patientNums, status) => {
+    const nums = Array.isArray(patientNums) ? patientNums : [patientNums]
+    if (nums.length === 0) return true
+    try {
+      await dbStore.updateEnrollmentStatus(studyId, nums, status)
+      logger.success('Enrollment status updated', { studyId, status, patientCount: nums.length })
+      await refreshAuditCacheFor(studyId)
+      return true
+    } catch (err) {
+      logger.error('Failed to set enrollment status', err, { studyId, status })
+      throw err
+    }
+  }
+
+  // Refresh cached audit/status data if it belongs to this study
+  const refreshAuditCacheFor = async (studyId) => {
+    if (auditSummaryStudyId.value === studyId) {
+      await loadStudyAudit(studyId)
+    }
+  }
+
+  /** Enroll a patient in a study (status 'active'), refreshing audit caches. */
+  const enrollPatientInStudy = async (studyId, patientNum, enrollmentData = {}) => {
+    try {
+      const studyRepo = dbStore.getRepository('study')
+      await studyRepo.enrollPatient(studyId, patientNum, { ENROLLMENT_STATUS_CD: 'active', ...enrollmentData })
+      logger.success('Patient enrolled in study', { studyId, patientNum })
+      await refreshAuditCacheFor(studyId)
+      return true
+    } catch (err) {
+      logger.error('Failed to enroll patient in study', err, { studyId, patientNum })
+      throw err
+    }
+  }
+
+  /** Withdraw a patient from a study, refreshing audit caches. */
+  const withdrawPatientFromStudy = async (studyId, patientNum) => {
+    try {
+      const studyRepo = dbStore.getRepository('study')
+      await studyRepo.withdrawPatient(studyId, patientNum)
+      logger.success('Patient withdrawn from study', { studyId, patientNum })
+      await refreshAuditCacheFor(studyId)
+      return true
+    } catch (err) {
+      logger.error('Failed to withdraw patient from study', err, { studyId, patientNum })
+      throw err
     }
   }
 
@@ -620,6 +714,11 @@ export const useStudyStore = defineStore('study', () => {
     cohortInsightsLoading,
     cohortInsightsError,
     cohortInsightsStudyCd,
+    auditSummary,
+    auditSummaryLoading,
+    auditSummaryError,
+    auditSummaryStudyId,
+    enrollmentStatusCounts,
 
     // Getters
     hasStudies,
@@ -643,6 +742,10 @@ export const useStudyStore = defineStore('study', () => {
     searchStudies,
     getStudyAnalytics,
     loadCohortInsights,
+    loadStudyAudit,
+    setEnrollmentStatus,
+    enrollPatientInStudy,
+    withdrawPatientFromStudy,
     updateResearchStats,
     loadResearchStats,
 

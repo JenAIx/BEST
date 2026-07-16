@@ -166,10 +166,13 @@
         </div>
       </div>
 
-      <!-- Overview / Insights tabs -->
+      <!-- Overview / Insights / Audit tabs -->
       <q-tabs v-model="activeTab" dense align="left" indicator-color="primary" class="q-mb-md">
         <q-tab name="overview" icon="info" :label="$t('study.tabOverview')" />
         <q-tab name="insights" icon="insights" :label="$t('study.tabInsights')" />
+        <q-tab name="audit" icon="flag" :label="$t('study.tabAudit')">
+          <q-badge v-if="openAuditCount > 0" color="negative" floating>{{ openAuditCount }}</q-badge>
+        </q-tab>
       </q-tabs>
       <q-separator />
       <q-tab-panels v-model="activeTab" animated class="bg-transparent" keep-alive>
@@ -183,7 +186,80 @@
               {{ $t('study.enrolledPatients') }}
               <span v-if="hasPatientFilters" class="text-caption text-grey-6 q-ml-sm">({{ filteredEnrolledPatients.length }} / {{ enrolledPatients.length }})</span>
             </div>
-            <q-btn color="primary" icon="add" :label="$t('study.enrollPatient')" @click="showEnrollDialog = true" />
+            <div class="row q-gutter-sm">
+              <!-- Selection-driven: open exactly the shift-selected cards -->
+              <q-btn
+                v-if="selectedCount > 0"
+                unelevated
+                color="primary"
+                icon="grid_on"
+                :label="$t('study.openSelectedInGrid', { count: selectedCount })"
+                @click="openSelectedInGrid"
+              />
+              <!-- Filter-driven fallback: open the currently filtered list.
+                   Only when a filter narrows it — without one this would dump
+                   the entire cohort (400+ patients) into the grid -->
+              <q-btn
+                v-else-if="hasPatientFilters && filteredEnrolledPatients.length"
+                outline
+                color="primary"
+                icon="grid_on"
+                :label="$t('study.openFilteredInGrid', { count: filteredEnrolledPatients.length })"
+                @click="openFilteredInGrid"
+              />
+              <q-btn color="primary" icon="add" :label="$t('study.enrollPatient')" @click="showEnrollDialog = true" />
+            </div>
+          </div>
+
+          <!-- Selection banner: shown once ≥1 card is shift-selected -->
+          <q-slide-transition>
+            <div v-if="selectedCount > 0" class="row items-center q-gutter-sm q-mb-sm q-pa-sm bg-blue-1 rounded-borders">
+              <q-icon name="check_circle" color="primary" size="18px" />
+              <span class="text-body2">{{ $t('study.selectedCount', { count: selectedCount }) }}</span>
+              <q-space />
+              <q-btn flat dense no-caps size="sm" color="primary" icon="select_all" :label="$t('study.selectAllFiltered')" @click="selectAllFiltered" />
+              <q-btn flat dense no-caps size="sm" color="grey-8" icon="clear" :label="$t('study.clearSelection')" @click="clearSelection" />
+            </div>
+          </q-slide-transition>
+
+          <!-- Enrollment status filter + audit filter -->
+          <div class="row items-center q-gutter-sm q-mb-sm">
+            <q-btn-toggle
+              v-model="patientFilters.status"
+              :options="statusFilterOptions"
+              no-caps
+              dense
+              unelevated
+              toggle-color="primary"
+              color="grey-2"
+              text-color="grey-8"
+            />
+            <q-toggle v-model="patientFilters.onlyWithAudits" :label="$t('study.filterOnlyAudits')" dense color="negative" />
+            <q-space />
+            <template v-if="filteredEnrolledPatients.length && (patientFilters.status !== 'all' || hasPatientFilters)">
+              <q-btn
+                v-if="patientFilters.status !== 'completed'"
+                flat
+                dense
+                no-caps
+                size="sm"
+                color="info"
+                icon="check_circle"
+                :label="$t('study.bulkMarkCompleted')"
+                @click="confirmBulkStatus('completed')"
+              />
+              <q-btn
+                v-if="patientFilters.status !== 'active'"
+                flat
+                dense
+                no-caps
+                size="sm"
+                color="positive"
+                icon="play_circle"
+                :label="$t('study.bulkMarkActive')"
+                @click="confirmBulkStatus('active')"
+              />
+            </template>
           </div>
 
           <!-- Patient search + filters (same pattern as /visits) -->
@@ -230,11 +306,13 @@
                 v-for="patient in pagedEnrolledPatients"
                 :key="patient.PATIENT_NUM"
                 :patient="patient"
-                :status="{ label: patient.ENROLLMENT_STATUS_CD || 'active', color: getEnrollmentStatusColor(patient.ENROLLMENT_STATUS_CD) }"
-                removable
+                :status="getEnrollmentStatus(patient)"
+                :status-options="ENROLLMENT_STATUSES"
+                :selected="selectedPatientNums.has(patient.PATIENT_NUM)"
+                :select-hint="$t('study.multiSelectHint')"
                 @select="onPatientSelect"
-                @remove="confirmWithdrawPatient"
                 @changed="onPatientChanged"
+                @status-change="onEnrollmentStatusChange"
               />
             </div>
             <div v-if="filteredEnrolledPatients.length > enrolledPageSize" class="row justify-center q-mt-md">
@@ -259,6 +337,9 @@
         <q-tab-panel name="insights" class="q-pa-none q-pt-md">
           <StudyInsights v-if="studyCd" :study-cd="studyCd" />
         </q-tab-panel>
+        <q-tab-panel name="audit" class="q-pa-none q-pt-md">
+          <StudyAuditPanel :study-id="studyId" />
+        </q-tab-panel>
       </q-tab-panels>
     </div>
 
@@ -276,23 +357,23 @@
       @cancel="showEnrollDialog = false"
     />
 
-    <!-- Withdraw Confirmation Dialog -->
-    <q-dialog v-model="showWithdrawDialog" persistent>
+    <!-- Bulk Status Confirmation Dialog -->
+    <q-dialog v-model="showBulkStatusDialog" persistent>
       <q-card style="min-width: 400px">
         <q-card-section class="row items-center">
-          <q-avatar icon="warning" color="warning" text-color="white" />
-          <span class="q-ml-sm text-h6">{{ $t('study.confirmWithdrawal') }}</span>
+          <q-avatar icon="rule" color="primary" text-color="white" />
+          <span class="q-ml-sm text-h6">{{ $t('study.setStatus') }}</span>
         </q-card-section>
 
         <q-card-section>
           <div class="text-body1">
-            {{ $t('study.withdrawPatientConfirm', { name: patientToWithdraw ? getPatientName(patientToWithdraw) : '' }) }}
+            {{ $t('study.bulkStatusConfirm', { count: filteredEnrolledPatients.length, status: bulkStatusLabel }) }}
           </div>
         </q-card-section>
 
         <q-card-actions align="right">
-          <q-btn flat :label="$t('common.cancel')" @click="showWithdrawDialog = false" />
-          <q-btn color="negative" :label="$t('study.withdraw')" @click="withdrawPatient" :loading="withdrawing" />
+          <q-btn flat :label="$t('common.cancel')" @click="showBulkStatusDialog = false" />
+          <q-btn color="primary" :label="$t('study.setStatus')" @click="applyBulkStatus" :loading="bulkStatusSaving" />
         </q-card-actions>
       </q-card>
     </q-dialog>
@@ -307,9 +388,13 @@ import { useI18n } from 'vue-i18n'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useStudyStore } from 'src/stores/study-store'
 import { useExportStore } from 'src/stores/export-store'
+import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { usePatientStudyActions } from 'src/composables/usePatientStudyActions'
+import { ENROLLMENT_STATUSES, normalizeEnrollmentStatus } from 'src/shared/utils/enrollment-status.js'
 import EnrollPatientDialog from 'src/components/study/EnrollPatientDialog.vue'
 import PatientCard from 'src/components/shared/PatientCard.vue'
 import StudyInsights from 'src/components/study/StudyInsights.vue'
+import StudyAuditPanel from 'src/components/study/StudyAuditPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -318,6 +403,8 @@ const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const studyStore = useStudyStore()
 const exportStore = useExportStore()
+const localSettings = useLocalSettingsStore()
+const studyActions = usePatientStudyActions()
 
 // State
 const loading = ref(true)
@@ -337,6 +424,8 @@ const patientFilters = ref({
   sex: null,
   owner: null,
   ageRange: { ...DEFAULT_PATIENT_AGE_RANGE },
+  status: 'all', // enrollment status: all | active | completed | withdrawn
+  onlyWithAudits: false,
 })
 
 const hasPatientFilters = computed(
@@ -344,9 +433,28 @@ const hasPatientFilters = computed(
     !!patientFilters.value.search ||
     !!patientFilters.value.sex ||
     !!patientFilters.value.owner ||
+    patientFilters.value.status !== 'all' ||
+    patientFilters.value.onlyWithAudits ||
     patientFilters.value.ageRange.min !== DEFAULT_PATIENT_AGE_RANGE.min ||
     patientFilters.value.ageRange.max !== DEFAULT_PATIENT_AGE_RANGE.max,
 )
+
+const statusFilterOptions = computed(() => [
+  { label: t('study.enrollmentStatus.all'), value: 'all' },
+  ...ENROLLMENT_STATUSES.map((s) => ({ label: t(s.labelKey), value: s.code })),
+])
+
+// Audit data (shared with the audit tab via study-store)
+const openAuditCount = computed(() => (studyStore.auditSummaryStudyId === studyId ? studyStore.auditSummary?.total || 0 : 0))
+
+const auditCountByPatient = computed(() => {
+  const map = new Map()
+  if (studyStore.auditSummaryStudyId !== studyId) return map
+  for (const row of studyStore.auditSummary?.byPatient || []) {
+    map.set(row.patientNum, row.auditCount)
+  }
+  return map
+})
 
 // Options derived from the actual list, so they always match the data
 const enrolledSexOptions = computed(() => [...new Set(enrolledPatients.value.map((p) => p.SEX_CD).filter(Boolean))].map((v) => ({ label: v, value: v })))
@@ -373,6 +481,8 @@ const filteredEnrolledPatients = computed(() => {
     } else if (f.owner && p.owner !== f.owner) {
       return false
     }
+    if (f.status !== 'all' && normalizeEnrollmentStatus(p.ENROLLMENT_STATUS_CD) !== f.status) return false
+    if (f.onlyWithAudits && !auditCountByPatient.value.has(p.PATIENT_NUM)) return false
     if (f.ageRange.min !== DEFAULT_PATIENT_AGE_RANGE.min || f.ageRange.max !== DEFAULT_PATIENT_AGE_RANGE.max) {
       const age = p.AGE_IN_YEARS
       if (age == null || age < f.ageRange.min || age > f.ageRange.max) return false
@@ -387,8 +497,24 @@ const resetPatientFilters = () => {
     sex: null,
     owner: null,
     ageRange: { ...DEFAULT_PATIENT_AGE_RANGE },
+    status: 'all',
+    onlyWithAudits: false,
   }
 }
+
+// The audit filter needs the audit summary — load it lazily on first use
+watch(
+  () => patientFilters.value.onlyWithAudits,
+  async (active) => {
+    if (active && studyStore.auditSummaryStudyId !== studyId) {
+      try {
+        await studyStore.loadStudyAudit(studyId)
+      } catch {
+        // surfaced in the audit tab; the filter just matches nothing
+      }
+    }
+  },
+)
 
 // Back to page 1 whenever the filter changes
 watch(
@@ -406,9 +532,6 @@ const pagedEnrolledPatients = computed(() => {
 const loadingPatients = ref(false)
 const showEnrollDialog = ref(false)
 const enrolling = ref(false)
-const showWithdrawDialog = ref(false)
-const patientToWithdraw = ref(null)
-const withdrawing = ref(false)
 
 // Tabs (Overview / Insights)
 const activeTab = ref('overview')
@@ -465,10 +588,11 @@ const statusOptions = [
 ]
 
 
-// Methods
-const loadStudy = async () => {
+// Methods — `silent: true` skips the loading flags so refreshes after
+// mutations don't swap the whole page (or list) to a spinner.
+const loadStudy = async ({ silent = false } = {}) => {
   try {
-    loading.value = true
+    if (!silent) loading.value = true
     if (!dbStore.canPerformOperations) return
 
     const loadedStudy = await studyStore.loadStudyById(studyId)
@@ -482,13 +606,13 @@ const loadStudy = async () => {
     console.error('Failed to load study:', error)
     notify.error(t('study.failedToLoad'))
   } finally {
-    loading.value = false
+    if (!silent) loading.value = false
   }
 }
 
-const loadEnrolledPatients = async () => {
+const loadEnrolledPatients = async ({ silent = false } = {}) => {
   try {
-    loadingPatients.value = true
+    if (!silent) loadingPatients.value = true
     if (!dbStore.canPerformOperations) return
 
     // Access-filtered: regular users only see enrolled patients they may access
@@ -509,7 +633,7 @@ const loadEnrolledPatients = async () => {
     console.error('Failed to load enrolled patients:', error)
     notify.error(t('study.failedToLoadPatients'))
   } finally {
-    loadingPatients.value = false
+    if (!silent) loadingPatients.value = false
   }
 }
 
@@ -558,17 +682,13 @@ const handleEnrollPatient = async ({ patientNums, enrollmentDate }) => {
     enrolling.value = true
     if (!dbStore.canPerformOperations) return
 
-    const studyRepo = dbStore.getRepository('study')
     for (const patientNum of patientNums) {
-      await studyRepo.enrollPatient(studyId, patientNum, {
-        ENROLLMENT_DATE: enrollmentDate,
-        ENROLLMENT_STATUS_CD: 'active',
-      })
+      await studyStore.enrollPatientInStudy(studyId, patientNum, { ENROLLMENT_DATE: enrollmentDate })
     }
 
-    // Reload data
-    await loadStudy()
-    await loadEnrolledPatients()
+    // Silent refresh: new rows appear without swapping the page to a spinner
+    await loadEnrolledPatients({ silent: true })
+    loadStudy({ silent: true }).catch(() => {})
 
     showEnrollDialog.value = false
 
@@ -578,37 +698,6 @@ const handleEnrollPatient = async ({ patientNums, enrollmentDate }) => {
     notify.error(t('study.failedToEnroll'))
   } finally {
     enrolling.value = false
-  }
-}
-
-const confirmWithdrawPatient = (patient) => {
-  patientToWithdraw.value = patient
-  showWithdrawDialog.value = true
-}
-
-const withdrawPatient = async () => {
-  if (!patientToWithdraw.value) return
-
-  try {
-    withdrawing.value = true
-    if (!dbStore.canPerformOperations) return
-
-    const studyRepo = dbStore.getRepository('study')
-    await studyRepo.withdrawPatient(studyId, patientToWithdraw.value.PATIENT_NUM)
-
-    // Reload data
-    await loadStudy()
-    await loadEnrolledPatients()
-
-    showWithdrawDialog.value = false
-    patientToWithdraw.value = null
-
-    notify.success(t('study.patientWithdrawn'))
-  } catch (error) {
-    console.error('Failed to withdraw patient:', error)
-    notify.error(t('study.failedToWithdraw'))
-  } finally {
-    withdrawing.value = false
   }
 }
 
@@ -649,20 +738,154 @@ const getEnrollmentStatusColor = (status) => {
   return colors[status] || 'grey'
 }
 
+// Status object for the PatientCard chip (code drives the dropdown highlight)
+const getEnrollmentStatus = (patient) => {
+  const code = normalizeEnrollmentStatus(patient.ENROLLMENT_STATUS_CD)
+  const meta = ENROLLMENT_STATUSES.find((s) => s.code === code)
+  return {
+    code,
+    label: meta ? t(meta.labelKey) : code,
+    color: getEnrollmentStatusColor(code),
+  }
+}
+
+// Targeted card update: patch the affected patient's enrollment status in the
+// local list after the DB write is confirmed — no page/list reload. The study
+// header (patient count) is refreshed silently in the background because
+// withdrawn patients drop out of the count.
+const patchEnrollmentStatusLocally = (patientNums, status) => {
+  const nums = new Set(Array.isArray(patientNums) ? patientNums : [patientNums])
+  for (const p of enrolledPatients.value) {
+    if (nums.has(p.PATIENT_NUM)) p.ENROLLMENT_STATUS_CD = status
+  }
+  loadStudy({ silent: true }).catch(() => {})
+}
+
+// Single-patient status change via the PatientCard chip dropdown
+const onEnrollmentStatusChange = async ({ patient, status }) => {
+  if (normalizeEnrollmentStatus(patient.ENROLLMENT_STATUS_CD) === status) return
+  const detail = await studyActions.setStatus(studyId, patient.PATIENT_NUM, status)
+  if (detail) patchEnrollmentStatusLocally([patient.PATIENT_NUM], status)
+}
+
+// Bulk status change (applies to the currently filtered list)
+const showBulkStatusDialog = ref(false)
+const bulkStatusSaving = ref(false)
+const bulkStatusTarget = ref(null)
+
+const bulkStatusLabel = computed(() => {
+  const meta = ENROLLMENT_STATUSES.find((s) => s.code === bulkStatusTarget.value)
+  return meta ? t(meta.labelKey) : bulkStatusTarget.value || ''
+})
+
+const confirmBulkStatus = (status) => {
+  bulkStatusTarget.value = status
+  showBulkStatusDialog.value = true
+}
+
+const applyBulkStatus = async () => {
+  const patientNums = filteredEnrolledPatients.value.map((p) => p.PATIENT_NUM)
+  if (!patientNums.length || !bulkStatusTarget.value) {
+    showBulkStatusDialog.value = false
+    return
+  }
+  try {
+    bulkStatusSaving.value = true
+    await studyStore.setEnrollmentStatus(studyId, patientNums, bulkStatusTarget.value)
+    patchEnrollmentStatusLocally(patientNums, bulkStatusTarget.value)
+    showBulkStatusDialog.value = false
+    notify.success(t('study.statusChanged'))
+  } catch (error) {
+    console.error('Failed to bulk-change enrollment status:', error)
+    notify.error(t('study.failedToSetStatus'))
+  } finally {
+    bulkStatusSaving.value = false
+  }
+}
+
+// Open the currently filtered patients in the grid editor (e.g. status filter
+// "active" → work on exactly the open patients)
+const openFilteredInGrid = () => {
+  const patientCds = filteredEnrolledPatients.value.map((p) => String(p.PATIENT_CD)).filter(Boolean)
+  if (!patientCds.length) return
+  localSettings.setDataGridSelectedPatients(patientCds)
+  if (patientFilters.value.onlyWithAudits) {
+    localSettings.setPendingAuditFilter(true)
+  }
+  router.push('/data-grid/editor')
+}
+
 const goToStudySearch = () => {
   router.push('/studies')
 }
 
-// Context-menu mutation — refresh study + enrolled list
-const onPatientChanged = async () => {
-  await Promise.all([loadStudy(), loadEnrolledPatients()])
+// Context-menu mutation. Study-membership changes arrive with a confirmed
+// detail ({type, studyNum, patientNum, status}) and patch the affected card
+// in place; everything else (delete, public toggle, owner change, …) falls
+// back to a silent full reload — no page-level spinner either way.
+const onPatientChanged = async (detail) => {
+  if (detail?.type === 'status' || detail?.type === 'withdraw') {
+    if (detail.studyNum === studyId) {
+      patchEnrollmentStatusLocally([detail.patientNum], detail.status)
+    }
+    return
+  }
+  if (detail?.type === 'enroll') {
+    // Enrolled into this study via menu → the patient may be new to the list
+    if (detail.studyNum === studyId) {
+      await loadEnrolledPatients({ silent: true })
+      loadStudy({ silent: true }).catch(() => {})
+    }
+    return
+  }
+  await Promise.all([loadStudy({ silent: true }), loadEnrolledPatients({ silent: true })])
+  studyStore.loadStudyAudit(studyId).catch(() => {})
 }
 
-const onPatientSelect = (patient) => {
-  // Navigate to patient page using PATIENT_CD (redirects to /visits/:id)
+// --- Multi-select (shift-click) --------------------------------------------
+// Plain click navigates to the patient; Shift/Ctrl/Meta-click toggles the card
+// in a selection set. Once ≥1 card is selected, plain clicks toggle too (so the
+// user can keep building the selection without holding a modifier). "Open in
+// grid" then works on exactly the selected cards.
+const selectedPatientNums = ref(new Set())
+const selectedCount = computed(() => selectedPatientNums.value.size)
+
+const toggleSelection = (patientNum) => {
+  const next = new Set(selectedPatientNums.value)
+  if (next.has(patientNum)) next.delete(patientNum)
+  else next.add(patientNum)
+  selectedPatientNums.value = next
+}
+
+const clearSelection = () => {
+  selectedPatientNums.value = new Set()
+}
+
+const selectAllFiltered = () => {
+  selectedPatientNums.value = new Set(filteredEnrolledPatients.value.map((p) => p.PATIENT_NUM))
+}
+
+const onPatientSelect = (patient, evt) => {
+  const isModifier = evt && (evt.shiftKey || evt.ctrlKey || evt.metaKey)
+  if (isModifier || selectedPatientNums.value.size > 0) {
+    toggleSelection(patient.PATIENT_NUM)
+    return
+  }
+  // Plain click, no active selection → navigate (redirects to /visits/:id)
   if (patient.PATIENT_CD) {
     router.push(`/patient/${patient.PATIENT_CD}`)
   }
+}
+
+const openSelectedInGrid = () => {
+  const selected = enrolledPatients.value.filter((p) => selectedPatientNums.value.has(p.PATIENT_NUM))
+  const patientCds = selected.map((p) => String(p.PATIENT_CD)).filter(Boolean)
+  if (!patientCds.length) return
+  localSettings.setDataGridSelectedPatients(patientCds)
+  if (patientFilters.value.onlyWithAudits) {
+    localSettings.setPendingAuditFilter(true)
+  }
+  router.push('/data-grid/editor')
 }
 
 // Initialize
@@ -670,6 +893,8 @@ onMounted(async () => {
   await loadStudy()
   if (study.value) {
     await loadEnrolledPatients()
+    // Non-blocking: audit summary feeds the tab badge + audit filter
+    studyStore.loadStudyAudit(studyId).catch(() => {})
   }
 })
 </script>

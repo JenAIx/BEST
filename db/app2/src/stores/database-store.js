@@ -434,6 +434,48 @@ export const useDatabaseStore = defineStore('database', () => {
     return await studyRepo.getEnrolledPatients(studyId, userAccess)
   }
 
+  // Access-controlled open-audit summary for a study (VALUEFLAG_CD='AUDIT')
+  const getStudyAuditSummary = async (studyId) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getStudyAuditSummary(studyId, userAccess)
+  }
+
+  // Access-controlled enrollment status counts for one study
+  const getStudyEnrollmentStatusCounts = async (studyId) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getEnrollmentStatusCounts(studyId, userAccess)
+  }
+
+  // Batch enrollment status counts for study cards (Map<STUDY_NUM, counts>)
+  const getEnrollmentStatusCountsForStudies = async (studyIds) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getEnrollmentStatusCountsForStudies(studyIds, userAccess)
+  }
+
+  // Batch open-audit counts for study cards (Map<STUDY_NUM, count>)
+  const getOpenAuditCountsForStudies = async (studyIds) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getOpenAuditCountsForStudies(studyIds, userAccess)
+  }
+
+  // Set enrollment status for one or more patients in a study
+  const updateEnrollmentStatus = async (studyId, patientNums, status) => {
+    const nums = Array.isArray(patientNums) ? patientNums : [patientNums]
+    const studyRepo = getRepository('study')
+    return await studyRepo.updateEnrollmentStatusBulk(studyId, nums, status)
+  }
+
+  // Access-controlled per-user cohort activity (patients owned / observations created)
+  const getCohortUserStats = async (studyCd) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getCohortUserStats(studyCd, userAccess)
+  }
+
   // Raw data/file upload operations
   const uploadRawData = async (observationData, fileData) => {
     const loggingStore = useLoggingStore()
@@ -1106,6 +1148,12 @@ export const useDatabaseStore = defineStore('database', () => {
     getPatientAccessInfo,
     getPatientStudyInfo,
     getEnrolledPatientsForStudy,
+    getStudyAuditSummary,
+    getStudyEnrollmentStatusCounts,
+    getEnrollmentStatusCountsForStudies,
+    getOpenAuditCountsForStudies,
+    updateEnrollmentStatus,
+    getCohortUserStats,
     transferPatientOwnership,
     setPatientPublicAccess,
 

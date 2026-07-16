@@ -9,6 +9,99 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Studien-Audit-Modul** (`features/audit-studies`): Studien-Datenerhebung
+  systematisch abarbeitbar.
+  - **Audit-Tab auf `/studies/:id`** (`StudyAuditPanel.vue`): KPIs (offene
+    Audits, Patienten mit Audits, abgeschlossen/eingeschrieben + Quote),
+    „Audits pro Benutzer" und „Audits pro Patient" mit Sprung ins Grid
+    (einzeln oder alle, Audit-Filter voraktiviert via One-Shot-Flag
+    `localSettings.dataGrid.pendingAuditFilter`, konsumiert von
+    `DataGridEditorPage`). Tab-Badge mit offener Audit-Anzahl.
+  - **Enrollment-Status-Workflow**: `STUDY_PATIENT_LOOKUP.ENROLLMENT_STATUS_CD`
+    bekommt einen `'completed'`-Schreibpfad — Status-Dropdown am
+    PatientCard-Chip (`statusOptions`-Prop, nicht-brechend), filterbasierte
+    Bulk-Aktionen („Gefilterte als abgeschlossen/aktiv markieren") mit
+    Bestätigung, Statusfilter (Alle/Aktiv/Abgeschlossen/Zurückgezogen) +
+    „Nur mit offenen Audits"-Toggle im Overview-Tab, „Im Grid öffnen (n)"
+    für die gefilterte Liste. Konstanten in
+    `src/shared/utils/enrollment-status.js`
+    (`ENROLLMENT_STATUSES`, `ENROLLED_STATUS_SQL`).
+  - **Team-Aktivität im Insights-Tab**: Patienten pro Benutzer (Owner via
+    USER_PATIENT_LOOKUP) und Beobachtungen pro Benutzer (PROVIDER_ID=USER_CD)
+    für die Kohorte (`getCohortUserStats`).
+  - **Studienkarten-Badges auf `/studies`**: „x/y abgeschlossen" +
+    rotes Audit-Chip pro Studie (Batch-Queries
+    `getEnrollmentStatusCountsForStudies` / `getOpenAuditCountsForStudies`,
+    kein N+1).
+  - **Neue Repository-/Store-Schicht**: `study-repository`
+    `getStudyAuditSummary` (erste DB-Query auf `VALUEFLAG_CD='AUDIT'`,
+    access-gefiltert), `updateEnrollmentStatus(Bulk)`,
+    `getEnrollmentStatusCounts(ForStudies)`, `getOpenAuditCountsForStudies`,
+    `getCohortUserStats`; dbStore-Wrapper mit `resolveUserAccess()`;
+    study-store `loadStudyAudit` / `setEnrollmentStatus`.
+  - Tests: `tests/unit/25_study-audit-repository.test.js`,
+    `tests/unit/26_pending-audit-filter.test.js` (21 neue Tests).
+  - **Studienstatus überall verfügbar**
+    (`StudyMembershipMenuItems.vue`, geteilt): Rechtsklick-Menü der
+    PatientCard und der Patient-Zelle im Grid bieten jetzt
+    „Studie zuordnen" (enroll/withdraw-Toggle) **und** „Studienstatus"
+    (aktueller Status markiert, Umschalten aktiv/abgeschlossen/zurückgezogen).
+    Das `person_remove`-Icon auf den PatientCards in `/studies/:id` entfällt
+    (Withdraw läuft über Kontextmenü/Status); der alte Withdraw-Dialog wurde
+    entfernt.
+  - **Studieninfo-Sektion im Patientendaten-Tab** (`/visits` → Patientendaten,
+    `PatientStudyInfoCard.vue` unterhalb der Statistiken): zeigt alle
+    Studienmitgliedschaften mit Einschreibedatum, Status-Umschalter
+    (aktiv/abgeschlossen/zurückgezogen) und „Zu Studie hinzufügen".
+  - **Gezielte Karten-Updates statt Seiten-Reload**: Studien-Aktionen der
+    PatientCard laufen über die neue geteilte Aktionsschicht
+    `src/composables/usePatientStudyActions.js` (enroll/withdraw/setStatus +
+    Membership-Laden; Notifications inklusive). Jede Aktion liefert nach
+    bestätigtem DB-Write ein Detail-Objekt `{type, studyNum, patientNum,
+    status}`, das über `changed` bis zur Seite durchgereicht wird —
+    `/studies/:id` patcht damit nur die betroffene Karte (Status/Withdraw)
+    bzw. lädt die Liste still nach (Enroll/Löschen), statt die ganze Seite
+    auf den Spinner zu schalten (`loadStudy/loadEnrolledPatients` mit
+    `silent`-Option). study-store bekam `enrollPatientInStudy` /
+    `withdrawPatientFromStudy` (inkl. Audit-Cache-Refresh).
+  - **Fix: Statusänderung übers Kontextmenü aktualisiert die Karte sofort**
+    — `StudyMembershipMenuItems` nutzt einen `onChanged`-Function-Prop mit
+    Closure-Capture vor dem `await` statt `defineEmits`: das Menü wird durch
+    `v-close-popup` sofort unmounted, ein Emit nach dem DB-Write verpuffte
+    auf der toten Instanz (Regressionstest
+    `tests/unit/27_study-membership-menu.test.js`).
+  - **Fix: „Im Grid öffnen (n)" nur bei aktivem Filter** — ohne Filter hätte
+    der Button die komplette Kohorte (400+ Patienten) ins Grid geladen.
+  - **Mehrfachauswahl per Umschalt-Klick auf `/studies/:id`**: Normaler Klick
+    öffnet weiterhin den Patienten; Umschalt-/Strg-/Cmd-Klick wählt Karten aus
+    (bei aktiver Auswahl togglet auch der normale Klick). Auswahl-Banner mit
+    „Alle (gefiltert) auswählen" / „Auswahl aufheben", Button „Auswahl im Grid
+    öffnen (n)" lädt genau die markierten Karten. PatientCard reicht dafür das
+    Maus-Event am `select`-Emit mit und hat einen optionalen `select-hint`-
+    Tooltip.
+  - **Fix: „Owner ändern" öffnete keinen Dialog** — `openOwnerDialog` setzte
+    `showOwnerDialog` erst nach einer `await`-Query, was mit dem
+    `v-close-popup`-Teardown des Menüs kollidierte; der Dialog öffnet jetzt
+    synchron und lädt die Nutzerliste hinein. (Sichtbar ist der Menüpunkt
+    weiterhin nur für Admins oder den Patienten-Owner — importierte Patienten
+    ohne Creator-Zeile haben keinen Owner.)
+  - **Keine versehentliche Text-Markierung**: Quasar-Klasse `.non-selectable`
+    auf allen Layout-Roots (Main/Grid/Public), damit Umschalt-Klick auf Karten
+    keinen Seitentext markiert; Eingabefelder / `.selectable` bleiben per
+    globaler Regel in `app.scss` selektierbar.
+  - **Grid: erweitertes Patient-Kontextmenü** (`ExcelLikeEditor.vue`):
+    Patienteninfo-Dialog (Demografie + Studieninfo, access-gefiltert via
+    `getAccessiblePatientByCode`), „Patient aus Tabelle entfernen" direkt im
+    Menü, Studienzugehörigkeit + Studienstatus, Patient verwalten, Löschen.
+
+### Changed
+
+- **„Abgeschlossen" zählt weiter als eingeschrieben**: Alle
+  Studien-Zählqueries filtern jetzt einheitlich `!= 'withdrawn'` statt
+  `= 'active'` (Karten-Patientenzahl, Statistik, Kohorten-Export
+  `findEnrolledPatientCds`, Insights `getCohortPatientCount`) — abgeschlossene
+  Patienten bleiben in Zählungen, Export und Insights enthalten.
+
 - **Zeilen-Virtualisierung im Datentabellen-Editor**: Nur die sichtbaren
   Zeilen (+ Überhang) stehen im DOM; Spacer-Zeilen erhalten Scrollbar-Geometrie
   und Sticky-Header/-Spalten. Stresstest 425 Patienten / 1037 Visiten /

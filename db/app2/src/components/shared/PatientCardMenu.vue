@@ -22,29 +22,10 @@
         <q-item-section>{{ $t('patient.menuCopyId') }}</q-item-section>
       </q-item>
 
-      <!-- Assign to study (submenu) -->
-      <q-item clickable>
-        <q-item-section avatar><q-icon name="biotech" size="18px" /></q-item-section>
-        <q-item-section>{{ $t('patient.menuAssignStudy') }}</q-item-section>
-        <q-item-section side><q-icon name="keyboard_arrow_right" size="18px" /></q-item-section>
-        <q-menu anchor="top end" self="top start">
-          <q-list dense style="min-width: 200px">
-            <q-item v-if="studyItems.length === 0" disable>
-              <q-item-section class="text-grey-6">{{ $t('study.noStudiesFound') }}</q-item-section>
-            </q-item>
-            <q-item v-for="study in studyItems" :key="study.value" clickable v-close-popup @click="study.enrolled ? unassignFromStudy(study) : assignToStudy(study)">
-              <q-item-section avatar>
-                <q-icon :name="study.enrolled ? 'person_remove' : 'add'" size="16px" :color="study.enrolled ? 'negative' : 'grey-7'" />
-              </q-item-section>
-              <q-item-section>
-                {{ study.label }}
-                <q-item-label v-if="study.enrolled" caption class="text-positive">{{ $t('patient.menuEnrolledHint') }}</q-item-label>
-              </q-item-section>
-              <q-tooltip>{{ study.enrolled ? $t('patient.menuUnassignHint') : $t('patient.menuAssignHint') }}</q-tooltip>
-            </q-item>
-          </q-list>
-        </q-menu>
-      </q-item>
+      <!-- Study membership + enrollment status (shared submenu items).
+           The confirmed change detail is forwarded so list views can patch
+           the affected card in place instead of reloading. -->
+      <StudyMembershipMenuItems :patient="patient" @changed="(detail) => emit('changed', detail)" />
 
       <q-item clickable v-close-popup @click="showExportDialog = true">
         <q-item-section avatar><q-icon name="download" size="18px" /></q-item-section>
@@ -129,6 +110,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import ExportService from 'src/core/services/export-service.js'
 import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
+import StudyMembershipMenuItems from 'src/components/shared/StudyMembershipMenuItems.vue'
 
 const props = defineProps({
   patient: {
@@ -148,7 +130,6 @@ const logger = useLoggingStore().createLogger('PatientCardMenu')
 
 // State (loaded lazily when the menu opens)
 const accessInfo = ref(null)
-const studyItems = ref([])
 const patientNum = ref(null)
 const showExportDialog = ref(false)
 const exportFormat = ref('csv')
@@ -178,19 +159,8 @@ const onMenuShow = async () => {
     patientNum.value = await resolvePatientNum()
     if (patientNum.value == null) return
 
-    const [accessMap, studyMap, studiesResult] = await Promise.all([
-      dbStore.getPatientAccessInfo([patientNum.value]),
-      dbStore.getPatientStudyInfo([patientNum.value]),
-      dbStore.executeQuery('SELECT STUDY_NUM, STUDY_CD, NAME_CHAR FROM STUDY_DIMENSION ORDER BY NAME_CHAR'),
-    ])
-
+    const accessMap = await dbStore.getPatientAccessInfo([patientNum.value])
     accessInfo.value = accessMap.get(patientNum.value) || { ownerUserId: null, ownerUserCd: null, isPublic: false }
-    const enrolledCodes = new Set((studyMap.get(patientNum.value) || []).map((s) => s.code))
-    studyItems.value = (studiesResult.success ? studiesResult.data : []).map((study) => ({
-      label: study.NAME_CHAR,
-      value: study.STUDY_NUM,
-      enrolled: enrolledCodes.has(study.STUDY_CD),
-    }))
   } catch (error) {
     logger.warn('Failed to load context menu data', error)
   }
@@ -221,32 +191,6 @@ const copyId = async () => {
     notify.success(t('patient.menuIdCopied'), { timeout: 1500 })
   } catch (error) {
     logger.warn('Clipboard write failed', error)
-  }
-}
-
-const assignToStudy = async (study) => {
-  try {
-    if (patientNum.value == null) return
-    const studyRepo = dbStore.getRepository('study')
-    await studyRepo.enrollPatient(study.value, patientNum.value, { ENROLLMENT_STATUS_CD: 'active' })
-    notify.success(t('patient.menuAssignedToStudy', { study: study.label }))
-    emit('changed')
-  } catch (error) {
-    logger.error('Failed to assign patient to study', error)
-    notify.error(t('study.failedToEnroll'))
-  }
-}
-
-const unassignFromStudy = async (study) => {
-  try {
-    if (patientNum.value == null) return
-    const studyRepo = dbStore.getRepository('study')
-    await studyRepo.withdrawPatient(study.value, patientNum.value)
-    notify.success(t('patient.menuUnassignedFromStudy', { study: study.label }))
-    emit('changed')
-  } catch (error) {
-    logger.error('Failed to withdraw patient from study', error)
-    notify.error(t('study.failedToWithdraw'))
   }
 }
 
@@ -284,6 +228,13 @@ const togglePublic = async () => {
 }
 
 const openOwnerDialog = async () => {
+  // Open the dialog synchronously — the menu item's v-close-popup fires on the
+  // same click, and setting showOwnerDialog only AFTER an awaited query would
+  // race with the menu teardown and the dialog would not appear. Options load
+  // into the already-open dialog.
+  ownerOptions.value = []
+  newOwnerId.value = null
+  showOwnerDialog.value = true
   try {
     const result = await dbStore.executeQuery('SELECT USER_ID, USER_CD, NAME_CHAR FROM USER_MANAGEMENT WHERE USER_ID != 0 ORDER BY USER_CD')
     ownerOptions.value = (result.success ? result.data : []).map((user) => ({
@@ -291,8 +242,6 @@ const openOwnerDialog = async () => {
       value: user.USER_ID,
       disable: user.USER_ID === accessInfo.value?.ownerUserId,
     }))
-    newOwnerId.value = null
-    showOwnerDialog.value = true
   } catch (error) {
     logger.error('Failed to load user options', error)
   }
