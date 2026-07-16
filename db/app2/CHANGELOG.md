@@ -134,6 +134,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **/visits-Kopfbereich entschlackt**: Der große zentrierte Hero der
+  Patientenauswahl (64px-Icon, 3rem-Titel, Untertitel, 3rem-Abstand) ist
+  durch eine kompakte Sektions-Titelzeile ersetzt (kleines Icon + Titel +
+  Untertitel in einer Zeile, linksbündig über der Suchkarte) — passend zum
+  neueren Dashboard-Design ohne Seiten-Hero.
+
 - **Grid-Footer entschlackt + Visitentyp-Sperre in die Kopfzeile**: Der
   Footer des Datentabellen-Editors nutzt jetzt die volle Breite (Status links,
   Statistik rechts, `max-width`/Zentrierung entfernt), „Alle Änderungen

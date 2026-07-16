@@ -1,9 +1,9 @@
 <template>
   <div class="patient-selection-container">
-    <div class="selection-hero">
-      <q-icon name="medical_information" size="64px" color="primary" class="hero-icon" />
-      <h1 class="hero-title">{{ $t('navigation.patientVisits') }}</h1>
-      <p class="hero-subtitle">{{ $t('visits.selectPatientHint') }}</p>
+    <div class="selection-header">
+      <q-icon name="medical_information" size="22px" color="primary" />
+      <span class="selection-title">{{ $t('navigation.patientVisits') }}</span>
+      <span class="selection-subtitle">{{ $t('visits.selectPatientHint') }}</span>
     </div>
 
     <q-card class="selection-card" flat bordered>
@@ -569,32 +569,32 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
+  padding: 16px;
   min-height: 100vh;
 }
 
-.selection-hero {
-  text-align: center;
-  margin-bottom: 3rem;
+// Compact section header (replaces the old full-width hero)
+.selection-header {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
 
-  .hero-icon {
-    margin-bottom: 1rem;
-    opacity: 0.8;
+  .q-icon {
+    align-self: center;
   }
 
-  .hero-title {
-    font-size: 3rem;
-    font-weight: 300;
-    color: $primary;
-    margin: 0 0 1rem 0;
-    letter-spacing: -1px;
+  .selection-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: $grey-9;
   }
 
-  .hero-subtitle {
-    font-size: 1.2rem;
-    color: $grey-7;
-    margin: 0;
-    line-height: 1.5;
+  .selection-subtitle {
+    font-size: 0.8rem;
+    color: $grey-6;
   }
 }
 
@@ -639,12 +639,8 @@ watch(
     padding: 1rem;
   }
 
-  .selection-hero {
-    margin-bottom: 2rem;
-
-    .hero-title {
-      font-size: 2rem;
-    }
+  .selection-header .selection-subtitle {
+    display: none;
   }
 
   .recent-patients-grid,
