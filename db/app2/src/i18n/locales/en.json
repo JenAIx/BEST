@@ -926,7 +926,61 @@
     "rewrittenTextPlaceholder": "Rewritten text will appear here",
     "tooltip": "Smart Button - Click to open plugins",
     "minimize": "Minimize to bottom",
-    "loadingPlugin": "Loading plugin..."
+    "loadingPlugin": "Loading plugin...",
+    "plugins": {
+      "calculator": {
+        "name": "Calculator",
+        "tooltip": "Basic Calculator"
+      },
+      "notes": {
+        "name": "Quick Notes",
+        "tooltip": "Quick Notes"
+      },
+      "unitConverter": {
+        "name": "Unit Converter",
+        "tooltip": "Convert Units"
+      },
+      "bmiCalculator": {
+        "name": "BMI Calculator",
+        "tooltip": "Calculate BMI"
+      },
+      "levodopaCalculator": {
+        "name": "Levodopa Calculator",
+        "tooltip": "Levodopa Equivalence Calculator"
+      },
+      "askAi": {
+        "name": "Ask AI",
+        "tooltip": "Ask AI Assistant",
+        "tooltipNoKey": "AI Assistant (API key required)"
+      },
+      "rewrite": {
+        "name": "Rewrite",
+        "tooltip": "Rewrite selected text"
+      }
+    },
+    "close": "Close",
+    "quickNotes": {
+      "tabNew": "New note",
+      "tabList": "Notes",
+      "contextHint": "Attached context",
+      "noContext": "No context — the current page will be saved",
+      "recent": "Last notes",
+      "searchPlaceholder": "Search notes…",
+      "emptyList": "No notes yet",
+      "emptySearch": "No notes match your search",
+      "openContext": "Open context",
+      "edit": "Edit note",
+      "delete": "Delete note",
+      "confirmDeleteTitle": "Delete note",
+      "confirmDeleteMessage": "Delete this note permanently?",
+      "saved": "Note saved",
+      "updated": "Note updated",
+      "deleted": "Note deleted",
+      "saveFailed": "Failed to save note",
+      "loadFailed": "Failed to load notes",
+      "dbUnavailable": "No database connection — notes cannot be saved",
+      "page": "Page"
+    }
   },
   "validation": {
     "required": "This field is required",

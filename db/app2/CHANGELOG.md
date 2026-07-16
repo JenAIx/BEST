@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **SmartButton Quick Notes: echtes Notizsystem mit Kontext**
+  (`features/smartbutton-notizen`): Quick Notes waren bisher rein flüchtig
+  (In-Memory, weg beim Schließen) — jetzt persistent in `NOTE_FACT`.
+  - **Persistenz**: `NoteRepository` erstmals in `database-service.js`
+    registriert; neue Repo-Methoden `findByPatientNum` (behebt latenten
+    Bug in `search-service`) und `getQuickNotes` (eigene Notizen via
+    `SOURCESYSTEM_CD = USER_CD`, Suche, Pagination). Neuer Pinia-Store
+    `note-store.js` (create/load/update/delete).
+  - **Kontext**: Beim Speichern werden Patient (`PATIENT_NUM`), Visite
+    (`ENCOUNTER_NUM`), Studie und aktuelle Route in `NOTE_BLOB` erfasst
+    (`src/shared/utils/note-context.js`, pure + getestet). Jede Notiz
+    zeigt einen klickbaren Kontext-Chip (Priorität Patient → Studie →
+    Seite), der dorthin zurücknavigiert; im „Neu“-Tab wird der Kontext
+    vorab angezeigt.
+  - **Tab-UI** (`NotesWidget.vue` + `NoteListItem.vue`): „Neue Notiz“
+    (Editor + Kontext-Vorschau + letzte 3 Notizen) und „Notizen“
+    (Badge mit Anzahl, Debounce-Suche, Inline-Bearbeiten, Löschen mit
+    Bestätigung). Entwurf überlebt Minimieren (getState/initial-state).
+  - **Nicht-modales Plugin-Fenster**: Der SmartButton-Dialog (alle
+    Plugins) ist jetzt `seamless` — kein Backdrop, der Hintergrund bleibt
+    voll bedienbar — und an der Titelzeile frei verschiebbar
+    (v-touch-pan, Viewport-Clamping).
+  - **i18n komplett**: Alle Plugin-Namen/-Tooltips über neue
+    `smartButton.plugins.*`-Keys (de/en), Quick-Notes-UI über
+    `smartButton.quickNotes.*`; hartkodierte englische Labels entfernt.
+  - Tests: `tests/unit/30_quick-notes.test.js` (17 Tests: Kontext-Utils,
+    Repo-Filter, Store-Verhalten).
+
 - **Studienseite merkt sich die zuletzt gewählte Studie**
   (`features/studypage-remember`): Wer `/studies` frisch ansteuert, landet
   direkt wieder in der zuletzt geöffneten Studie statt auf der Suchliste

@@ -15,16 +15,26 @@
     </q-fab>
   </div>
 
-  <!-- Plugin Dialog -->
-  <q-dialog v-model="pluginDialog" :persistent="activePluginConfig?.config?.persistent || false">
-    <q-card :style="{ minWidth: activePluginConfig?.config?.minWidth || '300px', maxWidth: activePluginConfig?.config?.maxWidth || '500px' }">
-      <q-card-section class="row items-center q-pb-none">
-        <div class="text-h6">{{ activePluginConfig?.name || 'Plugin' }}</div>
+  <!-- Plugin Window: seamless (no backdrop, background stays interactive),
+       draggable via its title bar. -->
+  <q-dialog v-model="pluginDialog" seamless :persistent="activePluginConfig?.config?.persistent || false">
+    <q-card
+      class="plugin-window"
+      :style="{
+        ...windowStyle,
+        minWidth: activePluginConfig?.config?.minWidth || '300px',
+        maxWidth: activePluginConfig?.config?.maxWidth || '500px',
+      }"
+    >
+      <q-card-section class="row items-center q-pb-none plugin-window-header" v-touch-pan.prevent.mouse="moveWindow">
+        <div class="text-h6">{{ pluginTitle }}</div>
         <q-space />
         <q-btn icon="minimize" flat round dense @click="minimizePlugin" :disable="loadingPlugin">
           <q-tooltip>{{ $t('smartButton.minimize') }}</q-tooltip>
         </q-btn>
-        <q-btn icon="close" flat round dense v-close-popup />
+        <q-btn icon="close" flat round dense v-close-popup>
+          <q-tooltip>{{ $t('smartButton.close') }}</q-tooltip>
+        </q-btn>
       </q-card-section>
 
       <q-card-section>
@@ -52,11 +62,11 @@
         <q-card-section class="row items-center q-pa-sm">
           <q-icon :name="plugin.icon" :color="plugin.color" size="md" />
           <div class="mini-plugin-title text-caption q-ml-sm">
-            {{ plugin.name }}
+            {{ plugin.nameKey ? $t(plugin.nameKey) : plugin.name }}
           </div>
           <q-space />
           <q-btn icon="close" size="sm" flat round dense @click.stop="closeMiniPlugin(plugin.id)" @mouseover.stop @mouseout.stop>
-            <q-tooltip>Close</q-tooltip>
+            <q-tooltip>{{ $t('smartButton.close') }}</q-tooltip>
           </q-btn>
         </q-card-section>
       </q-card>
@@ -66,6 +76,7 @@
 
 <script setup>
 import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { pluginManager } from './plugins'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { usePluginStateStore } from 'src/stores/plugin-state-store'
@@ -74,6 +85,7 @@ defineOptions({
   name: 'SmartButton',
 })
 
+const { t } = useI18n()
 const localSettingsStore = useLocalSettingsStore()
 const pluginStateStore = usePluginStateStore()
 const fabPos = ref([18, 18])
@@ -94,14 +106,14 @@ const miniPlugins = ref([]) // Array of minimized plugins
 const activePluginComponent = ref(null) // Reference to the active plugin component instance
 const visitContext = ref({ hasContext: false }) // Reactive visit context
 
-// Get registered plugins with disabled state
+// Get registered plugins with disabled state (labels resolved via i18n)
 const registeredPlugins = computed(() => {
   return pluginManager.getPlugins().map((plugin) => {
-    let tooltip = plugin.tooltip
+    let tooltip = plugin.tooltipKey ? t(plugin.tooltipKey) : plugin.tooltip
 
     // Handle dynamic tooltip for Ask AI plugin
     if (plugin.id === 'ask-ai') {
-      tooltip = localSettingsStore.hasOpenAIApiKey() ? 'Ask AI Assistant' : 'AI Assistant (API Key Required)'
+      tooltip = localSettingsStore.hasOpenAIApiKey() ? t('smartButton.plugins.askAi.tooltip') : t('smartButton.plugins.askAi.tooltipNoKey')
     }
 
     return {
@@ -112,6 +124,41 @@ const registeredPlugins = computed(() => {
     }
   })
 })
+
+// Dialog title, locale-aware
+const pluginTitle = computed(() => {
+  const config = activePluginConfig.value
+  if (!config) return ''
+  return config.nameKey ? t(config.nameKey) : config.name || 'Plugin'
+})
+
+// --- Plugin window position (seamless dialog, draggable via title bar) ---
+const windowPos = ref(null) // [left, top]; null = default position (top-right)
+
+const windowStyle = computed(() => {
+  if (!windowPos.value) {
+    return { position: 'fixed', top: '90px', right: '24px' }
+  }
+  return { position: 'fixed', top: `${windowPos.value[1]}px`, left: `${windowPos.value[0]}px` }
+})
+
+const moveWindow = (ev) => {
+  // Convert the default right-anchored position to left/top on first drag
+  if (!windowPos.value) {
+    const card = ev.evt?.target?.closest('.plugin-window')
+    const rect = card?.getBoundingClientRect()
+    windowPos.value = rect ? [rect.left, rect.top] : [window.innerWidth / 2 - 200, 90]
+  }
+
+  const newX = windowPos.value[0] + ev.delta.x
+  const newY = windowPos.value[1] + ev.delta.y
+
+  // Keep the title bar reachable: clamp within the viewport
+  const margin = 8
+  const maxX = window.innerWidth - 120
+  const maxY = window.innerHeight - 48
+  windowPos.value = [Math.max(margin - 60, Math.min(maxX, newX)), Math.max(margin, Math.min(maxY, newY))]
+}
 
 // Dynamic FAB direction based on screen position
 const fabDirection = computed(() => {
@@ -356,6 +403,16 @@ onBeforeUnmount(() => {
 </script>
 
 <style lang="scss" scoped>
+.plugin-window {
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+
+  .plugin-window-header {
+    cursor: move;
+    user-select: none;
+  }
+}
+
 .mini-plugins-container {
   position: fixed;
   left: 10px;

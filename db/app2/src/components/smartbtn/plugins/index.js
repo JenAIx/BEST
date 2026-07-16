@@ -1,5 +1,9 @@
 /**
  * Plugin exports and registration
+ *
+ * Display strings are i18n keys (nameKey/tooltipKey under smartButton.plugins.*),
+ * resolved at render time in SmartButton.vue so the FAB, dialog title and
+ * mini-cards follow the active locale.
  */
 
 import pluginManager from './PluginManager.js'
@@ -8,76 +12,87 @@ import pluginManager from './PluginManager.js'
 pluginManager.register({
   id: 'calculator',
   name: 'Calculator',
+  nameKey: 'smartButton.plugins.calculator.name',
   icon: 'calculate',
   color: 'blue',
-  tooltip: 'Basic Calculator',
-  component: () => import('./CalcPlugin.js').then(module => module.default.component)
+  tooltipKey: 'smartButton.plugins.calculator.tooltip',
+  component: () => import('./CalcPlugin.js').then((module) => module.default.component),
 })
 
 pluginManager.register({
   id: 'notes',
   name: 'Notes',
+  nameKey: 'smartButton.plugins.notes.name',
   icon: 'note',
   color: 'green',
-  tooltip: 'Quick Notes',
-  component: () => import('./NotesPlugin.js').then(module => module.default.component)
+  tooltipKey: 'smartButton.plugins.notes.tooltip',
+  component: () => import('./NotesPlugin.js').then((module) => module.default.component),
+  config: {
+    minWidth: '420px',
+    maxWidth: '560px',
+  },
 })
 
 pluginManager.register({
   id: 'unit-converter',
   name: 'Unit Converter',
+  nameKey: 'smartButton.plugins.unitConverter.name',
   icon: 'swap_horiz',
   color: 'orange',
-  tooltip: 'Convert Units',
-  component: () => import('./UnitConverterPlugin.js').then(module => module.default.component)
+  tooltipKey: 'smartButton.plugins.unitConverter.tooltip',
+  component: () => import('./UnitConverterPlugin.js').then((module) => module.default.component),
 })
 
 pluginManager.register({
   id: 'bmi-calculator',
   name: 'BMI Calculator',
+  nameKey: 'smartButton.plugins.bmiCalculator.name',
   icon: 'monitor_weight',
   color: 'purple',
-  tooltip: 'Calculate BMI',
-  component: () => import('./BmiCalculatorPlugin.js').then(module => module.default.component)
+  tooltipKey: 'smartButton.plugins.bmiCalculator.tooltip',
+  component: () => import('./BmiCalculatorPlugin.js').then((module) => module.default.component),
 })
 
 pluginManager.register({
   id: 'levodopa-calculator',
   name: 'Levodopa Calculator',
+  nameKey: 'smartButton.plugins.levodopaCalculator.name',
   icon: 'medication',
   color: 'purple',
-  tooltip: 'Levodopa Equivalence Calculator',
-  component: () => import('./LevodopaCalculatorPlugin.js').then(module => module.default.component),
+  tooltipKey: 'smartButton.plugins.levodopaCalculator.tooltip',
+  component: () => import('./LevodopaCalculatorPlugin.js').then((module) => module.default.component),
   config: {
     minWidth: '600px',
-    maxWidth: '800px'
-  }
+    maxWidth: '800px',
+  },
 })
 
 pluginManager.register({
   id: 'ask-ai',
   name: 'Ask AI',
+  nameKey: 'smartButton.plugins.askAi.name',
   icon: 'smart_toy',
   color: 'accent',
-  tooltip: 'Ask AI Assistant',
-  component: () => import('./AskAIPlugin.js').then(module => module.default.component),
+  tooltipKey: 'smartButton.plugins.askAi.tooltip',
+  component: () => import('./AskAIPlugin.js').then((module) => module.default.component),
   config: {
     minWidth: '500px',
-    maxWidth: '600px'
-  }
+    maxWidth: '600px',
+  },
 })
 
 pluginManager.register({
   id: 'rewrite',
   name: 'Rewrite',
+  nameKey: 'smartButton.plugins.rewrite.name',
   icon: 'edit',
   color: 'teal',
-  tooltip: 'Rewrite selected text',
-  component: () => import('./RewritePlugin.js').then(module => module.default.component),
+  tooltipKey: 'smartButton.plugins.rewrite.tooltip',
+  component: () => import('./RewritePlugin.js').then((module) => module.default.component),
   config: {
     minWidth: '600px',
-    maxWidth: '800px'
-  }
+    maxWidth: '800px',
+  },
 })
 
 export { pluginManager }
