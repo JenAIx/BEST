@@ -1,26 +1,28 @@
 <template>
-  <q-page class="q-pa-md">
-    <!-- Page Header -->
-    <PageHeader :title="$t('cql.cqlAdministration')" :subtitle="$t('cql.cqlHint')">
-      <div class="text-caption text-grey-6">
-        {{ getStatusText() }}
+  <q-page>
+    <div class="page-container">
+      <!-- Page Header -->
+      <PageHeader :title="$t('cql.cqlAdministration')" :subtitle="$t('cql.cqlHint')">
+        <div class="text-caption text-grey-6">
+          {{ getStatusText() }}
+        </div>
+      </PageHeader>
+
+      <!-- Tab Selection -->
+      <div class="row q-gutter-md q-mb-md">
+        <div class="col-12 col-md-6">
+          <q-select v-model="selectedTab" :options="tabOptions" outlined dense :label="$t('user.managementType')" emit-value map-options @update:model-value="onTabChange" />
+        </div>
       </div>
-    </PageHeader>
 
-    <!-- Tab Selection -->
-    <div class="row q-gutter-md q-mb-md">
-      <div class="col-12 col-md-6">
-        <q-select v-model="selectedTab" :options="tabOptions" outlined dense :label="$t('user.managementType')" emit-value map-options @update:model-value="onTabChange" />
+      <!-- Content Area -->
+      <div class="content-area">
+        <!-- CQL Rules Management -->
+        <CqlRulesManager v-if="selectedTab === 'rules'" ref="rulesManagerRef" class="tab-content" />
+
+        <!-- CQL-Concept Associations -->
+        <CqlConceptAssociations v-if="selectedTab === 'associations'" ref="associationsManagerRef" class="tab-content" />
       </div>
-    </div>
-
-    <!-- Content Area -->
-    <div class="content-area">
-      <!-- CQL Rules Management -->
-      <CqlRulesManager v-if="selectedTab === 'rules'" ref="rulesManagerRef" class="tab-content" />
-
-      <!-- CQL-Concept Associations -->
-      <CqlConceptAssociations v-if="selectedTab === 'associations'" ref="associationsManagerRef" class="tab-content" />
     </div>
   </q-page>
 </template>

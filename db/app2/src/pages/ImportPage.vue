@@ -17,7 +17,7 @@
       <!-- Main Content -->
       <div class="main-content">
         <!-- Step 1: File Upload -->
-        <div v-if="currentStep === 'upload'" class="step-content">
+        <div v-if="currentStep === 'upload'" class="step-content content-box">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">{{ $t('import.uploadDataFile') }}</div>
@@ -60,7 +60,7 @@
         </div>
 
         <!-- Step 2: File Analysis -->
-        <div v-if="currentStep === 'analyze'" class="step-content">
+        <div v-if="currentStep === 'analyze'" class="step-content content-box">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">{{ $t('import.fileAnalysisTitle') }}</div>
@@ -174,7 +174,7 @@
         </div>
 
         <!-- Step 3: Mode Selection -->
-        <div v-if="currentStep === 'mode'" class="step-content">
+        <div v-if="currentStep === 'mode'" class="step-content content-box">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">{{ $t('import.selectImportMode') }}</div>
@@ -237,7 +237,7 @@
         </div>
 
         <!-- Step 4: Import Progress/Complete -->
-        <div v-if="currentStep === 'import'" class="step-content">
+        <div v-if="currentStep === 'import'" class="step-content content-box">
           <q-card flat bordered class="text-center">
             <q-card-section class="q-pa-xl">
               <!-- Importing State -->
@@ -952,21 +952,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.import-page {
-  min-height: 100vh;
-  background: #f8f9fa;
-}
-
-.page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
 .step-content {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: 400px;
 }
 
@@ -1006,10 +992,6 @@ onMounted(async () => {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .page-container {
-    padding: 1rem;
-  }
-
   .patient-selection,
   .selected-context,
   .file-upload-section,

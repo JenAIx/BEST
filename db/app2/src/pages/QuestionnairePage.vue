@@ -18,7 +18,7 @@
       <!-- Main Content -->
       <div class="main-content">
         <!-- Step 1: Patient Selection -->
-        <div v-if="currentStep === 'patient'" class="step-content">
+        <div v-if="currentStep === 'patient'" class="step-content content-box">
           <PatientSelectionCard
             :title="$t('visit.selectPatient')"
             :description="$t('questionnaire.selectPatientHint')"
@@ -31,7 +31,7 @@
         <!-- Step 2: Visit Selection (handled by dialog) -->
 
         <!-- Step 3: Questionnaire Selection -->
-        <div v-if="currentStep === 'selection'" class="step-content">
+        <div v-if="currentStep === 'selection'" class="step-content content-box">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">Selected Visit</div>
@@ -55,7 +55,7 @@
         </div>
 
         <!-- Step 4: Questionnaire Form -->
-        <div v-if="currentStep === 'questionnaire'" class="step-content">
+        <div v-if="currentStep === 'questionnaire'" class="step-content content-box">
           <QuestionnaireRenderer
             v-if="activeQuestionnaire"
             :questionnaire="activeQuestionnaire"
@@ -67,7 +67,7 @@
         </div>
 
         <!-- Step 5: Success/Completion -->
-        <div v-if="currentStep === 'complete'" class="step-content">
+        <div v-if="currentStep === 'complete'" class="step-content content-box">
           <q-card flat bordered class="text-center">
             <q-card-section class="q-pa-xl">
               <q-icon name="check_circle" size="80px" color="green" class="q-mb-md" />
@@ -401,21 +401,7 @@ onMounted(() => {
 </script>
 
 <style scoped>
-.questionnaire-page {
-  min-height: 100vh;
-  background: #f8f9fa;
-}
-
-.page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
 .step-content {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: 400px;
 }
 
@@ -426,13 +412,5 @@ onMounted(() => {
 .submission-summary {
   max-width: 500px;
   margin: 0 auto;
-}
-
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .page-container {
-    padding: 1rem;
-  }
-
 }
 </style>

@@ -51,6 +51,44 @@ select,
   user-select: text !important;
 }
 
+// ---------------------------------------------------------------------------
+// Unified page scaffold (Import/Questionnaire look, applied app-wide):
+// every main page = flat background + centered 1200px container + white
+// rounded content boxes. Pages should not define their own background,
+// container width or card radius/shadow.
+// ---------------------------------------------------------------------------
+.q-page {
+  background: var(--color-background);
+}
+
+.page-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  width: 100%;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+}
+
+// Standard content box for non-card sections (same look as PageHeader)
+.content-box {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+// Cards inside pages share one radius/shadow (dialogs are teleported outside
+// .q-page and keep Quasar's stronger elevation).
+.q-page .q-card {
+  border-radius: 8px;
+
+  &:not(.q-card--flat) {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  }
+}
+
 // Utility classes
 .cursor-pointer {
   cursor: pointer;

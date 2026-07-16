@@ -1,382 +1,327 @@
 <template>
-  <q-page class="q-pa-md">
-    <div v-if="loading" class="text-center q-py-xl">
-      <q-spinner color="primary" size="48px" />
-      <div class="text-grey-6 q-mt-md">{{ $t('study.loadingDetails') }}</div>
-    </div>
-
-    <div v-else-if="study">
-      <!-- Study Header -->
-      <div class="row items-center justify-between q-mb-lg">
-        <div class="row items-center q-gutter-md">
-          <q-btn flat round icon="arrow_back" @click="goToStudySearch" />
-          <q-icon :name="getCategoryIcon(study.category)" :color="getCategoryColor(study.category)" size="48px" />
-          <div>
-            <div class="text-h4">{{ study.name }}</div>
-            <div class="text-caption text-grey-6">
-              {{ study.category }} • {{ $t('study.status') }}: {{ study.status }}
-            </div>
-          </div>
-        </div>
-        <div class="row q-gutter-sm">
-          <q-btn
-            color="primary"
-            icon="download"
-            :label="$t('study.exportCohort')"
-            @click="openExportDialog"
-            :disable="!study.patientCount"
-          >
-            <q-tooltip v-if="!study.patientCount">
-              {{ $t('study.noPatientsToExport') }}
-            </q-tooltip>
-          </q-btn>
-        </div>
+  <q-page>
+    <div class="page-container">
+      <div v-if="loading" class="text-center q-py-xl">
+        <q-spinner color="primary" size="48px" />
+        <div class="text-grey-6 q-mt-md">{{ $t('study.loadingDetails') }}</div>
       </div>
 
-      <!-- Cohort Export Dialog -->
-      <q-dialog v-model="exportDialog">
-        <q-card style="min-width: 360px">
+      <div v-else-if="study">
+        <!-- Study Header -->
+        <div class="row items-center justify-between q-mb-lg">
+          <div class="row items-center q-gutter-md">
+            <q-btn flat round icon="arrow_back" @click="goToStudySearch" />
+            <q-icon :name="getCategoryIcon(study.category)" :color="getCategoryColor(study.category)" size="48px" />
+            <div>
+              <div class="text-h4">{{ study.name }}</div>
+              <div class="text-caption text-grey-6">{{ study.category }} • {{ $t('study.status') }}: {{ study.status }}</div>
+            </div>
+          </div>
+          <div class="row q-gutter-sm">
+            <q-btn color="primary" icon="download" :label="$t('study.exportCohort')" @click="openExportDialog" :disable="!study.patientCount">
+              <q-tooltip v-if="!study.patientCount">
+                {{ $t('study.noPatientsToExport') }}
+              </q-tooltip>
+            </q-btn>
+          </div>
+        </div>
+
+        <!-- Cohort Export Dialog -->
+        <q-dialog v-model="exportDialog">
+          <q-card style="min-width: 360px">
+            <q-card-section>
+              <div class="text-h6">{{ $t('study.exportCohort') }}</div>
+              <div class="text-caption text-grey-7 q-mt-xs">
+                {{ $t('study.exportCohortHint', { count: study.patientCount || 0, name: study.name }) }}
+              </div>
+            </q-card-section>
+            <q-card-section class="q-pt-none">
+              <q-option-group
+                v-model="exportFormat"
+                :options="[
+                  { label: 'CSV (Spreadsheet)', value: 'csv' },
+                  { label: 'HL7-JSON (FHIR Composition)', value: 'hl7' },
+                ]"
+                color="primary"
+                type="radio"
+              />
+            </q-card-section>
+            <q-card-actions align="right">
+              <q-btn flat :label="$t('common.cancel')" v-close-popup />
+              <q-btn color="primary" :label="$t('common.export')" :loading="exporting" @click="runExport" />
+            </q-card-actions>
+          </q-card>
+        </q-dialog>
+
+        <!-- Study Info Cards -->
+        <div class="row q-col-gutter-md q-mb-lg">
+          <div class="col-12 col-md-6">
+            <q-card>
+              <q-card-section>
+                <div class="row items-center justify-between q-mb-md">
+                  <div class="text-subtitle1">{{ $t('study.studyInformation') }}</div>
+                  <q-btn v-if="!editMode" flat round dense icon="edit" color="primary" size="sm" @click="startEdit">
+                    <q-tooltip>{{ $t('study.editStudy') }}</q-tooltip>
+                  </q-btn>
+                  <div v-else class="row q-gutter-xs">
+                    <q-btn flat round dense icon="check" color="positive" size="sm" @click="saveStudy" :loading="saving">
+                      <q-tooltip>{{ $t('common.save') }}</q-tooltip>
+                    </q-btn>
+                    <q-btn flat round dense icon="close" color="negative" size="sm" @click="cancelEdit">
+                      <q-tooltip>{{ $t('common.cancel') }}</q-tooltip>
+                    </q-btn>
+                  </div>
+                </div>
+
+                <!-- Edit Mode -->
+                <div v-if="editMode" class="q-gutter-md">
+                  <q-input v-model="editData.name" :label="$t('study.studyName')" outlined dense required />
+                  <q-select v-model="editData.category" :options="categoryOptions" :label="$t('study.researchCategory')" outlined dense emit-value map-options />
+                  <q-input v-model="editData.description" :label="$t('study.description')" outlined dense type="textarea" rows="3" />
+                  <q-select v-model="editData.status" :options="statusOptions" :label="$t('study.status')" outlined dense emit-value map-options />
+                  <q-input v-model="editData.principalInvestigator" :label="$t('study.principalInvestigator')" outlined dense />
+                  <q-input v-model.number="editData.targetPatientCount" :label="$t('study.targetPatientCount')" outlined dense type="number" min="0" />
+                  <q-input v-model="editData.startDate" :label="$t('study.startDate')" outlined dense type="date" />
+                  <q-input v-model="editData.endDate" :label="$t('study.endDate')" outlined dense type="date" />
+                </div>
+
+                <!-- View Mode -->
+                <div v-else class="q-gutter-sm">
+                  <div class="row q-mb-sm">
+                    <div class="col-4 text-caption text-grey-6">{{ $t('study.description') }}:</div>
+                    <div class="col-8">{{ study.description || $t('common.notProvided') }}</div>
+                  </div>
+                  <div class="row q-mb-sm">
+                    <div class="col-4 text-caption text-grey-6">{{ $t('study.principalInvestigator') }}:</div>
+                    <div class="col-8">{{ study.principalInvestigator || $t('common.notProvided') }}</div>
+                  </div>
+                  <div class="row q-mb-sm">
+                    <div class="col-4 text-caption text-grey-6">{{ $t('study.targetPatientCount') }}:</div>
+                    <div class="col-8">{{ study.targetPatientCount != null ? study.targetPatientCount : $t('common.notSet') }}</div>
+                  </div>
+                  <div class="row q-mb-sm">
+                    <div class="col-4 text-caption text-grey-6">{{ $t('study.startDate') }}:</div>
+                    <div class="col-8">{{ formatDate(study.startDate) }}</div>
+                  </div>
+                  <div class="row q-mb-sm">
+                    <div class="col-4 text-caption text-grey-6">{{ $t('study.endDate') }}:</div>
+                    <div class="col-8">{{ formatDate(study.endDate) }}</div>
+                  </div>
+                  <div class="row q-mb-sm">
+                    <div class="col-4 text-caption text-grey-6">{{ $t('study.created') }}:</div>
+                    <div class="col-8">{{ formatDate(study.created) }}</div>
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <q-card>
+              <q-card-section>
+                <div class="text-subtitle1 q-mb-md">{{ $t('study.progress') }}</div>
+                <div class="text-center">
+                  <div class="text-h4 text-primary q-mb-xs">{{ study.patientCount || 0 }}</div>
+                  <div class="text-caption text-grey-6 q-mb-md">{{ $t('study.enrolledPatients') }}</div>
+                  <q-linear-progress :value="study.targetPatientCount ? (study.patientCount || 0) / study.targetPatientCount : 0" color="primary" size="20px" class="q-mt-sm" />
+                  <div class="text-caption text-grey-6 q-mt-sm">
+                    {{ study.targetPatientCount ? `${study.patientCount || 0} / ${study.targetPatientCount}` : $t('study.noTargetSet') }}
+                  </div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </div>
+        </div>
+
+        <!-- Overview / Insights / Audit tabs -->
+        <q-tabs v-model="activeTab" dense align="left" indicator-color="primary" class="q-mb-md">
+          <q-tab name="overview" icon="info" :label="$t('study.tabOverview')" />
+          <q-tab name="insights" icon="insights" :label="$t('study.tabInsights')" />
+          <q-tab name="audit" icon="flag" :label="$t('study.tabAudit')">
+            <q-badge v-if="openAuditCount > 0" color="negative" floating>{{ openAuditCount }}</q-badge>
+          </q-tab>
+        </q-tabs>
+        <q-separator />
+        <q-tab-panels v-model="activeTab" animated class="bg-transparent" keep-alive>
+          <q-tab-panel name="overview" class="q-pa-none q-pt-md">
+            <!-- Enrolled Patients -->
+            <q-card>
+              <q-card-section>
+                <div class="row items-center justify-between q-mb-md">
+                  <div class="text-subtitle1">
+                    {{ $t('study.enrolledPatients') }}
+                    <span v-if="hasPatientFilters" class="text-caption text-grey-6 q-ml-sm">({{ filteredEnrolledPatients.length }} / {{ enrolledPatients.length }})</span>
+                  </div>
+                  <div class="row q-gutter-sm">
+                    <!-- Selection-driven: open exactly the shift-selected cards -->
+                    <q-btn v-if="selectedCount > 0" unelevated color="primary" icon="grid_on" :label="$t('study.openSelectedInGrid', { count: selectedCount })" @click="openSelectedInGrid" />
+                    <!-- Filter-driven fallback: open the currently filtered list.
+                   Only when a filter narrows it — without one this would dump
+                   the entire cohort (400+ patients) into the grid -->
+                    <q-btn
+                      v-else-if="hasPatientFilters && filteredEnrolledPatients.length"
+                      outline
+                      color="primary"
+                      icon="grid_on"
+                      :label="$t('study.openFilteredInGrid', { count: filteredEnrolledPatients.length })"
+                      @click="openFilteredInGrid"
+                    />
+                    <q-btn color="primary" icon="add" :label="$t('study.enrollPatient')" @click="showEnrollDialog = true" />
+                  </div>
+                </div>
+
+                <!-- Selection banner: shown once ≥1 card is shift-selected -->
+                <q-slide-transition>
+                  <div v-if="selectedCount > 0" class="row items-center q-gutter-sm q-mb-sm q-pa-sm bg-blue-1 rounded-borders">
+                    <q-icon name="check_circle" color="primary" size="18px" />
+                    <span class="text-body2">{{ $t('study.selectedCount', { count: selectedCount }) }}</span>
+                    <q-space />
+                    <q-btn flat dense no-caps size="sm" color="primary" icon="select_all" :label="$t('study.selectAllFiltered')" @click="selectAllFiltered" />
+                    <q-btn flat dense no-caps size="sm" color="grey-8" icon="clear" :label="$t('study.clearSelection')" @click="clearSelection" />
+                  </div>
+                </q-slide-transition>
+
+                <!-- Enrollment status filter + audit filter -->
+                <div class="row items-center q-gutter-sm q-mb-sm">
+                  <q-btn-toggle v-model="patientFilters.status" :options="statusFilterOptions" no-caps dense unelevated toggle-color="primary" color="grey-2" text-color="grey-8" />
+                  <q-toggle v-model="patientFilters.onlyWithAudits" :label="$t('study.filterOnlyAudits')" dense color="negative" />
+                  <q-space />
+                  <template v-if="filteredEnrolledPatients.length && (patientFilters.status !== 'all' || hasPatientFilters)">
+                    <q-btn
+                      v-if="patientFilters.status !== 'completed'"
+                      flat
+                      dense
+                      no-caps
+                      size="sm"
+                      color="info"
+                      icon="check_circle"
+                      :label="$t('study.bulkMarkCompleted')"
+                      @click="confirmBulkStatus('completed')"
+                    />
+                    <q-btn
+                      v-if="patientFilters.status !== 'active'"
+                      flat
+                      dense
+                      no-caps
+                      size="sm"
+                      color="positive"
+                      icon="play_circle"
+                      :label="$t('study.bulkMarkActive')"
+                      @click="confirmBulkStatus('active')"
+                    />
+                  </template>
+                </div>
+
+                <!-- Patient search + filters (same pattern as /visits) -->
+                <q-input v-model="patientFilters.search" :placeholder="$t('visits.searchPatientPlaceholder')" outlined dense clearable debounce="300" class="q-mb-sm">
+                  <template v-slot:prepend>
+                    <q-icon name="search" />
+                  </template>
+                  <template v-slot:append>
+                    <q-btn flat round dense icon="tune" :color="hasPatientFilters ? 'primary' : ''" @click="showPatientFilters = !showPatientFilters">
+                      <q-tooltip>{{ $t('visits.advancedFilters') }}</q-tooltip>
+                    </q-btn>
+                  </template>
+                </q-input>
+
+                <q-slide-transition>
+                  <div v-show="showPatientFilters" class="q-mb-md q-pa-md bg-grey-1 rounded-borders">
+                    <div class="row q-col-gutter-md">
+                      <div class="col-12">
+                        <q-range v-model="patientFilters.ageRange" :min="0" :max="120" label color="primary" />
+                        <div class="text-caption text-grey-6">{{ $t('patient.age') }}: {{ patientFilters.ageRange.min }} - {{ patientFilters.ageRange.max }}</div>
+                      </div>
+                      <div class="col-12 col-sm-6">
+                        <q-select v-model="patientFilters.sex" :options="enrolledSexOptions" :label="$t('patient.gender')" outlined dense clearable emit-value map-options />
+                      </div>
+                      <div class="col-12 col-sm-6">
+                        <q-select v-model="patientFilters.owner" :options="enrolledOwnerOptions" :label="$t('patient.owner')" outlined dense clearable emit-value map-options />
+                      </div>
+                    </div>
+                    <div class="row justify-end q-mt-sm">
+                      <q-btn flat dense size="sm" :label="$t('common.reset')" @click="resetPatientFilters" />
+                    </div>
+                  </div>
+                </q-slide-transition>
+
+                <!-- Loading -->
+                <div v-if="loadingPatients" class="text-center q-py-md">
+                  <q-spinner color="primary" size="32px" />
+                </div>
+
+                <!-- Patient Cards -->
+                <template v-else>
+                  <div class="patient-cards-grid">
+                    <PatientCard
+                      v-for="patient in pagedEnrolledPatients"
+                      :key="patient.PATIENT_NUM"
+                      :patient="patient"
+                      :status="getEnrollmentStatus(patient)"
+                      :status-options="ENROLLMENT_STATUSES"
+                      :selected="selectedPatientNums.has(patient.PATIENT_NUM)"
+                      :select-hint="$t('study.multiSelectHint')"
+                      @select="onPatientSelect"
+                      @changed="onPatientChanged"
+                      @status-change="onEnrollmentStatusChange"
+                    />
+                  </div>
+                  <div v-if="filteredEnrolledPatients.length > enrolledPageSize" class="row justify-center q-mt-md">
+                    <q-pagination v-model="enrolledPage" :max="Math.ceil(filteredEnrolledPatients.length / enrolledPageSize)" :max-pages="7" direction-links boundary-links size="sm" />
+                  </div>
+
+                  <div v-if="hasPatientFilters && filteredEnrolledPatients.length === 0" class="text-center q-py-lg text-grey-6">
+                    <q-icon name="person_off" size="40px" class="q-mb-sm" />
+                    <div>{{ $t('visit.noPatientsFound') }}</div>
+                  </div>
+                </template>
+
+                <!-- No Patients -->
+                <div v-if="!loadingPatients && enrolledPatients.length === 0" class="text-center q-py-xl">
+                  <q-icon name="people_outline" size="64px" color="grey-5" />
+                  <div class="text-h6 text-grey-6 q-mt-md">{{ $t('study.noEnrolledPatients') }}</div>
+                </div>
+              </q-card-section>
+            </q-card>
+          </q-tab-panel>
+          <q-tab-panel name="insights" class="q-pa-none q-pt-md">
+            <StudyInsights v-if="studyCd" :study-cd="studyCd" />
+          </q-tab-panel>
+          <q-tab-panel name="audit" class="q-pa-none q-pt-md">
+            <StudyAuditPanel :study-id="studyId" />
+          </q-tab-panel>
+        </q-tab-panels>
+      </div>
+
+      <div v-else class="text-center q-py-xl">
+        <q-icon name="biotech" size="64px" color="grey-5" />
+        <div class="text-h6 text-grey-6 q-mt-md">{{ $t('study.studyNotFound') }}</div>
+        <q-btn color="primary" :label="$t('study.backToStudies')" @click="goToStudySearch" class="q-mt-md" />
+      </div>
+
+      <!-- Enroll Patient Dialog -->
+      <EnrollPatientDialog v-model="showEnrollDialog" :enrolled-patient-nums="enrolledPatients.map((p) => p.PATIENT_NUM)" @enroll="handleEnrollPatient" @cancel="showEnrollDialog = false" />
+
+      <!-- Bulk Status Confirmation Dialog -->
+      <q-dialog v-model="showBulkStatusDialog" persistent>
+        <q-card style="min-width: 400px">
+          <q-card-section class="row items-center">
+            <q-avatar icon="rule" color="primary" text-color="white" />
+            <span class="q-ml-sm text-h6">{{ $t('study.setStatus') }}</span>
+          </q-card-section>
+
           <q-card-section>
-            <div class="text-h6">{{ $t('study.exportCohort') }}</div>
-            <div class="text-caption text-grey-7 q-mt-xs">
-              {{ $t('study.exportCohortHint', { count: study.patientCount || 0, name: study.name }) }}
+            <div class="text-body1">
+              {{ $t('study.bulkStatusConfirm', { count: filteredEnrolledPatients.length, status: bulkStatusLabel }) }}
             </div>
           </q-card-section>
-          <q-card-section class="q-pt-none">
-            <q-option-group
-              v-model="exportFormat"
-              :options="[
-                { label: 'CSV (Spreadsheet)', value: 'csv' },
-                { label: 'HL7-JSON (FHIR Composition)', value: 'hl7' },
-              ]"
-              color="primary"
-              type="radio"
-            />
-          </q-card-section>
+
           <q-card-actions align="right">
-            <q-btn flat :label="$t('common.cancel')" v-close-popup />
-            <q-btn
-              color="primary"
-              :label="$t('common.export')"
-              :loading="exporting"
-              @click="runExport"
-            />
+            <q-btn flat :label="$t('common.cancel')" @click="showBulkStatusDialog = false" />
+            <q-btn color="primary" :label="$t('study.setStatus')" @click="applyBulkStatus" :loading="bulkStatusSaving" />
           </q-card-actions>
         </q-card>
       </q-dialog>
-
-      <!-- Study Info Cards -->
-      <div class="row q-col-gutter-md q-mb-lg">
-        <div class="col-12 col-md-6">
-          <q-card>
-            <q-card-section>
-              <div class="row items-center justify-between q-mb-md">
-                <div class="text-subtitle1">{{ $t('study.studyInformation') }}</div>
-                <q-btn v-if="!editMode" flat round dense icon="edit" color="primary" size="sm" @click="startEdit">
-                  <q-tooltip>{{ $t('study.editStudy') }}</q-tooltip>
-                </q-btn>
-                <div v-else class="row q-gutter-xs">
-                  <q-btn flat round dense icon="check" color="positive" size="sm" @click="saveStudy" :loading="saving">
-                    <q-tooltip>{{ $t('common.save') }}</q-tooltip>
-                  </q-btn>
-                  <q-btn flat round dense icon="close" color="negative" size="sm" @click="cancelEdit">
-                    <q-tooltip>{{ $t('common.cancel') }}</q-tooltip>
-                  </q-btn>
-                </div>
-              </div>
-              
-              <!-- Edit Mode -->
-              <div v-if="editMode" class="q-gutter-md">
-                <q-input v-model="editData.name" :label="$t('study.studyName')" outlined dense required />
-                <q-select
-                  v-model="editData.category"
-                  :options="categoryOptions"
-                  :label="$t('study.researchCategory')"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                />
-                <q-input v-model="editData.description" :label="$t('study.description')" outlined dense type="textarea" rows="3" />
-                <q-select
-                  v-model="editData.status"
-                  :options="statusOptions"
-                  :label="$t('study.status')"
-                  outlined
-                  dense
-                  emit-value
-                  map-options
-                />
-                <q-input v-model="editData.principalInvestigator" :label="$t('study.principalInvestigator')" outlined dense />
-                <q-input v-model.number="editData.targetPatientCount" :label="$t('study.targetPatientCount')" outlined dense type="number" min="0" />
-                <q-input v-model="editData.startDate" :label="$t('study.startDate')" outlined dense type="date" />
-                <q-input v-model="editData.endDate" :label="$t('study.endDate')" outlined dense type="date" />
-              </div>
-
-              <!-- View Mode -->
-              <div v-else class="q-gutter-sm">
-                <div class="row q-mb-sm">
-                  <div class="col-4 text-caption text-grey-6">{{ $t('study.description') }}:</div>
-                  <div class="col-8">{{ study.description || $t('common.notProvided') }}</div>
-                </div>
-                <div class="row q-mb-sm">
-                  <div class="col-4 text-caption text-grey-6">{{ $t('study.principalInvestigator') }}:</div>
-                  <div class="col-8">{{ study.principalInvestigator || $t('common.notProvided') }}</div>
-                </div>
-                <div class="row q-mb-sm">
-                  <div class="col-4 text-caption text-grey-6">{{ $t('study.targetPatientCount') }}:</div>
-                  <div class="col-8">{{ study.targetPatientCount != null ? study.targetPatientCount : $t('common.notSet') }}</div>
-                </div>
-                <div class="row q-mb-sm">
-                  <div class="col-4 text-caption text-grey-6">{{ $t('study.startDate') }}:</div>
-                  <div class="col-8">{{ formatDate(study.startDate) }}</div>
-                </div>
-                <div class="row q-mb-sm">
-                  <div class="col-4 text-caption text-grey-6">{{ $t('study.endDate') }}:</div>
-                  <div class="col-8">{{ formatDate(study.endDate) }}</div>
-                </div>
-                <div class="row q-mb-sm">
-                  <div class="col-4 text-caption text-grey-6">{{ $t('study.created') }}:</div>
-                  <div class="col-8">{{ formatDate(study.created) }}</div>
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-
-        <div class="col-12 col-md-6">
-          <q-card>
-            <q-card-section>
-              <div class="text-subtitle1 q-mb-md">{{ $t('study.progress') }}</div>
-              <div class="text-center">
-                <div class="text-h4 text-primary q-mb-xs">{{ study.patientCount || 0 }}</div>
-                <div class="text-caption text-grey-6 q-mb-md">{{ $t('study.enrolledPatients') }}</div>
-                <q-linear-progress
-                  :value="study.targetPatientCount ? (study.patientCount || 0) / study.targetPatientCount : 0"
-                  color="primary"
-                  size="20px"
-                  class="q-mt-sm"
-                />
-                <div class="text-caption text-grey-6 q-mt-sm">
-                  {{ study.targetPatientCount ? `${study.patientCount || 0} / ${study.targetPatientCount}` : $t('study.noTargetSet') }}
-                </div>
-              </div>
-            </q-card-section>
-          </q-card>
-        </div>
-      </div>
-
-      <!-- Overview / Insights / Audit tabs -->
-      <q-tabs v-model="activeTab" dense align="left" indicator-color="primary" class="q-mb-md">
-        <q-tab name="overview" icon="info" :label="$t('study.tabOverview')" />
-        <q-tab name="insights" icon="insights" :label="$t('study.tabInsights')" />
-        <q-tab name="audit" icon="flag" :label="$t('study.tabAudit')">
-          <q-badge v-if="openAuditCount > 0" color="negative" floating>{{ openAuditCount }}</q-badge>
-        </q-tab>
-      </q-tabs>
-      <q-separator />
-      <q-tab-panels v-model="activeTab" animated class="bg-transparent" keep-alive>
-        <q-tab-panel name="overview" class="q-pa-none q-pt-md">
-
-      <!-- Enrolled Patients -->
-      <q-card>
-        <q-card-section>
-          <div class="row items-center justify-between q-mb-md">
-            <div class="text-subtitle1">
-              {{ $t('study.enrolledPatients') }}
-              <span v-if="hasPatientFilters" class="text-caption text-grey-6 q-ml-sm">({{ filteredEnrolledPatients.length }} / {{ enrolledPatients.length }})</span>
-            </div>
-            <div class="row q-gutter-sm">
-              <!-- Selection-driven: open exactly the shift-selected cards -->
-              <q-btn
-                v-if="selectedCount > 0"
-                unelevated
-                color="primary"
-                icon="grid_on"
-                :label="$t('study.openSelectedInGrid', { count: selectedCount })"
-                @click="openSelectedInGrid"
-              />
-              <!-- Filter-driven fallback: open the currently filtered list.
-                   Only when a filter narrows it — without one this would dump
-                   the entire cohort (400+ patients) into the grid -->
-              <q-btn
-                v-else-if="hasPatientFilters && filteredEnrolledPatients.length"
-                outline
-                color="primary"
-                icon="grid_on"
-                :label="$t('study.openFilteredInGrid', { count: filteredEnrolledPatients.length })"
-                @click="openFilteredInGrid"
-              />
-              <q-btn color="primary" icon="add" :label="$t('study.enrollPatient')" @click="showEnrollDialog = true" />
-            </div>
-          </div>
-
-          <!-- Selection banner: shown once ≥1 card is shift-selected -->
-          <q-slide-transition>
-            <div v-if="selectedCount > 0" class="row items-center q-gutter-sm q-mb-sm q-pa-sm bg-blue-1 rounded-borders">
-              <q-icon name="check_circle" color="primary" size="18px" />
-              <span class="text-body2">{{ $t('study.selectedCount', { count: selectedCount }) }}</span>
-              <q-space />
-              <q-btn flat dense no-caps size="sm" color="primary" icon="select_all" :label="$t('study.selectAllFiltered')" @click="selectAllFiltered" />
-              <q-btn flat dense no-caps size="sm" color="grey-8" icon="clear" :label="$t('study.clearSelection')" @click="clearSelection" />
-            </div>
-          </q-slide-transition>
-
-          <!-- Enrollment status filter + audit filter -->
-          <div class="row items-center q-gutter-sm q-mb-sm">
-            <q-btn-toggle
-              v-model="patientFilters.status"
-              :options="statusFilterOptions"
-              no-caps
-              dense
-              unelevated
-              toggle-color="primary"
-              color="grey-2"
-              text-color="grey-8"
-            />
-            <q-toggle v-model="patientFilters.onlyWithAudits" :label="$t('study.filterOnlyAudits')" dense color="negative" />
-            <q-space />
-            <template v-if="filteredEnrolledPatients.length && (patientFilters.status !== 'all' || hasPatientFilters)">
-              <q-btn
-                v-if="patientFilters.status !== 'completed'"
-                flat
-                dense
-                no-caps
-                size="sm"
-                color="info"
-                icon="check_circle"
-                :label="$t('study.bulkMarkCompleted')"
-                @click="confirmBulkStatus('completed')"
-              />
-              <q-btn
-                v-if="patientFilters.status !== 'active'"
-                flat
-                dense
-                no-caps
-                size="sm"
-                color="positive"
-                icon="play_circle"
-                :label="$t('study.bulkMarkActive')"
-                @click="confirmBulkStatus('active')"
-              />
-            </template>
-          </div>
-
-          <!-- Patient search + filters (same pattern as /visits) -->
-          <q-input v-model="patientFilters.search" :placeholder="$t('visits.searchPatientPlaceholder')" outlined dense clearable debounce="300" class="q-mb-sm">
-            <template v-slot:prepend>
-              <q-icon name="search" />
-            </template>
-            <template v-slot:append>
-              <q-btn flat round dense icon="tune" :color="hasPatientFilters ? 'primary' : ''" @click="showPatientFilters = !showPatientFilters">
-                <q-tooltip>{{ $t('visits.advancedFilters') }}</q-tooltip>
-              </q-btn>
-            </template>
-          </q-input>
-
-          <q-slide-transition>
-            <div v-show="showPatientFilters" class="q-mb-md q-pa-md bg-grey-1 rounded-borders">
-              <div class="row q-col-gutter-md">
-                <div class="col-12">
-                  <q-range v-model="patientFilters.ageRange" :min="0" :max="120" label color="primary" />
-                  <div class="text-caption text-grey-6">{{ $t('patient.age') }}: {{ patientFilters.ageRange.min }} - {{ patientFilters.ageRange.max }}</div>
-                </div>
-                <div class="col-12 col-sm-6">
-                  <q-select v-model="patientFilters.sex" :options="enrolledSexOptions" :label="$t('patient.gender')" outlined dense clearable emit-value map-options />
-                </div>
-                <div class="col-12 col-sm-6">
-                  <q-select v-model="patientFilters.owner" :options="enrolledOwnerOptions" :label="$t('patient.owner')" outlined dense clearable emit-value map-options />
-                </div>
-              </div>
-              <div class="row justify-end q-mt-sm">
-                <q-btn flat dense size="sm" :label="$t('common.reset')" @click="resetPatientFilters" />
-              </div>
-            </div>
-          </q-slide-transition>
-
-          <!-- Loading -->
-          <div v-if="loadingPatients" class="text-center q-py-md">
-            <q-spinner color="primary" size="32px" />
-          </div>
-
-          <!-- Patient Cards -->
-          <template v-else>
-            <div class="patient-cards-grid">
-              <PatientCard
-                v-for="patient in pagedEnrolledPatients"
-                :key="patient.PATIENT_NUM"
-                :patient="patient"
-                :status="getEnrollmentStatus(patient)"
-                :status-options="ENROLLMENT_STATUSES"
-                :selected="selectedPatientNums.has(patient.PATIENT_NUM)"
-                :select-hint="$t('study.multiSelectHint')"
-                @select="onPatientSelect"
-                @changed="onPatientChanged"
-                @status-change="onEnrollmentStatusChange"
-              />
-            </div>
-            <div v-if="filteredEnrolledPatients.length > enrolledPageSize" class="row justify-center q-mt-md">
-              <q-pagination v-model="enrolledPage" :max="Math.ceil(filteredEnrolledPatients.length / enrolledPageSize)" :max-pages="7" direction-links boundary-links size="sm" />
-            </div>
-
-            <div v-if="hasPatientFilters && filteredEnrolledPatients.length === 0" class="text-center q-py-lg text-grey-6">
-              <q-icon name="person_off" size="40px" class="q-mb-sm" />
-              <div>{{ $t('visit.noPatientsFound') }}</div>
-            </div>
-          </template>
-
-          <!-- No Patients -->
-          <div v-if="!loadingPatients && enrolledPatients.length === 0" class="text-center q-py-xl">
-            <q-icon name="people_outline" size="64px" color="grey-5" />
-            <div class="text-h6 text-grey-6 q-mt-md">{{ $t('study.noEnrolledPatients') }}</div>
-          </div>
-        </q-card-section>
-      </q-card>
-
-        </q-tab-panel>
-        <q-tab-panel name="insights" class="q-pa-none q-pt-md">
-          <StudyInsights v-if="studyCd" :study-cd="studyCd" />
-        </q-tab-panel>
-        <q-tab-panel name="audit" class="q-pa-none q-pt-md">
-          <StudyAuditPanel :study-id="studyId" />
-        </q-tab-panel>
-      </q-tab-panels>
     </div>
-
-    <div v-else class="text-center q-py-xl">
-      <q-icon name="biotech" size="64px" color="grey-5" />
-      <div class="text-h6 text-grey-6 q-mt-md">{{ $t('study.studyNotFound') }}</div>
-      <q-btn color="primary" :label="$t('study.backToStudies')" @click="goToStudySearch" class="q-mt-md" />
-    </div>
-
-    <!-- Enroll Patient Dialog -->
-    <EnrollPatientDialog
-      v-model="showEnrollDialog"
-      :enrolled-patient-nums="enrolledPatients.map((p) => p.PATIENT_NUM)"
-      @enroll="handleEnrollPatient"
-      @cancel="showEnrollDialog = false"
-    />
-
-    <!-- Bulk Status Confirmation Dialog -->
-    <q-dialog v-model="showBulkStatusDialog" persistent>
-      <q-card style="min-width: 400px">
-        <q-card-section class="row items-center">
-          <q-avatar icon="rule" color="primary" text-color="white" />
-          <span class="q-ml-sm text-h6">{{ $t('study.setStatus') }}</span>
-        </q-card-section>
-
-        <q-card-section>
-          <div class="text-body1">
-            {{ $t('study.bulkStatusConfirm', { count: filteredEnrolledPatients.length, status: bulkStatusLabel }) }}
-          </div>
-        </q-card-section>
-
-        <q-card-actions align="right">
-          <q-btn flat :label="$t('common.cancel')" @click="showBulkStatusDialog = false" />
-          <q-btn color="primary" :label="$t('study.setStatus')" @click="applyBulkStatus" :loading="bulkStatusSaving" />
-        </q-card-actions>
-      </q-card>
-    </q-dialog>
   </q-page>
 </template>
 
@@ -439,10 +384,7 @@ const hasPatientFilters = computed(
     patientFilters.value.ageRange.max !== DEFAULT_PATIENT_AGE_RANGE.max,
 )
 
-const statusFilterOptions = computed(() => [
-  { label: t('study.enrollmentStatus.all'), value: 'all' },
-  ...ENROLLMENT_STATUSES.map((s) => ({ label: t(s.labelKey), value: s.code })),
-])
+const statusFilterOptions = computed(() => [{ label: t('study.enrollmentStatus.all'), value: 'all' }, ...ENROLLMENT_STATUSES.map((s) => ({ label: t(s.labelKey), value: s.code }))])
 
 // Audit data (shared with the audit tab via study-store)
 const openAuditCount = computed(() => (studyStore.auditSummaryStudyId === studyId ? studyStore.auditSummary?.total || 0 : 0))
@@ -474,7 +416,18 @@ const filteredEnrolledPatients = computed(() => {
   const f = patientFilters.value
   const query = (f.search || '').toLowerCase().trim()
   return enrolledPatients.value.filter((p) => {
-    if (query && !(String(p.name || '').toLowerCase().includes(query) || String(p.PATIENT_CD || '').toLowerCase().includes(query))) return false
+    if (
+      query &&
+      !(
+        String(p.name || '')
+          .toLowerCase()
+          .includes(query) ||
+        String(p.PATIENT_CD || '')
+          .toLowerCase()
+          .includes(query)
+      )
+    )
+      return false
     if (f.sex && p.SEX_CD !== f.sex) return false
     if (f.owner === NO_OWNER) {
       if (p.owner) return false
@@ -556,9 +509,7 @@ const runExport = async () => {
   exporting.value = true
   try {
     const result = await exportStore.exportStudyPatients(studyCd, exportFormat.value)
-    notify.success(
-      t('study.exportSucceeded', { count: result.recordCount, filename: result.filename }),
-    )
+    notify.success(t('study.exportSucceeded', { count: result.recordCount, filename: result.filename }))
     exportDialog.value = false
   } catch (e) {
     notify.error(e.message)
@@ -586,7 +537,6 @@ const statusOptions = [
   { label: 'On Hold', value: 'on-hold' },
   { label: 'Completed', value: 'completed' },
 ]
-
 
 // Methods — `silent: true` skips the loading flags so refreshes after
 // mutations don't swap the whole page (or list) to a spinner.
@@ -636,7 +586,6 @@ const loadEnrolledPatients = async ({ silent = false } = {}) => {
     if (!silent) loadingPatients.value = false
   }
 }
-
 
 const saveStudy = async () => {
   try {
@@ -727,7 +676,6 @@ const getPatientName = (patient) => {
   }
   return patient.PATIENT_CD || t('patient.unknownPatient')
 }
-
 
 const getEnrollmentStatusColor = (status) => {
   const colors = {
@@ -912,17 +860,12 @@ onMounted(async () => {
   }
 }
 
-.q-card {
-  border-radius: 12px;
-}
-
 // Make table rows clickable
 :deep(.q-table tbody tr) {
   cursor: pointer;
-  
+
   &:hover {
     background-color: rgba(0, 0, 0, 0.04);
   }
 }
 </style>
-

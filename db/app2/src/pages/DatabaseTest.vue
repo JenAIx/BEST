@@ -1,250 +1,242 @@
 <template>
-  <q-page class="q-pa-md">
-    <PageHeader :title="$t('database.testPageTitle')" :subtitle="$t('database.testPageSubtitle')" />
+  <q-page>
+    <div class="page-container">
+      <PageHeader :title="$t('database.testPageTitle')" :subtitle="$t('database.testPageSubtitle')" />
 
-    <!-- Database Connection Section -->
-    <q-card class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">Database Connection</div>
+      <!-- Database Connection Section -->
+      <q-card class="q-mb-md">
+        <q-card-section>
+          <div class="text-h6">Database Connection</div>
 
-        <div class="row q-gutter-md q-mt-md">
-          <q-input v-model="databasePath" label="Database Path" filled dense class="col-6" placeholder="Enter database file path (e.g., ./test.db)" />
+          <div class="row q-gutter-md q-mt-md">
+            <q-input v-model="databasePath" label="Database Path" filled dense class="col-6" placeholder="Enter database file path (e.g., ./test.db)" />
 
-          <q-btn :loading="databaseStore.isLoading" :disable="!databasePath" color="primary" @click="initializeDatabase" class="col-2">
-            {{ databaseStore.isConnected ? 'Reconnect' : 'Connect' }}
-          </q-btn>
+            <q-btn :loading="databaseStore.isLoading" :disable="!databasePath" color="primary" @click="initializeDatabase" class="col-2">
+              {{ databaseStore.isConnected ? 'Reconnect' : 'Connect' }}
+            </q-btn>
 
-          <q-btn v-if="databaseStore.isConnected" :loading="databaseStore.isLoading" color="negative" @click="closeDatabase" class="col-2"> Disconnect </q-btn>
-        </div>
-
-        <!-- Connection Status -->
-        <div class="q-mt-md">
-          <q-chip :color="databaseStore.isConnected ? 'positive' : 'negative'" text-color="white" icon="database">
-            {{ databaseStore.isConnected ? 'Connected' : 'Disconnected' }}
-          </q-chip>
-
-          <q-chip v-if="databaseStore.isInitialized" color="positive" text-color="white" icon="check_circle"> Initialized </q-chip>
-
-          <q-chip v-if="databaseStore.connectionError" color="negative" text-color="white" icon="error">
-            {{ databaseStore.connectionError }}
-          </q-chip>
-        </div>
-      </q-card-section>
-    </q-card>
-
-    <!-- Database Operations Section -->
-    <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">Database Operations</div>
-
-        <div class="row q-gutter-md q-mt-md">
-          <q-btn :loading="databaseStore.isLoading" color="secondary" @click="refreshDatabaseInfo" class="col-2"> Refresh Info </q-btn>
-
-          <q-btn :loading="databaseStore.isLoading" color="warning" @click="validateDatabase" class="col-2"> Validate DB </q-btn>
-
-          <q-btn :loading="databaseStore.isLoading" color="negative" @click="resetDatabase" class="col-2"> Reset DB </q-btn>
-        </div>
-      </q-card-section>
-    </q-card>
-
-    <!-- Patient Operations Section -->
-    <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">Patient Operations</div>
-
-        <!-- Create Patient Form -->
-        <div class="row q-gutter-md q-mt-md">
-          <q-input v-model="newPatient.PATIENT_CD" label="Patient Code" filled dense class="col-3" placeholder="e.g., P001" />
-
-          <q-input v-model="newPatient.SEX_CD" label="Sex" filled dense class="col-2" placeholder="M/F" />
-
-          <q-input v-model="newPatient.AGE_IN_YEARS" label="Age" filled dense type="number" class="col-2" placeholder="25" />
-
-          <q-btn :loading="isCreatingPatient" color="positive" @click="createTestPatient" class="col-2"> Create Patient </q-btn>
-
-          <q-btn :loading="isCreatingDemoPatients" color="secondary" @click="createDemoPatients" class="col-2"> Create Demo Patients </q-btn>
-
-          <q-btn :loading="isDeletingDemoPatients" color="negative" @click="deleteDemoPatients" class="col-2"> Delete Demo Patients </q-btn>
-        </div>
-
-        <!-- Patient Search -->
-        <div class="row q-gutter-md q-mt-md">
-          <q-input v-model="searchTerm" label="Search Patients" filled dense class="col-4" placeholder="Enter search term" />
-
-          <q-btn :loading="isSearching" color="info" @click="searchPatients" class="col-2"> Search </q-btn>
-
-          <q-btn :loading="isLoadingPatients" color="secondary" @click="loadAllPatients" class="col-2"> Load All </q-btn>
-        </div>
-
-        <!-- Patient List -->
-        <div v-if="patients.length > 0" class="q-mt-md">
-          <div class="text-subtitle1 q-mb-sm">Patients ({{ patients.length }})</div>
-          <q-list bordered>
-            <q-item v-for="patient in patients" :key="patient.PATIENT_NUM">
-              <q-item-section>
-                <q-item-label> {{ patient.PATIENT_CD }} - Sex: {{ patient.SEX_CD || 'N/A' }}, Age: {{ patient.AGE_IN_YEARS || 'N/A' }} </q-item-label>
-                <q-item-label caption> ID: {{ patient.PATIENT_NUM }} | Created: {{ formatDate(patient.CREATED_AT) }} </q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </div>
-      </q-card-section>
-    </q-card>
-
-    <!-- Questionnaire Operations Section -->
-    <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">Questionnaire Operations</div>
-
-        <div class="row q-gutter-md q-mt-md items-center">
-          <q-btn :loading="isSeedingQuests" color="purple" icon="quiz" @click="seedQuestionnaires" class="col-auto">
-            Seed Questionnaires
-          </q-btn>
-
-          <q-btn :loading="isLoadingQuests" color="secondary" icon="refresh" @click="loadQuestionnaires" class="col-auto">
-            Refresh List
-          </q-btn>
-
-          <q-chip v-if="questStats.available > 0" color="purple" text-color="white" icon="folder">
-            {{ questStats.available }} available in seed folder
-          </q-chip>
-
-          <q-chip v-if="questStats.inDb > 0" color="positive" text-color="white" icon="storage">
-            {{ questStats.inDb }} in database
-          </q-chip>
-
-          <q-chip v-if="questStats.new > 0" color="warning" text-color="white" icon="fiber_new">
-            {{ questStats.new }} new to import
-          </q-chip>
-        </div>
-
-        <!-- Questionnaire List -->
-        <div v-if="questionnaires.length > 0" class="q-mt-md">
-          <div class="text-subtitle1 q-mb-sm">Questionnaires in DB ({{ questionnaires.length }})</div>
-          <q-list bordered dense>
-            <q-item v-for="quest in questionnaires" :key="quest.CODE_CD">
-              <q-item-section avatar>
-                <q-icon name="quiz" :color="quest.SOURCESYSTEM_CD === 'SURVEY3' ? 'purple' : 'grey'" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label>{{ quest.NAME_CHAR }}</q-item-label>
-                <q-item-label caption>{{ quest.CODE_CD }} | Source: {{ quest.SOURCESYSTEM_CD }} | Updated: {{ quest.UPDATE_DATE }}</q-item-label>
-              </q-item-section>
-            </q-item>
-          </q-list>
-        </div>
-      </q-card-section>
-    </q-card>
-
-    <!-- Database Statistics Section -->
-    <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">Database Statistics</div>
-
-        <div v-if="databaseStore.statistics" class="q-mt-md">
-          <div class="row q-gutter-md">
-            <div class="col-3">
-              <q-card flat bordered>
-                <q-card-section class="text-center">
-                  <div class="text-h4 text-primary">
-                    {{ databaseStore.statistics.PATIENT_DIMENSION || 0 }}
-                  </div>
-                  <div class="text-caption">Patients</div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <div class="col-3">
-              <q-card flat bordered>
-                <q-card-section class="text-center">
-                  <div class="text-h4 text-secondary">
-                    {{ databaseStore.statistics.VISIT_DIMENSION || 0 }}
-                  </div>
-                  <div class="text-caption">Visits</div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <div class="col-3">
-              <q-card flat bordered>
-                <q-card-section class="text-center">
-                  <div class="text-h4 text-accent">
-                    {{ databaseStore.statistics.OBSERVATION_FACT || 0 }}
-                  </div>
-                  <div class="text-caption">Observations</div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <div class="col-3">
-              <q-card flat bordered>
-                <q-card-section class="text-center">
-                  <div class="text-h4 text-positive">
-                    {{ databaseStore.statistics.CONCEPT_DIMENSION || 0 }}
-                  </div>
-                  <div class="text-caption">Concepts</div>
-                </q-card-section>
-              </q-card>
-            </div>
-          </div>
-        </div>
-      </q-card-section>
-    </q-card>
-
-    <!-- Migration Status Section -->
-    <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
-      <q-card-section>
-        <div class="text-h6">Migration Status</div>
-
-        <div v-if="databaseStore.migrationStatus" class="q-mt-md">
-          <div class="row q-gutter-md">
-            <div class="col-3">
-              <q-card flat bordered>
-                <q-card-section class="text-center">
-                  <div class="text-h4 text-primary">
-                    {{ databaseStore.migrationStatus.total || 0 }}
-                  </div>
-                  <div class="text-caption">Total Migrations</div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <div class="col-3">
-              <q-card flat bordered>
-                <q-card-section class="text-center">
-                  <div class="text-h4 text-positive">
-                    {{ databaseStore.migrationStatus.executed || 0 }}
-                  </div>
-                  <div class="text-caption">Executed</div>
-                </q-card-section>
-              </q-card>
-            </div>
-
-            <div class="col-3">
-              <q-card flat bordered>
-                <q-card-section class="text-center">
-                  <div class="text-h4 text-warning">
-                    {{ databaseStore.migrationStatus.pending || 0 }}
-                  </div>
-                  <div class="text-caption">Pending</div>
-                </q-card-section>
-              </q-card>
-            </div>
+            <q-btn v-if="databaseStore.isConnected" :loading="databaseStore.isLoading" color="negative" @click="closeDatabase" class="col-2"> Disconnect </q-btn>
           </div>
 
-          <div v-if="databaseStore.migrationStatus.executedMigrations" class="q-mt-md">
-            <div class="text-subtitle2">Executed Migrations:</div>
-            <q-list dense>
-              <q-item v-for="migration in databaseStore.migrationStatus.executedMigrations" :key="migration">
+          <!-- Connection Status -->
+          <div class="q-mt-md">
+            <q-chip :color="databaseStore.isConnected ? 'positive' : 'negative'" text-color="white" icon="database">
+              {{ databaseStore.isConnected ? 'Connected' : 'Disconnected' }}
+            </q-chip>
+
+            <q-chip v-if="databaseStore.isInitialized" color="positive" text-color="white" icon="check_circle"> Initialized </q-chip>
+
+            <q-chip v-if="databaseStore.connectionError" color="negative" text-color="white" icon="error">
+              {{ databaseStore.connectionError }}
+            </q-chip>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <!-- Database Operations Section -->
+      <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
+        <q-card-section>
+          <div class="text-h6">Database Operations</div>
+
+          <div class="row q-gutter-md q-mt-md">
+            <q-btn :loading="databaseStore.isLoading" color="secondary" @click="refreshDatabaseInfo" class="col-2"> Refresh Info </q-btn>
+
+            <q-btn :loading="databaseStore.isLoading" color="warning" @click="validateDatabase" class="col-2"> Validate DB </q-btn>
+
+            <q-btn :loading="databaseStore.isLoading" color="negative" @click="resetDatabase" class="col-2"> Reset DB </q-btn>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <!-- Patient Operations Section -->
+      <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
+        <q-card-section>
+          <div class="text-h6">Patient Operations</div>
+
+          <!-- Create Patient Form -->
+          <div class="row q-gutter-md q-mt-md">
+            <q-input v-model="newPatient.PATIENT_CD" label="Patient Code" filled dense class="col-3" placeholder="e.g., P001" />
+
+            <q-input v-model="newPatient.SEX_CD" label="Sex" filled dense class="col-2" placeholder="M/F" />
+
+            <q-input v-model="newPatient.AGE_IN_YEARS" label="Age" filled dense type="number" class="col-2" placeholder="25" />
+
+            <q-btn :loading="isCreatingPatient" color="positive" @click="createTestPatient" class="col-2"> Create Patient </q-btn>
+
+            <q-btn :loading="isCreatingDemoPatients" color="secondary" @click="createDemoPatients" class="col-2"> Create Demo Patients </q-btn>
+
+            <q-btn :loading="isDeletingDemoPatients" color="negative" @click="deleteDemoPatients" class="col-2"> Delete Demo Patients </q-btn>
+          </div>
+
+          <!-- Patient Search -->
+          <div class="row q-gutter-md q-mt-md">
+            <q-input v-model="searchTerm" label="Search Patients" filled dense class="col-4" placeholder="Enter search term" />
+
+            <q-btn :loading="isSearching" color="info" @click="searchPatients" class="col-2"> Search </q-btn>
+
+            <q-btn :loading="isLoadingPatients" color="secondary" @click="loadAllPatients" class="col-2"> Load All </q-btn>
+          </div>
+
+          <!-- Patient List -->
+          <div v-if="patients.length > 0" class="q-mt-md">
+            <div class="text-subtitle1 q-mb-sm">Patients ({{ patients.length }})</div>
+            <q-list bordered>
+              <q-item v-for="patient in patients" :key="patient.PATIENT_NUM">
                 <q-item-section>
-                  <q-item-label>{{ migration }}</q-item-label>
+                  <q-item-label> {{ patient.PATIENT_CD }} - Sex: {{ patient.SEX_CD || 'N/A' }}, Age: {{ patient.AGE_IN_YEARS || 'N/A' }} </q-item-label>
+                  <q-item-label caption> ID: {{ patient.PATIENT_NUM }} | Created: {{ formatDate(patient.CREATED_AT) }} </q-item-label>
                 </q-item-section>
               </q-item>
             </q-list>
           </div>
-        </div>
-      </q-card-section>
-    </q-card>
+        </q-card-section>
+      </q-card>
+
+      <!-- Questionnaire Operations Section -->
+      <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
+        <q-card-section>
+          <div class="text-h6">Questionnaire Operations</div>
+
+          <div class="row q-gutter-md q-mt-md items-center">
+            <q-btn :loading="isSeedingQuests" color="purple" icon="quiz" @click="seedQuestionnaires" class="col-auto"> Seed Questionnaires </q-btn>
+
+            <q-btn :loading="isLoadingQuests" color="secondary" icon="refresh" @click="loadQuestionnaires" class="col-auto"> Refresh List </q-btn>
+
+            <q-chip v-if="questStats.available > 0" color="purple" text-color="white" icon="folder"> {{ questStats.available }} available in seed folder </q-chip>
+
+            <q-chip v-if="questStats.inDb > 0" color="positive" text-color="white" icon="storage"> {{ questStats.inDb }} in database </q-chip>
+
+            <q-chip v-if="questStats.new > 0" color="warning" text-color="white" icon="fiber_new"> {{ questStats.new }} new to import </q-chip>
+          </div>
+
+          <!-- Questionnaire List -->
+          <div v-if="questionnaires.length > 0" class="q-mt-md">
+            <div class="text-subtitle1 q-mb-sm">Questionnaires in DB ({{ questionnaires.length }})</div>
+            <q-list bordered dense>
+              <q-item v-for="quest in questionnaires" :key="quest.CODE_CD">
+                <q-item-section avatar>
+                  <q-icon name="quiz" :color="quest.SOURCESYSTEM_CD === 'SURVEY3' ? 'purple' : 'grey'" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ quest.NAME_CHAR }}</q-item-label>
+                  <q-item-label caption>{{ quest.CODE_CD }} | Source: {{ quest.SOURCESYSTEM_CD }} | Updated: {{ quest.UPDATE_DATE }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <!-- Database Statistics Section -->
+      <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
+        <q-card-section>
+          <div class="text-h6">Database Statistics</div>
+
+          <div v-if="databaseStore.statistics" class="q-mt-md">
+            <div class="row q-gutter-md">
+              <div class="col-3">
+                <q-card flat bordered>
+                  <q-card-section class="text-center">
+                    <div class="text-h4 text-primary">
+                      {{ databaseStore.statistics.PATIENT_DIMENSION || 0 }}
+                    </div>
+                    <div class="text-caption">Patients</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-3">
+                <q-card flat bordered>
+                  <q-card-section class="text-center">
+                    <div class="text-h4 text-secondary">
+                      {{ databaseStore.statistics.VISIT_DIMENSION || 0 }}
+                    </div>
+                    <div class="text-caption">Visits</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-3">
+                <q-card flat bordered>
+                  <q-card-section class="text-center">
+                    <div class="text-h4 text-accent">
+                      {{ databaseStore.statistics.OBSERVATION_FACT || 0 }}
+                    </div>
+                    <div class="text-caption">Observations</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-3">
+                <q-card flat bordered>
+                  <q-card-section class="text-center">
+                    <div class="text-h4 text-positive">
+                      {{ databaseStore.statistics.CONCEPT_DIMENSION || 0 }}
+                    </div>
+                    <div class="text-caption">Concepts</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+
+      <!-- Migration Status Section -->
+      <q-card v-if="databaseStore.canPerformOperations" class="q-mb-md">
+        <q-card-section>
+          <div class="text-h6">Migration Status</div>
+
+          <div v-if="databaseStore.migrationStatus" class="q-mt-md">
+            <div class="row q-gutter-md">
+              <div class="col-3">
+                <q-card flat bordered>
+                  <q-card-section class="text-center">
+                    <div class="text-h4 text-primary">
+                      {{ databaseStore.migrationStatus.total || 0 }}
+                    </div>
+                    <div class="text-caption">Total Migrations</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-3">
+                <q-card flat bordered>
+                  <q-card-section class="text-center">
+                    <div class="text-h4 text-positive">
+                      {{ databaseStore.migrationStatus.executed || 0 }}
+                    </div>
+                    <div class="text-caption">Executed</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+
+              <div class="col-3">
+                <q-card flat bordered>
+                  <q-card-section class="text-center">
+                    <div class="text-h4 text-warning">
+                      {{ databaseStore.migrationStatus.pending || 0 }}
+                    </div>
+                    <div class="text-caption">Pending</div>
+                  </q-card-section>
+                </q-card>
+              </div>
+            </div>
+
+            <div v-if="databaseStore.migrationStatus.executedMigrations" class="q-mt-md">
+              <div class="text-subtitle2">Executed Migrations:</div>
+              <q-list dense>
+                <q-item v-for="migration in databaseStore.migrationStatus.executedMigrations" :key="migration">
+                  <q-item-section>
+                    <q-item-label>{{ migration }}</q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+    </div>
   </q-page>
 </template>
 
@@ -519,19 +511,21 @@ const loadQuestionnaires = async () => {
   try {
     isLoadingQuests.value = true
     const result = await databaseStore.executeQuery(
-      `SELECT CODE_CD, NAME_CHAR, SOURCESYSTEM_CD, UPDATE_DATE FROM CODE_LOOKUP WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE' ORDER BY NAME_CHAR`
+      `SELECT CODE_CD, NAME_CHAR, SOURCESYSTEM_CD, UPDATE_DATE FROM CODE_LOOKUP WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE' ORDER BY NAME_CHAR`,
     )
     questionnaires.value = result.success ? result.data : []
 
     // Parse available questionnaire files from seed folder
-    const availableQuests = (questionnaireFiles || []).map(({ filename, content }) => {
-      try {
-        const json = JSON.parse(content)
-        return (json.short_title || filename.replace('quest_', '').replace('.json', '')).toUpperCase()
-      } catch {
-        return null
-      }
-    }).filter(Boolean)
+    const availableQuests = (questionnaireFiles || [])
+      .map(({ filename, content }) => {
+        try {
+          const json = JSON.parse(content)
+          return (json.short_title || filename.replace('quest_', '').replace('.json', '')).toUpperCase()
+        } catch {
+          return null
+        }
+      })
+      .filter(Boolean)
 
     const dbCodes = new Set(questionnaires.value.map((q) => q.CODE_CD))
     const newCount = availableQuests.filter((code) => !dbCodes.has(code)).length
@@ -553,9 +547,7 @@ const seedQuestionnaires = async () => {
     isSeedingQuests.value = true
 
     // Get existing codes from DB to check what's new
-    const existingResult = await databaseStore.executeQuery(
-      `SELECT CODE_CD FROM CODE_LOOKUP WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE'`
-    )
+    const existingResult = await databaseStore.executeQuery(`SELECT CODE_CD FROM CODE_LOOKUP WHERE TABLE_CD = 'SURVEY_BEST' AND COLUMN_CD = 'QUESTIONNAIRE'`)
     const existingCodes = new Set((existingResult.success ? existingResult.data : []).map((r) => r.CODE_CD))
 
     const today = new Date().toISOString().split('T')[0]
@@ -575,7 +567,7 @@ const seedQuestionnaires = async () => {
 
         await databaseStore.executeCommand(
           `INSERT OR IGNORE INTO CODE_LOOKUP (TABLE_CD, COLUMN_CD, CODE_CD, NAME_CHAR, LOOKUP_BLOB, UPDATE_DATE, IMPORT_DATE, SOURCESYSTEM_CD, UPLOAD_ID) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          ['SURVEY_BEST', 'QUESTIONNAIRE', code, title, content, today, today, 'SURVEY3', 1]
+          ['SURVEY_BEST', 'QUESTIONNAIRE', code, title, content, today, today, 'SURVEY3', 1],
         )
         seeded++
       } catch (error) {

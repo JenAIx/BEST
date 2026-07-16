@@ -635,7 +635,8 @@
     "securityWarning": "API keys are stored unencrypted in your browser's localStorage. This is convenient for development but not recommended for production use with sensitive keys. Consider using environment variables or secure key management services in production.",
     "lastUpdated": "Last updated",
     "apiKeyFormatError": "OpenAI API keys should start with \"sk-\"",
-    "apiKeyTooShort": "API key appears to be too short"
+    "apiKeyTooShort": "API key appears to be too short",
+    "pageSubtitle": "Personal preferences, profile and local configuration"
   },
   "dataGrid": {
     "dataGrid": "Data Grid",

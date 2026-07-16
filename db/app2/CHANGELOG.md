@@ -134,6 +134,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Einheitliches Seiten-Design app-weit** (`src/css/app.scss`): Alle
+  Hauptseiten teilen jetzt dasselbe Grundgerüst — flacher Hintergrund
+  (`--color-background` auf jeder `q-page`), zentrierter
+  `.page-container` (max. 1200px, einheitliches Padding), weiße Boxen mit
+  8px-Radius und dezentem Schatten (`.content-box` + globale
+  `q-card`-Regel innerhalb von Seiten; Dialoge behalten Quasar-Elevation).
+  Entfernt wurden die seitenindividuellen Stile: Gradient-Hintergrund auf
+  /visits, `#f8f9fa`/`$grey-1`-Sonderhintergründe (Dashboard, Data-Grid,
+  Export, Feedback, Import, Questionnaires), Card-Radius-Wildwuchs
+  (10/12/16px auf Studien-Seiten und PatientSelector), lokale
+  `page-container`-Duplikate. /settings bekam denselben PageHeader
+  (neuer Key `settings.pageSubtitle`).
+
 - **Einheitlicher Seitenkopf nach Questionnaire-Vorlage + Breadcrumbs
   entfernt**: Neue geteilte Komponente
   `src/components/shared/PageHeader.vue` — h1-Titel mit dem Untertitel

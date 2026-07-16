@@ -1,145 +1,147 @@
 <template>
-  <q-page class="q-pa-md">
-    <PageHeader :title="$t('concepts.conceptsAdministration')" :subtitle="$t('concepts.pageSubtitle')">
-      <div class="text-caption text-grey-6">{{ $t('concepts.showingConcepts', { showing: concepts.length, total: totalConcepts }) }}</div>
-      <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
-        <q-tooltip>{{ $t('export.exportToCsv') }}</q-tooltip>
-      </q-btn>
-      <q-btn flat round dense icon="upload" color="secondary" @click="onImportConcepts" :loading="importLoading">
-        <q-tooltip>{{ $t('import.importFromCsv') }}</q-tooltip>
-      </q-btn>
-      <q-btn color="primary" icon="add" :label="$t('concepts.createConcept')" @click="onCreateConcept" />
-    </PageHeader>
+  <q-page>
+    <div class="page-container">
+      <PageHeader :title="$t('concepts.conceptsAdministration')" :subtitle="$t('concepts.pageSubtitle')">
+        <div class="text-caption text-grey-6">{{ $t('concepts.showingConcepts', { showing: concepts.length, total: totalConcepts }) }}</div>
+        <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
+          <q-tooltip>{{ $t('export.exportToCsv') }}</q-tooltip>
+        </q-btn>
+        <q-btn flat round dense icon="upload" color="secondary" @click="onImportConcepts" :loading="importLoading">
+          <q-tooltip>{{ $t('import.importFromCsv') }}</q-tooltip>
+        </q-btn>
+        <q-btn color="primary" icon="add" :label="$t('concepts.createConcept')" @click="onCreateConcept" />
+      </PageHeader>
 
-    <!-- Search and Filters -->
-    <div class="row q-gutter-md q-mb-md">
-      <div class="col-12 col-md-3">
-        <q-input v-model="searchQuery" outlined dense :placeholder="$t('concepts.searchPlaceholder')" @update:model-value="onSearchChange" debounce="300">
-          <template v-slot:prepend>
-            <q-icon name="search" />
-          </template>
-          <template v-slot:append>
-            <q-icon v-if="searchQuery" name="close" @click="clearSearch" class="cursor-pointer" />
-          </template>
-        </q-input>
+      <!-- Search and Filters -->
+      <div class="row q-gutter-md q-mb-md">
+        <div class="col-12 col-md-3">
+          <q-input v-model="searchQuery" outlined dense :placeholder="$t('concepts.searchPlaceholder')" @update:model-value="onSearchChange" debounce="300">
+            <template v-slot:prepend>
+              <q-icon name="search" />
+            </template>
+            <template v-slot:append>
+              <q-icon v-if="searchQuery" name="close" @click="clearSearch" class="cursor-pointer" />
+            </template>
+          </q-input>
+        </div>
+        <div class="col-12 col-md-4">
+          <q-select
+            v-model="selectedValueTypes"
+            outlined
+            dense
+            :options="valueTypeOptions"
+            :label="$t('concepts.filterByValueType')"
+            multiple
+            clearable
+            emit-value
+            map-options
+            use-chips
+            @update:model-value="onFilterChange"
+          >
+            <template v-slot:selected-item="scope">
+              <q-chip removable dense @remove="scope.removeAtIndex(scope.index)" :tabindex="scope.tabindex" color="primary" text-color="white">
+                {{ scope.opt.value }}
+              </q-chip>
+            </template>
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-icon v-if="selectedValueTypes && selectedValueTypes.includes(scope.opt.value)" name="check" color="primary" />
+                </q-item-section>
+              </q-item>
+            </template>
+          </q-select>
+        </div>
+        <div class="col-12 col-md-2">
+          <q-select
+            v-model="selectedCategories"
+            outlined
+            dense
+            :options="categoryOptions"
+            label="Filter by Category"
+            multiple
+            clearable
+            emit-value
+            map-options
+            use-chips
+            @update:model-value="onFilterChange"
+          >
+            <template v-slot:selected-item="scope">
+              <q-chip removable dense @remove="scope.removeAtIndex(scope.index)" :tabindex="scope.tabindex" color="secondary" text-color="white">
+                {{ scope.opt.label }}
+              </q-chip>
+            </template>
+          </q-select>
+        </div>
+        <div class="col-12 col-md-2">
+          <q-select v-model="selectedSourceSystem" outlined dense :options="sourceSystemOptions" label="Source System" clearable emit-value map-options @update:model-value="onFilterChange" />
+        </div>
       </div>
-      <div class="col-12 col-md-4">
-        <q-select
-          v-model="selectedValueTypes"
-          outlined
-          dense
-          :options="valueTypeOptions"
-          :label="$t('concepts.filterByValueType')"
-          multiple
-          clearable
-          emit-value
-          map-options
-          use-chips
-          @update:model-value="onFilterChange"
-        >
-          <template v-slot:selected-item="scope">
-            <q-chip removable dense @remove="scope.removeAtIndex(scope.index)" :tabindex="scope.tabindex" color="primary" text-color="white">
-              {{ scope.opt.value }}
-            </q-chip>
-          </template>
-          <template v-slot:option="scope">
-            <q-item v-bind="scope.itemProps">
-              <q-item-section>
-                <q-item-label>{{ scope.opt.label }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-icon v-if="selectedValueTypes && selectedValueTypes.includes(scope.opt.value)" name="check" color="primary" />
-              </q-item-section>
-            </q-item>
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-2">
-        <q-select
-          v-model="selectedCategories"
-          outlined
-          dense
-          :options="categoryOptions"
-          label="Filter by Category"
-          multiple
-          clearable
-          emit-value
-          map-options
-          use-chips
-          @update:model-value="onFilterChange"
-        >
-          <template v-slot:selected-item="scope">
-            <q-chip removable dense @remove="scope.removeAtIndex(scope.index)" :tabindex="scope.tabindex" color="secondary" text-color="white">
-              {{ scope.opt.label }}
-            </q-chip>
-          </template>
-        </q-select>
-      </div>
-      <div class="col-12 col-md-2">
-        <q-select v-model="selectedSourceSystem" outlined dense :options="sourceSystemOptions" label="Source System" clearable emit-value map-options @update:model-value="onFilterChange" />
-      </div>
-    </div>
 
-    <!-- Concepts Table -->
-    <q-table :rows="concepts" :columns="columns" row-key="CONCEPT_CD" :loading="loading" :pagination="pagination" @request="onRequest" binary-state-sort :rows-per-page-options="[10, 25, 50]">
-      <!-- Name and Concept Code Column -->
-      <template v-slot:body-cell-NAME_CHAR="props">
-        <q-td :props="props">
-          <div>
-            <div class="text-weight-medium">{{ props.value }}</div>
-            <div class="text-caption text-grey-6">{{ props.row.CONCEPT_CD }}</div>
-            <div v-if="props.row.CONCEPT_BLOB" class="text-caption text-grey-6">
-              {{ truncateText(props.row.CONCEPT_BLOB, 50) }}
+      <!-- Concepts Table -->
+      <q-table :rows="concepts" :columns="columns" row-key="CONCEPT_CD" :loading="loading" :pagination="pagination" @request="onRequest" binary-state-sort :rows-per-page-options="[10, 25, 50]">
+        <!-- Name and Concept Code Column -->
+        <template v-slot:body-cell-NAME_CHAR="props">
+          <q-td :props="props">
+            <div>
+              <div class="text-weight-medium">{{ props.value }}</div>
+              <div class="text-caption text-grey-6">{{ props.row.CONCEPT_CD }}</div>
+              <div v-if="props.row.CONCEPT_BLOB" class="text-caption text-grey-6">
+                {{ truncateText(props.row.CONCEPT_BLOB, 50) }}
+              </div>
             </div>
-          </div>
-        </q-td>
-      </template>
+          </q-td>
+        </template>
 
-      <!-- Category Column -->
-      <template v-slot:body-cell-CATEGORY_CHAR="props">
-        <q-td :props="props">
-          <q-chip v-if="props.value" :label="formatCategoryName(props.value)" size="sm" color="grey-3" text-color="grey-8" dense />
-          <span v-else class="text-grey-5">-</span>
-        </q-td>
-      </template>
+        <!-- Category Column -->
+        <template v-slot:body-cell-CATEGORY_CHAR="props">
+          <q-td :props="props">
+            <q-chip v-if="props.value" :label="formatCategoryName(props.value)" size="sm" color="grey-3" text-color="grey-8" dense />
+            <span v-else class="text-grey-5">-</span>
+          </q-td>
+        </template>
 
-      <!-- Concept Path Column -->
-      <template v-slot:body-cell-CONCEPT_PATH="props">
-        <q-td :props="props">
-          <div class="text-caption text-grey-7 monospace path-text" :title="props.value">
-            {{ props.value }}
-            <q-tooltip>{{ props.value }}</q-tooltip>
-          </div>
-        </q-td>
-      </template>
+        <!-- Concept Path Column -->
+        <template v-slot:body-cell-CONCEPT_PATH="props">
+          <q-td :props="props">
+            <div class="text-caption text-grey-7 monospace path-text" :title="props.value">
+              {{ props.value }}
+              <q-tooltip>{{ props.value }}</q-tooltip>
+            </div>
+          </q-td>
+        </template>
 
-      <!-- Value Type Column -->
-      <template v-slot:body-cell-VALTYPE_CD="props">
-        <q-td :props="props">
-          <div class="row items-center justify-center">
-            <ValueTypeIcon :value-type="props.value" size="28px" variant="default" />
-          </div>
-        </q-td>
-      </template>
+        <!-- Value Type Column -->
+        <template v-slot:body-cell-VALTYPE_CD="props">
+          <q-td :props="props">
+            <div class="row items-center justify-center">
+              <ValueTypeIcon :value-type="props.value" size="28px" variant="default" />
+            </div>
+          </q-td>
+        </template>
 
-      <!-- Actions Column -->
-      <template v-slot:body-cell-actions="props">
-        <q-td :props="props">
-          <q-btn flat round dense icon="edit" color="primary" @click="onEditConcept(props.row)">
-            <q-tooltip>Edit Concept</q-tooltip>
-          </q-btn>
-          <q-btn flat round dense icon="delete" color="negative" @click="onDeleteConcept(props.row)">
-            <q-tooltip>Delete Concept</q-tooltip>
-          </q-btn>
-        </q-td>
-      </template>
-    </q-table>
+        <!-- Actions Column -->
+        <template v-slot:body-cell-actions="props">
+          <q-td :props="props">
+            <q-btn flat round dense icon="edit" color="primary" @click="onEditConcept(props.row)">
+              <q-tooltip>Edit Concept</q-tooltip>
+            </q-btn>
+            <q-btn flat round dense icon="delete" color="negative" @click="onDeleteConcept(props.row)">
+              <q-tooltip>Delete Concept</q-tooltip>
+            </q-btn>
+          </q-td>
+        </template>
+      </q-table>
 
-    <!-- Concept Dialog (Create/Edit) -->
-    <ConceptDialog v-model="showConceptDialog" :mode="conceptDialogMode" :concept="selectedConcept" @saved="onConceptSaved" @cancelled="onConceptCancelled" />
+      <!-- Concept Dialog (Create/Edit) -->
+      <ConceptDialog v-model="showConceptDialog" :mode="conceptDialogMode" :concept="selectedConcept" @saved="onConceptSaved" @cancelled="onConceptCancelled" />
 
-    <!-- Concept Import Dialog -->
-    <ConceptsImportDialog v-model="showImportDialog" @imported="onImportComplete" />
+      <!-- Concept Import Dialog -->
+      <ConceptsImportDialog v-model="showImportDialog" @imported="onImportComplete" />
+    </div>
   </q-page>
 </template>
 

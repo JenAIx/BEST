@@ -1,6 +1,6 @@
 <template>
   <q-page class="export-page">
-    <div class="q-pa-md">
+    <div class="page-container">
       <PageHeader :title="$t('export.exportData')" :subtitle="$t('export.pageSubtitle')" />
 
       <!-- Patient Data Explorer -->
@@ -478,11 +478,6 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-.export-page {
-  background-color: $grey-1;
-  min-height: calc(100vh - 50px);
-}
-
 .patient-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

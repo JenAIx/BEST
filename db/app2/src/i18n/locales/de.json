@@ -635,7 +635,8 @@
     "securityWarning": "API-Schlüssel werden unverschlüsselt im localStorage Ihres Browsers gespeichert. Dies ist praktisch für die Entwicklung, aber nicht für den Produktionseinsatz mit sensiblen Schlüsseln empfohlen. Verwenden Sie in der Produktion Umgebungsvariablen oder sichere Schlüsselverwaltungsdienste.",
     "lastUpdated": "Zuletzt aktualisiert",
     "apiKeyFormatError": "OpenAI API-Schlüssel sollten mit \"sk-\" beginnen",
-    "apiKeyTooShort": "API-Schlüssel scheint zu kurz zu sein"
+    "apiKeyTooShort": "API-Schlüssel scheint zu kurz zu sein",
+    "pageSubtitle": "Persönliche Einstellungen, Profil und lokale Konfiguration"
   },
   "dataGrid": {
     "dataGrid": "Datentabelle",

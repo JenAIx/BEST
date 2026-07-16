@@ -1,6 +1,6 @@
 <template>
   <q-page class="data-grid-page">
-    <div class="q-pa-md">
+    <div class="page-container">
       <PageHeader :title="$t('navigation.dataGrid')" :subtitle="$t('dataGrid.pageSubtitle')" />
 
       <!-- Patient Selection Card -->
@@ -560,11 +560,6 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-.data-grid-page {
-  background-color: $grey-1;
-  min-height: calc(100vh - 50px);
-}
-
 .patient-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

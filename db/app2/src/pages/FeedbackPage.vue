@@ -1,6 +1,6 @@
 <template>
   <q-page class="feedback-page">
-    <div class="q-pa-md">
+    <div class="page-container">
       <!-- Page Header -->
       <PageHeader :title="$t('feedback.title')" :subtitle="$t('feedback.subtitle')" />
 
@@ -371,15 +371,7 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.feedback-page {
-  background-color: $grey-1;
-  min-height: calc(100vh - 50px);
-}
-
 .feedback-form-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-
   .rating-toggle {
     width: 100%;
 
@@ -399,12 +391,6 @@ onMounted(async () => {
     border-radius: 8px;
     font-weight: 500;
   }
-}
-
-.statistics-card,
-.info-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
 }
 
 .stat-item {
