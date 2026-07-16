@@ -5,6 +5,20 @@
 
 ## Recent Milestones
 
+### 2026-07-16 — Release v0.4_20260716 + in-app help (features/help-side)
+
+- Released v0.4_20260716 to `main` (unified page design with shared
+  `PageHeader`, study-remember on `/studies`, `/visits/:id` fullscreen mode,
+  persistent SmartButton quick notes with context chips, user-to-user
+  messenger with broadcast + unread badge, multiple simultaneous plugin
+  windows, complete SmartButton i18n).
+- New in-app help page `/help` (`src/pages/HelpPage.vue`): comprehensive
+  German guide (13 sections + 3 standard workflows) with 18 real screenshots
+  in `public/help/`, sticky TOC, full-text filter, lightbox.
+- Screenshot pipeline `scripts/help-screenshots/` (playwright-core via CDP
+  against the headless Electron app, crash-resilient with auto re-login;
+  `REMOTE_DEBUG_PORT` switch in `electron-main.js`).
+
 ### 2026-07-15 — Study audit module (features/audit-studies)
 
 - New Audit tab on `/studies/:id` (`src/components/study/StudyAuditPanel.vue`):

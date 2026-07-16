@@ -205,6 +205,13 @@
           <!-- Support & Feedback -->
           <div class="nav-section nav-section--mini"></div>
 
+          <q-item clickable v-ripple to="/help" active-class="bg-primary text-white">
+            <q-item-section avatar>
+              <q-icon name="help_outline" />
+            </q-item-section>
+            <q-item-section>{{ $t('navigation.help') }}</q-item-section>
+          </q-item>
+
           <q-item clickable v-ripple to="/feedback" active-class="bg-primary text-white">
             <q-item-section avatar>
               <q-icon name="feedback" />

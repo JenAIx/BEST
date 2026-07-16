@@ -126,6 +126,11 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
+        path: 'help',
+        component: () => import('pages/HelpPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
         path: 'feedback',
         component: () => import('pages/FeedbackPage.vue'),
         meta: { requiresAuth: true },

@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **In-App-Hilfe `/help`** (`features/help-side`): Umfangreiche deutsche
+  Anleitung der gesamten Anwendung — Überblick, Konzepte & Datenmodell,
+  alle Hauptbereiche (Anmeldung, Dashboard, Patienten & Besuche, Fragebögen,
+  Studien inkl. Audit, Datentabellen-Editor inkl. NV/Audit/Visitentyp-Sperre,
+  Import/Export, SmartButton mit Quick Notes & Messenger, Administration,
+  Einstellungen) plus drei Schritt-für-Schritt-Standard-Workflows.
+  18 echte App-Screenshots (`public/help/`, 1600×900), Lightbox per Klick,
+  Sektions-TOC mit Scroll-Navigation und Volltext-Filter. Neuer
+  Sidebar-Eintrag „Hilfe“ (`navigation.help`, de/en).
+- **Screenshot-Pipeline** (`scripts/help-screenshots/`): CDP-basiertes
+  Capture-Skript (playwright-core, crash-resilient mit Re-Login) gegen die
+  headless laufende Electron-App; `REMOTE_DEBUG_PORT`-Schalter in
+  `electron-main.js` (nur aktiv, wenn gesetzt). Dokumentiert im README.
+
 ## [0.4_20260716] - 2026-07-16
 
 ### Added

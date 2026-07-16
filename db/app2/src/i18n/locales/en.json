@@ -78,7 +78,8 @@
     "export": "Export",
     "import": "Import",
     "databaseTest": "Database Test",
-    "feedback": "Feedback"
+    "feedback": "Feedback",
+    "help": "Help"
   },
   "auth": {
     "appName": "BEST Medical System",
@@ -1151,5 +1152,12 @@
     "feedbackDeleted": "Feedback deleted successfully",
     "deleteError": "Failed to delete feedback. Please try again.",
     "loadError": "Failed to load feedback data. Please try again."
+  },
+  "help": {
+    "title": "Help & Guide",
+    "subtitle": "Workflows, features and concepts of the whole application",
+    "searchPlaceholder": "Search help…",
+    "noResults": "No help sections match your search",
+    "stepsTitle": "Step by step"
   }
 }
