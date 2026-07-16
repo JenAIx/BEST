@@ -17,45 +17,38 @@
     </q-fab>
   </div>
 
-  <!-- Plugin Window: seamless (no backdrop, background stays interactive),
-       draggable via its title bar. -->
-  <q-dialog v-model="pluginDialog" seamless :persistent="activePluginConfig?.config?.persistent || false">
-    <q-card
-      class="plugin-window"
-      :style="{
-        ...windowStyle,
-        minWidth: activePluginConfig?.config?.minWidth || '300px',
-        maxWidth: activePluginConfig?.config?.maxWidth || '500px',
-      }"
-    >
-      <q-card-section class="row items-center q-pb-none plugin-window-header" v-touch-pan.prevent.mouse="moveWindow">
-        <div class="text-h6">{{ pluginTitle }}</div>
-        <q-space />
-        <q-btn icon="minimize" flat round dense @click="minimizePlugin" :disable="loadingPlugin">
-          <q-tooltip>{{ $t('smartButton.minimize') }}</q-tooltip>
-        </q-btn>
-        <q-btn icon="close" flat round dense v-close-popup>
-          <q-tooltip>{{ $t('smartButton.close') }}</q-tooltip>
-        </q-btn>
-      </q-card-section>
+  <!-- Plugin Windows: floating, non-modal cards (background stays interactive),
+       draggable via their title bar. Several plugins can be open at once,
+       but at most ONE window per plugin. -->
+  <q-card
+    v-for="win in openWindows"
+    :key="win.id"
+    class="plugin-window"
+    :style="windowStyleFor(win)"
+    @mousedown="bringToFront(win)"
+  >
+    <q-card-section class="row items-center q-pb-none plugin-window-header" v-touch-pan.prevent.mouse="(ev) => moveWindow(win, ev)">
+      <div class="text-h6">{{ win.config.nameKey ? $t(win.config.nameKey) : win.config.name || 'Plugin' }}</div>
+      <q-space />
+      <q-btn icon="minimize" flat round dense @click="minimizePlugin(win)">
+        <q-tooltip>{{ $t('smartButton.minimize') }}</q-tooltip>
+      </q-btn>
+      <q-btn icon="close" flat round dense @click="closePlugin(win)">
+        <q-tooltip>{{ $t('smartButton.close') }}</q-tooltip>
+      </q-btn>
+    </q-card-section>
 
-      <q-card-section>
-        <div v-if="loadingPlugin" class="text-center q-pa-md">
-          <q-spinner color="primary" size="2em" />
-          <div class="q-mt-sm">{{ $t('smartButton.loadingPlugin') }}</div>
-        </div>
-        <component
-          ref="activePluginComponent"
-          :is="activePluginConfig?.component"
-          v-else-if="activePluginConfig"
-          @close="closePlugin"
-          v-bind="activePluginConfig?.config || {}"
-          :initial-state="activePluginConfig?.initialState"
-          :context="visitContext"
-        />
-      </q-card-section>
-    </q-card>
-  </q-dialog>
+    <q-card-section>
+      <component
+        :is="win.config.component"
+        :ref="(el) => setWindowRef(win.id, el)"
+        @close="closePlugin(win)"
+        v-bind="win.config.config || {}"
+        :initial-state="win.initialState"
+        :context="win.context"
+      />
+    </q-card-section>
+  </q-card>
 
   <!-- Mini Plugins Container -->
   <div v-if="miniPlugins.length > 0" class="mini-plugins-container">
@@ -111,13 +104,19 @@ const fabStyle = computed(() => ({
   zIndex: 2000,
 }))
 const draggingFab = ref(false)
-const pluginDialog = ref(false)
-const activePluginId = ref(null)
-const activePluginConfig = ref(null)
-const loadingPlugin = ref(false)
 const miniPlugins = ref([]) // Array of minimized plugins
-const activePluginComponent = ref(null) // Reference to the active plugin component instance
-const visitContext = ref({ hasContext: false }) // Reactive visit context
+
+// Open plugin windows: several plugins can float at once, but at most ONE
+// window per plugin id. Shape: { id, config, initialState, context, pos, z }
+const openWindows = ref([])
+// Component instances per window (non-reactive; for getState on minimize)
+const windowRefs = new Map()
+let zCounter = 3000
+
+const setWindowRef = (id, el) => {
+  if (el) windowRefs.set(id, el)
+  else windowRefs.delete(id)
+}
 
 // Get registered plugins with disabled state (labels resolved via i18n)
 const registeredPlugins = computed(() => {
@@ -138,39 +137,39 @@ const registeredPlugins = computed(() => {
   })
 })
 
-// Dialog title, locale-aware
-const pluginTitle = computed(() => {
-  const config = activePluginConfig.value
-  if (!config) return ''
-  return config.nameKey ? t(config.nameKey) : config.name || 'Plugin'
+// --- Plugin window positioning (floating cards, draggable via title bar) ---
+
+// Cascade new windows from the top-right, offset per open window
+const defaultWindowPos = (win) => {
+  const approxWidth = parseInt(win.config?.config?.maxWidth) || 480
+  const index = openWindows.value.length
+  const x = Math.max(16, window.innerWidth - approxWidth - 40 - index * 32)
+  const y = 90 + index * 32
+  return [x, y]
+}
+
+const windowStyleFor = (win) => ({
+  position: 'fixed',
+  top: `${win.pos[1]}px`,
+  left: `${win.pos[0]}px`,
+  zIndex: win.z,
+  minWidth: win.config?.config?.minWidth || '300px',
+  maxWidth: win.config?.config?.maxWidth || '500px',
 })
 
-// --- Plugin window position (seamless dialog, draggable via title bar) ---
-const windowPos = ref(null) // [left, top]; null = default position (top-right)
+const bringToFront = (win) => {
+  win.z = ++zCounter
+}
 
-const windowStyle = computed(() => {
-  if (!windowPos.value) {
-    return { position: 'fixed', top: '90px', right: '24px' }
-  }
-  return { position: 'fixed', top: `${windowPos.value[1]}px`, left: `${windowPos.value[0]}px` }
-})
-
-const moveWindow = (ev) => {
-  // Convert the default right-anchored position to left/top on first drag
-  if (!windowPos.value) {
-    const card = ev.evt?.target?.closest('.plugin-window')
-    const rect = card?.getBoundingClientRect()
-    windowPos.value = rect ? [rect.left, rect.top] : [window.innerWidth / 2 - 200, 90]
-  }
-
-  const newX = windowPos.value[0] + ev.delta.x
-  const newY = windowPos.value[1] + ev.delta.y
+const moveWindow = (win, ev) => {
+  const newX = win.pos[0] + ev.delta.x
+  const newY = win.pos[1] + ev.delta.y
 
   // Keep the title bar reachable: clamp within the viewport
   const margin = 8
   const maxX = window.innerWidth - 120
   const maxY = window.innerHeight - 48
-  windowPos.value = [Math.max(margin - 60, Math.min(maxX, newX)), Math.max(margin, Math.min(maxY, newY))]
+  win.pos = [Math.max(margin - 60, Math.min(maxX, newX)), Math.max(margin, Math.min(maxY, newY))]
 }
 
 // Dynamic FAB direction based on screen position
@@ -241,8 +240,12 @@ window.addEventListener('resize', handleResize)
 
 const openPlugin = async (pluginId, overrideConfig = null, componentState = null) => {
   try {
-    loadingPlugin.value = true
-    activePluginId.value = pluginId
+    // At most one window per plugin: re-opening brings it to the front
+    const existing = openWindows.value.find((w) => w.id === pluginId)
+    if (existing) {
+      bringToFront(existing)
+      return
+    }
 
     // Capture current selection and focused editable element before opening dialog
     const captureSelectionContext = () => {
@@ -289,99 +292,80 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
         const { pluginContextService } = await import('src/services/plugin-context-service')
         const context = pluginContextService.getContext()
 
-        // Store context both globally and reactively
+        // Keep the global copy for plugins that read it directly
         window.__smartVisitContext = context
-        visitContext.value = context
-
-        console.debug('Captured visit context:', context)
+        return context
       } catch (e) {
         console.warn('Failed to capture visit context:', e)
         const fallbackContext = { hasContext: false, message: 'Failed to load context' }
         window.__smartVisitContext = fallbackContext
-        visitContext.value = fallbackContext
+        return fallbackContext
       }
     }
 
     captureSelectionContext()
 
-    // Capture visit context for context-aware plugins
-    await captureVisitContext()
+    // Capture visit context for context-aware plugins (per window)
+    const context = await captureVisitContext()
 
     // Lazy load the plugin component
     const plugin = await pluginManager.loadPlugin(pluginId)
 
-    // Apply override config and component state if provided (for state restoration)
-    if (overrideConfig || componentState) {
-      activePluginConfig.value = {
-        ...plugin,
-        config: overrideConfig ? { ...plugin.config, ...overrideConfig } : plugin.config,
-        initialState: componentState, // Pass component state for restoration
-      }
-    } else {
-      activePluginConfig.value = plugin
+    // Apply override config if provided (for state restoration)
+    const config = overrideConfig ? { ...plugin, config: { ...plugin.config, ...overrideConfig } } : plugin
+
+    const win = {
+      id: pluginId,
+      config,
+      initialState: componentState,
+      context,
+      pos: [0, 0],
+      z: ++zCounter,
     }
+    win.pos = defaultWindowPos(win)
+    openWindows.value.push(win)
 
-    pluginDialog.value = true
-
-    // Wait for dialog and component to be fully rendered
+    // Wait for the window and component to be fully rendered
     await nextTick()
-    // Additional small delay to ensure component is fully initialized
-    await new Promise((resolve) => setTimeout(resolve, 100))
   } catch (error) {
     console.error('Failed to load plugin:', error)
-    // You could show a user-friendly error message here
-  } finally {
-    loadingPlugin.value = false
   }
 }
 
-const closePlugin = (isMinimizing = false) => {
+const closePlugin = (win, isMinimizing = false) => {
+  openWindows.value = openWindows.value.filter((w) => w.id !== win.id)
+  windowRefs.delete(win.id)
+
   // Only clean up stored instance when closing permanently (not when minimizing)
-  if (activePluginId.value && !isMinimizing) {
-    pluginStateStore.removePluginState(activePluginId.value)
-  }
-
-  pluginDialog.value = false
-  activePluginId.value = null
-  activePluginConfig.value = null
-
-  // Reset context when closing (but not when minimizing)
   if (!isMinimizing) {
-    visitContext.value = { hasContext: false }
+    pluginStateStore.removePluginState(win.id)
   }
 }
 
-const minimizePlugin = async () => {
-  if (activePluginConfig.value) {
-    // Wait for next tick to ensure component is fully rendered
-    await nextTick()
+const minimizePlugin = async (win) => {
+  // Get component state before minimizing (if the component instance exposes it)
+  let componentState = {}
+  const componentRef = windowRefs.get(win.id)
 
-    // Get component state before minimizing (if the component instance exposes it)
-    let componentState = {}
-
-    // Try to access the component instance
-    const componentRef = activePluginComponent.value
-
-    if (componentRef && typeof componentRef.getState === 'function') {
-      try {
-        componentState = componentRef.getState() || {}
-      } catch (e) {
-        console.warn(`Failed to get component state for ${activePluginConfig.value.id}:`, e)
-      }
+  if (componentRef && typeof componentRef.getState === 'function') {
+    try {
+      componentState = componentRef.getState() || {}
+    } catch (e) {
+      console.warn(`Failed to get component state for ${win.id}:`, e)
     }
-
-    // Store the current plugin state in the store
-    pluginStateStore.savePluginState(activePluginConfig.value.id, {
-      config: { ...activePluginConfig.value.config },
-      componentState,
-    })
-
-    // Prevent duplicate mini plugins
-    if (!miniPlugins.value.some((p) => p.id === activePluginConfig.value.id)) {
-      miniPlugins.value.push({ ...activePluginConfig.value })
-    }
-    closePlugin(true) // Pass true to indicate we're minimizing, not closing permanently
   }
+
+  // Store the current plugin state in the store
+  pluginStateStore.savePluginState(win.id, {
+    config: { ...win.config.config },
+    componentState,
+  })
+
+  // Prevent duplicate mini plugins
+  if (!miniPlugins.value.some((p) => p.id === win.id)) {
+    miniPlugins.value.push({ ...win.config })
+  }
+  closePlugin(win, true) // Minimizing, not closing permanently
 }
 
 const expandPlugin = (pluginId) => {

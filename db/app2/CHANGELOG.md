@@ -27,6 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Das technische `public`-Konto ist kein wählbarer Empfänger (niemand
     liest dessen Postfach) — Broadcasts laufen über die „An alle“-Option.
 
+- **Mehrere SmartButton-Fenster gleichzeitig**: Plugins öffnen sich als
+  unabhängige schwebende Fenster (z. B. Notizen + Rechner nebeneinander),
+  jedes einzeln verschiebbar/minimierbar, Klick holt ein Fenster nach vorn
+  (Z-Order), neue Fenster kaskadieren von rechts oben. Pro Plugin maximal
+  ein Fenster — erneutes Öffnen fokussiert das vorhandene. Der bisherige
+  Einzel-Dialog (zweites Plugin ersetzte das erste) entfällt.
+
 - **SmartButton Quick Notes: echtes Notizsystem mit Kontext**
   (`features/smartbutton-notizen`): Quick Notes waren bisher rein flüchtig
   (In-Memory, weg beim Schließen) — jetzt persistent in `NOTE_FACT`.
