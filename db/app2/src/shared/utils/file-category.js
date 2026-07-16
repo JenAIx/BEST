@@ -91,6 +91,25 @@ export function getFileCategory(key) {
 }
 
 /**
+ * Filter observations for the compact-summary search box: case-insensitive
+ * match on concept name, display value or category (e.g. "Ka" → "Kalium").
+ * @param {Array} observations - transformed observations
+ * @param {string} term - search term (falsy → unfiltered)
+ * @returns {Array}
+ */
+export function filterObservations(observations, term) {
+  const needle = String(term || '')
+    .trim()
+    .toLowerCase()
+  if (!needle) return observations || []
+
+  return (observations || []).filter((obs) => {
+    const haystacks = [obs.conceptName, obs.displayValue, obs.category, obs.unit]
+    return haystacks.some((value) => String(value || '').toLowerCase().includes(needle))
+  })
+}
+
+/**
  * Group a patient's observations by visit (encounterNum) for the compact
  * all-visits summary. Within each visit, observations are grouped by
  * category (same shape as observation-store.categorizedObservations:

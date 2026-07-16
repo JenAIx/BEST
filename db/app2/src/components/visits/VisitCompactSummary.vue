@@ -1,6 +1,18 @@
 <template>
   <div class="compact-summary">
-    <div v-for="visit in sortedVisits" :key="visit.id" class="visit-block q-mb-md">
+    <!-- Result search: filters observations across all visits (e.g. "Ka" → Kalium) -->
+    <q-input v-model="searchTerm" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="compact-search q-mb-md" debounce="200">
+      <template v-slot:prepend>
+        <q-icon name="search" size="18px" />
+      </template>
+    </q-input>
+
+    <div v-if="searchTerm && visibleVisits.length === 0" class="text-center text-grey-6 q-pa-lg">
+      <q-icon name="search_off" size="32px" class="q-mb-xs" />
+      <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
+    </div>
+
+    <div v-for="visit in visibleVisits" :key="visit.id" class="visit-block q-mb-md">
       <!-- Visit header (click selects the visit like the timeline does) -->
       <div class="visit-block-header row items-center q-gutter-sm" @click="$emit('visit-selected', visit)">
         <q-icon name="event" color="primary" size="20px" />
@@ -46,7 +58,7 @@
 import { ref, computed } from 'vue'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
-import { groupObservationsByVisit } from 'src/shared/utils/file-category'
+import { groupObservationsByVisit, filterObservations } from 'src/shared/utils/file-category'
 import { formatDate, getVisitTypeLabel } from 'src/shared/utils/medical-utils.js'
 import VisitSummaryObservations from './VisitSummaryObservations.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
@@ -62,12 +74,20 @@ const visitStore = useVisitStore()
 const observationStore = useObservationStore()
 
 const sortedVisits = computed(() => visitStore.sortedVisits)
+const searchTerm = ref('')
 
 // encounterNum → categorized observation groups (all patient observations
-// are already loaded page-wide by visit-observation-service)
-const groupedByVisit = computed(() => groupObservationsByVisit(observationStore.allObservations))
+// are already loaded page-wide by visit-observation-service), filtered by
+// the search box (concept name / value / category, e.g. "Ka" → Kalium)
+const groupedByVisit = computed(() => groupObservationsByVisit(filterObservations(observationStore.allObservations, searchTerm.value)))
 
 const observationsForVisit = (visitId) => groupedByVisit.value.get(visitId) || []
+
+// While searching, only visits with at least one matching result are shown
+const visibleVisits = computed(() => {
+  if (!searchTerm.value) return sortedVisits.value
+  return sortedVisits.value.filter((visit) => observationsForVisit(visit.id).length > 0)
+})
 
 // Preview dialogs (same wiring as VisitSummaryDialog)
 const selectedFileObservation = ref(null)
@@ -87,6 +107,14 @@ const previewQuestionnaire = (observation) => {
 </script>
 
 <style lang="scss" scoped>
+.compact-search {
+  max-width: 420px;
+
+  :deep(.q-field__control) {
+    background: white;
+  }
+}
+
 .visit-block {
   background: white;
   border: 1px solid $grey-4;

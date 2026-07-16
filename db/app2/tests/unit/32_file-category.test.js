@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { suggestFileCategory, getFileExtension, getFileCategory, groupObservationsByVisit, FILE_CATEGORIES } from '../../src/shared/utils/file-category.js'
+import { suggestFileCategory, getFileExtension, getFileCategory, groupObservationsByVisit, filterObservations, FILE_CATEGORIES } from '../../src/shared/utils/file-category.js'
 
 describe('getFileExtension', () => {
   it('extracts the lower-cased extension', () => {
@@ -71,6 +71,36 @@ describe('getFileCategory', () => {
     expect(getFileCategory('video').key).toBe('video')
     expect(getFileCategory('nope').key).toBe('other')
     expect(getFileCategory(null).key).toBe('other')
+  })
+})
+
+describe('filterObservations', () => {
+  const rows = [
+    { conceptName: 'Kalium', displayValue: '4.2', category: 'Laboratory', unit: 'mmol/l' },
+    { conceptName: 'Natrium', displayValue: '140', category: 'Laboratory', unit: 'mmol/l' },
+    { conceptName: 'Blutdruck', displayValue: 'kalt gemessen', category: 'Vital Signs', unit: null },
+  ]
+
+  it('matches concept names case-insensitively (partial)', () => {
+    expect(filterObservations(rows, 'Ka').map((r) => r.conceptName)).toEqual(['Kalium', 'Blutdruck'])
+    expect(filterObservations(rows, 'kalium')).toHaveLength(1)
+  })
+
+  it('matches display values, categories and units too', () => {
+    expect(filterObservations(rows, '140')[0].conceptName).toBe('Natrium')
+    expect(filterObservations(rows, 'vital')[0].conceptName).toBe('Blutdruck')
+    expect(filterObservations(rows, 'mmol')).toHaveLength(2)
+  })
+
+  it('empty or blank term returns everything', () => {
+    expect(filterObservations(rows, '')).toHaveLength(3)
+    expect(filterObservations(rows, '   ')).toHaveLength(3)
+    expect(filterObservations(rows, null)).toHaveLength(3)
+  })
+
+  it('no match returns empty array; null input is safe', () => {
+    expect(filterObservations(rows, 'xyz')).toHaveLength(0)
+    expect(filterObservations(null, 'ka')).toEqual([])
   })
 })
 

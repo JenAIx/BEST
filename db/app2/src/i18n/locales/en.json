@@ -384,7 +384,9 @@
     "fileCategoryImage": "Image",
     "fileCategoryDocument": "Document",
     "fileCategoryConsent": "Consent form",
-    "fileCategoryOther": "Other / raw data"
+    "fileCategoryOther": "Other / raw data",
+    "compactSearchPlaceholder": "Filter results… (e.g. potassium, LDL, 39.9)",
+    "compactSearchNoResults": "No results match \"{term}\""
   },
   "observation": {
     "observation": "Observation",

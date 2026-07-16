@@ -384,7 +384,9 @@
     "fileCategoryImage": "Bild",
     "fileCategoryDocument": "Dokument",
     "fileCategoryConsent": "Aufklärung / Einwilligung",
-    "fileCategoryOther": "Sonstiges / Rohdaten"
+    "fileCategoryOther": "Sonstiges / Rohdaten",
+    "compactSearchPlaceholder": "Ergebnisse filtern… (z. B. Kalium, LDL, 39,9)",
+    "compactSearchNoResults": "Keine Ergebnisse zu „{term}“"
   },
   "observation": {
     "observation": "Beobachtung",
