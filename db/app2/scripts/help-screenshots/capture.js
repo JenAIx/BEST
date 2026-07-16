@@ -125,6 +125,9 @@ async function main() {
     ['#/dashboard', 'dashboard'],
     ['#/visits', 'visits'],
     [`#/visits/${PATIENT_CD}`, 'visits-patient'],
+    // Hop away first: a pure query change on the same route doesn't re-trigger
+    // the view-mode switch in VisitsPage
+    ['#/dashboard', 'dashboard'],
     [`#/visits/${PATIENT_CD}?view=patient`, 'patient-data'],
     ['#/questionnaires', 'questionnaires'],
   ]
