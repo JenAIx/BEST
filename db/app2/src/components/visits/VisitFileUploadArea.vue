@@ -8,7 +8,7 @@
       @dragover.prevent="isDragOver = true"
       @dragleave.prevent="isDragOver = false"
     >
-      <q-icon name="cloud_upload" size="32px" :color="isDragOver ? 'primary' : 'grey-6'" />
+      <q-icon name="cloud_upload" size="26px" :color="isDragOver ? 'primary' : 'grey-6'" />
       <div class="upload-text">
         <div class="text-subtitle2">{{ $t('visit.uploadDropHere') }}</div>
         <div class="text-caption text-grey-6">{{ $t('visit.uploadHint') }}</div>
@@ -85,10 +85,15 @@ const onSaved = (payload) => {
 </script>
 
 <style lang="scss" scoped>
+// Sticky at the bottom of the scrollable timeline view: stays visible while
+// scrolling through long visit lists instead of hiding below the last visit.
 .upload-area-wrap {
+  position: sticky;
+  bottom: 8px;
+  z-index: 10;
   display: flex;
   justify-content: center;
-  margin: 20px auto 4px;
+  margin: 16px auto 0;
   max-width: 700px;
 }
 
@@ -97,11 +102,13 @@ const onSaved = (payload) => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 14px;
-  padding: 18px 24px;
+  gap: 12px;
+  padding: 10px 20px;
   border: 2px dashed $grey-5;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(4px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   transition:
     border-color 0.2s ease,
@@ -110,11 +117,15 @@ const onSaved = (payload) => {
   &:hover,
   &.upload-area--drag {
     border-color: $primary;
-    background: $blue-1;
+    background: rgba(227, 242, 253, 0.95); // $blue-1 with slight transparency
   }
 
   .upload-text {
     text-align: left;
+
+    .text-subtitle2 {
+      line-height: 1.2;
+    }
   }
 }
 
