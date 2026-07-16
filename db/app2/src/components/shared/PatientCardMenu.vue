@@ -32,20 +32,22 @@
         <q-item-section>{{ $t('patient.menuExport') }}</q-item-section>
       </q-item>
 
-      <template v-if="canManage">
+      <template v-if="canManageAccess || canDelete">
         <q-separator />
 
-        <q-item clickable v-close-popup @click="togglePublic">
-          <q-item-section avatar><q-icon :name="accessInfo?.isPublic ? 'public_off' : 'public'" size="18px" /></q-item-section>
-          <q-item-section>{{ accessInfo?.isPublic ? $t('patient.menuMakePrivate') : $t('patient.menuMakePublic') }}</q-item-section>
-        </q-item>
+        <template v-if="canManageAccess">
+          <q-item clickable v-close-popup @click="togglePublic">
+            <q-item-section avatar><q-icon :name="accessInfo?.isPublic ? 'public_off' : 'public'" size="18px" /></q-item-section>
+            <q-item-section>{{ accessInfo?.isPublic ? $t('patient.menuMakePrivate') : $t('patient.menuMakePublic') }}</q-item-section>
+          </q-item>
 
-        <q-item clickable v-close-popup @click="openOwnerDialog">
-          <q-item-section avatar><q-icon name="manage_accounts" size="18px" /></q-item-section>
-          <q-item-section>{{ $t('patient.menuChangeOwner') }}</q-item-section>
-        </q-item>
+          <q-item clickable v-close-popup @click="openOwnerDialog">
+            <q-item-section avatar><q-icon name="manage_accounts" size="18px" /></q-item-section>
+            <q-item-section>{{ $t('patient.menuChangeOwner') }}</q-item-section>
+          </q-item>
+        </template>
 
-        <q-item clickable v-close-popup @click="confirmDelete" class="text-negative">
+        <q-item v-if="canDelete" clickable v-close-popup @click="confirmDelete" class="text-negative">
           <q-item-section avatar><q-icon name="delete" size="18px" color="negative" /></q-item-section>
           <q-item-section>{{ $t('common.delete') }}</q-item-section>
         </q-item>
@@ -111,6 +113,7 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import ExportService from 'src/core/services/export-service.js'
 import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 import StudyMembershipMenuItems from 'src/components/shared/StudyMembershipMenuItems.vue'
+import { canManagePatientAccess } from 'src/shared/utils/patient-access.js'
 
 const props = defineProps({
   patient: {
@@ -140,7 +143,19 @@ const newOwnerId = ref(null)
 const transferring = ref(false)
 const deleteDialog = ref(null)
 
-const canManage = computed(() => {
+// Owner/public mutations: admin, owner, or any user for ownerless-public
+// patients (shared policy, matches the store guard).
+const canManageAccess = computed(() =>
+  canManagePatientAccess({
+    isAdmin: authStore.isAdmin,
+    currentUserId: authStore.currentUser?.USER_ID,
+    ownerUserId: accessInfo.value?.ownerUserId ?? null,
+    isPublic: !!accessInfo.value?.isPublic,
+  }),
+)
+
+// Deletion stays stricter: only admins or the patient's creator/owner.
+const canDelete = computed(() => {
   if (authStore.isAdmin) return true
   const currentUserId = authStore.currentUser?.USER_ID
   return currentUserId !== undefined && currentUserId !== null && accessInfo.value?.ownerUserId === currentUserId

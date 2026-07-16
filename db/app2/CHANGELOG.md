@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Patientendaten-Tab: Studie entfernen + Rechte/Owner-Sektion**
+  (`/visits` → Patientendaten).
+  - Studieninfo-Karte: pro Mitgliedschaft ein Entfernen-Button (löscht die
+    `STUDY_PATIENT_LOOKUP`-Zeile hart, mit Bestätigung — im Unterschied zum
+    Withdraw-Status). Neue Methoden `study-repository.removePatientFromStudy`,
+    study-store `removePatientFromStudy`, Composable
+    `usePatientStudyActions.removeMembership`.
+  - Neue Karte `PatientAccessCard.vue`: zeigt Owner + Sichtbarkeit, mit
+    Public-Toggle und Owner-Wechsel. Geteiltes Composable
+    `usePatientAccessActions.js`.
+  - **Erweiterte Access-Policy** (`src/shared/utils/patient-access.js`,
+    `canManagePatientAccess`): Owner/Public darf ändern, wer Admin ist, der
+    Owner, **oder** – bei ownerlosen öffentlichen Patienten – jeder
+    eingeloggte Nutzer. Der Store-Guard (`database-store.assertOwnerOrAdmin`)
+    und die PatientCard-Kontextmenü-Sichtbarkeit nutzen jetzt dieselbe Regel;
+    das Löschen bleibt strenger (Admin oder Creator, in PatientCardMenu als
+    eigenes `canDelete` getrennt). Tests:
+    `tests/unit/28_patient-access-policy.test.js`.
+
 - **Studien-Audit-Modul** (`features/audit-studies`): Studien-Datenerhebung
   systematisch abarbeitbar.
   - **Audit-Tab auf `/studies/:id`** (`StudyAuditPanel.vue`): KPIs (offene
@@ -95,6 +114,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Menü, Studienzugehörigkeit + Studienstatus, Patient verwalten, Löschen.
 
 ### Changed
+
+- **Grid-Footer entschlackt + Visitentyp-Sperre in die Kopfzeile**: Der
+  Footer des Datentabellen-Editors nutzt jetzt die volle Breite (Status links,
+  Statistik rechts, `max-width`/Zentrierung entfernt), „Alle Änderungen
+  gespeichert" ist auf das grüne Häkchen mit Tooltip reduziert (Warn-Text mit
+  Zähler bleibt bei ungespeicherten Änderungen sichtbar). Der
+  Visitentyp-Sperre-Chip wanderte aus dem Footer in die Kopfzeile links neben
+  die Zoom-Buttons: kompakter Icon-Button (Kalender + Schloss-Badge,
+  `lock`/`lock_open` je nach Zustand) mit Tooltip; der Schalter in den
+  Anzeigeoptionen bleibt als Zweitzugang.
 
 - **„Abgeschlossen" zählt weiter als eingeschrieben**: Alle
   Studien-Zählqueries filtern jetzt einheitlich `!= 'withdrawn'` statt

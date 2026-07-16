@@ -688,6 +688,20 @@ export const useStudyStore = defineStore('study', () => {
     }
   }
 
+  /** Remove a patient's membership from a study entirely (hard delete). */
+  const removePatientFromStudy = async (studyId, patientNum) => {
+    try {
+      const studyRepo = dbStore.getRepository('study')
+      await studyRepo.removePatientFromStudy(studyId, patientNum)
+      logger.success('Patient membership removed', { studyId, patientNum })
+      await refreshAuditCacheFor(studyId)
+      return true
+    } catch (err) {
+      logger.error('Failed to remove patient membership', err, { studyId, patientNum })
+      throw err
+    }
+  }
+
   // Initialize store with mock data
   const initialize = async () => {
     try {
@@ -746,6 +760,7 @@ export const useStudyStore = defineStore('study', () => {
     setEnrollmentStatus,
     enrollPatientInStudy,
     withdrawPatientFromStudy,
+    removePatientFromStudy,
     updateResearchStats,
     loadResearchStats,
 

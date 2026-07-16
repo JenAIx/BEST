@@ -736,6 +736,33 @@ class StudyRepository extends BaseRepository {
   }
 
   /**
+   * Remove a patient's membership row from a study entirely (hard delete of
+   * the STUDY_PATIENT_LOOKUP row) — distinct from withdrawPatient, which keeps
+   * the row and only flips ENROLLMENT_STATUS_CD to 'withdrawn'.
+   *
+   * @param {number} studyId - Study ID (STUDY_NUM)
+   * @param {number} patientId - Patient ID (PATIENT_NUM)
+   * @returns {Promise<boolean>} Success status
+   */
+  async removePatientFromStudy(studyId, patientId) {
+    try {
+      this.logger.info('Removing patient from study', { studyId, patientId })
+      const result = await this.connection.executeCommand(
+        'DELETE FROM STUDY_PATIENT_LOOKUP WHERE STUDY_NUM = ? AND PATIENT_NUM = ?',
+        [studyId, patientId],
+      )
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Failed to remove patient from study')
+      }
+      this.logger.success('Patient removed from study', { studyId, patientId })
+      return true
+    } catch (error) {
+      this.logger.error('Failed to remove patient from study', error)
+      throw error
+    }
+  }
+
+  /**
    * Get patients enrolled in a study
    * @param {number} studyId - Study ID
    * @param {{userId: number, isAdmin: boolean}|null} userAccess - Optional user
