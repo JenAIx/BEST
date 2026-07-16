@@ -1,5 +1,8 @@
 <template>
   <q-card class="patient-card" :class="{ 'patient-card--selected': selected }" flat bordered @click="selectPatient">
+    <q-tooltip v-if="selectHint" anchor="top middle" self="bottom middle" :delay="600" class="bg-grey-9">
+      {{ selectHint }}
+    </q-tooltip>
     <!-- Top-right badges: study tags + owner (ellipsis overflow, details in tooltips) -->
     <div v-if="studyTags.length > 0 || patient.owner || patient.isPublic" class="card-badges">
       <span v-for="tag in studyTags" :key="tag.short" class="study-badge">
@@ -32,8 +35,34 @@
           </span>
         </div>
       </div>
-      <q-chip v-if="status" :color="status.color" text-color="white" size="sm" dense class="status-chip">
+      <q-chip
+        v-if="status"
+        :color="status.color"
+        text-color="white"
+        size="sm"
+        dense
+        class="status-chip"
+        :clickable="hasStatusOptions"
+        @click.stop
+      >
         {{ status.label }}
+        <q-icon v-if="hasStatusOptions" name="arrow_drop_down" size="14px" />
+        <q-menu v-if="hasStatusOptions" auto-close>
+          <q-list dense>
+            <q-item
+              v-for="option in statusOptions"
+              :key="option.code"
+              clickable
+              :active="option.code === status.code"
+              @click.stop="emit('status-change', { patient, status: option.code })"
+            >
+              <q-item-section avatar>
+                <q-icon :name="option.icon" :color="option.color" size="18px" />
+              </q-item-section>
+              <q-item-section>{{ $t(option.labelKey) }}</q-item-section>
+            </q-item>
+          </q-list>
+        </q-menu>
       </q-chip>
       <q-btn v-if="removable" flat round dense size="sm" icon="person_remove" color="negative" @click.stop="emit('remove', patient)">
         <q-tooltip>{{ $t('common.remove') }}</q-tooltip>
@@ -41,8 +70,9 @@
       <q-icon name="chevron_right" size="16px" class="chevron" />
     </q-card-section>
 
-    <!-- Right-click context menu (visits, study, export, owner, delete, …) -->
-    <PatientCardMenu :patient="patient" @changed="emit('changed')" />
+    <!-- Right-click context menu (visits, study, export, owner, delete, …).
+         Study mutations forward a change detail for targeted card updates. -->
+    <PatientCardMenu :patient="patient" @changed="(detail) => emit('changed', detail)" />
   </q-card>
 </template>
 
@@ -70,11 +100,25 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // Optional: makes the status chip a dropdown. Array of
+  // { code, labelKey, color, icon } (e.g. ENROLLMENT_STATUSES) —
+  // selecting an entry emits 'status-change' with { patient, status }.
+  statusOptions: {
+    type: Array,
+    default: null,
+  },
+  // Optional hover tooltip (e.g. "Shift-click to multi-select")
+  selectHint: {
+    type: String,
+    default: '',
+  },
 })
 
-const emit = defineEmits(['select', 'remove', 'changed'])
+const emit = defineEmits(['select', 'remove', 'changed', 'status-change'])
 
 const { t } = useI18n()
+
+const hasStatusOptions = computed(() => Array.isArray(props.statusOptions) && props.statusOptions.length > 0)
 
 // Patients without a name in PATIENT_BLOB fall back to their PATIENT_CD as
 // "name" — don't fake initials from digits and don't repeat the ID in the meta line.
@@ -132,8 +176,11 @@ const metaFacts = computed(() => {
   return parts.join(' · ')
 })
 
-const selectPatient = () => {
-  emit('select', props.patient)
+// Pass the original MouseEvent so parents can branch on modifier keys
+// (Shift/Ctrl/Meta) — e.g. navigate on a plain click, toggle selection on
+// Shift-click.
+const selectPatient = (evt) => {
+  emit('select', props.patient, evt)
 }
 </script>
 

@@ -37,6 +37,20 @@ body,
   }
 }
 
+// Desktop-app feel: the layout roots carry Quasar's `.non-selectable`
+// (user-select: none) so interactions like shift-clicking patient cards for
+// multi-select don't drag-select page text. Form fields and anything a
+// component explicitly marks `.selectable` stay selectable so editing and
+// copy-on-purpose keep working (needs !important to beat Quasar's rule).
+input,
+textarea,
+select,
+[contenteditable='true'],
+.selectable,
+.selectable * {
+  user-select: text !important;
+}
+
 // Utility classes
 .cursor-pointer {
   cursor: pointer;

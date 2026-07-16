@@ -17,6 +17,7 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
       columnOrder: [], // Store column order
       viewOptions: {}, // Store view options
       hiddenVisits: [], // Store hidden visit encounter numbers
+      pendingAuditFilter: false, // One-shot: activate audit filter on next editor load
     },
     visits: {
       recentPatients: [], // Store recent patient IDs for quick access (max 10)
@@ -169,6 +170,20 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     return settings.value.dataGrid.selectedPatientIds && settings.value.dataGrid.selectedPatientIds.length > 0
   }
 
+  // One-shot flag: activate the audit filter on the next grid-editor load
+  // (set by the study audit views before navigating to /data-grid/editor)
+  const setPendingAuditFilter = (value) => {
+    settings.value.dataGrid.pendingAuditFilter = !!value
+  }
+
+  const consumePendingAuditFilter = () => {
+    const pending = !!settings.value.dataGrid.pendingAuditFilter
+    if (pending) {
+      settings.value.dataGrid.pendingAuditFilter = false
+    }
+    return pending
+  }
+
   // Reset Data Grid settings
   const resetDataGridSettings = () => {
     settings.value.dataGrid = { ...defaultSettings.dataGrid }
@@ -282,6 +297,8 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     setDataGridSelectedPatients,
     clearDataGridSelectedPatients,
     hasDataGridSelectedPatients,
+    setPendingAuditFilter,
+    consumePendingAuditFilter,
     resetDataGridSettings,
 
     // Database Path specific methods

@@ -150,8 +150,15 @@
               <q-icon :name="getCategoryIcon(study.category)" :color="getCategoryColor(study.category)" size="24px" />
               <div class="col study-card-info">
                 <div class="text-weight-medium study-card-name">{{ study.name }}</div>
-                <div class="text-caption text-grey-6 study-card-meta">{{ study.category }} · {{ study.patientCount }} {{ $t('study.patients') }}</div>
+                <div class="text-caption text-grey-6 study-card-meta">
+                  {{ study.category }} · {{ study.patientCount }} {{ $t('study.patients') }}
+                  <template v-if="enrollmentBadge(study)"> · {{ enrollmentBadge(study) }}</template>
+                </div>
               </div>
+              <q-chip v-if="openAuditCount(study)" color="negative" text-color="white" size="sm" dense icon="flag">
+                {{ openAuditCount(study) }}
+                <q-tooltip>{{ $t('study.audit.openAudits') }}</q-tooltip>
+              </q-chip>
               <q-chip :color="getStatusColor(study.status)" text-color="white" size="sm" dense>
                 {{ study.status }}
               </q-chip>
@@ -177,6 +184,10 @@
 
           <template v-slot:body-cell-status="props">
             <q-td :props="props">
+              <q-chip v-if="openAuditCount(props.row)" color="negative" text-color="white" size="sm" icon="flag">
+                {{ openAuditCount(props.row) }}
+                <q-tooltip>{{ $t('study.audit.openAudits') }}</q-tooltip>
+              </q-chip>
               <q-chip :color="getStatusColor(props.row.status)" text-color="white" size="sm">
                 {{ props.row.status }}
               </q-chip>
@@ -371,11 +382,46 @@ const loadStudies = async () => {
   hasSearched.value = true
   try {
     await studyStore.searchStudies(searchQuery.value, filters.value)
+    await loadStudyBadges()
   } catch (error) {
     console.error('Failed to load studies:', error)
     notify.error('Failed to load studies')
   }
 }
+
+// Per-study badges: enrollment progress ("x/y abgeschlossen") + open audits.
+// One batch query each — no per-study N+1.
+const enrollmentCounts = ref(new Map())
+const auditCounts = ref(new Map())
+
+const loadStudyBadges = async () => {
+  const studyIds = studyStore.studies.filter((s) => s).map((s) => s.id)
+  if (!studyIds.length) {
+    enrollmentCounts.value = new Map()
+    auditCounts.value = new Map()
+    return
+  }
+  try {
+    const [statusMap, auditMap] = await Promise.all([
+      dbStore.getEnrollmentStatusCountsForStudies(studyIds),
+      dbStore.getOpenAuditCountsForStudies(studyIds),
+    ])
+    enrollmentCounts.value = statusMap
+    auditCounts.value = auditMap
+  } catch (error) {
+    console.error('Failed to load study badges:', error)
+  }
+}
+
+const enrollmentBadge = (study) => {
+  const counts = enrollmentCounts.value.get(study.id)
+  if (!counts) return ''
+  const enrolled = counts.active + counts.completed
+  if (!enrolled) return ''
+  return t('study.completedBadge', { completed: counts.completed, enrolled })
+}
+
+const openAuditCount = (study) => auditCounts.value.get(study.id) || 0
 
 const analyzeSearchQuery = (query) => {
   const suggestions = []
@@ -602,6 +648,7 @@ onMounted(async () => {
     // Show all studies right away — no search/category click needed
     try {
       await studyStore.searchStudies('', {})
+      await loadStudyBadges()
     } catch (error) {
       console.error('Failed to load studies:', error)
     }

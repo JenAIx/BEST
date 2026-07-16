@@ -175,15 +175,26 @@
                   </div>
                 </div>
                 <!-- Right-click anywhere in the patient cell (incl. subsequent
-                     visit rows where the avatar is hidden): manage + delete. -->
-                <q-menu context-menu touch-position auto-close>
+                     visit rows where the avatar is hidden): info, grid removal,
+                     study membership/status, manage + delete. -->
+                <q-menu context-menu touch-position>
                   <q-list dense style="min-width: 220px">
-                    <q-item clickable @click="openManagePatientDialog(row)">
+                    <q-item clickable v-close-popup @click="openPatientInfoDialog(row)">
+                      <q-item-section avatar><q-icon name="assignment_ind" color="primary" /></q-item-section>
+                      <q-item-section>{{ $t('dataGrid.patientInfo') }}</q-item-section>
+                    </q-item>
+                    <q-item clickable v-close-popup @click="openManagePatientDialog(row)">
                       <q-item-section avatar><q-icon name="manage_accounts" color="primary" /></q-item-section>
                       <q-item-section>{{ $t('dataGrid.managePatient') }}</q-item-section>
                     </q-item>
+                    <q-item clickable v-close-popup @click="removePatientRowFromGrid(row)">
+                      <q-item-section avatar><q-icon name="grid_off" color="grey-8" /></q-item-section>
+                      <q-item-section>{{ $t('dataGrid.removePatientFromGrid') }}</q-item-section>
+                    </q-item>
                     <q-separator />
-                    <q-item clickable @click="openDeletePatientFromGrid(row)">
+                    <StudyMembershipMenuItems :patient="{ id: row.patientId }" @changed="onStudyMembershipChanged" />
+                    <q-separator />
+                    <q-item clickable v-close-popup @click="openDeletePatientFromGrid(row)">
                       <q-item-section avatar><q-icon name="delete_forever" color="negative" /></q-item-section>
                       <q-item-section>
                         <q-item-label>{{ $t('patient.deletePatient') }}</q-item-label>
@@ -563,15 +574,38 @@
           </q-list>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn 
-            flat 
-            :label="$t('dataGrid.removePatientFromGrid')" 
-            color="negative" 
+          <q-btn
+            flat
+            :label="$t('dataGrid.removePatientFromGrid')"
+            color="negative"
             @click="removePatientFromGrid"
           />
           <q-space />
           <q-btn flat :label="$t('common.close')" @click="showManagePatientDialog = false" />
         </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Patient Info Dialog (demographics + additional info + study info) -->
+    <q-dialog v-model="showPatientInfoDialog">
+      <q-card style="min-width: 640px; max-width: 90vw">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">{{ $t('dataGrid.patientInfo') }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div v-if="patientInfoLoading" class="text-center q-py-lg">
+            <q-spinner color="primary" size="32px" />
+          </div>
+          <div v-else-if="patientInfoData" class="q-gutter-md">
+            <PatientDemographicsCard :patient="patientInfoData" @updated="reloadPatientInfo" />
+            <PatientStudyInfoCard :patient="patientInfoData" />
+          </div>
+          <div v-else class="text-grey-6 text-center q-py-lg">
+            {{ $t('patient.unknownPatient') }}
+          </div>
+        </q-card-section>
       </q-card>
     </q-dialog>
   </div>
@@ -595,6 +629,9 @@ import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 import PatientSelectionCard from 'src/components/shared/PatientSelectionCard.vue'
+import StudyMembershipMenuItems from 'src/components/shared/StudyMembershipMenuItems.vue'
+import PatientDemographicsCard from 'src/components/patient/PatientDemographicsCard.vue'
+import PatientStudyInfoCard from 'src/components/patient/PatientStudyInfoCard.vue'
 import { useI18n } from 'vue-i18n'
 import { useVisitStore } from 'src/stores/visit-store'
 import MedicationOverviewDialog from './MedicationOverviewDialog.vue'
@@ -1982,27 +2019,72 @@ const toggleVisitVisibility = (encounterNum) => {
   saveHiddenVisits(hiddenVisits.value)
 }
 
-// Remove patient from grid
-const removePatientFromGrid = async () => {
-  if (!selectedPatientForManagement.value) return
-
+// Remove a patient from the grid selection (shared by the manage dialog and
+// the patient-cell context menu)
+const removePatientByIdFromGrid = async (patientId, patientName) => {
   try {
     const localSettings = useLocalSettingsStore()
     const currentPatients = localSettings.getDataGridSelectedPatients()
-    const updatedPatients = currentPatients.filter(id => id !== selectedPatientForManagement.value.patientId)
+    const updatedPatients = currentPatients.filter((id) => id !== patientId)
     localSettings.setDataGridSelectedPatients(updatedPatients)
-
-    showManagePatientDialog.value = false
 
     // Refresh grid data with updated patient list
     if (dataGridStore?.refreshData) {
       await dataGridStore.refreshData(updatedPatients)
     }
 
-    notify.success(t('dataGrid.patientRemovedFromGrid', { name: selectedPatientForManagement.value.patientName }))
+    notify.success(t('dataGrid.patientRemovedFromGrid', { name: patientName || patientId }))
   } catch (error) {
     logger.error('Failed to remove patient from grid', error)
     notify.error(t('dataGrid.failedToRemovePatient'))
+  }
+}
+
+// Remove patient from grid (manage dialog button)
+const removePatientFromGrid = async () => {
+  if (!selectedPatientForManagement.value) return
+  showManagePatientDialog.value = false
+  await removePatientByIdFromGrid(selectedPatientForManagement.value.patientId, selectedPatientForManagement.value.patientName)
+}
+
+// Remove patient from grid (context menu on the patient cell)
+const removePatientRowFromGrid = async (row) => {
+  await removePatientByIdFromGrid(row.patientId, row.patientName)
+}
+
+// Study membership/status changed via context menu — nothing in the grid
+// renders enrollment data, so a lightweight confirmation is enough.
+const onStudyMembershipChanged = () => {}
+
+// --- Patient info dialog (demographics + study info) -----------------------
+
+const showPatientInfoDialog = ref(false)
+const patientInfoLoading = ref(false)
+const patientInfoData = ref(null)
+const patientInfoCode = ref(null)
+
+const loadPatientInfo = async (patientCd) => {
+  patientInfoLoading.value = true
+  try {
+    // Access-filtered lookup — regular users only see their own/public patients
+    patientInfoData.value = await databaseStore.getAccessiblePatientByCode(String(patientCd))
+  } catch (error) {
+    logger.error('Failed to load patient info', error)
+    patientInfoData.value = null
+  } finally {
+    patientInfoLoading.value = false
+  }
+}
+
+const openPatientInfoDialog = async (row) => {
+  patientInfoCode.value = row.patientId
+  showPatientInfoDialog.value = true
+  await loadPatientInfo(row.patientId)
+}
+
+const reloadPatientInfo = async () => {
+  if (patientInfoCode.value != null) {
+    await loadPatientInfo(patientInfoCode.value)
   }
 }
 

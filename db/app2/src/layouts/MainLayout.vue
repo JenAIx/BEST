@@ -1,5 +1,5 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
+  <q-layout view="lHh Lpr lFf" class="non-selectable">
     <!-- Header -->
     <q-header elevated class="bg-white text-dark">
       <q-toolbar class="q-py-sm">
