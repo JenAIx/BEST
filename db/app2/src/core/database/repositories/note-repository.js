@@ -54,6 +54,65 @@ class NoteRepository extends BaseRepository {
   }
 
   /**
+   * Find notes linked to a patient
+   * @param {number} patientNum - PATIENT_NUM foreign key
+   * @returns {Promise<Array>} - Array of notes for the patient
+   */
+  async findByPatientNum(patientNum) {
+    const sql = `SELECT * FROM ${this.tableName} WHERE PATIENT_NUM = ? ORDER BY IMPORT_DATE DESC`
+    const result = await this.connection.executeQuery(sql, [patientNum])
+    return result.success ? result.data : []
+  }
+
+  /**
+   * Get quick notes (CATEGORY_CHAR='QUICK_NOTE') of one user, newest first.
+   * Ownership is tracked via SOURCESYSTEM_CD = USER_CD (NOTE_FACT has no user column).
+   * @param {Object} options - { userCd, limit, offset, searchTerm }
+   * @returns {Promise<Array>} - Array of quick notes
+   */
+  async getQuickNotes({ userCd, limit = 50, offset = 0, searchTerm = '' } = {}) {
+    let sql = `SELECT * FROM ${this.tableName} WHERE CATEGORY_CHAR = 'QUICK_NOTE'`
+    const params = []
+
+    if (userCd) {
+      sql += ` AND SOURCESYSTEM_CD = ?`
+      params.push(userCd)
+    }
+    if (searchTerm && searchTerm.trim().length > 0) {
+      sql += ` AND (NOTE_TEXT LIKE ? OR NAME_CHAR LIKE ?)`
+      const pattern = `%${searchTerm.trim()}%`
+      params.push(pattern, pattern)
+    }
+
+    sql += ` ORDER BY IMPORT_DATE DESC LIMIT ? OFFSET ?`
+    params.push(limit, offset)
+
+    const result = await this.connection.executeQuery(sql, params)
+    return result.success ? result.data : []
+  }
+
+  /**
+   * Get messenger rows (CATEGORY_CHAR='MESSAGE') a user is involved in,
+   * as sender (SOURCESYSTEM_CD) or recipient ("to" in the NOTE_BLOB JSON).
+   * The LIKE prefilter avoids a JSON1 dependency; callers re-verify the
+   * blob's to/from fields in JS.
+   * @param {string} userCd - USER_CD of the user
+   * @param {Object} options - { limit }
+   * @returns {Promise<Array>} - Array of message notes, newest first
+   */
+  async getMessagesForUser(userCd, { limit = 100 } = {}) {
+    const sql = `
+      SELECT * FROM ${this.tableName}
+      WHERE CATEGORY_CHAR = 'MESSAGE'
+        AND (SOURCESYSTEM_CD = ? OR NOTE_BLOB LIKE ? OR NOTE_BLOB LIKE ?)
+      ORDER BY IMPORT_DATE DESC LIMIT ?
+    `
+    // '*' as recipient = broadcast to everyone
+    const result = await this.connection.executeQuery(sql, [userCd, `%"to":"${userCd}"%`, `%"to":"*"%`, limit])
+    return result.success ? result.data : []
+  }
+
+  /**
    * Find notes by name pattern
    * @param {string} namePattern - Name pattern to search for
    * @returns {Promise<Array>} - Array of matching notes

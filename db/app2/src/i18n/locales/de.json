@@ -926,7 +926,80 @@
     "rewrittenTextPlaceholder": "Umgeschriebener Text wird hier angezeigt",
     "tooltip": "Smart Button - Klicken um Plugins zu öffnen",
     "minimize": "Minimieren",
-    "loadingPlugin": "Plugin wird geladen..."
+    "loadingPlugin": "Plugin wird geladen...",
+    "plugins": {
+      "calculator": {
+        "name": "Rechner",
+        "tooltip": "Einfacher Rechner"
+      },
+      "notes": {
+        "name": "Quick Notes",
+        "tooltip": "Schnelle Notizen"
+      },
+      "unitConverter": {
+        "name": "Einheiten-Umrechner",
+        "tooltip": "Einheiten umrechnen"
+      },
+      "bmiCalculator": {
+        "name": "BMI-Rechner",
+        "tooltip": "BMI berechnen"
+      },
+      "levodopaCalculator": {
+        "name": "Levodopa-Rechner",
+        "tooltip": "Levodopa-Äquivalenz-Rechner"
+      },
+      "askAi": {
+        "name": "KI fragen",
+        "tooltip": "KI-Assistent fragen",
+        "tooltipNoKey": "KI-Assistent (API-Key erforderlich)"
+      },
+      "rewrite": {
+        "name": "Umformulieren",
+        "tooltip": "Markierten Text umformulieren"
+      }
+    },
+    "close": "Schließen",
+    "quickNotes": {
+      "tabNew": "Neue Notiz",
+      "tabList": "Notizen",
+      "contextHint": "Angehängter Kontext",
+      "noContext": "Kein Kontext — die aktuelle Seite wird gespeichert",
+      "recent": "Letzte Notizen",
+      "searchPlaceholder": "Notizen durchsuchen…",
+      "emptyList": "Noch keine Notizen",
+      "emptySearch": "Keine Notizen gefunden",
+      "openContext": "Kontext öffnen",
+      "edit": "Notiz bearbeiten",
+      "delete": "Notiz löschen",
+      "confirmDeleteTitle": "Notiz löschen",
+      "confirmDeleteMessage": "Diese Notiz endgültig löschen?",
+      "saved": "Notiz gespeichert",
+      "updated": "Notiz aktualisiert",
+      "deleted": "Notiz gelöscht",
+      "saveFailed": "Notiz konnte nicht gespeichert werden",
+      "loadFailed": "Notizen konnten nicht geladen werden",
+      "dbUnavailable": "Keine Datenbankverbindung — Notizen können nicht gespeichert werden",
+      "page": "Seite"
+    },
+    "messages": {
+      "tab": "Nachrichten",
+      "recipient": "Empfänger",
+      "messagePlaceholder": "Nachricht schreiben…",
+      "send": "Senden",
+      "reply": "Antworten",
+      "replyTo": "Antwort auf",
+      "from": "von",
+      "to": "an",
+      "unread": "ungelesen",
+      "empty": "Noch keine Nachrichten",
+      "sent": "Nachricht gesendet",
+      "deleted": "Nachricht gelöscht",
+      "sendFailed": "Nachricht konnte nicht gesendet werden",
+      "loadFailed": "Nachrichten konnten nicht geladen werden",
+      "confirmDeleteTitle": "Nachricht löschen",
+      "confirmDeleteMessage": "Diese Nachricht endgültig löschen?",
+      "toAll": "An alle"
+    }
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",

@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **SmartButton Messenger** (Notizen mit Special-Tag `CATEGORY_CHAR='MESSAGE'`,
+  kein Schema-Change): Nutzer können sich gegenseitig Nachrichten schicken.
+  - Dritter Tab „Nachrichten“ im Quick-Notes-Fenster: Empfänger-Auswahl
+    (alle Nutzer + **„An alle“**-Broadcast via Empfänger `*`), Text, Senden;
+    einfaches Antworten (replyToId + „Antwort auf“-Bezug), Löschen mit
+    Bestätigung (Broadcasts nur durch den Absender — eine geteilte Zeile).
+  - Nachrichten tragen denselben Kontext wie Quick Notes (Patient/Studie/
+    Seite als klickbarer Chip — „schau dir diesen Patienten an“).
+  - **Ungelesen-Badge am SmartButton-FAB** (rot, Anzahl; 60s-Refresh,
+    still ohne DB-Verbindung) + Badge an der Notes-Aktion und am Tab.
+    Öffnen des Tabs markiert alles als gelesen (Direktnachrichten via
+    `readAt`, Broadcasts pro Leser via `readBy`-Liste im Blob).
+  - Absender in `SOURCESYSTEM_CD`, Empfänger/Gelesen-Status im
+    `NOTE_BLOB`-JSON; `note-repository.getMessagesForUser` (LIKE-Prefilter,
+    JS-Verifikation). Tests: `tests/unit/31_messenger.test.js` (13 Tests).
+  - Das technische `public`-Konto ist kein wählbarer Empfänger (niemand
+    liest dessen Postfach) — Broadcasts laufen über die „An alle“-Option.
+
+- **Mehrere SmartButton-Fenster gleichzeitig**: Plugins öffnen sich als
+  unabhängige schwebende Fenster (z. B. Notizen + Rechner nebeneinander),
+  jedes einzeln verschiebbar/minimierbar, Klick holt ein Fenster nach vorn
+  (Z-Order), neue Fenster kaskadieren von rechts oben. Pro Plugin maximal
+  ein Fenster — erneutes Öffnen fokussiert das vorhandene. Der bisherige
+  Einzel-Dialog (zweites Plugin ersetzte das erste) entfällt.
+
+- **SmartButton Quick Notes: echtes Notizsystem mit Kontext**
+  (`features/smartbutton-notizen`): Quick Notes waren bisher rein flüchtig
+  (In-Memory, weg beim Schließen) — jetzt persistent in `NOTE_FACT`.
+  - **Persistenz**: `NoteRepository` erstmals in `database-service.js`
+    registriert; neue Repo-Methoden `findByPatientNum` (behebt latenten
+    Bug in `search-service`) und `getQuickNotes` (eigene Notizen via
+    `SOURCESYSTEM_CD = USER_CD`, Suche, Pagination). Neuer Pinia-Store
+    `note-store.js` (create/load/update/delete).
+  - **Kontext**: Beim Speichern werden Patient (`PATIENT_NUM`), Visite
+    (`ENCOUNTER_NUM`), Studie und aktuelle Route in `NOTE_BLOB` erfasst
+    (`src/shared/utils/note-context.js`, pure + getestet). Jede Notiz
+    zeigt einen klickbaren Kontext-Chip (Priorität Patient → Studie →
+    Seite), der dorthin zurücknavigiert; im „Neu“-Tab wird der Kontext
+    vorab angezeigt.
+  - **Tab-UI** (`NotesWidget.vue` + `NoteListItem.vue`): „Neue Notiz“
+    (Editor + Kontext-Vorschau + letzte 3 Notizen) und „Notizen“
+    (Badge mit Anzahl, Debounce-Suche, Inline-Bearbeiten, Löschen mit
+    Bestätigung). Entwurf überlebt Minimieren (getState/initial-state).
+  - **Nicht-modales Plugin-Fenster**: Der SmartButton-Dialog (alle
+    Plugins) ist jetzt `seamless` — kein Backdrop, der Hintergrund bleibt
+    voll bedienbar — und an der Titelzeile frei verschiebbar
+    (v-touch-pan, Viewport-Clamping).
+  - **i18n komplett**: Alle Plugin-Namen/-Tooltips über neue
+    `smartButton.plugins.*`-Keys (de/en), Quick-Notes-UI über
+    `smartButton.quickNotes.*`; hartkodierte englische Labels entfernt.
+  - Tests: `tests/unit/30_quick-notes.test.js` (17 Tests: Kontext-Utils,
+    Repo-Filter, Store-Verhalten).
+
 - **Studienseite merkt sich die zuletzt gewählte Studie**
   (`features/studypage-remember`): Wer `/studies` frisch ansteuert, landet
   direkt wieder in der zuletzt geöffneten Studie statt auf der Suchliste
@@ -122,6 +175,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Patienteninfo-Dialog (Demografie + Studieninfo, access-gefiltert via
     `getAccessiblePatientByCode`), „Patient aus Tabelle entfernen" direkt im
     Menü, Studienzugehörigkeit + Studienstatus, Patient verwalten, Löschen.
+
+### Fixed
+
+- **Quick Notes: Kontext-Klick schließt das Fenster nicht mehr**: Navigation
+  über den Kontext-Chip lässt das (seamless) Notiz-Fenster offen, sodass man
+  Notiz und Zielseite gleichzeitig sieht.
 
 ### Changed
 
