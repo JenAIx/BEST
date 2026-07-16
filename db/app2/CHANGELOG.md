@@ -125,6 +125,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Drawer: kein Höhensprung mehr zwischen Mini- und Voll-Modus**: Die
+  Sektionsüberschriften (Patientenverwaltung, Studienverwaltung,
+  Administration, Datenoperationen) waren ~48px hohe `q-item-label header`,
+  die im Mini-Modus ausgeblendet wurden — beim Aufklappen sprangen alle
+  Einträge nach unten. Jetzt beschriftete Separatoren mit fester Höhe
+  (16px in beiden Modi): Mini zeigt nur die Linie, aufgeklappt die Linie
+  mit winzigem Uppercase-Label in der Mitte. Unbeschriftete Separatoren
+  auf dieselbe Optik angeglichen.
+
 - **`/visits/:patientId` als bewusster Vollbild-Modus**: Die Patientenansicht
   läuft — wie der Datentabellen-Editor — ohne Drawer/Top-Bar (eigene
   Top-Level-Route mit PublicLayout + `requireAuth`). Der Rückweg ist der

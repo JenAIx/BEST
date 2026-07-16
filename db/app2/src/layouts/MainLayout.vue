@@ -98,10 +98,10 @@
             <q-item-section>{{ $t('navigation.dashboard') }}</q-item-section>
           </q-item>
 
-          <q-separator spaced />
-
           <!-- Patient Management -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.patientManagement') }}</q-item-label>
+          <div class="nav-section" :class="{ 'nav-section--mini': miniState }">
+            <span class="nav-section-label">{{ $t('navigation.patientManagement') }}</span>
+          </div>
 
           <q-item clickable v-ripple to="/visits" active-class="bg-primary text-white">
             <q-item-section avatar>
@@ -117,10 +117,10 @@
             <q-item-section>{{ $t('navigation.questionnaires') }}</q-item-section>
           </q-item>
 
-          <q-separator spaced />
-
           <!-- Study Management -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.studyManagement') }}</q-item-label>
+          <div class="nav-section" :class="{ 'nav-section--mini': miniState }">
+            <span class="nav-section-label">{{ $t('navigation.studyManagement') }}</span>
+          </div>
 
           <q-item clickable v-ripple to="/studies" active-class="bg-primary text-white">
             <q-item-section avatar>
@@ -138,9 +138,9 @@
 
           <!-- Administration (Admin only) -->
           <template v-if="isAdmin">
-            <q-separator spaced />
-
-            <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.administration') }}</q-item-label>
+            <div class="nav-section" :class="{ 'nav-section--mini': miniState }">
+              <span class="nav-section-label">{{ $t('navigation.administration') }}</span>
+            </div>
 
             <q-item v-if="canAccess('/concepts')" clickable v-ripple to="/concepts" active-class="bg-primary text-white">
               <q-item-section avatar>
@@ -171,10 +171,10 @@
             </q-item>
           </template>
 
-          <q-separator spaced />
-
           <!-- Data Operations -->
-          <q-item-label header class="text-weight-bold text-uppercase text-grey-7">{{ $t('navigation.dataOperations') }}</q-item-label>
+          <div class="nav-section" :class="{ 'nav-section--mini': miniState }">
+            <span class="nav-section-label">{{ $t('navigation.dataOperations') }}</span>
+          </div>
 
           <q-item clickable v-ripple to="/import" active-class="bg-primary text-white">
             <q-item-section avatar>
@@ -192,7 +192,7 @@
 
           <!-- Development (Admin only) -->
           <template v-if="isAdmin">
-            <q-separator spaced />
+            <div class="nav-section nav-section--mini"></div>
 
             <q-item clickable v-ripple to="/database-test" active-class="bg-primary text-white">
               <q-item-section avatar>
@@ -203,7 +203,7 @@
           </template>
 
           <!-- Support & Feedback -->
-          <q-separator spaced />
+          <div class="nav-section nav-section--mini"></div>
 
           <q-item clickable v-ripple to="/feedback" active-class="bg-primary text-white">
             <q-item-section avatar>
@@ -375,9 +375,40 @@ onBeforeUnmount(() => {
     }
   }
 
-  .q-item-label.header {
-    font-size: 0.75rem;
-    letter-spacing: 0.05em;
+  // Labeled section separator: fixed height in BOTH drawer modes so items
+  // don't jump vertically when the drawer expands from mini to full width.
+  // Mini: plain line. Expanded: line with a tiny uppercase label inside.
+  .nav-section {
+    display: flex;
+    align-items: center;
+    height: 16px;
+    margin: 6px 12px;
+    gap: 8px;
+
+    &::before,
+    &::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: $grey-4;
+    }
+
+    .nav-section-label {
+      font-size: 0.6rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: $grey-6;
+      white-space: nowrap;
+    }
+
+    &.nav-section--mini {
+      gap: 0;
+
+      .nav-section-label {
+        display: none;
+      }
+    }
   }
 }
 
