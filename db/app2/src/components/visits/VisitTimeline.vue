@@ -55,9 +55,9 @@
         />
       </div>
 
-      <!-- File upload area (bottom center): drop or click a PDF/image/video
-           to store it as a VALTYPE 'R' observation on a chosen visit -->
-      <VisitFileUploadArea v-if="!loading" @uploaded="onFileUploaded" />
+      <!-- File upload area (bottom center, card timeline only): drop or click
+           a PDF/image/video to store it as a VALTYPE 'R' observation -->
+      <VisitFileUploadArea v-if="!loading && !compactMode" @uploaded="onFileUploaded" />
     </div>
 
     <!-- New Visit Dialog -->
