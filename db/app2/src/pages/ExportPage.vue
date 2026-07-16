@@ -1,7 +1,7 @@
 <template>
   <q-page class="export-page">
     <div class="q-pa-md">
-      <div class="text-h4 q-mb-md">{{ $t('export.exportData') }}</div>
+      <PageHeader :title="$t('export.exportData')" />
 
       <!-- Patient Data Explorer -->
       <q-card>
@@ -109,6 +109,7 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ExportService from 'src/core/services/export-service.js'
 import ExportDialog from 'src/components/export/ExportDialog.vue'
 import PatientCard from 'src/components/shared/PatientCard.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const notify = useNotify()
 const dbStore = useDatabaseStore()

@@ -1,10 +1,7 @@
 <template>
   <q-page class="data-grid-page">
     <div class="q-pa-md">
-      <div class="text-h4 q-mb-md flex items-center">
-        <q-icon name="grid_on" size="32px" color="primary" class="q-mr-sm" />
-        {{ $t('navigation.dataGrid') }}
-      </div>
+      <PageHeader :title="$t('navigation.dataGrid')" />
 
       <!-- Patient Selection Card -->
       <q-card>
@@ -132,6 +129,7 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import PatientCard from 'src/components/shared/PatientCard.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const notify = useNotify()
 const { t } = useI18n()

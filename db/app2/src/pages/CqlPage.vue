@@ -1,16 +1,11 @@
 <template>
   <q-page class="q-pa-md">
     <!-- Page Header -->
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">{{ $t('cql.cqlAdministration') }}</div>
-      <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">
-          {{ getStatusText() }}
-        </div>
+    <PageHeader :title="$t('cql.cqlAdministration')" :subtitle="$t('cql.cqlHint')">
+      <div class="text-caption text-grey-6">
+        {{ getStatusText() }}
       </div>
-    </div>
-
-    <p class="text-subtitle1 text-grey-7 q-mb-lg">{{ $t('cql.cqlHint') }}</p>
+    </PageHeader>
 
     <!-- Tab Selection -->
     <div class="row q-gutter-md q-mb-md">
@@ -35,6 +30,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useCqlStore } from 'src/stores/cql-store'
 import CqlRulesManager from 'src/components/cql/CqlRulesManager.vue'
 import CqlConceptAssociations from 'src/components/cql/CqlConceptAssociations.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const cqlStore = useCqlStore()
 

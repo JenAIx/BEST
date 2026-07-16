@@ -2,12 +2,7 @@
   <q-page class="feedback-page">
     <div class="q-pa-md">
       <!-- Page Header -->
-      <div class="row q-mb-lg">
-        <div class="col-12">
-          <div class="text-h4 text-primary">{{ $t('feedback.title') }}</div>
-          <div class="text-body1 text-grey-7 q-mt-sm">{{ $t('feedback.subtitle') }}</div>
-        </div>
-      </div>
+      <PageHeader :title="$t('feedback.title')" :subtitle="$t('feedback.subtitle')" />
 
       <div class="row q-col-gutter-lg">
         <!-- Feedback Form Card -->
@@ -233,6 +228,7 @@ import { useI18n } from 'vue-i18n'
 import { useFeedbackStore } from 'src/stores/feedback-store'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useNotify } from 'src/composables/useNotify'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const notify = useNotify()
 const { t } = useI18n()

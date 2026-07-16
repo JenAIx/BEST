@@ -134,6 +134,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Einheitlicher Seitenkopf nach Questionnaire-Vorlage + Breadcrumbs
+  entfernt**: Neue geteilte Komponente
+  `src/components/shared/PageHeader.vue` (h1-Titel + grauer Untertitel,
+  Actions-Slot rechts). Hover über den Titel zeigt den aktuellen Routen-Pfad
+  als Tooltip (Debug-Hilfe) — dafür ist die globale Breadcrumb-Leiste
+  („Home / …") im MainLayout entfernt. Umgestellt: /visits (Auswahlmodus;
+  Patientenansicht `/visits/:id` unverändert), /studies, /data-grid,
+  /concepts, /cql, /users, /global-settings, /import, /export,
+  /database-test, /feedback, /questionnaires.
+
 - **/visits-Kopfbereich entschlackt**: Der große zentrierte Hero der
   Patientenauswahl (64px-Icon, 3rem-Titel, Untertitel, 3rem-Abstand) ist
   durch eine kompakte Sektions-Titelzeile ersetzt (kleines Icon + Titel +

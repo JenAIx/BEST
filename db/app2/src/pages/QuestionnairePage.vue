@@ -2,17 +2,9 @@
   <q-page class="questionnaire-page">
     <div class="page-container">
       <!-- Page Header -->
-      <div class="page-header q-mb-lg">
-        <div class="row items-center justify-between">
-          <div>
-            <h1 class="text-h4 q-ma-none">Questionnaires</h1>
-            <p class="text-body1 text-grey-6 q-ma-none">Select and complete medical questionnaires</p>
-          </div>
-          <div v-if="currentStep === 'questionnaire'" class="header-actions">
-            <q-btn flat color="grey-7" icon="arrow_back" :label="$t('common.back')" @click="goBackToSelection" />
-          </div>
-        </div>
-      </div>
+      <PageHeader title="Questionnaires" subtitle="Select and complete medical questionnaires">
+        <q-btn v-if="currentStep === 'questionnaire'" flat color="grey-7" icon="arrow_back" :label="$t('common.back')" @click="goBackToSelection" />
+      </PageHeader>
 
       <!-- Step Indicator -->
       <q-stepper v-model="currentStepNumber" color="primary" animated flat bordered class="q-mb-lg">
@@ -146,6 +138,7 @@ import QuestionnaireSelector from '../components/questionnaire/QuestionnaireSele
 import QuestionnaireRenderer from '../components/questionnaire/QuestionnaireRenderer.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
 import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
+import PageHeader from '../components/shared/PageHeader.vue'
 
 // Composables
 const router = useRouter()

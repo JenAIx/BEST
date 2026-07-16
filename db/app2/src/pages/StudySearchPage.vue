@@ -1,15 +1,12 @@
 <template>
   <q-page class="q-pa-md">
     <!-- Header -->
-    <div class="row items-center justify-between q-mb-lg">
-      <div class="text-h4">{{ $t('study.researchStudySearch') }}</div>
-      <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">
-          {{ hasSearched ? $t('study.totalStudiesFound', { count: studyStore.totalStudies }) : $t('study.totalStudiesFound', { count: studyStore.researchStats.totalStudies }) }}
-        </div>
-        <q-btn color="primary" icon="add" :label="$t('study.newStudy')" @click="onCreateStudy" />
+    <PageHeader :title="$t('study.researchStudySearch')">
+      <div class="text-caption text-grey-6">
+        {{ hasSearched ? $t('study.totalStudiesFound', { count: studyStore.totalStudies }) : $t('study.totalStudiesFound', { count: studyStore.researchStats.totalStudies }) }}
       </div>
-    </div>
+      <q-btn color="primary" icon="add" :label="$t('study.newStudy')" @click="onCreateStudy" />
+    </PageHeader>
 
     <!-- Intelligent Study Search -->
     <div class="row justify-center q-mb-md">
@@ -238,6 +235,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
 import CreateStudyDialog from '../components/studies/CreateStudyDialog.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const router = useRouter()
 const notify = useNotify()

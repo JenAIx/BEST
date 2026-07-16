@@ -217,14 +217,6 @@
 
     <!-- Page Container -->
     <q-page-container>
-      <!-- Breadcrumb -->
-      <div class="q-pa-sm bg-grey-1 text-grey-7">
-        <q-breadcrumbs>
-          <q-breadcrumbs-el icon="home" to="/" />
-          <q-breadcrumbs-el v-for="crumb in breadcrumbs" :key="crumb.path" :label="crumb.label" :to="crumb.path" />
-        </q-breadcrumbs>
-      </div>
-
       <!-- Router View -->
       <router-view :class="{ 'search-active': isSearchActive }" />
     </q-page-container>
@@ -233,7 +225,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
@@ -246,7 +238,6 @@ import SmartSearch from 'src/components/shared/SmartSearch.vue'
 const $q = useQuasar()
 
 const notify = useNotify()
-const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
 const authStore = useAuthStore()
@@ -310,33 +301,6 @@ const toggleLanguage = () => {
     notify.error('Error switching language')
   }
 }
-
-// Breadcrumbs
-const breadcrumbs = computed(() => {
-  const paths = route.path.split('/').filter((p) => p)
-  const crumbs = []
-  let currentPath = ''
-
-  for (let i = 0; i < paths.length; i++) {
-    const path = paths[i]
-    currentPath += `/${path}`
-
-    // Legacy /patient/:id route is redirected to /visits/:id; collapse the breadcrumb accordingly.
-    if (path === 'patient' && i < paths.length - 1) {
-      crumbs.push({
-        label: t('navigation.patientVisits'),
-        path: '/visits',
-      })
-    } else {
-      crumbs.push({
-        label: path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' '),
-        path: currentPath,
-      })
-    }
-  }
-
-  return crumbs
-})
 
 // Methods
 const toggleLeftDrawer = () => {

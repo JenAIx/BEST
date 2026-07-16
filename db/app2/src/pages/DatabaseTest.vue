@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h4 q-mb-md">Database Test Page</div>
+    <PageHeader title="Database Test" subtitle="Connection testing, seeding and schema inspection" />
 
     <!-- Database Connection Section -->
     <q-card class="q-mb-md">
@@ -257,6 +257,7 @@ import { useNotify } from 'src/composables/useNotify'
 import { createDemoPatients as createDemoPatientsUtil } from '../core/services/demo-patient-service.js'
 import { deleteDemoPatients as deleteDemoPatientsUtil, countDemoData } from '../core/services/delete-demo-patients-service.js'
 import { questionnaireFiles } from '../core/database/seeds/csv-loader.js'
+import PageHeader from '../components/shared/PageHeader.vue'
 
 const $q = useQuasar()
 

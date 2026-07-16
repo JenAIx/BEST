@@ -2,17 +2,9 @@
   <q-page class="import-page">
     <div class="page-container">
       <!-- Page Header -->
-      <div class="page-header q-mb-lg">
-        <div class="row items-center justify-between">
-          <div>
-            <h1 class="text-h4 q-ma-none">{{ $t('import.importData') }}</h1>
-            <p class="text-body1 text-grey-6 q-ma-none">{{ $t('import.importPatientData') }}</p>
-          </div>
-          <div v-if="currentStep !== 'upload'" class="header-actions">
-            <q-btn flat color="grey-7" icon="arrow_back" :label="$t('import.backToUpload')" @click="goBackToUpload" />
-          </div>
-        </div>
-      </div>
+      <PageHeader :title="$t('import.importData')" :subtitle="$t('import.importPatientData')">
+        <q-btn v-if="currentStep !== 'upload'" flat color="grey-7" icon="arrow_back" :label="$t('import.backToUpload')" @click="goBackToUpload" />
+      </PageHeader>
 
       <!-- Step Indicator -->
       <q-stepper v-model="currentStepNumber" color="primary" animated flat bordered class="q-mb-lg">
@@ -348,6 +340,7 @@ import FileUploadInput from '../components/shared/FileUploadInput.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
 import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
 import ImportPreviewDialog from '../components/shared/ImportPreviewDialog.vue'
+import PageHeader from '../components/shared/PageHeader.vue'
 
 // Composables
 const router = useRouter()

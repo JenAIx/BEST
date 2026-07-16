@@ -1,16 +1,11 @@
 <template>
   <q-page class="q-pa-md">
     <!-- Page Header -->
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">User Management</div>
-      <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">
-          {{ getStatusText() }}
-        </div>
+    <PageHeader title="User Management" subtitle="Manage system users and their patient access permissions">
+      <div class="text-caption text-grey-6">
+        {{ getStatusText() }}
       </div>
-    </div>
-
-    <p class="text-subtitle1 text-grey-7 q-mb-lg">Manage system users and their patient access permissions</p>
+    </PageHeader>
 
     <!-- Tab Selection -->
     <div class="row q-gutter-md q-mb-md">
@@ -35,6 +30,7 @@ import { ref, onMounted } from 'vue'
 import { useUserStore } from 'src/stores/user-store'
 import UserManager from 'src/components/users/UserManager.vue'
 import PatientAccessManagement from 'src/components/users/PatientAccessManagement.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const userStore = useUserStore()
 

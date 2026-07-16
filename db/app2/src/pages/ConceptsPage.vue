@@ -1,18 +1,15 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">{{ $t('concepts.conceptsAdministration') }}</div>
-      <div class="row items-center q-gutter-md">
-        <div class="text-caption text-grey-6">{{ $t('concepts.showingConcepts', { showing: concepts.length, total: totalConcepts }) }}</div>
-        <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
-          <q-tooltip>{{ $t('export.exportToCsv') }}</q-tooltip>
-        </q-btn>
-        <q-btn flat round dense icon="upload" color="secondary" @click="onImportConcepts" :loading="importLoading">
-          <q-tooltip>{{ $t('import.importFromCsv') }}</q-tooltip>
-        </q-btn>
-        <q-btn color="primary" icon="add" :label="$t('concepts.createConcept')" @click="onCreateConcept" />
-      </div>
-    </div>
+    <PageHeader :title="$t('concepts.conceptsAdministration')">
+      <div class="text-caption text-grey-6">{{ $t('concepts.showingConcepts', { showing: concepts.length, total: totalConcepts }) }}</div>
+      <q-btn flat round dense icon="download" color="primary" @click="onExportConcepts" :loading="exportLoading">
+        <q-tooltip>{{ $t('export.exportToCsv') }}</q-tooltip>
+      </q-btn>
+      <q-btn flat round dense icon="upload" color="secondary" @click="onImportConcepts" :loading="importLoading">
+        <q-tooltip>{{ $t('import.importFromCsv') }}</q-tooltip>
+      </q-btn>
+      <q-btn color="primary" icon="add" :label="$t('concepts.createConcept')" @click="onCreateConcept" />
+    </PageHeader>
 
     <!-- Search and Filters -->
     <div class="row q-gutter-md q-mb-md">
@@ -157,6 +154,7 @@ import { createLogger } from 'src/core/services/logging-service'
 import ConceptDialog from 'components/ConceptDialog.vue'
 import ConceptsImportDialog from 'components/ConceptsImportDialog.vue'
 import ValueTypeIcon from 'components/shared/ValueTypeIcon.vue'
+import PageHeader from 'components/shared/PageHeader.vue'
 
 const $q = useQuasar()
 

@@ -1,7 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <div class="text-h4 q-mb-md">{{ $t('navigation.globalSettings') }}</div>
-    <p class="text-subtitle1 text-grey-7 q-mb-lg">{{ $t('settings.globalSettingsHint') }}</p>
+    <PageHeader :title="$t('navigation.globalSettings')" :subtitle="$t('settings.globalSettingsHint')" />
 
     <!-- Category Selection -->
     <CategorySelector
@@ -74,6 +73,7 @@ import AddValueDialog from 'src/components/globalsettings/AddValueDialog.vue'
 import ImportQuestionnaireDialog from 'src/components/globalsettings/ImportQuestionnaireDialog.vue'
 import JsonViewerDialog from 'src/components/globalsettings/JsonViewerDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/globalsettings/QuestionnairePreviewDialog.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const $q = useQuasar()
 const notify = useNotify()
