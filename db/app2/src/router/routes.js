@@ -1,4 +1,5 @@
 import { requireAuth, redirectIfAuthenticated } from './auth-guard'
+import { reopenLastStudy } from './study-remember-guard'
 
 const routes = [
   // Public routes with PublicLayout
@@ -18,11 +19,6 @@ const routes = [
       {
         path: '/changelog',
         component: () => import('pages/ChangelogPage.vue'),
-      },
-      {
-        path: '/visits/:patientId',
-        component: () => import('pages/VisitsPage.vue'),
-        beforeEnter: requireAuth,
       },
     ],
   },
@@ -64,6 +60,7 @@ const routes = [
         path: 'studies',
         component: () => import('pages/StudySearchPage.vue'),
         meta: { requiresAuth: true },
+        beforeEnter: reopenLastStudy,
       },
       {
         path: 'studies/:studyId',
@@ -145,6 +142,22 @@ const routes = [
       {
         path: '',
         component: () => import('pages/DataGridEditorPage.vue'),
+        meta: { requiresAuth: true },
+      },
+    ],
+  },
+
+  // Patient visits fullscreen view — deliberately without drawer/top bar,
+  // like the grid editor. The page's own patient header carries the back
+  // button (history-back or /visits) as the way out.
+  {
+    path: '/visits/:patientId',
+    component: () => import('layouts/PublicLayout.vue'),
+    beforeEnter: requireAuth,
+    children: [
+      {
+        path: '',
+        component: () => import('pages/VisitsPage.vue'),
         meta: { requiresAuth: true },
       },
     ],

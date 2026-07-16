@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Studienseite merkt sich die zuletzt gewählte Studie**
+  (`features/studypage-remember`): Wer `/studies` frisch ansteuert, landet
+  direkt wieder in der zuletzt geöffneten Studie statt auf der Suchliste
+  (Route-Guard `src/router/study-remember-guard.js`, persistiert via
+  `localSettings.studies.lastSelectedStudyId`). Die Liste bleibt erreichbar:
+  Zurück-Navigation aus einer Studie sowie `?stay=1` zeigen immer die Liste.
+  Selbstheilend: gelöschte/nicht mehr vorhandene Studien löschen die Merkung
+  (study-store `loadStudyById`/`deleteStudy`). Tests:
+  `tests/unit/29_studypage-remember.test.js`.
+
 - **Patientendaten-Tab: Studie entfernen + Rechte/Owner-Sektion**
   (`/visits` → Patientendaten).
   - Studieninfo-Karte: pro Mitgliedschaft ein Entfernen-Button (löscht die
@@ -114,6 +124,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Menü, Studienzugehörigkeit + Studienstatus, Patient verwalten, Löschen.
 
 ### Changed
+
+- **Drawer: kein Höhensprung mehr zwischen Mini- und Voll-Modus**: Die
+  Sektionsüberschriften (Patientenverwaltung, Studienverwaltung,
+  Administration, Datenoperationen) waren ~48px hohe `q-item-label header`,
+  die im Mini-Modus ausgeblendet wurden — beim Aufklappen sprangen alle
+  Einträge nach unten. Jetzt beschriftete Separatoren mit fester Höhe
+  (16px in beiden Modi): Mini zeigt nur die Linie, aufgeklappt die Linie
+  mit winzigem Uppercase-Label in der Mitte. Unbeschriftete Separatoren
+  auf dieselbe Optik angeglichen.
+
+- **`/visits/:patientId` als bewusster Vollbild-Modus**: Die Patientenansicht
+  läuft — wie der Datentabellen-Editor — ohne Drawer/Top-Bar (eigene
+  Top-Level-Route mit PublicLayout + `requireAuth`). Der Rückweg ist der
+  Zurück-Pfeil im Patienten-Header (History-back bzw. `/visits`). Die
+  Patientenliste `/visits` bleibt im MainLayout mit Navigation.
+
+### Changed
+
+- **Einheitliches Seiten-Design app-weit** (`src/css/app.scss`): Alle
+  Hauptseiten teilen jetzt dasselbe Grundgerüst — flacher Hintergrund
+  (`--color-background` auf jeder `q-page`), zentrierter
+  `.page-container` (max. 1200px, einheitliches Padding), weiße Boxen mit
+  8px-Radius und dezentem Schatten (`.content-box` + globale
+  `q-card`-Regel innerhalb von Seiten; Dialoge behalten Quasar-Elevation).
+  Entfernt wurden die seitenindividuellen Stile: Gradient-Hintergrund auf
+  /visits, `#f8f9fa`/`$grey-1`-Sonderhintergründe (Dashboard, Data-Grid,
+  Export, Feedback, Import, Questionnaires), Card-Radius-Wildwuchs
+  (10/12/16px auf Studien-Seiten und PatientSelector), lokale
+  `page-container`-Duplikate. /settings bekam denselben PageHeader
+  (neuer Key `settings.pageSubtitle`).
+
+- **Einheitlicher Seitenkopf nach Questionnaire-Vorlage + Breadcrumbs
+  entfernt**: Neue geteilte Komponente
+  `src/components/shared/PageHeader.vue` — h1-Titel mit dem Untertitel
+  kleiner/dezenter inline daneben (Baseline-bündig, bricht auf schmalen
+  Screens um), Actions-Slot rechts. Hover über den Titel zeigt den aktuellen
+  Routen-Pfad als Tooltip (Debug-Hilfe) — dafür ist die globale
+  Breadcrumb-Leiste („Home / …") im MainLayout entfernt. Umgestellt: /visits
+  (Auswahlmodus; Patientenansicht `/visits/:id` unverändert), /studies,
+  /data-grid, /concepts, /cql, /users, /global-settings, /import, /export,
+  /database-test, /feedback, /questionnaires. Alle Titel/Untertitel sauber
+  über i18n (neue `pageSubtitle`-Keys für study/dataGrid/export/concepts/
+  questionnaire/user + `database.testPageTitle/-Subtitle`; hartkodiertes
+  Englisch auf /users, /questionnaires, /database-test ersetzt).
+
+- **/visits-Kopfbereich entschlackt**: Der große zentrierte Hero der
+  Patientenauswahl (64px-Icon, 3rem-Titel, Untertitel, 3rem-Abstand) ist
+  durch eine kompakte Sektions-Titelzeile ersetzt (kleines Icon + Titel +
+  Untertitel in einer Zeile, linksbündig über der Suchkarte) — passend zum
+  neueren Dashboard-Design ohne Seiten-Hero.
 
 - **Grid-Footer entschlackt + Visitentyp-Sperre in die Kopfzeile**: Der
   Footer des Datentabellen-Editors nutzt jetzt die volle Breite (Status links,

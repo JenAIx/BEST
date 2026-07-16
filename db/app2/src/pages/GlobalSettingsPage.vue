@@ -1,61 +1,62 @@
 <template>
-  <q-page class="q-pa-md">
-    <div class="text-h4 q-mb-md">{{ $t('navigation.globalSettings') }}</div>
-    <p class="text-subtitle1 text-grey-7 q-mb-lg">{{ $t('settings.globalSettingsHint') }}</p>
+  <q-page>
+    <div class="page-container">
+      <PageHeader :title="$t('navigation.globalSettings')" :subtitle="$t('settings.globalSettingsHint')" />
 
-    <!-- Category Selection -->
-    <CategorySelector
-      v-model:selected-table="selectedTable"
-      v-model:selected-column="selectedColumn"
-      :loading-tables="loadingTables"
-      :loading-columns="loadingColumns"
-      :column-options="columnOptions"
-      @table-changed="onTableChange"
-      @column-changed="loadLookupValues"
-      @add-value="showAddDialog = true"
-      @import-questionnaire="showImportDialog = true"
-    />
+      <!-- Category Selection -->
+      <CategorySelector
+        v-model:selected-table="selectedTable"
+        v-model:selected-column="selectedColumn"
+        :loading-tables="loadingTables"
+        :loading-columns="loadingColumns"
+        :column-options="columnOptions"
+        @table-changed="onTableChange"
+        @column-changed="loadLookupValues"
+        @add-value="showAddDialog = true"
+        @import-questionnaire="showImportDialog = true"
+      />
 
-    <!-- Data Table -->
-    <LookupDataTable
-      :selected-column="selectedColumn"
-      :lookup-values="lookupValues"
-      :loading="loading"
-      :editing-row="editingRow"
-      :edit-form="editForm"
-      :column-title="getColumnTitle()"
-      :is-questionnaire-column="isQuestionnaireColumn"
-      :is-field-set-column="isFieldSetColumn"
-      :is-visit-type-column="isVisitTypeColumn"
-      @start-edit="startEdit"
-      @save-edit="saveEdit"
-      @cancel-edit="cancelEdit"
-      @delete-value="deleteValue"
-      @preview-questionnaire="showQuestionnairePreview"
-      @view-json="showJsonDialog"
-      @update-edit-form="editForm = $event"
-      @save-field-set="saveFieldSet"
-      @save-visit-type="saveVisitType"
-    />
+      <!-- Data Table -->
+      <LookupDataTable
+        :selected-column="selectedColumn"
+        :lookup-values="lookupValues"
+        :loading="loading"
+        :editing-row="editingRow"
+        :edit-form="editForm"
+        :column-title="getColumnTitle()"
+        :is-questionnaire-column="isQuestionnaireColumn"
+        :is-field-set-column="isFieldSetColumn"
+        :is-visit-type-column="isVisitTypeColumn"
+        @start-edit="startEdit"
+        @save-edit="saveEdit"
+        @cancel-edit="cancelEdit"
+        @delete-value="deleteValue"
+        @preview-questionnaire="showQuestionnairePreview"
+        @view-json="showJsonDialog"
+        @update-edit-form="editForm = $event"
+        @save-field-set="saveFieldSet"
+        @save-visit-type="saveVisitType"
+      />
 
-    <!-- Add Value Dialog -->
-    <AddValueDialog
-      v-model="showAddDialog"
-      :column-title="getColumnTitle()"
-      :is-questionnaire-column="isQuestionnaireColumn"
-      :existing-values="lookupValues"
-      @submit="addValue"
-      @cancel="showAddDialog = false"
-    />
+      <!-- Add Value Dialog -->
+      <AddValueDialog
+        v-model="showAddDialog"
+        :column-title="getColumnTitle()"
+        :is-questionnaire-column="isQuestionnaireColumn"
+        :existing-values="lookupValues"
+        @submit="addValue"
+        @cancel="showAddDialog = false"
+      />
 
-    <!-- Import Questionnaire Dialog -->
-    <ImportQuestionnaireDialog v-model="showImportDialog" @import-success="importQuestionnaire" @cancel="showImportDialog = false" />
+      <!-- Import Questionnaire Dialog -->
+      <ImportQuestionnaireDialog v-model="showImportDialog" @import-success="importQuestionnaire" @cancel="showImportDialog = false" />
 
-    <!-- JSON Viewer Dialog -->
-    <JsonViewerDialog v-model="showJsonViewDialog" :json-content="jsonContent" @close="showJsonViewDialog = false" />
+      <!-- JSON Viewer Dialog -->
+      <JsonViewerDialog v-model="showJsonViewDialog" :json-content="jsonContent" @close="showJsonViewDialog = false" />
 
-    <!-- Questionnaire Preview Dialog -->
-    <QuestionnairePreviewDialog v-model="showPreviewDialog" :json-content="previewJsonContent" @close="showPreviewDialog = false" />
+      <!-- Questionnaire Preview Dialog -->
+      <QuestionnairePreviewDialog v-model="showPreviewDialog" :json-content="previewJsonContent" @close="showPreviewDialog = false" />
+    </div>
   </q-page>
 </template>
 
@@ -74,6 +75,7 @@ import AddValueDialog from 'src/components/globalsettings/AddValueDialog.vue'
 import ImportQuestionnaireDialog from 'src/components/globalsettings/ImportQuestionnaireDialog.vue'
 import JsonViewerDialog from 'src/components/globalsettings/JsonViewerDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/globalsettings/QuestionnairePreviewDialog.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const $q = useQuasar()
 const notify = useNotify()
@@ -389,7 +391,7 @@ onMounted(async () => {
     selectedTable.value = tableParam
     loadingTables.value = false
     await loadColumnOptions()
-    
+
     // Set column after options are loaded
     const columnOption = columnOptions.value.find((opt) => opt.value === columnParam)
     if (columnOption) {
@@ -423,7 +425,7 @@ watch(
         selectedTable.value = newQuery.table
         await loadColumnOptions()
       }
-      
+
       const columnOption = columnOptions.value.find((opt) => opt.value === newQuery.column)
       if (columnOption && selectedColumn.value !== newQuery.column) {
         selectedColumn.value = newQuery.column

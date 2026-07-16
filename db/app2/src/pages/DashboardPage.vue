@@ -1,6 +1,6 @@
 <template>
   <q-page class="dashboard-page">
-    <div class="q-pa-md">
+    <div class="page-container">
       <div class="row q-col-gutter-md">
         <!-- Quick Actions -->
         <div class="col-12 col-md-4">
@@ -481,11 +481,6 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.dashboard-page {
-  background-color: $grey-1;
-  min-height: calc(100vh - 50px);
-}
-
 .stat-item {
   text-align: center;
   padding: 16px;

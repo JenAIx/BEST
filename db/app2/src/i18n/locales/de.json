@@ -55,7 +55,9 @@
     "connectionInfo": "Verbindungsinformationen",
     "filename": "Dateiname",
     "usingCustomPath": "Benutzerdefinierter Pfad wird verwendet",
-    "connectedSince": "Verbunden und betriebsbereit"
+    "connectedSince": "Verbunden und betriebsbereit",
+    "testPageTitle": "Datenbank-Test",
+    "testPageSubtitle": "Verbindungstest, Seeding und Schema-Inspektion"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -418,7 +420,8 @@
     "noQuestionnairesLoaded": "Es wurden noch keine Fragebögen in das System geladen",
     "randomFill": "Zufällig ausfüllen",
     "clearAll": "Alle löschen",
-    "enterPatientId": "Patientenkennung eingeben"
+    "enterPatientId": "Patientenkennung eingeben",
+    "pageSubtitle": "Medizinische Fragebögen auswählen und ausfüllen"
   },
   "study": {
     "study": "Studie",
@@ -562,7 +565,8 @@
     "noTargetSet": "Kein Ziel gesetzt",
     "enterPatientIdOrName": "Patienten-ID oder Name eingeben",
     "failedToSearchPatients": "Patientensuche fehlgeschlagen",
-    "noPatientsFound": "Keine Patienten gefunden"
+    "noPatientsFound": "Keine Patienten gefunden",
+    "pageSubtitle": "Forschungsstudien suchen, verwalten und auswerten"
   },
   "user": {
     "user": "Benutzer",
@@ -591,7 +595,8 @@
     "nameRequired": "Name ist erforderlich",
     "passwordManagement": "Passwort-Verwaltung",
     "resetPassword": "Passwort zurücksetzen",
-    "resetPasswordHint": "Klicken Sie, um eine E-Mail zum Zurücksetzen des Passworts zu erhalten"
+    "resetPasswordHint": "Klicken Sie, um eine E-Mail zum Zurücksetzen des Passworts zu erhalten",
+    "pageSubtitle": "Systembenutzer und deren Patientenzugriffe verwalten"
   },
   "settings": {
     "settings": "Einstellungen",
@@ -630,7 +635,8 @@
     "securityWarning": "API-Schlüssel werden unverschlüsselt im localStorage Ihres Browsers gespeichert. Dies ist praktisch für die Entwicklung, aber nicht für den Produktionseinsatz mit sensiblen Schlüsseln empfohlen. Verwenden Sie in der Produktion Umgebungsvariablen oder sichere Schlüsselverwaltungsdienste.",
     "lastUpdated": "Zuletzt aktualisiert",
     "apiKeyFormatError": "OpenAI API-Schlüssel sollten mit \"sk-\" beginnen",
-    "apiKeyTooShort": "API-Schlüssel scheint zu kurz zu sein"
+    "apiKeyTooShort": "API-Schlüssel scheint zu kurz zu sein",
+    "pageSubtitle": "Persönliche Einstellungen, Profil und lokale Konfiguration"
   },
   "dataGrid": {
     "dataGrid": "Datentabelle",
@@ -757,7 +763,8 @@
     "selectionCleared": "Auswahl gelöscht",
     "storedSelectionCleared": "Gespeicherte Patientenauswahl gelöscht",
     "failedToLoadCounts": "Fehler beim Laden der Besuchs- und Beobachtungszahlen",
-    "failedToLoadPageData": "Fehler beim Laden der Seitendaten"
+    "failedToLoadPageData": "Fehler beim Laden der Seitendaten",
+    "pageSubtitle": "Patientendaten im Excel-ähnlichen Editor bearbeiten"
   },
   "export": {
     "export": "Export",
@@ -779,7 +786,8 @@
     "searchPatientsPlaceholder": "Patienten suchen...",
     "vitalStatus": "Vitalstatus",
     "clearAllFilters": "Alle Filter löschen",
-    "selectAllFiltered": "Alle auswählen"
+    "selectAllFiltered": "Alle auswählen",
+    "pageSubtitle": "Patienten-, Besuchs- und Beobachtungsdaten als CSV oder HL7 exportieren"
   },
   "import": {
     "import": "Import",
@@ -971,7 +979,8 @@
     "filterByValueType": "Nach Werttyp filtern",
     "exportToCsv": "Als CSV exportieren",
     "importConcepts": "Konzepte aus CSV importieren",
-    "importConceptsSubtitle": "Konzepte aus CSV-Datei importieren"
+    "importConceptsSubtitle": "Konzepte aus CSV-Datei importieren",
+    "pageSubtitle": "Medizinische Konzepte verwalten (SNOMED, LOINC, ICD-10)"
   },
   "cql": {
     "cqlAdministration": "CQL-Administration",

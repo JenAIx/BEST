@@ -12,10 +12,12 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useLoggingStore } from './logging-store'
+import { useLocalSettingsStore } from './local-settings-store'
 
 export const useStudyStore = defineStore('study', () => {
   const dbStore = useDatabaseStore()
   const logger = useLoggingStore().createLogger('StudyStore')
+  const localSettings = useLocalSettingsStore()
 
   // State
   const studies = ref([])
@@ -185,6 +187,9 @@ export const useStudyStore = defineStore('study', () => {
       logger.warn('Study not found in store', { studyId: study.id })
       selectedStudy.value = study
     }
+
+    // Remember across sessions so /studies can re-open this study
+    localSettings.setLastSelectedStudyId(study.id)
   }
 
   const clearSelectedStudy = () => {
@@ -245,6 +250,10 @@ export const useStudyStore = defineStore('study', () => {
       const study = await studyRepo.findById(studyId)
 
       if (!study) {
+        // Stale remembered selection (e.g. deleted study) — stop re-opening it
+        if (localSettings.getLastSelectedStudyId() === studyId) {
+          localSettings.setLastSelectedStudyId(null)
+        }
         throw new Error(`Study with ID ${studyId} not found`)
       }
 
@@ -257,6 +266,7 @@ export const useStudyStore = defineStore('study', () => {
       }
 
       selectedStudy.value = study
+      localSettings.setLastSelectedStudyId(studyId)
 
       logger.success('Study loaded', { studyId, studyName: study.name })
 
@@ -390,6 +400,9 @@ export const useStudyStore = defineStore('study', () => {
       // Clear selection if this study was selected
       if (selectedStudy.value?.id === studyId) {
         selectedStudy.value = null
+      }
+      if (localSettings.getLastSelectedStudyId() === studyId) {
+        localSettings.setLastSelectedStudyId(null)
       }
 
       // Update stats

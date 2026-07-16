@@ -1,13 +1,8 @@
 <template>
   <q-page class="feedback-page">
-    <div class="q-pa-md">
+    <div class="page-container">
       <!-- Page Header -->
-      <div class="row q-mb-lg">
-        <div class="col-12">
-          <div class="text-h4 text-primary">{{ $t('feedback.title') }}</div>
-          <div class="text-body1 text-grey-7 q-mt-sm">{{ $t('feedback.subtitle') }}</div>
-        </div>
-      </div>
+      <PageHeader :title="$t('feedback.title')" :subtitle="$t('feedback.subtitle')" />
 
       <div class="row q-col-gutter-lg">
         <!-- Feedback Form Card -->
@@ -233,6 +228,7 @@ import { useI18n } from 'vue-i18n'
 import { useFeedbackStore } from 'src/stores/feedback-store'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useNotify } from 'src/composables/useNotify'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const notify = useNotify()
 const { t } = useI18n()
@@ -375,15 +371,7 @@ onMounted(async () => {
 </script>
 
 <style lang="scss" scoped>
-.feedback-page {
-  background-color: $grey-1;
-  min-height: calc(100vh - 50px);
-}
-
 .feedback-form-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-
   .rating-toggle {
     width: 100%;
 
@@ -403,12 +391,6 @@ onMounted(async () => {
     border-radius: 8px;
     font-weight: 500;
   }
-}
-
-.statistics-card,
-.info-card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
 }
 
 .stat-item {

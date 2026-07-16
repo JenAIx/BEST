@@ -1,231 +1,230 @@
 <template>
-  <q-page class="q-pa-md">
-    <!-- Header -->
-    <div class="row items-center justify-between q-mb-lg">
-      <div class="text-h4">{{ $t('study.researchStudySearch') }}</div>
-      <div class="row items-center q-gutter-md">
+  <q-page>
+    <div class="page-container">
+      <!-- Header -->
+      <PageHeader :title="$t('study.researchStudySearch')" :subtitle="$t('study.pageSubtitle')">
         <div class="text-caption text-grey-6">
           {{ hasSearched ? $t('study.totalStudiesFound', { count: studyStore.totalStudies }) : $t('study.totalStudiesFound', { count: studyStore.researchStats.totalStudies }) }}
         </div>
         <q-btn color="primary" icon="add" :label="$t('study.newStudy')" @click="onCreateStudy" />
-      </div>
-    </div>
+      </PageHeader>
 
-    <!-- Intelligent Study Search -->
-    <div class="row justify-center q-mb-md">
-      <div class="col-12">
-        <q-card flat bordered class="search-card">
-          <q-card-section class="q-pa-md">
-            <q-input v-model="searchQuery" outlined dense :placeholder="$t('study.searchPlaceholder')" class="smart-search" @update:model-value="onSearchChange" debounce="300">
-              <template v-slot:prepend>
-                <q-icon name="search" color="primary" />
-              </template>
-              <template v-slot:append>
-                <q-btn v-if="searchQuery" flat round dense icon="close" @click="clearSearch" />
-                <q-btn flat round dense icon="tune" @click="showAdvancedSearch = !showAdvancedSearch">
-                  <q-tooltip>{{ $t('study.advancedFilters') }}</q-tooltip>
-                </q-btn>
-              </template>
-            </q-input>
+      <!-- Intelligent Study Search -->
+      <div class="row justify-center q-mb-md">
+        <div class="col-12">
+          <q-card flat bordered class="search-card">
+            <q-card-section class="q-pa-md">
+              <q-input v-model="searchQuery" outlined dense :placeholder="$t('study.searchPlaceholder')" class="smart-search" @update:model-value="onSearchChange" debounce="300">
+                <template v-slot:prepend>
+                  <q-icon name="search" color="primary" />
+                </template>
+                <template v-slot:append>
+                  <q-btn v-if="searchQuery" flat round dense icon="close" @click="clearSearch" />
+                  <q-btn flat round dense icon="tune" @click="showAdvancedSearch = !showAdvancedSearch">
+                    <q-tooltip>{{ $t('study.advancedFilters') }}</q-tooltip>
+                  </q-btn>
+                </template>
+              </q-input>
 
-            <!-- Search Suggestions -->
-            <div v-if="searchSuggestions.length > 0" class="q-mt-sm">
-              <div class="text-caption text-grey-6 q-mb-xs">{{ $t('study.detectedLabel') }}</div>
-              <div class="row q-gutter-xs">
-                <q-chip v-for="suggestion in searchSuggestions" :key="suggestion.type" :color="suggestion.color" text-color="white" size="sm" :icon="suggestion.icon">
-                  {{ suggestion.label }}
-                </q-chip>
-              </div>
-            </div>
-          </q-card-section>
-
-          <!-- Advanced Search -->
-          <q-slide-transition>
-            <q-card-section v-show="showAdvancedSearch" class="bg-grey-1">
-              <div class="text-subtitle2 q-mb-md">{{ $t('study.advancedResearchFilters') }}</div>
-              <div class="row q-gutter-md justify-center">
-                <div class="col-12 col-md-4">
-                  <q-select v-model="filters.researchCategory" :options="researchCategories" :label="$t('study.researchCategory')" outlined dense clearable emit-value map-options />
+              <!-- Search Suggestions -->
+              <div v-if="searchSuggestions.length > 0" class="q-mt-sm">
+                <div class="text-caption text-grey-6 q-mb-xs">{{ $t('study.detectedLabel') }}</div>
+                <div class="row q-gutter-xs">
+                  <q-chip v-for="suggestion in searchSuggestions" :key="suggestion.type" :color="suggestion.color" text-color="white" size="sm" :icon="suggestion.icon">
+                    {{ suggestion.label }}
+                  </q-chip>
                 </div>
-                <div class="col-12 col-md-4">
-                  <q-select
-                    v-model="filters.clinicalScale"
-                    :options="clinicalScales"
-                    :label="$t('study.clinicalScale')"
-                    outlined
-                    dense
-                    clearable
-                    emit-value
-                    map-options
-                    use-input
-                    input-debounce="300"
-                    @filter="filterClinicalScales"
-                  />
-                </div>
-                <div class="col-12 col-md-4">
-                  <q-select v-model="filters.studyStatus" :options="studyStatusOptions" :label="$t('study.studyStatus')" outlined dense clearable emit-value map-options />
-                </div>
-              </div>
-              <div class="row justify-end q-mt-md">
-                <q-btn flat :label="$t('study.resetFilters')" @click="resetFilters" class="q-mr-sm" />
-                <q-btn color="primary" :label="$t('study.applyFilters')" @click="applyFilters" />
               </div>
             </q-card-section>
-          </q-slide-transition>
-        </q-card>
-      </div>
-    </div>
 
-    <!-- Compact stats + research category chips (one slim block) -->
-    <div v-if="!searchQuery && !hasActiveFilters" class="compact-overview q-mb-md">
-      <div class="row items-center q-col-gutter-sm">
-        <div class="col-auto compact-stat text-primary">
-          <q-icon name="biotech" size="16px" />
-          <strong>{{ studyStore.researchStats.totalStudies }}</strong> {{ $t('study.totalStudies') }}
-        </div>
-        <div class="col-auto compact-stat text-secondary">
-          <q-icon name="psychology" size="16px" />
-          <strong>{{ studyStore.researchStats.neurologicalStudies }}</strong> {{ $t('study.neurologicalStudies') }}
-        </div>
-        <div class="col-auto compact-stat text-positive">
-          <q-icon name="healing" size="16px" />
-          <strong>{{ studyStore.researchStats.strokeStudies }}</strong> {{ $t('study.strokeResearch') }}
-        </div>
-        <div class="col-auto compact-stat text-info">
-          <q-icon name="timeline" size="16px" />
-          <strong>{{ studyStore.researchStats.activeStudies }}</strong> {{ $t('study.activeStudies') }}
-        </div>
-        <q-space />
-        <div class="col-auto row items-center">
-          <span class="text-caption text-grey-6 q-mr-sm">{{ $t('study.researchCategories') }}:</span>
-          <q-chip
-            v-for="category in researchCategories"
-            :key="category.value"
-            clickable
-            outline
-            square
-            size="sm"
-            :color="category.color"
-            :icon="studyStore.getCategoryIcon(category.label)"
-            @click="searchByCategory(category)"
-          >
-            {{ category.label }} ({{ getCategoryCount(category.value) }})
-          </q-chip>
-        </div>
-      </div>
-    </div>
-
-    <!-- Study List / Search Results -->
-    <div>
-      <div class="row items-center justify-between q-mb-md">
-        <div class="row items-center q-gutter-sm">
-          <div class="text-h6">
-            {{ searchQuery || hasActiveFilters ? $t('study.researchResults') : $t('study.allStudies') }}
-            <span class="text-caption text-grey-6 q-ml-sm">({{ $t('study.totalStudiesFound', { count: studyStore.totalStudies }) }})</span>
-          </div>
-          <!-- Active filters as removable chips + reset -->
-          <template v-if="activeFilterChips.length > 0">
-            <q-chip v-for="chip in activeFilterChips" :key="chip.key" removable outline dense size="sm" color="primary" :icon="chip.icon" @remove="removeFilter(chip.key)">
-              {{ chip.label }}
-            </q-chip>
-            <q-btn flat dense size="sm" color="grey-7" icon="clear_all" :label="$t('study.resetFilters')" @click="clearSearch" />
-          </template>
-        </div>
-        <div class="row items-center q-gutter-sm">
-          <q-btn-toggle v-model="viewMode" :options="viewModeOptions" toggle-color="primary" color="grey-3" text-color="grey-7" size="sm" unelevated />
-        </div>
-      </div>
-
-      <!-- Loading -->
-      <div v-if="studyStore.loading" class="text-center q-py-xl">
-        <q-spinner color="primary" size="48px" />
-        <div class="text-grey-6 q-mt-md">{{ $t('study.searchingStudies') }}</div>
-      </div>
-
-      <!-- Card View -->
-      <div v-else-if="viewMode === 'cards'" class="study-cards-grid">
-        <q-card v-for="study in studyStore.sortedStudies" :key="study.id" flat bordered class="study-card cursor-pointer" @click="onSelectStudy(study)">
-          <q-card-section class="q-pa-sm">
-            <div class="row items-center no-wrap q-gutter-sm">
-              <q-icon :name="getCategoryIcon(study.category)" :color="getCategoryColor(study.category)" size="24px" />
-              <div class="col study-card-info">
-                <div class="text-weight-medium study-card-name">{{ study.name }}</div>
-                <div class="text-caption text-grey-6 study-card-meta">
-                  {{ study.category }} · {{ study.patientCount }} {{ $t('study.patients') }}
-                  <template v-if="enrollmentBadge(study)"> · {{ enrollmentBadge(study) }}</template>
+            <!-- Advanced Search -->
+            <q-slide-transition>
+              <q-card-section v-show="showAdvancedSearch" class="bg-grey-1">
+                <div class="text-subtitle2 q-mb-md">{{ $t('study.advancedResearchFilters') }}</div>
+                <div class="row q-gutter-md justify-center">
+                  <div class="col-12 col-md-4">
+                    <q-select v-model="filters.researchCategory" :options="researchCategories" :label="$t('study.researchCategory')" outlined dense clearable emit-value map-options />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-select
+                      v-model="filters.clinicalScale"
+                      :options="clinicalScales"
+                      :label="$t('study.clinicalScale')"
+                      outlined
+                      dense
+                      clearable
+                      emit-value
+                      map-options
+                      use-input
+                      input-debounce="300"
+                      @filter="filterClinicalScales"
+                    />
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <q-select v-model="filters.studyStatus" :options="studyStatusOptions" :label="$t('study.studyStatus')" outlined dense clearable emit-value map-options />
+                  </div>
                 </div>
-              </div>
-              <q-chip v-if="openAuditCount(study)" color="negative" text-color="white" size="sm" dense icon="flag">
-                {{ openAuditCount(study) }}
-                <q-tooltip>{{ $t('study.audit.openAudits') }}</q-tooltip>
-              </q-chip>
-              <q-chip :color="getStatusColor(study.status)" text-color="white" size="sm" dense>
-                {{ study.status }}
-              </q-chip>
-              <q-btn flat round dense size="sm" color="secondary" icon="analytics" @click.stop="onViewAnalytics(study)">
-                <q-tooltip>{{ $t('study.analytics') }}</q-tooltip>
-              </q-btn>
-            </div>
-            <div v-if="study.description" class="text-caption text-grey-7 study-card-description q-mt-xs">{{ study.description }}</div>
-          </q-card-section>
-        </q-card>
-      </div>
-
-      <!-- Table View -->
-      <div v-else-if="viewMode === 'table'">
-        <q-table :rows="studyStore.sortedStudies" :columns="tableColumns" row-key="id" flat bordered :rows-per-page-options="[10, 25, 50]" class="study-table" @row-click="onTableRowClick">
-          <template v-slot:body-cell-category="props">
-            <q-td :props="props">
-              <q-chip :color="getCategoryColor(props.row.category)" text-color="white" size="sm" :icon="getCategoryIcon(props.row.category)">
-                {{ props.row.category }}
-              </q-chip>
-            </q-td>
-          </template>
-
-          <template v-slot:body-cell-status="props">
-            <q-td :props="props">
-              <q-chip v-if="openAuditCount(props.row)" color="negative" text-color="white" size="sm" icon="flag">
-                {{ openAuditCount(props.row) }}
-                <q-tooltip>{{ $t('study.audit.openAudits') }}</q-tooltip>
-              </q-chip>
-              <q-chip :color="getStatusColor(props.row.status)" text-color="white" size="sm">
-                {{ props.row.status }}
-              </q-chip>
-            </q-td>
-          </template>
-
-          <template v-slot:body-cell-actions="props">
-            <q-td :props="props">
-              <q-btn flat dense icon="visibility" @click.stop="onViewStudy(props.row)">
-                <q-tooltip>{{ $t('study.viewStudy') }}</q-tooltip>
-              </q-btn>
-              <q-btn flat dense icon="analytics" @click.stop="onViewAnalytics(props.row)">
-                <q-tooltip>{{ $t('study.analytics') }}</q-tooltip>
-              </q-btn>
-            </q-td>
-          </template>
-        </q-table>
-      </div>
-
-      <!-- No Results -->
-      <div v-if="!studyStore.loading && studyStore.sortedStudies.length === 0" class="text-center q-py-xl">
-        <q-icon :name="hasSearched ? 'biotech' : 'search_off'" size="64px" color="grey-5" />
-        <div class="text-h6 text-grey-6 q-mt-md">
-          {{ hasSearched ? $t('study.noStudiesFound') : $t('study.searchForStudies') }}
+                <div class="row justify-end q-mt-md">
+                  <q-btn flat :label="$t('study.resetFilters')" @click="resetFilters" class="q-mr-sm" />
+                  <q-btn color="primary" :label="$t('study.applyFilters')" @click="applyFilters" />
+                </div>
+              </q-card-section>
+            </q-slide-transition>
+          </q-card>
         </div>
-        <div class="text-body2 text-grey-6 q-mt-sm">{{ $t('study.trySearchingBy') }}</div>
-        <q-btn v-if="hasSearched" color="primary" :label="$t('study.clearSearch')" @click="clearSearch" class="q-mt-md" />
-        <q-btn v-else color="primary" :label="$t('study.browseCategories')" @click="showAdvancedSearch = true" class="q-mt-md" />
       </div>
-    </div>
 
-    <!-- Pagination -->
-    <div v-if="studyStore.sortedStudies.length > 0" class="row justify-center q-mt-lg">
-      <q-pagination v-model="pagination.page" :max="Math.ceil(studyStore.totalStudies / pagination.rowsPerPage)" direction-links boundary-links color="primary" @update:model-value="loadStudies" />
-    </div>
+      <!-- Compact stats + research category chips (one slim block) -->
+      <div v-if="!searchQuery && !hasActiveFilters" class="compact-overview q-mb-md">
+        <div class="row items-center q-col-gutter-sm">
+          <div class="col-auto compact-stat text-primary">
+            <q-icon name="biotech" size="16px" />
+            <strong>{{ studyStore.researchStats.totalStudies }}</strong> {{ $t('study.totalStudies') }}
+          </div>
+          <div class="col-auto compact-stat text-secondary">
+            <q-icon name="psychology" size="16px" />
+            <strong>{{ studyStore.researchStats.neurologicalStudies }}</strong> {{ $t('study.neurologicalStudies') }}
+          </div>
+          <div class="col-auto compact-stat text-positive">
+            <q-icon name="healing" size="16px" />
+            <strong>{{ studyStore.researchStats.strokeStudies }}</strong> {{ $t('study.strokeResearch') }}
+          </div>
+          <div class="col-auto compact-stat text-info">
+            <q-icon name="timeline" size="16px" />
+            <strong>{{ studyStore.researchStats.activeStudies }}</strong> {{ $t('study.activeStudies') }}
+          </div>
+          <q-space />
+          <div class="col-auto row items-center">
+            <span class="text-caption text-grey-6 q-mr-sm">{{ $t('study.researchCategories') }}:</span>
+            <q-chip
+              v-for="category in researchCategories"
+              :key="category.value"
+              clickable
+              outline
+              square
+              size="sm"
+              :color="category.color"
+              :icon="studyStore.getCategoryIcon(category.label)"
+              @click="searchByCategory(category)"
+            >
+              {{ category.label }} ({{ getCategoryCount(category.value) }})
+            </q-chip>
+          </div>
+        </div>
+      </div>
 
-    <!-- Create Study Dialog -->
-    <CreateStudyDialog v-model="showCreateStudyDialog" @study-created="onStudyCreated" />
+      <!-- Study List / Search Results -->
+      <div>
+        <div class="row items-center justify-between q-mb-md">
+          <div class="row items-center q-gutter-sm">
+            <div class="text-h6">
+              {{ searchQuery || hasActiveFilters ? $t('study.researchResults') : $t('study.allStudies') }}
+              <span class="text-caption text-grey-6 q-ml-sm">({{ $t('study.totalStudiesFound', { count: studyStore.totalStudies }) }})</span>
+            </div>
+            <!-- Active filters as removable chips + reset -->
+            <template v-if="activeFilterChips.length > 0">
+              <q-chip v-for="chip in activeFilterChips" :key="chip.key" removable outline dense size="sm" color="primary" :icon="chip.icon" @remove="removeFilter(chip.key)">
+                {{ chip.label }}
+              </q-chip>
+              <q-btn flat dense size="sm" color="grey-7" icon="clear_all" :label="$t('study.resetFilters')" @click="clearSearch" />
+            </template>
+          </div>
+          <div class="row items-center q-gutter-sm">
+            <q-btn-toggle v-model="viewMode" :options="viewModeOptions" toggle-color="primary" color="grey-3" text-color="grey-7" size="sm" unelevated />
+          </div>
+        </div>
+
+        <!-- Loading -->
+        <div v-if="studyStore.loading" class="text-center q-py-xl">
+          <q-spinner color="primary" size="48px" />
+          <div class="text-grey-6 q-mt-md">{{ $t('study.searchingStudies') }}</div>
+        </div>
+
+        <!-- Card View -->
+        <div v-else-if="viewMode === 'cards'" class="study-cards-grid">
+          <q-card v-for="study in studyStore.sortedStudies" :key="study.id" flat bordered class="study-card cursor-pointer" @click="onSelectStudy(study)">
+            <q-card-section class="q-pa-sm">
+              <div class="row items-center no-wrap q-gutter-sm">
+                <q-icon :name="getCategoryIcon(study.category)" :color="getCategoryColor(study.category)" size="24px" />
+                <div class="col study-card-info">
+                  <div class="text-weight-medium study-card-name">{{ study.name }}</div>
+                  <div class="text-caption text-grey-6 study-card-meta">
+                    {{ study.category }} · {{ study.patientCount }} {{ $t('study.patients') }}
+                    <template v-if="enrollmentBadge(study)"> · {{ enrollmentBadge(study) }}</template>
+                  </div>
+                </div>
+                <q-chip v-if="openAuditCount(study)" color="negative" text-color="white" size="sm" dense icon="flag">
+                  {{ openAuditCount(study) }}
+                  <q-tooltip>{{ $t('study.audit.openAudits') }}</q-tooltip>
+                </q-chip>
+                <q-chip :color="getStatusColor(study.status)" text-color="white" size="sm" dense>
+                  {{ study.status }}
+                </q-chip>
+                <q-btn flat round dense size="sm" color="secondary" icon="analytics" @click.stop="onViewAnalytics(study)">
+                  <q-tooltip>{{ $t('study.analytics') }}</q-tooltip>
+                </q-btn>
+              </div>
+              <div v-if="study.description" class="text-caption text-grey-7 study-card-description q-mt-xs">{{ study.description }}</div>
+            </q-card-section>
+          </q-card>
+        </div>
+
+        <!-- Table View -->
+        <div v-else-if="viewMode === 'table'">
+          <q-table :rows="studyStore.sortedStudies" :columns="tableColumns" row-key="id" flat bordered :rows-per-page-options="[10, 25, 50]" class="study-table" @row-click="onTableRowClick">
+            <template v-slot:body-cell-category="props">
+              <q-td :props="props">
+                <q-chip :color="getCategoryColor(props.row.category)" text-color="white" size="sm" :icon="getCategoryIcon(props.row.category)">
+                  {{ props.row.category }}
+                </q-chip>
+              </q-td>
+            </template>
+
+            <template v-slot:body-cell-status="props">
+              <q-td :props="props">
+                <q-chip v-if="openAuditCount(props.row)" color="negative" text-color="white" size="sm" icon="flag">
+                  {{ openAuditCount(props.row) }}
+                  <q-tooltip>{{ $t('study.audit.openAudits') }}</q-tooltip>
+                </q-chip>
+                <q-chip :color="getStatusColor(props.row.status)" text-color="white" size="sm">
+                  {{ props.row.status }}
+                </q-chip>
+              </q-td>
+            </template>
+
+            <template v-slot:body-cell-actions="props">
+              <q-td :props="props">
+                <q-btn flat dense icon="visibility" @click.stop="onViewStudy(props.row)">
+                  <q-tooltip>{{ $t('study.viewStudy') }}</q-tooltip>
+                </q-btn>
+                <q-btn flat dense icon="analytics" @click.stop="onViewAnalytics(props.row)">
+                  <q-tooltip>{{ $t('study.analytics') }}</q-tooltip>
+                </q-btn>
+              </q-td>
+            </template>
+          </q-table>
+        </div>
+
+        <!-- No Results -->
+        <div v-if="!studyStore.loading && studyStore.sortedStudies.length === 0" class="text-center q-py-xl">
+          <q-icon :name="hasSearched ? 'biotech' : 'search_off'" size="64px" color="grey-5" />
+          <div class="text-h6 text-grey-6 q-mt-md">
+            {{ hasSearched ? $t('study.noStudiesFound') : $t('study.searchForStudies') }}
+          </div>
+          <div class="text-body2 text-grey-6 q-mt-sm">{{ $t('study.trySearchingBy') }}</div>
+          <q-btn v-if="hasSearched" color="primary" :label="$t('study.clearSearch')" @click="clearSearch" class="q-mt-md" />
+          <q-btn v-else color="primary" :label="$t('study.browseCategories')" @click="showAdvancedSearch = true" class="q-mt-md" />
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="studyStore.sortedStudies.length > 0" class="row justify-center q-mt-lg">
+        <q-pagination v-model="pagination.page" :max="Math.ceil(studyStore.totalStudies / pagination.rowsPerPage)" direction-links boundary-links color="primary" @update:model-value="loadStudies" />
+      </div>
+
+      <!-- Create Study Dialog -->
+      <CreateStudyDialog v-model="showCreateStudyDialog" @study-created="onStudyCreated" />
+    </div>
   </q-page>
 </template>
 
@@ -238,6 +237,7 @@ import { useDatabaseStore } from 'src/stores/database-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
 import CreateStudyDialog from '../components/studies/CreateStudyDialog.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const router = useRouter()
 const notify = useNotify()
@@ -402,10 +402,7 @@ const loadStudyBadges = async () => {
     return
   }
   try {
-    const [statusMap, auditMap] = await Promise.all([
-      dbStore.getEnrollmentStatusCountsForStudies(studyIds),
-      dbStore.getOpenAuditCountsForStudies(studyIds),
-    ])
+    const [statusMap, auditMap] = await Promise.all([dbStore.getEnrollmentStatusCountsForStudies(studyIds), dbStore.getOpenAuditCountsForStudies(studyIds)])
     enrollmentCounts.value = statusMap
     auditCounts.value = auditMap
   } catch (error) {
@@ -611,7 +608,6 @@ const onStudyCreated = async (createdStudy) => {
   notify.success(`Study "${createdStudy.name}" created successfully!`, { timeout: 3000 })
 }
 
-
 // Clinical scales data - replace with database query
 const clinicalScales = ref([
   { label: 'Fugl-Meyer Assessment', value: 'fma' },
@@ -668,13 +664,8 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-.search-card {
-  border-radius: 12px;
-}
-
 .smart-search {
   :deep(.q-field__control) {
-    border-radius: 10px;
     font-size: 15px;
   }
 }
@@ -702,7 +693,6 @@ watch(
 }
 
 .study-card {
-  border-radius: 10px;
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
