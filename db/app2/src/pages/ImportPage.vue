@@ -2,17 +2,9 @@
   <q-page class="import-page">
     <div class="page-container">
       <!-- Page Header -->
-      <div class="page-header q-mb-lg">
-        <div class="row items-center justify-between">
-          <div>
-            <h1 class="text-h4 q-ma-none">{{ $t('import.importData') }}</h1>
-            <p class="text-body1 text-grey-6 q-ma-none">{{ $t('import.importPatientData') }}</p>
-          </div>
-          <div v-if="currentStep !== 'upload'" class="header-actions">
-            <q-btn flat color="grey-7" icon="arrow_back" :label="$t('import.backToUpload')" @click="goBackToUpload" />
-          </div>
-        </div>
-      </div>
+      <PageHeader :title="$t('import.importData')" :subtitle="$t('import.importPatientData')">
+        <q-btn v-if="currentStep !== 'upload'" flat color="grey-7" icon="arrow_back" :label="$t('import.backToUpload')" @click="goBackToUpload" />
+      </PageHeader>
 
       <!-- Step Indicator -->
       <q-stepper v-model="currentStepNumber" color="primary" animated flat bordered class="q-mb-lg">
@@ -25,7 +17,7 @@
       <!-- Main Content -->
       <div class="main-content">
         <!-- Step 1: File Upload -->
-        <div v-if="currentStep === 'upload'" class="step-content">
+        <div v-if="currentStep === 'upload'" class="step-content content-box">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">{{ $t('import.uploadDataFile') }}</div>
@@ -68,7 +60,7 @@
         </div>
 
         <!-- Step 2: File Analysis -->
-        <div v-if="currentStep === 'analyze'" class="step-content">
+        <div v-if="currentStep === 'analyze'" class="step-content content-box">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">{{ $t('import.fileAnalysisTitle') }}</div>
@@ -182,7 +174,7 @@
         </div>
 
         <!-- Step 3: Mode Selection -->
-        <div v-if="currentStep === 'mode'" class="step-content">
+        <div v-if="currentStep === 'mode'" class="step-content content-box">
           <q-card flat bordered>
             <q-card-section>
               <div class="text-h6 q-mb-md">{{ $t('import.selectImportMode') }}</div>
@@ -245,7 +237,7 @@
         </div>
 
         <!-- Step 4: Import Progress/Complete -->
-        <div v-if="currentStep === 'import'" class="step-content">
+        <div v-if="currentStep === 'import'" class="step-content content-box">
           <q-card flat bordered class="text-center">
             <q-card-section class="q-pa-xl">
               <!-- Importing State -->
@@ -348,6 +340,7 @@ import FileUploadInput from '../components/shared/FileUploadInput.vue'
 import VisitSelectionDialog from '../components/questionnaire/VisitSelectionDialog.vue'
 import PatientSelectionCard from '../components/shared/PatientSelectionCard.vue'
 import ImportPreviewDialog from '../components/shared/ImportPreviewDialog.vue'
+import PageHeader from '../components/shared/PageHeader.vue'
 
 // Composables
 const router = useRouter()
@@ -959,28 +952,7 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.import-page {
-  min-height: 100vh;
-  background: #f8f9fa;
-}
-
-.page-container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-}
-
-.page-header {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
 .step-content {
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   min-height: 400px;
 }
 
@@ -1020,18 +992,6 @@ onMounted(async () => {
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .page-container {
-    padding: 1rem;
-  }
-
-  .page-header {
-    padding: 1rem;
-  }
-
-  .header-actions {
-    margin-top: 1rem;
-  }
-
   .patient-selection,
   .selected-context,
   .file-upload-section,

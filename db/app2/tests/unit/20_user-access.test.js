@@ -253,6 +253,62 @@ describe('UserPatientLookupRepository.getPatientNumsCreatedBy', () => {
   })
 })
 
+describe('UserPatientLookupRepository.transferOwnership', () => {
+  it('downgrades the old creator row and inserts a creator row for the new owner', async () => {
+    const connection = makeConnection()
+    connection.executeQuery.mockResolvedValue({ success: true, data: [] }) // findByUserAndPatient: none
+    const repo = new UserPatientLookupRepository(connection)
+
+    await repo.transferOwnership(42, 3)
+
+    const [downgradeSql, downgradeParams] = connection.executeCommand.mock.calls[0]
+    expect(downgradeSql).toContain("SET NAME_CHAR = 'Manual access - former owner'")
+    expect(downgradeSql).toContain("NAME_CHAR = 'Creator access - auto-assigned'")
+    expect(downgradeParams).toEqual([42])
+
+    const [insertSql, insertParams] = connection.executeCommand.mock.calls[1]
+    expect(insertSql).toContain('INSERT INTO USER_PATIENT_LOOKUP')
+    expect(insertParams.slice(0, 3)).toEqual([3, 42, 'Creator access - auto-assigned'])
+  })
+
+  it('promotes an existing grant of the new owner instead of inserting', async () => {
+    const connection = makeConnection()
+    connection.executeQuery.mockResolvedValue({ success: true, data: [{ USER_PATIENT_ID: 99, USER_ID: 3, PATIENT_NUM: 42 }] })
+    const repo = new UserPatientLookupRepository(connection)
+
+    await repo.transferOwnership(42, 3)
+
+    const [promoteSql, promoteParams] = connection.executeCommand.mock.calls[1]
+    expect(promoteSql).toContain("SET NAME_CHAR = 'Creator access - auto-assigned'")
+    expect(promoteSql).toContain('WHERE USER_PATIENT_ID = ?')
+    expect(promoteParams).toEqual([99])
+  })
+})
+
+describe('UserPatientLookupRepository.setPublicAccess', () => {
+  it('adds the public row when enabling', async () => {
+    const connection = makeConnection()
+    const repo = new UserPatientLookupRepository(connection)
+
+    await repo.setPublicAccess(42, true)
+
+    const [sql, params] = connection.executeCommand.mock.calls[0]
+    expect(sql).toContain('INSERT OR IGNORE INTO USER_PATIENT_LOOKUP')
+    expect(params.slice(0, 3)).toEqual([0, 42, 'Public access'])
+  })
+
+  it('removes the public row when disabling', async () => {
+    const connection = makeConnection()
+    const repo = new UserPatientLookupRepository(connection)
+
+    await repo.setPublicAccess(42, false)
+
+    const [sql, params] = connection.executeCommand.mock.calls[0]
+    expect(sql).toContain('DELETE FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?')
+    expect(params).toEqual([0, 42])
+  })
+})
+
 describe('StudyRepository.getEnrolledPatients (access)', () => {
   it('restricts enrolled patients to accessible ones for regular users', async () => {
     const connection = makeConnection()
@@ -277,6 +333,30 @@ describe('StudyRepository.getEnrolledPatients (access)', () => {
       expect(sql).not.toContain('USER_PATIENT_LOOKUP')
       expect(params).toEqual([7])
     }
+  })
+})
+
+describe('StudyRepository.withdrawPatient', () => {
+  it('updates UPDATE_DATE (not the non-existent UPDATED_AT) and sets withdrawn', async () => {
+    const connection = makeConnection()
+    const repo = new StudyRepository(connection)
+
+    await repo.withdrawPatient(4, 931)
+
+    const [sql, params] = connection.executeCommand.mock.calls[0]
+    expect(sql).toContain("ENROLLMENT_STATUS_CD = 'withdrawn'")
+    expect(sql).toContain('UPDATE_DATE = CURRENT_TIMESTAMP')
+    expect(sql).not.toContain('UPDATED_AT')
+    expect(params[1]).toBe(4)
+    expect(params[2]).toBe(931)
+  })
+
+  it('throws when the command fails instead of reporting success', async () => {
+    const connection = makeConnection()
+    connection.executeCommand.mockResolvedValue({ success: false, error: 'no such column: X' })
+    const repo = new StudyRepository(connection)
+
+    await expect(repo.withdrawPatient(4, 931)).rejects.toThrow('no such column: X')
   })
 })
 

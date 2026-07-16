@@ -55,7 +55,9 @@
     "connectionInfo": "Verbindungsinformationen",
     "filename": "Dateiname",
     "usingCustomPath": "Benutzerdefinierter Pfad wird verwendet",
-    "connectedSince": "Verbunden und betriebsbereit"
+    "connectedSince": "Verbunden und betriebsbereit",
+    "testPageTitle": "Datenbank-Test",
+    "testPageSubtitle": "Verbindungstest, Seeding und Schema-Inspektion"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -234,13 +236,48 @@
     "publicToggle": "Öffentlich – für alle Nutzer sichtbar",
     "publicToggleHint": "Wenn aktiviert, können alle Nutzer diesen Patienten sehen. Wenn deaktiviert, nur Sie und Administratoren.",
     "publicAccess": "Öffentlich (für alle Nutzer sichtbar)",
+    "privateAccess": "Privat (nur Owner und Admins)",
     "owner": "Angelegt von",
+    "noOwner": "Kein Owner",
+    "visibility": "Sichtbarkeit",
+    "accessRights": "Rechte / Owner",
+    "accessNoPermission": "Nur Admins, der Owner oder – bei ownerlosen öffentlichen Patienten – jeder Nutzer darf dies ändern",
+    "removeFromStudy": "Aus Studie entfernen",
+    "removeFromStudyConfirm": "Studienzugehörigkeit zu \"{study}\" wirklich entfernen? Die Zuordnung wird gelöscht (nicht nur zurückgezogen).",
+    "studyMembershipRemoved": "Aus Studie \"{study}\" entfernt",
+    "failedToRemoveMembership": "Studienzugehörigkeit konnte nicht entfernt werden",
     "yearsShort": "J.",
     "visitCountShort": "{n} Besuch | {n} Besuche",
     "obsShort": "Beob.",
     "noOwnerOption": "Ohne Owner (nur öffentlich)",
     "assignStudy": "Studie zuweisen (optional)",
     "assignStudyFailed": "Patient angelegt, aber Studienzuweisung fehlgeschlagen",
+    "menuOpenVisits": "Visiten öffnen",
+    "menuPatientData": "Patientendaten anzeigen / ändern",
+    "menuOpenInGrid": "Im Datentabellen-Editor öffnen",
+    "menuCopyId": "Patienten-ID kopieren",
+    "menuIdCopied": "Patienten-ID kopiert",
+    "menuAssignStudy": "Studie zuordnen",
+    "menuStudyStatus": "Studienstatus",
+    "menuNoStudyMembership": "Keine Studienzugehörigkeit",
+    "studyInfo": "Studieninfo",
+    "noStudyMemberships": "Patient ist in keiner Studie eingeschrieben",
+    "addToStudy": "Zu Studie hinzufügen",
+    "menuAssignedToStudy": "In Studie \"{study}\" eingeschrieben",
+    "menuUnassignedFromStudy": "Aus Studie \"{study}\" ausgetragen",
+    "menuEnrolledHint": "eingeschrieben",
+    "menuAssignHint": "In diese Studie einschreiben",
+    "menuUnassignHint": "Aus dieser Studie austragen",
+    "menuExport": "Patient exportieren",
+    "menuExportDone": "Export abgeschlossen: {file}",
+    "menuExportFailed": "Export fehlgeschlagen",
+    "menuMakePublic": "Öffentlich machen",
+    "menuMakePrivate": "Öffentlichkeit entziehen",
+    "menuNowPublic": "Patient ist jetzt öffentlich",
+    "menuNowPrivate": "Patient ist nicht mehr öffentlich",
+    "menuChangeOwner": "Owner ändern…",
+    "menuOwnerChanged": "Owner geändert",
+    "newOwner": "Neuer Owner",
     "addField": "Feld hinzufügen",
     "removeField": "Feld löschen",
     "fieldName": "Feldname",
@@ -353,6 +390,11 @@
     "unfilledObservations": "{count} nicht ausgefüllte Beobachtung(en)",
     "noObservationsYet": "Noch keine Beobachtungen",
     "revertLastSave": "Ursprünglichen Wert wiederherstellen",
+    "availableObservations": "Verfügbare Beobachtungen",
+    "addAllObservations": "Alle hinzufügen",
+    "addAllObservationsHint": "Alle verfügbaren Beobachtungen dieses Feldsets als leere Einträge hinzufügen",
+    "allObservationsAdded": "{count} leere Beobachtung(en) hinzugefügt",
+    "someObservationsFailed": "{count} Beobachtung(en) konnten nicht hinzugefügt werden",
     "autoSaved": "Gespeichert",
     "addObservationsHint": "Beobachtungen aus den verfügbaren Optionen unten hinzufügen",
     "observationCategories": "Feldgruppen",
@@ -378,7 +420,8 @@
     "noQuestionnairesLoaded": "Es wurden noch keine Fragebögen in das System geladen",
     "randomFill": "Zufällig ausfüllen",
     "clearAll": "Alle löschen",
-    "enterPatientId": "Patientenkennung eingeben"
+    "enterPatientId": "Patientenkennung eingeben",
+    "pageSubtitle": "Medizinische Fragebögen auswählen und ausfüllen"
   },
   "study": {
     "study": "Studie",
@@ -391,6 +434,18 @@
     "exportSucceeded": "{count} Patienten exportiert nach {filename}",
     "tabOverview": "Übersicht",
     "tabInsights": "Kohorten-Insights",
+    "tabAudit": "Audit",
+    "audit": {
+      "openAudits": "Offene Audits",
+      "patientsWithAudits": "Patienten mit Audits",
+      "byUser": "Audits pro Benutzer",
+      "byPatient": "Audits pro Patient",
+      "none": "Keine offenen Audits",
+      "openInGrid": "Im Grid öffnen",
+      "openAllInGrid": "Alle mit Audits im Grid öffnen",
+      "scopeHint": "Alle Beobachtungen eingeschriebener Patienten",
+      "loadError": "Audit-Daten konnten nicht geladen werden"
+    },
     "insights": {
       "title": "Kohorten-Insights",
       "loadError": "Insights konnten nicht geladen werden",
@@ -407,7 +462,10 @@
       "eventType": "Event-Typ",
       "labTrends": "Lab-Verlauf",
       "medianHint": "Median je Visit · n = Anzahl Messungen",
-      "noData": "Keine Daten"
+      "noData": "Keine Daten",
+      "userStats": "Team-Aktivität",
+      "patientsOwned": "Patienten pro Benutzer",
+      "observationsCreated": "Beobachtungen pro Benutzer"
     },
     "studySearch": "Studiensuche",
     "studyDetails": "Studiendetails",
@@ -461,7 +519,29 @@
     "enrolledPatients": "Eingeschriebene Patienten",
     "enrollPatient": "Patient einschreiben",
     "enrollmentDate": "Einschreibedatum",
-    "enrollmentStatus": "Einschreibestatus",
+    "enrollmentStatus": {
+      "label": "Einschreibestatus",
+      "active": "Aktiv",
+      "completed": "Abgeschlossen",
+      "withdrawn": "Zurückgezogen",
+      "all": "Alle"
+    },
+    "setStatus": "Status ändern",
+    "statusChanged": "Status aktualisiert",
+    "failedToSetStatus": "Status konnte nicht geändert werden",
+    "filterOnlyAudits": "Nur mit offenen Audits",
+    "bulkMarkCompleted": "Gefilterte als abgeschlossen markieren",
+    "bulkMarkActive": "Gefilterte als aktiv markieren",
+    "bulkStatusConfirm": "{count} Patient(en) wirklich auf \"{status}\" setzen?",
+    "completedPatients": "Abgeschlossene Patienten",
+    "completionRate": "Abschlussquote",
+    "openFilteredInGrid": "Im Grid öffnen ({count})",
+    "completedBadge": "{completed}/{enrolled} abgeschlossen",
+    "openSelectedInGrid": "Auswahl im Grid öffnen ({count})",
+    "selectedCount": "{count} ausgewählt",
+    "selectAllFiltered": "Alle (gefiltert) auswählen",
+    "clearSelection": "Auswahl aufheben",
+    "multiSelectHint": "Umschalt-Klick für Mehrfachauswahl",
     "withdrawPatient": "Patient ausschreiben",
     "confirmWithdrawal": "Ausschreibung bestätigen",
     "withdrawPatientConfirm": "Möchten Sie {name} wirklich aus dieser Studie ausschreiben?",
@@ -485,7 +565,8 @@
     "noTargetSet": "Kein Ziel gesetzt",
     "enterPatientIdOrName": "Patienten-ID oder Name eingeben",
     "failedToSearchPatients": "Patientensuche fehlgeschlagen",
-    "noPatientsFound": "Keine Patienten gefunden"
+    "noPatientsFound": "Keine Patienten gefunden",
+    "pageSubtitle": "Forschungsstudien suchen, verwalten und auswerten"
   },
   "user": {
     "user": "Benutzer",
@@ -514,7 +595,8 @@
     "nameRequired": "Name ist erforderlich",
     "passwordManagement": "Passwort-Verwaltung",
     "resetPassword": "Passwort zurücksetzen",
-    "resetPasswordHint": "Klicken Sie, um eine E-Mail zum Zurücksetzen des Passworts zu erhalten"
+    "resetPasswordHint": "Klicken Sie, um eine E-Mail zum Zurücksetzen des Passworts zu erhalten",
+    "pageSubtitle": "Systembenutzer und deren Patientenzugriffe verwalten"
   },
   "settings": {
     "settings": "Einstellungen",
@@ -553,7 +635,8 @@
     "securityWarning": "API-Schlüssel werden unverschlüsselt im localStorage Ihres Browsers gespeichert. Dies ist praktisch für die Entwicklung, aber nicht für den Produktionseinsatz mit sensiblen Schlüsseln empfohlen. Verwenden Sie in der Produktion Umgebungsvariablen oder sichere Schlüsselverwaltungsdienste.",
     "lastUpdated": "Zuletzt aktualisiert",
     "apiKeyFormatError": "OpenAI API-Schlüssel sollten mit \"sk-\" beginnen",
-    "apiKeyTooShort": "API-Schlüssel scheint zu kurz zu sein"
+    "apiKeyTooShort": "API-Schlüssel scheint zu kurz zu sein",
+    "pageSubtitle": "Persönliche Einstellungen, Profil und lokale Konfiguration"
   },
   "dataGrid": {
     "dataGrid": "Datentabelle",
@@ -573,6 +656,11 @@
     "openAudits": "Audits offen: {count}",
     "showOnlyAudits": "Nur offene Audits anzeigen",
     "auditFilterActive": "Filter aktiv – Klick zum Aufheben",
+    "visitTypeLock": "Visitentyp-Sperre",
+    "lockedCells": "gesperrt",
+    "filledExcludesLocked": "Gesperrte Zellen (Visitentyp-Sperre) sind aus der Ausfüllquote ausgenommen",
+    "visitTypeLockHint": "Zellen sperren, deren Beobachtung nicht zum Visitentyp der Zeile gehört",
+    "cellLockedTooltip": "Gehört nicht zum Visitentyp dieser Visite (Visitentyp-Sperre aktiv)",
     "viewOptions": "Anzeigeoptionen",
     "undoTooltip": "Rückgängig (Strg+Z)",
     "redoTooltip": "Wiederherstellen (Strg+Y)",
@@ -623,6 +711,7 @@
     "visible": "sichtbar",
     "hidden": "verborgen",
     "managePatient": "Patient verwalten",
+    "patientInfo": "Patienteninfo",
     "visits": "Besuche",
     "encounter": "Begegnung",
     "removePatientFromGrid": "Patient aus Tabelle entfernen",
@@ -674,7 +763,8 @@
     "selectionCleared": "Auswahl gelöscht",
     "storedSelectionCleared": "Gespeicherte Patientenauswahl gelöscht",
     "failedToLoadCounts": "Fehler beim Laden der Besuchs- und Beobachtungszahlen",
-    "failedToLoadPageData": "Fehler beim Laden der Seitendaten"
+    "failedToLoadPageData": "Fehler beim Laden der Seitendaten",
+    "pageSubtitle": "Patientendaten im Excel-ähnlichen Editor bearbeiten"
   },
   "export": {
     "export": "Export",
@@ -696,7 +786,8 @@
     "searchPatientsPlaceholder": "Patienten suchen...",
     "vitalStatus": "Vitalstatus",
     "clearAllFilters": "Alle Filter löschen",
-    "selectAllFiltered": "Alle auswählen"
+    "selectAllFiltered": "Alle auswählen",
+    "pageSubtitle": "Patienten-, Besuchs- und Beobachtungsdaten als CSV oder HL7 exportieren"
   },
   "import": {
     "import": "Import",
@@ -835,7 +926,80 @@
     "rewrittenTextPlaceholder": "Umgeschriebener Text wird hier angezeigt",
     "tooltip": "Smart Button - Klicken um Plugins zu öffnen",
     "minimize": "Minimieren",
-    "loadingPlugin": "Plugin wird geladen..."
+    "loadingPlugin": "Plugin wird geladen...",
+    "plugins": {
+      "calculator": {
+        "name": "Rechner",
+        "tooltip": "Einfacher Rechner"
+      },
+      "notes": {
+        "name": "Quick Notes",
+        "tooltip": "Schnelle Notizen"
+      },
+      "unitConverter": {
+        "name": "Einheiten-Umrechner",
+        "tooltip": "Einheiten umrechnen"
+      },
+      "bmiCalculator": {
+        "name": "BMI-Rechner",
+        "tooltip": "BMI berechnen"
+      },
+      "levodopaCalculator": {
+        "name": "Levodopa-Rechner",
+        "tooltip": "Levodopa-Äquivalenz-Rechner"
+      },
+      "askAi": {
+        "name": "KI fragen",
+        "tooltip": "KI-Assistent fragen",
+        "tooltipNoKey": "KI-Assistent (API-Key erforderlich)"
+      },
+      "rewrite": {
+        "name": "Umformulieren",
+        "tooltip": "Markierten Text umformulieren"
+      }
+    },
+    "close": "Schließen",
+    "quickNotes": {
+      "tabNew": "Neue Notiz",
+      "tabList": "Notizen",
+      "contextHint": "Angehängter Kontext",
+      "noContext": "Kein Kontext — die aktuelle Seite wird gespeichert",
+      "recent": "Letzte Notizen",
+      "searchPlaceholder": "Notizen durchsuchen…",
+      "emptyList": "Noch keine Notizen",
+      "emptySearch": "Keine Notizen gefunden",
+      "openContext": "Kontext öffnen",
+      "edit": "Notiz bearbeiten",
+      "delete": "Notiz löschen",
+      "confirmDeleteTitle": "Notiz löschen",
+      "confirmDeleteMessage": "Diese Notiz endgültig löschen?",
+      "saved": "Notiz gespeichert",
+      "updated": "Notiz aktualisiert",
+      "deleted": "Notiz gelöscht",
+      "saveFailed": "Notiz konnte nicht gespeichert werden",
+      "loadFailed": "Notizen konnten nicht geladen werden",
+      "dbUnavailable": "Keine Datenbankverbindung — Notizen können nicht gespeichert werden",
+      "page": "Seite"
+    },
+    "messages": {
+      "tab": "Nachrichten",
+      "recipient": "Empfänger",
+      "messagePlaceholder": "Nachricht schreiben…",
+      "send": "Senden",
+      "reply": "Antworten",
+      "replyTo": "Antwort auf",
+      "from": "von",
+      "to": "an",
+      "unread": "ungelesen",
+      "empty": "Noch keine Nachrichten",
+      "sent": "Nachricht gesendet",
+      "deleted": "Nachricht gelöscht",
+      "sendFailed": "Nachricht konnte nicht gesendet werden",
+      "loadFailed": "Nachrichten konnten nicht geladen werden",
+      "confirmDeleteTitle": "Nachricht löschen",
+      "confirmDeleteMessage": "Diese Nachricht endgültig löschen?",
+      "toAll": "An alle"
+    }
   },
   "validation": {
     "required": "Dieses Feld ist erforderlich",
@@ -888,7 +1052,8 @@
     "filterByValueType": "Nach Werttyp filtern",
     "exportToCsv": "Als CSV exportieren",
     "importConcepts": "Konzepte aus CSV importieren",
-    "importConceptsSubtitle": "Konzepte aus CSV-Datei importieren"
+    "importConceptsSubtitle": "Konzepte aus CSV-Datei importieren",
+    "pageSubtitle": "Medizinische Konzepte verwalten (SNOMED, LOINC, ICD-10)"
   },
   "cql": {
     "cqlAdministration": "CQL-Administration",

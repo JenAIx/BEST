@@ -42,6 +42,10 @@ export const useAuthStore = defineStore('auth', {
 
     userName: (state) => state.user?.NAME_CHAR || state.user?.USER_CD || '',
 
+    // PROVIDER_ID stamp for OBSERVATION_FACT writes (create + update).
+    // USER_CD doubles as PROVIDER_DIMENSION.PROVIDER_ID (synced by migration 013).
+    providerId: (state) => state.user?.USER_CD || 'SYSTEM',
+
     userRole: (state) => state.user?.COLUMN_CD || '',
 
     isAdmin: (state) => state.user?.COLUMN_CD === 'admin',

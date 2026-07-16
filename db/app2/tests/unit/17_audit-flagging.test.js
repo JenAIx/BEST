@@ -116,7 +116,7 @@ describe('data-grid-store: audit workflow', () => {
     const [sql, params] = executeQueryMock.mock.calls[0]
     expect(sql).toContain('UPDATE OBSERVATION_FACT')
     expect(sql).toContain('VALUEFLAG_CD = ?')
-    expect(params).toEqual(['AUDIT', 301])
+    expect(params).toEqual(['AUDIT', 'SYSTEM', 301])
 
     const p3Ldl = store.tableRows[2].observations.LDL
     expect(p3Ldl.valueFlag).toBe('AUDIT')
@@ -214,7 +214,7 @@ describe('data-grid-store: audit workflow', () => {
     expect(sql).toContain('VALUEFLAG_CD = ?')
     expect(sql).toContain('NVAL_NUM = NULL')
     expect(sql).toContain('TVAL_CHAR = NULL')
-    expect(params).toEqual(['NV', 302])
+    expect(params).toEqual(['NV', 'SYSTEM', 302])
 
     const p3Hdl = store.tableRows[2].observations.HDL
     expect(p3Hdl.valueFlag).toBe('NV')
@@ -237,7 +237,7 @@ describe('data-grid-store: audit workflow', () => {
     expect(sql).toContain('VALUEFLAG_CD = ?')
     expect(sql).not.toContain('NVAL_NUM = NULL')
     expect(sql).not.toContain('TVAL_CHAR = NULL')
-    expect(params).toEqual([null, 302])
+    expect(params).toEqual([null, 'SYSTEM', 302])
     expect(store.tableRows[2].observations.HDL.valueFlag).toBeNull()
     // value untouched (still '55')
     expect(store.tableRows[2].observations.HDL.value).toBe('55')

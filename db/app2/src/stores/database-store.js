@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import databaseService from '../core/services/database-service.js'
 import { useLoggingStore } from './logging-store.js'
+import { canManagePatientAccess } from '../shared/utils/patient-access.js'
 
 export const useDatabaseStore = defineStore('database', () => {
   // State
@@ -395,6 +396,41 @@ export const useDatabaseStore = defineStore('database', () => {
     return await lookupRepo.getPatientAccessInfo(patientNums)
   }
 
+  // Shared guard for owner/public mutations: admin, the owner, or any user for
+  // an ownerless public patient (see canManagePatientAccess). NOT used for
+  // deletion, which keeps the stricter admin-or-creator rule.
+  const assertOwnerOrAdmin = async (patientNum) => {
+    const userAccess = await resolveUserAccess()
+    if (!userAccess) throw new Error('Not authenticated')
+    if (userAccess.isAdmin) return
+    const lookupRepo = getRepository('userPatientLookup')
+    const accessMap = await lookupRepo.getPatientAccessInfo([patientNum])
+    const info = accessMap.get(patientNum) || { ownerUserId: null, isPublic: false }
+    const allowed = canManagePatientAccess({
+      isAdmin: userAccess.isAdmin,
+      currentUserId: userAccess.userId,
+      ownerUserId: info.ownerUserId ?? null,
+      isPublic: !!info.isPublic,
+    })
+    if (!allowed) {
+      throw new Error('You may only change access for your own patients or ownerless public patients')
+    }
+  }
+
+  // Transfer the owner (creator) role to another user (admin or current owner)
+  const transferPatientOwnership = async (patientNum, newUserId) => {
+    await assertOwnerOrAdmin(patientNum)
+    const lookupRepo = getRepository('userPatientLookup')
+    return await lookupRepo.transferOwnership(patientNum, newUserId)
+  }
+
+  // Grant/revoke public visibility (admin or current owner)
+  const setPatientPublicAccess = async (patientNum, isPublic) => {
+    await assertOwnerOrAdmin(patientNum)
+    const lookupRepo = getRepository('userPatientLookup')
+    return await lookupRepo.setPublicAccess(patientNum, isPublic)
+  }
+
   // Batch study memberships for patient cards (study tags)
   const getPatientStudyInfo = async (patientNums) => {
     const studyRepo = getRepository('study')
@@ -406,6 +442,48 @@ export const useDatabaseStore = defineStore('database', () => {
     const userAccess = await resolveUserAccess()
     const studyRepo = getRepository('study')
     return await studyRepo.getEnrolledPatients(studyId, userAccess)
+  }
+
+  // Access-controlled open-audit summary for a study (VALUEFLAG_CD='AUDIT')
+  const getStudyAuditSummary = async (studyId) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getStudyAuditSummary(studyId, userAccess)
+  }
+
+  // Access-controlled enrollment status counts for one study
+  const getStudyEnrollmentStatusCounts = async (studyId) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getEnrollmentStatusCounts(studyId, userAccess)
+  }
+
+  // Batch enrollment status counts for study cards (Map<STUDY_NUM, counts>)
+  const getEnrollmentStatusCountsForStudies = async (studyIds) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getEnrollmentStatusCountsForStudies(studyIds, userAccess)
+  }
+
+  // Batch open-audit counts for study cards (Map<STUDY_NUM, count>)
+  const getOpenAuditCountsForStudies = async (studyIds) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getOpenAuditCountsForStudies(studyIds, userAccess)
+  }
+
+  // Set enrollment status for one or more patients in a study
+  const updateEnrollmentStatus = async (studyId, patientNums, status) => {
+    const nums = Array.isArray(patientNums) ? patientNums : [patientNums]
+    const studyRepo = getRepository('study')
+    return await studyRepo.updateEnrollmentStatusBulk(studyId, nums, status)
+  }
+
+  // Access-controlled per-user cohort activity (patients owned / observations created)
+  const getCohortUserStats = async (studyCd) => {
+    const userAccess = await resolveUserAccess()
+    const studyRepo = getRepository('study')
+    return await studyRepo.getCohortUserStats(studyCd, userAccess)
   }
 
   // Raw data/file upload operations
@@ -1080,6 +1158,14 @@ export const useDatabaseStore = defineStore('database', () => {
     getPatientAccessInfo,
     getPatientStudyInfo,
     getEnrolledPatientsForStudy,
+    getStudyAuditSummary,
+    getStudyEnrollmentStatusCounts,
+    getEnrollmentStatusCountsForStudies,
+    getOpenAuditCountsForStudies,
+    updateEnrollmentStatus,
+    getCohortUserStats,
+    transferPatientOwnership,
+    setPatientPublicAccess,
 
     // Raw data operations
     uploadRawData,

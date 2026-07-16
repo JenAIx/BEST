@@ -4,19 +4,17 @@
       <!-- Status Section -->
       <div class="footer-section status-section">
         <div class="status-item">
-          <q-icon :name="hasUnsavedChanges ? 'edit' : 'check_circle'" :color="hasUnsavedChanges ? 'warning' : 'positive'" size="16px" class="q-mr-xs" />
-          <span :class="hasUnsavedChanges ? 'text-warning' : 'text-positive'">
-            {{ hasUnsavedChanges ? $t('dataGrid.unsavedChangesCount', { count: unsavedChangesCount }) : $t('dataGrid.allChangesSaved') }}
+          <q-icon :name="hasUnsavedChanges ? 'edit' : 'check_circle'" :color="hasUnsavedChanges ? 'warning' : 'positive'" size="16px" />
+          <span v-if="hasUnsavedChanges" class="text-warning">
+            {{ $t('dataGrid.unsavedChangesCount', { count: unsavedChangesCount }) }}
           </span>
+          <q-tooltip v-else>{{ $t('dataGrid.allChangesSaved') }}</q-tooltip>
         </div>
         <div class="status-item">
           <q-icon name="access_time" size="16px" color="grey-6" class="q-mr-xs" />
           <span class="text-grey-6">{{ $t('dataGrid.updated') }}: {{ lastUpdateTime }}</span>
         </div>
       </div>
-
-      <!-- Vertical Separator -->
-      <div class="footer-separator"></div>
 
       <!-- Statistics Section -->
       <div class="footer-section stats-section" v-if="statistics">
@@ -45,12 +43,20 @@
           <q-icon name="check_circle" size="14px" color="positive" />
           <span class="stat-value">{{ statistics.filledCellsPercentage }}%</span>
           <span class="stat-label">{{ $t('dataGrid.filled') }}</span>
+          <q-tooltip v-if="statistics.lockedCellsCount > 0">{{ $t('dataGrid.filledExcludesLocked') }}</q-tooltip>
         </div>
 
         <div class="stat-item">
           <q-icon name="analytics" size="14px" color="info" />
           <span class="stat-value">{{ statistics.totalCells }}</span>
           <span class="stat-label">{{ $t('dataGrid.cells') }}</span>
+        </div>
+
+        <!-- Cells excluded by the visit-type lock (only while the lock is on) -->
+        <div class="stat-item" v-if="statistics.lockedCellsCount > 0">
+          <q-icon name="lock" size="14px" color="grey-6" />
+          <span class="stat-value">{{ statistics.lockedCellsCount }}</span>
+          <span class="stat-label">{{ $t('dataGrid.lockedCells') }}</span>
         </div>
 
         <!-- Open audits: clickable chip that toggles the audit-only filter. -->
@@ -105,10 +111,9 @@ const onToggleAuditFilter = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-  min-height: 50px;
+  gap: 16px;
+  padding: 8px 16px;
+  min-height: 44px;
 }
 
 // Status Section (Left)
@@ -131,14 +136,6 @@ const onToggleAuditFilter = () => {
       font-weight: 500;
     }
   }
-}
-
-// Main Vertical Separator
-.footer-separator {
-  width: 1px;
-  height: 32px;
-  background: #e0e0e0;
-  margin: 0 16px;
 }
 
 // Statistics Section (Right)
@@ -200,12 +197,6 @@ const onToggleAuditFilter = () => {
     flex-direction: column;
     gap: 8px;
     padding: 8px 12px;
-  }
-
-  .footer-separator {
-    width: 80%;
-    height: 1px;
-    margin: 4px 0;
   }
 
   .footer-section.status-section,

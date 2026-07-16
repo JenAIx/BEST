@@ -104,7 +104,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     expect(sql).toContain('TVAL_CHAR = ?')
     expect(sql).toContain('VALUEFLAG_CD = ?')
     // NVAL_NUM=80, TVAL_CHAR=null, VALUEFLAG_CD=null, observationId=100
-    expect(params).toEqual([80, null, null, 100])
+    expect(params).toEqual([80, null, null, 'SYSTEM', 100])
   })
 
   it('value → NV: UPDATE clears NVAL_NUM and sets VALUEFLAG_CD=NV', async () => {
@@ -118,7 +118,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     const updateCall = executeQueryMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
     expect(updateCall).toBeTruthy()
     const [, params] = updateCall
-    expect(params).toEqual([null, null, 'NV', 100])
+    expect(params).toEqual([null, null, 'NV', 'SYSTEM', 100])
   })
 
   it('NV → value: UPDATE sets NVAL_NUM and clears VALUEFLAG_CD', async () => {
@@ -134,7 +134,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     const updateCall = executeQueryMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
     expect(updateCall).toBeTruthy()
     const [, params] = updateCall
-    expect(params).toEqual([40, null, null, 100])
+    expect(params).toEqual([40, null, null, 'SYSTEM', 100])
   })
 
   it('value → cleared: DELETE the observation row', async () => {

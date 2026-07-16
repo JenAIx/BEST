@@ -2,8 +2,12 @@
   <div v-if="unfilledConcepts.length > 0" class="unfilled-observations">
     <div class="unfilled-section-header">
       <q-icon name="add_circle_outline" size="16px" class="q-mr-xs" />
-      <span class="section-title">Available Observations</span>
+      <span class="section-title">{{ $t('observation.availableObservations') }}</span>
       <q-badge :label="unfilledConcepts.length" color="grey-5" class="q-ml-sm" />
+      <q-space />
+      <q-btn flat dense size="sm" color="primary" icon="playlist_add" :label="$t('observation.addAllObservations')" :loading="creatingAll" @click="$emit('create-all')">
+        <q-tooltip>{{ $t('observation.addAllObservationsHint') }}</q-tooltip>
+      </q-btn>
     </div>
     <div class="unfilled-chips">
       <q-chip
@@ -30,9 +34,13 @@ defineProps({
     type: Array,
     required: true,
   },
+  creatingAll: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-defineEmits(['create-observation'])
+defineEmits(['create-observation', 'create-all'])
 </script>
 
 <style lang="scss" scoped>

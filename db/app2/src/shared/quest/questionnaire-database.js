@@ -5,6 +5,7 @@
  */
 
 import { logger } from '../../core/services/logging-service.js'
+import { useAuthStore } from '../../stores/auth-store.js'
 import { handleValueTypeCd } from './questionnaire-valtype.js'
 
 /**
@@ -102,7 +103,7 @@ export const saveMainQuestionnaireResponse = async (dbStore, patientNum, encount
         encounterNum,
         patientNum,
         conceptCode, // Use verified concept code
-        '@', // Default provider
+        useAuthStore().providerId, // Current user as provider
         new Date(results.date_start).toISOString(),
         new Date(results.date_end).toISOString(),
         'Q', // New questionnaire VALTYPE_CD
@@ -404,7 +405,7 @@ export const createObservationFromQuestionnaireItem = async (
     SOURCESYSTEM_CD: concept.SOURCESYSTEM_CD,
     // Let visit-observation-store use concept's CATEGORY_CHAR, fallback to SURVEY_BEST
     START_DATE: new Date().toISOString(),
-    PROVIDER_ID: '@',
+    PROVIDER_ID: useAuthStore().providerId,
     LOCATION_CD: 'QUESTIONNAIRE',
     INSTANCE_NUM: 1,
     UPLOAD_ID: 1,

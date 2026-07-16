@@ -10,6 +10,12 @@
       <div class="col-12">
         <PatientStatisticsCard :patient="patient" :visits="visits" :observations="observations" />
       </div>
+      <div class="col-12 col-md-6">
+        <PatientStudyInfoCard :patient="patient" @updated="onCardUpdated" />
+      </div>
+      <div class="col-12 col-md-6">
+        <PatientAccessCard :patient="patient" @updated="onCardUpdated" />
+      </div>
     </div>
   </div>
 </template>
@@ -18,6 +24,8 @@
 import PatientDemographicsCard from 'src/components/patient/PatientDemographicsCard.vue'
 import PatientAdditionalInfoCard from 'src/components/patient/PatientAdditionalInfoCard.vue'
 import PatientStatisticsCard from 'src/components/patient/PatientStatisticsCard.vue'
+import PatientStudyInfoCard from 'src/components/patient/PatientStudyInfoCard.vue'
+import PatientAccessCard from 'src/components/patient/PatientAccessCard.vue'
 
 defineProps({
   patient: { type: Object, required: true },

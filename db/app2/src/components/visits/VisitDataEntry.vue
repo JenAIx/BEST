@@ -151,6 +151,7 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useAuthStore } from 'src/stores/auth-store'
 import { useUncategorizedObservations } from 'src/composables/useUncategorizedObservations'
 import { useFieldSetStatistics } from 'src/composables/useFieldSetStatistics'
 // NOTE: Field sets are now loaded exclusively from database via global-settings-store
@@ -188,6 +189,7 @@ const localSettings = useLocalSettingsStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
 const databaseStore = useDatabaseStore()
+const authStore = useAuthStore()
 const logger = loggingStore.createLogger('VisitDataEntry')
 
 // State
@@ -555,7 +557,7 @@ const onCloneFromPrevious = async (data) => {
       CONCEPT_CD: conceptCode,
       START_DATE: new Date().toISOString().split('T')[0],
       CATEGORY_CHAR: defaultCategory,
-      PROVIDER_ID: 'SYSTEM',
+      // PROVIDER_ID is stamped with the current user by observation-store.createObservation
       LOCATION_CD: 'CLONED',
       SOURCESYSTEM_CD: defaultSourceSystem,
       INSTANCE_NUM: 1,
@@ -702,7 +704,7 @@ const onQuestionnaireSelected = async (selectedQ) => {
         encounterNum,
         patientNum,
         'CUSTOM: QUESTIONNAIRE',
-        '@',
+        authStore.providerId,
         new Date().toISOString(),
         'Q',
         selectedQ.title,

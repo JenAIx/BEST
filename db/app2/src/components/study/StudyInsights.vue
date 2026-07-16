@@ -89,6 +89,26 @@
         </q-card-section>
       </q-card>
 
+      <!-- Team Activity: patients owned + observations created per user -->
+      <q-card flat bordered class="span-2">
+        <q-card-section>
+          <div class="row items-center q-mb-md">
+            <q-icon name="group" color="teal" size="24px" class="q-mr-sm" />
+            <div class="text-subtitle1">{{ $t('study.insights.userStats') }}</div>
+          </div>
+          <div class="row q-col-gutter-md">
+            <div class="col-12 col-md-6">
+              <div class="text-body2 text-weight-medium q-mb-sm">{{ $t('study.insights.patientsOwned') }}</div>
+              <CohortBarList :items="userPatientItems" color="teal" :empty-label="$t('study.insights.noData')" />
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="text-body2 text-weight-medium q-mb-sm">{{ $t('study.insights.observationsCreated') }}</div>
+              <CohortBarList :items="userObservationItems" color="cyan-8" :empty-label="$t('study.insights.noData')" />
+            </div>
+          </div>
+        </q-card-section>
+      </q-card>
+
       <!-- Lab Trends -->
       <q-card flat bordered class="span-2">
         <q-card-section>
@@ -191,6 +211,26 @@ const findingItems = computed(() =>
       total: f.total,
     })),
 )
+
+// Team activity: bars are relative to the cohort size (patients) or to the
+// biggest contributor (observations), so both lists stay readable.
+const userPatientItems = computed(() => {
+  const rows = (insights.value?.userStats || []).filter((u) => u.patientsOwned > 0)
+  const total = insights.value?.counts?.enrolled || 0
+  return rows
+    .slice()
+    .sort((a, b) => b.patientsOwned - a.patientsOwned)
+    .map((u) => ({ key: u.userCd, label: u.userName || u.userCd, count: u.patientsOwned, total }))
+})
+
+const userObservationItems = computed(() => {
+  const rows = (insights.value?.userStats || []).filter((u) => u.observationsCreated > 0)
+  const total = rows.reduce((sum, u) => sum + u.observationsCreated, 0)
+  return rows
+    .slice()
+    .sort((a, b) => b.observationsCreated - a.observationsCreated)
+    .map((u) => ({ key: u.userCd, label: u.userName || u.userCd, count: u.observationsCreated, total }))
+})
 
 function selectionItems(data) {
   return (data || []).map((r) => ({

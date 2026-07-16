@@ -670,7 +670,7 @@ const saveCustomObservation = async () => {
       VALTYPE_CD: valueType,
       START_DATE: new Date().toISOString().split('T')[0],
       CATEGORY_CHAR: category,
-      PROVIDER_ID: 'SYSTEM',
+      // PROVIDER_ID is stamped with the current user by observation-store.createObservation
       LOCATION_CD: 'EXISTING',
       SOURCESYSTEM_CD: defaultSourceSystem,
       INSTANCE_NUM: 1,

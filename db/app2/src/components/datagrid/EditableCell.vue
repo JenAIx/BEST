@@ -31,6 +31,11 @@
         <q-icon name="block" size="14px" color="grey-6" />
       </div>
 
+      <!-- Locked empty cell (visit-type lock): no add affordance -->
+      <div v-else-if="props.locked" class="cell-empty cell-locked-empty">
+        <q-icon name="lock" size="12px" color="grey-5" />
+      </div>
+
       <!-- Empty Cell -->
       <div v-else class="cell-empty">
         <q-icon name="add" size="12px" color="grey-5" />
@@ -48,6 +53,10 @@
       <div v-if="dateDiffersFromVisit" class="cell-date-badge" :title="$t('dataGrid.dateDiffersFromVisit', { date: props.startDate })">
         <q-icon name="event" size="10px" color="purple-6" />
       </div>
+
+      <q-tooltip v-if="props.locked" anchor="top middle" self="bottom middle" :offset="[0, 5]">
+        {{ $t('dataGrid.cellLockedTooltip') }}
+      </q-tooltip>
     </div>
 
     <!-- Edit Mode -->
@@ -153,7 +162,7 @@
          be cleared but cannot be audited until cleared. Only shown when the
          cell has an observation row to act on. -->
     <q-menu
-      v-if="props.observationId != null"
+      v-if="props.observationId != null && !props.locked"
       context-menu
       touch-position
       auto-close
@@ -261,9 +270,10 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useAuthStore } from 'src/stores/auth-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -317,6 +327,13 @@ const props = defineProps({
     type: String,
     default: null,
   },
+  // Visit-type lock: the concept belongs to other visit types' field sets,
+  // not this row's. Existing values stay visible, but every editing entry
+  // point (click, keyboard, context menu) is disabled.
+  locked: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits([
@@ -334,6 +351,7 @@ const emit = defineEmits([
 
 const notify = useNotify()
 const dbStore = useDatabaseStore()
+const authStore = useAuthStore()
 const conceptStore = useConceptResolutionStore()
 const globalSettingsStore = useGlobalSettingsStore()
 const loggingStore = useLoggingStore()
@@ -388,6 +406,7 @@ const unitDisplay = computed(() => {
 
 const cellClasses = computed(() => ({
   'is-editing': isEditing.value,
+  'is-locked': props.locked,
   'has-value': !!displayValue.value,
   'has-changes': hasUnsavedChanges.value,
   'is-saving': isSaving.value,
@@ -413,7 +432,7 @@ const onCellClick = () => {
   // For R type (file) observations, open preview instead of edit mode
   if (props.valueType === 'R') {
     openFilePreview()
-  } else {
+  } else if (!props.locked) {
     startEdit()
   }
 }
@@ -475,7 +494,7 @@ const onContextResetDateToVisit = () => {
 }
 
 const startEdit = async () => {
-  if (isEditing.value) return
+  if (isEditing.value || props.locked) return
 
   isEditing.value = true
   originalValue.value = props.value || ''
@@ -702,6 +721,9 @@ const updateObservation = async () => {
     updates.VALUEFLAG_CD = null
   }
 
+  // Stamp the current user as last editor
+  updates.PROVIDER_ID = authStore.providerId
+
   const setClause = Object.keys(updates)
     .map((key) => `${key} = ?`)
     .join(', ')
@@ -745,7 +767,7 @@ const createObservation = async () => {
     VALTYPE_CD: props.valueType,
     START_DATE: visitStartDate, // Use visit date, not current timestamp
     CATEGORY_CHAR: defaultCategory,
-    PROVIDER_ID: 'SYSTEM',
+    PROVIDER_ID: authStore.providerId,
     LOCATION_CD: 'DATAGRID',
     SOURCESYSTEM_CD: defaultSourceSystem,
     INSTANCE_NUM: 1,
@@ -874,6 +896,15 @@ const onKeyDown = (event) => {
     }
   }
 }
+
+// Virtualized grid: a cell can unmount mid-edit (scrolled out of the render
+// window). Commit the pending edit instead of silently dropping it — saveEdit
+// no-ops when nothing changed and guards against concurrent saves.
+onBeforeUnmount(() => {
+  if (isEditing.value) {
+    saveEdit()
+  }
+})
 
 // Watch for external value changes
 watch(
@@ -1218,6 +1249,28 @@ watch(editValue, (newValue) => {
 .editable-cell.value-flag-confirmed {
   border: 1px solid $positive;
   border-radius: 2px;
+}
+
+// Visit-type lock: clearly disabled look — dimmed, desaturated content and a
+// permanently visible lock icon on empty cells. Value stays readable.
+.editable-cell.is-locked {
+  cursor: not-allowed;
+
+  .cell-value,
+  .cell-no-value,
+  .file-display {
+    opacity: 0.45;
+    filter: grayscale(0.8);
+  }
+
+  // Lock hint is always visible (unlike .cell-empty's reveal-on-hover "+")
+  .cell-locked-empty {
+    opacity: 0.55;
+  }
+
+  &:hover .cell-locked-empty {
+    opacity: 0.9;
+  }
 }
 
 // Per-observation date diverges from parent visit date — small calendar

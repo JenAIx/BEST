@@ -53,6 +53,13 @@ onMounted(async () => {
     // Initialize stores
     await localSettings.initialize()
     await dataGridStore.initialize()
+
+    // One-shot: study audit views set this flag before navigating here so the
+    // grid opens with the audit filter already active (computeds are reactive,
+    // so setting it before/while data loads is safe).
+    if (localSettings.consumePendingAuditFilter()) {
+      dataGridStore.auditFilterActive = true
+    }
   } catch (error) {
     console.error('Failed to initialize stores', error)
     // Show error but let component render (will show no selection state)

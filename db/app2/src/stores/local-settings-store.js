@@ -17,9 +17,13 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
       columnOrder: [], // Store column order
       viewOptions: {}, // Store view options
       hiddenVisits: [], // Store hidden visit encounter numbers
+      pendingAuditFilter: false, // One-shot: activate audit filter on next editor load
     },
     visits: {
       recentPatients: [], // Store recent patient IDs for quick access (max 10)
+    },
+    studies: {
+      lastSelectedStudyId: null, // Re-opened automatically when navigating to /studies
     },
     databases: {
       customPaths: {
@@ -57,6 +61,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
           visits: {
             ...defaultSettings.visits,
             ...(parsedSettings.visits || {}),
+          },
+          studies: {
+            ...defaultSettings.studies,
+            ...(parsedSettings.studies || {}),
           },
           dataGrid: {
             ...defaultSettings.dataGrid,
@@ -167,6 +175,32 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
 
   const hasDataGridSelectedPatients = () => {
     return settings.value.dataGrid.selectedPatientIds && settings.value.dataGrid.selectedPatientIds.length > 0
+  }
+
+  // Studies: remember the last selected study so /studies can re-open it
+  const getLastSelectedStudyId = () => {
+    return settings.value.studies?.lastSelectedStudyId ?? null
+  }
+
+  const setLastSelectedStudyId = (studyId) => {
+    if (!settings.value.studies) {
+      settings.value.studies = { ...defaultSettings.studies }
+    }
+    settings.value.studies.lastSelectedStudyId = studyId ?? null
+  }
+
+  // One-shot flag: activate the audit filter on the next grid-editor load
+  // (set by the study audit views before navigating to /data-grid/editor)
+  const setPendingAuditFilter = (value) => {
+    settings.value.dataGrid.pendingAuditFilter = !!value
+  }
+
+  const consumePendingAuditFilter = () => {
+    const pending = !!settings.value.dataGrid.pendingAuditFilter
+    if (pending) {
+      settings.value.dataGrid.pendingAuditFilter = false
+    }
+    return pending
   }
 
   // Reset Data Grid settings
@@ -282,7 +316,13 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     setDataGridSelectedPatients,
     clearDataGridSelectedPatients,
     hasDataGridSelectedPatients,
+    setPendingAuditFilter,
+    consumePendingAuditFilter,
     resetDataGridSettings,
+
+    // Studies specific methods
+    getLastSelectedStudyId,
+    setLastSelectedStudyId,
 
     // Database Path specific methods
     getDatabaseCustomPaths,

@@ -1,7 +1,7 @@
 <template>
   <q-page class="export-page">
-    <div class="q-pa-md">
-      <div class="text-h4 q-mb-md">{{ $t('export.exportData') }}</div>
+    <div class="page-container">
+      <PageHeader :title="$t('export.exportData')" :subtitle="$t('export.pageSubtitle')" />
 
       <!-- Patient Data Explorer -->
       <q-card>
@@ -81,7 +81,7 @@
 
           <template v-else-if="tableData.length > 0">
             <div class="patient-cards-grid">
-              <PatientCard v-for="patient in tableData" :key="patient.id" :patient="patient" :selected="isPatientSelected(patient)" @select="toggleSelection" />
+              <PatientCard v-for="patient in tableData" :key="patient.id" :patient="patient" :selected="isPatientSelected(patient)" @select="toggleSelection" @changed="loadTableData" />
             </div>
             <div class="row justify-center q-mt-md">
               <q-pagination v-model="pagination.page" :max="totalPages" :max-pages="7" direction-links boundary-links size="sm" @update:model-value="loadTableData" />
@@ -109,6 +109,7 @@ import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import ExportService from 'src/core/services/export-service.js'
 import ExportDialog from 'src/components/export/ExportDialog.vue'
 import PatientCard from 'src/components/shared/PatientCard.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const notify = useNotify()
 const dbStore = useDatabaseStore()
@@ -477,11 +478,6 @@ watch(
 </script>
 
 <style lang="scss" scoped>
-.export-page {
-  background-color: $grey-1;
-  min-height: calc(100vh - 50px);
-}
-
 .patient-cards-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

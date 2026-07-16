@@ -7,6 +7,346 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4_20260716] - 2026-07-16
+
+### Added
+
+- **SmartButton Messenger** (Notizen mit Special-Tag `CATEGORY_CHAR='MESSAGE'`,
+  kein Schema-Change): Nutzer können sich gegenseitig Nachrichten schicken.
+  - Dritter Tab „Nachrichten“ im Quick-Notes-Fenster: Empfänger-Auswahl
+    (alle Nutzer + **„An alle“**-Broadcast via Empfänger `*`), Text, Senden;
+    einfaches Antworten (replyToId + „Antwort auf“-Bezug), Löschen mit
+    Bestätigung (Broadcasts nur durch den Absender — eine geteilte Zeile).
+  - Nachrichten tragen denselben Kontext wie Quick Notes (Patient/Studie/
+    Seite als klickbarer Chip — „schau dir diesen Patienten an“).
+  - **Ungelesen-Badge am SmartButton-FAB** (rot, Anzahl; 60s-Refresh,
+    still ohne DB-Verbindung) + Badge an der Notes-Aktion und am Tab.
+    Öffnen des Tabs markiert alles als gelesen (Direktnachrichten via
+    `readAt`, Broadcasts pro Leser via `readBy`-Liste im Blob).
+  - Absender in `SOURCESYSTEM_CD`, Empfänger/Gelesen-Status im
+    `NOTE_BLOB`-JSON; `note-repository.getMessagesForUser` (LIKE-Prefilter,
+    JS-Verifikation). Tests: `tests/unit/31_messenger.test.js` (13 Tests).
+  - Das technische `public`-Konto ist kein wählbarer Empfänger (niemand
+    liest dessen Postfach) — Broadcasts laufen über die „An alle“-Option.
+
+- **Mehrere SmartButton-Fenster gleichzeitig**: Plugins öffnen sich als
+  unabhängige schwebende Fenster (z. B. Notizen + Rechner nebeneinander),
+  jedes einzeln verschiebbar/minimierbar, Klick holt ein Fenster nach vorn
+  (Z-Order), neue Fenster kaskadieren von rechts oben. Pro Plugin maximal
+  ein Fenster — erneutes Öffnen fokussiert das vorhandene. Der bisherige
+  Einzel-Dialog (zweites Plugin ersetzte das erste) entfällt.
+
+- **SmartButton Quick Notes: echtes Notizsystem mit Kontext**
+  (`features/smartbutton-notizen`): Quick Notes waren bisher rein flüchtig
+  (In-Memory, weg beim Schließen) — jetzt persistent in `NOTE_FACT`.
+  - **Persistenz**: `NoteRepository` erstmals in `database-service.js`
+    registriert; neue Repo-Methoden `findByPatientNum` (behebt latenten
+    Bug in `search-service`) und `getQuickNotes` (eigene Notizen via
+    `SOURCESYSTEM_CD = USER_CD`, Suche, Pagination). Neuer Pinia-Store
+    `note-store.js` (create/load/update/delete).
+  - **Kontext**: Beim Speichern werden Patient (`PATIENT_NUM`), Visite
+    (`ENCOUNTER_NUM`), Studie und aktuelle Route in `NOTE_BLOB` erfasst
+    (`src/shared/utils/note-context.js`, pure + getestet). Jede Notiz
+    zeigt einen klickbaren Kontext-Chip (Priorität Patient → Studie →
+    Seite), der dorthin zurücknavigiert; im „Neu“-Tab wird der Kontext
+    vorab angezeigt.
+  - **Tab-UI** (`NotesWidget.vue` + `NoteListItem.vue`): „Neue Notiz“
+    (Editor + Kontext-Vorschau + letzte 3 Notizen) und „Notizen“
+    (Badge mit Anzahl, Debounce-Suche, Inline-Bearbeiten, Löschen mit
+    Bestätigung). Entwurf überlebt Minimieren (getState/initial-state).
+  - **Nicht-modales Plugin-Fenster**: Der SmartButton-Dialog (alle
+    Plugins) ist jetzt `seamless` — kein Backdrop, der Hintergrund bleibt
+    voll bedienbar — und an der Titelzeile frei verschiebbar
+    (v-touch-pan, Viewport-Clamping).
+  - **i18n komplett**: Alle Plugin-Namen/-Tooltips über neue
+    `smartButton.plugins.*`-Keys (de/en), Quick-Notes-UI über
+    `smartButton.quickNotes.*`; hartkodierte englische Labels entfernt.
+  - Tests: `tests/unit/30_quick-notes.test.js` (17 Tests: Kontext-Utils,
+    Repo-Filter, Store-Verhalten).
+
+- **Studienseite merkt sich die zuletzt gewählte Studie**
+  (`features/studypage-remember`): Wer `/studies` frisch ansteuert, landet
+  direkt wieder in der zuletzt geöffneten Studie statt auf der Suchliste
+  (Route-Guard `src/router/study-remember-guard.js`, persistiert via
+  `localSettings.studies.lastSelectedStudyId`). Die Liste bleibt erreichbar:
+  Zurück-Navigation aus einer Studie sowie `?stay=1` zeigen immer die Liste.
+  Selbstheilend: gelöschte/nicht mehr vorhandene Studien löschen die Merkung
+  (study-store `loadStudyById`/`deleteStudy`). Tests:
+  `tests/unit/29_studypage-remember.test.js`.
+
+- **Patientendaten-Tab: Studie entfernen + Rechte/Owner-Sektion**
+  (`/visits` → Patientendaten).
+  - Studieninfo-Karte: pro Mitgliedschaft ein Entfernen-Button (löscht die
+    `STUDY_PATIENT_LOOKUP`-Zeile hart, mit Bestätigung — im Unterschied zum
+    Withdraw-Status). Neue Methoden `study-repository.removePatientFromStudy`,
+    study-store `removePatientFromStudy`, Composable
+    `usePatientStudyActions.removeMembership`.
+  - Neue Karte `PatientAccessCard.vue`: zeigt Owner + Sichtbarkeit, mit
+    Public-Toggle und Owner-Wechsel. Geteiltes Composable
+    `usePatientAccessActions.js`.
+  - **Erweiterte Access-Policy** (`src/shared/utils/patient-access.js`,
+    `canManagePatientAccess`): Owner/Public darf ändern, wer Admin ist, der
+    Owner, **oder** – bei ownerlosen öffentlichen Patienten – jeder
+    eingeloggte Nutzer. Der Store-Guard (`database-store.assertOwnerOrAdmin`)
+    und die PatientCard-Kontextmenü-Sichtbarkeit nutzen jetzt dieselbe Regel;
+    das Löschen bleibt strenger (Admin oder Creator, in PatientCardMenu als
+    eigenes `canDelete` getrennt). Tests:
+    `tests/unit/28_patient-access-policy.test.js`.
+
+- **Studien-Audit-Modul** (`features/audit-studies`): Studien-Datenerhebung
+  systematisch abarbeitbar.
+  - **Audit-Tab auf `/studies/:id`** (`StudyAuditPanel.vue`): KPIs (offene
+    Audits, Patienten mit Audits, abgeschlossen/eingeschrieben + Quote),
+    „Audits pro Benutzer" und „Audits pro Patient" mit Sprung ins Grid
+    (einzeln oder alle, Audit-Filter voraktiviert via One-Shot-Flag
+    `localSettings.dataGrid.pendingAuditFilter`, konsumiert von
+    `DataGridEditorPage`). Tab-Badge mit offener Audit-Anzahl.
+  - **Enrollment-Status-Workflow**: `STUDY_PATIENT_LOOKUP.ENROLLMENT_STATUS_CD`
+    bekommt einen `'completed'`-Schreibpfad — Status-Dropdown am
+    PatientCard-Chip (`statusOptions`-Prop, nicht-brechend), filterbasierte
+    Bulk-Aktionen („Gefilterte als abgeschlossen/aktiv markieren") mit
+    Bestätigung, Statusfilter (Alle/Aktiv/Abgeschlossen/Zurückgezogen) +
+    „Nur mit offenen Audits"-Toggle im Overview-Tab, „Im Grid öffnen (n)"
+    für die gefilterte Liste. Konstanten in
+    `src/shared/utils/enrollment-status.js`
+    (`ENROLLMENT_STATUSES`, `ENROLLED_STATUS_SQL`).
+  - **Team-Aktivität im Insights-Tab**: Patienten pro Benutzer (Owner via
+    USER_PATIENT_LOOKUP) und Beobachtungen pro Benutzer (PROVIDER_ID=USER_CD)
+    für die Kohorte (`getCohortUserStats`).
+  - **Studienkarten-Badges auf `/studies`**: „x/y abgeschlossen" +
+    rotes Audit-Chip pro Studie (Batch-Queries
+    `getEnrollmentStatusCountsForStudies` / `getOpenAuditCountsForStudies`,
+    kein N+1).
+  - **Neue Repository-/Store-Schicht**: `study-repository`
+    `getStudyAuditSummary` (erste DB-Query auf `VALUEFLAG_CD='AUDIT'`,
+    access-gefiltert), `updateEnrollmentStatus(Bulk)`,
+    `getEnrollmentStatusCounts(ForStudies)`, `getOpenAuditCountsForStudies`,
+    `getCohortUserStats`; dbStore-Wrapper mit `resolveUserAccess()`;
+    study-store `loadStudyAudit` / `setEnrollmentStatus`.
+  - Tests: `tests/unit/25_study-audit-repository.test.js`,
+    `tests/unit/26_pending-audit-filter.test.js` (21 neue Tests).
+  - **Studienstatus überall verfügbar**
+    (`StudyMembershipMenuItems.vue`, geteilt): Rechtsklick-Menü der
+    PatientCard und der Patient-Zelle im Grid bieten jetzt
+    „Studie zuordnen" (enroll/withdraw-Toggle) **und** „Studienstatus"
+    (aktueller Status markiert, Umschalten aktiv/abgeschlossen/zurückgezogen).
+    Das `person_remove`-Icon auf den PatientCards in `/studies/:id` entfällt
+    (Withdraw läuft über Kontextmenü/Status); der alte Withdraw-Dialog wurde
+    entfernt.
+  - **Studieninfo-Sektion im Patientendaten-Tab** (`/visits` → Patientendaten,
+    `PatientStudyInfoCard.vue` unterhalb der Statistiken): zeigt alle
+    Studienmitgliedschaften mit Einschreibedatum, Status-Umschalter
+    (aktiv/abgeschlossen/zurückgezogen) und „Zu Studie hinzufügen".
+  - **Gezielte Karten-Updates statt Seiten-Reload**: Studien-Aktionen der
+    PatientCard laufen über die neue geteilte Aktionsschicht
+    `src/composables/usePatientStudyActions.js` (enroll/withdraw/setStatus +
+    Membership-Laden; Notifications inklusive). Jede Aktion liefert nach
+    bestätigtem DB-Write ein Detail-Objekt `{type, studyNum, patientNum,
+    status}`, das über `changed` bis zur Seite durchgereicht wird —
+    `/studies/:id` patcht damit nur die betroffene Karte (Status/Withdraw)
+    bzw. lädt die Liste still nach (Enroll/Löschen), statt die ganze Seite
+    auf den Spinner zu schalten (`loadStudy/loadEnrolledPatients` mit
+    `silent`-Option). study-store bekam `enrollPatientInStudy` /
+    `withdrawPatientFromStudy` (inkl. Audit-Cache-Refresh).
+  - **Fix: Statusänderung übers Kontextmenü aktualisiert die Karte sofort**
+    — `StudyMembershipMenuItems` nutzt einen `onChanged`-Function-Prop mit
+    Closure-Capture vor dem `await` statt `defineEmits`: das Menü wird durch
+    `v-close-popup` sofort unmounted, ein Emit nach dem DB-Write verpuffte
+    auf der toten Instanz (Regressionstest
+    `tests/unit/27_study-membership-menu.test.js`).
+  - **Fix: „Im Grid öffnen (n)" nur bei aktivem Filter** — ohne Filter hätte
+    der Button die komplette Kohorte (400+ Patienten) ins Grid geladen.
+  - **Mehrfachauswahl per Umschalt-Klick auf `/studies/:id`**: Normaler Klick
+    öffnet weiterhin den Patienten; Umschalt-/Strg-/Cmd-Klick wählt Karten aus
+    (bei aktiver Auswahl togglet auch der normale Klick). Auswahl-Banner mit
+    „Alle (gefiltert) auswählen" / „Auswahl aufheben", Button „Auswahl im Grid
+    öffnen (n)" lädt genau die markierten Karten. PatientCard reicht dafür das
+    Maus-Event am `select`-Emit mit und hat einen optionalen `select-hint`-
+    Tooltip.
+  - **Fix: „Owner ändern" öffnete keinen Dialog** — `openOwnerDialog` setzte
+    `showOwnerDialog` erst nach einer `await`-Query, was mit dem
+    `v-close-popup`-Teardown des Menüs kollidierte; der Dialog öffnet jetzt
+    synchron und lädt die Nutzerliste hinein. (Sichtbar ist der Menüpunkt
+    weiterhin nur für Admins oder den Patienten-Owner — importierte Patienten
+    ohne Creator-Zeile haben keinen Owner.)
+  - **Keine versehentliche Text-Markierung**: Quasar-Klasse `.non-selectable`
+    auf allen Layout-Roots (Main/Grid/Public), damit Umschalt-Klick auf Karten
+    keinen Seitentext markiert; Eingabefelder / `.selectable` bleiben per
+    globaler Regel in `app.scss` selektierbar.
+  - **Grid: erweitertes Patient-Kontextmenü** (`ExcelLikeEditor.vue`):
+    Patienteninfo-Dialog (Demografie + Studieninfo, access-gefiltert via
+    `getAccessiblePatientByCode`), „Patient aus Tabelle entfernen" direkt im
+    Menü, Studienzugehörigkeit + Studienstatus, Patient verwalten, Löschen.
+
+### Fixed
+
+- **Quick Notes: Kontext-Klick schließt das Fenster nicht mehr**: Navigation
+  über den Kontext-Chip lässt das (seamless) Notiz-Fenster offen, sodass man
+  Notiz und Zielseite gleichzeitig sieht.
+
+### Changed
+
+- **Drawer: kein Höhensprung mehr zwischen Mini- und Voll-Modus**: Die
+  Sektionsüberschriften (Patientenverwaltung, Studienverwaltung,
+  Administration, Datenoperationen) waren ~48px hohe `q-item-label header`,
+  die im Mini-Modus ausgeblendet wurden — beim Aufklappen sprangen alle
+  Einträge nach unten. Jetzt beschriftete Separatoren mit fester Höhe
+  (16px in beiden Modi): Mini zeigt nur die Linie, aufgeklappt die Linie
+  mit winzigem Uppercase-Label in der Mitte. Unbeschriftete Separatoren
+  auf dieselbe Optik angeglichen.
+
+- **`/visits/:patientId` als bewusster Vollbild-Modus**: Die Patientenansicht
+  läuft — wie der Datentabellen-Editor — ohne Drawer/Top-Bar (eigene
+  Top-Level-Route mit PublicLayout + `requireAuth`). Der Rückweg ist der
+  Zurück-Pfeil im Patienten-Header (History-back bzw. `/visits`). Die
+  Patientenliste `/visits` bleibt im MainLayout mit Navigation.
+
+### Changed
+
+- **Einheitliches Seiten-Design app-weit** (`src/css/app.scss`): Alle
+  Hauptseiten teilen jetzt dasselbe Grundgerüst — flacher Hintergrund
+  (`--color-background` auf jeder `q-page`), zentrierter
+  `.page-container` (max. 1200px, einheitliches Padding), weiße Boxen mit
+  8px-Radius und dezentem Schatten (`.content-box` + globale
+  `q-card`-Regel innerhalb von Seiten; Dialoge behalten Quasar-Elevation).
+  Entfernt wurden die seitenindividuellen Stile: Gradient-Hintergrund auf
+  /visits, `#f8f9fa`/`$grey-1`-Sonderhintergründe (Dashboard, Data-Grid,
+  Export, Feedback, Import, Questionnaires), Card-Radius-Wildwuchs
+  (10/12/16px auf Studien-Seiten und PatientSelector), lokale
+  `page-container`-Duplikate. /settings bekam denselben PageHeader
+  (neuer Key `settings.pageSubtitle`).
+
+- **Einheitlicher Seitenkopf nach Questionnaire-Vorlage + Breadcrumbs
+  entfernt**: Neue geteilte Komponente
+  `src/components/shared/PageHeader.vue` — h1-Titel mit dem Untertitel
+  kleiner/dezenter inline daneben (Baseline-bündig, bricht auf schmalen
+  Screens um), Actions-Slot rechts. Hover über den Titel zeigt den aktuellen
+  Routen-Pfad als Tooltip (Debug-Hilfe) — dafür ist die globale
+  Breadcrumb-Leiste („Home / …") im MainLayout entfernt. Umgestellt: /visits
+  (Auswahlmodus; Patientenansicht `/visits/:id` unverändert), /studies,
+  /data-grid, /concepts, /cql, /users, /global-settings, /import, /export,
+  /database-test, /feedback, /questionnaires. Alle Titel/Untertitel sauber
+  über i18n (neue `pageSubtitle`-Keys für study/dataGrid/export/concepts/
+  questionnaire/user + `database.testPageTitle/-Subtitle`; hartkodiertes
+  Englisch auf /users, /questionnaires, /database-test ersetzt).
+
+- **/visits-Kopfbereich entschlackt**: Der große zentrierte Hero der
+  Patientenauswahl (64px-Icon, 3rem-Titel, Untertitel, 3rem-Abstand) ist
+  durch eine kompakte Sektions-Titelzeile ersetzt (kleines Icon + Titel +
+  Untertitel in einer Zeile, linksbündig über der Suchkarte) — passend zum
+  neueren Dashboard-Design ohne Seiten-Hero.
+
+- **Grid-Footer entschlackt + Visitentyp-Sperre in die Kopfzeile**: Der
+  Footer des Datentabellen-Editors nutzt jetzt die volle Breite (Status links,
+  Statistik rechts, `max-width`/Zentrierung entfernt), „Alle Änderungen
+  gespeichert" ist auf das grüne Häkchen mit Tooltip reduziert (Warn-Text mit
+  Zähler bleibt bei ungespeicherten Änderungen sichtbar). Der
+  Visitentyp-Sperre-Chip wanderte aus dem Footer in die Kopfzeile links neben
+  die Zoom-Buttons: kompakter Icon-Button (Kalender + Schloss-Badge,
+  `lock`/`lock_open` je nach Zustand) mit Tooltip; der Schalter in den
+  Anzeigeoptionen bleibt als Zweitzugang.
+
+- **„Abgeschlossen" zählt weiter als eingeschrieben**: Alle
+  Studien-Zählqueries filtern jetzt einheitlich `!= 'withdrawn'` statt
+  `= 'active'` (Karten-Patientenzahl, Statistik, Kohorten-Export
+  `findEnrolledPatientCds`, Insights `getCohortPatientCount`) — abgeschlossene
+  Patienten bleiben in Zählungen, Export und Insights enthalten.
+
+- **Zeilen-Virtualisierung im Datentabellen-Editor**: Nur die sichtbaren
+  Zeilen (+ Überhang) stehen im DOM; Spacer-Zeilen erhalten Scrollbar-Geometrie
+  und Sticky-Header/-Spalten. Stresstest 425 Patienten / 1037 Visiten /
+  47 Spalten (~49k Zellen): Aufbau in ~1,5s, konstant ~25–35 Zeilen im DOM
+  statt 1037, flüssiges Scrollen, 0 Konsolen-Fehler. Dazu: `table-layout:
+  fixed` + `colgroup` (stabile Spaltenbreiten beim Scrollen), einheitliche
+  Zeilenhöhe, `q-scroll-area` durch nativen Scroll-Container ersetzt,
+  Zoom-kompensierte Fenster-Berechnung (`grid-utils.computeVirtualWindow`,
+  Tests `tests/unit/24_grid-virtualization.test.js`), EditableCell committet
+  pending Edits beim Unmount (Zelle aus dem Fenster gescrollt),
+  `isFirstVisitForPatient` von O(Zeilen²) pro Render auf einmalige Map.
+- **Visitentyp-Sperre in der Footer-Statistik**: Bei aktiver Sperre fallen
+  gesperrte Zellen aus „% Ausgefüllt" und „Zellen" heraus (sie sind für den
+  Visitentyp der Zeile nicht vorgesehen); offene Audits auf gesperrten Zellen
+  zählen weiter. Neuer Footer-Eintrag „gesperrt: N" bei aktiver Sperre.
+
+
+- **Visitentyp-Sperre im Datentabellen-Editor** (UI-seitig, abschaltbar):
+  Neuer Toggle in den Anzeigeoptionen + Chip im Grid-Footer
+  (`viewOptions.visitTypeLockActive`, persistiert). Wenn aktiv, werden Zellen
+  gesperrt (Schraffur, Schloss-Icon, Editieren/Kontextmenü/Fragebogen-
+  Ausfüllen/Medikations-Dialog blockiert), deren Concept über die
+  FieldSets anderer Visitentypen definiert ist, aber nicht zum Visitentyp
+  der Zeile gehört. Zweistufiges Matching, explizit schlägt Kategorie:
+  explizit in `concepts[]` gelistete Concepts sind an genau die Visitentypen
+  gebunden, die sie listen (das Kategorie-Fallback rettet sie nicht — z.B.
+  bleibt `STROKE_LIPID:V2:DOSE_INCREASED` trotz Kategorie `Stroke` V2-only);
+  nirgends gelistete Concepts matchen per `categories[]`.
+  Vorhandene Werte bleiben sichtbar (read-only).
+  Konservativ: Visiten ohne/mit unbekanntem Visitentyp, Concepts ohne
+  FieldSet-Zuordnung und verwaiste FieldSets sperren nie.
+  (`grid-utils.buildVisitTypeLockMap`/`isCellVisitTypeLocked`,
+  `data-grid-store.isCellLocked`, Tests `tests/unit/23_visit-type-lock.test.js`)
+
+- **Provider-Stempel auf Observations**: Beim Erstellen _und_ Ändern einer
+  Observation (Dateneingabe, Datentabellen-Editor inkl. Flag-/Datums-Menü,
+  Medikamente, Questionnaires) wird der eingeloggte Nutzer als
+  `OBSERVATION_FACT.PROVIDER_ID` (= `USER_CD`) vermerkt — Last-Editor-Semantik.
+  Zentraler Getter `auth-store.providerId` (Fallback `'SYSTEM'`). Migration
+  013 befüllt `PROVIDER_DIMENSION` aus `USER_MANAGEMENT` (ein Provider pro
+  User, selbstheilender Upsert, plus Legacy-Einträge `SYSTEM`/`@`);
+  `UserRepository.createUser`/`updateUser` halten den Abgleich aktuell.
+  Tests: `tests/unit/22_observation-provider.test.js` + angepasste
+  Grid-Tests (15/17/18).
+
+- **Rechtsklick-Kontextmenü auf der Standard-Patientenkarte**
+  (`PatientCardMenu.vue`, automatisch auf allen 8 Karten-Flächen):
+  Visiten öffnen, Patientendaten anzeigen/ändern (öffnet die
+  Patientendaten-Ansicht in /visits via `?view=patient`), im
+  Datentabellen-Editor öffnen (setzt die Grid-Auswahl auf diesen
+  Patienten), Patienten-ID kopieren, Studie zuordnen (Submenü mit
+  Häkchen für bereits eingeschriebene), Patient exportieren
+  (Format-Dialog CSV/HL7, Direkt-Download inkl. Visiten/Observations).
+  Für Admin + Owner zusätzlich: Öffentlich machen/entziehen, Owner
+  ändern (Creator-Rolle wechselt, alter Owner behält Zugriff —
+  `transferOwnership`), Löschen (bestehender Dialog + Store-Guard).
+  Berechtigungen laden lazy beim Menü-Öffnen; mutierende Aktionen
+  emittieren `changed`, alle Listen-Seiten laden dann neu.
+  Store-Guards `transferPatientOwnership`/`setPatientPublicAccess`
+  (Admin oder aktueller Owner). 4 neue Tests
+  (`transferOwnership`, `setPublicAccess`).
+  Zurück-Pfeil des Grid-Editors führt zur Herkunftsseite zurück
+  (Router-History, wie der /visits-Zurück-Fix) statt immer zur
+  Grid-Patientenauswahl; Unsaved-Changes-Dialog bleibt davor.
+
+### Added
+
+- **Kontextmenü "Studie zuordnen": Toggle statt deaktiviertem Häkchen** —
+  Bereits eingeschriebene Studien sind im Submenü nicht mehr disabled,
+  sondern bieten das Austragen an (person_remove-Icon, Caption
+  "eingeschrieben", Tooltip; `withdrawPatient` setzt den Status auf
+  withdrawn, erneutes Zuordnen reaktiviert die Einschreibung).
+
+- **Dateneingabe: "Alle hinzufügen" für verfügbare Beobachtungen** —
+  Der "Verfügbare Beobachtungen"-Abschnitt jedes Feldsets hat jetzt
+  einen Button, der alle noch nicht angelegten Konzepte auf einmal als
+  leere Observations anlegt (Medikamente ausgenommen — eigener Flow);
+  Sammel-Notify mit Anzahl, Teilfehler werden gemeldet. Abschnitt
+  nebenbei i18n-fähig gemacht.
+
+### Fixed
+
+- **Neue Visite wurde nach dem Anlegen manchmal nicht ausgewählt** —
+  Ursachenkette: (1) `electron-preload.js` band den sqlite3-`run`-Callback
+  per `.bind(this)` ans Preload-Objekt, wodurch `lastID`/`changes` immer
+  `undefined` waren (sqlite3 liefert beide über das Callback-eigene
+  `this`); (2) der dadurch immer aktive Fallback in `visit-repository`
+  ermittelte die neue ENCOUNTER_NUM über "neueste Visite nach
+  START_DATE" — bei rückdatierten oder datumsgleichen Visiten die
+  falsche. Fix: Binding entfernt (lastID funktioniert wieder überall;
+  greift nach Electron-Neustart) und die Fallbacks in visit- und
+  observation-repository auf deterministisches
+  `MAX(ENCOUNTER_NUM/OBSERVATION_ID)` umgestellt. 3 Regressionstests
+  (`tests/unit/21_new-visit-id.test.js`).
+
 ### Changed
 
 - **/studies platzoptimiert, Studien direkt sichtbar** — Die Studienliste
@@ -515,6 +855,7 @@ changes from the recent commit history (see `git log` for full detail).
 - `test(dbBEST)`: smoke tests for UI-prep foundation (notify, session monitor, error boundary).
 - `refactor(dbBEST)`: migrated all `$q.notify` calls to `useNotify` composable.
 
-[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.3_20260521...HEAD
+[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.4_20260716...HEAD
+[0.4_20260716]: https://github.com/JenAIx/BEST/releases/tag/v0.4_20260716
 [0.3_20260521]: https://github.com/JenAIx/BEST/releases/tag/v0.3_20260521
 [0.2_20260516]: https://github.com/JenAIx/BEST/releases/tag/v0.2_20260516

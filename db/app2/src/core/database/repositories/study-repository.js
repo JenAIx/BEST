@@ -7,6 +7,7 @@
 
 import BaseRepository from './base-repository.js'
 import { createLogger } from '../../services/logging-service.js'
+import { ENROLLED_STATUS_SQL, ENROLLMENT_STATUS_CODES, ENROLLMENT_STATUS_WITHDRAWN } from '../../../shared/utils/enrollment-status.js'
 
 class StudyRepository extends BaseRepository {
   constructor(connection) {
@@ -261,11 +262,11 @@ class StudyRepository extends BaseRepository {
       // Get patient counts for all studies in one query
       const placeholders = studyIds.map(() => '?').join(',')
       const countSql = `
-        SELECT STUDY_NUM, COUNT(*) as count
-        FROM STUDY_PATIENT_LOOKUP
-        WHERE STUDY_NUM IN (${placeholders})
-        AND ENROLLMENT_STATUS_CD = 'active'
-        GROUP BY STUDY_NUM
+        SELECT spl.STUDY_NUM, COUNT(*) as count
+        FROM STUDY_PATIENT_LOOKUP spl
+        WHERE spl.STUDY_NUM IN (${placeholders})
+        AND ${ENROLLED_STATUS_SQL}
+        GROUP BY spl.STUDY_NUM
       `
       const countResult = await this.connection.executeQuery(countSql, studyIds)
 
@@ -442,18 +443,321 @@ class StudyRepository extends BaseRepository {
         UPDATE STUDY_PATIENT_LOOKUP
         SET ENROLLMENT_STATUS_CD = 'withdrawn',
             WITHDRAWAL_DATE = ?,
-            UPDATED_AT = CURRENT_TIMESTAMP
+            UPDATE_DATE = CURRENT_TIMESTAMP
         WHERE STUDY_NUM = ? AND PATIENT_NUM = ?
       `
 
       const withdrawalDateStr = withdrawalDate || new Date().toISOString().split('T')[0]
-      await this.connection.executeCommand(sql, [withdrawalDateStr, studyId, patientId])
+      const result = await this.connection.executeCommand(sql, [withdrawalDateStr, studyId, patientId])
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Withdraw command failed')
+      }
 
       this.logger.success('Patient withdrawn from study', { studyId, patientId })
 
       return true
     } catch (error) {
       this.logger.error('Failed to withdraw patient', error)
+      throw error
+    }
+  }
+
+  /**
+   * Set the enrollment status for a single patient in a study.
+   * @param {number} studyId - Study ID (STUDY_NUM)
+   * @param {number} patientNum - Patient ID (PATIENT_NUM)
+   * @param {string} status - One of ENROLLMENT_STATUS_CODES
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateEnrollmentStatus(studyId, patientNum, status) {
+    return this.updateEnrollmentStatusBulk(studyId, [patientNum], status)
+  }
+
+  /**
+   * Set the enrollment status for multiple patients in a study (one UPDATE).
+   * Setting 'withdrawn' stamps WITHDRAWAL_DATE; any other status clears it.
+   *
+   * @param {number} studyId - Study ID (STUDY_NUM)
+   * @param {number[]} patientNums - Patient IDs (PATIENT_NUM)
+   * @param {string} status - One of ENROLLMENT_STATUS_CODES
+   * @returns {Promise<boolean>} Success status
+   */
+  async updateEnrollmentStatusBulk(studyId, patientNums, status) {
+    try {
+      if (!ENROLLMENT_STATUS_CODES.includes(status)) {
+        throw new Error(`Invalid enrollment status: ${status}`)
+      }
+      if (!Array.isArray(patientNums) || patientNums.length === 0) {
+        return true
+      }
+
+      this.logger.info('Updating enrollment status', { studyId, status, patientCount: patientNums.length })
+
+      const placeholders = patientNums.map(() => '?').join(', ')
+      const sql = `
+        UPDATE STUDY_PATIENT_LOOKUP
+        SET ENROLLMENT_STATUS_CD = ?,
+            WITHDRAWAL_DATE = CASE WHEN ? = '${ENROLLMENT_STATUS_WITHDRAWN}' THEN date('now') ELSE NULL END,
+            UPDATE_DATE = CURRENT_TIMESTAMP
+        WHERE STUDY_NUM = ? AND PATIENT_NUM IN (${placeholders})
+      `
+      const result = await this.connection.executeCommand(sql, [status, status, studyId, ...patientNums])
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Enrollment status update failed')
+      }
+
+      this.logger.success('Enrollment status updated', { studyId, status, patientCount: patientNums.length })
+      return true
+    } catch (error) {
+      this.logger.error('Failed to update enrollment status', error)
+      throw error
+    }
+  }
+
+  /**
+   * Per-status enrollment counts for one study (NULL counts as 'active').
+   * Access-filtered for regular users like getEnrolledPatients.
+   *
+   * @param {number} studyId - Study ID (STUDY_NUM)
+   * @param {{userId: number, isAdmin: boolean}|null} userAccess
+   * @returns {Promise<{active:number, completed:number, withdrawn:number, total:number}>}
+   */
+  async getEnrollmentStatusCounts(studyId, userAccess = null) {
+    const counts = { active: 0, completed: 0, withdrawn: 0, total: 0 }
+    try {
+      let accessClause = ''
+      const params = [studyId]
+      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+        accessClause = `
+          AND EXISTS (
+            SELECT 1 FROM USER_PATIENT_LOOKUP upl
+            WHERE upl.PATIENT_NUM = spl.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
+          )`
+        params.push(userAccess.userId)
+      }
+
+      const result = await this.connection.executeQuery(
+        `SELECT COALESCE(spl.ENROLLMENT_STATUS_CD, 'active') AS status, COUNT(*) AS count
+           FROM STUDY_PATIENT_LOOKUP spl
+          WHERE spl.STUDY_NUM = ?${accessClause}
+          GROUP BY COALESCE(spl.ENROLLMENT_STATUS_CD, 'active')`,
+        params,
+      )
+      if (result.success) {
+        for (const row of result.data) {
+          if (Object.prototype.hasOwnProperty.call(counts, row.status)) {
+            counts[row.status] = row.count
+          }
+          counts.total += row.count
+        }
+      }
+      return counts
+    } catch (error) {
+      this.logger.error('Failed to get enrollment status counts', error)
+      throw error
+    }
+  }
+
+  /**
+   * Batch per-status enrollment counts for many studies (for study cards).
+   *
+   * @param {number[]} studyIds - Study IDs (STUDY_NUM)
+   * @param {{userId: number, isAdmin: boolean}|null} userAccess
+   * @returns {Promise<Map<number, {active:number, completed:number, withdrawn:number, total:number}>>}
+   */
+  async getEnrollmentStatusCountsForStudies(studyIds, userAccess = null) {
+    const map = new Map()
+    if (!Array.isArray(studyIds) || studyIds.length === 0) return map
+
+    try {
+      let accessClause = ''
+      const params = [...studyIds]
+      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+        accessClause = `
+          AND EXISTS (
+            SELECT 1 FROM USER_PATIENT_LOOKUP upl
+            WHERE upl.PATIENT_NUM = spl.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
+          )`
+        params.push(userAccess.userId)
+      }
+
+      const placeholders = studyIds.map(() => '?').join(', ')
+      const result = await this.connection.executeQuery(
+        `SELECT spl.STUDY_NUM, COALESCE(spl.ENROLLMENT_STATUS_CD, 'active') AS status, COUNT(*) AS count
+           FROM STUDY_PATIENT_LOOKUP spl
+          WHERE spl.STUDY_NUM IN (${placeholders})${accessClause}
+          GROUP BY spl.STUDY_NUM, COALESCE(spl.ENROLLMENT_STATUS_CD, 'active')`,
+        params,
+      )
+      if (result.success) {
+        for (const row of result.data) {
+          if (!map.has(row.STUDY_NUM)) {
+            map.set(row.STUDY_NUM, { active: 0, completed: 0, withdrawn: 0, total: 0 })
+          }
+          const entry = map.get(row.STUDY_NUM)
+          if (Object.prototype.hasOwnProperty.call(entry, row.status) && row.status !== 'total') {
+            entry[row.status] = row.count
+          }
+          entry.total += row.count
+        }
+      }
+      return map
+    } catch (error) {
+      this.logger.error('Failed to get enrollment status counts for studies', error)
+      throw error
+    }
+  }
+
+  /**
+   * Open-audit summary for a study.
+   *
+   * Scope note: observations are not study-tagged, so "open audits of a
+   * study" means every OBSERVATION_FACT row with VALUEFLAG_CD='AUDIT' that
+   * belongs to a patient enrolled (non-withdrawn) in the study — including
+   * observations recorded outside study visits.
+   *
+   * Per-user attribution uses the PROVIDER_ID = USER_CD convention
+   * (see migration 013-provider-user-sync).
+   *
+   * @param {number} studyId - Study ID (STUDY_NUM)
+   * @param {{userId: number, isAdmin: boolean}|null} userAccess
+   * @returns {Promise<{total:number,
+   *   byUser: Array<{userCd:string, userName:string, auditCount:number}>,
+   *   byPatient: Array<{patientNum:number, patientCd:string, patientBlob:string|null, auditCount:number}>}>}
+   */
+  async getStudyAuditSummary(studyId, userAccess = null) {
+    try {
+      this.logger.debug('Getting study audit summary', { studyId })
+
+      let accessClause = ''
+      const params = [studyId]
+      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+        accessClause = `
+          AND EXISTS (
+            SELECT 1 FROM USER_PATIENT_LOOKUP upl
+            WHERE upl.PATIENT_NUM = o.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
+          )`
+        params.push(userAccess.userId)
+      }
+
+      const byPatientRows = await this._execAggregate(
+        `SELECT p.PATIENT_NUM AS patientNum, p.PATIENT_CD AS patientCd,
+                p.PATIENT_BLOB AS patientBlob, COUNT(*) AS auditCount
+           FROM OBSERVATION_FACT o
+           JOIN STUDY_PATIENT_LOOKUP spl ON spl.PATIENT_NUM = o.PATIENT_NUM AND spl.STUDY_NUM = ?
+           JOIN PATIENT_DIMENSION p ON p.PATIENT_NUM = o.PATIENT_NUM
+          WHERE o.VALUEFLAG_CD = 'AUDIT'
+            AND ${ENROLLED_STATUS_SQL}${accessClause}
+          GROUP BY p.PATIENT_NUM
+          ORDER BY auditCount DESC, p.PATIENT_CD ASC`,
+        params,
+        'audit summary per patient',
+      )
+
+      const byUserRows = await this._execAggregate(
+        `SELECT o.PROVIDER_ID AS userCd, COALESCE(u.NAME_CHAR, o.PROVIDER_ID) AS userName,
+                COUNT(*) AS auditCount
+           FROM OBSERVATION_FACT o
+           JOIN STUDY_PATIENT_LOOKUP spl ON spl.PATIENT_NUM = o.PATIENT_NUM AND spl.STUDY_NUM = ?
+           LEFT JOIN USER_MANAGEMENT u ON u.USER_CD = o.PROVIDER_ID
+          WHERE o.VALUEFLAG_CD = 'AUDIT'
+            AND ${ENROLLED_STATUS_SQL}${accessClause}
+          GROUP BY o.PROVIDER_ID
+          ORDER BY auditCount DESC`,
+        params,
+        'audit summary per user',
+      )
+
+      const byPatient = byPatientRows.map((r) => ({
+        patientNum: r.patientNum,
+        patientCd: r.patientCd,
+        patientBlob: r.patientBlob || null,
+        auditCount: r.auditCount || 0,
+      }))
+      const byUser = byUserRows.map((r) => ({
+        userCd: r.userCd || 'SYSTEM',
+        userName: r.userName || r.userCd || 'SYSTEM',
+        auditCount: r.auditCount || 0,
+      }))
+      const total = byPatient.reduce((sum, r) => sum + r.auditCount, 0)
+
+      return { total, byUser, byPatient }
+    } catch (error) {
+      this.logger.error('Failed to get study audit summary', error)
+      throw error
+    }
+  }
+
+  /**
+   * Batch open-audit counts for many studies (for the study cards).
+   * Same scope rules as getStudyAuditSummary.
+   *
+   * @param {number[]} studyIds - Study IDs (STUDY_NUM)
+   * @param {{userId: number, isAdmin: boolean}|null} userAccess
+   * @returns {Promise<Map<number, number>>} STUDY_NUM → open audit count
+   */
+  async getOpenAuditCountsForStudies(studyIds, userAccess = null) {
+    const map = new Map()
+    if (!Array.isArray(studyIds) || studyIds.length === 0) return map
+
+    try {
+      let accessClause = ''
+      const params = [...studyIds]
+      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+        accessClause = `
+          AND EXISTS (
+            SELECT 1 FROM USER_PATIENT_LOOKUP upl
+            WHERE upl.PATIENT_NUM = o.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
+          )`
+        params.push(userAccess.userId)
+      }
+
+      const placeholders = studyIds.map(() => '?').join(', ')
+      const result = await this.connection.executeQuery(
+        `SELECT spl.STUDY_NUM, COUNT(*) AS auditCount
+           FROM OBSERVATION_FACT o
+           JOIN STUDY_PATIENT_LOOKUP spl ON spl.PATIENT_NUM = o.PATIENT_NUM
+          WHERE spl.STUDY_NUM IN (${placeholders})
+            AND o.VALUEFLAG_CD = 'AUDIT'
+            AND ${ENROLLED_STATUS_SQL}${accessClause}
+          GROUP BY spl.STUDY_NUM`,
+        params,
+      )
+      if (result.success) {
+        for (const row of result.data) {
+          map.set(row.STUDY_NUM, row.auditCount)
+        }
+      }
+      return map
+    } catch (error) {
+      this.logger.error('Failed to get open audit counts for studies', error)
+      throw error
+    }
+  }
+
+  /**
+   * Remove a patient's membership row from a study entirely (hard delete of
+   * the STUDY_PATIENT_LOOKUP row) — distinct from withdrawPatient, which keeps
+   * the row and only flips ENROLLMENT_STATUS_CD to 'withdrawn'.
+   *
+   * @param {number} studyId - Study ID (STUDY_NUM)
+   * @param {number} patientId - Patient ID (PATIENT_NUM)
+   * @returns {Promise<boolean>} Success status
+   */
+  async removePatientFromStudy(studyId, patientId) {
+    try {
+      this.logger.info('Removing patient from study', { studyId, patientId })
+      const result = await this.connection.executeCommand(
+        'DELETE FROM STUDY_PATIENT_LOOKUP WHERE STUDY_NUM = ? AND PATIENT_NUM = ?',
+        [studyId, patientId],
+      )
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Failed to remove patient from study')
+      }
+      this.logger.success('Patient removed from study', { studyId, patientId })
+      return true
+    } catch (error) {
+      this.logger.error('Failed to remove patient from study', error)
       throw error
     }
   }
@@ -586,9 +890,9 @@ class StudyRepository extends BaseRepository {
 
       // Total enrolled patients
       const patientResult = await this.connection.executeQuery(`
-        SELECT COUNT(DISTINCT PATIENT_NUM) as count
-        FROM STUDY_PATIENT_LOOKUP
-        WHERE ENROLLMENT_STATUS_CD = 'active'
+        SELECT COUNT(DISTINCT spl.PATIENT_NUM) as count
+        FROM STUDY_PATIENT_LOOKUP spl
+        WHERE ${ENROLLED_STATUS_SQL}
       `)
       stats.totalEnrolledPatients = patientResult.success ? patientResult.data[0].count : 0
 
@@ -615,7 +919,7 @@ class StudyRepository extends BaseRepository {
         JOIN STUDY_DIMENSION s   ON s.STUDY_NUM   = spl.STUDY_NUM
         JOIN PATIENT_DIMENSION p ON p.PATIENT_NUM = spl.PATIENT_NUM
        WHERE s.STUDY_CD = ?
-         AND (spl.ENROLLMENT_STATUS_CD IS NULL OR spl.ENROLLMENT_STATUS_CD = 'active')
+         AND ${ENROLLED_STATUS_SQL}
        ORDER BY p.PATIENT_CD
     `
     const result = await this.connection.executeQuery(sql, [studyCd])
@@ -660,7 +964,7 @@ class StudyRepository extends BaseRepository {
          FROM STUDY_PATIENT_LOOKUP spl
          JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
         WHERE s.STUDY_CD = ?
-          AND (spl.ENROLLMENT_STATUS_CD IS NULL OR spl.ENROLLMENT_STATUS_CD = 'active')`,
+          AND ${ENROLLED_STATUS_SQL}`,
       [studyCd],
       'cohort enrolled count',
     )
@@ -674,7 +978,7 @@ class StudyRepository extends BaseRepository {
          JOIN STUDY_PATIENT_LOOKUP spl ON spl.PATIENT_NUM = v.PATIENT_NUM
          JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
         WHERE s.STUDY_CD = ?
-          AND (spl.ENROLLMENT_STATUS_CD IS NULL OR spl.ENROLLMENT_STATUS_CD = 'active')
+          AND ${ENROLLED_STATUS_SQL}
           AND json_extract(v.VISIT_BLOB, '$.visitType') IS NOT NULL
         GROUP BY visitType
         ORDER BY visitType ASC`,
@@ -841,6 +1145,89 @@ class StudyRepository extends BaseRepository {
         min: values[0],
         max: values[values.length - 1],
       }))
+  }
+
+  /**
+   * Per-user activity within a cohort: how many enrolled patients each user
+   * owns (creator/manual USER_PATIENT_LOOKUP rows, public rows excluded) and
+   * how many observations each user created (PROVIDER_ID = USER_CD
+   * convention, migration 013). Merged by user code in JS.
+   *
+   * @param {string} studyCd - The study's STUDY_CD
+   * @param {{userId: number, isAdmin: boolean}|null} userAccess
+   * @returns {Promise<Array<{userCd:string, userName:string, patientsOwned:number, observationsCreated:number}>>}
+   */
+  async getCohortUserStats(studyCd, userAccess = null) {
+    if (!studyCd) return []
+
+    let patientAccessClause = ''
+    let obsAccessClause = ''
+    const patientParams = [studyCd]
+    const obsParams = [studyCd]
+    if (userAccess && userAccess.userId && !userAccess.isAdmin) {
+      const existsClause = (col) => `
+          AND EXISTS (
+            SELECT 1 FROM USER_PATIENT_LOOKUP acc
+            WHERE acc.PATIENT_NUM = ${col} AND (acc.USER_ID = ? OR acc.USER_ID = 0)
+          )`
+      patientAccessClause = existsClause('spl.PATIENT_NUM')
+      obsAccessClause = existsClause('o.PATIENT_NUM')
+      patientParams.push(userAccess.userId)
+      obsParams.push(userAccess.userId)
+    }
+
+    const ownedRows = await this._execAggregate(
+      `SELECT u.USER_CD AS userCd, COALESCE(u.NAME_CHAR, u.USER_CD) AS userName,
+              COUNT(DISTINCT spl.PATIENT_NUM) AS patientsOwned
+         FROM STUDY_PATIENT_LOOKUP spl
+         JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM AND s.STUDY_CD = ?
+         JOIN USER_PATIENT_LOOKUP upl ON upl.PATIENT_NUM = spl.PATIENT_NUM AND upl.USER_ID != 0
+         JOIN USER_MANAGEMENT u ON u.USER_ID = upl.USER_ID
+        WHERE ${ENROLLED_STATUS_SQL}${patientAccessClause}
+        GROUP BY u.USER_ID`,
+      patientParams,
+      'cohort patients per user',
+    )
+
+    const obsRows = await this._execAggregate(
+      `SELECT o.PROVIDER_ID AS userCd, COALESCE(u.NAME_CHAR, o.PROVIDER_ID) AS userName,
+              COUNT(*) AS observationsCreated
+         FROM OBSERVATION_FACT o
+         JOIN STUDY_PATIENT_LOOKUP spl ON spl.PATIENT_NUM = o.PATIENT_NUM
+         JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM AND s.STUDY_CD = ?
+         LEFT JOIN USER_MANAGEMENT u ON u.USER_CD = o.PROVIDER_ID
+        WHERE o.PROVIDER_ID IS NOT NULL
+          AND ${ENROLLED_STATUS_SQL}${obsAccessClause}
+        GROUP BY o.PROVIDER_ID`,
+      obsParams,
+      'cohort observations per user',
+    )
+
+    const byUser = new Map()
+    for (const r of ownedRows) {
+      byUser.set(r.userCd, {
+        userCd: r.userCd,
+        userName: r.userName || r.userCd,
+        patientsOwned: r.patientsOwned || 0,
+        observationsCreated: 0,
+      })
+    }
+    for (const r of obsRows) {
+      const entry = byUser.get(r.userCd)
+      if (entry) {
+        entry.observationsCreated = r.observationsCreated || 0
+      } else {
+        byUser.set(r.userCd, {
+          userCd: r.userCd,
+          userName: r.userName || r.userCd,
+          patientsOwned: 0,
+          observationsCreated: r.observationsCreated || 0,
+        })
+      }
+    }
+    return [...byUser.values()].sort(
+      (a, b) => b.observationsCreated - a.observationsCreated || b.patientsOwned - a.patientsOwned || String(a.userCd).localeCompare(String(b.userCd)),
+    )
   }
 }
 

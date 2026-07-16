@@ -135,6 +135,46 @@ class UserPatientLookupRepository extends BaseRepository {
     return result.success ? result.data.map((row) => row.PATIENT_NUM) : []
   }
 
+  /**
+   * Transfer the owner (creator) role of a patient to another user.
+   * The previous owner's creator row is downgraded to a manual grant (keeps
+   * access); the new owner's existing grant is promoted, or a fresh creator
+   * row is inserted.
+   */
+  async transferOwnership(patientNum, newUserId) {
+    // Downgrade current creator row(s) — former owner keeps plain access
+    await this.connection.executeCommand(
+      `UPDATE USER_PATIENT_LOOKUP
+       SET NAME_CHAR = 'Manual access - former owner', UPDATE_DATE = datetime('now')
+       WHERE PATIENT_NUM = ? AND NAME_CHAR = 'Creator access - auto-assigned'`,
+      [patientNum],
+    )
+
+    // Promote an existing grant of the new owner, or insert a creator row
+    const existing = await this.findByUserAndPatient(newUserId, patientNum)
+    if (existing) {
+      const result = await this.connection.executeCommand(
+        `UPDATE USER_PATIENT_LOOKUP
+         SET NAME_CHAR = 'Creator access - auto-assigned', UPDATE_DATE = datetime('now')
+         WHERE USER_PATIENT_ID = ?`,
+        [existing.USER_PATIENT_ID],
+      )
+      if (!result.success) throw new Error(result.error || 'Failed to transfer ownership')
+      return result
+    }
+    return await this.addAssociation(newUserId, patientNum, { nameChar: 'Creator access - auto-assigned' })
+  }
+
+  /**
+   * Grant or revoke public visibility (USER_ID 0 row) for a patient.
+   */
+  async setPublicAccess(patientNum, isPublic) {
+    if (isPublic) {
+      return await this.addAssociationIfMissing(0, patientNum, { nameChar: 'Public access' })
+    }
+    return await this.removeByUserAndPatient(0, patientNum)
+  }
+
   async removeByUserAndPatient(userId, patientNum) {
     const result = await this.connection.executeCommand(
       `DELETE FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? AND PATIENT_NUM = ?`,

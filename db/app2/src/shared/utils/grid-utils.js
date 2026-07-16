@@ -193,13 +193,155 @@ export const groupConceptsByCategory = (concepts) => {
  * @returns {Object} Default view options
  */
 export const getDefaultViewOptions = () => {
-  return {}
+  return {
+    // Visit-type lock: cells whose concept is claimed by other visit types'
+    // field sets (but not by the row's own visit type) render locked.
+    visitTypeLockActive: false,
+  }
 }
 
 /**
  * Validate view options object
+ * @param {Object} options - Raw (possibly persisted) view options
  * @returns {Object} Validated view options
  */
-export const validateViewOptions = () => {
-  return {} // No view options to validate
+export const validateViewOptions = (options = {}) => {
+  return {
+    visitTypeLockActive: options.visitTypeLockActive === true,
+  }
+}
+
+/**
+ * Compute the visible row window for the virtualized grid body.
+ *
+ * The table lives inside a wrapper scaled by `zoom` (CSS transform), so the
+ * scroll container reports VISUAL pixels while spacer heights are LAYOUT
+ * pixels — scrollTop/viewportHeight are divided by zoom before mapping to row
+ * indices; topPad/bottomPad are returned unscaled.
+ *
+ * @param {Object} opts
+ * @param {number} opts.scrollTop - Scroll offset of the container (visual px)
+ * @param {number} opts.viewportHeight - Container height (visual px)
+ * @param {number} opts.rowHeight - Uniform data-row height (layout px, > 0)
+ * @param {number} opts.totalRows - Total number of data rows
+ * @param {number} [opts.overscan=10] - Extra rows rendered above/below
+ * @param {number} [opts.zoom=1] - Current zoom scale factor
+ * @returns {{start: number, end: number, topPad: number, bottomPad: number}}
+ *   Render rows[start..end); pad tbody with spacers of topPad/bottomPad px.
+ */
+export const computeVirtualWindow = ({ scrollTop, viewportHeight, rowHeight, totalRows, overscan = 10, zoom = 1 }) => {
+  if (!totalRows || totalRows <= 0) {
+    return { start: 0, end: 0, topPad: 0, bottomPad: 0 }
+  }
+  const safeRowHeight = rowHeight > 0 ? rowHeight : 40
+  const safeZoom = zoom > 0 ? zoom : 1
+  const layoutScrollTop = Math.max(0, scrollTop / safeZoom)
+  const layoutViewport = Math.max(0, viewportHeight / safeZoom)
+
+  // Clamp: scrollTop can exceed the content height when rows shrink while
+  // scrolled down (e.g. audit filter toggled) or during elastic scrolling.
+  const firstVisible = Math.min(Math.floor(layoutScrollTop / safeRowHeight), totalRows - 1)
+  const visibleCount = Math.ceil(layoutViewport / safeRowHeight) + 1
+
+  const start = Math.max(0, firstVisible - overscan)
+  const end = Math.min(totalRows, firstVisible + visibleCount + overscan)
+
+  return {
+    start,
+    end,
+    topPad: start * safeRowHeight,
+    bottomPad: (totalRows - end) * safeRowHeight,
+  }
+}
+
+/**
+ * Build the visit-type lock map from CODE_LOOKUP rows.
+ *
+ * Inputs are the raw rows of CODE_LOOKUP(VISIT_DIMENSION/VISIT_TYPE_CD) and
+ * CODE_LOOKUP(VISIT_DIMENSION/FIELD_SET_CD) — each with CODE_CD + LOOKUP_BLOB.
+ * Only field sets referenced by at least one visit type participate ("explicitly
+ * assigned"); orphan field sets never cause locks.
+ *
+ * @returns {{byVisitType: Map<string, {concepts: Set<string>, categories: Set<string>}>,
+ *            claimedConcepts: Set<string>, claimedCategories: Set<string>}}
+ */
+export const buildVisitTypeLockMap = (visitTypeRows, fieldSetRows) => {
+  const parseBlob = (blob) => {
+    if (!blob) return null
+    try {
+      return typeof blob === 'string' ? JSON.parse(blob) : blob
+    } catch {
+      return null
+    }
+  }
+
+  const fieldSetsById = new Map()
+  for (const row of fieldSetRows || []) {
+    const blob = parseBlob(row.LOOKUP_BLOB)
+    if (!row.CODE_CD || !blob) continue
+    fieldSetsById.set(row.CODE_CD, {
+      concepts: Array.isArray(blob.concepts) ? blob.concepts : [],
+      categories: Array.isArray(blob.categories) ? blob.categories : [],
+    })
+  }
+
+  const byVisitType = new Map()
+  const claimedConcepts = new Set()
+  const claimedCategories = new Set()
+
+  for (const row of visitTypeRows || []) {
+    const blob = parseBlob(row.LOOKUP_BLOB)
+    if (!row.CODE_CD || !blob || !Array.isArray(blob.fieldSets)) continue
+    const allowed = { concepts: new Set(), categories: new Set() }
+    for (const fsRef of blob.fieldSets) {
+      const fieldSet = fieldSetsById.get(fsRef?.id)
+      if (!fieldSet) continue
+      for (const code of fieldSet.concepts) {
+        allowed.concepts.add(code)
+        claimedConcepts.add(code)
+      }
+      for (const category of fieldSet.categories) {
+        allowed.categories.add(category)
+        claimedCategories.add(category)
+      }
+    }
+    byVisitType.set(row.CODE_CD, allowed)
+  }
+
+  return { byVisitType, claimedConcepts, claimedCategories }
+}
+
+/**
+ * Decide whether a grid cell is locked under the visit-type lock.
+ *
+ * Two-tier matching, explicit beats category:
+ * 1. Concept is explicitly listed in some visit type's field-set concepts[]:
+ *    locked unless the row's visit type lists it explicitly too. The category
+ *    fallback deliberately does NOT rescue it — e.g. STROKE_LIPID:V2:* concepts
+ *    carry CATEGORY_CHAR='Stroke' which V0/V1 field sets also claim, yet they
+ *    must stay V2-only.
+ * 2. Concept is unlisted but its category is claimed by some visit type:
+ *    locked unless the row's visit type claims the category (the
+ *    "Medikamente_Allg" case — general concepts stay active everywhere their
+ *    category is in scope).
+ * Conservative by design: rows without a visit type, unknown visit types and
+ * entirely unclaimed concepts are never locked.
+ *
+ * @param {Object|null} lockMap - Result of buildVisitTypeLockMap (or null)
+ * @param {Object} row - Grid row ({visitTypeCode, isPlaceholder, ...})
+ * @param {Object} concept - Grid column ({code, category, ...})
+ * @returns {boolean}
+ */
+export const isCellVisitTypeLocked = (lockMap, row, concept) => {
+  if (!lockMap || !row || !concept || row.isPlaceholder) return false
+  if (!row.visitTypeCode) return false
+  const allowed = lockMap.byVisitType.get(row.visitTypeCode)
+  if (!allowed) return false
+  if (lockMap.claimedConcepts.has(concept.code)) {
+    return !allowed.concepts.has(concept.code)
+  }
+  if (concept.category && lockMap.claimedCategories.has(concept.category)) {
+    return !allowed.categories.has(concept.category)
+  }
+  return false
 }

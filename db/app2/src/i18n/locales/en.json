@@ -55,7 +55,9 @@
     "connectionInfo": "Connection Information",
     "filename": "Filename",
     "usingCustomPath": "Using custom path",
-    "connectedSince": "Connected and operational"
+    "connectedSince": "Connected and operational",
+    "testPageTitle": "Database Test",
+    "testPageSubtitle": "Connection testing, seeding and schema inspection"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -234,13 +236,48 @@
     "publicToggle": "Public – visible to all users",
     "publicToggleHint": "When enabled, all users can see this patient. When disabled, only you and administrators.",
     "publicAccess": "Public (visible to all users)",
+    "privateAccess": "Private (owner and admins only)",
     "owner": "Created by",
+    "noOwner": "No owner",
+    "visibility": "Visibility",
+    "accessRights": "Rights / Owner",
+    "accessNoPermission": "Only admins, the owner, or — for ownerless public patients — any user may change this",
+    "removeFromStudy": "Remove from study",
+    "removeFromStudyConfirm": "Really remove the membership in \"{study}\"? The enrollment row is deleted (not just withdrawn).",
+    "studyMembershipRemoved": "Removed from study \"{study}\"",
+    "failedToRemoveMembership": "Failed to remove study membership",
     "yearsShort": "yrs",
     "visitCountShort": "{n} visit | {n} visits",
     "obsShort": "obs",
     "noOwnerOption": "No owner (public only)",
     "assignStudy": "Assign study (optional)",
     "assignStudyFailed": "Patient created, but study assignment failed",
+    "menuOpenVisits": "Open visits",
+    "menuPatientData": "View / edit patient data",
+    "menuOpenInGrid": "Open in data grid editor",
+    "menuCopyId": "Copy patient ID",
+    "menuIdCopied": "Patient ID copied",
+    "menuAssignStudy": "Assign to study",
+    "menuStudyStatus": "Study status",
+    "menuNoStudyMembership": "No study membership",
+    "studyInfo": "Study Info",
+    "noStudyMemberships": "Patient is not enrolled in any study",
+    "addToStudy": "Add to study",
+    "menuAssignedToStudy": "Enrolled in study \"{study}\"",
+    "menuUnassignedFromStudy": "Withdrawn from study \"{study}\"",
+    "menuEnrolledHint": "enrolled",
+    "menuAssignHint": "Enroll in this study",
+    "menuUnassignHint": "Withdraw from this study",
+    "menuExport": "Export patient",
+    "menuExportDone": "Export complete: {file}",
+    "menuExportFailed": "Export failed",
+    "menuMakePublic": "Make public",
+    "menuMakePrivate": "Remove public access",
+    "menuNowPublic": "Patient is now public",
+    "menuNowPrivate": "Patient is no longer public",
+    "menuChangeOwner": "Change owner…",
+    "menuOwnerChanged": "Owner changed",
+    "newOwner": "New owner",
     "addField": "Add Field",
     "removeField": "Remove Field",
     "fieldName": "Field Name",
@@ -353,6 +390,11 @@
     "unfilledObservations": "{count} unfilled observation(s)",
     "noObservationsYet": "No observations yet",
     "revertLastSave": "Restore previous value",
+    "availableObservations": "Available Observations",
+    "addAllObservations": "Add all",
+    "addAllObservationsHint": "Add all available observations of this field set as empty entries",
+    "allObservationsAdded": "{count} empty observation(s) added",
+    "someObservationsFailed": "{count} observation(s) could not be added",
     "autoSaved": "Saved",
     "addObservationsHint": "Add observations from the available options below",
     "observationCategories": "Field Groups",
@@ -378,7 +420,8 @@
     "noQuestionnairesLoaded": "No questionnaires have been loaded into the system yet",
     "randomFill": "Random Fill",
     "clearAll": "Clear All",
-    "enterPatientId": "Enter patient identifier"
+    "enterPatientId": "Enter patient identifier",
+    "pageSubtitle": "Select and complete medical questionnaires"
   },
   "study": {
     "study": "Study",
@@ -391,6 +434,18 @@
     "exportSucceeded": "Exported {count} patients to {filename}",
     "tabOverview": "Overview",
     "tabInsights": "Cohort Insights",
+    "tabAudit": "Audit",
+    "audit": {
+      "openAudits": "Open audits",
+      "patientsWithAudits": "Patients with audits",
+      "byUser": "Audits per user",
+      "byPatient": "Audits per patient",
+      "none": "No open audits",
+      "openInGrid": "Open in grid",
+      "openAllInGrid": "Open all with audits in grid",
+      "scopeHint": "All observations of enrolled patients",
+      "loadError": "Failed to load audit data"
+    },
     "insights": {
       "title": "Cohort Insights",
       "loadError": "Failed to load insights",
@@ -407,7 +462,10 @@
       "eventType": "Event Type",
       "labTrends": "Lab Trends",
       "medianHint": "Median per visit · n = number of measurements",
-      "noData": "No data"
+      "noData": "No data",
+      "userStats": "Team Activity",
+      "patientsOwned": "Patients per user",
+      "observationsCreated": "Observations per user"
     },
     "studySearch": "Study Search",
     "studyDetails": "Study Details",
@@ -461,7 +519,29 @@
     "enrolledPatients": "Enrolled Patients",
     "enrollPatient": "Enroll Patient",
     "enrollmentDate": "Enrollment Date",
-    "enrollmentStatus": "Enrollment Status",
+    "enrollmentStatus": {
+      "label": "Enrollment Status",
+      "active": "Active",
+      "completed": "Completed",
+      "withdrawn": "Withdrawn",
+      "all": "All"
+    },
+    "setStatus": "Change status",
+    "statusChanged": "Status updated",
+    "failedToSetStatus": "Failed to change status",
+    "filterOnlyAudits": "Only with open audits",
+    "bulkMarkCompleted": "Mark filtered as completed",
+    "bulkMarkActive": "Mark filtered as active",
+    "bulkStatusConfirm": "Really set {count} patient(s) to \"{status}\"?",
+    "completedPatients": "Completed patients",
+    "completionRate": "Completion rate",
+    "openFilteredInGrid": "Open in grid ({count})",
+    "completedBadge": "{completed}/{enrolled} completed",
+    "openSelectedInGrid": "Open selection in grid ({count})",
+    "selectedCount": "{count} selected",
+    "selectAllFiltered": "Select all (filtered)",
+    "clearSelection": "Clear selection",
+    "multiSelectHint": "Shift-click to multi-select",
     "withdrawPatient": "Withdraw Patient",
     "confirmWithdrawal": "Confirm Withdrawal",
     "withdrawPatientConfirm": "Are you sure you want to withdraw {name} from this study?",
@@ -485,7 +565,8 @@
     "noTargetSet": "No target set",
     "enterPatientIdOrName": "Enter patient ID or name",
     "failedToSearchPatients": "Failed to search patients",
-    "noPatientsFound": "No patients found"
+    "noPatientsFound": "No patients found",
+    "pageSubtitle": "Search, manage and analyze research studies"
   },
   "user": {
     "user": "User",
@@ -514,7 +595,8 @@
     "nameRequired": "Name is required",
     "passwordManagement": "Password Management",
     "resetPassword": "Reset Password",
-    "resetPasswordHint": "Click to receive a password reset email"
+    "resetPasswordHint": "Click to receive a password reset email",
+    "pageSubtitle": "Manage system users and their patient access permissions"
   },
   "settings": {
     "settings": "Settings",
@@ -553,7 +635,8 @@
     "securityWarning": "API keys are stored unencrypted in your browser's localStorage. This is convenient for development but not recommended for production use with sensitive keys. Consider using environment variables or secure key management services in production.",
     "lastUpdated": "Last updated",
     "apiKeyFormatError": "OpenAI API keys should start with \"sk-\"",
-    "apiKeyTooShort": "API key appears to be too short"
+    "apiKeyTooShort": "API key appears to be too short",
+    "pageSubtitle": "Personal preferences, profile and local configuration"
   },
   "dataGrid": {
     "dataGrid": "Data Grid",
@@ -573,6 +656,11 @@
     "openAudits": "Open audits: {count}",
     "showOnlyAudits": "Show only open audits",
     "auditFilterActive": "Filter active – click to clear",
+    "visitTypeLock": "Visit-type lock",
+    "lockedCells": "locked",
+    "filledExcludesLocked": "Locked cells (visit-type lock) are excluded from the filled quota",
+    "visitTypeLockHint": "Lock cells whose observation does not belong to the row's visit type",
+    "cellLockedTooltip": "Not part of this visit's visit type (visit-type lock active)",
     "viewOptions": "View Options",
     "undoTooltip": "Undo (Ctrl+Z)",
     "redoTooltip": "Redo (Ctrl+Y)",
@@ -623,6 +711,7 @@
     "visible": "visible",
     "hidden": "hidden",
     "managePatient": "Manage Patient",
+    "patientInfo": "Patient Info",
     "visits": "Visits",
     "encounter": "Encounter",
     "removePatientFromGrid": "Remove Patient from Grid",
@@ -674,7 +763,8 @@
     "selectionCleared": "Selection cleared",
     "storedSelectionCleared": "Stored patient selection cleared",
     "failedToLoadCounts": "Failed to load visit and observation counts",
-    "failedToLoadPageData": "Failed to load page data"
+    "failedToLoadPageData": "Failed to load page data",
+    "pageSubtitle": "Edit patient data in an Excel-like grid"
   },
   "export": {
     "export": "Export",
@@ -696,7 +786,8 @@
     "searchPatientsPlaceholder": "Search patients...",
     "vitalStatus": "Vital Status",
     "clearAllFilters": "Clear all filters",
-    "selectAllFiltered": "Select all"
+    "selectAllFiltered": "Select all",
+    "pageSubtitle": "Export patient, visit and observation data as CSV or HL7"
   },
   "import": {
     "import": "Import",
@@ -835,7 +926,80 @@
     "rewrittenTextPlaceholder": "Rewritten text will appear here",
     "tooltip": "Smart Button - Click to open plugins",
     "minimize": "Minimize to bottom",
-    "loadingPlugin": "Loading plugin..."
+    "loadingPlugin": "Loading plugin...",
+    "plugins": {
+      "calculator": {
+        "name": "Calculator",
+        "tooltip": "Basic Calculator"
+      },
+      "notes": {
+        "name": "Quick Notes",
+        "tooltip": "Quick Notes"
+      },
+      "unitConverter": {
+        "name": "Unit Converter",
+        "tooltip": "Convert Units"
+      },
+      "bmiCalculator": {
+        "name": "BMI Calculator",
+        "tooltip": "Calculate BMI"
+      },
+      "levodopaCalculator": {
+        "name": "Levodopa Calculator",
+        "tooltip": "Levodopa Equivalence Calculator"
+      },
+      "askAi": {
+        "name": "Ask AI",
+        "tooltip": "Ask AI Assistant",
+        "tooltipNoKey": "AI Assistant (API key required)"
+      },
+      "rewrite": {
+        "name": "Rewrite",
+        "tooltip": "Rewrite selected text"
+      }
+    },
+    "close": "Close",
+    "quickNotes": {
+      "tabNew": "New note",
+      "tabList": "Notes",
+      "contextHint": "Attached context",
+      "noContext": "No context — the current page will be saved",
+      "recent": "Last notes",
+      "searchPlaceholder": "Search notes…",
+      "emptyList": "No notes yet",
+      "emptySearch": "No notes match your search",
+      "openContext": "Open context",
+      "edit": "Edit note",
+      "delete": "Delete note",
+      "confirmDeleteTitle": "Delete note",
+      "confirmDeleteMessage": "Delete this note permanently?",
+      "saved": "Note saved",
+      "updated": "Note updated",
+      "deleted": "Note deleted",
+      "saveFailed": "Failed to save note",
+      "loadFailed": "Failed to load notes",
+      "dbUnavailable": "No database connection — notes cannot be saved",
+      "page": "Page"
+    },
+    "messages": {
+      "tab": "Messages",
+      "recipient": "Recipient",
+      "messagePlaceholder": "Write a message…",
+      "send": "Send",
+      "reply": "Reply",
+      "replyTo": "Reply to",
+      "from": "from",
+      "to": "to",
+      "unread": "unread",
+      "empty": "No messages yet",
+      "sent": "Message sent",
+      "deleted": "Message deleted",
+      "sendFailed": "Failed to send message",
+      "loadFailed": "Failed to load messages",
+      "confirmDeleteTitle": "Delete message",
+      "confirmDeleteMessage": "Delete this message permanently?",
+      "toAll": "To everyone"
+    }
   },
   "validation": {
     "required": "This field is required",
@@ -888,7 +1052,8 @@
     "filterByValueType": "Filter by Value Type",
     "exportToCsv": "Export to CSV",
     "importConcepts": "Import Concepts from CSV",
-    "importConceptsSubtitle": "Import concepts from CSV file"
+    "importConceptsSubtitle": "Import concepts from CSV file",
+    "pageSubtitle": "Manage medical concepts (SNOMED, LOINC, ICD-10)"
   },
   "cql": {
     "cqlAdministration": "CQL Administration",

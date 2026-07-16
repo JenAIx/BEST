@@ -1,10 +1,6 @@
 <template>
   <div class="patient-selection-container">
-    <div class="selection-hero">
-      <q-icon name="medical_information" size="64px" color="primary" class="hero-icon" />
-      <h1 class="hero-title">{{ $t('navigation.patientVisits') }}</h1>
-      <p class="hero-subtitle">{{ $t('visits.selectPatientHint') }}</p>
-    </div>
+    <PageHeader :title="$t('navigation.patientVisits')" :subtitle="$t('visits.selectPatientHint')" class="full-width" />
 
     <q-card class="selection-card" flat bordered>
       <q-card-section>
@@ -72,7 +68,7 @@
           {{ recentPatientsSource === 'latest' ? $t('visit.latestPatients') : $t('visit.recentPatients') }}
         </div>
         <div class="recent-patients-grid">
-          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="selectPatient" />
+          <PatientCard v-for="patient in recentPatients" :key="patient.id" :patient="patient" @select="selectPatient" @changed="onPatientChanged" />
         </div>
       </q-card-section>
 
@@ -83,7 +79,7 @@
           {{ $t('visit.searchResults', { count: searchResults.length }) }}
         </div>
         <div class="search-results">
-          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" @select="selectPatient" />
+          <PatientCard v-for="patient in searchResults" :key="patient.id" :patient="patient" @select="selectPatient" @changed="onPatientChanged" />
         </div>
       </q-card-section>
 
@@ -134,6 +130,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useStudyStore } from 'src/stores/study-store'
 import PatientCard from 'src/components/shared/PatientCard.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
 import { useRouter } from 'vue-router'
 
@@ -190,6 +187,7 @@ const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.va
 // Methods
 const mapPatientForCard = async (patient, access = null, studies = []) => ({
   id: patient.PATIENT_CD,
+  PATIENT_NUM: patient.PATIENT_NUM,
   name: getPatientName(patient),
   age: patient.AGE_IN_YEARS,
   gender: patient.SEX_RESOLVED || patient.SEX_CD,
@@ -346,6 +344,7 @@ const runSearch = async () => {
         const access = accessMap.get(patient.PATIENT_NUM)
         return {
           id: patient.PATIENT_CD,
+          PATIENT_NUM: patient.PATIENT_NUM,
           name: getPatientName(patient),
           age: patient.AGE_IN_YEARS,
           gender: patient.SEX_RESOLVED || patient.SEX_CD,
@@ -493,6 +492,13 @@ const formatVisitDate = (dateStr) => {
   })
 }
 
+// Context-menu mutation (study/owner/public/delete) — refresh the visible lists
+const onPatientChanged = async () => {
+  await loadRecentPatients()
+  loadPatientStats()
+  if (isSearchActive.value) await runSearch()
+}
+
 const loadUserOptions = async () => {
   try {
     if (!dbStore.canPerformOperations) return
@@ -560,41 +566,13 @@ watch(
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 2rem;
+  padding: 16px;
   min-height: 100vh;
-}
-
-.selection-hero {
-  text-align: center;
-  margin-bottom: 3rem;
-
-  .hero-icon {
-    margin-bottom: 1rem;
-    opacity: 0.8;
-  }
-
-  .hero-title {
-    font-size: 3rem;
-    font-weight: 300;
-    color: $primary;
-    margin: 0 0 1rem 0;
-    letter-spacing: -1px;
-  }
-
-  .hero-subtitle {
-    font-size: 1.2rem;
-    color: $grey-7;
-    margin: 0;
-    line-height: 1.5;
-  }
 }
 
 .selection-card {
   width: 100%;
   max-width: 800px;
-  border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  background: rgba(255, 255, 255, 0.95);
 }
 
 .recent-patients-grid,
@@ -628,14 +606,6 @@ watch(
 @media (max-width: 768px) {
   .patient-selection-container {
     padding: 1rem;
-  }
-
-  .selection-hero {
-    margin-bottom: 2rem;
-
-    .hero-title {
-      font-size: 2rem;
-    }
   }
 
   .recent-patients-grid,

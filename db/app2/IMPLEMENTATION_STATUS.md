@@ -5,6 +5,24 @@
 
 ## Recent Milestones
 
+### 2026-07-15 — Study audit module (features/audit-studies)
+
+- New Audit tab on `/studies/:id` (`src/components/study/StudyAuditPanel.vue`):
+  open-audit KPIs, audits per user/patient, jump-to-grid with pre-activated
+  audit filter (one-shot `pendingAuditFilter` in local settings).
+- Enrollment status workflow on `STUDY_PATIENT_LOOKUP.ENROLLMENT_STATUS_CD`
+  (`active`/`completed`/`withdrawn`): status dropdown on PatientCard chip,
+  filter-scoped bulk actions, status + audit filters on the study overview,
+  "open filtered in grid". Constants: `src/shared/utils/enrollment-status.js`.
+- Team activity in cohort insights (`getCohortUserStats`: patients owned,
+  observations created per user via PROVIDER_ID=USER_CD).
+- Study cards on `/studies` show "x/y completed" + open-audit chip
+  (batch queries, access-filtered).
+- All enrolled-count queries now treat `completed` as enrolled
+  (`!= 'withdrawn'` predicate via shared `ENROLLED_STATUS_SQL`).
+- Tests: `tests/unit/25_study-audit-repository.test.js`,
+  `tests/unit/26_pending-audit-filter.test.js`.
+
 ### 2026-05-13 — Stroke-Lipid research import + data-modelling conventions
 
 - Added migration `010-stroke-lipid-seed.js` registered in `database-service.js`:

@@ -57,8 +57,24 @@
           </q-btn>
         </div>
         
-        <!-- Right side: Zoom controls -->
+        <!-- Right side: Visit-type lock + zoom controls -->
         <div class="row items-center q-gutter-xs zoom-controls">
+          <!-- Visit-type lock: composite icon (visit calendar + lock badge) -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            :color="visitTypeLockActive ? 'primary' : 'grey-6'"
+            class="visit-lock-btn q-mr-sm"
+            :class="{ 'visit-lock-btn--active': visitTypeLockActive }"
+            @click="onToggleVisitTypeLock"
+          >
+            <span class="visit-lock-icon">
+              <q-icon name="event" size="20px" />
+              <q-icon :name="visitTypeLockActive ? 'lock' : 'lock_open'" size="12px" class="visit-lock-badge" />
+            </span>
+            <q-tooltip>{{ $t('dataGrid.visitTypeLock') }}: {{ $t('dataGrid.visitTypeLockHint') }}</q-tooltip>
+          </q-btn>
           <q-btn flat dense icon="zoom_in" size="sm" color="primary" @click="zoomIn" :disable="zoomLevel >= maxZoom">
             <q-tooltip>{{ $t('dataGrid.zoomIn') }}</q-tooltip>
           </q-btn>
@@ -78,11 +94,21 @@
       <div class="text-h6 q-mt-md">Loading patient data...</div>
     </div>
 
-    <!-- Excel-like Table -->
+    <!-- Excel-like Table (row-virtualized: only the scroll window + overscan
+         is in the DOM; spacer rows keep scrollbar geometry + sticky headers) -->
     <div v-else class="excel-table-container">
-      <q-scroll-area class="excel-scroll-area" :thumb-style="thumbStyle" :bar-style="barStyle">
+      <div ref="scrollEl" class="excel-scroll-area" @scroll.passive="onGridScroll">
         <div class="excel-table-wrapper" :style="zoomWrapperStyle">
           <table class="excel-table" :style="tableZoomStyle">
+          <!-- Fixed column widths (table-layout: fixed): keeps column geometry
+               stable while virtualized rows enter/leave the DOM. -->
+          <colgroup>
+            <col style="width: 200px" />
+            <col style="width: 120px" />
+            <template v-for="g in conceptGroups" :key="`col-grp-${g.category}`">
+              <col v-for="concept in g.concepts" :key="`col-${concept.code}`" :style="{ width: conceptColWidth(concept) }" />
+            </template>
+          </colgroup>
           <!-- Header Rows: category band + per-concept header -->
           <thead>
             <!-- Category band: one cell per group spanning its concept columns.
@@ -133,9 +159,12 @@
             </tr>
           </thead>
 
-          <!-- Data Rows -->
+          <!-- Data Rows (virtual window) -->
           <tbody>
-            <tr v-for="row in tableRows" :key="`${row.patientId}-${row.encounterNum}`" class="data-row" :class="{ 'has-changes': hasRowChanges(row) }">
+            <tr v-if="virtualWindow.topPad > 0" class="virtual-spacer" aria-hidden="true">
+              <td :colspan="totalColumnCount" :style="{ height: `${virtualWindow.topPad}px` }"></td>
+            </tr>
+            <tr v-for="row in renderedRows" :key="`${row.patientId}-${row.encounterNum}`" class="data-row" :class="{ 'has-changes': hasRowChanges(row) }">
               <!-- Fixed columns -->
               <td class="fixed-col patient-col" :class="{ 'subsequent-visit': !isFirstVisitForPatient(row) }">
                 <div class="patient-info">
@@ -162,15 +191,26 @@
                   </div>
                 </div>
                 <!-- Right-click anywhere in the patient cell (incl. subsequent
-                     visit rows where the avatar is hidden): manage + delete. -->
-                <q-menu context-menu touch-position auto-close>
+                     visit rows where the avatar is hidden): info, grid removal,
+                     study membership/status, manage + delete. -->
+                <q-menu context-menu touch-position>
                   <q-list dense style="min-width: 220px">
-                    <q-item clickable @click="openManagePatientDialog(row)">
+                    <q-item clickable v-close-popup @click="openPatientInfoDialog(row)">
+                      <q-item-section avatar><q-icon name="assignment_ind" color="primary" /></q-item-section>
+                      <q-item-section>{{ $t('dataGrid.patientInfo') }}</q-item-section>
+                    </q-item>
+                    <q-item clickable v-close-popup @click="openManagePatientDialog(row)">
                       <q-item-section avatar><q-icon name="manage_accounts" color="primary" /></q-item-section>
                       <q-item-section>{{ $t('dataGrid.managePatient') }}</q-item-section>
                     </q-item>
+                    <q-item clickable v-close-popup @click="removePatientRowFromGrid(row)">
+                      <q-item-section avatar><q-icon name="grid_off" color="grey-8" /></q-item-section>
+                      <q-item-section>{{ $t('dataGrid.removePatientFromGrid') }}</q-item-section>
+                    </q-item>
                     <q-separator />
-                    <q-item clickable @click="openDeletePatientFromGrid(row)">
+                    <StudyMembershipMenuItems :patient="{ id: row.patientId }" @changed="onStudyMembershipChanged" />
+                    <q-separator />
+                    <q-item clickable v-close-popup @click="openDeletePatientFromGrid(row)">
                       <q-item-section avatar><q-icon name="delete_forever" color="negative" /></q-item-section>
                       <q-item-section>
                         <q-item-label>{{ $t('patient.deletePatient') }}</q-item-label>
@@ -245,6 +285,7 @@
                     'value-type-n': concept.valueType === 'N',
                     'value-type-m': concept.valueType === 'M' || isMedicationConcept(concept),
                     'obs-cell-placeholder': row.isPlaceholder,
+                    'obs-cell-locked': isCellLocked(row, concept),
                     'is-focused': focusedColumn === concept.code,
                   }
                 ]"
@@ -253,10 +294,15 @@
                 <div v-if="row.isPlaceholder" class="obs-placeholder">—</div>
                 <!-- Custom questionnaire cell for Q type -->
                 <div v-else-if="concept.valueType === 'Q'" class="questionnaire-cell">
-                  <!-- Filled questionnaire -->
+                  <!-- Filled questionnaire (viewing stays allowed when locked) -->
                   <div v-if="getCellValue(row, concept)" class="questionnaire-content" @click="openQuestionnairePreview(row, concept)">
                     {{ getCellValue(row, concept) }}
                     <q-tooltip anchor="top middle" self="bottom middle" :offset="[0, 5]"> Click to view questionnaire data </q-tooltip>
+                  </div>
+                  <!-- Locked empty questionnaire: no fill action -->
+                  <div v-else-if="isCellLocked(row, concept)" class="locked-cell-indicator">
+                    <q-icon name="lock" size="14px" color="grey-5" />
+                    <q-tooltip>{{ $t('dataGrid.cellLockedTooltip') }}</q-tooltip>
                   </div>
                   <!-- Empty questionnaire - clickable to fill -->
                   <div v-else class="questionnaire-empty" @click="openQuestionnaireFillDialog(row, concept)">
@@ -266,24 +312,28 @@
                   </div>
                 </div>
                 <!-- Medication cell for M type or LID: 52418-1 -->
-                <div 
-                  v-else-if="isMedicationConcept(concept)" 
+                <div
+                  v-else-if="isMedicationConcept(concept)"
                   class="medication-cell medication-icon-display"
-                  @click="openMedicationOverviewDialog(row)"
+                  @click="isCellLocked(row, concept) ? undefined : openMedicationOverviewDialog(row)"
                 >
-                  <div class="medication-icon-wrapper">
-                    <q-icon 
-                      :name="getMedicationCount(row, concept) > 0 ? 'medication' : 'add'" 
-                      :color="getMedicationCount(row, concept) > 0 ? 'primary' : 'grey-5'" 
+                  <div v-if="isCellLocked(row, concept) && getMedicationCount(row, concept) === 0" class="locked-cell-indicator">
+                    <q-icon name="lock" size="14px" color="grey-5" />
+                    <q-tooltip>{{ $t('dataGrid.cellLockedTooltip') }}</q-tooltip>
+                  </div>
+                  <div v-else class="medication-icon-wrapper">
+                    <q-icon
+                      :name="getMedicationCount(row, concept) > 0 ? 'medication' : 'add'"
+                      :color="getMedicationCount(row, concept) > 0 ? 'primary' : 'grey-5'"
                       size="22px"
                     />
-                    <span 
+                    <span
                       v-if="getMedicationCount(row, concept) > 0"
                       class="medication-count-text"
                     >
                       {{ getMedicationCount(row, concept) }}
                     </span>
-                    <q-tooltip>{{ $t('dataGrid.editMedication') }}</q-tooltip>
+                    <q-tooltip>{{ isCellLocked(row, concept) ? $t('dataGrid.cellLockedTooltip') : $t('dataGrid.editMedication') }}</q-tooltip>
                   </div>
                 </div>
                 <!-- Regular editable cell for other types -->
@@ -298,6 +348,7 @@
                   :patient-id="row.patientId"
                   :encounter-num="row.encounterNum"
                   :observation-id="getCellObservationId(row, concept)"
+                  :locked="isCellLocked(row, concept)"
                   @update="onCellUpdate"
                   @save="onCellSave"
                   @error="onCellError"
@@ -312,10 +363,13 @@
               </td>
               </template>
             </tr>
+            <tr v-if="virtualWindow.bottomPad > 0" class="virtual-spacer" aria-hidden="true">
+              <td :colspan="totalColumnCount" :style="{ height: `${virtualWindow.bottomPad}px` }"></td>
+            </tr>
           </tbody>
         </table>
         </div>
-      </q-scroll-area>
+      </div>
     </div>
 
     <!-- View Options Dialog -->
@@ -536,10 +590,10 @@
           </q-list>
         </q-card-section>
         <q-card-actions align="right">
-          <q-btn 
-            flat 
-            :label="$t('dataGrid.removePatientFromGrid')" 
-            color="negative" 
+          <q-btn
+            flat
+            :label="$t('dataGrid.removePatientFromGrid')"
+            color="negative"
             @click="removePatientFromGrid"
           />
           <q-space />
@@ -547,11 +601,34 @@
         </q-card-actions>
       </q-card>
     </q-dialog>
+
+    <!-- Patient Info Dialog (demographics + additional info + study info) -->
+    <q-dialog v-model="showPatientInfoDialog">
+      <q-card style="min-width: 640px; max-width: 90vw">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">{{ $t('dataGrid.patientInfo') }}</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+        <q-card-section>
+          <div v-if="patientInfoLoading" class="text-center q-py-lg">
+            <q-spinner color="primary" size="32px" />
+          </div>
+          <div v-else-if="patientInfoData" class="q-gutter-md">
+            <PatientDemographicsCard :patient="patientInfoData" @updated="reloadPatientInfo" />
+            <PatientStudyInfoCard :patient="patientInfoData" />
+          </div>
+          <div v-else class="text-grey-6 text-center q-py-lg">
+            {{ $t('patient.unknownPatient') }}
+          </div>
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useNotify } from 'src/composables/useNotify'
 import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -568,11 +645,14 @@ import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 import PatientSelectionCard from 'src/components/shared/PatientSelectionCard.vue'
+import StudyMembershipMenuItems from 'src/components/shared/StudyMembershipMenuItems.vue'
+import PatientDemographicsCard from 'src/components/patient/PatientDemographicsCard.vue'
+import PatientStudyInfoCard from 'src/components/patient/PatientStudyInfoCard.vue'
 import { useI18n } from 'vue-i18n'
 import { useVisitStore } from 'src/stores/visit-store'
 import MedicationOverviewDialog from './MedicationOverviewDialog.vue'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
-import { groupConceptsByCategory } from 'src/shared/utils/grid-utils'
+import { groupConceptsByCategory, computeVirtualWindow } from 'src/shared/utils/grid-utils'
 
 // Excel-like editor for multi-patient observation editing
 
@@ -725,43 +805,12 @@ const visibleObservationConcepts = computed(() => dataGridStore?.getVisibleObser
 // the existing single-row per-concept header still drives the data cells.
 const conceptGroups = computed(() => groupConceptsByCategory(visibleObservationConcepts.value))
 
-// Visit-type metadata loaded once from CODE_LOOKUP. Keyed by CODE_CD (e.g.
-// 'stroke_lipid_v0'), values are {label, icon, color} pulled from LOOKUP_BLOB.
-// This lets every visit row render a chip without per-row DB queries.
-const visitTypeMeta = ref(new Map())
-async function loadVisitTypeMeta() {
-  try {
-    const result = await databaseStore.executeQuery(
-      `SELECT CODE_CD, NAME_CHAR, LOOKUP_BLOB
-         FROM CODE_LOOKUP
-        WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = 'VISIT_TYPE_CD'`,
-    )
-    if (!result?.success) return
-    const map = new Map()
-    for (const r of result.data) {
-      let label = r.NAME_CHAR
-      let icon = null
-      let color = null
-      if (r.LOOKUP_BLOB) {
-        try {
-          const blob = typeof r.LOOKUP_BLOB === 'string' ? JSON.parse(r.LOOKUP_BLOB) : r.LOOKUP_BLOB
-          if (blob?.label) label = blob.label
-          if (blob?.icon) icon = blob.icon
-          if (blob?.color) color = blob.color
-        } catch {
-          // ignore malformed blob - fall back to NAME_CHAR
-        }
-      }
-      map.set(r.CODE_CD, { label, icon, color })
-    }
-    visitTypeMeta.value = map
-  } catch (e) {
-    logger.warn('Failed to load visit-type metadata', e)
-  }
-}
+// Visit-type metadata ({label, icon, color} per CODE_CD) comes from the data
+// grid store, which builds it from the same CODE_LOOKUP query as the
+// visit-type lock map — one query serves both.
 function getVisitTypeMeta(code) {
   if (!code) return null
-  return visitTypeMeta.value.get(code) || null
+  return dataGridStore?.visitTypeMeta?.get(code) || null
 }
 
 // Filter table rows: drop visits the user hid, and — when the audit filter is
@@ -798,20 +847,69 @@ const gridPatients = computed(() => {
 })
 
 // Scroll area styling
-const thumbStyle = {
-  right: '4px',
-  borderRadius: '5px',
-  backgroundColor: '#027be3',
-  width: '5px',
-  opacity: 0.75,
+// Row virtualization -------------------------------------------------------
+//
+// Only the rows inside the scroll viewport (+ overscan) are mounted; spacer
+// <tr>s above/below keep the scrollbar geometry and the sticky header/column
+// positions correct. Row height is measured from the first rendered data row
+// (uniform by CSS), zoom is compensated inside computeVirtualWindow.
+const scrollEl = ref(null)
+const measuredRowHeight = ref(44)
+const scrollState = ref({ scrollTop: 0, viewportHeight: 0 })
+let resizeObserver = null
+
+const virtualWindow = computed(() =>
+  computeVirtualWindow({
+    scrollTop: scrollState.value.scrollTop,
+    viewportHeight: scrollState.value.viewportHeight,
+    rowHeight: measuredRowHeight.value,
+    totalRows: tableRows.value.length,
+    zoom: zoomLevel.value,
+  }),
+)
+
+const renderedRows = computed(() => tableRows.value.slice(virtualWindow.value.start, virtualWindow.value.end))
+
+const totalColumnCount = computed(() => 2 + (visibleObservationConcepts.value?.length || 0))
+
+// Chromium already aligns scroll events to frames, and rAF is unreliable in
+// throttled/occluded windows — sync directly on every scroll event.
+const onGridScroll = () => {
+  syncScrollState()
 }
 
-const barStyle = {
-  right: '2px',
-  borderRadius: '9px',
-  backgroundColor: '#027be3',
-  width: '9px',
-  opacity: 0.2,
+const syncScrollState = () => {
+  const el = scrollEl.value
+  if (!el) return
+  scrollState.value = { scrollTop: el.scrollTop, viewportHeight: el.clientHeight }
+}
+
+// Measure the real (uniform) row height once rows are in the DOM, so spacer
+// math matches actual layout regardless of theme/density tweaks.
+const measureRowHeight = async () => {
+  await nextTick()
+  const rowEl = scrollEl.value?.querySelector('tbody tr.data-row')
+  if (rowEl && rowEl.offsetHeight > 0) {
+    measuredRowHeight.value = rowEl.offsetHeight
+  }
+}
+
+watch(
+  () => tableRows.value.length,
+  () => {
+    syncScrollState()
+    measureRowHeight()
+  },
+)
+
+// Fixed column widths for the virtualized table (table-layout: fixed via
+// <colgroup>): mirrors the per-value-type CSS widths + the focus-column mode.
+const conceptColWidth = (concept) => {
+  if (focusedColumn.value === concept.code) return '220px'
+  if (concept.valueType === 'D') return '96px'
+  if (concept.valueType === 'N') return '72px'
+  if (concept.valueType === 'M' || isMedicationConcept(concept)) return '84px'
+  return '90px'
 }
 
 // Data loading methods (using store functions)
@@ -827,6 +925,13 @@ const loadPatientData = async () => {
       dataGridStore.initializeColumnOrder()
     }
   }
+}
+
+// Visit-type lock toggle (same viewOptions flag as ViewOptionsDialog)
+const visitTypeLockActive = computed(() => dataGridStore?.viewOptions?.visitTypeLockActive === true)
+
+const onToggleVisitTypeLock = () => {
+  dataGridStore?.updateViewOptions?.({ visitTypeLockActive: !visitTypeLockActive.value })
 }
 
 // Zoom functions
@@ -872,6 +977,9 @@ const getPatientInitials = dataGridStore?.getPatientInitials || (() => 'U')
 const formatDate = dataGridStore?.formatDate || ((date) => date || '')
 const getCellValue = dataGridStore?.getCellValue || (() => '')
 const getCellObservationId = dataGridStore?.getCellObservationId || (() => null)
+// Visit-type lock (viewOptions.visitTypeLockActive): cells whose concept
+// belongs to other visit types' field sets render locked on this row.
+const isCellLocked = dataGridStore?.isCellLocked || (() => false)
 // Read OBSERVATION_FACT.VALUEFLAG_CD for a cell. Used by EditableCell to render
 // the 3-state numeric pattern: NVAL set -> value shown, VALUEFLAG_CD='NV' -> "no
 // value" indicator, neither -> empty.
@@ -1093,14 +1201,22 @@ const onMedicationsUpdated = async () => {
 }
 
 // Check if this is the first visit row for a patient
+// First (lowest encounterNum) visit per patient — computed once per rows
+// change instead of filter+sort per cell call (was O(rows²) per render).
+const firstEncounterByPatient = computed(() => {
+  const map = new Map()
+  for (const row of tableRows.value || []) {
+    const current = map.get(row.patientId)
+    if (current === undefined || row.encounterNum < current) {
+      map.set(row.patientId, row.encounterNum)
+    }
+  }
+  return map
+})
+
 const isFirstVisitForPatient = (row) => {
-  const rows = tableRows.value || []
-  const patientRows = rows.filter(r => r.patientId === row.patientId)
-  if (patientRows.length === 0) return true
-  
-  // Sort by encounter number to find the first visit
-  const sortedRows = [...patientRows].sort((a, b) => a.encounterNum - b.encounterNum)
-  return sortedRows[0].encounterNum === row.encounterNum
+  const first = firstEncounterByPatient.value.get(row.patientId)
+  return first === undefined || first === row.encounterNum
 }
 
 // Helper function to get observation count for a visit
@@ -1926,38 +2042,74 @@ const toggleVisitVisibility = (encounterNum) => {
   saveHiddenVisits(hiddenVisits.value)
 }
 
-// Remove patient from grid
-const removePatientFromGrid = async () => {
-  if (!selectedPatientForManagement.value) return
-
+// Remove a patient from the grid selection (shared by the manage dialog and
+// the patient-cell context menu)
+const removePatientByIdFromGrid = async (patientId, patientName) => {
   try {
     const localSettings = useLocalSettingsStore()
     const currentPatients = localSettings.getDataGridSelectedPatients()
-    const updatedPatients = currentPatients.filter(id => id !== selectedPatientForManagement.value.patientId)
+    const updatedPatients = currentPatients.filter((id) => id !== patientId)
     localSettings.setDataGridSelectedPatients(updatedPatients)
-
-    showManagePatientDialog.value = false
 
     // Refresh grid data with updated patient list
     if (dataGridStore?.refreshData) {
       await dataGridStore.refreshData(updatedPatients)
     }
 
-    notify.success(t('dataGrid.patientRemovedFromGrid', { name: selectedPatientForManagement.value.patientName }))
+    notify.success(t('dataGrid.patientRemovedFromGrid', { name: patientName || patientId }))
   } catch (error) {
     logger.error('Failed to remove patient from grid', error)
     notify.error(t('dataGrid.failedToRemovePatient'))
   }
 }
 
-// Watch for view options changes (store handles persistence)
-watch(
-  () => dataGridStore.viewOptions,
-  () => {
-    // Store automatically handles persistence
-  },
-  { deep: true },
-)
+// Remove patient from grid (manage dialog button)
+const removePatientFromGrid = async () => {
+  if (!selectedPatientForManagement.value) return
+  showManagePatientDialog.value = false
+  await removePatientByIdFromGrid(selectedPatientForManagement.value.patientId, selectedPatientForManagement.value.patientName)
+}
+
+// Remove patient from grid (context menu on the patient cell)
+const removePatientRowFromGrid = async (row) => {
+  await removePatientByIdFromGrid(row.patientId, row.patientName)
+}
+
+// Study membership/status changed via context menu — nothing in the grid
+// renders enrollment data, so a lightweight confirmation is enough.
+const onStudyMembershipChanged = () => {}
+
+// --- Patient info dialog (demographics + study info) -----------------------
+
+const showPatientInfoDialog = ref(false)
+const patientInfoLoading = ref(false)
+const patientInfoData = ref(null)
+const patientInfoCode = ref(null)
+
+const loadPatientInfo = async (patientCd) => {
+  patientInfoLoading.value = true
+  try {
+    // Access-filtered lookup — regular users only see their own/public patients
+    patientInfoData.value = await databaseStore.getAccessiblePatientByCode(String(patientCd))
+  } catch (error) {
+    logger.error('Failed to load patient info', error)
+    patientInfoData.value = null
+  } finally {
+    patientInfoLoading.value = false
+  }
+}
+
+const openPatientInfoDialog = async (row) => {
+  patientInfoCode.value = row.patientId
+  showPatientInfoDialog.value = true
+  await loadPatientInfo(row.patientId)
+}
+
+const reloadPatientInfo = async () => {
+  if (patientInfoCode.value != null) {
+    await loadPatientInfo(patientInfoCode.value)
+  }
+}
 
 // Lifecycle
 onMounted(async () => {
@@ -1972,17 +2124,29 @@ onMounted(async () => {
     await conceptStore.initialize()
   }
 
-  // Load visit-type label/icon/color map (one query, ~3-10 rows). Used by
-  // visit-col rendering to show a chip under each visit date.
-  await loadVisitTypeMeta()
-
+  // Visit-type meta (row chips) + lock map load inside loadGridData —
+  // one CODE_LOOKUP query serves both.
   await loadPatientData()
 
   window.addEventListener('keydown', onGridKeydown)
+
+  // Virtualization: track viewport size + take the initial measurements once
+  // the table is in the DOM.
+  await nextTick()
+  if (scrollEl.value && typeof ResizeObserver !== 'undefined') {
+    resizeObserver = new ResizeObserver(() => syncScrollState())
+    resizeObserver.observe(scrollEl.value)
+  }
+  syncScrollState()
+  measureRowHeight()
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onGridKeydown)
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+    resizeObserver = null
+  }
 })
 </script>
 
@@ -2006,9 +2170,29 @@ onBeforeUnmount(() => {
 
     .q-btn {
       margin: 0 2px;
-      
+
       &:hover {
         background: rgba($primary, 0.1);
+      }
+    }
+
+    .visit-lock-btn {
+      &.visit-lock-btn--active {
+        background: rgba($primary, 0.15);
+      }
+
+      .visit-lock-icon {
+        position: relative;
+        display: inline-flex;
+
+        .visit-lock-badge {
+          position: absolute;
+          right: -5px;
+          bottom: -3px;
+          background: white;
+          border-radius: 50%;
+          padding: 1px;
+        }
       }
     }
   }
@@ -2023,6 +2207,20 @@ onBeforeUnmount(() => {
 .excel-scroll-area {
   height: 100%;
   overflow: auto;
+
+  // Native scroll container (virtualization needs direct scrollTop access);
+  // scrollbar styling approximates the previous q-scroll-area look.
+  &::-webkit-scrollbar {
+    width: 9px;
+    height: 9px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(2, 123, 227, 0.55);
+    border-radius: 5px;
+  }
+  &::-webkit-scrollbar-track {
+    background: rgba(2, 123, 227, 0.08);
+  }
 }
 
 .excel-table-wrapper {
@@ -2040,6 +2238,17 @@ onBeforeUnmount(() => {
   border-collapse: separate;
   border-spacing: 0;
   font-size: 0.875rem;
+  // Fixed layout: column widths come from <colgroup>, so they stay stable
+  // while virtualized rows enter/leave the DOM (no width jitter on scroll).
+  table-layout: fixed;
+
+  // Spacer rows that stand in for the off-screen part of the virtual window.
+  .virtual-spacer td {
+    padding: 0;
+    border: none;
+    height: auto;
+    background: transparent;
+  }
 
   // Category band: top header row that groups concept columns by CATEGORY_CHAR.
   // Per-category background tints give visual scanning cues for the dense grid.
@@ -2210,7 +2419,11 @@ onBeforeUnmount(() => {
       border-top: none;
       vertical-align: middle;
       text-align: center;
-      height: 40px;
+      // Uniform row height — required by the virtualization spacer math
+      // (every data row must have the same height). Inner containers below
+      // are capped so no cell content can stretch a row.
+      height: 56px;
+      overflow: hidden;
 
       &.fixed-col {
         position: sticky;
@@ -2437,6 +2650,8 @@ onBeforeUnmount(() => {
           justify-content: center;
           cursor: pointer;
           height: 100%;
+          max-height: 48px; // uniform row height (virtualization)
+          overflow: hidden;
           padding: 4px 6px;
           border-radius: 4px;
           transition: all 0.2s ease;
@@ -2495,6 +2710,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 8px;
+  max-height: 48px; // uniform row height (virtualization)
+  overflow: hidden;
 
   .patient-name {
     font-weight: 500;
@@ -2544,6 +2761,8 @@ onBeforeUnmount(() => {
   padding: 4px;
   cursor: help;
   height: 100%;
+  max-height: 48px; // uniform row height (virtualization)
+  overflow: hidden;
   gap: 2px;
 
   &:hover .visit-edit-icon {
@@ -2595,6 +2814,31 @@ onBeforeUnmount(() => {
 .obs-cell-placeholder {
   background: rgba(0, 0, 0, 0.02);
   cursor: not-allowed;
+}
+
+// Visit-type lock: clearly disabled look — grey base with diagonal hatching,
+// desaturated/dimmed content, blocked cursor. Existing values stay readable,
+// only editing entry points are disabled.
+.obs-cell-locked {
+  background: repeating-linear-gradient(135deg, rgba(0, 0, 0, 0.07) 0px, rgba(0, 0, 0, 0.07) 5px, rgba(0, 0, 0, 0.015) 5px, rgba(0, 0, 0, 0.015) 10px), #f4f4f4;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+  cursor: not-allowed;
+
+  .questionnaire-empty,
+  .questionnaire-content,
+  .medication-cell {
+    cursor: not-allowed;
+    opacity: 0.5;
+    filter: grayscale(0.8);
+  }
+}
+
+.locked-cell-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  user-select: none;
 }
 
 .obs-placeholder {

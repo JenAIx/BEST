@@ -1,31 +1,28 @@
 <template>
-  <q-page class="q-pa-md">
-    <!-- Page Header -->
-    <div class="row items-center justify-between q-mb-md">
-      <div class="text-h4">User Management</div>
-      <div class="row items-center q-gutter-md">
+  <q-page>
+    <div class="page-container">
+      <!-- Page Header -->
+      <PageHeader :title="$t('user.userManagement')" :subtitle="$t('user.pageSubtitle')">
         <div class="text-caption text-grey-6">
           {{ getStatusText() }}
         </div>
+      </PageHeader>
+
+      <!-- Tab Selection -->
+      <div class="row q-gutter-md q-mb-md">
+        <div class="col-12 col-md-6">
+          <q-select v-model="selectedTab" :options="tabOptions" outlined dense :label="$t('user.managementType')" emit-value map-options @update:model-value="onTabChange" />
+        </div>
       </div>
-    </div>
 
-    <p class="text-subtitle1 text-grey-7 q-mb-lg">Manage system users and their patient access permissions</p>
+      <!-- Content Area -->
+      <div class="content-area">
+        <!-- User Management -->
+        <UserManager v-if="selectedTab === 'users'" ref="userManagerRef" class="tab-content" />
 
-    <!-- Tab Selection -->
-    <div class="row q-gutter-md q-mb-md">
-      <div class="col-12 col-md-6">
-        <q-select v-model="selectedTab" :options="tabOptions" outlined dense :label="$t('user.managementType')" emit-value map-options @update:model-value="onTabChange" />
+        <!-- Patient Access Management -->
+        <PatientAccessManagement v-if="selectedTab === 'associations'" ref="associationsManagerRef" class="tab-content" />
       </div>
-    </div>
-
-    <!-- Content Area -->
-    <div class="content-area">
-      <!-- User Management -->
-      <UserManager v-if="selectedTab === 'users'" ref="userManagerRef" class="tab-content" />
-
-      <!-- Patient Access Management -->
-      <PatientAccessManagement v-if="selectedTab === 'associations'" ref="associationsManagerRef" class="tab-content" />
     </div>
   </q-page>
 </template>
@@ -35,6 +32,7 @@ import { ref, onMounted } from 'vue'
 import { useUserStore } from 'src/stores/user-store'
 import UserManager from 'src/components/users/UserManager.vue'
 import PatientAccessManagement from 'src/components/users/PatientAccessManagement.vue'
+import PageHeader from 'src/components/shared/PageHeader.vue'
 
 const userStore = useUserStore()
 

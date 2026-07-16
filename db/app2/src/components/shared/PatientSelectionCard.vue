@@ -36,7 +36,7 @@
           {{ $t('visit.recentPatients') }}
         </div>
         <div class="patient-cards-grid">
-          <PatientCard v-for="patient in visibleRecentPatients" :key="patient.id" :patient="patient" :selected="isSelected(patient)" @select="selectPatient" />
+          <PatientCard v-for="patient in visibleRecentPatients" :key="patient.id" :patient="patient" :selected="isSelected(patient)" @select="selectPatient" @changed="loadRecentPatients" />
         </div>
       </div>
 
@@ -47,7 +47,7 @@
           {{ $t('visit.searchResults', { count: patients.length }) }}
         </div>
         <div class="patient-cards-grid">
-          <PatientCard v-for="patient in patients" :key="patient.id" :patient="patient" :selected="isSelected(patient)" @select="selectPatient" />
+          <PatientCard v-for="patient in patients" :key="patient.id" :patient="patient" :selected="isSelected(patient)" @select="selectPatient" @changed="searchPatients" />
         </div>
       </div>
 
