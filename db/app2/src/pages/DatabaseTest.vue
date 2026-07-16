@@ -1,6 +1,6 @@
 <template>
   <q-page class="q-pa-md">
-    <PageHeader title="Database Test" subtitle="Connection testing, seeding and schema inspection" />
+    <PageHeader :title="$t('database.testPageTitle')" :subtitle="$t('database.testPageSubtitle')" />
 
     <!-- Database Connection Section -->
     <q-card class="q-mb-md">

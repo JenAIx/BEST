@@ -1,7 +1,7 @@
 <template>
   <q-page class="export-page">
     <div class="q-pa-md">
-      <PageHeader :title="$t('export.exportData')" />
+      <PageHeader :title="$t('export.exportData')" :subtitle="$t('export.pageSubtitle')" />
 
       <!-- Patient Data Explorer -->
       <q-card>

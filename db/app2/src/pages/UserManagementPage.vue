@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
     <!-- Page Header -->
-    <PageHeader title="User Management" subtitle="Manage system users and their patient access permissions">
+    <PageHeader :title="$t('user.userManagement')" :subtitle="$t('user.pageSubtitle')">
       <div class="text-caption text-grey-6">
         {{ getStatusText() }}
       </div>

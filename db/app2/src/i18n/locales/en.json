@@ -55,7 +55,9 @@
     "connectionInfo": "Connection Information",
     "filename": "Filename",
     "usingCustomPath": "Using custom path",
-    "connectedSince": "Connected and operational"
+    "connectedSince": "Connected and operational",
+    "testPageTitle": "Database Test",
+    "testPageSubtitle": "Connection testing, seeding and schema inspection"
   },
   "navigation": {
     "dashboard": "Dashboard",
@@ -418,7 +420,8 @@
     "noQuestionnairesLoaded": "No questionnaires have been loaded into the system yet",
     "randomFill": "Random Fill",
     "clearAll": "Clear All",
-    "enterPatientId": "Enter patient identifier"
+    "enterPatientId": "Enter patient identifier",
+    "pageSubtitle": "Select and complete medical questionnaires"
   },
   "study": {
     "study": "Study",
@@ -562,7 +565,8 @@
     "noTargetSet": "No target set",
     "enterPatientIdOrName": "Enter patient ID or name",
     "failedToSearchPatients": "Failed to search patients",
-    "noPatientsFound": "No patients found"
+    "noPatientsFound": "No patients found",
+    "pageSubtitle": "Search, manage and analyze research studies"
   },
   "user": {
     "user": "User",
@@ -591,7 +595,8 @@
     "nameRequired": "Name is required",
     "passwordManagement": "Password Management",
     "resetPassword": "Reset Password",
-    "resetPasswordHint": "Click to receive a password reset email"
+    "resetPasswordHint": "Click to receive a password reset email",
+    "pageSubtitle": "Manage system users and their patient access permissions"
   },
   "settings": {
     "settings": "Settings",
@@ -757,7 +762,8 @@
     "selectionCleared": "Selection cleared",
     "storedSelectionCleared": "Stored patient selection cleared",
     "failedToLoadCounts": "Failed to load visit and observation counts",
-    "failedToLoadPageData": "Failed to load page data"
+    "failedToLoadPageData": "Failed to load page data",
+    "pageSubtitle": "Edit patient data in an Excel-like grid"
   },
   "export": {
     "export": "Export",
@@ -779,7 +785,8 @@
     "searchPatientsPlaceholder": "Search patients...",
     "vitalStatus": "Vital Status",
     "clearAllFilters": "Clear all filters",
-    "selectAllFiltered": "Select all"
+    "selectAllFiltered": "Select all",
+    "pageSubtitle": "Export patient, visit and observation data as CSV or HL7"
   },
   "import": {
     "import": "Import",
@@ -971,7 +978,8 @@
     "filterByValueType": "Filter by Value Type",
     "exportToCsv": "Export to CSV",
     "importConcepts": "Import Concepts from CSV",
-    "importConceptsSubtitle": "Import concepts from CSV file"
+    "importConceptsSubtitle": "Import concepts from CSV file",
+    "pageSubtitle": "Manage medical concepts (SNOMED, LOINC, ICD-10)"
   },
   "cql": {
     "cqlAdministration": "CQL Administration",

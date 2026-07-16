@@ -2,7 +2,7 @@
   <q-page class="questionnaire-page">
     <div class="page-container">
       <!-- Page Header -->
-      <PageHeader title="Questionnaires" subtitle="Select and complete medical questionnaires">
+      <PageHeader :title="$t('navigation.questionnaires')" :subtitle="$t('questionnaire.pageSubtitle')">
         <q-btn v-if="currentStep === 'questionnaire'" flat color="grey-7" icon="arrow_back" :label="$t('common.back')" @click="goBackToSelection" />
       </PageHeader>
 

@@ -1,7 +1,7 @@
 <template>
   <q-page class="q-pa-md">
     <!-- Header -->
-    <PageHeader :title="$t('study.researchStudySearch')">
+    <PageHeader :title="$t('study.researchStudySearch')" :subtitle="$t('study.pageSubtitle')">
       <div class="text-caption text-grey-6">
         {{ hasSearched ? $t('study.totalStudiesFound', { count: studyStore.totalStudies }) : $t('study.totalStudiesFound', { count: studyStore.researchStats.totalStudies }) }}
       </div>

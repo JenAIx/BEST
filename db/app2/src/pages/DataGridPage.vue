@@ -1,7 +1,7 @@
 <template>
   <q-page class="data-grid-page">
     <div class="q-pa-md">
-      <PageHeader :title="$t('navigation.dataGrid')" />
+      <PageHeader :title="$t('navigation.dataGrid')" :subtitle="$t('dataGrid.pageSubtitle')" />
 
       <!-- Patient Selection Card -->
       <q-card>
