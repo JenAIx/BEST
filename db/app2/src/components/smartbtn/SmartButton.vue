@@ -317,7 +317,8 @@ const openPlugin = async (pluginId, overrideConfig = null, componentState = null
     const win = {
       id: pluginId,
       config,
-      initialState: componentState,
+      // undefined (not null) so component prop defaults apply on fresh opens
+      initialState: componentState || undefined,
       context,
       pos: [0, 0],
       z: ++zCounter,
