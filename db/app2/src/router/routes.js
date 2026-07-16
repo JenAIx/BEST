@@ -20,11 +20,6 @@ const routes = [
         path: '/changelog',
         component: () => import('pages/ChangelogPage.vue'),
       },
-      {
-        path: '/visits/:patientId',
-        component: () => import('pages/VisitsPage.vue'),
-        beforeEnter: requireAuth,
-      },
     ],
   },
 
@@ -53,6 +48,14 @@ const routes = [
       },
       {
         path: 'visits',
+        component: () => import('pages/VisitsPage.vue'),
+        meta: { requiresAuth: true },
+      },
+      {
+        // Patient-specific deep link — same page, but inside MainLayout so
+        // the navigation drawer stays available (was under PublicLayout
+        // before, which trapped users on a layout without any navigation).
+        path: 'visits/:patientId',
         component: () => import('pages/VisitsPage.vue'),
         meta: { requiresAuth: true },
       },

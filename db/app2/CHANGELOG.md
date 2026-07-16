@@ -123,6 +123,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `getAccessiblePatientByCode`), „Patient aus Tabelle entfernen" direkt im
     Menü, Studienzugehörigkeit + Studienstatus, Patient verwalten, Löschen.
 
+### Fixed
+
+- **`/visits/:patientId` ohne Navigation gefangen**: Die Patienten-Deep-Link-
+  Route lag seit August 2025 im PublicLayout (ohne Drawer/Sidebar) — wer über
+  das Patientenkarten-Kontextmenü oder die Smart-Suche direkt auf die
+  Besuchsseite eines Patienten sprang, hatte keine Navigation mehr. Die Route
+  liegt jetzt als Kind im MainLayout (Drawer bleibt sichtbar), Verhalten der
+  Seite unverändert.
+
 ### Changed
 
 - **Grid-Footer entschlackt + Visitentyp-Sperre in die Kopfzeile**: Der
