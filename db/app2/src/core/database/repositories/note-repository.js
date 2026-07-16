@@ -92,6 +92,27 @@ class NoteRepository extends BaseRepository {
   }
 
   /**
+   * Get messenger rows (CATEGORY_CHAR='MESSAGE') a user is involved in,
+   * as sender (SOURCESYSTEM_CD) or recipient ("to" in the NOTE_BLOB JSON).
+   * The LIKE prefilter avoids a JSON1 dependency; callers re-verify the
+   * blob's to/from fields in JS.
+   * @param {string} userCd - USER_CD of the user
+   * @param {Object} options - { limit }
+   * @returns {Promise<Array>} - Array of message notes, newest first
+   */
+  async getMessagesForUser(userCd, { limit = 100 } = {}) {
+    const sql = `
+      SELECT * FROM ${this.tableName}
+      WHERE CATEGORY_CHAR = 'MESSAGE'
+        AND (SOURCESYSTEM_CD = ? OR NOTE_BLOB LIKE ? OR NOTE_BLOB LIKE ?)
+      ORDER BY IMPORT_DATE DESC LIMIT ?
+    `
+    // '*' as recipient = broadcast to everyone
+    const result = await this.connection.executeQuery(sql, [userCd, `%"to":"${userCd}"%`, `%"to":"*"%`, limit])
+    return result.success ? result.data : []
+  }
+
+  /**
    * Find notes by name pattern
    * @param {string} namePattern - Name pattern to search for
    * @returns {Promise<Array>} - Array of matching notes

@@ -980,6 +980,25 @@
       "loadFailed": "Failed to load notes",
       "dbUnavailable": "No database connection — notes cannot be saved",
       "page": "Page"
+    },
+    "messages": {
+      "tab": "Messages",
+      "recipient": "Recipient",
+      "messagePlaceholder": "Write a message…",
+      "send": "Send",
+      "reply": "Reply",
+      "replyTo": "Reply to",
+      "from": "from",
+      "to": "to",
+      "unread": "unread",
+      "empty": "No messages yet",
+      "sent": "Message sent",
+      "deleted": "Message deleted",
+      "sendFailed": "Failed to send message",
+      "loadFailed": "Failed to load messages",
+      "confirmDeleteTitle": "Delete message",
+      "confirmDeleteMessage": "Delete this message permanently?",
+      "toAll": "To everyone"
     }
   },
   "validation": {

@@ -980,6 +980,25 @@
       "loadFailed": "Notizen konnten nicht geladen werden",
       "dbUnavailable": "Keine Datenbankverbindung — Notizen können nicht gespeichert werden",
       "page": "Seite"
+    },
+    "messages": {
+      "tab": "Nachrichten",
+      "recipient": "Empfänger",
+      "messagePlaceholder": "Nachricht schreiben…",
+      "send": "Senden",
+      "reply": "Antworten",
+      "replyTo": "Antwort auf",
+      "from": "von",
+      "to": "an",
+      "unread": "ungelesen",
+      "empty": "Noch keine Nachrichten",
+      "sent": "Nachricht gesendet",
+      "deleted": "Nachricht gelöscht",
+      "sendFailed": "Nachricht konnte nicht gesendet werden",
+      "loadFailed": "Nachrichten konnten nicht geladen werden",
+      "confirmDeleteTitle": "Nachricht löschen",
+      "confirmDeleteMessage": "Diese Nachricht endgültig löschen?",
+      "toAll": "An alle"
     }
   },
   "validation": {

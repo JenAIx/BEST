@@ -16,6 +16,12 @@
           <q-badge v-if="noteStore.quickNotesCount > 0" color="primary" :label="noteStore.quickNotesCount" />
         </div>
       </q-tab>
+      <q-tab name="messages" icon="chat">
+        <div class="row items-center no-wrap q-gutter-xs">
+          <span>{{ $t('smartButton.messages.tab') }}</span>
+          <q-badge v-if="noteStore.unreadMessagesCount > 0" color="red" :label="noteStore.unreadMessagesCount" />
+        </div>
+      </q-tab>
     </q-tabs>
 
     <q-separator class="q-mb-sm" />
@@ -78,21 +84,72 @@
           </template>
         </q-list>
       </q-tab-panel>
+
+      <!-- Messenger -->
+      <q-tab-panel name="messages" class="q-pa-none">
+        <!-- Compose -->
+        <div class="q-mb-sm">
+          <q-select v-model="messageTo" :options="recipientOptions" :label="$t('smartButton.messages.recipient')" dense outlined emit-value map-options clearable class="q-mb-sm" />
+          <div v-if="replyTo" class="row items-center q-gutter-xs q-mb-sm text-caption text-grey-7">
+            <q-icon name="reply" size="14px" />
+            <span>{{ $t('smartButton.messages.replyTo') }}: {{ replyTo.NAME_CHAR }}</span>
+            <q-btn icon="close" size="xs" flat round dense @click="replyTo = null" />
+          </div>
+          <q-input v-model="messageText" type="textarea" :placeholder="$t('smartButton.messages.messagePlaceholder')" rows="3" outlined dense class="q-mb-sm" />
+          <div class="row items-center q-gutter-sm">
+            <q-btn
+              color="primary"
+              icon="send"
+              :label="$t('smartButton.messages.send')"
+              @click="sendMessage"
+              :disable="!messageText.trim() || !messageTo || !dbAvailable"
+              :loading="noteStore.loading"
+              unelevated
+            />
+            <span v-if="currentContextChip" class="text-caption text-grey-6">
+              <q-icon :name="currentContextChip.icon" size="14px" /> {{ currentContextChip.label }}
+            </span>
+          </div>
+        </div>
+
+        <q-separator class="q-mb-sm" />
+
+        <div v-if="noteStore.messages.length === 0" class="text-center text-grey-6 q-pa-md">
+          <q-icon name="chat" size="32px" class="q-mb-xs" />
+          <div class="text-caption">{{ $t('smartButton.messages.empty') }}</div>
+        </div>
+
+        <q-list v-else bordered separator class="rounded-borders notes-list">
+          <MessageListItem
+            v-for="m in noteStore.messages"
+            :key="m.NOTE_ID"
+            :note="m"
+            :current-user-cd="currentUserCd"
+            :reply-titles="replyTitles"
+            @open-context="openContext"
+            @reply="startReply"
+            @remove="confirmDeleteMessage"
+          />
+        </q-list>
+      </q-tab-panel>
     </q-tab-panels>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useNoteStore } from 'src/stores/note-store'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useAuthStore } from 'src/stores/auth-store'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useStudyStore } from 'src/stores/study-store'
 import { useNotify } from 'src/composables/useNotify'
+import { parseNoteBlob } from 'src/shared/utils/note-context'
 import NoteListItem from './NoteListItem.vue'
+import MessageListItem from './MessageListItem.vue'
 
 defineOptions({
   name: 'NotesWidget',
@@ -103,7 +160,7 @@ const props = defineProps({
   context: { type: Object, default: null },
 })
 
-const emit = defineEmits(['close'])
+defineEmits(['close'])
 
 const $q = useQuasar()
 const { t } = useI18n()
@@ -115,13 +172,33 @@ const dbStore = useDatabaseStore()
 const patientStore = usePatientStore()
 const studyStore = useStudyStore()
 
+const authStore = useAuthStore()
+
 const tab = ref(props.initialState?.tab || 'new')
 const note = ref(props.initialState?.note || '')
 const searchTerm = ref('')
 const editingId = ref(null)
 const editText = ref('')
 
+// Messenger state
+const messageTo = ref(props.initialState?.messageTo || null)
+const messageText = ref(props.initialState?.messageText || '')
+const replyTo = ref(null)
+
 const dbAvailable = computed(() => dbStore.canPerformOperations)
+const currentUserCd = computed(() => authStore.currentUser?.USER_CD || '')
+
+// Recipient options: broadcast ("everyone") first, then all other users
+const recipientOptions = computed(() => [{ value: '*', label: t('smartButton.messages.toAll') }, ...noteStore.recipients])
+
+// NOTE_ID → title lookup so replies can show what they answer
+const replyTitles = computed(() => {
+  const titles = {}
+  for (const m of noteStore.messages) {
+    titles[m.NOTE_ID] = m.NAME_CHAR
+  }
+  return titles
+})
 
 // Preview of the context that will be attached on save
 // (priority mirrors resolveContextTarget: patient → study → page)
@@ -141,7 +218,7 @@ const currentContextChip = computed(() => {
 })
 
 // Expose state for the SmartButton minimize/restore feature
-const getState = () => ({ note: note.value, tab: tab.value })
+const getState = () => ({ note: note.value, tab: tab.value, messageTo: messageTo.value, messageText: messageText.value })
 defineExpose({ getState })
 
 const saveNote = async () => {
@@ -167,8 +244,8 @@ const loadNotes = async () => {
   }
 }
 
+// Navigate to the note's context — the seamless window stays open on purpose
 const openContext = (target) => {
-  emit('close')
   router.push(target.to)
 }
 
@@ -203,7 +280,65 @@ const confirmDelete = (n) => {
   })
 }
 
-onMounted(loadNotes)
+// --- Messenger ---
+
+const sendMessage = async () => {
+  try {
+    await noteStore.sendMessage({
+      to: messageTo.value,
+      text: messageText.value,
+      replyToId: replyTo.value?.NOTE_ID || null,
+      route: route.fullPath,
+    })
+    messageText.value = ''
+    replyTo.value = null
+    notify.success(t('smartButton.messages.sent'))
+  } catch {
+    notify.error(t('smartButton.messages.sendFailed'))
+  }
+}
+
+const startReply = (message) => {
+  replyTo.value = message
+  const blob = parseNoteBlob(message.NOTE_BLOB)
+  if (blob.from) messageTo.value = blob.from
+}
+
+const confirmDeleteMessage = (m) => {
+  $q.dialog({
+    title: t('smartButton.messages.confirmDeleteTitle'),
+    message: t('smartButton.messages.confirmDeleteMessage'),
+    cancel: true,
+    persistent: false,
+  }).onOk(async () => {
+    try {
+      await noteStore.deleteMessage(m.NOTE_ID)
+      notify.success(t('smartButton.messages.deleted'))
+    } catch {
+      notify.error(t('smartButton.messages.sendFailed'))
+    }
+  })
+}
+
+const loadMessenger = async () => {
+  if (!dbAvailable.value) return
+  try {
+    await Promise.all([noteStore.loadMessages(), noteStore.loadRecipients()])
+    await noteStore.markAllMessagesRead()
+  } catch {
+    notify.error(t('smartButton.messages.loadFailed'))
+  }
+}
+
+// Opening the messages tab loads + marks everything read
+watch(tab, (newTab) => {
+  if (newTab === 'messages') loadMessenger()
+})
+
+onMounted(() => {
+  loadNotes()
+  if (tab.value === 'messages') loadMessenger()
+})
 </script>
 
 <style lang="scss" scoped>

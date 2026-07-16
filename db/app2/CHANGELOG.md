@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **SmartButton Messenger** (Notizen mit Special-Tag `CATEGORY_CHAR='MESSAGE'`,
+  kein Schema-Change): Nutzer können sich gegenseitig Nachrichten schicken.
+  - Dritter Tab „Nachrichten“ im Quick-Notes-Fenster: Empfänger-Auswahl
+    (alle Nutzer + **„An alle“**-Broadcast via Empfänger `*`), Text, Senden;
+    einfaches Antworten (replyToId + „Antwort auf“-Bezug), Löschen mit
+    Bestätigung (Broadcasts nur durch den Absender — eine geteilte Zeile).
+  - Nachrichten tragen denselben Kontext wie Quick Notes (Patient/Studie/
+    Seite als klickbarer Chip — „schau dir diesen Patienten an“).
+  - **Ungelesen-Badge am SmartButton-FAB** (rot, Anzahl; 60s-Refresh,
+    still ohne DB-Verbindung) + Badge an der Notes-Aktion und am Tab.
+    Öffnen des Tabs markiert alles als gelesen (Direktnachrichten via
+    `readAt`, Broadcasts pro Leser via `readBy`-Liste im Blob).
+  - Absender in `SOURCESYSTEM_CD`, Empfänger/Gelesen-Status im
+    `NOTE_BLOB`-JSON; `note-repository.getMessagesForUser` (LIKE-Prefilter,
+    JS-Verifikation). Tests: `tests/unit/31_messenger.test.js` (13 Tests).
+  - Hinweis: Eine Nachricht an den Benutzer `public` ist KEIN Broadcast —
+    dafür gibt es die explizite „An alle“-Option.
+
 - **SmartButton Quick Notes: echtes Notizsystem mit Kontext**
   (`features/smartbutton-notizen`): Quick Notes waren bisher rein flüchtig
   (In-Memory, weg beim Schließen) — jetzt persistent in `NOTE_FACT`.
@@ -150,6 +168,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Patienteninfo-Dialog (Demografie + Studieninfo, access-gefiltert via
     `getAccessiblePatientByCode`), „Patient aus Tabelle entfernen" direkt im
     Menü, Studienzugehörigkeit + Studienstatus, Patient verwalten, Löschen.
+
+### Fixed
+
+- **Quick Notes: Kontext-Klick schließt das Fenster nicht mehr**: Navigation
+  über den Kontext-Chip lässt das (seamless) Notiz-Fenster offen, sodass man
+  Notiz und Zielseite gleichzeitig sieht.
 
 ### Changed
 

@@ -1,6 +1,7 @@
 <template>
   <div class="smart-button-container" :style="fabStyle">
     <q-tooltip>{{ $t('smartButton.tooltip') }}</q-tooltip>
+    <q-badge v-if="unreadMessages > 0" color="red" floating rounded class="fab-unread-badge">{{ unreadMessages }}</q-badge>
     <q-fab icon="smart_toy" :direction="fabDirection" color="accent" :disable="draggingFab" v-touch-pan.prevent.mouse="moveFab">
       <q-fab-action
         v-for="plugin in registeredPlugins"
@@ -10,6 +11,7 @@
         :icon="plugin.icon"
         :disable="draggingFab || plugin.isDisabled"
       >
+        <q-badge v-if="plugin.id === 'notes' && unreadMessages > 0" color="red" floating rounded>{{ unreadMessages }}</q-badge>
         <q-tooltip>{{ plugin.isDisabled ? plugin.disabledReason : plugin.tooltip }}</q-tooltip>
       </q-fab-action>
     </q-fab>
@@ -75,11 +77,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onBeforeUnmount, nextTick } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { pluginManager } from './plugins'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { usePluginStateStore } from 'src/stores/plugin-state-store'
+import { useNoteStore } from 'src/stores/note-store'
 
 defineOptions({
   name: 'SmartButton',
@@ -88,7 +91,17 @@ defineOptions({
 const { t } = useI18n()
 const localSettingsStore = useLocalSettingsStore()
 const pluginStateStore = usePluginStateStore()
+const noteStore = useNoteStore()
 const fabPos = ref([18, 18])
+
+// Unread-messages badge on the FAB (refreshed periodically, best-effort)
+const unreadMessages = computed(() => noteStore.unreadMessagesCount)
+let unreadTimer = null
+
+onMounted(() => {
+  noteStore.refreshUnreadCount()
+  unreadTimer = setInterval(() => noteStore.refreshUnreadCount(), 60000)
+})
 
 // Computed style for FAB positioning
 const fabStyle = computed(() => ({
@@ -397,12 +410,17 @@ const closeMiniPlugin = (pluginId) => {
 // Cleanup event listeners
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  if (unreadTimer) clearInterval(unreadTimer)
   // Clear all stored plugin states when component is destroyed
   pluginStateStore.clearAllPluginStates()
 })
 </script>
 
 <style lang="scss" scoped>
+.fab-unread-badge {
+  z-index: 2001;
+}
+
 .plugin-window {
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
