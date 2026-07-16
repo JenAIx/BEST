@@ -33,6 +33,13 @@ const route = useRoute()
 </script>
 
 <style lang="scss" scoped>
+.page-header {
+  background: white;
+  padding: 1.25rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
 .page-header-text {
   display: flex;
   align-items: baseline;
@@ -49,5 +56,11 @@ const route = useRoute()
   font-size: 0.85rem;
   color: $grey-6;
   line-height: 1.3;
+}
+
+@media (max-width: 768px) {
+  .page-header {
+    padding: 1rem;
+  }
 }
 </style>

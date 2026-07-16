@@ -412,13 +412,6 @@ onMounted(() => {
   padding: 2rem;
 }
 
-.page-header {
-  background: white;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
 .step-content {
   background: white;
   border-radius: 8px;
@@ -441,12 +434,5 @@ onMounted(() => {
     padding: 1rem;
   }
 
-  .page-header {
-    padding: 1rem;
-  }
-
-  .header-actions {
-    margin-top: 1rem;
-  }
 }
 </style>
