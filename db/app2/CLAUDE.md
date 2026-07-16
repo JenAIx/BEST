@@ -1059,6 +1059,21 @@ search/management lives on `/visits`)*
 - Notification settings
 - Default values
 
+#### HelpPage.vue (`/help`)
+
+**In-app user guide (German) covering the whole application**
+
+- 13 sections: overview, concepts & data model, all main areas, admin,
+  settings, plus three step-by-step standard workflows
+- 18 real app screenshots in `public/help/` (lightbox on click),
+  sticky TOC, full-text filter
+- Screenshots are regenerated via `scripts/help-screenshots/capture.js`
+  (CDP against the headless Electron app; see the README there). The
+  `REMOTE_DEBUG_PORT` env switch in `src-electron/electron-main.js`
+  enables the DevTools protocol only when set.
+- When UI changes make screenshots stale: re-run the capture script and
+  update the affected section texts in `src/pages/HelpPage.vue`
+
 #### FeedbackPage.vue (`/feedback`)
 
 **User feedback and support**
