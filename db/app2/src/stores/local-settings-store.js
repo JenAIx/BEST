@@ -22,6 +22,9 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     visits: {
       recentPatients: [], // Store recent patient IDs for quick access (max 10)
     },
+    studies: {
+      lastSelectedStudyId: null, // Re-opened automatically when navigating to /studies
+    },
     databases: {
       customPaths: {
         // Custom folder paths for each database type
@@ -58,6 +61,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
           visits: {
             ...defaultSettings.visits,
             ...(parsedSettings.visits || {}),
+          },
+          studies: {
+            ...defaultSettings.studies,
+            ...(parsedSettings.studies || {}),
           },
           dataGrid: {
             ...defaultSettings.dataGrid,
@@ -168,6 +175,18 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
 
   const hasDataGridSelectedPatients = () => {
     return settings.value.dataGrid.selectedPatientIds && settings.value.dataGrid.selectedPatientIds.length > 0
+  }
+
+  // Studies: remember the last selected study so /studies can re-open it
+  const getLastSelectedStudyId = () => {
+    return settings.value.studies?.lastSelectedStudyId ?? null
+  }
+
+  const setLastSelectedStudyId = (studyId) => {
+    if (!settings.value.studies) {
+      settings.value.studies = { ...defaultSettings.studies }
+    }
+    settings.value.studies.lastSelectedStudyId = studyId ?? null
   }
 
   // One-shot flag: activate the audit filter on the next grid-editor load
@@ -300,6 +319,10 @@ export const useLocalSettingsStore = defineStore('localSettings', () => {
     setPendingAuditFilter,
     consumePendingAuditFilter,
     resetDataGridSettings,
+
+    // Studies specific methods
+    getLastSelectedStudyId,
+    setLastSelectedStudyId,
 
     // Database Path specific methods
     getDatabaseCustomPaths,

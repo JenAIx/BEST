@@ -1,4 +1,5 @@
 import { requireAuth, redirectIfAuthenticated } from './auth-guard'
+import { reopenLastStudy } from './study-remember-guard'
 
 const routes = [
   // Public routes with PublicLayout
@@ -64,6 +65,7 @@ const routes = [
         path: 'studies',
         component: () => import('pages/StudySearchPage.vue'),
         meta: { requiresAuth: true },
+        beforeEnter: reopenLastStudy,
       },
       {
         path: 'studies/:studyId',

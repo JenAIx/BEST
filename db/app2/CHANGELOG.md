@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Studienseite merkt sich die zuletzt gewählte Studie**
+  (`features/studypage-remember`): Wer `/studies` frisch ansteuert, landet
+  direkt wieder in der zuletzt geöffneten Studie statt auf der Suchliste
+  (Route-Guard `src/router/study-remember-guard.js`, persistiert via
+  `localSettings.studies.lastSelectedStudyId`). Die Liste bleibt erreichbar:
+  Zurück-Navigation aus einer Studie sowie `?stay=1` zeigen immer die Liste.
+  Selbstheilend: gelöschte/nicht mehr vorhandene Studien löschen die Merkung
+  (study-store `loadStudyById`/`deleteStudy`). Tests:
+  `tests/unit/29_studypage-remember.test.js`.
+
 - **Patientendaten-Tab: Studie entfernen + Rechte/Owner-Sektion**
   (`/visits` → Patientendaten).
   - Studieninfo-Karte: pro Mitgliedschaft ein Entfernen-Button (löscht die
