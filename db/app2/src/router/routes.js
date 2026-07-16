@@ -52,14 +52,6 @@ const routes = [
         meta: { requiresAuth: true },
       },
       {
-        // Patient-specific deep link — same page, but inside MainLayout so
-        // the navigation drawer stays available (was under PublicLayout
-        // before, which trapped users on a layout without any navigation).
-        path: 'visits/:patientId',
-        component: () => import('pages/VisitsPage.vue'),
-        meta: { requiresAuth: true },
-      },
-      {
         path: 'questionnaires',
         component: () => import('pages/QuestionnairePage.vue'),
         meta: { requiresAuth: true },
@@ -150,6 +142,22 @@ const routes = [
       {
         path: '',
         component: () => import('pages/DataGridEditorPage.vue'),
+        meta: { requiresAuth: true },
+      },
+    ],
+  },
+
+  // Patient visits fullscreen view — deliberately without drawer/top bar,
+  // like the grid editor. The page's own patient header carries the back
+  // button (history-back or /visits) as the way out.
+  {
+    path: '/visits/:patientId',
+    component: () => import('layouts/PublicLayout.vue'),
+    beforeEnter: requireAuth,
+    children: [
+      {
+        path: '',
+        component: () => import('pages/VisitsPage.vue'),
         meta: { requiresAuth: true },
       },
     ],
