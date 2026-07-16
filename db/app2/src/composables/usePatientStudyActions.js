@@ -112,6 +112,20 @@ export function usePatientStudyActions() {
     }
   }
 
+  /** Remove the study membership entirely (hard delete). Returns detail/null. */
+  const removeMembership = async (studyNum, patientNum, studyLabel = '') => {
+    try {
+      if (patientNum == null) return null
+      await studyStore.removePatientFromStudy(studyNum, patientNum)
+      notify.success(t('patient.studyMembershipRemoved', { study: studyLabel }))
+      return { type: 'remove-membership', studyNum, patientNum }
+    } catch (error) {
+      logger.error('Failed to remove study membership', error)
+      notify.error(t('patient.failedToRemoveMembership'))
+      return null
+    }
+  }
+
   return {
     resolvePatientNum,
     loadAllStudies,
@@ -119,5 +133,6 @@ export function usePatientStudyActions() {
     enroll,
     withdraw,
     setStatus,
+    removeMembership,
   }
 }

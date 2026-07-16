@@ -4,19 +4,17 @@
       <!-- Status Section -->
       <div class="footer-section status-section">
         <div class="status-item">
-          <q-icon :name="hasUnsavedChanges ? 'edit' : 'check_circle'" :color="hasUnsavedChanges ? 'warning' : 'positive'" size="16px" class="q-mr-xs" />
-          <span :class="hasUnsavedChanges ? 'text-warning' : 'text-positive'">
-            {{ hasUnsavedChanges ? $t('dataGrid.unsavedChangesCount', { count: unsavedChangesCount }) : $t('dataGrid.allChangesSaved') }}
+          <q-icon :name="hasUnsavedChanges ? 'edit' : 'check_circle'" :color="hasUnsavedChanges ? 'warning' : 'positive'" size="16px" />
+          <span v-if="hasUnsavedChanges" class="text-warning">
+            {{ $t('dataGrid.unsavedChangesCount', { count: unsavedChangesCount }) }}
           </span>
+          <q-tooltip v-else>{{ $t('dataGrid.allChangesSaved') }}</q-tooltip>
         </div>
         <div class="status-item">
           <q-icon name="access_time" size="16px" color="grey-6" class="q-mr-xs" />
           <span class="text-grey-6">{{ $t('dataGrid.updated') }}: {{ lastUpdateTime }}</span>
         </div>
       </div>
-
-      <!-- Vertical Separator -->
-      <div class="footer-separator"></div>
 
       <!-- Statistics Section -->
       <div class="footer-section stats-section" v-if="statistics">
@@ -61,20 +59,6 @@
           <span class="stat-label">{{ $t('dataGrid.lockedCells') }}</span>
         </div>
 
-        <!-- Visit-type lock: clickable chip toggling viewOptions.visitTypeLockActive. -->
-        <q-chip
-          dense
-          clickable
-          :icon="visitTypeLockActive ? 'lock' : 'lock_open'"
-          :color="visitTypeLockActive ? 'primary' : 'grey-3'"
-          :text-color="visitTypeLockActive ? 'white' : 'grey-8'"
-          class="q-ml-sm"
-          @click="onToggleVisitTypeLock"
-        >
-          {{ $t('dataGrid.visitTypeLock') }}
-          <q-tooltip>{{ $t('dataGrid.visitTypeLockHint') }}</q-tooltip>
-        </q-chip>
-
         <!-- Open audits: clickable chip that toggles the audit-only filter. -->
         <q-chip
           v-if="statistics.openAuditsCount > 0 || auditFilterActive"
@@ -107,14 +91,9 @@ const unsavedChangesCount = computed(() => dataGridStore?.unsavedChangesCount ||
 const lastUpdateTime = computed(() => dataGridStore?.lastUpdateTime || '')
 const statistics = computed(() => dataGridStore?.statistics || null)
 const auditFilterActive = computed(() => !!dataGridStore?.auditFilterActive)
-const visitTypeLockActive = computed(() => dataGridStore?.viewOptions?.visitTypeLockActive === true)
 
 const onToggleAuditFilter = () => {
   dataGridStore?.toggleAuditFilter?.()
-}
-
-const onToggleVisitTypeLock = () => {
-  dataGridStore?.updateViewOptions?.({ visitTypeLockActive: !visitTypeLockActive.value })
 }
 </script>
 
@@ -132,10 +111,9 @@ const onToggleVisitTypeLock = () => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
-  max-width: 1200px;
-  margin: 0 auto;
-  min-height: 50px;
+  gap: 16px;
+  padding: 8px 16px;
+  min-height: 44px;
 }
 
 // Status Section (Left)
@@ -158,14 +136,6 @@ const onToggleVisitTypeLock = () => {
       font-weight: 500;
     }
   }
-}
-
-// Main Vertical Separator
-.footer-separator {
-  width: 1px;
-  height: 32px;
-  background: #e0e0e0;
-  margin: 0 16px;
 }
 
 // Statistics Section (Right)
@@ -227,12 +197,6 @@ const onToggleVisitTypeLock = () => {
     flex-direction: column;
     gap: 8px;
     padding: 8px 12px;
-  }
-
-  .footer-separator {
-    width: 80%;
-    height: 1px;
-    margin: 4px 0;
   }
 
   .footer-section.status-section,

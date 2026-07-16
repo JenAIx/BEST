@@ -8,6 +8,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import databaseService from '../core/services/database-service.js'
 import { useLoggingStore } from './logging-store.js'
+import { canManagePatientAccess } from '../shared/utils/patient-access.js'
 
 export const useDatabaseStore = defineStore('database', () => {
   // State
@@ -395,15 +396,24 @@ export const useDatabaseStore = defineStore('database', () => {
     return await lookupRepo.getPatientAccessInfo(patientNums)
   }
 
-  // Admin or current owner only — shared guard for owner/public mutations
+  // Shared guard for owner/public mutations: admin, the owner, or any user for
+  // an ownerless public patient (see canManagePatientAccess). NOT used for
+  // deletion, which keeps the stricter admin-or-creator rule.
   const assertOwnerOrAdmin = async (patientNum) => {
     const userAccess = await resolveUserAccess()
-    if (!userAccess || userAccess.isAdmin) return
+    if (!userAccess) throw new Error('Not authenticated')
+    if (userAccess.isAdmin) return
     const lookupRepo = getRepository('userPatientLookup')
     const accessMap = await lookupRepo.getPatientAccessInfo([patientNum])
-    const ownerUserId = accessMap.get(patientNum)?.ownerUserId ?? null
-    if (ownerUserId !== userAccess.userId) {
-      throw new Error('Only administrators or the patient owner can change this')
+    const info = accessMap.get(patientNum) || { ownerUserId: null, isPublic: false }
+    const allowed = canManagePatientAccess({
+      isAdmin: userAccess.isAdmin,
+      currentUserId: userAccess.userId,
+      ownerUserId: info.ownerUserId ?? null,
+      isPublic: !!info.isPublic,
+    })
+    if (!allowed) {
+      throw new Error('You may only change access for your own patients or ownerless public patients')
     }
   }
 

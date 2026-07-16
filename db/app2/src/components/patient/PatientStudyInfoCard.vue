@@ -28,18 +28,23 @@
             </q-item-label>
           </q-item-section>
           <q-item-section side>
-            <q-btn-toggle
-              :model-value="member.status"
-              :options="statusToggleOptions"
-              dense
-              no-caps
-              size="sm"
-              unelevated
-              toggle-color="primary"
-              color="grey-2"
-              text-color="grey-8"
-              @update:model-value="(status) => setStatus(member, status)"
-            />
+            <div class="row items-center no-wrap q-gutter-xs">
+              <q-btn-toggle
+                :model-value="member.status"
+                :options="statusToggleOptions"
+                dense
+                no-caps
+                size="sm"
+                unelevated
+                toggle-color="primary"
+                color="grey-2"
+                text-color="grey-8"
+                @update:model-value="(status) => setStatus(member, status)"
+              />
+              <q-btn flat round dense size="sm" icon="delete" color="negative" @click="confirmRemove(member)">
+                <q-tooltip>{{ $t('patient.removeFromStudy') }}</q-tooltip>
+              </q-btn>
+            </div>
           </q-item-section>
         </q-item>
       </q-list>
@@ -67,6 +72,23 @@
         />
       </div>
     </q-card-section>
+
+    <!-- Remove-from-study confirmation -->
+    <q-dialog v-model="showRemoveDialog">
+      <q-card style="min-width: 340px">
+        <q-card-section class="row items-center">
+          <q-avatar icon="warning" color="warning" text-color="white" />
+          <span class="q-ml-sm text-h6">{{ $t('patient.removeFromStudy') }}</span>
+        </q-card-section>
+        <q-card-section>
+          {{ $t('patient.removeFromStudyConfirm', { study: memberToRemove ? memberToRemove.label : '' }) }}
+        </q-card-section>
+        <q-card-actions align="right">
+          <q-btn flat :label="$t('common.cancel')" v-close-popup />
+          <q-btn color="negative" :label="$t('common.remove')" :loading="removing" @click="removeMembership" />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </q-card>
 </template>
 
@@ -92,9 +114,12 @@ const logger = useLoggingStore().createLogger('PatientStudyInfoCard')
 
 const loading = ref(false)
 const enrolling = ref(false)
+const removing = ref(false)
 const memberships = ref([])
 const allStudies = ref([])
 const studyToAdd = ref(null)
+const showRemoveDialog = ref(false)
+const memberToRemove = ref(null)
 
 const statusToggleOptions = computed(() =>
   ENROLLMENT_STATUSES.map((s) => ({ label: t(s.labelKey), value: s.code })),
@@ -153,6 +178,27 @@ const enrollInStudy = async () => {
     }
   } finally {
     enrolling.value = false
+  }
+}
+
+const confirmRemove = (member) => {
+  memberToRemove.value = member
+  showRemoveDialog.value = true
+}
+
+const removeMembership = async () => {
+  if (!memberToRemove.value || patientNum.value == null) return
+  removing.value = true
+  try {
+    const detail = await actions.removeMembership(memberToRemove.value.studyNum, patientNum.value, memberToRemove.value.label)
+    if (detail) {
+      memberships.value = memberships.value.filter((m) => m.studyNum !== memberToRemove.value.studyNum)
+      showRemoveDialog.value = false
+      memberToRemove.value = null
+      emit('updated', detail)
+    }
+  } finally {
+    removing.value = false
   }
 }
 

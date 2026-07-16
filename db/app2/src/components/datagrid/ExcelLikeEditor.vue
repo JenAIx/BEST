@@ -57,8 +57,24 @@
           </q-btn>
         </div>
         
-        <!-- Right side: Zoom controls -->
+        <!-- Right side: Visit-type lock + zoom controls -->
         <div class="row items-center q-gutter-xs zoom-controls">
+          <!-- Visit-type lock: composite icon (visit calendar + lock badge) -->
+          <q-btn
+            flat
+            dense
+            size="sm"
+            :color="visitTypeLockActive ? 'primary' : 'grey-6'"
+            class="visit-lock-btn q-mr-sm"
+            :class="{ 'visit-lock-btn--active': visitTypeLockActive }"
+            @click="onToggleVisitTypeLock"
+          >
+            <span class="visit-lock-icon">
+              <q-icon name="event" size="20px" />
+              <q-icon :name="visitTypeLockActive ? 'lock' : 'lock_open'" size="12px" class="visit-lock-badge" />
+            </span>
+            <q-tooltip>{{ $t('dataGrid.visitTypeLock') }}: {{ $t('dataGrid.visitTypeLockHint') }}</q-tooltip>
+          </q-btn>
           <q-btn flat dense icon="zoom_in" size="sm" color="primary" @click="zoomIn" :disable="zoomLevel >= maxZoom">
             <q-tooltip>{{ $t('dataGrid.zoomIn') }}</q-tooltip>
           </q-btn>
@@ -909,6 +925,13 @@ const loadPatientData = async () => {
       dataGridStore.initializeColumnOrder()
     }
   }
+}
+
+// Visit-type lock toggle (same viewOptions flag as ViewOptionsDialog)
+const visitTypeLockActive = computed(() => dataGridStore?.viewOptions?.visitTypeLockActive === true)
+
+const onToggleVisitTypeLock = () => {
+  dataGridStore?.updateViewOptions?.({ visitTypeLockActive: !visitTypeLockActive.value })
 }
 
 // Zoom functions
@@ -2147,9 +2170,29 @@ onBeforeUnmount(() => {
 
     .q-btn {
       margin: 0 2px;
-      
+
       &:hover {
         background: rgba($primary, 0.1);
+      }
+    }
+
+    .visit-lock-btn {
+      &.visit-lock-btn--active {
+        background: rgba($primary, 0.15);
+      }
+
+      .visit-lock-icon {
+        position: relative;
+        display: inline-flex;
+
+        .visit-lock-badge {
+          position: absolute;
+          right: -5px;
+          bottom: -3px;
+          background: white;
+          border-radius: 50%;
+          padding: 1px;
+        }
       }
     }
   }
