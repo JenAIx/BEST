@@ -1,5 +1,6 @@
 <template>
-  <div class="timeline-view">
+  <!-- Compact mode pins header + search and scrolls only the visit blocks -->
+  <div class="timeline-view" :class="{ 'timeline-view--compact': compactMode && !loading }">
     <div class="timeline-container">
       <div class="timeline-header">
         <h3 class="timeline-title">{{ $t('visit.timeline') }}</h3>
@@ -18,8 +19,12 @@
             unelevated
             dense
           >
-            <template v-slot:cards><q-tooltip>{{ $t('visit.cardView') }}</q-tooltip></template>
-            <template v-slot:compact><q-tooltip>{{ $t('visit.compactSummary') }}</q-tooltip></template>
+            <template v-slot:cards
+              ><q-tooltip>{{ $t('visit.cardView') }}</q-tooltip></template
+            >
+            <template v-slot:compact
+              ><q-tooltip>{{ $t('visit.compactSummary') }}</q-tooltip></template
+            >
           </q-btn-toggle>
           <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="createNewVisit" />
         </div>
@@ -371,6 +376,26 @@ const deleteVisit = async (visit) => {
 .timeline-container {
   max-width: 1000px;
   margin: 0 auto;
+}
+
+// Compact mode: the view itself stops scrolling; header + search stay fixed
+// and only the visit blocks scroll (inner scroll area in VisitCompactSummary)
+.timeline-view--compact {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  .timeline-container {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+
+    .timeline-header {
+      flex-shrink: 0;
+    }
+  }
 }
 
 .timeline-header {

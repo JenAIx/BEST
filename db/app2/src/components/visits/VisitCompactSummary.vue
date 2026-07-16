@@ -7,30 +7,33 @@
       </template>
     </q-input>
 
-    <div v-if="searchTerm && visibleVisits.length === 0" class="text-center text-grey-6 q-pa-lg">
-      <q-icon name="search_off" size="32px" class="q-mb-xs" />
-      <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
-    </div>
-
-    <div v-for="visit in visibleVisits" :key="visit.id" class="visit-block q-mb-md">
-      <!-- Visit header (click selects the visit like the timeline does) -->
-      <div class="visit-block-header row items-center q-gutter-sm" @click="$emit('visit-selected', visit)">
-        <q-icon name="event" color="primary" size="20px" />
-        <span class="visit-date">{{ formatDate(visit.date) }}</span>
-        <q-chip v-if="visit.visitType" dense size="sm" color="blue-1" text-color="primary">{{ getVisitTypeLabel(visit.visitType) }}</q-chip>
-        <q-chip v-if="visit.status" dense size="sm" :color="visit.status === 'A' ? 'green-1' : 'grey-3'" :text-color="visit.status === 'A' ? 'positive' : 'grey-7'">
-          {{ visit.status === 'A' ? $t('visit.active') : visit.status }}
-        </q-chip>
-        <q-space />
-        <span class="text-caption text-grey-6">{{ $t('visit.observationCount', { count: observationsForVisit(visit.id).flatMap((c) => c.observations).length }) }}</span>
-        <q-icon name="chevron_right" color="grey-5" size="18px" />
+    <!-- Only this area scrolls; the search input above stays fixed -->
+    <div class="compact-scroll">
+      <div v-if="searchTerm && visibleVisits.length === 0" class="text-center text-grey-6 q-pa-lg">
+        <q-icon name="search_off" size="32px" class="q-mb-xs" />
+        <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
       </div>
 
-      <!-- Per-visit results (reuses the compact summary table incl. file/questionnaire previews) -->
-      <div v-if="observationsForVisit(visit.id).length > 0" class="visit-block-body">
-        <VisitSummaryObservations :categorized-observations="observationsForVisit(visit.id)" @preview-file="previewFile" @preview-questionnaire="previewQuestionnaire" />
+      <div v-for="visit in visibleVisits" :key="visit.id" class="visit-block q-mb-md">
+        <!-- Visit header (click selects the visit like the timeline does) -->
+        <div class="visit-block-header row items-center q-gutter-sm" @click="$emit('visit-selected', visit)">
+          <q-icon name="event" color="primary" size="20px" />
+          <span class="visit-date">{{ formatDate(visit.date) }}</span>
+          <q-chip v-if="visit.visitType" dense size="sm" color="blue-1" text-color="primary">{{ getVisitTypeLabel(visit.visitType) }}</q-chip>
+          <q-chip v-if="visit.status" dense size="sm" :color="visit.status === 'A' ? 'green-1' : 'grey-3'" :text-color="visit.status === 'A' ? 'positive' : 'grey-7'">
+            {{ visit.status === 'A' ? $t('visit.active') : visit.status }}
+          </q-chip>
+          <q-space />
+          <span class="text-caption text-grey-6">{{ $t('visit.observationCount', { count: observationsForVisit(visit.id).flatMap((c) => c.observations).length }) }}</span>
+          <q-icon name="chevron_right" color="grey-5" size="18px" />
+        </div>
+
+        <!-- Per-visit results (reuses the compact summary table incl. file/questionnaire previews) -->
+        <div v-if="observationsForVisit(visit.id).length > 0" class="visit-block-body">
+          <VisitSummaryObservations :categorized-observations="observationsForVisit(visit.id)" @preview-file="previewFile" @preview-questionnaire="previewQuestionnaire" />
+        </div>
+        <div v-else class="visit-block-empty text-caption text-grey-6">{{ $t('visit.noObservationsShort') }}</div>
       </div>
-      <div v-else class="visit-block-empty text-caption text-grey-6">{{ $t('visit.noObservationsShort') }}</div>
     </div>
 
     <!-- File Preview Dialog -->
@@ -107,8 +110,25 @@ const previewQuestionnaire = (observation) => {
 </script>
 
 <style lang="scss" scoped>
+// Fills the remaining height in compact mode (see .timeline-view--compact):
+// the search input stays fixed, only .compact-scroll scrolls
+.compact-summary {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.compact-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
 .compact-search {
   max-width: 420px;
+  flex-shrink: 0;
 
   :deep(.q-field__control) {
     background: white;
