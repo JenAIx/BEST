@@ -24,8 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Absender in `SOURCESYSTEM_CD`, Empfänger/Gelesen-Status im
     `NOTE_BLOB`-JSON; `note-repository.getMessagesForUser` (LIKE-Prefilter,
     JS-Verifikation). Tests: `tests/unit/31_messenger.test.js` (13 Tests).
-  - Hinweis: Eine Nachricht an den Benutzer `public` ist KEIN Broadcast —
-    dafür gibt es die explizite „An alle“-Option.
+  - Das technische `public`-Konto ist kein wählbarer Empfänger (niemand
+    liest dessen Postfach) — Broadcasts laufen über die „An alle“-Option.
 
 - **SmartButton Quick Notes: echtes Notizsystem mit Kontext**
   (`features/smartbutton-notizen`): Quick Notes waren bisher rein flüchtig

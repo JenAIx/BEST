@@ -62,6 +62,7 @@ const userRepoMock = {
     { USER_CD: 'ste', NAME_CHAR: 'Stefan' },
     { USER_CD: 'db', NAME_CHAR: 'Database User' },
     { USER_CD: 'admin', NAME_CHAR: 'Admin' },
+    { USER_CD: 'public', NAME_CHAR: 'Public User' },
   ]),
 }
 
@@ -221,7 +222,7 @@ describe('note-store messenger', () => {
     expect(blob.readBy).toEqual([])
   })
 
-  it('loadRecipients returns all users except the current one', async () => {
+  it('loadRecipients returns all users except the current one and the technical public account', async () => {
     const store = useNoteStore()
     const recipients = await store.loadRecipients()
 

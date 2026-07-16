@@ -324,14 +324,16 @@ export const useNoteStore = defineStore('note', () => {
   }
 
   /**
-   * Load possible recipients (all users except the current one).
+   * Load possible recipients: all users except the current one and the
+   * technical `public` account (nobody reads its inbox — broadcasts go
+   * through the explicit "to everyone" option instead).
    */
   const loadRecipients = async () => {
     try {
       const users = await dbStore.getRepository('user').findAll()
       const me = currentUserCd()
       recipients.value = (users || [])
-        .filter((u) => u.USER_CD && u.USER_CD !== me)
+        .filter((u) => u.USER_CD && u.USER_CD !== me && u.USER_CD !== 'public')
         .map((u) => ({ value: u.USER_CD, label: u.NAME_CHAR ? `${u.NAME_CHAR} (${u.USER_CD})` : u.USER_CD }))
       return recipients.value
     } catch (err) {
