@@ -9,22 +9,23 @@
       </q-item-label>
       <q-item-label v-if="blob.replyToId" caption class="text-grey-6"> ↪ {{ $t('smartButton.messages.replyTo') }}: {{ replyToTitle }} </q-item-label>
       <q-item-label lines="4" class="message-text">{{ note.NOTE_TEXT || note.NAME_CHAR }}</q-item-label>
-      <q-item-label v-if="contextTarget" caption>
-        <q-chip dense size="sm" clickable :icon="contextTarget.icon" color="blue-1" text-color="primary" @click.stop="$emit('open-context', contextTarget)">
+    </q-item-section>
+    <!-- Context chip top-right (saves a caption line), actions below it -->
+    <q-item-section side top>
+      <div class="column items-end q-gutter-xs">
+        <q-chip v-if="contextTarget" dense size="sm" clickable :icon="contextTarget.icon" color="blue-1" text-color="primary" class="q-ma-none" @click.stop="$emit('open-context', contextTarget)">
           {{ contextTarget.label }}
           <q-tooltip>{{ $t('smartButton.quickNotes.openContext') }}</q-tooltip>
         </q-chip>
-      </q-item-label>
-    </q-item-section>
-    <q-item-section side>
-      <div class="row no-wrap">
-        <q-btn v-if="incoming" icon="reply" size="sm" flat round dense color="primary" @click="$emit('reply', note)">
-          <q-tooltip>{{ $t('smartButton.messages.reply') }}</q-tooltip>
-        </q-btn>
-        <!-- Broadcasts are one shared row: only the sender may delete -->
-        <q-btn v-if="!isBroadcast || !incoming" icon="delete" size="sm" flat round dense color="grey-7" @click="$emit('remove', note)">
-          <q-tooltip>{{ $t('smartButton.messages.confirmDeleteTitle') }}</q-tooltip>
-        </q-btn>
+        <div class="row no-wrap">
+          <q-btn v-if="incoming" icon="reply" size="sm" flat round dense color="primary" @click="$emit('reply', note)">
+            <q-tooltip>{{ $t('smartButton.messages.reply') }}</q-tooltip>
+          </q-btn>
+          <!-- Broadcasts are one shared row: only the sender may delete -->
+          <q-btn v-if="!isBroadcast || !incoming" icon="delete" size="sm" flat round dense color="grey-7" @click="$emit('remove', note)">
+            <q-tooltip>{{ $t('smartButton.messages.confirmDeleteTitle') }}</q-tooltip>
+          </q-btn>
+        </div>
       </div>
     </q-item-section>
   </q-item>

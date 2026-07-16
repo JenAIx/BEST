@@ -114,14 +114,14 @@
 
         <q-separator class="q-mb-sm" />
 
-        <div v-if="noteStore.messages.length === 0" class="text-center text-grey-6 q-pa-md">
+        <div v-if="filteredMessages.length === 0" class="text-center text-grey-6 q-pa-md">
           <q-icon name="chat" size="32px" class="q-mb-xs" />
           <div class="text-caption">{{ $t('smartButton.messages.empty') }}</div>
         </div>
 
         <q-list v-else bordered separator class="rounded-borders notes-list">
           <MessageListItem
-            v-for="m in noteStore.messages"
+            v-for="m in filteredMessages"
             :key="m.NOTE_ID"
             :note="m"
             :current-user-cd="currentUserCd"
@@ -190,6 +190,16 @@ const currentUserCd = computed(() => authStore.currentUser?.USER_CD || '')
 
 // Recipient options: broadcast ("everyone") first, then all other users
 const recipientOptions = computed(() => [{ value: '*', label: t('smartButton.messages.toAll') }, ...noteStore.recipients])
+
+// Selecting a recipient doubles as a conversation filter for the list below
+const filteredMessages = computed(() => {
+  if (!messageTo.value) return noteStore.messages
+  return noteStore.messages.filter((m) => {
+    const blob = parseNoteBlob(m.NOTE_BLOB)
+    if (messageTo.value === '*') return blob.to === '*'
+    return blob.from === messageTo.value || blob.to === messageTo.value
+  })
+})
 
 // NOTE_ID → title lookup so replies can show what they answer
 const replyTitles = computed(() => {
