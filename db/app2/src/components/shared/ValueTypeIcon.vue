@@ -57,7 +57,7 @@ const getValueTypeIcon = (valueType) => {
     M: 'medication', // Medication - pill/medication icon
     N: 'tag', // Numeric - tag/number icon
     Q: 'quiz', // Questionnaire - same as questionnaires in main menu
-    R: 'description', // Raw Text - document icon
+    R: 'attach_file', // Raw Data/File - matches CODE_LOOKUP seed
     S: 'list', // Selection - list icon for selections
     T: 'text_fields', // Text - text fields icon
   }
@@ -72,7 +72,7 @@ const getValueTypeColor = (valueType) => {
     M: 'pink', // Medication
     N: 'teal', // Numeric
     Q: 'deep-purple', // Questionnaire - distinctive color
-    R: 'purple', // Raw Text
+    R: 'orange', // Raw Data/File
     S: 'indigo', // Selection
     T: 'brown', // Text
   }
@@ -92,7 +92,7 @@ const getValueTypeLabel = (valueType) => {
     M: 'Medication',
     N: 'Numeric',
     Q: 'Questionnaire',
-    R: 'Raw Text',
+    R: 'Raw Data/File',
     S: 'Selection',
     T: 'Text',
   }
@@ -107,7 +107,7 @@ const getValueTypeDescription = (valueType) => {
     M: 'Medication prescriptions and drug information',
     N: 'Numeric measurements',
     Q: 'Questionnaire responses and forms',
-    R: 'Raw unstructured text',
+    R: 'Raw data / file attachment',
     S: 'Coded selection values',
     T: 'Structured text values',
   }

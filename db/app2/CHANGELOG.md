@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Patientenansicht: Kompaktübersicht aller Visiten + Ergebnisse**
+  (`features/patientvisit-overview`): Neuer Umschalter links neben
+  „Neue Visite“ (Karten-Zeitachse ↔ Kompaktübersicht, pro Gerät
+  persistiert via `localSettings.visits.timelineCompact`). Die
+  Kompaktansicht (`VisitCompactSummary.vue`) zeigt pro Visite einen
+  Block mit Kopfzeile (Datum, Typ, Status, Anzahl; Klick öffnet die
+  Dateneingabe) und dichter Ergebnistabelle nach Kategorien —
+  wiederverwendet `VisitSummaryObservations` inkl. Datei- und
+  Fragebogen-Vorschau. Datenquelle: die ohnehin geladenen
+  `allObservations`, gruppiert per `groupObservationsByVisit`
+  (`src/shared/utils/file-category.js`).
+
+- **Datei-Upload-Areal in der Patientenansicht** (unten mittig):
+  PDF/Bild/Video per Drag&Drop oder Klick hochladen — gespeichert als
+  `VALTYPE_CD='R'`-Observation (bestehende Konvention:
+  Metadaten-JSON in `TVAL_CHAR`, Bytes in `OBSERVATION_BLOB`, via
+  `database-store.uploadRawData`). Bestätigungs-Dialog mit
+  **Kategorie-Vorschlag aus Dateiname/-endung** (`suggestFileCategory`:
+  mp4/mov/… → Video, pdf/docx → Dokument, png/jpg → Bild; Dateinamen
+  mit „aufkl/consent/einwillig“ → Aufklärung) und Visiten-Auswahl
+  (vorbelegt: gewählte bzw. neueste Visite). Max. 50 MB (DB-Guard).
+  - Migration 014: neue R-Konzepte `CUSTOM: RAW_VIDEO` / `RAW_DOCUMENT`
+    / `RAW_CONSENT` (selbstheilend).
+  - `FilePreviewDialog` kann jetzt **Video** abspielen (`<video>`-Zweig);
+    `getMimeTypeFromExtension` um Video-/weitere Bildtypen erweitert.
+  - `uploadRawData` stempelt jetzt `PROVIDER_ID` (Lücke geschlossen);
+    `ValueTypeIcon` R-Darstellung an den Seed angeglichen
+    (attach_file/orange, „Raw Data/File“).
+  - Tests: `tests/unit/32_file-category.test.js` (12 Tests).
+
 - **In-App-Hilfe `/help`** (`features/help-side`): Umfangreiche deutsche
   Anleitung der gesamten Anwendung — Überblick, Konzepte & Datenmodell,
   alle Hauptbereiche (Anmeldung, Dashboard, Patienten & Besuche, Fragebögen,
@@ -22,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Capture-Skript (playwright-core, crash-resilient mit Re-Login) gegen die
   headless laufende Electron-App; `REMOTE_DEBUG_PORT`-Schalter in
   `electron-main.js` (nur aktiv, wenn gesetzt). Dokumentiert im README.
+
+### Fixed
+
+- **VisitTimeline: Visiten-Reload nach Bearbeitung** übergab das
+  Patient-Objekt statt `PATIENT_NUM` an `loadVisitsForPatient` —
+  die Liste wurde danach leer angezeigt. Betraf auch den neuen
+  Upload-Refresh; beide Pfade nutzen jetzt die Nummer.
 
 ## [0.4_20260716] - 2026-07-16
 

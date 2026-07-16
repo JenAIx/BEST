@@ -1,9 +1,33 @@
 <template>
-  <div class="timeline-view">
+  <!-- Compact mode pins header + search and scrolls only the visit blocks -->
+  <div class="timeline-view" :class="{ 'timeline-view--compact': compactMode && !loading }">
     <div class="timeline-container">
       <div class="timeline-header">
         <h3 class="timeline-title">{{ $t('visit.timeline') }}</h3>
-        <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="createNewVisit" />
+        <div class="row items-center q-gutter-sm">
+          <!-- Card timeline vs. compact all-visits summary -->
+          <q-btn-toggle
+            v-model="compactMode"
+            :options="[
+              { value: false, icon: 'view_agenda', slot: 'cards' },
+              { value: true, icon: 'table_rows', slot: 'compact' },
+            ]"
+            toggle-color="primary"
+            color="grey-3"
+            text-color="grey-7"
+            size="sm"
+            unelevated
+            dense
+          >
+            <template v-slot:cards
+              ><q-tooltip>{{ $t('visit.cardView') }}</q-tooltip></template
+            >
+            <template v-slot:compact
+              ><q-tooltip>{{ $t('visit.compactSummary') }}</q-tooltip></template
+            >
+          </q-btn-toggle>
+          <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="createNewVisit" />
+        </div>
       </div>
 
       <div v-if="loading" class="loading-state">
@@ -17,6 +41,9 @@
         <div class="text-body2 text-grey-5 q-mb-md">{{ $t('visit.startByCreating') }}</div>
         <q-btn color="primary" icon="add" :label="$t('visit.createFirstVisit')" @click="createNewVisit" />
       </div>
+
+      <!-- Compact all-visits summary -->
+      <VisitCompactSummary v-else-if="compactMode" @visit-selected="selectVisit" />
 
       <div v-else class="timeline-list">
         <VisitTimelineItem
@@ -32,6 +59,10 @@
           @delete="deleteVisit"
         />
       </div>
+
+      <!-- File upload area (bottom center, card timeline only): drop or click
+           a PDF/image/video to store it as a VALTYPE 'R' observation -->
+      <VisitFileUploadArea v-if="!loading && !compactMode" @uploaded="onFileUploaded" />
     </div>
 
     <!-- New Visit Dialog -->
@@ -46,12 +77,16 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useQuasar } from 'quasar'
 import { useVisitStore } from 'src/stores/visit-store'
+import { useObservationStore } from 'src/stores/observation-store'
+import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useLoggingStore } from 'src/stores/logging-store'
 import VisitTimelineItem from './VisitTimelineItem.vue'
+import VisitCompactSummary from './VisitCompactSummary.vue'
+import VisitFileUploadArea from './VisitFileUploadArea.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
 import VisitSummaryDialog from './VisitSummaryDialog.vue'
 import EditVisitDialog from '../patient/EditVisitDialog.vue'
@@ -71,8 +106,14 @@ const emit = defineEmits(['visit-selected', 'visit-edited'])
 
 const $q = useQuasar()
 const visitStore = useVisitStore()
+const observationStore = useObservationStore()
+const localSettings = useLocalSettingsStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('VisitTimeline')
+
+// View mode: card timeline vs. compact all-visits summary (persisted per device)
+const compactMode = ref(localSettings.getSetting('visits.timelineCompact', false) === true)
+watch(compactMode, (value) => localSettings.setSetting('visits.timelineCompact', value === true))
 
 // State
 const showNewVisitDialog = ref(false)
@@ -182,6 +223,21 @@ const createNewVisit = () => {
   showNewVisitDialog.value = true
 }
 
+const patientNum = computed(() => props.patient?.PATIENT_NUM ?? props.patient?.rawData?.PATIENT_NUM ?? null)
+
+// After a successful file upload, refresh visits (observation counts) and the
+// patient-wide observation list (compact summary + patient data view)
+const onFileUploaded = async () => {
+  try {
+    if (patientNum.value != null) {
+      await visitStore.loadVisitsForPatient(patientNum.value)
+      await observationStore.loadAllObservationsForPatient(patientNum.value)
+    }
+  } catch (error) {
+    logger.error('Failed to refresh after file upload', error)
+  }
+}
+
 const onVisitCreated = (newVisit) => {
   logger.logUserAction('visit_created_from_timeline', {
     visitId: newVisit.id,
@@ -243,9 +299,10 @@ const onVisitUpdated = async (updatedVisit) => {
   })
 
   // Reload visits for the current patient to get the updated data
-  if (props.patient) {
+  // (loadVisitsForPatient expects the PATIENT_NUM, not the patient object)
+  if (patientNum.value != null) {
     try {
-      await visitStore.loadVisitsForPatient(props.patient)
+      await visitStore.loadVisitsForPatient(patientNum.value)
     } catch (error) {
       logger.error('Failed to reload visits after update', error)
     }
@@ -319,6 +376,26 @@ const deleteVisit = async (visit) => {
 .timeline-container {
   max-width: 1000px;
   margin: 0 auto;
+}
+
+// Compact mode: the view itself stops scrolling; header + search stay fixed
+// and only the visit blocks scroll (inner scroll area in VisitCompactSummary)
+.timeline-view--compact {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  .timeline-container {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+
+    .timeline-header {
+      flex-shrink: 0;
+    }
+  }
 }
 
 .timeline-header {
