@@ -391,6 +391,27 @@ local state. `EditableCell.emit('update', {..., startDate})` →
 `obs.startDate !== row.visitDate` render a small calendar corner badge so
 users can see divergence without opening the menu.
 
+### 3b. R-Type (raw file) observations
+
+Files attached to a visit (upload area on `/visits/:id`, R-fields in the data
+entry) are stored as `VALTYPE_CD='R'` observations with this convention:
+
+- `TVAL_CHAR` = JSON envelope `{filename, size, ext, uploadDate, mimeType}`
+- `OBSERVATION_BLOB` = the raw file bytes (Uint8Array, NOT base64)
+- other value columns null, `SOURCESYSTEM_CD='FILE_UPLOAD'`, max 50 MB
+
+The ONLY write/read paths are `database-store.uploadRawData` /
+`downloadRawData` / `getRawDataInfo` (metadata without blob). Viewer:
+`FilePreviewDialog.vue` (image/text/pdf/video). List queries must never
+SELECT `OBSERVATION_BLOB`. Do NOT follow the conflicting (dead) convention in
+`src/utils/observation-transformer.js`.
+
+Raw-file concepts (all `CATEGORY_CHAR='Raw Data'`): `CUSTOM: RAW_DATA`
+(generic), `RAW_IMAGE`, and from migration 014 `RAW_VIDEO`, `RAW_DOCUMENT`,
+`RAW_CONSENT`. The upload dialog suggests one via
+`src/shared/utils/file-category.js` (extension map; file names matching
+/aufkl|consent|einwillig/i win as consent).
+
 ### 4. Concept reuse hierarchy
 
 Before creating a `CUSTOM:` or domain-prefixed concept, walk this hierarchy:

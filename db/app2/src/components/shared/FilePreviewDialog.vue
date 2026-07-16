@@ -74,13 +74,29 @@
               </div>
             </div>
 
+            <!-- Video Preview -->
+            <div v-else-if="isVideoFile(fileInfo.filename)" class="video-preview">
+              <div class="text-subtitle2 text-grey-7 q-mb-sm">Preview:</div>
+              <div v-if="videoPreviewUrl" class="video-container">
+                <video :src="videoPreviewUrl" controls class="preview-video" />
+              </div>
+              <div v-else-if="isLoadingPreview" class="preview-loading">
+                <q-spinner color="primary" size="32px" />
+                <div class="text-body2 text-grey-6 q-mt-sm">Loading video preview...</div>
+              </div>
+              <div v-else-if="previewError" class="preview-error">
+                <q-icon name="error" size="32px" color="negative" />
+                <div class="text-body2 text-negative q-mt-sm">{{ previewError }}</div>
+              </div>
+            </div>
+
             <!-- Unsupported File Type -->
             <div v-else class="unsupported-preview">
               <div class="text-subtitle2 text-grey-7 q-mb-sm">Preview:</div>
               <div class="preview-placeholder">
                 <q-icon name="insert_drive_file" size="64px" color="grey-5" />
                 <div class="text-body2 text-grey-6 q-mt-sm">Preview not available for this file type</div>
-                <div class="text-caption text-grey-5">Supported formats: PNG, JPG, GIF, TXT, PDF</div>
+                <div class="text-caption text-grey-5">Supported formats: PNG, JPG, GIF, TXT, PDF, MP4, MOV, WEBM</div>
               </div>
             </div>
           </div>
@@ -158,6 +174,7 @@ const previewError = ref('')
 const imagePreviewUrl = ref(null)
 const textContent = ref('')
 const pdfPreviewUrl = ref(null)
+const videoPreviewUrl = ref(null)
 const fileTypeOptions = ref([])
 
 // Computed properties
@@ -253,6 +270,12 @@ const isPdfFile = (filename) => {
   return pdfType?.extensions?.includes(ext) || ext === 'pdf'
 }
 
+const isVideoFile = (filename) => {
+  if (!filename) return false
+  const ext = filename.split('.').pop()?.toLowerCase()
+  return ['mp4', 'mov', 'webm', 'mkv', 'avi'].includes(ext)
+}
+
 // Preview loading methods
 const loadFilePreview = async () => {
   if (!props.observationId || !props.fileInfo) return
@@ -281,6 +304,8 @@ const loadFilePreview = async () => {
         textContent.value = text.length > 10000 ? text.substring(0, 10000) + '\n\n... (file truncated for preview)' : text
       } else if (isPdfFile(props.fileInfo.filename)) {
         pdfPreviewUrl.value = URL.createObjectURL(blob)
+      } else if (isVideoFile(props.fileInfo.filename)) {
+        videoPreviewUrl.value = URL.createObjectURL(blob)
       }
 
       logger.success('File preview loaded successfully', {
@@ -378,6 +403,10 @@ const cleanupUrls = () => {
     URL.revokeObjectURL(pdfPreviewUrl.value)
     pdfPreviewUrl.value = null
   }
+  if (videoPreviewUrl.value) {
+    URL.revokeObjectURL(videoPreviewUrl.value)
+    videoPreviewUrl.value = null
+  }
 }
 
 // Lifecycle
@@ -461,6 +490,17 @@ onUnmounted(() => {
           height: 350px;
           border: 1px solid #ddd;
           border-radius: 4px;
+        }
+      }
+    }
+
+    .video-preview {
+      .video-container {
+        .preview-video {
+          width: 100%;
+          max-height: 350px;
+          border-radius: 4px;
+          background: #000;
         }
       }
     }

@@ -565,6 +565,12 @@ export const useDatabaseStore = defineStore('database', () => {
         observationData: enhancedObservationData,
       })
 
+      // Stamp the uploading user as provider (parity with observation-store.createObservation)
+      if (!enhancedObservationData.PROVIDER_ID) {
+        const { useAuthStore } = await import('./auth-store')
+        enhancedObservationData.PROVIDER_ID = useAuthStore().providerId || 'SYSTEM'
+      }
+
       const rawDataObservation = {
         ...enhancedObservationData,
         VALTYPE_CD: 'R',
@@ -757,6 +763,15 @@ export const useDatabaseStore = defineStore('database', () => {
       docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       xls: 'application/vnd.ms-excel',
       xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      rtf: 'application/rtf',
+      bmp: 'image/bmp',
+      tiff: 'image/tiff',
+      webp: 'image/webp',
+      mp4: 'video/mp4',
+      mov: 'video/quicktime',
+      webm: 'video/webm',
+      mkv: 'video/x-matroska',
+      avi: 'video/x-msvideo',
     }
 
     return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
