@@ -422,18 +422,36 @@ const measureNavPositions = () => {
   const container = scrollArea.value
   const body = container?.closest('.unified-body')
   if (!container || !body) return
-  // Nav origin = body top; cards start below the header row → clamp there
-  const bodyTop = body.getBoundingClientRect().top
+  const bodyRect = body.getBoundingClientRect()
+  const entries = navEntries.value
+  const entryHeight = (entry) => 34 + entry.groups.length * 23 + 10
+
+  // Nav origin = body top; cards start below the header row → clamp there.
+  // Entries whose card scrolled above stack at the top.
   const tops = {}
-  let minTop = container.getBoundingClientRect().top - bodyTop + 2
-  for (const entry of navEntries.value) {
+  let minTop = container.getBoundingClientRect().top - bodyRect.top + 2
+  for (const entry of entries) {
     const card = container.querySelector(`[data-visit-id="${entry.visitId}"]`)
     if (!card) continue
-    const top = Math.max(card.getBoundingClientRect().top - bodyTop, minTop)
+    const top = Math.max(card.getBoundingClientRect().top - bodyRect.top, minTop)
     tops[entry.visitId] = top
-    // reserve the entry's approximate height before the next one may start
-    minTop = top + 34 + entry.groups.length * 23 + 10
+    minTop = top + entryHeight(entry)
   }
+
+  // Symmetric bottom clamp: entries whose cards lie below the viewport
+  // (e.g. behind a tall expanded card) stick to the bottom of the nav,
+  // stacked upwards — every visit stays visible and clickable
+  let maxBottom = bodyRect.height - 4
+  for (let i = entries.length - 1; i >= 0; i--) {
+    const entry = entries[i]
+    if (!(entry.visitId in tops)) continue
+    const height = entryHeight(entry)
+    if (tops[entry.visitId] + height > maxBottom) {
+      tops[entry.visitId] = Math.max(maxBottom - height, 0)
+    }
+    maxBottom = tops[entry.visitId]
+  }
+
   navTops.value = tops
 }
 
