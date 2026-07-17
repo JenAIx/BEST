@@ -165,8 +165,10 @@ export function groupObservationsByFieldSets(observations, fieldSets) {
     const remainder = []
 
     for (const row of rows) {
-      // Strategy 1: concept-code match (first field group in order wins)
-      let claimed = sets.find((fs) => matchesConceptCode(row.conceptCode, fs.concepts))
+      // Strategy 1: concept-code match (first field group in order wins);
+      // an EXACT code containment beats any fuzzy substring match — else
+      // e.g. ..._SYMPTOMS could land in the group of its prefix concept
+      let claimed = sets.find((fs) => fs.concepts?.includes(row.conceptCode)) || sets.find((fs) => matchesConceptCode(row.conceptCode, fs.concepts))
       // Strategy 2: category fallback — only when no group claims it by concept
       if (!claimed && row.category) {
         claimed = sets.find((fs) => fs.categories?.length > 0 && fs.categories.includes(row.category))
@@ -182,7 +184,9 @@ export function groupObservationsByFieldSets(observations, fieldSets) {
     const groups = []
     for (const fs of sets) {
       const fsRows = byFieldSet.get(fs.id)
-      if (fsRows && fsRows.length > 0) groups.push({ name: fs.name, icon: fs.icon, observations: fsRows })
+      // conceptCodes carries the configured concepts so the read tiles can
+      // derive a completion percentage (category remainder groups have none)
+      if (fsRows && fsRows.length > 0) groups.push({ name: fs.name, icon: fs.icon, conceptCodes: fs.concepts || [], observations: fsRows })
     }
 
     const byCategory = {}

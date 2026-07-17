@@ -165,6 +165,25 @@ describe('groupObservationsByFieldSets', () => {
     expect(groups[0].name).toBe('Labs')
   })
 
+  it('an exact concept claim beats an earlier fuzzy substring claim', () => {
+    // ..._SYMPTOMS contains the first set's concept as substring — the row
+    // must land in the set that lists its exact code, not the fuzzy one
+    const sets = [
+      { id: 'a', name: 'Prefix Set', concepts: ['STROKE_LIPID:STATIN_INTOLERANCE'], categories: [] },
+      { id: 'b', name: 'Exact Set', concepts: ['STROKE_LIPID:STATIN_INTOLERANCE_SYMPTOMS'], categories: [] },
+    ]
+    const row = { encounterNum: 1, conceptCode: 'STROKE_LIPID:STATIN_INTOLERANCE_SYMPTOMS', conceptName: 'Symptome', category: 'Stroke' }
+    const groups = groupObservationsByFieldSets([row], sets).get(1)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].name).toBe('Exact Set')
+  })
+
+  it('field-set groups carry their configured conceptCodes (completion denominator)', () => {
+    const groups = groupObservationsByFieldSets(OBS, FIELD_SETS).get(1)
+    expect(groups[0].conceptCodes).toEqual(['LID: 22748-8'])
+    expect(groups[2].conceptCodes).toBeUndefined() // category remainder group
+  })
+
   it('matches concepts across differing prefixes (trailing numeric code)', () => {
     // both sides prefixed → the trailing-numeric branch matches despite
     // different prefixes; a bare '22748-8' would match via substring instead

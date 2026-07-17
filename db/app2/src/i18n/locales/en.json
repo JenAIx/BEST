@@ -431,7 +431,11 @@
     "fileDetailsSaved": "Media details saved",
     "inOutStatus": "In/out status",
     "sourceSystem": "Source system",
-    "fieldGroupAdd": "Add group to this visit"
+    "fieldGroupAdd": "Add group to this visit",
+    "removeQuestionnaire": "Remove questionnaire",
+    "removeQuestionnaireConfirm": "Remove questionnaire “{title}”? Recorded answers will be deleted.",
+    "questionnaireFill": "Fill in",
+    "questionnaireScore": "Score: {score}"
   },
   "observation": {
     "observation": "Observation",

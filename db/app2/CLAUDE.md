@@ -636,10 +636,26 @@ Components (`src/components/visits/unified/`):
   spinner, otherwise list+editor unmount and lose state.
 - E2E: `bash scripts/verify-visits/run.sh` (19 checks, DB backup + ID-diff
   delete guards + integrity check; app must be closed).
-- NOT yet integrated into the new grid look: `VisitQuestionnaireSection`
-  (legacy styling inside the editor) and true M-type medication editing
-  (form grid falls back to the plain editor; Stroke-Lipid drugs are N-type
-  and unaffected).
+- Questionnaires + M-type medications are part of the grid look (July 2026):
+  `QuestionnaireFormGrid.vue` (one tile per questionnaire, add tile,
+  confirm-remove; Q-blob parsing shared via
+  `shared/utils/questionnaire-display.js` with the read tiles and
+  `useVisitQuestionnaires`; read tiles mark pending questionnaires amber
+  with a progress bar). M fields render the classic prescription notation
+  ("Aspirin 100mg 1-0-0 p.o.", abbreviations from the frequency/route
+  CODE_LOOKUP blobs) in edit AND read mode and edit via
+  `MedicationEditDialog`; saves go through `medications-store`
+  (`createMedication` accepts `patientNum`/`conceptCode`/`visitDate`,
+  update/create return the serialized blob for local mirroring — same
+  propagation invariant as `valueFlag`). Once every M slot is filled, a
+  dashed add tile creates additional medication rows (duplicate concepts
+  are fine — `buildFormFields` keys extras by concept+row id).
+- Blank handling: read mode HIDES observations that are merely created
+  without a value (`isBlankObservation` — NV rows stay visible as ∅);
+  edit mode dims blank fields (`form-field--blank`). Deleting a field-set
+  observation keeps its slot as an empty (dimmed) field; observations the
+  group claimed only by category disappear with their row
+  (`buildFormFields` in `shared/utils/observation-display.js`).
 
 ---
 
@@ -1505,6 +1521,6 @@ console.log($t('category.key'))
 
 ---
 
-**Last Updated**: December 30, 2025  
-**Version**: 1.0.0  
+**Last Updated**: July 17, 2026  
+**App Version**: 0.5_20260717  
 **Database Schema Version**: 002 (Current)

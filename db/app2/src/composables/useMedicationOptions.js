@@ -86,6 +86,36 @@ export function useMedicationOptions() {
     return routeOption?.label || codeValue
   }
 
+  /**
+   * Get frequency abbreviation ("1-0-1" intake scheme) from code
+   * @param {string|Object} frequencyCode - Frequency code or option object
+   * @returns {string} Abbreviation (falls back to the raw code)
+   */
+  const getFrequencyAbbreviation = (frequencyCode) => {
+    if (!frequencyCode) return ''
+
+    const codeValue = typeof frequencyCode === 'object' ? frequencyCode?.value : frequencyCode
+    if (!codeValue) return ''
+
+    const freqOption = frequencyOptions.value.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+    return freqOption?.abbreviation || codeValue
+  }
+
+  /**
+   * Get route abbreviation ("p.o.", "i.v.") from code
+   * @param {string|Object} routeCode - Route code or option object
+   * @returns {string} Abbreviation (falls back to the raw code)
+   */
+  const getRouteAbbreviation = (routeCode) => {
+    if (!routeCode) return ''
+
+    const codeValue = typeof routeCode === 'object' ? routeCode?.value : routeCode
+    if (!codeValue) return ''
+
+    const routeOption = routeOptions.value.find((opt) => opt.value.toLowerCase() === codeValue.toLowerCase())
+    return routeOption?.abbreviation || codeValue
+  }
+
   return {
     // State
     frequencyOptions,
@@ -97,5 +127,7 @@ export function useMedicationOptions() {
     loadMedicationOptions,
     getFrequencyLabel,
     getRouteLabel,
+    getFrequencyAbbreviation,
+    getRouteAbbreviation,
   }
 }

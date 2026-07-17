@@ -15,10 +15,8 @@
       <!-- Observation data per active field group (full card width) -->
       <div class="editor-main">
         <template v-for="fieldSet in activeFieldSetsList" :key="`${visit.id}-${fieldSet.id}`">
-          <VisitQuestionnaireSection
+          <QuestionnaireFormGrid
             v-if="fieldSet.id === 'questionnaires'"
-            :visit="visit"
-            :patient="patient"
             :field-set="fieldSet"
             :questionnaires="visitQuestionnaires"
             @add-questionnaire="showAddDialog = true"
@@ -153,7 +151,7 @@ import { useVisitQuestionnaires } from 'src/composables/useVisitQuestionnaires'
 import { useUncategorizedObservations } from 'src/composables/useUncategorizedObservations'
 import { extractVisitType } from 'src/shared/utils/visit-labels.js'
 import ObservationFormGrid from './ObservationFormGrid.vue'
-import VisitQuestionnaireSection from '../VisitQuestionnaireSection.vue'
+import QuestionnaireFormGrid from './QuestionnaireFormGrid.vue'
 import CustomObservationDialog from '../CustomObservationDialog.vue'
 import AddQuestionnaireToVisitDialog from '../AddQuestionnaireToVisitDialog.vue'
 import VisitQuestionnaireFillDialog from '../VisitQuestionnaireFillDialog.vue'
@@ -347,28 +345,6 @@ onMounted(async () => {
   flex-direction: column;
   gap: 12px;
   min-width: 0;
-
-  // Questionnaire section (legacy component) aligned with the form grids
-  :deep(.field-set-section) {
-    border-radius: 8px;
-    box-shadow: none;
-    border: 1px solid $grey-4;
-  }
-
-  :deep(.field-set-header) {
-    padding: 8px 12px;
-    background: white;
-    border-bottom: 1px solid $grey-4;
-
-    .field-set-title {
-      font-size: 1rem;
-      color: $primary;
-    }
-  }
-
-  :deep(.field-set-content) {
-    padding: 8px 12px;
-  }
 }
 
 .editor-empty {

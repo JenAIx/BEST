@@ -4,11 +4,15 @@
        + code on hover. Content decides the width (tileSpan): numbers side
        by side, long text full row, files/questionnaires wide. -->
   <div v-if="categorizedObservations.length > 0" class="tile-groups">
-    <div v-for="category in categorizedObservations" :key="category.name" class="tile-group" :data-group-name="category.name">
+    <div v-for="category in groupsWithCompletion" :key="category.name" class="tile-group" :data-group-name="category.name">
       <div class="tile-group-head">
         <q-icon :name="category.icon || getCategoryIcon(category.name)" size="16px" />
         <span>{{ category.name }}</span>
         <span class="tile-group-count">({{ category.observations.length }})</span>
+        <span v-if="category.completion" class="head-percent" :class="{ 'head-percent--full': category.completion.percent === 100 }">
+          {{ category.completion.percent }} %
+          <q-tooltip :delay="350">{{ category.completion.filled }}/{{ category.completion.total }}</q-tooltip>
+        </span>
       </div>
 
       <div class="tile-grid">
@@ -16,7 +20,7 @@
           v-for="obs in category.observations"
           :key="obs.observationId"
           class="obs-tile"
-          :class="[`obs-tile--${tileSpan(obs)}`, { 'obs-tile--clickable': isPreviewable(obs), 'obs-tile--empty': isEmptyValue(obs) }]"
+          :class="[`obs-tile--${tileSpan(obs)}`, { 'obs-tile--clickable': isPreviewable(obs), 'obs-tile--empty': isEmptyValue(obs), 'obs-tile--pending': isPendingQuest(obs) }]"
           :style="{ '--tv': valueTypeHex(obs.valueType) }"
           @click="onTileClick(obs)"
         >
@@ -27,8 +31,14 @@
             <span v-if="obs.fileInfo?.size" class="tile-unit">{{ formatFileSize(obs.fileInfo.size) }}</span>
           </div>
           <div v-else-if="obs.valueType === 'Q'" class="tile-value">
-            <q-icon name="quiz" size="15px" color="deep-purple-6" />
-            <span class="ellipsis">{{ obs.displayValue }}</span>
+            <q-icon :name="questMeta(obs).isCompleted ? 'check_circle' : 'pending'" size="15px" :color="questMeta(obs).isCompleted ? 'positive' : 'amber-8'" />
+            <span class="ellipsis">{{ questMeta(obs).title }}</span>
+            <span v-if="questMeta(obs).score !== null" class="tile-unit">{{ $t('visit.questionnaireScore', { score: questMeta(obs).score }) }}</span>
+            <span v-else-if="!questMeta(obs).isCompleted" class="tile-unit">{{ $t('visit.questionnaireFill') }}</span>
+          </div>
+          <div v-else-if="obs.valueType === 'M'" class="tile-value">
+            <q-icon name="medication" size="15px" color="purple-7" />
+            <span class="ellipsis">{{ medicationTileText(obs) }}</span>
           </div>
           <div v-else-if="isEmptyValue(obs)" class="tile-value tile-value--empty">
             <span>∅</span>
@@ -41,9 +51,14 @@
           </div>
 
           <!-- R tiles: file-typical subline (filename — description);
+               Q tiles: questionnaire short title/code;
                everything else shows the short concept name -->
           <div v-if="obs.valueType === 'R'" class="tile-concept ellipsis">{{ fileSubline(obs) }}</div>
+          <div v-else-if="obs.valueType === 'Q'" class="tile-concept ellipsis">{{ questMeta(obs).shortTitle || questMeta(obs).questionnaireCode || shortConceptName(obs.conceptName) }}</div>
           <div v-else class="tile-concept ellipsis">{{ shortConceptName(obs.conceptName) }}</div>
+
+          <!-- Incomplete questionnaires wear their fill progress -->
+          <q-linear-progress v-if="isPendingQuest(obs) && questMeta(obs).progress !== null" :value="questMeta(obs).progress" color="amber-8" rounded size="3px" class="tile-progress" />
 
           <q-tooltip :delay="350" max-width="360px">
             <div class="tile-tooltip">
@@ -60,21 +75,72 @@
 </template>
 
 <script setup>
+import { ref, computed, watch } from 'vue'
 import { getCategoryIcon, getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
-import { shortConceptName, tileSpan, valueTypeHex } from 'src/shared/utils/observation-display.js'
+import { shortConceptName, tileSpan, valueTypeHex, parseMedicationObservation, formatMedicationSummary, fieldSetCompletion } from 'src/shared/utils/observation-display.js'
+import { parseQuestionnaireObservation } from 'src/shared/utils/questionnaire-display.js'
+import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 
 defineOptions({
   name: 'ObservationTileGrid',
 })
 
-defineProps({
-  // [{ name, icon?, observations: [...] }] — groupObservationsByFieldSets shape
+const props = defineProps({
+  // [{ name, icon?, conceptCodes?, observations: [...] }] — groupObservationsByFieldSets shape
   categorizedObservations: { type: Array, default: () => [] },
+  // Off while searching — a percentage over filtered rows would mislead
+  showCompletion: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['preview-file', 'preview-questionnaire'])
 
 const isPreviewable = (obs) => obs.valueType === 'R' || obs.valueType === 'Q'
+
+// Q tiles show completion status + score/progress hint (shared parse with
+// the editor's questionnaire grid)
+const questMeta = (obs) => parseQuestionnaireObservation(obs)
+
+const isPendingQuest = (obs) => obs.valueType === 'Q' && !questMeta(obs).isCompleted
+
+// Subtle completion percentage per field group (distinct concepts —
+// duplicates like 2× HDL count once). Only for groups with configured
+// concepts or questionnaires; category remainder groups carry none.
+const completionFor = (category) => {
+  if (!props.showCompletion) return null
+  const hasQuest = category.observations.some((obs) => obs.valueType === 'Q')
+  if (!category.conceptCodes?.length && !hasQuest) return null
+  const completion = fieldSetCompletion({ conceptCodes: category.conceptCodes || [], observations: category.observations })
+  return completion.total > 0 ? completion : null
+}
+
+const groupsWithCompletion = computed(() => props.categorizedObservations.map((category) => ({ ...category, completion: completionFor(category) })))
+
+// M tiles: classic prescription notation "Aspirin 100mg 1-0-1 p.o." —
+// frequency/route abbreviations load lazily once an M tile appears
+const { loadMedicationOptions, getFrequencyAbbreviation, getRouteAbbreviation } = useMedicationOptions()
+const medicationOptionsLoaded = ref(false)
+
+watch(
+  () => props.categorizedObservations,
+  (groups) => {
+    if (medicationOptionsLoaded.value) return
+    if ((groups || []).some((category) => category.observations.some((obs) => obs.valueType === 'M'))) {
+      medicationOptionsLoaded.value = true
+      loadMedicationOptions()
+    }
+  },
+  { immediate: true },
+)
+
+const medicationTileText = (obs) => {
+  const medication = parseMedicationObservation(obs)
+  return (
+    formatMedicationSummary(medication, {
+      frequencyAbbrev: getFrequencyAbbreviation(medication.frequency),
+      routeAbbrev: getRouteAbbreviation(medication.route),
+    }) || obs.displayValue
+  )
+}
 
 // NV-flagged ("explicitly no value") or simply unfilled observations render
 // as a subtle ∅ tile instead of a bold "No value" text
@@ -123,6 +189,19 @@ const fileSubline = (obs) => {
     font-weight: 400;
     font-size: 0.75rem;
   }
+
+  .head-percent {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: $grey-5;
+    font-variant-numeric: tabular-nums;
+    cursor: default;
+
+    &--full {
+      color: $positive;
+    }
+  }
 }
 
 .tile-grid {
@@ -162,6 +241,16 @@ const fileSubline = (obs) => {
   &--empty {
     opacity: 0.5;
   }
+
+  // Incomplete questionnaires clearly read as "not done yet"
+  &--pending {
+    border-left-color: $amber-6;
+    background: rgba($amber-1, 0.35);
+  }
+}
+
+.tile-progress {
+  margin: 3px 0 1px;
 }
 
 .tile-value {

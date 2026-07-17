@@ -7,7 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5_20260717] - 2026-07-17
+
 ### Added
+
+- **Zeitlinie: Fragebögen + Medikamente im Formular-Raster**
+  (`features/questionnaire-medication-grid`):
+  - **Fragebögen im Raster-Look**: neue `QuestionnaireFormGrid.vue` ersetzt
+    die Legacy-`VisitQuestionnaireSection` im Karten-Editor — eine breite
+    Kachel pro Fragebogen (Status-Icon, Titel, Score bzw.
+    Ausfüll-Fortschritt), gestrichelte „Fragebogen hinzufügen“-Kachel,
+    Entfernen mit Bestätigungsdialog. Die Blob-Parsing-Logik ist nach
+    `shared/utils/questionnaire-display.js` extrahiert und wird von
+    Editor, Lese-Kacheln und `useVisitQuestionnaires` geteilt; die
+    Lese-Kachel zeigt jetzt Status (abgeschlossen/ausstehend) und Score.
+  - **Echte M-Typ-Medikamenten-Bearbeitung im Formular-Raster**: M-Felder
+    zeigen die klassische Verordnungsnotation („Aspirin 100mg 1-0-0
+    p.o.“, Frequenz-/Routen-Abkürzungen aus CODE_LOOKUP) statt des toten
+    Platzhalters; Klick öffnet den strukturierten `MedicationEditDialog`.
+    Leere M-Felder legen die Observation mit dem Feldset-Konzeptcode an
+    (`medications-store.createMedication` akzeptiert jetzt `patientNum`,
+    `conceptCode`, `visitDate`; Update/Create liefern den serialisierten
+    Blob für die lokale Spiegelung zurück). Sind alle M-Felder gefüllt,
+    erscheint eine gestrichelte „Medikament hinzufügen“-Kachel für
+    weitere Medikamente (mehrere Zeilen pro Konzept, eindeutige
+    Feld-Keys). Lese-Kachel zeigt dieselbe Verordnungsnotation.
+  - **Unvollständige Fragebögen im Lese-Modus**: Kacheln ausstehender
+    Fragebögen sind klar als unvollständig markiert (amberfarbener
+    Akzent + Hintergrund, „Ausfüllen“-Hinweis, Fortschrittsbalken).
+  - **Fix Datenquelle Lese-Modus**: `loadAllObservationsForPatient` (die
+    Quelle der Lese-Karten) lud weder `VALUEFLAG_CD` noch
+    `OBSERVATION_BLOB` — dadurch fehlten im View-Modus die
+    Medikamenten-Notation und der Fragebogen-Status, und NV-Zeilen (∅)
+    hätte der neue Leer-Filter fälschlich versteckt. Beide Listen-Queries
+    liefern jetzt `VALUEFLAG_CD` + die kleinen Q/M-Blobs; R-Blobs bleiben
+    gemäß Perf-Invariante in Listen immer NULL (Regressionstests 41/42).
+  - **Leere Observations**: Der Lese-Modus blendet nur angelegte
+    Observations ohne Wert aus (NV-markierte „explizit kein Wert“-Zeilen
+    bleiben als ∅ sichtbar); im Editor werden leere Felder gedimmt
+    (Opacity, bei Hover/Fokus voll sichtbar) — auch nach dem Löschen einer
+    Feldset-Observation, deren Feld als leerer Slot bestehen bleibt. Nur
+    per Kategorie zugeordnete Observations verschwinden beim Löschen
+    komplett aus dem Raster (`buildFormFields`, per Test abgesichert).
+  - 34 neue Unit-Tests (Dateien 38–40): Leer-Erkennung, Feld-/Löschsemantik,
+    Medikamenten-Parsing/-Payloads, Fragebogen-Parsing, Komponententest
+    `QuestionnaireFormGrid`.
+  - **Dezente Feldgruppen-Completion**: Rechts im Kopf jeder Feldgruppe
+    steht in Lese- UND Edit-Modus eine kleine Prozentanzeige (grün bei
+    100 %, Tooltip mit gefüllt/gesamt), wie viele der enthaltenen
+    Konzepte Daten tragen. Distinkt gezählt — doppelte Observations
+    (z. B. 2× HDL) zählen einmal, Fuzzy-Matches kollabieren auf ihr
+    konfiguriertes Konzept, Fragebögen zählen pro Bogen (nur
+    abgeschlossene als gefüllt), NV gilt als erfasst. Ausgeblendet bei
+    aktiver Ergebnissuche (gefilterte Zahlen wären irreführend), für
+    virtuelle Gruppen (Raw Data / Unkategorisiert) und für
+    M-Medikamentenlisten (offene Liste — kein sinnvoller Nenner; der
+    Kopf zeigt dort nur die Zeilenzahl).
+  - **Fix Konzept-Matching (Exakt vor Fuzzy)**: Das Substring-Matching
+    ließ `…STATIN_INTOLERANCE_SYMPTOMS` auf `…STATIN_INTOLERANCE`
+    kollabieren — Folge: 5/6 trotz vollständiger Eingabe (Pat. 10041940
+    V1) und potenziell falsch zugeordnete Editor-Slots. Exakte
+    Code-Treffer haben jetzt überall Vorrang: Completion-Zählung,
+    Slot-Zuordnung im Formular-Raster (`buildFormFields`, zwei Pässe)
+    und Lese-Gruppierung (`groupObservationsByFieldSets`).
+  - **Last-Audit View/Edit-Modus**: Alle Listen-Queries der Zeitlinie
+    verifiziert — R-Blobs (Datei-Bytes, z. B. PDF/MP4) werden nirgends in
+    Listen geladen (nur On-Demand in Vorschau-Dialogen), Q/M-Blobs sind
+    Kleinst-JSON. Zwei Lasten behoben: `loadVisitsForPatient` feuerte pro
+    Visite eine redundante COUNT-Query (N+1 — die Timeline-Query
+    aggregiert den Count bereits), und das Q-Blob-Parsing ist jetzt pro
+    Observation memoisiert (Render-Pfade riefen es mehrfach pro Kachel).
 
 - **„Zeitlinie neu“ — vereinheitlichte Visitenansicht** (`features/visits-unified`,
   4. Ansichts-Button auf `/visits/:id`; Testphase, alte Tabs unverändert):
@@ -1001,7 +1070,8 @@ changes from the recent commit history (see `git log` for full detail).
 - `test(dbBEST)`: smoke tests for UI-prep foundation (notify, session monitor, error boundary).
 - `refactor(dbBEST)`: migrated all `$q.notify` calls to `useNotify` composable.
 
-[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.4_20260716...HEAD
+[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.5_20260717...HEAD
+[0.5_20260717]: https://github.com/JenAIx/BEST/releases/tag/v0.5_20260717
 [0.4_20260716]: https://github.com/JenAIx/BEST/releases/tag/v0.4_20260716
 [0.3_20260521]: https://github.com/JenAIx/BEST/releases/tag/v0.3_20260521
 [0.2_20260516]: https://github.com/JenAIx/BEST/releases/tag/v0.2_20260516

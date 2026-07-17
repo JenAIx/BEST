@@ -17,6 +17,7 @@ import { useAuthStore } from 'src/stores/auth-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useNotify } from 'src/composables/useNotify'
 import { visitObservationService } from 'src/services/visit-observation-service'
+import { parseQuestionnaireObservation } from 'src/shared/utils/questionnaire-display.js'
 
 export function useVisitQuestionnaires(visitRef, patientRef, options = {}) {
   const observationStore = useObservationStore()
@@ -33,65 +34,7 @@ export function useVisitQuestionnaires(visitRef, patientRef, options = {}) {
   const visitQuestionnaires = computed(() => {
     if (!visitRef.value || !observationStore.observations) return []
 
-    return observationStore.observations
-      .filter((obs) => obs.valueType === 'Q')
-      .map((obs) => {
-        let isCompleted = false
-        let title = obs.value || obs.originalValue || 'Fragebogen'
-        let questionnaireCode = null
-        let shortTitle = null
-        let score = null
-        let progress = null
-
-        if (obs.rawData?.OBSERVATION_BLOB) {
-          try {
-            const blobData = JSON.parse(obs.rawData.OBSERVATION_BLOB)
-
-            if (blobData && typeof blobData === 'object' && blobData._status === 'pending') {
-              isCompleted = false
-              questionnaireCode = blobData._questionnaireCode || null
-              title = blobData.title || title
-              shortTitle = blobData.short_title || null
-
-              if (blobData._savedResponses && typeof blobData._savedResponses === 'object') {
-                const entries = Object.values(blobData._savedResponses)
-                const filledCount = entries.filter((v) => v !== null && v !== undefined && v !== '').length
-                progress = entries.length > 0 ? filledCount / entries.length : 0
-              } else {
-                progress = 0
-              }
-            } else if (blobData && typeof blobData === 'object') {
-              isCompleted = true
-              questionnaireCode = blobData.questionnaire_code || blobData._questionnaireCode || null
-              title = blobData.title || title
-              shortTitle = blobData.short_title || null
-              if (Array.isArray(blobData.results) && blobData.results.length > 0) {
-                score = blobData.results[0].value
-              }
-            } else {
-              isCompleted = true
-            }
-          } catch (e) {
-            logger.warn('Failed to parse questionnaire blob', { observationId: obs.observationId, error: e.message })
-            isCompleted = true
-          }
-        } else {
-          // No blob data but Q type — assume completed (legacy data)
-          isCompleted = true
-        }
-
-        return {
-          observationId: obs.observationId,
-          title,
-          shortTitle,
-          questionnaireCode,
-          isCompleted,
-          score,
-          progress,
-          observationBlob: obs.rawData?.OBSERVATION_BLOB || null,
-          rawObservation: obs,
-        }
-      })
+    return observationStore.observations.filter((obs) => obs.valueType === 'Q').map((obs) => parseQuestionnaireObservation(obs))
   })
 
   const existingQuestionnaireCodes = computed(() => visitQuestionnaires.value.map((q) => q.questionnaireCode).filter(Boolean))

@@ -72,6 +72,7 @@
                 :editing="isEditing(visit.id)"
                 :type-meta="typeMeta(visit)"
                 :status-meta="statusMeta(visit)"
+                :show-completion="!searchTerm"
                 @toggle="toggleCard(visit)"
                 @edit="enterEditMode(visit)"
                 @edit-meta="editVisitMeta(visit)"
@@ -134,6 +135,7 @@ import { useVisitLabels } from 'src/composables/useVisitLabels'
 import { useVisitActions } from 'src/composables/useVisitActions'
 import { useSingleVisitEdit } from 'src/composables/useSingleVisitEdit'
 import { groupObservationsByFieldSets, filterObservations } from 'src/shared/utils/file-category'
+import { isBlankObservation } from 'src/shared/utils/observation-display.js'
 import { toggleExpanded, allExpanded, expandAll, collapseAll } from 'src/shared/utils/expand-state.js'
 import { formatDate } from 'src/shared/utils/medical-utils.js'
 import VisitUnifiedCard from './VisitUnifiedCard.vue'
@@ -202,7 +204,18 @@ onMounted(async () => {
 
 const searchTerm = ref('')
 
-const groupedByVisit = computed(() => groupObservationsByFieldSets(filterObservations(observationStore.allObservations, searchTerm.value), fieldSetDefs.value))
+// Read mode hides observations that were merely created without a value —
+// NV rows ("explicitly no value") stay visible as ∅ tiles. Blank rows are
+// still editable: the form grid shows every field-set concept anyway.
+const groupedByVisit = computed(() =>
+  groupObservationsByFieldSets(
+    filterObservations(
+      observationStore.allObservations.filter((obs) => !isBlankObservation(obs)),
+      searchTerm.value,
+    ),
+    fieldSetDefs.value,
+  ),
+)
 
 const observationsForVisit = (visitId) => groupedByVisit.value.get(visitId) || []
 
