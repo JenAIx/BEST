@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# E2E-Testroutine für die vereinheitlichte Visitenansicht ("Zeitlinie neu").
+# E2E-Testroutine für die Zeitlinie (vereinheitlichte Visitenansicht).
 #
 # Macht den kompletten Ablauf reproduzierbar:
 #   1. DB-Backup (wird bei vollem Erfolg wieder gelöscht)

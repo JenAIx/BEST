@@ -1,4 +1,4 @@
-# verify-visits — E2E-Testroutine für „Zeitlinie neu"
+# verify-visits — E2E-Testroutine für die Zeitlinie (vereinheitlichte Visitenansicht)
 
 Reproduzierbarer End-to-End-Test der vereinheitlichten Visitenansicht
 (`features/visits-unified`). Startet die App headless, fährt per CDP

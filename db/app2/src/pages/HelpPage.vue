@@ -167,11 +167,10 @@ const sections = [
       {
         title: 'Die Patientenansicht (Vollbild)',
         paragraphs: [
-          'Ein Klick auf einen Patienten öffnet dessen Akte im Vollbildmodus — bewusst ohne Seitenleiste, wie der Datentabellen-Editor. Der Zurück-Pfeil oben links führt wieder dorthin, wo Sie herkamen. Der violette Kopfbereich zeigt die Stammdaten; rechts wechseln Sie zwischen drei Ansichten:',
+          'Ein Klick auf einen Patienten öffnet dessen Akte im Vollbildmodus — bewusst ohne Seitenleiste, wie der Datentabellen-Editor. Der Zurück-Pfeil oben links führt wieder dorthin, wo Sie herkamen. Der violette Kopfbereich zeigt die Stammdaten; rechts wechseln Sie zwischen zwei Ansichten:',
         ],
         bullets: [
-          'Zeitachse: alle Besuche chronologisch mit ihren Beobachtungen. Hier legen Sie neue Besuche an und öffnen bestehende.',
-          'Dateneingabe: strukturierte Erfassung von Beobachtungen für eine Visite. Die angebotenen Feldgruppen richten sich nach dem Visitentyp.',
+          'Zeitlinie: alle Visiten als aufklappbare Karten am Zeitstrahl, links eine Schnellnavigation der Feldgruppen. Der Stift am Visitenkopf startet die Bearbeitung direkt in der Karte (Feldgruppen des Visitentyps, Autosave); über das 3-Punkte-Menü lassen sich Visiten klonen oder löschen, unten können Dateien (PDF, Bild, Video) an eine Visite angehängt werden.',
           'Patientendaten: Stammdaten bearbeiten, Statistiken, Studienmitgliedschaften (mit Status-Umschalter und Entfernen) sowie die Rechte-Karte (Besitzer, öffentlich/privat).',
         ],
         image: 'visits-patient',
@@ -309,8 +308,8 @@ const sections = [
         title: 'Neuen Patienten anlegen und Daten erfassen',
         bullets: [
           '1. Dashboard → „Neuer Patient“ (oder Patientenbesuche → „Patient hinzufügen“). Stammdaten eingeben, ggf. Sichtbarkeit und Studienzuordnung direkt im Dialog setzen.',
-          '2. Die App öffnet die Patientenansicht. In der Zeitachse „Neuer Besuch“ wählen — Datum und Visitentyp festlegen.',
-          '3. In die Dateneingabe wechseln: Die Feldgruppen des Visitentyps ausfüllen (Vitalwerte, Labor, Medikamente …). Alles speichert direkt.',
+          '2. Die App öffnet die Patientenansicht. In der Zeitlinie „Neuer Besuch“ wählen — Datum und Visitentyp festlegen; die neue Visite öffnet direkt im Bearbeitungsmodus.',
+          '3. Die Feldgruppen des Visitentyps ausfüllen (Vitalwerte, Labor, Medikamente …). Alles speichert direkt; „Fertig“ schließt die Bearbeitung.',
           '4. Optional: Über den Fragebogen-Bereich einen Score erheben — er landet an derselben Visite.',
         ],
       },

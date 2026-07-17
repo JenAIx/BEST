@@ -1,5 +1,5 @@
 /**
- * E2E verification of the unified visits view ("Zeitlinie neu").
+ * E2E verification of the unified visits timeline (the "Zeitlinie" tab).
  *
  * Attaches to a running Electron app via CDP (start with REMOTE_DEBUG_PORT,
  * usually through run.sh) and walks through: labels, expand/collapse, filter,
@@ -7,9 +7,9 @@
  *
  * SAFETY RULES (learned the hard way — a silently failing clone once made an
  * earlier ad-hoc script delete a REAL visit):
- *   - destructive steps (delete) run ONLY on artifacts this script created
- *     and verified: card count must have increased AND the newest card must
- *     carry today's year before anything is touched
+ *   - destructive steps (delete) run ONLY on artifacts this script created,
+ *     identified by data-visit-id SET DIFFERENCE (exactly one new id after
+ *     clone/create) — never "the first card" or a date heuristic
  *   - if the clone/new-visit doesn't verifiably exist, the section FAILs and
  *     is skipped — nothing is deleted
  *   - run.sh additionally backs up the DB and compares row counts afterwards

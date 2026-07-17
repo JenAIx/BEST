@@ -117,6 +117,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Alte Tabs „Zeitlinie“ (Karten/Kompakt) und „Dateneingabe“ entfernt** —
+  die vereinheitlichte Ansicht ist jetzt DIE „Zeitlinie“ (umbenannt von
+  „Zeitlinie neu“) und deckt Lesen + Bearbeiten ab; daneben bleibt nur
+  „Patientendaten“. Gelöscht: `VisitTimeline`, `VisitTimelineItem`,
+  `VisitCompactSummary`, `VisitDataEntry`, `VisitSelector`,
+  `FieldSetSelector`, `FieldSetConfigDialog`, `useFieldSetStatistics`
+  (exklusive Kinder der alten Views; geteilte Bausteine wie
+  `ObservationFieldSet`, `VisitSummaryObservations`, Dialoge und Services
+  bleiben). Hilfe-Seite und Doku angepasst; verwaiste i18n-Keys entfernt.
+
 - **Schlanker Zeitachsen-Kopf in der Patientenansicht**
   (`features/patientvisit-notes`): Der Titel „Zeitlinie“ entfällt; Suchfilter
   (nur Kompaktmodus), Ansichts-Umschalter und „+Besuch“ stehen jetzt in einer
