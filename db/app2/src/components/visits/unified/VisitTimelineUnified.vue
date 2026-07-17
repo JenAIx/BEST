@@ -9,7 +9,7 @@
            replace the nav in the single side column. -->
       <div class="unified-body" :class="{ 'unified-body--editing': editingVisitId !== null }">
         <div class="unified-side">
-          <VisitQuickNav v-if="!coldLoading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
+          <VisitQuickNav v-if="!coldLoading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" @select-visit="navToVisit" @select-group="navToGroup" />
         </div>
 
         <div class="unified-main">
@@ -413,55 +413,6 @@ const enterEditMode = async (visit) => {
   if (targetGroup) await scrollToGroupWhenReady(visit.id, targetGroup)
 }
 
-// Nav entries dock at the height of their card: visitId → px offset within
-// the nav column, re-measured on every scroll frame. Entries whose card
-// scrolled above the viewport clamp to the top (stacked, no overlap).
-const navTops = ref({})
-
-const measureNavPositions = () => {
-  const container = scrollArea.value
-  const body = container?.closest('.unified-body')
-  if (!container || !body) return
-  const bodyRect = body.getBoundingClientRect()
-  const entries = navEntries.value
-  const entryHeight = (entry) => 34 + entry.groups.length * 23 + 10
-
-  // Nav origin = body top; cards start below the header row → clamp there.
-  // Entries whose card scrolled above stack at the top. Entries follow their
-  // card's height, but never drift more than MAX_ENTRY_GAP below the
-  // previous entry — the list stays a compact cluster instead of spreading
-  // across the whole column.
-  const MAX_ENTRY_GAP = 50
-  const tops = {}
-  let minTop = container.getBoundingClientRect().top - bodyRect.top + 2
-  let first = true
-  for (const entry of entries) {
-    const card = container.querySelector(`[data-visit-id="${entry.visitId}"]`)
-    if (!card) continue
-    let top = Math.max(card.getBoundingClientRect().top - bodyRect.top, minTop)
-    if (!first) top = Math.min(top, minTop + MAX_ENTRY_GAP)
-    tops[entry.visitId] = top
-    minTop = top + entryHeight(entry)
-    first = false
-  }
-
-  // Symmetric bottom clamp: entries whose cards lie below the viewport
-  // (e.g. behind a tall expanded card) stick to the bottom of the nav,
-  // stacked upwards — every visit stays visible and clickable
-  let maxBottom = bodyRect.height - 4
-  for (let i = entries.length - 1; i >= 0; i--) {
-    const entry = entries[i]
-    if (!(entry.visitId in tops)) continue
-    const height = entryHeight(entry)
-    if (tops[entry.visitId] + height > maxBottom) {
-      tops[entry.visitId] = Math.max(maxBottom - height, 0)
-    }
-    maxBottom = tops[entry.visitId]
-  }
-
-  navTops.value = tops
-}
-
 // Scroll spy: the last visit/group anchor above the threshold line is active
 let spyTicking = false
 const onSpyScroll = () => {
@@ -488,7 +439,6 @@ const onSpyScroll = () => {
     // treat "scrolled to the end" as "last entry active"
     const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 4
     activeNav.value = atBottom && last ? last : current
-    measureNavPositions()
   })
 }
 

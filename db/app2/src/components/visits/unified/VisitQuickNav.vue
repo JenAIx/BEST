@@ -3,7 +3,7 @@
        group entries beneath expanded ones. Clicking jumps to the section,
        the scroll spy in the container keeps `active` in sync. -->
   <nav class="quick-nav" data-cy="unified-quick-nav">
-    <div v-for="entry in entries" :key="entry.visitId" class="nav-visit" :style="{ top: `${tops[entry.visitId] ?? 0}px` }">
+    <div v-for="entry in entries" :key="entry.visitId" class="nav-visit">
       <div class="nav-visit-label" :class="{ 'nav-active': isActiveVisit(entry), 'nav-visit-label--collapsed': !entry.expanded }" @click="$emit('select-visit', entry.visitId)">
         <q-icon :name="entry.expanded ? 'expand_more' : 'chevron_right'" size="14px" />
         <div class="nav-visit-text">
@@ -36,8 +36,6 @@ const props = defineProps({
   entries: { type: Array, default: () => [] },
   // { visitId, group|null } from the container's scroll spy
   active: { type: Object, default: null },
-  // visitId → px offset so each entry sits at its card's height
-  tops: { type: Object, default: () => ({}) },
 })
 
 defineEmits(['select-visit', 'select-group'])
@@ -48,21 +46,18 @@ const isActiveGroup = (entry, group) => props.active != null && props.active.vis
 </script>
 
 <style lang="scss" scoped>
-// Entries are absolutely positioned by the container (visitId → top) so
-// every visit name sits at the height of its card in the list
+// Calm, stable table of contents: fixed order and spacing, the current
+// position shows only through the scroll spy's active highlight
 .quick-nav {
-  position: relative;
   width: 190px;
   flex-shrink: 0;
-  overflow: hidden;
-  padding-right: 6px;
+  overflow-y: auto;
+  padding: 2px 6px 12px 0;
   font-size: 0.8rem;
 }
 
 .nav-visit {
-  position: absolute;
-  left: 0;
-  right: 6px;
+  margin-bottom: 18px;
 }
 
 .nav-visit-label {
