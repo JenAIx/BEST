@@ -53,6 +53,7 @@
             :status-meta="statusMeta(visit)"
             @toggle="toggleCard(visit)"
             @edit="startEditing(visit)"
+            @edit-meta="editVisitMeta"
             @finish="stopEditing"
             @clone="confirmClone(visit)"
             @delete="confirmDelete(visit)"
@@ -61,7 +62,7 @@
           >
             <!-- Inline edit mode: split layout, mounted only for the editing card -->
             <template #editor>
-              <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @edit-meta="editVisitMeta" @uploaded="onDataChanged" />
+              <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @uploaded="onDataChanged" />
             </template>
           </VisitUnifiedCard>
         </div>

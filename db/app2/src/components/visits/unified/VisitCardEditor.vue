@@ -47,13 +47,7 @@
       <!-- RIGHT: field groups + add affordances (sticky) -->
       <aside class="editor-sidebar">
         <div class="sidebar-sticky">
-          <div class="sidebar-title row items-center">
-            <span>{{ $t('visit.fieldGroups') }}</span>
-            <q-space />
-            <q-btn flat round dense size="sm" icon="edit_calendar" color="grey-7" data-cy="editor-edit-meta" @click="$emit('edit-meta')">
-              <q-tooltip>{{ $t('visit.editVisit') }}</q-tooltip>
-            </q-btn>
-          </div>
+          <div class="sidebar-title">{{ $t('visit.fieldGroups') }}</div>
 
           <!-- Active groups pinned on top -->
           <q-list dense>
@@ -165,7 +159,7 @@ const props = defineProps({
   patient: { type: Object, required: true },
 })
 
-const emit = defineEmits(['edit-meta', 'uploaded'])
+const emit = defineEmits(['uploaded'])
 
 const observationStore = useObservationStore()
 const visitRef = toRef(props, 'visit')

@@ -18,11 +18,16 @@
       <q-space />
       <span class="text-caption text-grey-6">{{ $t('visit.observationCount', { count: observationCount }) }}</span>
 
-      <!-- Editing: single "done" affordance -->
-      <q-btn v-if="editing" unelevated dense no-caps color="primary" icon="check" :label="$t('visit.finishEditing')" data-cy="unified-card-finish" @click.stop="$emit('finish')" />
+      <!-- Editing: visit metadata (date/type/status) + "done" -->
+      <template v-if="editing">
+        <q-btn flat round dense size="sm" icon="edit_calendar" color="primary" data-cy="editor-edit-meta" @click.stop="$emit('edit-meta')">
+          <q-tooltip>{{ $t('visit.editVisit') }}</q-tooltip>
+        </q-btn>
+        <q-btn unelevated dense no-caps color="primary" icon="check" :label="$t('visit.finishEditing')" data-cy="unified-card-finish" @click.stop="$emit('finish')" />
+      </template>
 
       <!-- Read mode: edit shortcut + 3-dot menu -->
-      <template v-else>
+      <template v-if="!editing">
         <q-btn flat round dense size="sm" icon="edit" color="primary" data-cy="unified-card-edit" @click.stop="$emit('edit')">
           <q-tooltip>{{ $t('visit.editVisit') }}</q-tooltip>
         </q-btn>
@@ -83,7 +88,7 @@ defineProps({
   statusMeta: { type: Object, required: true },
 })
 
-defineEmits(['toggle', 'edit', 'clone', 'delete', 'finish', 'preview-file', 'preview-questionnaire'])
+defineEmits(['toggle', 'edit', 'edit-meta', 'clone', 'delete', 'finish', 'preview-file', 'preview-questionnaire'])
 </script>
 
 <style lang="scss" scoped>
