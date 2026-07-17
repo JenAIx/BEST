@@ -358,16 +358,17 @@ const navEntries = computed(() => {
     if (!visit) return []
     return [{ visitId: visit.id, label: formatDate(visit.date), sublabel: typeMeta(visit).label, expanded: true, groups: editorGroups.value }]
   }
-  // Only expanded visits — no nav while everything is collapsed
-  return visibleVisits.value
-    .filter((visit) => isExpanded(visit))
-    .map((visit) => ({
-      visitId: visit.id,
-      label: formatDate(visit.date),
-      sublabel: typeMeta(visit).label,
-      expanded: true,
-      groups: observationsForVisit(visit.id).map((group) => ({ name: group.name, icon: group.icon })),
-    }))
+  // No nav while everything is collapsed; once something is expanded, ALL
+  // visits are listed — collapsed ones as muted one-liners, so the other
+  // visits stay reachable (click expands + jumps)
+  if (!visibleVisits.value.some((visit) => isExpanded(visit))) return []
+  return visibleVisits.value.map((visit) => ({
+    visitId: visit.id,
+    label: formatDate(visit.date),
+    sublabel: typeMeta(visit).label,
+    expanded: isExpanded(visit),
+    groups: isExpanded(visit) ? observationsForVisit(visit.id).map((group) => ({ name: group.name, icon: group.icon })) : [],
+  }))
 })
 
 const scrollToSelector = async (selector) => {

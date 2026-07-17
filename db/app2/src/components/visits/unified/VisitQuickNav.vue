@@ -4,7 +4,7 @@
        the scroll spy in the container keeps `active` in sync. -->
   <nav class="quick-nav" data-cy="unified-quick-nav">
     <div v-for="entry in entries" :key="entry.visitId" class="nav-visit" :style="{ top: `${tops[entry.visitId] ?? 0}px` }">
-      <div class="nav-visit-label" :class="{ 'nav-active': isActiveVisit(entry) }" @click="$emit('select-visit', entry.visitId)">
+      <div class="nav-visit-label" :class="{ 'nav-active': isActiveVisit(entry), 'nav-visit-label--collapsed': !entry.expanded }" @click="$emit('select-visit', entry.visitId)">
         <q-icon :name="entry.expanded ? 'expand_more' : 'chevron_right'" size="14px" />
         <div class="nav-visit-text">
           <span class="nav-date">{{ entry.label }}</span>
@@ -93,6 +93,19 @@ const isActiveGroup = (entry, group) => props.active != null && props.active.vis
     font-size: 0.7rem;
     color: $grey-6;
     line-height: 1.2;
+  }
+
+  // Collapsed visits: muted one-liners — reachable, but visually secondary
+  &--collapsed {
+    color: $grey-6;
+
+    .nav-date {
+      font-weight: 500;
+    }
+
+    &:hover {
+      color: $grey-9;
+    }
   }
 }
 
