@@ -326,13 +326,16 @@ const navEntries = computed(() => {
     if (!visit) return []
     return [{ visitId: visit.id, label: formatDate(visit.date), sublabel: typeMeta(visit).label, expanded: true, groups: editorGroups.value }]
   }
-  return visibleVisits.value.map((visit) => ({
-    visitId: visit.id,
-    label: formatDate(visit.date),
-    sublabel: typeMeta(visit).label,
-    expanded: isExpanded(visit),
-    groups: isExpanded(visit) ? observationsForVisit(visit.id).map((group) => ({ name: group.name, icon: group.icon })) : [],
-  }))
+  // Only expanded visits — no nav while everything is collapsed
+  return visibleVisits.value
+    .filter((visit) => isExpanded(visit))
+    .map((visit) => ({
+      visitId: visit.id,
+      label: formatDate(visit.date),
+      sublabel: typeMeta(visit).label,
+      expanded: true,
+      groups: observationsForVisit(visit.id).map((group) => ({ name: group.name, icon: group.icon })),
+    }))
 })
 
 const scrollToSelector = async (selector) => {
@@ -421,21 +424,28 @@ const previewQuestionnaire = (observation) => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1220px; // 190px quick nav + 16px gap + ~1000px card column
+  max-width: 1000px;
   margin: 0 auto;
 }
 
-// Quick nav left (fixed, outside the scroll area), card column right
+// The quick nav floats in the left gutter (absolute) so the main column
+// (header + cards) never shifts, whether the nav is there or not
 .unified-body {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
-  justify-content: center;
-  gap: 16px;
 }
 
 .unified-nav {
-  @media (max-width: 1100px) {
+  position: absolute;
+  right: 100%;
+  top: 0;
+  bottom: 0;
+  margin-right: 16px;
+
+  // Not enough gutter space next to the centered 1000px column
+  @media (max-width: 1420px) {
     display: none;
   }
 }
@@ -456,7 +466,6 @@ const previewQuestionnaire = (observation) => {
 .unified-scroll {
   flex: 1;
   min-height: 0;
-  max-width: 1000px;
   overflow-y: auto;
   padding-right: 4px;
 

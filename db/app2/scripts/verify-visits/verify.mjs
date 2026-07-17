@@ -88,7 +88,7 @@ const cards = page.locator('[data-cy="unified-card"]')
 const bodies = page.locator('[data-cy="unified-card"] .visit-block-body')
 const baseline = await cards.count()
 check('Karten vorhanden', baseline > 0, `${baseline} Visiten`)
-check('Schnellnavigation sichtbar', (await page.locator('[data-cy="unified-quick-nav"]').count()) === 1)
+check('Schnellnav bei eingeklappten Karten verborgen', (await page.locator('[data-cy="unified-quick-nav"]').count()) === 0)
 await shot('01-collapsed')
 
 // --- Correct visit-type labels (CODE_LOOKUP, not the static fallback) ---
@@ -100,6 +100,7 @@ check('Kein „General Visit“-Fallback', !chipTexts.includes('General Visit'))
 await page.locator('[data-cy="unified-card-header"]').first().click()
 await wait(1000)
 check('Kopf-Klick klappt auf', (await bodies.count()) === 1 || (await page.locator('[data-cy="unified-card"] .visit-block-empty').count()) === 1)
+check('Schnellnav erscheint bei aufgeklappter Visite', (await page.locator('[data-cy="unified-quick-nav"]').count()) === 1)
 await page.locator('[data-cy="unified-card-header"]').first().click()
 await wait(600)
 
