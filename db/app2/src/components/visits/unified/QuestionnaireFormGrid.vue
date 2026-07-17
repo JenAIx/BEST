@@ -8,6 +8,7 @@
       <q-icon :name="fieldSet?.icon || 'quiz'" size="16px" />
       <span>{{ fieldSet?.name || 'Fragebögen' }}</span>
       <span class="form-group-count">({{ completedCount }}/{{ questionnaires.length }})</span>
+      <span v-if="questionnaires.length > 0" class="head-percent" :class="{ 'head-percent--full': completionPercent === 100 }">{{ completionPercent }} %</span>
     </div>
 
     <div class="form-grid">
@@ -78,6 +79,8 @@ const { t } = useI18n()
 
 const completedCount = computed(() => props.questionnaires.filter((q) => q.isCompleted).length)
 
+const completionPercent = computed(() => (props.questionnaires.length > 0 ? Math.round((completedCount.value / props.questionnaires.length) * 100) : 0))
+
 const onQuestionnaireClick = (q) => {
   if (q.isCompleted) emit('view-questionnaire', q)
   else emit('fill-questionnaire', q)
@@ -118,6 +121,18 @@ const confirmRemove = (q) => {
     color: $grey-6;
     font-weight: 400;
     font-size: 0.75rem;
+  }
+
+  .head-percent {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: $grey-5;
+    font-variant-numeric: tabular-nums;
+
+    &--full {
+      color: $positive;
+    }
   }
 }
 

@@ -4,11 +4,15 @@
        + code on hover. Content decides the width (tileSpan): numbers side
        by side, long text full row, files/questionnaires wide. -->
   <div v-if="categorizedObservations.length > 0" class="tile-groups">
-    <div v-for="category in categorizedObservations" :key="category.name" class="tile-group" :data-group-name="category.name">
+    <div v-for="category in groupsWithCompletion" :key="category.name" class="tile-group" :data-group-name="category.name">
       <div class="tile-group-head">
         <q-icon :name="category.icon || getCategoryIcon(category.name)" size="16px" />
         <span>{{ category.name }}</span>
         <span class="tile-group-count">({{ category.observations.length }})</span>
+        <span v-if="category.completion" class="head-percent" :class="{ 'head-percent--full': category.completion.percent === 100 }">
+          {{ category.completion.percent }} %
+          <q-tooltip :delay="350">{{ category.completion.filled }}/{{ category.completion.total }}</q-tooltip>
+        </span>
       </div>
 
       <div class="tile-grid">
@@ -71,9 +75,9 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { getCategoryIcon, getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
-import { shortConceptName, tileSpan, valueTypeHex, parseMedicationObservation, formatMedicationSummary } from 'src/shared/utils/observation-display.js'
+import { shortConceptName, tileSpan, valueTypeHex, parseMedicationObservation, formatMedicationSummary, fieldSetCompletion } from 'src/shared/utils/observation-display.js'
 import { parseQuestionnaireObservation } from 'src/shared/utils/questionnaire-display.js'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 
@@ -82,8 +86,10 @@ defineOptions({
 })
 
 const props = defineProps({
-  // [{ name, icon?, observations: [...] }] — groupObservationsByFieldSets shape
+  // [{ name, icon?, conceptCodes?, observations: [...] }] — groupObservationsByFieldSets shape
   categorizedObservations: { type: Array, default: () => [] },
+  // Off while searching — a percentage over filtered rows would mislead
+  showCompletion: { type: Boolean, default: true },
 })
 
 const emit = defineEmits(['preview-file', 'preview-questionnaire'])
@@ -95,6 +101,19 @@ const isPreviewable = (obs) => obs.valueType === 'R' || obs.valueType === 'Q'
 const questMeta = (obs) => parseQuestionnaireObservation(obs)
 
 const isPendingQuest = (obs) => obs.valueType === 'Q' && !questMeta(obs).isCompleted
+
+// Subtle completion percentage per field group (distinct concepts —
+// duplicates like 2× HDL count once). Only for groups with configured
+// concepts or questionnaires; category remainder groups carry none.
+const completionFor = (category) => {
+  if (!props.showCompletion) return null
+  const hasQuest = category.observations.some((obs) => obs.valueType === 'Q')
+  if (!category.conceptCodes?.length && !hasQuest) return null
+  const completion = fieldSetCompletion({ conceptCodes: category.conceptCodes || [], observations: category.observations })
+  return completion.total > 0 ? completion : null
+}
+
+const groupsWithCompletion = computed(() => props.categorizedObservations.map((category) => ({ ...category, completion: completionFor(category) })))
 
 // M tiles: classic prescription notation "Aspirin 100mg 1-0-1 p.o." —
 // frequency/route abbreviations load lazily once an M tile appears
@@ -169,6 +188,19 @@ const fileSubline = (obs) => {
     color: $grey-6;
     font-weight: 400;
     font-size: 0.75rem;
+  }
+
+  .head-percent {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: $grey-5;
+    font-variant-numeric: tabular-nums;
+    cursor: default;
+
+    &--full {
+      color: $positive;
+    }
   }
 }
 

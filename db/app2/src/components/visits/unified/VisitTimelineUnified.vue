@@ -72,6 +72,7 @@
                 :editing="isEditing(visit.id)"
                 :type-meta="typeMeta(visit)"
                 :status-meta="statusMeta(visit)"
+                :show-completion="!searchTerm"
                 @toggle="toggleCard(visit)"
                 @edit="enterEditMode(visit)"
                 @edit-meta="editVisitMeta(visit)"

@@ -182,7 +182,9 @@ export function groupObservationsByFieldSets(observations, fieldSets) {
     const groups = []
     for (const fs of sets) {
       const fsRows = byFieldSet.get(fs.id)
-      if (fsRows && fsRows.length > 0) groups.push({ name: fs.name, icon: fs.icon, observations: fsRows })
+      // conceptCodes carries the configured concepts so the read tiles can
+      // derive a completion percentage (category remainder groups have none)
+      if (fsRows && fsRows.length > 0) groups.push({ name: fs.name, icon: fs.icon, conceptCodes: fs.concepts || [], observations: fsRows })
     }
 
     const byCategory = {}

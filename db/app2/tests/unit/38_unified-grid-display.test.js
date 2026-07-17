@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { isBlankObservation, buildFormFields, isBlankFormField, canAddMedication, parseMedicationObservation, formatMedicationSummary } from '../../src/shared/utils/observation-display.js'
+import { isBlankObservation, buildFormFields, isBlankFormField, canAddMedication, fieldSetCompletion, parseMedicationObservation, formatMedicationSummary } from '../../src/shared/utils/observation-display.js'
 import { parseQuestionnaireObservation } from '../../src/shared/utils/questionnaire-display.js'
 
 const obsOf = (over = {}) => ({
@@ -132,6 +132,48 @@ describe('isBlankFormField (edit mode dimming)', () => {
     const empty = { concept: { valueType: 'M' }, obs: null, row: { value: '' } }
     expect(isBlankFormField(filled)).toBe(false)
     expect(isBlankFormField(empty)).toBe(true)
+  })
+})
+
+describe('fieldSetCompletion (subtle group percentage)', () => {
+  const filled = (code, over = {}) => obsOf({ conceptCode: code, ...over })
+  const blank = (code) => obsOf({ conceptCode: code, displayValue: 'No value', rawData: { NVAL_NUM: null, VALUEFLAG_CD: null } })
+
+  it('duplicate observations of one concept count ONCE (2× HDL)', () => {
+    const result = fieldSetCompletion({ conceptCodes: ['LID: 2085-9'], observations: [filled('LID: 2085-9'), filled('LID: 2085-9', { observationId: 2 })] })
+    expect(result).toEqual({ filled: 1, total: 1, percent: 100 })
+  })
+
+  it('unfilled configured concepts count toward the denominator, blanks do not fill', () => {
+    expect(fieldSetCompletion({ conceptCodes: ['A', 'B'], observations: [filled('A')] })).toEqual({ filled: 1, total: 2, percent: 50 })
+    expect(fieldSetCompletion({ conceptCodes: ['A', 'B'], observations: [filled('A'), blank('B')] })).toEqual({ filled: 1, total: 2, percent: 50 })
+  })
+
+  it('fuzzy matches collapse onto their configured concept', () => {
+    expect(fieldSetCompletion({ conceptCodes: ['LID: 2947-0'], observations: [filled('LID:2947-0')] })).toEqual({ filled: 1, total: 1, percent: 100 })
+  })
+
+  it('category extras count once per concept on top of the configured set', () => {
+    const result = fieldSetCompletion({
+      conceptCodes: ['A'],
+      observations: [filled('A'), filled('X'), filled('X', { observationId: 5 })],
+    })
+    expect(result).toEqual({ filled: 2, total: 2, percent: 100 })
+  })
+
+  it('NV rows count as filled ("assessed, explicitly no value")', () => {
+    const nv = obsOf({ conceptCode: 'A', displayValue: 'No value', rawData: { NVAL_NUM: null, VALUEFLAG_CD: 'NV' } })
+    expect(fieldSetCompletion({ conceptCodes: ['A'], observations: [nv] })).toEqual({ filled: 1, total: 1, percent: 100 })
+  })
+
+  it('questionnaires count per questionnaire (completed = filled), placeholder concept excluded', () => {
+    const completed = { valueType: 'Q', conceptCode: 'CUSTOM: QUESTIONNAIRE', rawData: { OBSERVATION_BLOB: JSON.stringify({ questionnaire_code: 'BDI', results: [{ value: 3 }] }) } }
+    const pending = { valueType: 'Q', conceptCode: 'CUSTOM: QUESTIONNAIRE', rawData: { OBSERVATION_BLOB: JSON.stringify({ _status: 'pending', _savedResponses: {} }) } }
+    expect(fieldSetCompletion({ conceptCodes: ['CUSTOM: QUESTIONNAIRE'], observations: [completed, pending] })).toEqual({ filled: 1, total: 2, percent: 50 })
+  })
+
+  it('empty group → 0/0, percent 0', () => {
+    expect(fieldSetCompletion({ conceptCodes: [], observations: [] })).toEqual({ filled: 0, total: 0, percent: 0 })
   })
 })
 

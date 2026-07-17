@@ -62,9 +62,9 @@ const completedQuestObs = {
   rawData: { OBSERVATION_BLOB: JSON.stringify({ questionnaire_code: 'BDI', title: 'Beck Depression Inventory', results: [{ value: 12 }] }) },
 }
 
-function makeWrapper(observations) {
+function makeWrapper(observations, groupExtras = {}, props = {}) {
   return mount(ObservationTileGrid, {
-    props: { categorizedObservations: [{ name: 'Medications', observations }] },
+    props: { categorizedObservations: [{ name: 'Medications', observations, ...groupExtras }], ...props },
     global: { plugins: [i18n] },
   })
 }
@@ -89,5 +89,16 @@ describe('ObservationTileGrid (read tiles)', () => {
     expect(tile.classes()).not.toContain('obs-tile--pending')
     expect(tile.text()).toContain('Score: 12')
     expect(tile.find('.tile-progress').exists()).toBe(false)
+  })
+
+  it('field-set groups show the subtle completion percentage on the right', () => {
+    // 1 of 2 configured concepts filled → 50 %
+    const wrapper = makeWrapper([medicationObs], { conceptCodes: ['LID: 52418-1', 'LID: 2085-9'] })
+    expect(wrapper.find('.head-percent').text()).toContain('50 %')
+  })
+
+  it('no percentage for category remainder groups or while searching', () => {
+    expect(makeWrapper([medicationObs]).find('.head-percent').exists()).toBe(false) // no conceptCodes
+    expect(makeWrapper([medicationObs], { conceptCodes: ['LID: 52418-1'] }, { showCompletion: false }).find('.head-percent').exists()).toBe(false)
   })
 })

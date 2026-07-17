@@ -8,7 +8,10 @@
     <div class="form-group-head">
       <q-icon :name="fieldSet.icon || 'category'" size="16px" />
       <span>{{ fieldSet.name }}</span>
-      <span class="form-group-count">({{ filledCount }}/{{ fields.length }})</span>
+      <span class="form-group-count">({{ completion.filled }}/{{ completion.total }})</span>
+      <!-- Not for the virtual groups (raw media / uncategorized): they only
+           ever contain existing rows, a percentage carries no information -->
+      <span v-if="completion.total > 0 && !fieldSet.isVirtual" class="head-percent" :class="{ 'head-percent--full': completion.percent === 100 }">{{ completion.percent }} %</span>
     </div>
 
     <div class="form-grid">
@@ -106,6 +109,7 @@ import {
   buildFormFields,
   isBlankFormField,
   canAddMedication,
+  fieldSetCompletion,
   parseMedicationObservation,
   formatMedicationSummary,
 } from 'src/shared/utils/observation-display.js'
@@ -160,7 +164,9 @@ const fields = computed(() =>
   }),
 )
 
-const filledCount = computed(() => fields.value.filter((field) => field.obs).length)
+// Distinct-concept completion (2× HDL counts once) — same helper as the
+// read tiles, so both modes show identical numbers
+const completion = computed(() => fieldSetCompletion({ conceptCodes: props.fieldSet.concepts || [], observations: props.existingObservations || [] }))
 
 // Width by content: numbers small (side by side), text wide, files medium
 const fieldSpan = (field) => tileSpan({ valueType: field.concept.valueType, displayValue: String(field.row.value ?? '') })
@@ -430,6 +436,18 @@ const onMedicationSave = async (medicationData) => {
     color: $grey-6;
     font-weight: 400;
     font-size: 0.75rem;
+  }
+
+  .head-percent {
+    margin-left: auto;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: $grey-5;
+    font-variant-numeric: tabular-nums;
+
+    &--full {
+      color: $positive;
+    }
   }
 }
 

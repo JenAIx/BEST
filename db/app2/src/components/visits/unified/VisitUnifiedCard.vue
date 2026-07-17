@@ -63,6 +63,7 @@
         <div v-if="categorizedObservations.length > 0" class="visit-block-body">
           <ObservationTileGrid
             :categorized-observations="categorizedObservations"
+            :show-completion="showCompletion"
             @preview-file="$emit('preview-file', $event)"
             @preview-questionnaire="$emit('preview-questionnaire', $event)"
           />
@@ -90,6 +91,7 @@ const props = defineProps({
   editing: { type: Boolean, default: false },
   typeMeta: { type: Object, required: true },
   statusMeta: { type: Object, required: true },
+  showCompletion: { type: Boolean, default: true },
 })
 
 defineEmits(['toggle', 'edit', 'edit-meta', 'clone', 'delete', 'finish', 'preview-file', 'preview-questionnaire'])

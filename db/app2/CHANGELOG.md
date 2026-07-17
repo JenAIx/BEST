@@ -50,6 +50,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 34 neue Unit-Tests (Dateien 38–40): Leer-Erkennung, Feld-/Löschsemantik,
     Medikamenten-Parsing/-Payloads, Fragebogen-Parsing, Komponententest
     `QuestionnaireFormGrid`.
+  - **Dezente Feldgruppen-Completion**: Rechts im Kopf jeder Feldgruppe
+    steht in Lese- UND Edit-Modus eine kleine Prozentanzeige (grün bei
+    100 %, Tooltip mit gefüllt/gesamt), wie viele der enthaltenen
+    Konzepte Daten tragen. Distinkt gezählt — doppelte Observations
+    (z. B. 2× HDL) zählen einmal, Fuzzy-Matches kollabieren auf ihr
+    konfiguriertes Konzept, Fragebögen zählen pro Bogen (nur
+    abgeschlossene als gefüllt), NV gilt als erfasst. Ausgeblendet bei
+    aktiver Ergebnissuche (gefilterte Zahlen wären irreführend) und für
+    virtuelle Gruppen (Raw Data / Unkategorisiert).
   - **Last-Audit View/Edit-Modus**: Alle Listen-Queries der Zeitlinie
     verifiziert — R-Blobs (Datei-Bytes, z. B. PDF/MP4) werden nirgends in
     Listen geladen (nur On-Demand in Vorschau-Dialogen), Q/M-Blobs sind

@@ -18,6 +18,7 @@
  */
 
 import { matchesConceptCode } from './file-category.js'
+import { parseQuestionnaireObservation } from './questionnaire-display.js'
 
 // Value-type accent colors (hex — used as CSS custom property values)
 export const VALUE_TYPE_HEX = {
@@ -151,6 +152,53 @@ export function buildFormFields({ conceptCodes = [], resolvedConcepts = new Map(
   }
 
   return out
+}
+
+// The shared questionnaire placeholder concept (useVisitQuestionnaires) —
+// Q rows count per questionnaire, so this configured code must not add to
+// a group's completion denominator
+const QUESTIONNAIRE_CONCEPT = 'CUSTOM: QUESTIONNAIRE'
+
+/**
+ * Completion of one field group: how many DISTINCT concepts carry data.
+ * Duplicate observations of the same concept (e.g. 2× HDL) count once;
+ * fuzzy matches collapse onto their configured concept. Extras the group
+ * claimed only by category count once per concept on top of the
+ * configured denominator. Q rows count per questionnaire (filled =
+ * completed), NV rows count as filled ("assessed, explicitly no value").
+ *
+ * @param {Object} args
+ * @param {string[]} args.conceptCodes - the field set's configured concepts
+ * @param {Array} args.observations - transformed observations of the group
+ * @returns {{filled: number, total: number, percent: number}}
+ */
+export function fieldSetCompletion({ conceptCodes = [], observations = [] }) {
+  const configured = [...new Set(conceptCodes)].filter((code) => code !== QUESTIONNAIRE_CONCEPT)
+  const filledConfigured = new Set()
+  const extraAll = new Set()
+  const extraFilled = new Set()
+  let questTotal = 0
+  let questFilled = 0
+
+  for (const obs of observations || []) {
+    if (obs.valueType === 'Q') {
+      questTotal += 1
+      if (parseQuestionnaireObservation(obs).isCompleted) questFilled += 1
+      continue
+    }
+    const filled = !isBlankObservation(obs)
+    const canonical = configured.find((code) => matchesConceptCode(obs.conceptCode, [code]))
+    if (canonical) {
+      if (filled) filledConfigured.add(canonical)
+    } else {
+      extraAll.add(obs.conceptCode)
+      if (filled) extraFilled.add(obs.conceptCode)
+    }
+  }
+
+  const total = configured.length + extraAll.size + questTotal
+  const filled = filledConfigured.size + extraFilled.size + questFilled
+  return { filled, total, percent: total > 0 ? Math.round((filled / total) * 100) : 0 }
 }
 
 /**
