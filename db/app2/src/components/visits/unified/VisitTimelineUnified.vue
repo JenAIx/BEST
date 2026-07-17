@@ -6,7 +6,12 @@
     <div class="unified-container">
       <!-- Body: quick navigation left, main column (header + cards) right -->
       <div class="unified-body">
-        <VisitQuickNav v-if="!loading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
+        <!-- One side column: quick nav on top, editor tools (teleported)
+             beneath while editing -->
+        <div v-if="showSideColumn" class="unified-side">
+          <VisitQuickNav v-if="navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
+          <div v-if="editingVisitId !== null" id="unified-edit-sidebar" class="unified-edit-rail"></div>
+        </div>
 
         <div class="unified-main">
           <!-- Fixed header row above the card list: filter left, expand-all +
@@ -83,10 +88,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Right rail: the editor teleports its field-group list and add
-             actions here (mirror of the quick nav on the left) -->
-        <div v-if="editingVisitId !== null" id="unified-edit-sidebar" class="unified-edit-rail"></div>
       </div>
 
       <!-- File upload (drop zone, fixed below the scroll area; hidden while
@@ -327,6 +328,8 @@ const scrollArea = ref(null)
 const activeNav = ref(null)
 const editorGroups = ref([]) // reported by VisitCardEditor while editing
 
+const showSideColumn = computed(() => (!loading.value && navEntries.value.length > 0) || editingVisitId.value !== null)
+
 const navEntries = computed(() => {
   if (editingVisitId.value != null) {
     const visit = editingStoreVisit.value
@@ -497,7 +500,7 @@ const previewQuestionnaire = (observation) => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1000px;
+  max-width: 1080px;
   margin: 0 auto;
 }
 
@@ -518,13 +521,18 @@ const previewQuestionnaire = (observation) => {
   flex-direction: column;
 }
 
-// Default: the nav sits in-flow inside the 1000px column (cards narrow a
-// bit, the header row above stays put). On wide screens it floats in the
-// left gutter instead, so the cards keep their full width.
-.unified-nav {
+// One side column for everything: quick nav on top, editor tools beneath
+// while editing. In-flow inside the column by default (cards narrow a bit,
+// identically in read and edit mode); on very wide screens it floats in the
+// left gutter and the cards keep the full container width.
+.unified-side {
   flex-shrink: 0;
+  width: 200px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 
-  @media (min-width: 1480px) {
+  @media (min-width: 1560px) {
     position: absolute;
     right: 100%;
     top: 0;
@@ -535,22 +543,22 @@ const previewQuestionnaire = (observation) => {
   @media (max-width: 900px) {
     display: none;
   }
+
+  .unified-nav {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+  }
 }
 
-// Right-hand mirror of the quick nav: field groups + add actions while
-// editing (content teleported from VisitCardEditor)
+// Editor tools (teleported from VisitCardEditor) docked at the bottom
 .unified-edit-rail {
   flex-shrink: 0;
-  width: 200px;
+  max-height: 55%;
   overflow-y: auto;
-
-  @media (min-width: 1480px) {
-    position: absolute;
-    left: 100%;
-    top: 0;
-    bottom: 0;
-    margin-left: 16px;
-  }
+  border-top: 1px solid $grey-4;
+  margin-top: 8px;
+  padding-top: 4px;
 }
 
 .unified-header {
