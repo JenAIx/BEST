@@ -16,7 +16,7 @@
           v-for="obs in category.observations"
           :key="obs.observationId"
           class="obs-tile"
-          :class="[`obs-tile--${tileSpan(obs)}`, { 'obs-tile--clickable': isPreviewable(obs) }]"
+          :class="[`obs-tile--${tileSpan(obs)}`, { 'obs-tile--clickable': isPreviewable(obs), 'obs-tile--empty': isEmptyValue(obs) }]"
           :style="{ '--tv': valueTypeHex(obs.valueType) }"
           @click="onTileClick(obs)"
         >
@@ -29,6 +29,10 @@
           <div v-else-if="obs.valueType === 'Q'" class="tile-value">
             <q-icon name="quiz" size="15px" color="deep-purple-6" />
             <span class="ellipsis">{{ obs.displayValue }}</span>
+          </div>
+          <div v-else-if="isEmptyValue(obs)" class="tile-value tile-value--empty">
+            <span>∅</span>
+            <span v-if="obs.unit" class="tile-unit">{{ obs.unit }}</span>
           </div>
           <div v-else-if="tileSpan(obs) === 'full'" class="tile-value tile-value--text">{{ obs.displayValue }}</div>
           <div v-else class="tile-value">
@@ -66,6 +70,13 @@ defineProps({
 const emit = defineEmits(['preview-file', 'preview-questionnaire'])
 
 const isPreviewable = (obs) => obs.valueType === 'R' || obs.valueType === 'Q'
+
+// NV-flagged ("explicitly no value") or simply unfilled observations render
+// as a subtle ∅ tile instead of a bold "No value" text
+const isEmptyValue = (obs) => {
+  if (obs.valueType === 'R' || obs.valueType === 'Q') return false
+  return obs.rawData?.VALUEFLAG_CD === 'NV' || obs.valueFlag === 'NV' || obs.displayValue == null || obs.displayValue === '' || obs.displayValue === 'No value'
+}
 
 const onTileClick = (obs) => {
   if (obs.valueType === 'R') emit('preview-file', obs)
@@ -132,6 +143,11 @@ const onTileClick = (obs) => {
       border-left-color: var(--tv);
     }
   }
+
+  // Empty / NV tiles step back visually
+  &--empty {
+    opacity: 0.5;
+  }
 }
 
 .tile-value {
@@ -158,6 +174,11 @@ const onTileClick = (obs) => {
     font-weight: 400;
     font-size: 0.82rem;
     white-space: pre-wrap;
+  }
+
+  &--empty {
+    font-weight: 400;
+    color: $grey-6;
   }
 }
 
