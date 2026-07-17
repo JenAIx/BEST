@@ -1,7 +1,7 @@
 <template>
   <!-- One collapsible visit card in the unified timeline. Dumb component:
        labels/status arrive pre-resolved via props, all actions bubble up. -->
-  <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing, 'visit-block--muted': muted }]" data-cy="unified-card">
+  <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing }]" data-cy="unified-card">
     <!-- Header: click toggles expand/collapse -->
     <div class="visit-block-header row items-center q-gutter-sm" data-cy="unified-card-header" @click="$emit('toggle')">
       <q-icon :name="expanded || editing ? 'expand_more' : 'chevron_right'" color="grey-6" size="20px" />
@@ -79,7 +79,6 @@ defineProps({
   observationCount: { type: Number, default: 0 },
   expanded: { type: Boolean, default: false },
   editing: { type: Boolean, default: false },
-  muted: { type: Boolean, default: false },
   typeMeta: { type: Object, required: true },
   statusMeta: { type: Object, required: true },
 })
@@ -150,15 +149,6 @@ defineEmits(['toggle', 'edit', 'clone', 'delete', 'finish', 'preview-file', 'pre
     }
   }
 
-  // Other cards step back while one is being edited
-  &--muted {
-    opacity: 0.55;
-    transition: opacity 0.2s ease;
-
-    &:hover {
-      opacity: 0.85;
-    }
-  }
 }
 
 .visit-block-header {

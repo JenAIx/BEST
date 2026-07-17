@@ -141,7 +141,8 @@ if (cloneVerified) {
   await wait(3500)
   check('Bearbeitungsmodus aktiv (Chip)', (await page.locator('[data-cy="unified-card-editing-chip"]').count()) === 1)
   check('Feldgruppen-Sidebar sichtbar', (await page.locator('[data-cy="editor-add-observation"]').count()) === 1)
-  check('Andere Karten gedimmt', (await page.locator('.visit-block--muted').count()) === baseline)
+  check('Fokus-Modus: nur die Edit-Karte sichtbar', (await cards.count()) === 1)
+  check('Kopfzeile im Edit-Modus ausgeblendet', (await page.locator('[data-cy="unified-new-visit"]').count()) === 0)
   await shot('04-edit-mode')
 
   // Autosave: first numeric field → 123 → Enter

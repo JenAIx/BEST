@@ -49,7 +49,6 @@
             :observation-count="observationCountFor(visit)"
             :expanded="isExpanded(visit)"
             :editing="isEditing(visit.id)"
-            :muted="editingVisitId !== null && !isEditing(visit.id)"
             :type-meta="typeMeta(visit)"
             :status-meta="statusMeta(visit)"
             @toggle="toggleCard(visit)"
@@ -153,11 +152,12 @@ const matchedCount = (visitId) =>
     .flatMap((category) => category.observations)
     .length
 
-// While searching only visits with matching results are shown; the visit in
-// edit mode always stays visible (the filter input is hidden while editing)
+// Edit mode is a focus mode: only the visit being edited is shown.
+// Otherwise: while searching only visits with matching results are shown.
 const visibleVisits = computed(() => {
+  if (editingVisitId.value != null) return sortedVisits.value.filter((visit) => isEditing(visit.id))
   if (!searchTerm.value) return sortedVisits.value
-  return sortedVisits.value.filter((visit) => isEditing(visit.id) || observationsForVisit(visit.id).length > 0)
+  return sortedVisits.value.filter((visit) => observationsForVisit(visit.id).length > 0)
 })
 
 // Header count: the visit query's count is the source of truth; while
