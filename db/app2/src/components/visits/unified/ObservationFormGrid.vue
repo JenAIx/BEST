@@ -325,6 +325,21 @@ const previewFile = (obs) => {
   }
 }
 
+// The legacy editor carries min-width: 200px for table cells — inside a
+// grid cell it MUST shrink with the cell, otherwise inputs overlap the
+// neighboring column
+.form-field :deep(.observation-value-editor) {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.form-field :deep(.q-field),
+.form-field :deep(.q-select) {
+  min-width: 0;
+  max-width: 100%;
+}
+
 // Dense inputs inside the grid cells
 .form-field :deep(.q-field--outlined .q-field__control) {
   min-height: 34px;
