@@ -16,7 +16,7 @@
         <div class="field-label">
           <span class="field-dot"></span>
           <span class="ellipsis">{{ shortConceptName(field.concept.name) }}</span>
-          <q-btn v-if="field.obs" flat round dense size="xs" icon="close" class="field-delete" @click.stop="confirmDelete(field)">
+          <q-btn v-if="field.obs" flat round dense size="xs" icon="close" class="field-delete" tabindex="-1" @click.stop="confirmDelete(field)">
             <q-tooltip>{{ $t('observation.deleteObservation') }}</q-tooltip>
           </q-btn>
           <q-tooltip :delay="350" max-width="360px">
@@ -43,7 +43,7 @@
         <div v-if="feedbackFor(field.key) === 'saved'" class="save-feedback save-feedback--ok">
           <q-icon name="check_circle" size="16px" color="positive" />
         </div>
-        <q-btn v-else-if="feedbackFor(field.key) === 'revert' && field.obs" flat round dense size="xs" icon="undo" color="orange-8" class="save-feedback" @click.stop="revertField(field)">
+        <q-btn v-else-if="feedbackFor(field.key) === 'revert' && field.obs" flat round dense size="xs" icon="undo" color="orange-8" class="save-feedback" tabindex="-1" @click.stop="revertField(field)">
           <q-tooltip>{{ $t('observation.revertTooltip', { value: revertValueLabel(field) }) }}</q-tooltip>
         </q-btn>
       </div>
