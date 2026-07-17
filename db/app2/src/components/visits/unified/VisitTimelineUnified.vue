@@ -44,24 +44,24 @@
           <div ref="scrollArea" class="unified-scroll">
             <PatientNotesStrip v-if="!coldLoading" :patient-num="patientNum" />
 
-            <div v-if="coldLoading" class="state-block">
+            <div v-if="listState === 'loading'" class="state-block">
               <q-spinner-grid size="50px" color="primary" />
               <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
             </div>
 
-            <div v-else-if="visits.length === 0" class="state-block">
+            <div v-if="listState === 'empty'" class="state-block">
               <q-icon name="event_busy" size="64px" color="grey-4" />
               <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noVisitsRecorded') }}</div>
               <div class="text-body2 text-grey-5 q-mb-md">{{ $t('visit.startByCreating') }}</div>
               <q-btn color="primary" icon="add" :label="$t('visit.createFirstVisit')" @click="showNewVisitDialog = true" />
             </div>
 
-            <div v-else-if="searchTerm && visibleVisits.length === 0" class="state-block text-grey-6">
+            <div v-if="listState === 'noResults'" class="state-block text-grey-6">
               <q-icon name="search_off" size="32px" class="q-mb-xs" />
               <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
             </div>
 
-            <div v-else class="unified-list">
+            <div v-if="listState === 'ready'" class="unified-list">
               <VisitUnifiedCard
                 v-for="visit in visibleVisits"
                 :key="visit.id"
@@ -167,6 +167,15 @@ const patientNum = computed(() => props.patient?.PATIENT_NUM ?? props.patient?.r
 const visits = computed(() => visitStore.visits)
 const sortedVisits = computed(() => visitStore.sortedVisits)
 const coldLoading = computed(() => visitStore.loading && visitStore.visits.length === 0)
+
+// ONE explicit state for the list area — the template only compares against
+// it instead of chaining conditions
+const listState = computed(() => {
+  if (coldLoading.value) return 'loading'
+  if (visits.value.length === 0) return 'empty'
+  if (visibleVisits.value.length === 0) return 'noResults'
+  return 'ready'
+})
 
 // ---- Labels (resolved once per distinct code, sync lookup for the cards) ----
 const { resolveAll, typeMeta, statusMeta } = useVisitLabels()

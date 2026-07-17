@@ -1,32 +1,28 @@
 <template>
-  <!-- Quick navigation for the unified timeline: one block per visible visit,
-       group entries beneath expanded ones. Clicking jumps to the section,
-       the scroll spy in the container keeps `active` in sync. -->
+  <!-- Quick navigation for the unified timeline: ONE flat item list
+       (visit rows + group rows), fully precomputed — the template just
+       renders items, all state logic lives in the `items` computed. -->
   <nav class="quick-nav" data-cy="unified-quick-nav">
-    <div v-for="entry in entries" :key="entry.visitId" class="nav-visit">
-      <div class="nav-visit-label" :class="{ 'nav-active': isActiveVisit(entry), 'nav-visit-label--collapsed': !entry.expanded }" @click="$emit('select-visit', entry.visitId)">
-        <q-icon :name="entry.expanded ? 'expand_more' : 'chevron_right'" size="14px" />
+    <template v-for="item in items" :key="item.key">
+      <div v-if="item.type === 'visit'" class="nav-visit-label" :class="{ 'nav-active': item.active, 'nav-visit-label--collapsed': !item.expanded }" @click="$emit('select-visit', item.visitId)">
+        <q-icon :name="item.expanded ? 'expand_more' : 'chevron_right'" size="14px" />
         <div class="nav-visit-text">
-          <span class="nav-date">{{ entry.label }}</span>
-          <span v-if="entry.sublabel" class="nav-type ellipsis">{{ entry.sublabel }}</span>
+          <span class="nav-date">{{ item.label }}</span>
+          <span v-if="item.sublabel" class="nav-type ellipsis">{{ item.sublabel }}</span>
         </div>
       </div>
 
-      <div
-        v-for="group in entry.groups"
-        :key="group.name"
-        class="nav-group"
-        :class="{ 'nav-active': isActiveGroup(entry, group) }"
-        @click="$emit('select-group', { visitId: entry.visitId, group: group.name })"
-      >
-        <q-icon :name="group.icon || 'label_outline'" size="13px" />
-        <span class="ellipsis">{{ group.name }}</span>
+      <div v-else class="nav-group" :class="{ 'nav-active': item.active }" @click="$emit('select-group', { visitId: item.visitId, group: item.group })">
+        <q-icon :name="item.icon" size="13px" />
+        <span class="ellipsis">{{ item.label }}</span>
       </div>
-    </div>
+    </template>
   </nav>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+
 defineOptions({
   name: 'VisitQuickNav',
 })
@@ -40,9 +36,33 @@ const props = defineProps({
 
 defineEmits(['select-visit', 'select-group'])
 
-const isActiveVisit = (entry) => props.active != null && props.active.visitId === entry.visitId && !props.active.group
+// Flatten entries into one render-ready list; `active` is resolved here so
+// the template stays free of comparison logic
+const items = computed(() => {
+  const activeVisitId = props.active?.visitId ?? null
+  const activeGroup = props.active?.group ?? null
 
-const isActiveGroup = (entry, group) => props.active != null && props.active.visitId === entry.visitId && props.active.group === group.name
+  return props.entries.flatMap((entry) => [
+    {
+      type: 'visit',
+      key: `v-${entry.visitId}`,
+      visitId: entry.visitId,
+      label: entry.label,
+      sublabel: entry.sublabel,
+      expanded: entry.expanded,
+      active: entry.visitId === activeVisitId && activeGroup === null,
+    },
+    ...entry.groups.map((group) => ({
+      type: 'group',
+      key: `g-${entry.visitId}-${group.name}`,
+      visitId: entry.visitId,
+      group: group.name,
+      label: group.name,
+      icon: group.icon || 'label_outline',
+      active: entry.visitId === activeVisitId && group.name === activeGroup,
+    })),
+  ])
+})
 </script>
 
 <style lang="scss" scoped>
@@ -56,11 +76,13 @@ const isActiveGroup = (entry, group) => props.active != null && props.active.vis
   font-size: 0.8rem;
 }
 
-.nav-visit {
-  margin-bottom: 18px;
-}
-
 .nav-visit-label {
+  margin-top: 18px;
+
+  &:first-child {
+    margin-top: 0;
+  }
+
   display: flex;
   align-items: flex-start;
   gap: 4px;

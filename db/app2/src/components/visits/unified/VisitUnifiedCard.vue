@@ -4,8 +4,8 @@
   <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing }]" data-cy="unified-card" :data-visit-id="visit.id">
     <!-- Header: click toggles expand/collapse; pinned while scrolling
          through the expanded body -->
-    <div class="visit-block-header row items-center q-gutter-sm" :class="{ 'visit-block-header--collapsed': !expanded && !editing }" data-cy="unified-card-header" @click="$emit('toggle')">
-      <q-icon :name="expanded || editing ? 'expand_more' : 'chevron_right'" color="grey-6" size="20px" />
+    <div class="visit-block-header row items-center q-gutter-sm" :class="{ 'visit-block-header--collapsed': !isOpen }" data-cy="unified-card-header" @click="$emit('toggle')">
+      <q-icon :name="isOpen ? 'expand_more' : 'chevron_right'" color="grey-6" size="20px" />
       <span class="visit-date">{{ formatDate(visit.date) }}</span>
       <q-chip dense size="sm" outline :color="typeMeta.color || 'primary'" :icon="typeMeta.icon">
         {{ typeMeta.label }}
@@ -52,7 +52,7 @@
     </div>
 
     <!-- Body: results table (read) or the inline editor provided by the container -->
-    <div v-show="expanded || editing">
+    <div v-show="isOpen">
       <slot v-if="editing" name="editor" />
       <template v-else>
         <div v-if="categorizedObservations.length > 0" class="visit-block-body">
@@ -69,6 +69,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import { formatDate } from 'src/shared/utils/medical-utils.js'
 import VisitSummaryObservations from '../VisitSummaryObservations.vue'
 
@@ -76,7 +77,7 @@ defineOptions({
   name: 'VisitUnifiedCard',
 })
 
-defineProps({
+const props = defineProps({
   visit: { type: Object, required: true },
   categorizedObservations: { type: Array, default: () => [] },
   observationCount: { type: Number, default: 0 },
@@ -87,6 +88,9 @@ defineProps({
 })
 
 defineEmits(['toggle', 'edit', 'edit-meta', 'clone', 'delete', 'finish', 'preview-file', 'preview-questionnaire'])
+
+// The card body is open in exactly two states: expanded (read) or editing
+const isOpen = computed(() => props.expanded || props.editing)
 </script>
 
 <style lang="scss" scoped>
