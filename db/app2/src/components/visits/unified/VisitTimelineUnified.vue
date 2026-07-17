@@ -83,6 +83,10 @@
             </div>
           </div>
         </div>
+
+        <!-- Right rail: the editor teleports its field-group list and add
+             actions here (mirror of the quick nav on the left) -->
+        <div v-if="editingVisitId !== null" id="unified-edit-sidebar" class="unified-edit-rail"></div>
       </div>
 
       <!-- File upload (drop zone, fixed below the scroll area; hidden while
@@ -530,6 +534,22 @@ const previewQuestionnaire = (observation) => {
 
   @media (max-width: 900px) {
     display: none;
+  }
+}
+
+// Right-hand mirror of the quick nav: field groups + add actions while
+// editing (content teleported from VisitCardEditor)
+.unified-edit-rail {
+  flex-shrink: 0;
+  width: 200px;
+  overflow-y: auto;
+
+  @media (min-width: 1480px) {
+    position: absolute;
+    left: 100%;
+    top: 0;
+    bottom: 0;
+    margin-left: 16px;
   }
 }
 

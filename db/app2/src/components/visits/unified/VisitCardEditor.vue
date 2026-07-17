@@ -1,8 +1,9 @@
 <template>
-  <!-- Inline edit mode of a unified visit card: split layout with the
-       observation data left and a compact field-group sidebar right.
-       Reuses the ObservationFieldSet editing chain unchanged; the visit MUST
-       be the globally selected visit (the panels read
+  <!-- Inline edit mode of a unified visit card. The card keeps the read
+       layout's full width; field groups + add actions live in the right
+       rail (teleported into #unified-edit-sidebar, mirror of the quick
+       nav). Reuses the ObservationFieldSet editing chain unchanged; the
+       visit MUST be the globally selected visit (the panels read
        observationStore.observations). -->
   <div class="visit-card-editor">
     <div v-if="loadingFieldSets" class="editor-loading">
@@ -10,7 +11,7 @@
     </div>
 
     <template v-else>
-      <!-- LEFT: observation data per active field group -->
+      <!-- Observation data per active field group (full card width) -->
       <div class="editor-main">
         <template v-for="fieldSet in activeFieldSetsList" :key="`${visit.id}-${fieldSet.id}`">
           <VisitQuestionnaireSection
@@ -43,90 +44,77 @@
           <div class="text-caption">{{ $t('visit.noFieldGroupsActive') }}</div>
         </div>
       </div>
+    </template>
 
-      <!-- RIGHT: field groups + add affordances (sticky) -->
-      <aside class="editor-sidebar">
-        <div class="sidebar-sticky">
-          <div class="sidebar-title">{{ $t('visit.fieldGroups') }}</div>
+    <!-- Right rail (quick-nav look): add actions + collapsible field groups.
+         Teleported next to the card column so the card keeps its full width. -->
+    <Teleport v-if="teleportReady" to="#unified-edit-sidebar">
+      <div class="edit-rail">
+        <!-- Add actions first — the day-to-day tools -->
+        <div class="rail-action" data-cy="editor-add-observation" @click="showAddCustomDialog = true">
+          <q-icon name="add" size="14px" />
+          <span>{{ $t('observation.addObservation') }}</span>
+        </div>
+        <div class="rail-action" data-cy="editor-add-questionnaire" @click="showAddDialog = true">
+          <q-icon name="quiz" size="14px" />
+          <span>{{ $t('visit.addQuestionnaire') }}</span>
+        </div>
+        <div class="rail-action" data-cy="editor-add-file" @click="fileInput?.click()">
+          <q-icon name="upload_file" size="14px" />
+          <span>{{ $t('visit.uploadAddFile') }}</span>
+        </div>
+        <input ref="fileInput" type="file" :accept="UPLOAD_ACCEPTED_TYPES" class="hidden-file-input" @change="onFileInputChange" />
 
-          <!-- Groups on this visit: active (displayed) on top, hidden
-               data-bearing ones greyed beneath — values are never lost by
-               unchecking, so they stay here instead of "more groups" -->
-          <q-list dense>
-            <q-item v-for="fs in activeFieldSetsList" :key="fs.id" tag="label" dense class="sidebar-item">
-              <q-item-section side>
-                <q-checkbox dense size="sm" :model-value="true" @update:model-value="toggleFieldSet(fs.id)" />
-              </q-item-section>
-              <q-item-section avatar class="sidebar-icon">
-                <q-icon :name="fs.icon || 'category'" size="16px" color="primary" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label class="ellipsis sidebar-label">{{ fs.name }}</q-item-label>
-              </q-item-section>
-              <q-item-section side>
-                <q-badge v-if="countFor(fs.id) > 0" rounded color="primary" :label="countFor(fs.id)" />
-              </q-item-section>
-            </q-item>
+        <!-- Field groups: collapsed by default to keep the rail calm -->
+        <div class="rail-title" @click="groupsCollapsed = !groupsCollapsed">
+          <q-icon :name="groupsCollapsed ? 'chevron_right' : 'expand_more'" size="14px" />
+          <span>{{ $t('visit.fieldGroups') }}</span>
+          <q-badge v-if="groupsCollapsed && activeFieldSetsList.length > 0" rounded color="grey-5" :label="activeFieldSetsList.length" class="q-ml-xs" />
+        </div>
 
-            <q-item v-for="fs in hiddenVisitGroups" :key="fs.id" tag="label" dense class="sidebar-item sidebar-item--inactive">
-              <q-item-section side>
-                <q-checkbox dense size="sm" :model-value="false" @update:model-value="toggleFieldSet(fs.id)" />
-              </q-item-section>
-              <q-item-section avatar class="sidebar-icon">
-                <q-icon name="visibility_off" size="15px" color="grey-6" />
-              </q-item-section>
-              <q-item-section>
-                <q-item-label class="ellipsis sidebar-label">{{ fs.name }}</q-item-label>
-                <q-tooltip>{{ $t('visit.fieldGroupHidden') }}</q-tooltip>
-              </q-item-section>
-              <q-item-section side>
-                <q-badge rounded color="grey-5" :label="countFor(fs.id)" />
-              </q-item-section>
-            </q-item>
+        <template v-if="!groupsCollapsed">
+          <!-- Groups on this visit: active on top, hidden data-bearing ones
+               greyed beneath — unchecking never discards values, so they
+               stay here instead of "more groups" -->
+          <div v-for="fs in activeFieldSetsList" :key="fs.id" class="rail-group" @click="toggleFieldSet(fs.id)">
+            <q-checkbox dense size="xs" :model-value="true" @update:model-value="toggleFieldSet(fs.id)" @click.stop />
+            <q-icon :name="fs.icon || 'category'" size="13px" color="primary" />
+            <span class="ellipsis">{{ fs.name }}</span>
+            <q-badge v-if="countFor(fs.id) > 0" rounded color="primary" :label="countFor(fs.id)" />
+          </div>
 
-            <div v-if="activeFieldSetsList.length === 0 && hiddenVisitGroups.length === 0" class="text-caption text-grey-6 q-px-sm q-py-xs">{{ $t('visit.noFieldGroupsActive') }}</div>
-          </q-list>
+          <div v-for="fs in hiddenVisitGroups" :key="fs.id" class="rail-group rail-group--muted" @click="toggleFieldSet(fs.id)">
+            <q-checkbox dense size="xs" :model-value="false" @update:model-value="toggleFieldSet(fs.id)" @click.stop />
+            <q-icon name="visibility_off" size="13px" color="grey-6" />
+            <span class="ellipsis">{{ fs.name }}</span>
+            <q-badge rounded color="grey-5" :label="countFor(fs.id)" />
+            <q-tooltip>{{ $t('visit.fieldGroupHidden') }}</q-tooltip>
+          </div>
 
-          <!-- Groups NOT on this visit: add via + (shows up as active panel;
-               without entered values it disappears again on the next load) -->
+          <!-- Groups NOT on this visit: add via + (without entered values the
+               group disappears again on the next load) -->
           <template v-if="inactiveFieldSetsAll.length > 0">
-            <div class="sidebar-subtitle">{{ $t('visit.fieldGroupsInactive') }}</div>
-            <q-input v-model="fieldSetFilter" dense outlined clearable :placeholder="$t('visit.fieldGroupsFilter')" class="sidebar-filter">
+            <div class="rail-subtitle">{{ $t('visit.fieldGroupsInactive') }}</div>
+            <q-input v-model="fieldSetFilter" dense outlined clearable :placeholder="$t('visit.fieldGroupsFilter')" class="rail-filter">
               <template v-slot:prepend>
-                <q-icon name="search" size="14px" />
+                <q-icon name="search" size="13px" />
               </template>
             </q-input>
-            <div class="inactive-scroll">
-              <q-list dense>
-                <q-item v-for="fs in inactiveFieldSets" :key="fs.id" dense clickable class="sidebar-item sidebar-item--inactive" @click="toggleFieldSet(fs.id)">
-                  <q-item-section side>
-                    <q-btn flat round dense size="xs" icon="add" color="primary">
-                      <q-tooltip>{{ $t('visit.fieldGroupAdd') }}</q-tooltip>
-                    </q-btn>
-                  </q-item-section>
-                  <q-item-section avatar class="sidebar-icon">
-                    <q-icon :name="fs.icon || 'category'" size="16px" color="grey-6" />
-                  </q-item-section>
-                  <q-item-section>
-                    <q-item-label class="ellipsis sidebar-label">{{ fs.name }}</q-item-label>
-                  </q-item-section>
-                </q-item>
-              </q-list>
-              <div v-if="fieldSetFilter && inactiveFieldSets.length === 0" class="text-caption text-grey-6 q-pa-sm">
+            <div class="rail-scroll">
+              <div v-for="fs in inactiveFieldSets" :key="fs.id" class="rail-group rail-group--muted" @click="toggleFieldSet(fs.id)">
+                <q-icon name="add" size="13px" color="primary" />
+                <q-icon :name="fs.icon || 'category'" size="13px" color="grey-6" />
+                <span class="ellipsis">{{ fs.name }}</span>
+                <q-tooltip>{{ $t('visit.fieldGroupAdd') }}</q-tooltip>
+              </div>
+              <div v-if="fieldSetFilter && inactiveFieldSets.length === 0" class="text-caption text-grey-6 q-pa-xs">
                 {{ $t('visit.compactSearchNoResults', { term: fieldSetFilter }) }}
               </div>
             </div>
           </template>
-
-          <q-separator spaced />
-
-          <q-btn outline color="primary" icon="add" class="full-width" no-caps :label="$t('observation.addObservation')" data-cy="editor-add-observation" @click="showAddCustomDialog = true" />
-          <q-btn flat color="primary" icon="quiz" class="full-width q-mt-sm" no-caps :label="$t('visit.addQuestionnaire')" data-cy="editor-add-questionnaire" @click="showAddDialog = true" />
-          <q-btn flat color="primary" icon="upload_file" class="full-width q-mt-sm" no-caps :label="$t('visit.uploadAddFile')" data-cy="editor-add-file" @click="fileInput?.click()" />
-          <input ref="fileInput" type="file" :accept="UPLOAD_ACCEPTED_TYPES" class="hidden-file-input" @change="onFileInputChange" />
-        </div>
-      </aside>
-    </template>
+        </template>
+      </div>
+    </Teleport>
 
     <!-- Dialogs (teleported) -->
     <CustomObservationDialog v-model="showAddCustomDialog" :visit="visit" :patient="patient" field-set-name="Custom" field-set-id="custom" @questionnaire-added="onQuestionnaireAddedFromSearch" />
@@ -135,7 +123,12 @@
          dialog (the editing visit is the store-selected one → preselected) -->
     <FileUploadConfirmDialog v-model="showUploadConfirm" :file-data="pendingFile" @saved="onFileSaved" />
 
-    <AddQuestionnaireToVisitDialog v-model="showAddDialog" :existing-questionnaire-codes="existingQuestionnaireCodes" :visit-type-code="visitTypeCode" @questionnaire-selected="onQuestionnaireSelected" />
+    <AddQuestionnaireToVisitDialog
+      v-model="showAddDialog"
+      :existing-questionnaire-codes="existingQuestionnaireCodes"
+      :visit-type-code="visitTypeCode"
+      @questionnaire-selected="onQuestionnaireSelected"
+    />
 
     <VisitQuestionnaireFillDialog
       v-if="activeQuestionnaire"
@@ -228,6 +221,10 @@ const countFor = (fieldSetId) => (fieldSetId === 'questionnaires' ? visitQuestio
 // data-bearing groups of THIS visit beneath (unchecking never discards
 // values), and "more groups" (not on the visit) below with a + to add
 const fieldSetFilter = ref('')
+const groupsCollapsed = ref(true) // rail stays calm by default
+// Teleport target (#unified-edit-sidebar) exists once the container's DOM
+// for this edit session is inserted — flip after our own mount
+const teleportReady = ref(false)
 
 const hiddenVisitGroups = computed(() => availableFieldSets.value.filter((fs) => !activeFieldSets.value.includes(fs.id) && countFor(fs.id) > 0))
 
@@ -298,6 +295,7 @@ watch(
 )
 
 onMounted(async () => {
+  teleportReady.value = true
   await loadFieldSets()
   await activateFieldSetsForVisitType(props.visit)
   // Read/edit parity: also show groups the visit type doesn't list but that
@@ -309,16 +307,12 @@ onMounted(async () => {
 
 <style lang="scss" scoped>
 .visit-card-editor {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
-  gap: 12px;
   padding: 12px 16px 16px;
   background: $grey-1;
   border-radius: 0 0 8px 8px;
 }
 
 .editor-loading {
-  grid-column: 1 / -1;
   text-align: center;
   padding: 24px;
 }
@@ -397,91 +391,98 @@ onMounted(async () => {
   border-radius: 8px;
 }
 
-.editor-sidebar {
+// Right rail — same light look as the quick nav on the left
+.edit-rail {
+  font-size: 0.8rem;
+  padding: 2px 0 12px 6px;
+}
+
+.rail-action {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  color: $primary;
+  padding: 3px 4px;
+  border-radius: 4px;
+  line-height: 1.35;
   min-width: 0;
 
-  .sidebar-sticky {
-    position: sticky;
-    top: 56px; // below the pinned visit header of the editing card
-    background: white;
-    border: 1px solid $grey-4;
-    border-radius: 8px;
-    padding: 8px;
-    max-height: calc(100vh - 190px);
-    overflow-y: auto;
-  }
-
-  .sidebar-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: $grey-8;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 2px 4px 6px;
-  }
-
-  .sidebar-item {
-    padding: 2px 4px;
-    min-height: 32px;
-
-    &--inactive .sidebar-label {
-      color: $grey-7;
-    }
-  }
-
-  .sidebar-subtitle {
-    font-size: 0.7rem;
-    font-weight: 600;
-    color: $grey-6;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    padding: 10px 4px 4px;
-  }
-
-  .sidebar-filter {
-    padding: 0 4px 4px;
-
-    :deep(.q-field__control) {
-      height: 30px;
-    }
-
-    :deep(.q-field__marginal) {
-      height: 30px;
-    }
-  }
-
-  .inactive-scroll {
-    max-height: 220px;
-    overflow-y: auto;
-  }
-
-  .sidebar-icon {
-    min-width: 24px;
-    padding-right: 4px;
-  }
-
-  .sidebar-label {
-    font-size: 0.85rem;
-  }
-
-  .hidden-file-input {
-    display: none;
+  &:hover {
+    background: $blue-1;
   }
 }
 
-// Narrow: stack, field groups first
-@media (max-width: 900px) {
-  .visit-card-editor {
-    grid-template-columns: 1fr;
+.rail-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  color: $grey-8;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.7rem;
+  padding: 10px 4px 4px;
+
+  &:hover {
+    color: $primary;
+  }
+}
+
+.rail-group {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: $grey-8;
+  padding: 2px 4px;
+  border-radius: 4px;
+  line-height: 1.35;
+  min-width: 0;
+
+  span {
+    flex: 1;
+    min-width: 0;
   }
 
-  .editor-sidebar {
-    order: -1;
-
-    .sidebar-sticky {
-      position: static;
-      max-height: none;
-    }
+  &:hover {
+    background: $blue-1;
   }
+
+  &--muted {
+    color: $grey-6;
+  }
+}
+
+.rail-subtitle {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: $grey-6;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 8px 4px 3px;
+}
+
+.rail-filter {
+  padding: 0 4px 4px;
+
+  :deep(.q-field__control) {
+    height: 28px;
+    background: white;
+  }
+
+  :deep(.q-field__marginal) {
+    height: 28px;
+  }
+}
+
+.rail-scroll {
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.hidden-file-input {
+  display: none;
 }
 </style>
