@@ -1,9 +1,9 @@
 <template>
   <!-- One collapsible visit card in the unified timeline. Dumb component:
        labels/status arrive pre-resolved via props, all actions bubble up. -->
-  <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing, 'visit-block--muted': muted }]">
+  <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing, 'visit-block--muted': muted }]" data-cy="unified-card">
     <!-- Header: click toggles expand/collapse -->
-    <div class="visit-block-header row items-center q-gutter-sm" @click="$emit('toggle')">
+    <div class="visit-block-header row items-center q-gutter-sm" data-cy="unified-card-header" @click="$emit('toggle')">
       <q-icon :name="expanded || editing ? 'expand_more' : 'chevron_right'" color="grey-6" size="20px" />
       <span class="visit-date">{{ formatDate(visit.date) }}</span>
       <q-chip dense size="sm" outline :color="typeMeta.color || 'primary'" :icon="typeMeta.icon">
@@ -12,33 +12,33 @@
       <q-chip v-if="statusMeta.label && statusMeta.label !== 'Unknown'" dense size="sm" outline :color="statusMeta.color || 'grey'">
         {{ statusMeta.label }}
       </q-chip>
-      <q-chip v-if="editing" dense size="sm" color="primary" text-color="white" icon="edit">
+      <q-chip v-if="editing" dense size="sm" color="primary" text-color="white" icon="edit" data-cy="unified-card-editing-chip">
         {{ $t('visit.editingChip') }}
       </q-chip>
       <q-space />
       <span class="text-caption text-grey-6">{{ $t('visit.observationCount', { count: observationCount }) }}</span>
 
       <!-- Editing: single "done" affordance -->
-      <q-btn v-if="editing" unelevated dense no-caps color="primary" icon="check" :label="$t('visit.finishEditing')" @click.stop="$emit('finish')" />
+      <q-btn v-if="editing" unelevated dense no-caps color="primary" icon="check" :label="$t('visit.finishEditing')" data-cy="unified-card-finish" @click.stop="$emit('finish')" />
 
       <!-- Read mode: edit shortcut + 3-dot menu -->
       <template v-else>
-        <q-btn flat round dense size="sm" icon="edit" color="primary" @click.stop="$emit('edit')">
+        <q-btn flat round dense size="sm" icon="edit" color="primary" data-cy="unified-card-edit" @click.stop="$emit('edit')">
           <q-tooltip>{{ $t('visit.editVisit') }}</q-tooltip>
         </q-btn>
-        <q-btn flat round dense size="sm" icon="more_vert" color="grey-7" @click.stop>
+        <q-btn flat round dense size="sm" icon="more_vert" color="grey-7" data-cy="unified-card-menu" @click.stop>
           <q-menu>
             <q-list dense style="min-width: 190px">
-              <q-item v-close-popup clickable @click="$emit('edit')">
+              <q-item v-close-popup clickable data-cy="unified-menu-edit" @click="$emit('edit')">
                 <q-item-section avatar><q-icon name="edit" size="18px" /></q-item-section>
                 <q-item-section>{{ $t('visit.editVisit') }}</q-item-section>
               </q-item>
-              <q-item v-close-popup clickable @click="$emit('clone')">
+              <q-item v-close-popup clickable data-cy="unified-menu-clone" @click="$emit('clone')">
                 <q-item-section avatar><q-icon name="content_copy" size="18px" /></q-item-section>
                 <q-item-section>{{ $t('visit.cloneVisit') }}</q-item-section>
               </q-item>
               <q-separator />
-              <q-item v-close-popup clickable class="text-negative" @click="$emit('delete')">
+              <q-item v-close-popup clickable class="text-negative" data-cy="unified-menu-delete" @click="$emit('delete')">
                 <q-item-section avatar><q-icon name="delete" size="18px" color="negative" /></q-item-section>
                 <q-item-section>{{ $t('visit.deleteVisit') }}</q-item-section>
               </q-item>

@@ -1248,6 +1248,12 @@ sqlite3 -header -csv ./database/production.db "SELECT * FROM PATIENT_DIMENSION;"
 npm test -- --run       # Run all tests (326 tests)
 npm test tests/unit/ -- --run        # Unit tests only
 npm test tests/integration/ -- --run # Integration tests
+
+# E2E verification of the unified visits view ("Zeitlinie neu"):
+# headless app + CDP walkthrough, DB backup + delete guards + integrity
+# check built in (see scripts/verify-visits/README.md). App must NOT be
+# running (shares the SQLite DB).
+bash scripts/verify-visits/run.sh
 ```
 
 ### Windows Build

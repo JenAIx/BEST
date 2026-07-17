@@ -50,7 +50,7 @@
           <div class="sidebar-title row items-center">
             <span>{{ $t('visit.fieldGroups') }}</span>
             <q-space />
-            <q-btn flat round dense size="sm" icon="edit_calendar" color="grey-7" @click="$emit('edit-meta')">
+            <q-btn flat round dense size="sm" icon="edit_calendar" color="grey-7" data-cy="editor-edit-meta" @click="$emit('edit-meta')">
               <q-tooltip>{{ $t('visit.editVisit') }}</q-tooltip>
             </q-btn>
           </div>
@@ -74,8 +74,8 @@
 
           <q-separator spaced />
 
-          <q-btn outline color="primary" icon="add" class="full-width" no-caps :label="$t('observation.addObservation')" @click="showAddCustomDialog = true" />
-          <q-btn flat color="primary" icon="quiz" class="full-width q-mt-sm" no-caps :label="$t('visit.addQuestionnaire')" @click="showAddDialog = true" />
+          <q-btn outline color="primary" icon="add" class="full-width" no-caps :label="$t('observation.addObservation')" data-cy="editor-add-observation" @click="showAddCustomDialog = true" />
+          <q-btn flat color="primary" icon="quiz" class="full-width q-mt-sm" no-caps :label="$t('visit.addQuestionnaire')" data-cy="editor-add-questionnaire" @click="showAddDialog = true" />
         </div>
       </aside>
     </template>

@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     VisitDataEntry, Original unangetastet), `useSingleVisitEdit`
     (Edit-Zustandsmaschine); Utilities `visit-labels`, `visit-edit-transform`,
     `expand-state`. 34 neue Unit-Tests (33–36).
+  - **E2E-Testroutine** `scripts/verify-visits/run.sh`: startet die App
+    headless (eigenes Display :98, CDP), prüft Labels, Auf-/Zuklappen,
+    Filter, Klonen, Bearbeitungsmodus, Autosave und Löschen über
+    `data-cy`-Anker — mit DB-Backup vorab, Lösch-Guards (nur nachweislich
+    selbst erzeugte Visiten) und Integritätscheck der Zeilenzahlen am Ende.
 
 - **Patienten-Notizleiste in der Zeitachse** (`features/patientvisit-notes`):
   Quick Notes mit Kontext zum geöffneten Patienten erscheinen als kompakte

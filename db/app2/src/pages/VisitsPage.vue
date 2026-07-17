@@ -41,6 +41,7 @@
                 :text-color="viewMode === 'unified' ? 'primary' : 'white'"
                 icon="view_timeline"
                 :label="$t('visit.timelineUnified')"
+                data-cy="view-mode-unified"
                 @click="viewMode = 'unified'"
               />
               <q-btn

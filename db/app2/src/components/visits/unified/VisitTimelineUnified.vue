@@ -6,16 +6,16 @@
     <div class="unified-container">
       <!-- Fixed header row: filter left, expand-all + new visit at the right edge -->
       <div class="unified-header row items-center q-gutter-sm">
-        <q-input v-model="searchTerm" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="unified-search" debounce="200">
+        <q-input v-model="searchTerm" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="unified-search" debounce="200" data-cy="unified-search">
           <template v-slot:prepend>
             <q-icon name="search" size="18px" />
           </template>
         </q-input>
         <q-space />
-        <q-btn flat round dense :icon="allVisibleExpanded ? 'unfold_less' : 'unfold_more'" color="grey-7" :disable="!!searchTerm || visibleVisits.length === 0" @click="toggleExpandAll">
+        <q-btn flat round dense :icon="allVisibleExpanded ? 'unfold_less' : 'unfold_more'" color="grey-7" :disable="!!searchTerm || visibleVisits.length === 0" data-cy="unified-expand-toggle" @click="toggleExpandAll">
           <q-tooltip>{{ allVisibleExpanded ? $t('visit.collapseAll') : $t('visit.expandAll') }}</q-tooltip>
         </q-btn>
-        <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="showNewVisitDialog = true" />
+        <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" data-cy="unified-new-visit" @click="showNewVisitDialog = true" />
       </div>
 
       <!-- Scroll area: notes strip + visit cards -->
