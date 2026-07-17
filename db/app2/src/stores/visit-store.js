@@ -92,10 +92,12 @@ export const useVisitStore = defineStore('visit', () => {
         visitCount: patientVisits.length,
       })
 
-      // Transform visits for store
+      // Transform visits for store. The timeline query already aggregates
+      // observationCount per visit — only fall back to a COUNT query for
+      // rows without it (avoids N+1 queries on every refresh)
       const transformedVisits = await Promise.all(
         patientVisits.map(async (visit) => {
-          const observationCount = await getObservationCount(visit.ENCOUNTER_NUM)
+          const observationCount = visit.observationCount ?? (await getObservationCount(visit.ENCOUNTER_NUM))
           return transformVisit(visit, observationCount)
         }),
       )

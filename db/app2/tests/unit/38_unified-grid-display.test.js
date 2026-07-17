@@ -230,4 +230,16 @@ describe('parseQuestionnaireObservation', () => {
     expect(parseQuestionnaireObservation({ observationId: 9, value: 'PHQ-9', rawData: {} })).toMatchObject({ isCompleted: true, title: 'PHQ-9', score: null })
     expect(parseQuestionnaireObservation({ observationId: 10, value: 'PHQ-9', rawData: { OBSERVATION_BLOB: '{broken' } }).isCompleted).toBe(true)
   })
+
+  it('memoizes per observation object and re-parses when the blob changes', () => {
+    const obs = { observationId: 11, value: 'MoCA', rawData: { OBSERVATION_BLOB: JSON.stringify({ _status: 'pending', _savedResponses: {} }) } }
+    const first = parseQuestionnaireObservation(obs)
+    expect(parseQuestionnaireObservation(obs)).toBe(first) // same reference, no re-parse
+
+    obs.rawData.OBSERVATION_BLOB = JSON.stringify({ questionnaire_code: 'MOCA', results: [{ value: 27 }] })
+    const reparsed = parseQuestionnaireObservation(obs)
+    expect(reparsed).not.toBe(first)
+    expect(reparsed.isCompleted).toBe(true)
+    expect(reparsed.score).toBe(27)
+  })
 })

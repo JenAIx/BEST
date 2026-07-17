@@ -12,12 +12,28 @@
  * - legacy Q rows without a parseable blob count as completed.
  */
 
+// Render paths (tile classes, icons, sublines) call the parse several times
+// per tile — memoize per observation object, invalidated when the blob
+// string changes (store reloads produce fresh objects, old entries get GC'd)
+const parseCache = new WeakMap()
+
 /**
  * @param {Object} obs - transformed observation (valueType 'Q', rawData)
  * @returns {Object} { observationId, title, shortTitle, questionnaireCode,
  *                     isCompleted, score, progress, observationBlob, rawObservation }
  */
 export function parseQuestionnaireObservation(obs) {
+  if (obs && typeof obs === 'object') {
+    const cached = parseCache.get(obs)
+    if (cached && cached.blob === obs.rawData?.OBSERVATION_BLOB) return cached.parsed
+    const parsed = parseQuestionnaireObservationUncached(obs)
+    parseCache.set(obs, { blob: obs.rawData?.OBSERVATION_BLOB, parsed })
+    return parsed
+  }
+  return parseQuestionnaireObservationUncached(obs)
+}
+
+function parseQuestionnaireObservationUncached(obs) {
   let isCompleted = false
   let title = obs.value || obs.originalValue || obs.displayValue || 'Fragebogen'
   let questionnaireCode = null

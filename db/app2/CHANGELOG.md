@@ -50,6 +50,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 34 neue Unit-Tests (Dateien 38–40): Leer-Erkennung, Feld-/Löschsemantik,
     Medikamenten-Parsing/-Payloads, Fragebogen-Parsing, Komponententest
     `QuestionnaireFormGrid`.
+  - **Last-Audit View/Edit-Modus**: Alle Listen-Queries der Zeitlinie
+    verifiziert — R-Blobs (Datei-Bytes, z. B. PDF/MP4) werden nirgends in
+    Listen geladen (nur On-Demand in Vorschau-Dialogen), Q/M-Blobs sind
+    Kleinst-JSON. Zwei Lasten behoben: `loadVisitsForPatient` feuerte pro
+    Visite eine redundante COUNT-Query (N+1 — die Timeline-Query
+    aggregiert den Count bereits), und das Q-Blob-Parsing ist jetzt pro
+    Observation memoisiert (Render-Pfade riefen es mehrfach pro Kachel).
 
 - **„Zeitlinie neu“ — vereinheitlichte Visitenansicht** (`features/visits-unified`,
   4. Ansichts-Button auf `/visits/:id`; Testphase, alte Tabs unverändert):
