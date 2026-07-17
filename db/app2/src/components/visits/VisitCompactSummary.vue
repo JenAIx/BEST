@@ -1,13 +1,6 @@
 <template>
   <div class="compact-summary">
-    <!-- Result search: filters observations across all visits (e.g. "Ka" → Kalium) -->
-    <q-input v-model="searchTerm" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="compact-search q-mb-md" debounce="200">
-      <template v-slot:prepend>
-        <q-icon name="search" size="18px" />
-      </template>
-    </q-input>
-
-    <!-- Only this area scrolls; the search input above stays fixed -->
+    <!-- Only this area scrolls; the filter input lives in the timeline header -->
     <div class="compact-scroll">
       <!-- Quick notes on this patient (scrolls with the content) -->
       <PatientNotesStrip :patient-num="patientNum" />
@@ -75,8 +68,10 @@ defineOptions({
   name: 'VisitCompactSummary',
 })
 
-defineProps({
+const props = defineProps({
   patientNum: { type: [Number, String], default: null },
+  // Result filter (input rendered by VisitTimeline's header row)
+  searchTerm: { type: String, default: '' },
 })
 
 defineEmits(['visit-selected'])
@@ -85,18 +80,17 @@ const visitStore = useVisitStore()
 const observationStore = useObservationStore()
 
 const sortedVisits = computed(() => visitStore.sortedVisits)
-const searchTerm = ref('')
 
 // encounterNum → categorized observation groups (all patient observations
 // are already loaded page-wide by visit-observation-service), filtered by
-// the search box (concept name / value / category, e.g. "Ka" → Kalium)
-const groupedByVisit = computed(() => groupObservationsByVisit(filterObservations(observationStore.allObservations, searchTerm.value)))
+// the header search box (concept name / value / category, e.g. "Ka" → Kalium)
+const groupedByVisit = computed(() => groupObservationsByVisit(filterObservations(observationStore.allObservations, props.searchTerm)))
 
 const observationsForVisit = (visitId) => groupedByVisit.value.get(visitId) || []
 
 // While searching, only visits with at least one matching result are shown
 const visibleVisits = computed(() => {
-  if (!searchTerm.value) return sortedVisits.value
+  if (!props.searchTerm) return sortedVisits.value
   return sortedVisits.value.filter((visit) => observationsForVisit(visit.id).length > 0)
 })
 
@@ -132,15 +126,6 @@ const previewQuestionnaire = (observation) => {
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
-}
-
-.compact-search {
-  max-width: 420px;
-  flex-shrink: 0;
-
-  :deep(.q-field__control) {
-    background: white;
-  }
 }
 
 .visit-block {
