@@ -427,15 +427,22 @@ const measureNavPositions = () => {
   const entryHeight = (entry) => 34 + entry.groups.length * 23 + 10
 
   // Nav origin = body top; cards start below the header row → clamp there.
-  // Entries whose card scrolled above stack at the top.
+  // Entries whose card scrolled above stack at the top. Entries follow their
+  // card's height, but never drift more than MAX_ENTRY_GAP below the
+  // previous entry — the list stays a compact cluster instead of spreading
+  // across the whole column.
+  const MAX_ENTRY_GAP = 50
   const tops = {}
   let minTop = container.getBoundingClientRect().top - bodyRect.top + 2
+  let first = true
   for (const entry of entries) {
     const card = container.querySelector(`[data-visit-id="${entry.visitId}"]`)
     if (!card) continue
-    const top = Math.max(card.getBoundingClientRect().top - bodyRect.top, minTop)
+    let top = Math.max(card.getBoundingClientRect().top - bodyRect.top, minTop)
+    if (!first) top = Math.min(top, minTop + MAX_ENTRY_GAP)
     tops[entry.visitId] = top
     minTop = top + entryHeight(entry)
+    first = false
   }
 
   // Symmetric bottom clamp: entries whose cards lie below the viewport
