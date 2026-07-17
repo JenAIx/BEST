@@ -241,7 +241,9 @@ onMounted(async () => {
   gap: 12px;
   min-width: 0;
 
-  // Denser panels without touching ObservationFieldSet itself
+  // Denser panels without touching ObservationFieldSet itself — visually
+  // aligned with the compact read view (VisitSummaryObservations) so the
+  // jump between read and edit mode stays small
   :deep(.field-set-section) {
     border-radius: 8px;
     box-shadow: none;
@@ -250,14 +252,52 @@ onMounted(async () => {
 
   :deep(.field-set-header) {
     padding: 8px 12px;
+    background: white;
+    border-bottom: 1px solid $grey-4;
 
     .field-set-title {
-      font-size: 0.95rem;
+      font-size: 1rem;
+      color: $primary;
     }
   }
 
   :deep(.field-set-content) {
     padding: 8px 12px;
+  }
+
+  // Table look of the compact view: grey header row, zebra rows, blue hover,
+  // small type badges instead of large colored avatars
+  :deep(.observations-table) {
+    font-size: 0.9rem;
+
+    thead th {
+      background: $grey-2;
+      font-weight: 600;
+      color: $grey-8;
+      border-bottom: 2px solid $grey-4;
+      padding: 8px;
+    }
+
+    tbody td {
+      padding: 6px 8px;
+      border-bottom: 1px solid $grey-3;
+    }
+
+    tbody tr:nth-child(even) {
+      background: $grey-1;
+    }
+
+    tbody tr:hover {
+      background: $blue-1;
+    }
+
+    .type-cell .q-avatar {
+      font-size: 22px !important;
+
+      .q-icon {
+        font-size: 13px !important;
+      }
+    }
   }
 }
 
