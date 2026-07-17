@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { isBlankObservation, buildFormFields, isBlankFormField, parseMedicationObservation, formatMedicationSummary } from '../../src/shared/utils/observation-display.js'
+import { isBlankObservation, buildFormFields, isBlankFormField, canAddMedication, parseMedicationObservation, formatMedicationSummary } from '../../src/shared/utils/observation-display.js'
 import { parseQuestionnaireObservation } from '../../src/shared/utils/questionnaire-display.js'
 
 const obsOf = (over = {}) => ({
@@ -80,7 +80,8 @@ describe('buildFormFields (delete semantics of the edit grid)', () => {
     const extra = obsOf({ observationId: 9, conceptCode: 'SCTID: 271649006', conceptName: 'Systolic BP', displayValue: '120', rawData: { NVAL_NUM: 120 } })
     const withExtra = buildFormFields({ conceptCodes: ['LID: 2947-0'], resolvedConcepts: resolved, observations: [obsOf(), extra] })
     expect(withExtra).toHaveLength(2)
-    expect(withExtra[1].key).toBe('SCTID: 271649006')
+    expect(withExtra[1].key).toBe('SCTID: 271649006#9') // concept + row id → unique
+    expect(withExtra[1].concept.code).toBe('SCTID: 271649006')
 
     // post-delete: the extra observation is gone → its field disappears entirely
     const afterDelete = buildFormFields({ conceptCodes: ['LID: 2947-0'], resolvedConcepts: resolved, observations: [obsOf()] })
@@ -88,13 +89,18 @@ describe('buildFormFields (delete semantics of the edit grid)', () => {
     expect(afterDelete.map((f) => f.key)).toEqual(['LID: 2947-0'])
   })
 
-  it('matches concepts fuzzily (numeric code) and keeps duplicates as extras', () => {
+  it('matches concepts fuzzily (numeric code) and keeps duplicates as extras with UNIQUE keys', () => {
     const fuzzy = obsOf({ conceptCode: 'LID:2947-0' })
     const duplicate = obsOf({ observationId: 2, displayValue: '138', rawData: { NVAL_NUM: 138 } })
     const fields = buildFormFields({ conceptCodes: ['LID: 2947-0'], resolvedConcepts: resolved, observations: [fuzzy, duplicate] })
     expect(fields).toHaveLength(2)
     expect(fields[0].obs.observationId).toBe(1) // fuzzy match fills the slot
     expect(fields[1].obs.observationId).toBe(2) // second row appended
+    // same concept twice (e.g. several medications) → v-for keys must differ,
+    // the concept code stays intact for saves
+    expect(new Set(fields.map((f) => f.key)).size).toBe(2)
+    expect(fields[1].concept.code).toBe('LID: 2947-0')
+    expect(fields[1].row.conceptCode).toBe('LID: 2947-0')
   })
 
   it('pending (unsaved) input overrides the stored value', () => {
@@ -152,16 +158,34 @@ describe('parseMedicationObservation', () => {
   })
 })
 
-describe('formatMedicationSummary', () => {
-  it('joins drug, dose and resolved labels', () => {
-    const med = { drugName: 'ASS', dosage: 100, dosageUnit: 'mg', frequency: 'BID', route: 'PO' }
-    expect(formatMedicationSummary(med, { frequencyLabel: '2x täglich', routeLabel: 'p.o.' })).toBe('ASS · 100 mg · 2x täglich · p.o.')
+describe('formatMedicationSummary (classic prescription notation)', () => {
+  it('renders "Aspirin 100mg 1-0-0 p.o."', () => {
+    const med = { drugName: 'Aspirin', dosage: 100, dosageUnit: 'mg', frequency: 'qd', route: 'po' }
+    expect(formatMedicationSummary(med, { frequencyAbbrev: '1-0-0', routeAbbrev: 'p.o.' })).toBe('Aspirin 100mg 1-0-0 p.o.')
   })
 
   it('raw codes pass through, missing parts are skipped, no drug → empty', () => {
-    expect(formatMedicationSummary({ drugName: 'ASS', dosage: null, dosageUnit: 'mg', frequency: 'BID', route: '' })).toBe('ASS · BID')
+    expect(formatMedicationSummary({ drugName: 'ASS', dosage: null, dosageUnit: 'mg', frequency: 'bid', route: '' })).toBe('ASS bid')
+    expect(formatMedicationSummary({ drugName: 'ASS', dosage: 100, dosageUnit: 'mg' })).toBe('ASS 100mg')
     expect(formatMedicationSummary({ drugName: '', dosage: 100 })).toBe('')
     expect(formatMedicationSummary(null)).toBe('')
+  })
+})
+
+describe('canAddMedication (add-another-medication tile)', () => {
+  const medField = (obs) => ({ concept: { valueType: 'M' }, obs })
+  const numField = (obs) => ({ concept: { valueType: 'N' }, obs })
+
+  it('shows once every M slot is filled', () => {
+    expect(canAddMedication([medField({ observationId: 1 }), numField(null)])).toBe(true)
+    expect(canAddMedication([medField({ observationId: 1 }), medField({ observationId: 2 })])).toBe(true)
+  })
+
+  it('hidden while an empty M slot exists (the slot IS the add affordance) or without M fields', () => {
+    expect(canAddMedication([medField(null)])).toBe(false)
+    expect(canAddMedication([medField({ observationId: 1 }), medField(null)])).toBe(false)
+    expect(canAddMedication([numField({ observationId: 1 })])).toBe(false)
+    expect(canAddMedication([])).toBe(false)
   })
 })
 

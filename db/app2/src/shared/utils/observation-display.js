@@ -108,7 +108,7 @@ export function editValueOf(obs) {
  * @returns {Array<{key, concept, obs, row}>}
  */
 export function buildFormFields({ conceptCodes = [], resolvedConcepts = new Map(), observations = [], pendingValues = new Map() }) {
-  const makeField = (code, meta, obs) => {
+  const makeField = (code, meta, obs, key = code) => {
     const concept = {
       code,
       name: meta?.label || obs?.conceptName || code,
@@ -116,14 +116,14 @@ export function buildFormFields({ conceptCodes = [], resolvedConcepts = new Map(
       unit: obs?.unit || meta?.unit || null,
     }
     const current = editValueOf(obs)
-    const value = pendingValues.has(code) ? pendingValues.get(code) : current
+    const value = pendingValues.has(key) ? pendingValues.get(key) : current
     return {
-      key: code,
+      key,
       concept,
       obs: obs || null,
       row: {
-        id: code,
-        key: code,
+        id: key,
+        key,
         observationId: obs?.observationId ?? null,
         conceptCode: code,
         valueType: concept.valueType,
@@ -145,10 +145,22 @@ export function buildFormFields({ conceptCodes = [], resolvedConcepts = new Map(
 
   for (const obs of observations) {
     if (used.has(obs.observationId)) continue
-    out.push(makeField(obs.conceptCode, { label: obs.conceptName, valueType: obs.valueType, unit: obs.unit }, obs))
+    // Unique key per row — the same concept can appear more than once
+    // (e.g. several medications), the plain code is taken by the slot above
+    out.push(makeField(obs.conceptCode, { label: obs.conceptName, valueType: obs.valueType, unit: obs.unit }, obs, `${obs.conceptCode}#${obs.observationId}`))
   }
 
   return out
+}
+
+/**
+ * The "add another medication" tile shows once the group has M fields and
+ * every one of them is filled (an empty M slot already IS the add
+ * affordance).
+ */
+export function canAddMedication(fields) {
+  const medicationFields = (fields || []).filter((field) => field.concept?.valueType === 'M')
+  return medicationFields.length > 0 && medicationFields.every((field) => field.obs)
 }
 
 /**
@@ -240,19 +252,20 @@ export function parseMedicationObservation(obs) {
 }
 
 /**
- * One-line medication summary for tiles/fields: "ASS 100 mg · 2x täglich ·
- * p.o.". Frequency/route arrive as display labels (resolved by the caller,
- * e.g. useMedicationOptions) — raw codes pass through unchanged.
+ * One-line prescription summary for tiles/fields in the classic notation:
+ * "Aspirin 100mg 1-0-1 p.o.". Frequency/route arrive as abbreviations
+ * (LOOKUP_BLOB.abbreviation, resolved by the caller via
+ * useMedicationOptions) — raw codes pass through unchanged.
  */
-export function formatMedicationSummary(medication, { frequencyLabel = null, routeLabel = null } = {}) {
+export function formatMedicationSummary(medication, { frequencyAbbrev = null, routeAbbrev = null } = {}) {
   if (!medication?.drugName) return ''
   const parts = [medication.drugName]
-  if (medication.dosage != null && medication.dosage !== '') parts.push(`${medication.dosage} ${medication.dosageUnit || ''}`.trim())
-  const frequency = frequencyLabel || medication.frequency
+  if (medication.dosage != null && medication.dosage !== '') parts.push(`${medication.dosage}${medication.dosageUnit || ''}`)
+  const frequency = frequencyAbbrev || medication.frequency
   if (frequency) parts.push(frequency)
-  const route = routeLabel || medication.route
+  const route = routeAbbrev || medication.route
   if (route) parts.push(route)
-  return parts.join(' · ')
+  return parts.join(' ')
 }
 
 export function buildNewObservationData({ patientNum, encounterNum, concept, value = null, visitDate = null }) {

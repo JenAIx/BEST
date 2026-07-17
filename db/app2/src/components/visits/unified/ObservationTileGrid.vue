@@ -16,7 +16,7 @@
           v-for="obs in category.observations"
           :key="obs.observationId"
           class="obs-tile"
-          :class="[`obs-tile--${tileSpan(obs)}`, { 'obs-tile--clickable': isPreviewable(obs), 'obs-tile--empty': isEmptyValue(obs) }]"
+          :class="[`obs-tile--${tileSpan(obs)}`, { 'obs-tile--clickable': isPreviewable(obs), 'obs-tile--empty': isEmptyValue(obs), 'obs-tile--pending': isPendingQuest(obs) }]"
           :style="{ '--tv': valueTypeHex(obs.valueType) }"
           @click="onTileClick(obs)"
         >
@@ -34,8 +34,7 @@
           </div>
           <div v-else-if="obs.valueType === 'M'" class="tile-value">
             <q-icon name="medication" size="15px" color="purple-7" />
-            <span class="ellipsis">{{ obs.displayValue }}</span>
-            <span v-if="obs.numericValue != null" class="tile-unit">{{ obs.numericValue }} {{ obs.unit || '' }}</span>
+            <span class="ellipsis">{{ medicationTileText(obs) }}</span>
           </div>
           <div v-else-if="isEmptyValue(obs)" class="tile-value tile-value--empty">
             <span>∅</span>
@@ -54,6 +53,9 @@
           <div v-else-if="obs.valueType === 'Q'" class="tile-concept ellipsis">{{ questMeta(obs).shortTitle || questMeta(obs).questionnaireCode || shortConceptName(obs.conceptName) }}</div>
           <div v-else class="tile-concept ellipsis">{{ shortConceptName(obs.conceptName) }}</div>
 
+          <!-- Incomplete questionnaires wear their fill progress -->
+          <q-linear-progress v-if="isPendingQuest(obs) && questMeta(obs).progress !== null" :value="questMeta(obs).progress" color="amber-8" rounded size="3px" class="tile-progress" />
+
           <q-tooltip :delay="350" max-width="360px">
             <div class="tile-tooltip">
               {{ obs.conceptName }}
@@ -69,15 +71,17 @@
 </template>
 
 <script setup>
+import { ref, watch } from 'vue'
 import { getCategoryIcon, getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
-import { shortConceptName, tileSpan, valueTypeHex } from 'src/shared/utils/observation-display.js'
+import { shortConceptName, tileSpan, valueTypeHex, parseMedicationObservation, formatMedicationSummary } from 'src/shared/utils/observation-display.js'
 import { parseQuestionnaireObservation } from 'src/shared/utils/questionnaire-display.js'
+import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 
 defineOptions({
   name: 'ObservationTileGrid',
 })
 
-defineProps({
+const props = defineProps({
   // [{ name, icon?, observations: [...] }] — groupObservationsByFieldSets shape
   categorizedObservations: { type: Array, default: () => [] },
 })
@@ -89,6 +93,35 @@ const isPreviewable = (obs) => obs.valueType === 'R' || obs.valueType === 'Q'
 // Q tiles show completion status + score/progress hint (shared parse with
 // the editor's questionnaire grid)
 const questMeta = (obs) => parseQuestionnaireObservation(obs)
+
+const isPendingQuest = (obs) => obs.valueType === 'Q' && !questMeta(obs).isCompleted
+
+// M tiles: classic prescription notation "Aspirin 100mg 1-0-1 p.o." —
+// frequency/route abbreviations load lazily once an M tile appears
+const { loadMedicationOptions, getFrequencyAbbreviation, getRouteAbbreviation } = useMedicationOptions()
+const medicationOptionsLoaded = ref(false)
+
+watch(
+  () => props.categorizedObservations,
+  (groups) => {
+    if (medicationOptionsLoaded.value) return
+    if ((groups || []).some((category) => category.observations.some((obs) => obs.valueType === 'M'))) {
+      medicationOptionsLoaded.value = true
+      loadMedicationOptions()
+    }
+  },
+  { immediate: true },
+)
+
+const medicationTileText = (obs) => {
+  const medication = parseMedicationObservation(obs)
+  return (
+    formatMedicationSummary(medication, {
+      frequencyAbbrev: getFrequencyAbbreviation(medication.frequency),
+      routeAbbrev: getRouteAbbreviation(medication.route),
+    }) || obs.displayValue
+  )
+}
 
 // NV-flagged ("explicitly no value") or simply unfilled observations render
 // as a subtle ∅ tile instead of a bold "No value" text
@@ -176,6 +209,16 @@ const fileSubline = (obs) => {
   &--empty {
     opacity: 0.5;
   }
+
+  // Incomplete questionnaires clearly read as "not done yet"
+  &--pending {
+    border-left-color: $amber-6;
+    background: rgba($amber-1, 0.35);
+  }
+}
+
+.tile-progress {
+  margin: 3px 0 1px;
 }
 
 .tile-value {

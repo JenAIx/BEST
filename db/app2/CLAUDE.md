@@ -640,11 +640,16 @@ Components (`src/components/visits/unified/`):
   `QuestionnaireFormGrid.vue` (one tile per questionnaire, add tile,
   confirm-remove; Q-blob parsing shared via
   `shared/utils/questionnaire-display.js` with the read tiles and
-  `useVisitQuestionnaires`). M fields render a summary line and edit via
+  `useVisitQuestionnaires`; read tiles mark pending questionnaires amber
+  with a progress bar). M fields render the classic prescription notation
+  ("Aspirin 100mg 1-0-0 p.o.", abbreviations from the frequency/route
+  CODE_LOOKUP blobs) in edit AND read mode and edit via
   `MedicationEditDialog`; saves go through `medications-store`
   (`createMedication` accepts `patientNum`/`conceptCode`/`visitDate`,
   update/create return the serialized blob for local mirroring — same
-  propagation invariant as `valueFlag`).
+  propagation invariant as `valueFlag`). Once every M slot is filled, a
+  dashed add tile creates additional medication rows (duplicate concepts
+  are fine — `buildFormFields` keys extras by concept+row id).
 - Blank handling: read mode HIDES observations that are merely created
   without a value (`isBlankObservation` — NV rows stay visible as ∅);
   edit mode dims blank fields (`form-field--blank`). Deleting a field-set

@@ -61,6 +61,15 @@
           <q-tooltip>{{ $t('observation.revertTooltip', { value: revertValueLabel(field) }) }}</q-tooltip>
         </q-btn>
       </div>
+
+      <!-- "Add another medication" tile — once every M slot is filled (an
+           empty M slot already is the add affordance) -->
+      <div v-if="canAddMedication(fields)" class="form-field form-field--m">
+        <div class="field-medication field-medication--add" @click="openMedicationAdd">
+          <q-icon name="add" size="15px" color="primary" />
+          <span class="ellipsis">{{ $t('visit.addMedication') }}</span>
+        </div>
+      </div>
     </div>
 
     <FileDetailsDialog v-if="fileToEdit" v-model="showFileDetails" :observation="fileToEdit" @saved="onFileDetailsSaved" />
@@ -96,6 +105,7 @@ import {
   buildNewObservationData,
   buildFormFields,
   isBlankFormField,
+  canAddMedication,
   parseMedicationObservation,
   formatMedicationSummary,
 } from 'src/shared/utils/observation-display.js'
@@ -315,7 +325,7 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
 
 // ---- M (medication) fields: structured edit via MedicationEditDialog ----
 const medicationsStore = useMedicationsStore()
-const { frequencyOptions, routeOptions, loadMedicationOptions, getFrequencyLabel, getRouteLabel } = useMedicationOptions()
+const { frequencyOptions, routeOptions, loadMedicationOptions, getFrequencyAbbreviation, getRouteAbbreviation } = useMedicationOptions()
 
 // Load frequency/route lookups only when this group actually shows M fields
 const medicationOptionsLoaded = ref(false)
@@ -331,12 +341,13 @@ watch(
   { immediate: true },
 )
 
+// Classic prescription notation: "Aspirin 100mg 1-0-1 p.o."
 const medicationSummary = (field) => {
   if (!field.obs) return ''
   const medication = parseMedicationObservation(field.obs)
   return formatMedicationSummary(medication, {
-    frequencyLabel: getFrequencyLabel(medication.frequency),
-    routeLabel: getRouteLabel(medication.route),
+    frequencyAbbrev: getFrequencyAbbreviation(medication.frequency),
+    routeAbbrev: getRouteAbbreviation(medication.route),
   })
 }
 
@@ -348,6 +359,14 @@ const openMedicationEdit = (field) => {
   medicationField.value = field
   medicationDialogData.value = field.obs ? parseMedicationObservation(field.obs) : { drugName: '', dosage: null, dosageUnit: 'mg', frequency: '', route: '', instructions: '' }
   showMedicationDialog.value = true
+}
+
+// Add tile → pseudo-field: no observation yet, saves create a new row
+// against the group's medication concept
+const openMedicationAdd = () => {
+  const template = fields.value.find((field) => field.concept.valueType === 'M')
+  if (!template) return
+  openMedicationEdit({ key: '__new-medication__', concept: template.concept, obs: null })
 }
 
 const onMedicationSave = async (medicationData) => {
@@ -566,6 +585,18 @@ const onMedicationSave = async (medicationData) => {
   &:hover {
     background: $blue-1;
     border-color: $primary;
+  }
+
+  // Dashed "add another medication" tile (same language as the
+  // questionnaire add tile)
+  &--add {
+    border-style: dashed;
+    color: $primary;
+    justify-content: center;
+
+    &:hover {
+      background: rgba($primary, 0.05);
+    }
   }
 }
 

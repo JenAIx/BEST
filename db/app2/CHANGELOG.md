@@ -20,14 +20,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Editor, Lese-Kacheln und `useVisitQuestionnaires` geteilt; die
     Lese-Kachel zeigt jetzt Status (abgeschlossen/ausstehend) und Score.
   - **Echte M-Typ-Medikamenten-Bearbeitung im Formular-Raster**: M-Felder
-    zeigen eine kompakte Zusammenfassung („ASS · 100 mg · 2x täglich ·
-    p.o.“, Frequenz/Route über CODE_LOOKUP-Labels) statt des toten
+    zeigen die klassische Verordnungsnotation („Aspirin 100mg 1-0-0
+    p.o.“, Frequenz-/Routen-Abkürzungen aus CODE_LOOKUP) statt des toten
     Platzhalters; Klick öffnet den strukturierten `MedicationEditDialog`.
     Leere M-Felder legen die Observation mit dem Feldset-Konzeptcode an
     (`medications-store.createMedication` akzeptiert jetzt `patientNum`,
     `conceptCode`, `visitDate`; Update/Create liefern den serialisierten
-    Blob für die lokale Spiegelung zurück). Lese-Kachel zeigt
-    Wirkstoff + Dosis/Einheit.
+    Blob für die lokale Spiegelung zurück). Sind alle M-Felder gefüllt,
+    erscheint eine gestrichelte „Medikament hinzufügen“-Kachel für
+    weitere Medikamente (mehrere Zeilen pro Konzept, eindeutige
+    Feld-Keys). Lese-Kachel zeigt dieselbe Verordnungsnotation.
+  - **Unvollständige Fragebögen im Lese-Modus**: Kacheln ausstehender
+    Fragebögen sind klar als unvollständig markiert (amberfarbener
+    Akzent + Hintergrund, „Ausfüllen“-Hinweis, Fortschrittsbalken).
   - **Leere Observations**: Der Lese-Modus blendet nur angelegte
     Observations ohne Wert aus (NV-markierte „explizit kein Wert“-Zeilen
     bleiben als ∅ sichtbar); im Editor werden leere Felder gedimmt
