@@ -97,12 +97,9 @@ const save = async () => {
     // ONLY TVAL_CHAR — never write OBSERVATION_BLOB here (raw file bytes!)
     await visitObservationService.updateObservation(props.observation.observationId, { TVAL_CHAR: serialized }, { skipReload: true })
 
-    // Mirror locally so tiles/tooltips update without a reload
-    if (props.observation.rawData) props.observation.rawData.TVAL_CHAR = serialized
-    props.observation.fileInfo = { ...envelope }
-
     notify.success(t('visit.fileDetailsSaved'))
-    emit('saved')
+    // The parent mirrors the envelope into its observation object
+    emit('saved', { envelope, serialized })
     emit('update:modelValue', false)
   } catch (error) {
     logger.error('Failed to save file details', error, { observationId: props.observation?.observationId })

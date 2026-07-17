@@ -38,7 +38,7 @@
       </div>
     </div>
 
-    <FileDetailsDialog v-if="fileToEdit" v-model="showFileDetails" :observation="fileToEdit" />
+    <FileDetailsDialog v-if="fileToEdit" v-model="showFileDetails" :observation="fileToEdit" @saved="onFileDetailsSaved" />
   </div>
 </template>
 
@@ -215,6 +215,15 @@ const openFileDetails = (obs) => {
   if (!obs) return
   fileToEdit.value = obs
   showFileDetails.value = true
+}
+
+// Mirror the saved envelope into the (store-owned) observation so tiles and
+// tooltips update without a reload
+const onFileDetailsSaved = ({ envelope, serialized }) => {
+  const obs = fileToEdit.value
+  if (!obs) return
+  if (obs.rawData) obs.rawData.TVAL_CHAR = serialized
+  obs.fileInfo = { ...envelope }
 }
 </script>
 
