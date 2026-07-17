@@ -30,18 +30,12 @@
           <div class="patient-header-right">
             <q-btn-group flat>
               <q-btn
-                :color="viewMode === 'timeline' ? 'white' : 'grey-4'"
-                :text-color="viewMode === 'timeline' ? 'primary' : 'white'"
+                :color="viewMode === 'unified' ? 'white' : 'grey-4'"
+                :text-color="viewMode === 'unified' ? 'primary' : 'white'"
                 icon="timeline"
                 :label="$t('visit.timeline')"
-                @click="viewMode = 'timeline'"
-              />
-              <q-btn
-                :color="viewMode === 'entry' ? 'white' : 'grey-4'"
-                :text-color="viewMode === 'entry' ? 'primary' : 'white'"
-                icon="edit"
-                :label="$t('visit.dataEntry')"
-                @click="viewMode = 'entry'"
+                data-cy="view-mode-unified"
+                @click="viewMode = 'unified'"
               />
               <q-btn
                 :color="viewMode === 'patient' ? 'white' : 'grey-4'"
@@ -58,20 +52,11 @@
         </div>
       </div>
 
-      <!-- Timeline View -->
-      <VisitTimeline v-if="viewMode === 'timeline'" :patient="selectedPatient" :selected-visit="selectedVisit" @visit-selected="onVisitSelected" @visit-edited="onVisitEdited" />
-
-      <!-- Data Entry View -->
-      <VisitDataEntry v-if="viewMode === 'entry'" :patient="selectedPatient" :initial-visit="selectedVisit" @visit-created="onVisitCreated" />
+      <!-- Timeline (unified view: read + inline edit, self-contained) -->
+      <VisitTimelineUnified v-if="viewMode === 'unified'" :patient="selectedPatient" :selected-visit="selectedVisit" />
 
       <!-- Patient Data View -->
-      <PatientDataView
-        v-if="viewMode === 'patient' && patientRawData"
-        :patient="patientRawData"
-        :visits="visits"
-        :observations="observations"
-        @updated="onPatientUpdated"
-      />
+      <PatientDataView v-if="viewMode === 'patient' && patientRawData" :patient="patientRawData" :visits="visits" :observations="observations" @updated="onPatientUpdated" />
 
       <DeletePatientDialog ref="deletePatientDialog" @deleted="onPatientDeleted" />
     </div>
@@ -88,8 +73,7 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
-import VisitTimeline from 'src/components/visits/VisitTimeline.vue'
-import VisitDataEntry from 'src/components/visits/VisitDataEntry.vue'
+import VisitTimelineUnified from 'src/components/visits/unified/VisitTimelineUnified.vue'
 import PatientDataView from 'src/components/visits/PatientDataView.vue'
 import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 
@@ -100,8 +84,8 @@ const visitStore = useVisitStore()
 const observationStore = useObservationStore()
 const localSettings = useLocalSettingsStore()
 
-// Local state
-const viewMode = ref('timeline')
+// Local state ('unified' = timeline incl. inline editing, 'patient' = master data)
+const viewMode = ref('unified')
 const deletePatientDialog = ref(null)
 
 // Computed properties from stores
@@ -134,13 +118,13 @@ const onPatientSelected = async (patient) => {
     visitObservationService.initialize()
     // Load patient with all data
     await visitObservationService.loadPatientWithData(patient.id)
-    viewMode.value = 'timeline'
+    viewMode.value = 'unified'
   }
 }
 
 const deselectPatient = () => {
   visitObservationService.clearAllData()
-  viewMode.value = 'timeline'
+  viewMode.value = 'unified'
   // Go back to where the user came from (e.g. a study's enrolled-patients
   // list or the dashboard); default to the visits patient list.
   const previous = router.options.history.state?.back
@@ -172,7 +156,7 @@ const onPatientDeleted = async () => {
     }
   }
   visitObservationService.clearAllData()
-  viewMode.value = 'timeline'
+  viewMode.value = 'unified'
   router.push('/visits')
 }
 
@@ -181,48 +165,6 @@ const onPatientUpdated = async () => {
   if (patientId) {
     await visitObservationService.loadPatientWithData(patientId)
   }
-}
-
-const onVisitSelected = async (visit) => {
-  await visitObservationService.selectVisitAndLoadObservations(visit)
-  // Switch to data entry view when a visit is clicked
-  viewMode.value = 'entry'
-}
-
-const onVisitEdited = async (visit) => {
-  // First reload visits to ensure we have the latest data with rawData
-  if (selectedPatient.value) {
-    await visitStore.loadVisitsForPatient(selectedPatient.value.PATIENT_NUM)
-  }
-
-  // Then find and select the visit from the store (which has complete data)
-  const fullVisitData = visitStore.visits.find((v) => v.id === visit.id)
-  if (fullVisitData) {
-    await visitObservationService.selectVisitAndLoadObservations(fullVisitData)
-  } else {
-    // Fallback to the provided visit if not found in store
-    await visitObservationService.selectVisitAndLoadObservations(visit)
-  }
-
-  viewMode.value = 'entry'
-}
-
-const onVisitCreated = async (newVisit) => {
-  // First reload visits to ensure we have the latest data with rawData
-  if (selectedPatient.value) {
-    await visitStore.loadVisitsForPatient(selectedPatient.value.PATIENT_NUM)
-  }
-
-  // Then find and select the visit from the store (which has complete data)
-  const fullVisitData = visitStore.visits.find((v) => v.id === newVisit.id)
-  if (fullVisitData) {
-    await visitObservationService.selectVisitAndLoadObservations(fullVisitData)
-  } else {
-    // Fallback to the provided visit if not found in store
-    await visitObservationService.selectVisitAndLoadObservations(newVisit)
-  }
-
-  viewMode.value = 'entry'
 }
 
 // Load patient from route parameter
@@ -237,7 +179,7 @@ const loadPatientFromRoute = async () => {
     // Patient is already loaded and matches route
     // Save to recent patients and set view mode
     addToRecentPatients(patientId)
-    viewMode.value = route.query.view === 'patient' ? 'patient' : 'timeline'
+    viewMode.value = route.query.view === 'patient' ? 'patient' : 'unified'
     return
   }
 
@@ -253,7 +195,7 @@ const loadPatientFromRoute = async () => {
       // Save patient to recent patients when loaded from route
       addToRecentPatients(patientId)
       // ?view=patient opens the patient-data view directly (context menu)
-      viewMode.value = route.query.view === 'patient' ? 'patient' : 'timeline'
+      viewMode.value = route.query.view === 'patient' ? 'patient' : 'unified'
     } else {
       // Patient not found, redirect to visits list
       router.push('/visits')

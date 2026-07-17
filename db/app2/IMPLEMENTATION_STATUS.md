@@ -5,6 +5,41 @@
 
 ## Recent Milestones
 
+### 2026-07-17 — Release v0.5_20260717: Unified Zeitlinie ist DIE Visitenansicht
+
+- Released v0.5_20260717 to `main`. `/visits/:id` hat nur noch zwei Ansichten:
+  die vereinheitlichte **Zeitlinie** (Lesen + Inline-Edit, max. eine Visite im
+  Edit-Modus) und **Patientendaten** — alte Karten-/Kompakt-Tabs und die
+  separate Dateneingabe wurden entfernt (`features/visits-unified`).
+- Fragebögen + M-Medikamente sind vollwertiger Teil des Formular-Rasters
+  (`features/questionnaire-medication-grid`): `QuestionnaireFormGrid.vue`
+  (Kachel pro Bogen, Add/Remove, Pending-Markierung amber), M-Felder mit
+  klassischer Verordnungsnotation + `MedicationEditDialog`, „Medikament
+  hinzufügen"-Kachel für weitere Zeilen. Geteiltes Q-Blob-Parsing in
+  `shared/utils/questionnaire-display.js`.
+- Leere Observations: Lese-Modus versteckt wertlose Zeilen (NV bleibt als ∅),
+  Editor dimmt leere Felder; Feldgruppen-Köpfe zeigen dezente
+  Completion-Prozente (distinkt gezählt, exakt-vor-fuzzy Konzeptmatching).
+- Perf/Korrektheit: Listen-Queries laden jetzt `VALUEFLAG_CD` + kleine
+  Q/M-Blobs (R-Blobs bleiben NULL — Invariante mit Regressionstests),
+  N+1-Visit-Count eliminiert, Q-Parsing memoisiert.
+- E2E: `scripts/verify-visits/run.sh` (19 Checks); 74 neue Unit-Tests
+  über beide Feature-Branches, Suite bei 1028 Tests grün.
+
+### 2026-07-16 — Release v0.4_20260716 + in-app help (features/help-side)
+
+- Released v0.4_20260716 to `main` (unified page design with shared
+  `PageHeader`, study-remember on `/studies`, `/visits/:id` fullscreen mode,
+  persistent SmartButton quick notes with context chips, user-to-user
+  messenger with broadcast + unread badge, multiple simultaneous plugin
+  windows, complete SmartButton i18n).
+- New in-app help page `/help` (`src/pages/HelpPage.vue`): comprehensive
+  German guide (13 sections + 3 standard workflows) with 18 real screenshots
+  in `public/help/`, sticky TOC, full-text filter, lightbox.
+- Screenshot pipeline `scripts/help-screenshots/` (playwright-core via CDP
+  against the headless Electron app, crash-resilient with auto re-login;
+  `REMOTE_DEBUG_PORT` switch in `electron-main.js`).
+
 ### 2026-07-15 — Study audit module (features/audit-studies)
 
 - New Audit tab on `/studies/:id` (`src/components/study/StudyAuditPanel.vue`):

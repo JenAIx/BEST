@@ -130,6 +130,15 @@ describe('NoteRepository: findByPatientNum / getQuickNotes', () => {
     expect(params).toEqual(['ste', '%lipid%', '%lipid%', 10, 5])
   })
 
+  it('getQuickNotes can filter by patient (timeline notes strip)', async () => {
+    mockConnection.executeQuery.mockResolvedValue({ success: true, data: [] })
+    await repo.getQuickNotes({ userCd: 'ste', patientNum: 42, limit: 20 })
+
+    const [sql, params] = mockConnection.executeQuery.mock.calls[0]
+    expect(sql).toContain('PATIENT_NUM = ?')
+    expect(params).toEqual(['ste', 42, 20, 0])
+  })
+
   it('getQuickNotes works without user and search filters', async () => {
     mockConnection.executeQuery.mockResolvedValue({ success: true, data: [] })
     await repo.getQuickNotes()
@@ -212,6 +221,18 @@ describe('note-store', () => {
     await store.loadQuickNotes({ searchTerm: 'lipid' })
 
     expect(noteRepoMock.getQuickNotes).toHaveBeenCalledWith(expect.objectContaining({ userCd: 'ste', searchTerm: 'lipid' }))
+  })
+
+  it('fetchQuickNotesForPatient scopes to user + patient and is stateless', async () => {
+    noteRepoMock.getQuickNotes.mockResolvedValue([{ NOTE_ID: 7 }])
+    const store = useNoteStore()
+    const rows = await store.fetchQuickNotesForPatient(42)
+
+    expect(noteRepoMock.getQuickNotes).toHaveBeenCalledWith(expect.objectContaining({ userCd: 'ste', patientNum: 42 }))
+    expect(rows).toEqual([{ NOTE_ID: 7 }])
+    expect(store.quickNotes).toHaveLength(0) // does not clobber the main list
+
+    expect(await store.fetchQuickNotesForPatient(null)).toEqual([])
   })
 
   it('deleteQuickNote removes the note from local state', async () => {

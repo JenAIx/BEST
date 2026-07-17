@@ -21,6 +21,9 @@
       <div v-if="valueLabel" class="text-caption text-grey-6 q-mt-xs">
         {{ valueLabel }}
       </div>
+
+      <!-- Custom content (e.g. multiple inline stats) -->
+      <slot />
     </q-card-section>
   </q-card>
 </template>

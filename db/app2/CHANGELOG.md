@@ -7,6 +7,221 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5_20260717] - 2026-07-17
+
+### Added
+
+- **Zeitlinie: Fragebögen + Medikamente im Formular-Raster**
+  (`features/questionnaire-medication-grid`):
+  - **Fragebögen im Raster-Look**: neue `QuestionnaireFormGrid.vue` ersetzt
+    die Legacy-`VisitQuestionnaireSection` im Karten-Editor — eine breite
+    Kachel pro Fragebogen (Status-Icon, Titel, Score bzw.
+    Ausfüll-Fortschritt), gestrichelte „Fragebogen hinzufügen“-Kachel,
+    Entfernen mit Bestätigungsdialog. Die Blob-Parsing-Logik ist nach
+    `shared/utils/questionnaire-display.js` extrahiert und wird von
+    Editor, Lese-Kacheln und `useVisitQuestionnaires` geteilt; die
+    Lese-Kachel zeigt jetzt Status (abgeschlossen/ausstehend) und Score.
+  - **Echte M-Typ-Medikamenten-Bearbeitung im Formular-Raster**: M-Felder
+    zeigen die klassische Verordnungsnotation („Aspirin 100mg 1-0-0
+    p.o.“, Frequenz-/Routen-Abkürzungen aus CODE_LOOKUP) statt des toten
+    Platzhalters; Klick öffnet den strukturierten `MedicationEditDialog`.
+    Leere M-Felder legen die Observation mit dem Feldset-Konzeptcode an
+    (`medications-store.createMedication` akzeptiert jetzt `patientNum`,
+    `conceptCode`, `visitDate`; Update/Create liefern den serialisierten
+    Blob für die lokale Spiegelung zurück). Sind alle M-Felder gefüllt,
+    erscheint eine gestrichelte „Medikament hinzufügen“-Kachel für
+    weitere Medikamente (mehrere Zeilen pro Konzept, eindeutige
+    Feld-Keys). Lese-Kachel zeigt dieselbe Verordnungsnotation.
+  - **Unvollständige Fragebögen im Lese-Modus**: Kacheln ausstehender
+    Fragebögen sind klar als unvollständig markiert (amberfarbener
+    Akzent + Hintergrund, „Ausfüllen“-Hinweis, Fortschrittsbalken).
+  - **Fix Datenquelle Lese-Modus**: `loadAllObservationsForPatient` (die
+    Quelle der Lese-Karten) lud weder `VALUEFLAG_CD` noch
+    `OBSERVATION_BLOB` — dadurch fehlten im View-Modus die
+    Medikamenten-Notation und der Fragebogen-Status, und NV-Zeilen (∅)
+    hätte der neue Leer-Filter fälschlich versteckt. Beide Listen-Queries
+    liefern jetzt `VALUEFLAG_CD` + die kleinen Q/M-Blobs; R-Blobs bleiben
+    gemäß Perf-Invariante in Listen immer NULL (Regressionstests 41/42).
+  - **Leere Observations**: Der Lese-Modus blendet nur angelegte
+    Observations ohne Wert aus (NV-markierte „explizit kein Wert“-Zeilen
+    bleiben als ∅ sichtbar); im Editor werden leere Felder gedimmt
+    (Opacity, bei Hover/Fokus voll sichtbar) — auch nach dem Löschen einer
+    Feldset-Observation, deren Feld als leerer Slot bestehen bleibt. Nur
+    per Kategorie zugeordnete Observations verschwinden beim Löschen
+    komplett aus dem Raster (`buildFormFields`, per Test abgesichert).
+  - 34 neue Unit-Tests (Dateien 38–40): Leer-Erkennung, Feld-/Löschsemantik,
+    Medikamenten-Parsing/-Payloads, Fragebogen-Parsing, Komponententest
+    `QuestionnaireFormGrid`.
+  - **Dezente Feldgruppen-Completion**: Rechts im Kopf jeder Feldgruppe
+    steht in Lese- UND Edit-Modus eine kleine Prozentanzeige (grün bei
+    100 %, Tooltip mit gefüllt/gesamt), wie viele der enthaltenen
+    Konzepte Daten tragen. Distinkt gezählt — doppelte Observations
+    (z. B. 2× HDL) zählen einmal, Fuzzy-Matches kollabieren auf ihr
+    konfiguriertes Konzept, Fragebögen zählen pro Bogen (nur
+    abgeschlossene als gefüllt), NV gilt als erfasst. Ausgeblendet bei
+    aktiver Ergebnissuche (gefilterte Zahlen wären irreführend), für
+    virtuelle Gruppen (Raw Data / Unkategorisiert) und für
+    M-Medikamentenlisten (offene Liste — kein sinnvoller Nenner; der
+    Kopf zeigt dort nur die Zeilenzahl).
+  - **Fix Konzept-Matching (Exakt vor Fuzzy)**: Das Substring-Matching
+    ließ `…STATIN_INTOLERANCE_SYMPTOMS` auf `…STATIN_INTOLERANCE`
+    kollabieren — Folge: 5/6 trotz vollständiger Eingabe (Pat. 10041940
+    V1) und potenziell falsch zugeordnete Editor-Slots. Exakte
+    Code-Treffer haben jetzt überall Vorrang: Completion-Zählung,
+    Slot-Zuordnung im Formular-Raster (`buildFormFields`, zwei Pässe)
+    und Lese-Gruppierung (`groupObservationsByFieldSets`).
+  - **Last-Audit View/Edit-Modus**: Alle Listen-Queries der Zeitlinie
+    verifiziert — R-Blobs (Datei-Bytes, z. B. PDF/MP4) werden nirgends in
+    Listen geladen (nur On-Demand in Vorschau-Dialogen), Q/M-Blobs sind
+    Kleinst-JSON. Zwei Lasten behoben: `loadVisitsForPatient` feuerte pro
+    Visite eine redundante COUNT-Query (N+1 — die Timeline-Query
+    aggregiert den Count bereits), und das Q-Blob-Parsing ist jetzt pro
+    Observation memoisiert (Render-Pfade riefen es mehrfach pro Kachel).
+
+- **„Zeitlinie neu“ — vereinheitlichte Visitenansicht** (`features/visits-unified`,
+  4. Ansichts-Button auf `/visits/:id`; Testphase, alte Tabs unverändert):
+  - **Lese-Modus**: Kompakt-Karten-Layout mit Zeitstrahl-Schiene links
+    (Status-Punkte pro Visite). Karten starten eingeklappt; Kopf zeigt Datum,
+    korrektes Visitentyp-Label aus CODE_LOOKUP (z. B. „Stroke-Lipid V1 -
+    Index Stroke“ — vorher zeigte die Kompaktübersicht „General Visit“),
+    Status und Beobachtungszahl. Klick klappt die Ergebnistabelle auf.
+    Kopfzeile: Ergebnisfilter (Treffer-Visiten werden automatisch
+    aufgeklappt, Filter löschen stellt den Zustand wieder her),
+    Alle-auf-/zuklappen-Toggle, „+Besuch“. 3-Punkte-Menü pro Karte:
+    Bearbeiten / Klonen / Löschen (erstmals i18n de/en).
+  - **Inline-Bearbeitungsmodus** (max. eine Visite gleichzeitig): Split-View
+    im Kartenkörper — links die editierbaren Feldgruppen-Panels (Autosave +
+    Revert wie in der Dateneingabe), rechts kompakte sticky Sidebar mit
+    Feldgruppen-Checkboxen (ersetzt Feldgruppen-Kopf + Configure-Dialog),
+    „+ Beobachtung“, „Fragebogen hinzufügen“ und Visiten-Metadaten-Stift.
+    Neue Visite startet direkt im Bearbeitungsmodus; „Fertig“/Einklappen
+    beendet und aktualisiert die Lese-Karten. Fokus-Modus: während der
+    Bearbeitung wird nur die Edit-Karte angezeigt.
+  - Neue geteilte Bausteine: `useVisitLabels` (Label-Auflösung einmal pro
+    Code), `useVisitActions` (Klonen/Löschen mit Confirm + Doppel-Reload),
+    `useVisitFieldSets`/`useVisitQuestionnaires` (Extraktion aus
+    VisitDataEntry, Original unangetastet), `useSingleVisitEdit`
+    (Edit-Zustandsmaschine); Utilities `visit-labels`, `visit-edit-transform`,
+    `expand-state`. 40 neue Unit-Tests (Dateien 33–36 plus Erweiterungen
+    in 32 und 35).
+  - **E2E-Testroutine** `scripts/verify-visits/run.sh`: startet die App
+    headless (eigenes Display :98, CDP), prüft Labels, Auf-/Zuklappen,
+    Filter, Klonen, Bearbeitungsmodus, Autosave und Löschen über
+    `data-cy`-Anker — mit DB-Backup vorab, Lösch-Guards (nur nachweislich
+    selbst erzeugte Visiten) und Integritätscheck der Zeilenzahlen am Ende.
+
+- **Patienten-Notizleiste in der Zeitachse** (`features/patientvisit-notes`):
+  Quick Notes mit Kontext zum geöffneten Patienten erscheinen als kompakte
+  Haftnotiz-Leiste — in der Karten-Zeitachse oben, in der Kompaktübersicht
+  im Scrollbereich unter dem Suchfilter. Direkt in der Leiste: **Inline-
+  Bearbeiten** (Klick auf den Text), **Löschen** (mit Bestätigung) und
+  **neue Notiz anheften** (Plus; Kontext wird automatisch erfasst, da der
+  Patient geöffnet ist). Klick auf das Notiz-Symbol klappt die Leiste auf
+  eine Zeile zusammen (pro Gerät gemerkt); ohne Notizen bleibt nur ein
+  dezenter „Notiz anheften“-Link. Live-Sync mit dem Quick-Notes-Fenster
+  über das neue `quick-notes-changed`-Event. Repo/Store:
+  `getQuickNotes({patientNum})` + `note-store.fetchQuickNotesForPatient`.
+
+- **Dashboard-Überarbeitung** (`features/dashboard-overview`):
+  - **Karte „Patienten & Besuche“** zeigt jetzt drei klar getrennte
+    Gesamtzahlen: Patienten, Visiten, Beobachtungen (statt einer
+    unbeschrifteten Visitenzahl).
+  - **Neue Karte „Meine Übersicht“**: Meine Patienten (Klick →
+    `/visits?mine=1`, der „Nur meine Patienten“-Filter startet
+    vorbelegt), Offene Audits (access-gefiltert; Klick → /studies),
+    Ungelesene Nachrichten und Meine Notizen (Klick öffnet das
+    Quick-Notes-Fenster über ein neues globales
+    `open-smart-plugin`-Event am SmartButton).
+  - **Neue Karte „Letzte Notizen“**: die letzten 3 Quick Notes mit
+    Kontext-Chip-Navigation (reuse `NoteListItem`).
+  - **„Aktuelle Aktivität“ → „Anstehende Visiten“**: Der leere
+    Platzhalter ist ersetzt durch einen Visiten-Reminder — Visiten mit
+    Zukunftsdatum erscheinen als Liste (Patient, Datum, „in n Tagen“,
+    Klick öffnet die Akte). Kein neues Datenmodell: geplante Visiten
+    einfach mit künftigem Datum anlegen.
+
+- **Patientenansicht: Kompaktübersicht aller Visiten + Ergebnisse**
+  (`features/patientvisit-overview`): Neuer Umschalter links neben
+  „Neue Visite“ (Karten-Zeitachse ↔ Kompaktübersicht, pro Gerät
+  persistiert via `localSettings.visits.timelineCompact`). Die
+  Kompaktansicht (`VisitCompactSummary.vue`) zeigt pro Visite einen
+  Block mit Kopfzeile (Datum, Typ, Status, Anzahl; Klick öffnet die
+  Dateneingabe) und dichter Ergebnistabelle nach Kategorien —
+  wiederverwendet `VisitSummaryObservations` inkl. Datei- und
+  Fragebogen-Vorschau. Datenquelle: die ohnehin geladenen
+  `allObservations`, gruppiert per `groupObservationsByVisit`
+  (`src/shared/utils/file-category.js`).
+
+- **Datei-Upload-Areal in der Patientenansicht** (unten mittig):
+  PDF/Bild/Video per Drag&Drop oder Klick hochladen — gespeichert als
+  `VALTYPE_CD='R'`-Observation (bestehende Konvention:
+  Metadaten-JSON in `TVAL_CHAR`, Bytes in `OBSERVATION_BLOB`, via
+  `database-store.uploadRawData`). Bestätigungs-Dialog mit
+  **Kategorie-Vorschlag aus Dateiname/-endung** (`suggestFileCategory`:
+  mp4/mov/… → Video, pdf/docx → Dokument, png/jpg → Bild; Dateinamen
+  mit „aufkl/consent/einwillig“ → Aufklärung) und Visiten-Auswahl
+  (vorbelegt: gewählte bzw. neueste Visite). Max. 50 MB (DB-Guard).
+  - Migration 014: neue R-Konzepte `CUSTOM: RAW_VIDEO` / `RAW_DOCUMENT`
+    / `RAW_CONSENT` (selbstheilend).
+  - `FilePreviewDialog` kann jetzt **Video** abspielen (`<video>`-Zweig);
+    `getMimeTypeFromExtension` um Video-/weitere Bildtypen erweitert.
+  - `uploadRawData` stempelt jetzt `PROVIDER_ID` (Lücke geschlossen);
+    `ValueTypeIcon` R-Darstellung an den Seed angeglichen
+    (attach_file/orange, „Raw Data/File“).
+  - Tests: `tests/unit/32_file-category.test.js` (12 Tests).
+
+- **In-App-Hilfe `/help`** (`features/help-side`): Umfangreiche deutsche
+  Anleitung der gesamten Anwendung — Überblick, Konzepte & Datenmodell,
+  alle Hauptbereiche (Anmeldung, Dashboard, Patienten & Besuche, Fragebögen,
+  Studien inkl. Audit, Datentabellen-Editor inkl. NV/Audit/Visitentyp-Sperre,
+  Import/Export, SmartButton mit Quick Notes & Messenger, Administration,
+  Einstellungen) plus drei Schritt-für-Schritt-Standard-Workflows.
+  18 echte App-Screenshots (`public/help/`, 1600×900), Lightbox per Klick,
+  Sektions-TOC mit Scroll-Navigation und Volltext-Filter. Neuer
+  Sidebar-Eintrag „Hilfe“ (`navigation.help`, de/en).
+- **Screenshot-Pipeline** (`scripts/help-screenshots/`): CDP-basiertes
+  Capture-Skript (playwright-core, crash-resilient mit Re-Login) gegen die
+  headless laufende Electron-App; `REMOTE_DEBUG_PORT`-Schalter in
+  `electron-main.js` (nur aktiv, wenn gesetzt). Dokumentiert im README.
+
+### Changed
+
+- **Alte Tabs „Zeitlinie“ (Karten/Kompakt) und „Dateneingabe“ entfernt** —
+  die vereinheitlichte Ansicht ist jetzt DIE „Zeitlinie“ (umbenannt von
+  „Zeitlinie neu“) und deckt Lesen + Bearbeiten ab; daneben bleibt nur
+  „Patientendaten“. Gelöscht: `VisitTimeline`, `VisitTimelineItem`,
+  `VisitCompactSummary`, `VisitDataEntry`, `VisitSelector`,
+  `FieldSetSelector`, `FieldSetConfigDialog`, `useFieldSetStatistics`
+  (exklusive Kinder der alten Views; geteilte Bausteine wie
+  `ObservationFieldSet`, `VisitSummaryObservations`, Dialoge und Services
+  bleiben). Hilfe-Seite und Doku angepasst; verwaiste i18n-Keys entfernt.
+
+- **Schlanker Zeitachsen-Kopf in der Patientenansicht**
+  (`features/patientvisit-notes`): Der Titel „Zeitlinie“ entfällt; Suchfilter
+  (nur Kompaktmodus), Ansichts-Umschalter und „+Besuch“ stehen jetzt in einer
+  einzigen Kopfzeile (Filter links, Buttons am rechten Rand) — spart eine
+  komplette Zeile über der Visitenliste.
+
+### Fixed
+
+- **Visite klonen schlug bei Visiten mit Enddatum still fehl**:
+  `prepareVisitClone` setzte das Startdatum auf heute, kopierte aber das
+  alte `END_DATE` — die Validierung „Ende ≥ Start“ lehnte den Klon dann ab
+  (betraf auch die Karten-Zeitachse). Der Klon startet jetzt ohne Enddatum.
+
+- **Dashboard „Heutige Statistiken“ zeigte Falsch-/Platzhalterwerte**:
+  „Aktive Studien“ und „Ausstehende Berichte“ waren hartkodiert 0;
+  „Patienten gesehen“ zählte heute *angelegte* Patienten; „Besuche“
+  zählte ALLE Visiten. Jetzt: Aktive Studien real (Study-Store),
+  Patienten gesehen = Patienten mit Visite heute, Besuche heute =
+  Visiten mit heutigem Datum, neu „Beobachtungen heute“
+  (Datenerfassung heute) statt des Berichte-Platzhalters.
+
+- **VisitTimeline: Visiten-Reload nach Bearbeitung** übergab das
+  Patient-Objekt statt `PATIENT_NUM` an `loadVisitsForPatient` —
+  die Liste wurde danach leer angezeigt. Betraf auch den neuen
+  Upload-Refresh; beide Pfade nutzen jetzt die Nummer.
+
 ## [0.4_20260716] - 2026-07-16
 
 ### Added
@@ -855,7 +1070,8 @@ changes from the recent commit history (see `git log` for full detail).
 - `test(dbBEST)`: smoke tests for UI-prep foundation (notify, session monitor, error boundary).
 - `refactor(dbBEST)`: migrated all `$q.notify` calls to `useNotify` composable.
 
-[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.4_20260716...HEAD
+[Unreleased]: https://github.com/JenAIx/BEST/compare/v0.5_20260717...HEAD
+[0.5_20260717]: https://github.com/JenAIx/BEST/releases/tag/v0.5_20260717
 [0.4_20260716]: https://github.com/JenAIx/BEST/releases/tag/v0.4_20260716
 [0.3_20260521]: https://github.com/JenAIx/BEST/releases/tag/v0.3_20260521
 [0.2_20260516]: https://github.com/JenAIx/BEST/releases/tag/v0.2_20260516

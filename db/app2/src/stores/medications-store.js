@@ -56,18 +56,22 @@ export const useMedicationsStore = defineStore('medications', () => {
   /**
    * Create a new medication observation
    * @param {Object} params - Medication parameters
-   * @param {string} params.patientId - Patient ID
+   * @param {string} [params.patientId] - Patient code (looked up) — or pass patientNum directly
+   * @param {number} [params.patientNum] - PATIENT_NUM (skips the code lookup)
    * @param {number} params.visitId - Visit/Encounter ID
    * @param {Object} params.medicationData - Medication data object
+   * @param {string} [params.conceptCode] - Concept for the row (default: generic 'LID: 52418-1')
+   * @param {string} [params.visitDate] - START_DATE (default: today)
    * @returns {Promise<Object>} Created medication observation
    */
-  const createMedication = async ({ patientId, visitId, medicationData }) => {
+  const createMedication = async ({ patientId, patientNum, visitId, medicationData, conceptCode, visitDate }) => {
     try {
       loading.value = true
       error.value = null
 
       logger.debug('Creating medication', {
         patientId,
+        patientNum,
         visitId,
         medicationData,
       })
@@ -78,11 +82,15 @@ export const useMedicationsStore = defineStore('medications', () => {
         throw new Error('Drug name is required')
       }
 
-      // Get patient record
-      const patientRepo = dbStore.getRepository('patient')
-      const patient = await patientRepo.findByPatientCode(patientId)
-      if (!patient) {
-        throw new Error(`Patient not found: ${patientId}`)
+      // Resolve the patient: direct PATIENT_NUM wins, otherwise code lookup
+      let resolvedPatientNum = patientNum
+      if (resolvedPatientNum == null) {
+        const patientRepo = dbStore.getRepository('patient')
+        const patient = await patientRepo.findByPatientCode(patientId)
+        if (!patient) {
+          throw new Error(`Patient not found: ${patientId}`)
+        }
+        resolvedPatientNum = patient.PATIENT_NUM
       }
 
       // Get default values
@@ -90,18 +98,19 @@ export const useMedicationsStore = defineStore('medications', () => {
 
       // Create medication BLOB
       const medicationBlob = createMedicationBlob(normalized)
+      const conceptCd = conceptCode || 'LID: 52418-1' // Standard medication concept
 
       // Prepare observation data
       const observationData = {
-        PATIENT_NUM: patient.PATIENT_NUM,
+        PATIENT_NUM: resolvedPatientNum,
         ENCOUNTER_NUM: visitId,
-        CONCEPT_CD: 'LID: 52418-1', // Standard medication concept
+        CONCEPT_CD: conceptCd,
         VALTYPE_CD: 'M', // Medication type
         TVAL_CHAR: normalized.drugName, // Primary drug name
         NVAL_NUM: normalized.dosage, // Dosage amount (can be null)
         UNIT_CD: normalized.dosageUnit, // Dosage unit
         OBSERVATION_BLOB: JSON.stringify(medicationBlob), // Complete medication data
-        START_DATE: new Date().toISOString().split('T')[0],
+        START_DATE: visitDate || new Date().toISOString().split('T')[0],
         CATEGORY_CHAR: 'Medications', // Force medications category
         PROVIDER_ID: authStore.providerId,
         LOCATION_CD: 'VISITS_PAGE',
@@ -127,7 +136,8 @@ export const useMedicationsStore = defineStore('medications', () => {
         observationId: result.observationId,
         patientId,
         visitId,
-        conceptCode: 'LID: 52418-1',
+        conceptCode: conceptCd,
+        observationBlob: JSON.stringify(medicationBlob),
         ...normalized,
         ...medicationBlob,
       }
@@ -203,6 +213,7 @@ export const useMedicationsStore = defineStore('medications', () => {
 
       return {
         observationId,
+        observationBlob: JSON.stringify(medicationBlob),
         ...normalized,
         ...medicationBlob,
       }

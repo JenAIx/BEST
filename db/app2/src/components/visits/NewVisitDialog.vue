@@ -18,25 +18,9 @@
           </div>
         </div>
 
-        <q-form @submit="saveVisit" class="q-gutter-md">
-          <div class="row q-col-gutter-md">
-            <div class="col-12 col-md-6">
-              <q-input v-model="visitData.date" type="date" :label="$t('visit.visitDate')" outlined :rules="[(val) => !!val || $t('validation.required')]">
-                <template v-slot:prepend>
-                  <q-icon name="event" />
-                </template>
-              </q-input>
-            </div>
-            <div class="col-12 col-md-6">
-              <q-input v-model="visitData.time" type="time" :label="$t('visit.visitTime')" outlined>
-                <template v-slot:prepend>
-                  <q-icon name="schedule" />
-                </template>
-              </q-input>
-            </div>
-          </div>
-
-          <q-select v-model="visitData.type" :options="visitTypes" :label="$t('visit.visitType')" outlined emit-value map-options>
+        <q-form @submit="saveVisit" class="new-visit-form">
+          <!-- Visit type: full dialog width (same layout as EditVisitDialog) -->
+          <q-select v-model="visitData.type" :options="visitTypes" :label="$t('visit.visitType')" outlined dense hide-bottom-space emit-value map-options>
             <template v-slot:prepend>
               <q-icon :name="getTypeIcon(visitData.type)" />
             </template>
@@ -53,7 +37,20 @@
             </template>
           </q-select>
 
-          <q-select v-model="visitData.location" :options="locationOptions" :label="$t('visit.location')" outlined emit-value map-options use-input @filter="filterLocations">
+          <div class="form-row">
+            <q-input v-model="visitData.date" type="date" :label="$t('visit.visitDate')" outlined dense hide-bottom-space :rules="[(val) => !!val || $t('validation.required')]">
+              <template v-slot:prepend>
+                <q-icon name="event" />
+              </template>
+            </q-input>
+            <q-input v-model="visitData.time" type="time" :label="$t('visit.visitTime')" outlined dense hide-bottom-space>
+              <template v-slot:prepend>
+                <q-icon name="schedule" />
+              </template>
+            </q-input>
+          </div>
+
+          <q-select v-model="visitData.location" :options="locationOptions" :label="$t('visit.location')" outlined dense hide-bottom-space emit-value map-options use-input @filter="filterLocations">
             <template v-slot:prepend>
               <q-icon name="place" />
             </template>
@@ -64,7 +61,7 @@
             </template>
           </q-select>
 
-          <q-input v-model="visitData.notes" type="textarea" :label="$t('visit.visitNotes')" outlined rows="3" counter maxlength="500">
+          <q-input v-model="visitData.notes" type="textarea" :label="$t('visit.visitNotes')" outlined dense hide-bottom-space autogrow maxlength="500">
             <template v-slot:prepend>
               <q-icon name="notes" />
             </template>
@@ -421,6 +418,23 @@ watch(
 </script>
 
 <style lang="scss" scoped>
+// Compact form, matching EditVisitDialog: one 10px gap, paired rows
+.new-visit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+
+    > * {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+}
+
 .patient-info {
   display: flex;
   align-items: center;

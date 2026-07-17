@@ -101,7 +101,10 @@ export const useObservationStore = defineStore('observation', () => {
           CONCEPT_DESCRIPTION,
           TVAL_RESOLVED,
           ENCOUNTER_NUM,
-          OBSERVATION_BLOB
+          VALUEFLAG_CD,
+          -- R blobs are raw file bytes (up to 50 MB) — NEVER ship them with
+          -- list loads; Q/M blobs are small JSON and are needed for display
+          CASE WHEN VALTYPE_CD = 'R' THEN NULL ELSE OBSERVATION_BLOB END AS OBSERVATION_BLOB
         FROM patient_observations
         WHERE ENCOUNTER_NUM = ?
         ORDER BY CATEGORY_CHAR, CONCEPT_NAME_CHAR
@@ -157,7 +160,12 @@ export const useObservationStore = defineStore('observation', () => {
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
           CONCEPT_DESCRIPTION,
           TVAL_RESOLVED,
-          ENCOUNTER_NUM
+          ENCOUNTER_NUM,
+          VALUEFLAG_CD,
+          -- Same rule as the visit query: R blobs (raw file bytes) never
+          -- ship with lists; Q/M blobs are small JSON needed for display
+          -- (questionnaire status/score, medication frequency/route)
+          CASE WHEN VALTYPE_CD = 'R' THEN NULL ELSE OBSERVATION_BLOB END AS OBSERVATION_BLOB
         FROM patient_observations
         WHERE PATIENT_NUM = ?
         ORDER BY START_DATE DESC, CATEGORY_CHAR, CONCEPT_NAME_CHAR

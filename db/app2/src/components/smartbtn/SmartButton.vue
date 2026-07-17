@@ -91,9 +91,16 @@ const fabPos = ref([18, 18])
 const unreadMessages = computed(() => noteStore.unreadMessagesCount)
 let unreadTimer = null
 
+// Other components (e.g. dashboard tiles) can open a plugin window via
+// window.dispatchEvent(new CustomEvent('open-smart-plugin', { detail: '<id>' }))
+const onOpenPluginEvent = (event) => {
+  if (event?.detail) openPlugin(event.detail)
+}
+
 onMounted(() => {
   noteStore.refreshUnreadCount()
   unreadTimer = setInterval(() => noteStore.refreshUnreadCount(), 60000)
+  window.addEventListener('open-smart-plugin', onOpenPluginEvent)
 })
 
 // Computed style for FAB positioning
@@ -395,6 +402,7 @@ const closeMiniPlugin = (pluginId) => {
 // Cleanup event listeners
 onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
+  window.removeEventListener('open-smart-plugin', onOpenPluginEvent)
   if (unreadTimer) clearInterval(unreadTimer)
   // Clear all stored plugin states when component is destroyed
   pluginStateStore.clearAllPluginStates()

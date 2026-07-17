@@ -58,6 +58,14 @@ export const useNoteStore = defineStore('note', () => {
     return dbStore.getRepository('note')
   }
 
+  // Lets passive listeners (e.g. the patient notes strip) refresh after
+  // create/update/delete without coupling to this store's state
+  const notifyNotesChanged = () => {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('quick-notes-changed'))
+    }
+  }
+
   /**
    * Create a quick note, capturing the current app context.
    * @param {string} text - note text
@@ -96,6 +104,7 @@ export const useNoteStore = defineStore('note', () => {
 
       const created = await getRepo().createNote(noteData)
       quickNotes.value.unshift(created || noteData)
+      notifyNotesChanged()
 
       logger.success('Quick note created', { hasPatient: !!patient, hasStudy: !!study })
       return created
@@ -128,6 +137,16 @@ export const useNoteStore = defineStore('note', () => {
   }
 
   /**
+   * Fetch the current user's quick notes attached to one patient
+   * (context strip on the patient timeline). Stateless: does not touch
+   * the quickNotes list.
+   */
+  const fetchQuickNotesForPatient = async (patientNum) => {
+    if (patientNum == null) return []
+    return await getRepo().getQuickNotes({ userCd: currentUserCd(), patientNum, limit: 20 })
+  }
+
+  /**
    * Update the text of a quick note (title is re-derived).
    */
   const updateQuickNote = async (noteId, text) => {
@@ -148,6 +167,7 @@ export const useNoteStore = defineStore('note', () => {
       if (index >= 0) {
         quickNotes.value[index] = { ...quickNotes.value[index], NOTE_TEXT: trimmed, NAME_CHAR: deriveNoteTitle(trimmed) }
       }
+      notifyNotesChanged()
     } catch (err) {
       error.value = err.message
       logger.error('Failed to update quick note', err)
@@ -166,6 +186,7 @@ export const useNoteStore = defineStore('note', () => {
       error.value = null
       await getRepo().delete(noteId)
       quickNotes.value = quickNotes.value.filter((n) => n.NOTE_ID !== noteId)
+      notifyNotesChanged()
     } catch (err) {
       error.value = err.message
       logger.error('Failed to delete quick note', err)
@@ -361,6 +382,7 @@ export const useNoteStore = defineStore('note', () => {
     // Actions
     createQuickNote,
     loadQuickNotes,
+    fetchQuickNotesForPatient,
     updateQuickNote,
     deleteQuickNote,
 

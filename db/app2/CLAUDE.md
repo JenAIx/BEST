@@ -391,6 +391,30 @@ local state. `EditableCell.emit('update', {..., startDate})` →
 `obs.startDate !== row.visitDate` render a small calendar corner badge so
 users can see divergence without opening the menu.
 
+### 3b. R-Type (raw file) observations
+
+Files attached to a visit (upload area on `/visits/:id`, R-fields in the data
+entry) are stored as `VALTYPE_CD='R'` observations with this convention:
+
+- `TVAL_CHAR` = JSON envelope `{filename, size, ext, uploadDate, mimeType}`
+  plus optional user metadata `{title, description}` (edited via the
+  timeline's FileDetailsDialog; envelope-only updates must NEVER write
+  `OBSERVATION_BLOB`)
+- `OBSERVATION_BLOB` = the raw file bytes (Uint8Array, NOT base64)
+- other value columns null, `SOURCESYSTEM_CD='FILE_UPLOAD'`, max 50 MB
+
+The ONLY write/read paths are `database-store.uploadRawData` /
+`downloadRawData` / `getRawDataInfo` (metadata without blob). Viewer:
+`FilePreviewDialog.vue` (image/text/pdf/video). List queries must never
+SELECT `OBSERVATION_BLOB`. Do NOT follow the conflicting (dead) convention in
+`src/utils/observation-transformer.js`.
+
+Raw-file concepts (all `CATEGORY_CHAR='Raw Data'`): `CUSTOM: RAW_DATA`
+(generic), `RAW_IMAGE`, and from migration 014 `RAW_VIDEO`, `RAW_DOCUMENT`,
+`RAW_CONSENT`. The upload dialog suggests one via
+`src/shared/utils/file-category.js` (extension map; file names matching
+/aufkl|consent|einwillig/i win as consent).
+
 ### 4. Concept reuse hierarchy
 
 Before creating a `CUSTOM:` or domain-prefixed concept, walk this hierarchy:
@@ -571,6 +595,67 @@ git push origin main --tags
 - `git log --oneline main -10`         — release history.
 - `git branch -a`                       — live feature branches.
 - `CHANGELOG.md` `[Unreleased]`         — what's queued for the next release.
+
+---
+
+## 🕐 Unified Visits Timeline (July 2026)
+
+`/visits/:patientId` has TWO views only: **"Zeitlinie"** (the unified
+timeline, `viewMode='unified'`, default) and **"Patientendaten"**. The old
+card timeline / compact summary / Dateneingabe tabs were removed.
+
+Components (`src/components/visits/unified/`):
+
+- `VisitTimelineUnified.vue` — container: 3-column grid (quick nav left,
+  1fr cards middle — constant width in every state, editor tools rail right
+  via Teleport target `#unified-edit-sidebar`; below 1000px the tools swap
+  in for the nav). Owns search filter, expand state (Set of ids, collapsed
+  by default), scroll spy, `useSingleVisitEdit` (max ONE visit in edit
+  mode; the editing visit MUST be `visitStore.selectedVisit`), clone/delete
+  via `useVisitActions`, `EditVisitDialog` for visit metadata.
+- `VisitUnifiedCard.vue` — collapsible card, sticky header (also in read
+  mode), status shown via card styling (completed = green header tint,
+  cancelled = dimmed; NO status chip), 3-dot menu (Visitendetails / Klonen /
+  Löschen), visit-note tooltip, `#editor` slot.
+- `ObservationTileGrid.vue` (read) / `ObservationFormGrid.vue` (edit) —
+  content-aware grids (`tileSpan`): numbers side by side, long text full
+  row, files/questionnaires wide. Edit = CRF form grid: EVERY field-set
+  concept is a labeled field; empty fields create the observation on first
+  input; save/create payloads via `shared/utils/observation-display.js`
+  (`buildObservationUpdate`/`buildNewObservationData`, VALUEFLAG reset);
+  save feedback = check icon ~2.5s then undo button ~7.5s (revert window).
+- `FileDetailsDialog.vue` — R-file title/description into the TVAL_CHAR
+  envelope (never touches OBSERVATION_BLOB). Uploads default title=filename;
+  the filename only shows when a custom title differs.
+- Labels resolve ONCE via `useVisitLabels` (CODE_LOOKUP LOOKUP_BLOB.label —
+  never the static `medical-utils.getVisitTypeLabel`).
+- **Perf invariant**: list queries NULL the R blob
+  (`CASE WHEN VALTYPE_CD='R' THEN NULL … `); file bytes load only on click
+  via `downloadRawData`. `visitStore.loading` flips on every refresh —
+  only a COLD load (`loading && visits.length===0`) may swap UI for a
+  spinner, otherwise list+editor unmount and lose state.
+- E2E: `bash scripts/verify-visits/run.sh` (19 checks, DB backup + ID-diff
+  delete guards + integrity check; app must be closed).
+- Questionnaires + M-type medications are part of the grid look (July 2026):
+  `QuestionnaireFormGrid.vue` (one tile per questionnaire, add tile,
+  confirm-remove; Q-blob parsing shared via
+  `shared/utils/questionnaire-display.js` with the read tiles and
+  `useVisitQuestionnaires`; read tiles mark pending questionnaires amber
+  with a progress bar). M fields render the classic prescription notation
+  ("Aspirin 100mg 1-0-0 p.o.", abbreviations from the frequency/route
+  CODE_LOOKUP blobs) in edit AND read mode and edit via
+  `MedicationEditDialog`; saves go through `medications-store`
+  (`createMedication` accepts `patientNum`/`conceptCode`/`visitDate`,
+  update/create return the serialized blob for local mirroring — same
+  propagation invariant as `valueFlag`). Once every M slot is filled, a
+  dashed add tile creates additional medication rows (duplicate concepts
+  are fine — `buildFormFields` keys extras by concept+row id).
+- Blank handling: read mode HIDES observations that are merely created
+  without a value (`isBlankObservation` — NV rows stay visible as ∅);
+  edit mode dims blank fields (`form-field--blank`). Deleting a field-set
+  observation keeps its slot as an empty (dimmed) field; observations the
+  group claimed only by category disappear with their row
+  (`buildFormFields` in `shared/utils/observation-display.js`).
 
 ---
 
@@ -1059,6 +1144,21 @@ search/management lives on `/visits`)*
 - Notification settings
 - Default values
 
+#### HelpPage.vue (`/help`)
+
+**In-app user guide (German) covering the whole application**
+
+- 13 sections: overview, concepts & data model, all main areas, admin,
+  settings, plus three step-by-step standard workflows
+- 18 real app screenshots in `public/help/` (lightbox on click),
+  sticky TOC, full-text filter
+- Screenshots are regenerated via `scripts/help-screenshots/capture.js`
+  (CDP against the headless Electron app; see the README there). The
+  `REMOTE_DEBUG_PORT` env switch in `src-electron/electron-main.js`
+  enables the DevTools protocol only when set.
+- When UI changes make screenshots stale: re-run the capture script and
+  update the affected section texts in `src/pages/HelpPage.vue`
+
 #### FeedbackPage.vue (`/feedback`)
 
 **User feedback and support**
@@ -1212,6 +1312,12 @@ sqlite3 -header -csv ./database/production.db "SELECT * FROM PATIENT_DIMENSION;"
 npm test -- --run       # Run all tests (326 tests)
 npm test tests/unit/ -- --run        # Unit tests only
 npm test tests/integration/ -- --run # Integration tests
+
+# E2E verification of the unified visits timeline ("Zeitlinie" tab):
+# headless app + CDP walkthrough, DB backup + delete guards + integrity
+# check built in (see scripts/verify-visits/README.md). App must NOT be
+# running (shares the SQLite DB).
+bash scripts/verify-visits/run.sh
 ```
 
 ### Windows Build
@@ -1415,6 +1521,6 @@ console.log($t('category.key'))
 
 ---
 
-**Last Updated**: December 30, 2025  
-**Version**: 1.0.0  
+**Last Updated**: July 17, 2026  
+**App Version**: 0.5_20260717  
 **Database Schema Version**: 002 (Current)

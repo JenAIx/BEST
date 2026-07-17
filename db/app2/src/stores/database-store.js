@@ -550,13 +550,15 @@ export const useDatabaseStore = defineStore('database', () => {
         throw new Error(`File size (${Math.round(size / 1024 / 1024)}MB) exceeds maximum allowed size (50MB)`)
       }
 
-      // Prepare the observation data with file information
+      // Prepare the observation data with file information. The title starts
+      // as the filename — editable later via the media-details dialog
       const fileInfoJson = JSON.stringify({
         filename,
         size,
         ext,
         uploadDate: new Date().toISOString(),
         mimeType: getMimeTypeFromExtension(ext),
+        title: fileData.fileInfo.title || filename,
       })
 
       loggingStore.debug('DatabaseStore', 'Preparing raw data observation', {
@@ -564,6 +566,12 @@ export const useDatabaseStore = defineStore('database', () => {
         blobSize: fileData.blob?.length || 0,
         observationData: enhancedObservationData,
       })
+
+      // Stamp the uploading user as provider (parity with observation-store.createObservation)
+      if (!enhancedObservationData.PROVIDER_ID) {
+        const { useAuthStore } = await import('./auth-store')
+        enhancedObservationData.PROVIDER_ID = useAuthStore().providerId || 'SYSTEM'
+      }
 
       const rawDataObservation = {
         ...enhancedObservationData,
@@ -757,6 +765,15 @@ export const useDatabaseStore = defineStore('database', () => {
       docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       xls: 'application/vnd.ms-excel',
       xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      rtf: 'application/rtf',
+      bmp: 'image/bmp',
+      tiff: 'image/tiff',
+      webp: 'image/webp',
+      mp4: 'video/mp4',
+      mov: 'video/quicktime',
+      webm: 'video/webm',
+      mkv: 'video/x-matroska',
+      avi: 'video/x-msvideo',
     }
 
     return mimeTypes[ext.toLowerCase()] || 'application/octet-stream'
