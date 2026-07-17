@@ -83,6 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   headless laufende Electron-App; `REMOTE_DEBUG_PORT`-Schalter in
   `electron-main.js` (nur aktiv, wenn gesetzt). Dokumentiert im README.
 
+### Changed
+
+- **Schlanker Zeitachsen-Kopf in der Patientenansicht**
+  (`features/patientvisit-notes`): Der Titel „Zeitlinie“ entfällt; Suchfilter
+  (nur Kompaktmodus), Ansichts-Umschalter und „+Besuch“ stehen jetzt in einer
+  einzigen Kopfzeile (Filter links, Buttons am rechten Rand) — spart eine
+  komplette Zeile über der Visitenliste.
+
 ### Fixed
 
 - **Dashboard „Heutige Statistiken“ zeigte Falsch-/Platzhalterwerte**:
