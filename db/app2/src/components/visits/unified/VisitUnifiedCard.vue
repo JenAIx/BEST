@@ -61,7 +61,7 @@
       <slot v-if="editing" name="editor" />
       <template v-else>
         <div v-if="categorizedObservations.length > 0" class="visit-block-body">
-          <VisitSummaryObservations
+          <ObservationTileGrid
             :categorized-observations="categorizedObservations"
             @preview-file="$emit('preview-file', $event)"
             @preview-questionnaire="$emit('preview-questionnaire', $event)"
@@ -76,7 +76,7 @@
 <script setup>
 import { computed } from 'vue'
 import { formatDate } from 'src/shared/utils/medical-utils.js'
-import VisitSummaryObservations from '../VisitSummaryObservations.vue'
+import ObservationTileGrid from './ObservationTileGrid.vue'
 
 defineOptions({
   name: 'VisitUnifiedCard',
@@ -204,16 +204,7 @@ const isOpen = computed(() => props.expanded || props.editing)
 }
 
 .visit-block-body {
-  padding: 12px 16px 4px;
-
-  // Denser than the dialog version (same overrides as the compact summary)
-  :deep(.category-section) {
-    margin-bottom: 16px !important;
-  }
-
-  :deep(.category-header h6) {
-    font-size: 0.95rem;
-  }
+  padding: 10px 14px 6px;
 }
 
 .visit-block-empty {

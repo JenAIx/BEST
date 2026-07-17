@@ -121,7 +121,7 @@ export function filterObservations(observations, term) {
  * Concept-code matcher — same hybrid logic as observation-store:
  * exact match → trailing numeric code → substring containment.
  */
-function matchesConceptCode(obsConceptCode, conceptList) {
+export function matchesConceptCode(obsConceptCode, conceptList) {
   if (!conceptList || !obsConceptCode) return false
   return conceptList.some((concept) => {
     if (obsConceptCode === concept) return true

@@ -2,8 +2,9 @@
   <!-- Inline edit mode of a unified visit card. The card keeps the read
        layout's full width; field groups + add actions live in the right
        rail (teleported into #unified-edit-sidebar, mirror of the quick
-       nav). Reuses the ObservationFieldSet editing chain unchanged; the
-       visit MUST be the globally selected visit (the panels read
+       nav). Each field group renders as a CRF-style form grid
+       (ObservationFormGrid) mirroring the read-mode tile layout; the visit
+       MUST be the globally selected visit (the fields read
        observationStore.observations). -->
   <div class="visit-card-editor">
     <div v-if="loadingFieldSets" class="editor-loading">
@@ -25,19 +26,11 @@
             @view-questionnaire="onViewQuestionnaire"
             @remove-questionnaire="onRemoveQuestionnaire"
           />
-          <ObservationFieldSet v-else :field-set="fieldSet" :visit="visit" :patient="patient" :previous-visits="previousVisits" :existing-observations="getFieldSetObservations(fieldSet.id)" />
+          <ObservationFormGrid v-else :field-set="fieldSet" :visit="visit" :patient="patient" :existing-observations="getFieldSetObservations(fieldSet.id)" />
         </template>
 
         <!-- Observations outside every configured field group -->
-        <ObservationFieldSet
-          v-if="uncategorizedFieldSet"
-          :key="`${visit.id}-uncategorized`"
-          :field-set="uncategorizedFieldSet"
-          :visit="visit"
-          :patient="patient"
-          :previous-visits="previousVisits"
-          :existing-observations="uncategorizedObservations"
-        />
+        <ObservationFormGrid v-if="uncategorizedFieldSet" :key="`${visit.id}-uncategorized`" :field-set="uncategorizedFieldSet" :visit="visit" :patient="patient" :existing-observations="uncategorizedObservations" />
 
         <div v-if="activeFieldSetsList.length === 0 && !uncategorizedFieldSet" class="editor-empty text-grey-6">
           <q-icon name="category" size="28px" class="q-mb-xs" />
@@ -155,7 +148,7 @@ import { useVisitFieldSets } from 'src/composables/useVisitFieldSets'
 import { useVisitQuestionnaires } from 'src/composables/useVisitQuestionnaires'
 import { useUncategorizedObservations } from 'src/composables/useUncategorizedObservations'
 import { extractVisitType } from 'src/shared/utils/visit-labels.js'
-import ObservationFieldSet from '../ObservationFieldSet.vue'
+import ObservationFormGrid from './ObservationFormGrid.vue'
 import VisitQuestionnaireSection from '../VisitQuestionnaireSection.vue'
 import CustomObservationDialog from '../CustomObservationDialog.vue'
 import AddQuestionnaireToVisitDialog from '../AddQuestionnaireToVisitDialog.vue'
@@ -210,7 +203,6 @@ const {
 // Observations that no configured field group claims
 const { uncategorizedObservations, uncategorizedFieldSet } = useUncategorizedObservations(observationStore, availableFieldSets, visitRef)
 
-const previousVisits = computed(() => visitObservationService.getPreviousVisits())
 const visitTypeCode = computed(() => extractVisitType(props.visit) || '')
 
 const showAddCustomDialog = ref(false)
@@ -325,9 +317,7 @@ onMounted(async () => {
   gap: 12px;
   min-width: 0;
 
-  // Denser panels without touching ObservationFieldSet itself — visually
-  // aligned with the compact read view (VisitSummaryObservations) so the
-  // jump between read and edit mode stays small
+  // Questionnaire section (legacy component) aligned with the form grids
   :deep(.field-set-section) {
     border-radius: 8px;
     box-shadow: none;
@@ -347,41 +337,6 @@ onMounted(async () => {
 
   :deep(.field-set-content) {
     padding: 8px 12px;
-  }
-
-  // Table look of the compact view: grey header row, zebra rows, blue hover,
-  // small type badges instead of large colored avatars
-  :deep(.observations-table) {
-    font-size: 0.9rem;
-
-    thead th {
-      background: $grey-2;
-      font-weight: 600;
-      color: $grey-8;
-      border-bottom: 2px solid $grey-4;
-      padding: 8px;
-    }
-
-    tbody td {
-      padding: 6px 8px;
-      border-bottom: 1px solid $grey-3;
-    }
-
-    tbody tr:nth-child(even) {
-      background: $grey-1;
-    }
-
-    tbody tr:hover {
-      background: $blue-1;
-    }
-
-    .type-cell .q-avatar {
-      font-size: 22px !important;
-
-      .q-icon {
-        font-size: 13px !important;
-      }
-    }
   }
 }
 
