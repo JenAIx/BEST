@@ -598,6 +598,51 @@ git push origin main --tags
 
 ---
 
+## 🕐 Unified Visits Timeline (July 2026)
+
+`/visits/:patientId` has TWO views only: **"Zeitlinie"** (the unified
+timeline, `viewMode='unified'`, default) and **"Patientendaten"**. The old
+card timeline / compact summary / Dateneingabe tabs were removed.
+
+Components (`src/components/visits/unified/`):
+
+- `VisitTimelineUnified.vue` — container: 3-column grid (quick nav left,
+  1fr cards middle — constant width in every state, editor tools rail right
+  via Teleport target `#unified-edit-sidebar`; below 1000px the tools swap
+  in for the nav). Owns search filter, expand state (Set of ids, collapsed
+  by default), scroll spy, `useSingleVisitEdit` (max ONE visit in edit
+  mode; the editing visit MUST be `visitStore.selectedVisit`), clone/delete
+  via `useVisitActions`, `EditVisitDialog` for visit metadata.
+- `VisitUnifiedCard.vue` — collapsible card, sticky header (also in read
+  mode), status shown via card styling (completed = green header tint,
+  cancelled = dimmed; NO status chip), 3-dot menu (Visitendetails / Klonen /
+  Löschen), visit-note tooltip, `#editor` slot.
+- `ObservationTileGrid.vue` (read) / `ObservationFormGrid.vue` (edit) —
+  content-aware grids (`tileSpan`): numbers side by side, long text full
+  row, files/questionnaires wide. Edit = CRF form grid: EVERY field-set
+  concept is a labeled field; empty fields create the observation on first
+  input; save/create payloads via `shared/utils/observation-display.js`
+  (`buildObservationUpdate`/`buildNewObservationData`, VALUEFLAG reset);
+  save feedback = check icon ~2.5s then undo button ~7.5s (revert window).
+- `FileDetailsDialog.vue` — R-file title/description into the TVAL_CHAR
+  envelope (never touches OBSERVATION_BLOB). Uploads default title=filename;
+  the filename only shows when a custom title differs.
+- Labels resolve ONCE via `useVisitLabels` (CODE_LOOKUP LOOKUP_BLOB.label —
+  never the static `medical-utils.getVisitTypeLabel`).
+- **Perf invariant**: list queries NULL the R blob
+  (`CASE WHEN VALTYPE_CD='R' THEN NULL … `); file bytes load only on click
+  via `downloadRawData`. `visitStore.loading` flips on every refresh —
+  only a COLD load (`loading && visits.length===0`) may swap UI for a
+  spinner, otherwise list+editor unmount and lose state.
+- E2E: `bash scripts/verify-visits/run.sh` (19 checks, DB backup + ID-diff
+  delete guards + integrity check; app must be closed).
+- NOT yet integrated into the new grid look: `VisitQuestionnaireSection`
+  (legacy styling inside the editor) and true M-type medication editing
+  (form grid falls back to the plain editor; Stroke-Lipid drugs are N-type
+  and unaffected).
+
+---
+
 ## 🩺 Building a New Visit Template
 
 This is the project's reference recipe for introducing a new study or
