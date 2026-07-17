@@ -4,80 +4,83 @@
        no navigation to the legacy entry tab. -->
   <div class="unified-view">
     <div class="unified-container">
-      <!-- Fixed header row: filter left, expand-all + new visit at the right
-           edge. Hidden while editing — the sticky card header takes over. -->
-      <div v-if="editingVisitId === null" class="unified-header row items-center q-gutter-sm">
-        <q-input v-model="searchTerm" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="unified-search" debounce="200" data-cy="unified-search">
-          <template v-slot:prepend>
-            <q-icon name="search" size="18px" />
-          </template>
-        </q-input>
-        <q-space />
-        <q-btn
-          flat
-          round
-          dense
-          :icon="allVisibleExpanded ? 'unfold_less' : 'unfold_more'"
-          color="grey-7"
-          :disable="!!searchTerm || visibleVisits.length === 0"
-          data-cy="unified-expand-toggle"
-          @click="toggleExpandAll"
-        >
-          <q-tooltip>{{ allVisibleExpanded ? $t('visit.collapseAll') : $t('visit.expandAll') }}</q-tooltip>
-        </q-btn>
-        <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" data-cy="unified-new-visit" @click="showNewVisitDialog = true" />
-      </div>
-
-      <!-- Body: quick navigation left, scrollable card list right -->
+      <!-- Body: quick navigation left, main column (header + cards) right -->
       <div class="unified-body">
         <VisitQuickNav v-if="!loading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" @select-visit="navToVisit" @select-group="navToGroup" />
 
-        <!-- Scroll area: notes strip + visit cards -->
-        <div ref="scrollArea" class="unified-scroll">
-          <PatientNotesStrip v-if="!loading" :patient-num="patientNum" />
-
-          <div v-if="loading" class="state-block">
-            <q-spinner-grid size="50px" color="primary" />
-            <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
-          </div>
-
-          <div v-else-if="visits.length === 0" class="state-block">
-            <q-icon name="event_busy" size="64px" color="grey-4" />
-            <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noVisitsRecorded') }}</div>
-            <div class="text-body2 text-grey-5 q-mb-md">{{ $t('visit.startByCreating') }}</div>
-            <q-btn color="primary" icon="add" :label="$t('visit.createFirstVisit')" @click="showNewVisitDialog = true" />
-          </div>
-
-          <div v-else-if="searchTerm && visibleVisits.length === 0" class="state-block text-grey-6">
-            <q-icon name="search_off" size="32px" class="q-mb-xs" />
-            <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
-          </div>
-
-          <div v-else class="unified-list">
-            <VisitUnifiedCard
-              v-for="visit in visibleVisits"
-              :key="visit.id"
-              :visit="visit"
-              :categorized-observations="observationsForVisit(visit.id)"
-              :observation-count="observationCountFor(visit)"
-              :expanded="isExpanded(visit)"
-              :editing="isEditing(visit.id)"
-              :type-meta="typeMeta(visit)"
-              :status-meta="statusMeta(visit)"
-              @toggle="toggleCard(visit)"
-              @edit="startEditing(visit)"
-              @edit-meta="editVisitMeta"
-              @finish="stopEditing"
-              @clone="confirmClone(visit)"
-              @delete="confirmDelete(visit)"
-              @preview-file="previewFile"
-              @preview-questionnaire="previewQuestionnaire"
-            >
-              <!-- Inline edit mode: split layout, mounted only for the editing card -->
-              <template #editor>
-                <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @uploaded="onDataChanged" @groups-changed="editorGroups = $event" />
+        <div class="unified-main">
+          <!-- Fixed header row above the card list: filter left, expand-all +
+               new visit right. Hidden while editing — the sticky card header
+               takes over. -->
+          <div v-if="editingVisitId === null" class="unified-header row items-center q-gutter-sm">
+            <q-input v-model="searchTerm" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="unified-search" debounce="200" data-cy="unified-search">
+              <template v-slot:prepend>
+                <q-icon name="search" size="18px" />
               </template>
-            </VisitUnifiedCard>
+            </q-input>
+            <q-space />
+            <q-btn
+              flat
+              round
+              dense
+              :icon="allVisibleExpanded ? 'unfold_less' : 'unfold_more'"
+              color="grey-7"
+              :disable="!!searchTerm || visibleVisits.length === 0"
+              data-cy="unified-expand-toggle"
+              @click="toggleExpandAll"
+            >
+              <q-tooltip>{{ allVisibleExpanded ? $t('visit.collapseAll') : $t('visit.expandAll') }}</q-tooltip>
+            </q-btn>
+            <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" data-cy="unified-new-visit" @click="showNewVisitDialog = true" />
+          </div>
+
+          <!-- Scroll area: notes strip + visit cards -->
+          <div ref="scrollArea" class="unified-scroll">
+            <PatientNotesStrip v-if="!loading" :patient-num="patientNum" />
+
+            <div v-if="loading" class="state-block">
+              <q-spinner-grid size="50px" color="primary" />
+              <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
+            </div>
+
+            <div v-else-if="visits.length === 0" class="state-block">
+              <q-icon name="event_busy" size="64px" color="grey-4" />
+              <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noVisitsRecorded') }}</div>
+              <div class="text-body2 text-grey-5 q-mb-md">{{ $t('visit.startByCreating') }}</div>
+              <q-btn color="primary" icon="add" :label="$t('visit.createFirstVisit')" @click="showNewVisitDialog = true" />
+            </div>
+
+            <div v-else-if="searchTerm && visibleVisits.length === 0" class="state-block text-grey-6">
+              <q-icon name="search_off" size="32px" class="q-mb-xs" />
+              <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
+            </div>
+
+            <div v-else class="unified-list">
+              <VisitUnifiedCard
+                v-for="visit in visibleVisits"
+                :key="visit.id"
+                :visit="visit"
+                :categorized-observations="observationsForVisit(visit.id)"
+                :observation-count="observationCountFor(visit)"
+                :expanded="isExpanded(visit)"
+                :editing="isEditing(visit.id)"
+                :type-meta="typeMeta(visit)"
+                :status-meta="statusMeta(visit)"
+                @toggle="toggleCard(visit)"
+                @edit="startEditing(visit)"
+                @edit-meta="editVisitMeta"
+                @finish="stopEditing"
+                @clone="confirmClone(visit)"
+                @delete="confirmDelete(visit)"
+                @preview-file="previewFile"
+                @preview-questionnaire="previewQuestionnaire"
+              >
+                <!-- Inline edit mode: split layout, mounted only for the editing card -->
+                <template #editor>
+                  <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @uploaded="onDataChanged" @groups-changed="editorGroups = $event" />
+                </template>
+              </VisitUnifiedCard>
+            </div>
           </div>
         </div>
       </div>
@@ -369,15 +372,21 @@ const onSpyScroll = () => {
     if (!container) return
     const threshold = container.getBoundingClientRect().top + 80
     let current = null
+    let last = null
     for (const card of container.querySelectorAll('[data-visit-id]')) {
       const visitId = Number(card.dataset.visitId)
       if (card.getBoundingClientRect().top <= threshold) current = { visitId, group: null }
       for (const section of card.querySelectorAll('[data-group-name]')) {
         const rect = section.getBoundingClientRect()
-        if (rect.height > 0 && rect.top <= threshold) current = { visitId, group: section.dataset.groupName }
+        if (rect.height === 0) continue
+        last = { visitId, group: section.dataset.groupName }
+        if (rect.top <= threshold) current = last
       }
     }
-    activeNav.value = current
+    // At the very bottom the last section can never cross the top threshold —
+    // treat "scrolled to the end" as "last entry active"
+    const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 4
+    activeNav.value = atBottom && last ? last : current
   })
 }
 
@@ -434,6 +443,15 @@ const previewQuestionnaire = (observation) => {
   min-height: 0;
   display: flex;
   gap: 16px;
+}
+
+// Header row + scroll area — the header always sits exactly above the cards
+.unified-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 // Default: the nav sits in-flow inside the 1000px column (cards narrow a
