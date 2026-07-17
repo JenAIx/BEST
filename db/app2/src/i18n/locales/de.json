@@ -424,7 +424,9 @@
     "addQuestionnaire": "Fragebogen hinzufügen",
     "uploadAddFile": "Dokument hinzufügen",
     "fieldGroupsInactive": "Weitere Gruppen",
-    "fieldGroupsFilter": "Gruppen filtern…"
+    "fieldGroupsFilter": "Gruppen filtern…",
+    "fieldGroupHidden": "Ausgeblendet — Werte bleiben erhalten",
+    "fieldGroupAdd": "Gruppe zur Visite hinzufügen"
   },
   "observation": {
     "observation": "Beobachtung",

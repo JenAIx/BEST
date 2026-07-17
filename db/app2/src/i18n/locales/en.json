@@ -424,7 +424,9 @@
     "addQuestionnaire": "Add questionnaire",
     "uploadAddFile": "Add document",
     "fieldGroupsInactive": "More groups",
-    "fieldGroupsFilter": "Filter groups…"
+    "fieldGroupsFilter": "Filter groups…",
+    "fieldGroupHidden": "Hidden — values are kept",
+    "fieldGroupAdd": "Add group to this visit"
   },
   "observation": {
     "observation": "Observation",

@@ -49,7 +49,9 @@
         <div class="sidebar-sticky">
           <div class="sidebar-title">{{ $t('visit.fieldGroups') }}</div>
 
-          <!-- Active groups pinned on top -->
+          <!-- Groups on this visit: active (displayed) on top, hidden
+               data-bearing ones greyed beneath — values are never lost by
+               unchecking, so they stay here instead of "more groups" -->
           <q-list dense>
             <q-item v-for="fs in activeFieldSetsList" :key="fs.id" tag="label" dense class="sidebar-item">
               <q-item-section side>
@@ -65,10 +67,28 @@
                 <q-badge v-if="countFor(fs.id) > 0" rounded color="primary" :label="countFor(fs.id)" />
               </q-item-section>
             </q-item>
-            <div v-if="activeFieldSetsList.length === 0" class="text-caption text-grey-6 q-px-sm q-py-xs">{{ $t('visit.noFieldGroupsActive') }}</div>
+
+            <q-item v-for="fs in hiddenVisitGroups" :key="fs.id" tag="label" dense class="sidebar-item sidebar-item--inactive">
+              <q-item-section side>
+                <q-checkbox dense size="sm" :model-value="false" @update:model-value="toggleFieldSet(fs.id)" />
+              </q-item-section>
+              <q-item-section avatar class="sidebar-icon">
+                <q-icon name="visibility_off" size="15px" color="grey-6" />
+              </q-item-section>
+              <q-item-section>
+                <q-item-label class="ellipsis sidebar-label">{{ fs.name }}</q-item-label>
+                <q-tooltip>{{ $t('visit.fieldGroupHidden') }}</q-tooltip>
+              </q-item-section>
+              <q-item-section side>
+                <q-badge rounded color="grey-5" :label="countFor(fs.id)" />
+              </q-item-section>
+            </q-item>
+
+            <div v-if="activeFieldSetsList.length === 0 && hiddenVisitGroups.length === 0" class="text-caption text-grey-6 q-px-sm q-py-xs">{{ $t('visit.noFieldGroupsActive') }}</div>
           </q-list>
 
-          <!-- Inactive groups: search filter + own scroll area -->
+          <!-- Groups NOT on this visit: add via + (shows up as active panel;
+               without entered values it disappears again on the next load) -->
           <template v-if="inactiveFieldSetsAll.length > 0">
             <div class="sidebar-subtitle">{{ $t('visit.fieldGroupsInactive') }}</div>
             <q-input v-model="fieldSetFilter" dense outlined clearable :placeholder="$t('visit.fieldGroupsFilter')" class="sidebar-filter">
@@ -78,18 +98,17 @@
             </q-input>
             <div class="inactive-scroll">
               <q-list dense>
-                <q-item v-for="fs in inactiveFieldSets" :key="fs.id" tag="label" dense class="sidebar-item sidebar-item--inactive">
+                <q-item v-for="fs in inactiveFieldSets" :key="fs.id" dense clickable class="sidebar-item sidebar-item--inactive" @click="toggleFieldSet(fs.id)">
                   <q-item-section side>
-                    <q-checkbox dense size="sm" :model-value="false" @update:model-value="toggleFieldSet(fs.id)" />
+                    <q-btn flat round dense size="xs" icon="add" color="primary">
+                      <q-tooltip>{{ $t('visit.fieldGroupAdd') }}</q-tooltip>
+                    </q-btn>
                   </q-item-section>
                   <q-item-section avatar class="sidebar-icon">
                     <q-icon :name="fs.icon || 'category'" size="16px" color="grey-6" />
                   </q-item-section>
                   <q-item-section>
                     <q-item-label class="ellipsis sidebar-label">{{ fs.name }}</q-item-label>
-                  </q-item-section>
-                  <q-item-section side>
-                    <q-badge v-if="countFor(fs.id) > 0" rounded color="grey-5" :label="countFor(fs.id)" />
                   </q-item-section>
                 </q-item>
               </q-list>
@@ -205,10 +224,14 @@ const showAddCustomDialog = ref(false)
 
 const countFor = (fieldSetId) => (fieldSetId === 'questionnaires' ? visitQuestionnaires.value.length : getFieldSetObservationCount(fieldSetId))
 
-// Sidebar: active groups pinned on top, inactive below (filterable)
+// Sidebar in three tiers: active (displayed panels) on top, hidden
+// data-bearing groups of THIS visit beneath (unchecking never discards
+// values), and "more groups" (not on the visit) below with a + to add
 const fieldSetFilter = ref('')
 
-const inactiveFieldSetsAll = computed(() => availableFieldSets.value.filter((fs) => !activeFieldSets.value.includes(fs.id)))
+const hiddenVisitGroups = computed(() => availableFieldSets.value.filter((fs) => !activeFieldSets.value.includes(fs.id) && countFor(fs.id) > 0))
+
+const inactiveFieldSetsAll = computed(() => availableFieldSets.value.filter((fs) => !activeFieldSets.value.includes(fs.id) && countFor(fs.id) === 0))
 
 const inactiveFieldSets = computed(() => {
   const term = fieldSetFilter.value?.trim().toLowerCase()
