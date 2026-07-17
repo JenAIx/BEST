@@ -163,9 +163,14 @@ class VisitObservationService {
         originalVisitId: originalVisit.id,
       })
 
-      // Get all observations from the original visit
+      // Get all observations from the original visit. R rows carry raw file
+      // bytes in OBSERVATION_BLOB — never load them here; they are skipped
+      // during cloning anyway (a clone must not pretend to own files).
       const query = `
-        SELECT *
+        SELECT OBSERVATION_ID, ENCOUNTER_NUM, PATIENT_NUM, CONCEPT_CD, PROVIDER_ID,
+               START_DATE, VALTYPE_CD, TVAL_CHAR, NVAL_NUM, UNIT_CD, VALUEFLAG_CD,
+               CATEGORY_CHAR, LOCATION_CD, SOURCESYSTEM_CD, INSTANCE_NUM,
+               CASE WHEN VALTYPE_CD IN ('R') THEN NULL ELSE OBSERVATION_BLOB END AS OBSERVATION_BLOB
         FROM OBSERVATION_FACT
         WHERE ENCOUNTER_NUM = ?
       `

@@ -17,7 +17,11 @@
             <div class="row items-center q-gutter-md">
               <q-icon :name="getFileIcon(fileInfo.filename)" :color="getFileColor(fileInfo.filename)" size="48px" />
               <div class="file-info">
-                <div class="text-h6">{{ fileInfo.filename }}</div>
+                <!-- User metadata from the TVAL_CHAR envelope: title leads,
+                     filename becomes the secondary line -->
+                <div class="text-h6">{{ fileInfo.title || fileInfo.filename }}</div>
+                <div v-if="fileInfo.title" class="text-body2 text-grey-6">{{ fileInfo.filename }}</div>
+                <div v-if="fileInfo.description" class="text-body2 file-description">{{ fileInfo.description }}</div>
                 <div class="text-body2 text-grey-6">Size: {{ formatFileSize(fileInfo.size) }}</div>
                 <div class="text-body2 text-grey-6">Type: {{ fileInfo.ext.toUpperCase() }}</div>
               </div>
@@ -432,6 +436,12 @@ onUnmounted(() => {
 </script>
 
 <style lang="scss" scoped>
+.file-description {
+  color: $grey-8;
+  white-space: pre-wrap;
+  margin: 2px 0;
+}
+
 .file-preview-dialog-content {
   .file-preview-header {
     .file-info {

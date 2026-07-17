@@ -32,6 +32,7 @@
         <div v-if="field.concept.valueType === 'R'" class="field-file" @click="openFileDetails(field.obs)">
           <q-icon :name="getFileIcon(field.obs?.fileInfo?.ext)" size="15px" :color="getFileColor(field.obs?.fileInfo?.ext)" />
           <span class="ellipsis">{{ field.obs?.fileInfo?.title || field.obs?.fileInfo?.filename || field.obs?.displayValue }}</span>
+          <span v-if="field.obs?.fileInfo?.size" class="field-file-size">{{ formatFileSize(field.obs.fileInfo.size) }}</span>
         </div>
 
         <ObservationValueEditor v-else :row-data="field.row" :concept="field.concept" :visit="visit" :patient="patient" @value-changed="onValueChanged" @save-requested="onSaveRequested" />
@@ -51,7 +52,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import { useNotify } from 'src/composables/useNotify'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { matchesConceptCode } from 'src/shared/utils/file-category.js'
-import { getFileIcon, getFileColor } from 'src/shared/utils/medical-utils.js'
+import { getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
 import { shortConceptName, tileSpan, valueTypeHex, buildObservationUpdate, buildNewObservationData } from 'src/shared/utils/observation-display.js'
 import ObservationValueEditor from '../ObservationValueEditor.vue'
 import FileDetailsDialog from './FileDetailsDialog.vue'
@@ -321,6 +322,13 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
   font-size: 0.82rem;
   cursor: pointer;
   min-width: 0;
+
+  .field-file-size {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-style: italic;
+    color: $grey-6;
+  }
 
   &:hover {
     background: $blue-1;

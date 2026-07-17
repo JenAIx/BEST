@@ -69,14 +69,18 @@ const description = ref('')
 const saving = ref(false)
 const showPreview = ref(false)
 
+// immediate: the dialog is often mounted already-open (v-if + v-model set in
+// the same tick) — without immediate the fields would stay empty although
+// title/description are stored in the envelope
 watch(
-  () => props.modelValue,
-  (open) => {
+  () => [props.modelValue, props.observation],
+  ([open]) => {
     if (open) {
       title.value = fileInfo.value.title || ''
       description.value = fileInfo.value.description || ''
     }
   },
+  { immediate: true },
 )
 
 const save = async () => {

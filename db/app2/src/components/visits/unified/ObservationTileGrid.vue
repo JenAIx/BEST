@@ -40,7 +40,10 @@
             <span v-if="obs.unit" class="tile-unit">{{ obs.unit }}</span>
           </div>
 
-          <div class="tile-concept ellipsis">{{ shortConceptName(obs.conceptName) }}</div>
+          <!-- R tiles: file-typical subline (filename — description);
+               everything else shows the short concept name -->
+          <div v-if="obs.valueType === 'R'" class="tile-concept ellipsis">{{ fileSubline(obs) }}</div>
+          <div v-else class="tile-concept ellipsis">{{ shortConceptName(obs.conceptName) }}</div>
 
           <q-tooltip :delay="350" max-width="360px">
             <div class="tile-tooltip">
@@ -83,6 +86,13 @@ const isEmptyValue = (obs) => {
 const onTileClick = (obs) => {
   if (obs.valueType === 'R') emit('preview-file', obs)
   else if (obs.valueType === 'Q') emit('preview-questionnaire', obs)
+}
+
+// With a title the subline carries the file facts: filename — description
+const fileSubline = (obs) => {
+  const info = obs.fileInfo || {}
+  if (!info.title) return info.description || shortConceptName(obs.conceptName)
+  return [info.filename, info.description].filter(Boolean).join(' — ')
 }
 </script>
 
