@@ -67,8 +67,9 @@
         </div>
       </div>
 
-      <!-- File upload (drop zone, fixed below the scroll area) -->
-      <VisitFileUploadArea v-if="!loading" @uploaded="onDataChanged" />
+      <!-- File upload (drop zone, fixed below the scroll area; hidden while
+           editing — irrelevant there and steals vertical space) -->
+      <VisitFileUploadArea v-if="!loading && editingVisitId === null" @uploaded="onDataChanged" />
     </div>
 
     <!-- Dialogs -->
