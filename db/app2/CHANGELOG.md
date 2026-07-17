@@ -26,13 +26,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Feldgruppen-Checkboxen (ersetzt Feldgruppen-Kopf + Configure-Dialog),
     „+ Beobachtung“, „Fragebogen hinzufügen“ und Visiten-Metadaten-Stift.
     Neue Visite startet direkt im Bearbeitungsmodus; „Fertig“/Einklappen
-    beendet und aktualisiert die Lese-Karten. Andere Karten werden gedimmt.
+    beendet und aktualisiert die Lese-Karten. Fokus-Modus: während der
+    Bearbeitung wird nur die Edit-Karte angezeigt.
   - Neue geteilte Bausteine: `useVisitLabels` (Label-Auflösung einmal pro
     Code), `useVisitActions` (Klonen/Löschen mit Confirm + Doppel-Reload),
     `useVisitFieldSets`/`useVisitQuestionnaires` (Extraktion aus
     VisitDataEntry, Original unangetastet), `useSingleVisitEdit`
     (Edit-Zustandsmaschine); Utilities `visit-labels`, `visit-edit-transform`,
-    `expand-state`. 34 neue Unit-Tests (33–36).
+    `expand-state`. 40 neue Unit-Tests (Dateien 33–36 plus Erweiterungen
+    in 32 und 35).
   - **E2E-Testroutine** `scripts/verify-visits/run.sh`: startet die App
     headless (eigenes Display :98, CDP), prüft Labels, Auf-/Zuklappen,
     Filter, Klonen, Bearbeitungsmodus, Autosave und Löschen über

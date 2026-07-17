@@ -23,8 +23,11 @@ export function useSingleVisitEdit({ resolveVisit, selectVisit, onEnter, onExit 
     const full = (typeof resolveVisit === 'function' && resolveVisit(visit)) || visit
 
     // Switching cards: unmount the previous editor first (clears its timers)
+    // and refresh the read data it may have autosaved (fire-and-forget —
+    // the new editor doesn't depend on it)
     if (editingVisitId.value !== null && editingVisitId.value !== full.id) {
       editingVisitId.value = null
+      if (typeof onExit === 'function') onExit()
     }
 
     entering.value = true

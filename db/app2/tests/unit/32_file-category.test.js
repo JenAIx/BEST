@@ -165,8 +165,10 @@ describe('groupObservationsByFieldSets', () => {
     expect(groups[0].name).toBe('Labs')
   })
 
-  it('matches trailing numeric codes (LID with/without prefix)', () => {
-    const sets = [{ id: 'labs', name: 'Labs', concepts: ['22748-8'], categories: [] }]
+  it('matches concepts across differing prefixes (trailing numeric code)', () => {
+    // both sides prefixed → the trailing-numeric branch matches despite
+    // different prefixes; a bare '22748-8' would match via substring instead
+    const sets = [{ id: 'labs', name: 'Labs', concepts: ['LOCAL: 22748-8'], categories: [] }]
     const groups = groupObservationsByFieldSets([OBS[0]], sets).get(1)
     expect(groups[0].name).toBe('Labs')
   })

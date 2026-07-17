@@ -41,21 +41,27 @@ describe('useSingleVisitEdit', () => {
     expect(edit.editingVisitId.value).toBe(7)
   })
 
-  it('switching cards closes the previous editor first', async () => {
+  it('switching cards closes the previous editor first and refreshes its data', async () => {
     const idsDuringSelect = []
+    const onExit = vi.fn(async () => {})
     const edit = useSingleVisitEdit({
       selectVisit: async () => {
         idsDuringSelect.push(edit.editingVisitId.value)
       },
+      onExit,
     })
 
     await edit.startEditing({ id: 1 })
+    expect(onExit).not.toHaveBeenCalled() // fresh entry, nothing to exit
+
     await edit.startEditing({ id: 2 })
 
-    // during the second select the first editor was already unmounted (null)
+    // during the second select the first editor was already unmounted (null),
+    // and the unseated visit's read data was refreshed
     expect(idsDuringSelect).toEqual([null, null])
     expect(edit.editingVisitId.value).toBe(2)
     expect(edit.isEditing(1)).toBe(false)
+    expect(onExit).toHaveBeenCalledTimes(1)
   })
 
   it('ignores re-entrant calls while entering', async () => {

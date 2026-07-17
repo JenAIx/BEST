@@ -123,8 +123,23 @@ await page.locator('[data-cy="unified-expand-toggle"]').first().click()
 await wait(800)
 check('Alle einklappen', (await bodies.count()) === 0)
 
-// --- Clone (guarded): first card, verified by count + today's year ---
-const year = String(new Date().getFullYear())
+// Cards are identified by ENCOUNTER_NUM (data-visit-id) — destructive steps
+// address ONLY ids that appeared through this script's own actions, never
+// "the first card" (a real same-day or future-dated visit could sit there)
+const cardIds = async () => page.locator('[data-cy="unified-card"]').evaluateAll((els) => els.map((el) => el.dataset.visitId))
+const cardById = (id) => page.locator(`[data-cy="unified-card"][data-visit-id="${id}"]`)
+
+const deleteCardById = async (id) => {
+  await cardById(id).locator('[data-cy="unified-card-menu"]').click()
+  await wait(500)
+  await page.locator('[data-cy="unified-menu-delete"]').click()
+  await wait(500)
+  await page.locator('.q-dialog .q-btn:has-text("Löschen")').first().click()
+  await wait(3500)
+}
+
+// --- Clone (guarded): the clone is the ID that was not there before ---
+const idsBeforeClone = await cardIds()
 await cards.first().locator('[data-cy="unified-card-menu"]').click()
 await wait(500)
 await page.locator('[data-cy="unified-menu-clone"]').click()
@@ -132,23 +147,22 @@ await wait(500)
 await page.locator('.q-dialog .q-btn:has-text("OK")').first().click()
 await wait(4000)
 
-const afterClone = await cards.count()
-const cloneHeader = afterClone > baseline ? await cards.first().locator('[data-cy="unified-card-header"]').innerText() : ''
-const cloneVerified = afterClone === baseline + 1 && cloneHeader.includes(year)
-check('Klon erstellt (Anzahl +1, Datum heute)', cloneVerified, cloneHeader.replace(/\n/g, ' ').slice(0, 80))
+const newCloneIds = (await cardIds()).filter((id) => !idsBeforeClone.includes(id))
+const cloneId = newCloneIds.length === 1 ? newCloneIds[0] : null
+check('Klon erstellt (genau eine neue Visiten-ID)', cloneId !== null, `neue IDs: ${JSON.stringify(newCloneIds)}`)
 
-if (cloneVerified) {
-  // --- Inline edit mode on the CLONE only ---
-  await cards.first().locator('[data-cy="unified-card-edit"]').click()
+if (cloneId !== null) {
+  // --- Inline edit mode on the CLONE only (addressed by id) ---
+  await cardById(cloneId).locator('[data-cy="unified-card-edit"]').click()
   await wait(3500)
   check('Bearbeitungsmodus aktiv (Chip)', (await page.locator('[data-cy="unified-card-editing-chip"]').count()) === 1)
   check('Feldgruppen-Sidebar sichtbar', (await page.locator('[data-cy="editor-add-observation"]').count()) === 1)
-  check('Fokus-Modus: nur die Edit-Karte sichtbar', (await cards.count()) === 1)
+  check('Fokus-Modus: nur die Edit-Karte sichtbar', (await cards.count()) === 1 && (await cardById(cloneId).count()) === 1)
   check('Kopfzeile im Edit-Modus ausgeblendet', (await page.locator('[data-cy="unified-new-visit"]').count()) === 0)
   await shot('04-edit-mode')
 
-  // Autosave: first numeric field → 123 → Enter
-  const numInput = page.locator('.visit-card-editor input[type="number"]').first()
+  // Autosave: first numeric field → 123 → Enter (inside the clone card only)
+  const numInput = cardById(cloneId).locator('input[type="number"]').first()
   if (await numInput.count()) {
     await numInput.click()
     await numInput.fill('123')
@@ -156,7 +170,7 @@ if (cloneVerified) {
     await wait(2000)
     await page.locator('[data-cy="unified-card-finish"]').click()
     await wait(2500)
-    const cardText = await cards.first().innerText()
+    const cardText = await cardById(cloneId).innerText()
     check('Autosave: Wert nach „Fertig“ in Lese-Karte', cardText.includes('123'))
     await shot('05-after-done')
   } else {
@@ -165,45 +179,28 @@ if (cloneVerified) {
     check('Autosave: numerisches Feld gefunden', false, 'kein number-Input im Editor')
   }
 
-  // --- Delete the clone (still first card, today's date re-verified) ---
-  const headerNow = await cards.first().locator('[data-cy="unified-card-header"]').innerText()
-  if (headerNow.includes(year)) {
-    await cards.first().locator('[data-cy="unified-card-menu"]').click()
-    await wait(500)
-    await page.locator('[data-cy="unified-menu-delete"]').click()
-    await wait(500)
-    await page.locator('.q-dialog .q-btn:has-text("Löschen")').first().click()
-    await wait(3500)
-    check('Klon gelöscht (Anzahl zurück)', (await cards.count()) === baseline)
-  } else {
-    check('Klon-Löschung', false, 'erste Karte trägt nicht das heutige Datum — nichts gelöscht')
-  }
+  // --- Delete the clone (by id) ---
+  await deleteCardById(cloneId)
+  check('Klon gelöscht (ID weg, Anzahl zurück)', (await cardById(cloneId).count()) === 0 && (await cards.count()) === baseline)
 } else {
-  console.log('SKIP  Edit-/Lösch-Sektion (kein verifizierter Klon — es wird NICHTS gelöscht)')
+  console.log('SKIP  Edit-/Lösch-Sektion (kein eindeutiger Klon — es wird NICHTS gelöscht)')
 }
 
-// --- New visit → must open directly in edit mode; then delete it (guarded) ---
+// --- New visit → must open directly in edit mode; then delete it (by id) ---
+const idsBeforeCreate = await cardIds()
 await page.locator('[data-cy="unified-new-visit"]').click()
 await wait(1200)
 await page.locator('.q-dialog .q-btn:has-text("erstellen")').first().click()
 await wait(4000)
-const afterCreate = await cards.count()
-const createVerified = afterCreate === baseline + 1
-check('Neue Visite direkt im Bearbeitungsmodus', createVerified && (await page.locator('[data-cy="unified-card-editing-chip"]').count()) === 1)
+const newVisitIds = (await cardIds()).filter((id) => !idsBeforeCreate.includes(id))
+const newVisitId = newVisitIds.length === 1 ? newVisitIds[0] : null
+check('Neue Visite direkt im Bearbeitungsmodus', newVisitId !== null && (await page.locator('[data-cy="unified-card-editing-chip"]').count()) === 1)
 await shot('06-new-visit-edit')
 
-if (createVerified) {
+if (newVisitId !== null) {
   await page.locator('[data-cy="unified-card-finish"]').click()
   await wait(2000)
-  const headerNew = await cards.first().locator('[data-cy="unified-card-header"]').innerText()
-  if (headerNew.includes(year)) {
-    await cards.first().locator('[data-cy="unified-card-menu"]').click()
-    await wait(500)
-    await page.locator('[data-cy="unified-menu-delete"]').click()
-    await wait(500)
-    await page.locator('.q-dialog .q-btn:has-text("Löschen")').first().click()
-    await wait(3500)
-  }
+  await deleteCardById(newVisitId)
 }
 check('Endzustand: Ausgangs-Anzahl Visiten', (await cards.count()) === baseline, `${await cards.count()}/${baseline}`)
 await shot('07-final')

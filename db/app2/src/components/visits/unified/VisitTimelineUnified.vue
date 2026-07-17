@@ -9,7 +9,7 @@
            replace the nav in the single side column. -->
       <div class="unified-body" :class="{ 'unified-body--editing': editingVisitId !== null }">
         <div class="unified-side">
-          <VisitQuickNav v-if="!loading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
+          <VisitQuickNav v-if="!coldLoading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
         </div>
 
         <div class="unified-main">
@@ -38,11 +38,13 @@
             <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" data-cy="unified-new-visit" @click="showNewVisitDialog = true" />
           </div>
 
-          <!-- Scroll area: notes strip + visit cards -->
+          <!-- Scroll area: notes strip + visit cards. The spinner only shows
+               on a COLD load — background refreshes (autosave exit, clone,
+               upload) must never unmount the list/editor or reset scroll -->
           <div ref="scrollArea" class="unified-scroll">
-            <PatientNotesStrip v-if="!loading" :patient-num="patientNum" />
+            <PatientNotesStrip v-if="!coldLoading" :patient-num="patientNum" />
 
-            <div v-if="loading" class="state-block">
+            <div v-if="coldLoading" class="state-block">
               <q-spinner-grid size="50px" color="primary" />
               <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
             </div>
@@ -94,7 +96,7 @@
 
       <!-- File upload (drop zone, fixed below the scroll area; hidden while
            editing — irrelevant there and steals vertical space) -->
-      <VisitFileUploadArea v-if="!loading && editingVisitId === null" @uploaded="onDataChanged" />
+      <VisitFileUploadArea v-if="!coldLoading && editingVisitId === null" @uploaded="onDataChanged" />
     </div>
 
     <!-- Dialogs -->
@@ -159,10 +161,12 @@ const logger = useLoggingStore().createLogger('VisitTimelineUnified')
 
 const patientNum = computed(() => props.patient?.PATIENT_NUM ?? props.patient?.rawData?.PATIENT_NUM ?? null)
 
-// Store state (loading is a plain boolean in the visit store)
+// Store state (loading is a plain boolean in the visit store). Only a COLD
+// load (no data yet) may swap the UI for a spinner — visitStore.loading also
+// flips on every background refresh and would unmount list + editor
 const visits = computed(() => visitStore.visits)
 const sortedVisits = computed(() => visitStore.sortedVisits)
-const loading = computed(() => visitStore.loading)
+const coldLoading = computed(() => visitStore.loading && visitStore.visits.length === 0)
 
 // ---- Labels (resolved once per distinct code, sync lookup for the cards) ----
 const { resolveAll, typeMeta, statusMeta } = useVisitLabels()
@@ -177,6 +181,11 @@ const fieldSetDefs = ref([])
 onMounted(async () => {
   try {
     fieldSetDefs.value = (await globalSettingsStore.getFieldSetOptions()) || []
+    // Same dynamic fallback as the editor: without the seeded questionnaires
+    // field set, Q observations would group under the raw category name
+    if (!fieldSetDefs.value.some((fs) => fs.id === 'questionnaires')) {
+      fieldSetDefs.value.push({ id: 'questionnaires', name: 'Fragebögen', icon: 'quiz', concepts: ['CUSTOM: QUESTIONNAIRE'], categories: [] })
+    }
   } catch (error) {
     logger.error('Failed to load field set definitions', error)
   }
@@ -262,11 +271,24 @@ const { editingVisitId, isEditing, startEditing, stopEditing } = useSingleVisitE
   onEnter: (visit) => {
     expandedIds.value = expandAll(expandedIds.value, [visit.id])
   },
-  // Autosaves write with skipReload → refresh the read cards on exit
-  onExit: () => onDataChanged(),
+  // Autosaves write with skipReload → refresh the read cards on exit. The
+  // grace delay lets an in-flight blur-autosave (mousedown on "Fertig" fires
+  // blur → save and click → exit as parallel chains) commit before we read
+  onExit: async () => {
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    await onDataChanged()
+  },
 })
 
 const editingStoreVisit = computed(() => (editingVisitId.value == null ? null : visitStore.visits.find((v) => v.id === editingVisitId.value) || null))
+
+// Recovery: if the editing visit vanishes from the store (failed refresh,
+// patient-switch race), leave focus mode instead of showing a dead end
+watch(editingStoreVisit, (visit) => {
+  if (editingVisitId.value != null && !visit) {
+    editingVisitId.value = null
+  }
+})
 
 // Leaving the view (tab switch) while editing: refresh the patient-wide list
 onBeforeUnmount(() => {
@@ -444,13 +466,14 @@ const onSpyScroll = () => {
   })
 }
 
-// Re-measure when the entry set or card contents change size (expand/collapse,
-// editor panels mounting, data reloads)
+// Re-measure and re-run the spy when the entry set or card contents change
+// size (expand/collapse, mode flips, editor panels mounting, data reloads) —
+// otherwise the active highlight is stale until the first scroll
 watch(
   [navEntries, groupedByVisit],
   async () => {
     await nextTick()
-    requestAnimationFrame(measureNavPositions)
+    requestAnimationFrame(onSpyScroll)
   },
   { immediate: true },
 )

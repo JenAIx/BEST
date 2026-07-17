@@ -37,6 +37,14 @@ cleanup_app() {
   true
 }
 
+# Läuft IMMER (auch bei Fehler/Ctrl-C): App stoppen + Temp-Admin entfernen —
+# der helpshot-User darf die Routine unter keinen Umständen überleben
+cleanup_all() {
+  cleanup_app
+  sqlite3 "$DB" "DELETE FROM USER_MANAGEMENT WHERE USER_CD='helpshot';" 2>/dev/null || echo "WARNUNG: helpshot konnte nicht gelöscht werden — manuell entfernen!"
+}
+trap cleanup_all EXIT INT TERM
+
 echo "1/6 Backup → $BACKUP"
 cp "$DB" "$BACKUP" || exit 1
 
@@ -57,10 +65,10 @@ APP_PID=$!
 
 for i in $(seq 1 120); do
   curl -s -m 2 "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1 && break
-  kill -0 "$APP_PID" 2>/dev/null || { echo "FEHLER: App-Start abgebrochen (siehe $LOG)"; cleanup_app; exit 1; }
+  kill -0 "$APP_PID" 2>/dev/null || { echo "FEHLER: App-Start abgebrochen (siehe $LOG)"; exit 1; }
   sleep 1
 done
-curl -s -m 2 "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1 || { echo "FEHLER: CDP nach 120s nicht erreichbar (siehe $LOG)"; cleanup_app; exit 1; }
+curl -s -m 2 "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1 || { echo "FEHLER: CDP nach 120s nicht erreichbar (siehe $LOG)"; exit 1; }
 sleep 8
 
 echo "4/6 Verifikation läuft…"
@@ -68,8 +76,7 @@ CDP_URL="http://127.0.0.1:${PORT}" VERIFY_PATIENT="$PATIENT_CD" node scripts/ver
 RC=$?
 
 echo "5/6 App stoppen + Temp-User löschen"
-cleanup_app
-sqlite3 "$DB" "DELETE FROM USER_MANAGEMENT WHERE USER_CD='helpshot';"
+cleanup_all
 
 echo "6/6 Integritätscheck"
 after_visits=$(sqlite3 "$DB" "SELECT COUNT(*) FROM VISIT_DIMENSION;")

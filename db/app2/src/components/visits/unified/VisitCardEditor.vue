@@ -245,6 +245,7 @@ const { t } = useI18n()
 const notify = useNotify()
 
 const UPLOAD_ACCEPTED_TYPES = '.pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp,.mp4,.mov,.webm,.mkv,.avi'
+const UPLOAD_ACCEPTED_LIST = UPLOAD_ACCEPTED_TYPES.split(',')
 const UPLOAD_MAX_SIZE_MB = 50 // matches the uploadRawData DB guard
 
 const fileInput = ref(null)
@@ -257,7 +258,8 @@ const onFileInputChange = async (event) => {
   if (!file) return
 
   const ext = file.name.split('.').pop()?.toLowerCase() || ''
-  if (!UPLOAD_ACCEPTED_TYPES.includes(`.${ext}`)) {
+  // exact list match — a substring check would accept prefixes like ".m"
+  if (!UPLOAD_ACCEPTED_LIST.includes(`.${ext}`)) {
     notify.error(t('visit.uploadUnsupportedType', { ext }))
     return
   }
