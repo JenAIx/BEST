@@ -423,6 +423,8 @@
     "fieldGroupsFilter": "Filter groups…",
     "fieldGroupHidden": "Hidden — values are kept",
     "editVisitDetails": "Edit visit details",
+    "inOutStatus": "In/out status",
+    "sourceSystem": "Source system",
     "fieldGroupAdd": "Add group to this visit"
   },
   "observation": {

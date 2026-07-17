@@ -423,6 +423,8 @@
     "fieldGroupsFilter": "Gruppen filtern…",
     "fieldGroupHidden": "Ausgeblendet — Werte bleiben erhalten",
     "editVisitDetails": "Visitendetails bearbeiten",
+    "inOutStatus": "Aufnahmeart (ambulant/stationär)",
+    "sourceSystem": "Quellsystem",
     "fieldGroupAdd": "Gruppe zur Visite hinzufügen"
   },
   "observation": {

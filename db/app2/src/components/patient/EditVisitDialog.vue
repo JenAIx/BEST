@@ -13,56 +13,72 @@
       <q-card-section>
         <div class="text-body2 text-grey-6 q-mb-md">{{ $t('visit.editVisitFor', { visitNum: visit?.encounterNum, patientId: patient?.PATIENT_CD || $t('patient.thisPatient') }) }}</div>
 
-        <q-form @submit="handleSubmit" class="q-gutter-md">
-          <!-- Start Date -->
-          <div class="row q-gutter-md">
-            <div class="col">
-              <q-input v-model="formData.START_DATE" type="date" :label="$t('visit.startDate') + ' *'" outlined dense :rules="[(val) => !!val || $t('visit.startDateRequired')]" clearable>
-                <template v-slot:prepend>
-                  <q-icon name="event" />
-                </template>
-              </q-input>
-            </div>
-            <div class="col">
-              <q-input v-model="formData.END_DATE" type="date" :label="$t('visit.endDate')" outlined dense clearable>
-                <template v-slot:prepend>
-                  <q-icon name="event_available" />
-                </template>
-              </q-input>
-            </div>
+        <q-form @submit="handleSubmit" class="edit-visit-form">
+          <!-- Visit type: full dialog width -->
+          <q-select v-model="formData.VISIT_TYPE_CD" :options="visitTypeOptions" :label="$t('visit.visitType')" outlined dense hide-bottom-space emit-value map-options clearable>
+            <template v-slot:prepend>
+              <q-icon name="event_note" />
+            </template>
+            <template v-slot:option="scope">
+              <q-item v-bind="scope.itemProps">
+                <q-item-section avatar v-if="scope.opt.icon">
+                  <q-icon :name="scope.opt.icon" :color="scope.opt.color || 'primary'" />
+                </q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ scope.opt.label }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </template>
+            <template v-slot:selected-item="scope">
+              <div class="row items-center q-gutter-xs no-wrap">
+                <q-icon v-if="getSelectedVisitTypeIcon()" :name="getSelectedVisitTypeIcon()" :color="getSelectedVisitTypeColor() || 'primary'" size="16px" />
+                <span class="ellipsis">{{ scope.opt.label }}</span>
+              </div>
+            </template>
+          </q-select>
+
+          <div class="form-row">
+            <q-input v-model="formData.START_DATE" type="date" :label="$t('visit.startDate') + ' *'" outlined dense hide-bottom-space :rules="[(val) => !!val || $t('visit.startDateRequired')]" clearable>
+              <template v-slot:prepend>
+                <q-icon name="event" />
+              </template>
+            </q-input>
+            <q-input v-model="formData.END_DATE" type="date" :label="$t('visit.endDate')" outlined dense hide-bottom-space clearable>
+              <template v-slot:prepend>
+                <q-icon name="event_available" />
+              </template>
+            </q-input>
           </div>
 
-          <!-- Status and Location -->
-          <div class="row q-gutter-md">
-            <div class="col">
+          <div class="form-row">
+            <q-select
+              v-model="formData.ACTIVE_STATUS_CD"
+              :options="statusOptions"
+              :label="$t('user.status') + ' *'"
+              outlined
+              dense
+              hide-bottom-space
+              emit-value
+              map-options
+              clearable
+              :rules="[(val) => !!val || $t('validation.required')]"
+            >
+              <template v-slot:prepend>
+                <q-icon name="info" />
+              </template>
+            </q-select>
+            <template v-if="locationOptions.length > 0">
               <q-select
-                v-model="formData.ACTIVE_STATUS_CD"
-                :options="statusOptions"
-                :label="$t('user.status') + ' *'"
+                v-model="formData.LOCATION_CD"
+                :options="locationOptions"
+                :label="$t('visit.location') + ' *'"
                 outlined
                 dense
+                hide-bottom-space
                 emit-value
                 map-options
                 clearable
                 :rules="[(val) => !!val || $t('validation.required')]"
-              >
-                <template v-slot:prepend>
-                  <q-icon name="info" />
-                </template>
-              </q-select>
-            </div>
-            <div class="col">
-              <q-select
-                v-if="locationOptions.length > 0"
-                v-model="formData.LOCATION_CD"
-                :options="locationOptions"
-                label="Location *"
-                outlined
-                dense
-                emit-value
-                map-options
-                clearable
-                :rules="[(val) => !!val || 'Location is required']"
                 use-input
                 @filter="(val, update) => update()"
               >
@@ -70,59 +86,28 @@
                   <q-icon name="location_on" />
                 </template>
               </q-select>
-              <q-input v-else v-model="formData.LOCATION_CD" label="Location *" outlined dense placeholder="e.g., UKJ/NEURO, ICU, ER" :rules="[(val) => !!val || 'Location is required']" clearable>
-                <template v-slot:prepend>
-                  <q-icon name="location_on" />
-                </template>
-              </q-input>
-            </div>
+            </template>
+            <q-input v-else v-model="formData.LOCATION_CD" :label="$t('visit.location') + ' *'" outlined dense hide-bottom-space placeholder="z. B. UKJ/NEURO, ICU" :rules="[(val) => !!val || $t('validation.required')]" clearable>
+              <template v-slot:prepend>
+                <q-icon name="location_on" />
+              </template>
+            </q-input>
           </div>
 
-          <!-- Visit Type and In/Out Status -->
-          <div class="row q-gutter-md">
-            <div class="col">
-              <q-select v-model="formData.VISIT_TYPE_CD" :options="visitTypeOptions" label="Visit Type" outlined dense emit-value map-options clearable>
-                <template v-slot:prepend>
-                  <q-icon name="event_note" />
-                </template>
-                <template v-slot:option="scope">
-                  <q-item v-bind="scope.itemProps">
-                    <q-item-section avatar v-if="scope.opt.icon">
-                      <q-icon :name="scope.opt.icon" :color="scope.opt.color || 'primary'" />
-                    </q-item-section>
-                    <q-item-section>
-                      <q-item-label>{{ scope.opt.label }}</q-item-label>
-                    </q-item-section>
-                  </q-item>
-                </template>
-                <template v-slot:selected-item="scope">
-                  <div class="row items-center q-gutter-xs">
-                    <q-icon v-if="getSelectedVisitTypeIcon()" :name="getSelectedVisitTypeIcon()" :color="getSelectedVisitTypeColor() || 'primary'" size="16px" />
-                    <span>{{ scope.opt.label }}</span>
-                  </div>
-                </template>
-              </q-select>
-            </div>
-            <div class="col">
-              <q-select v-model="formData.INOUT_CD" :options="inOutOptions" label="In/Out Status" outlined dense emit-value map-options clearable>
-                <template v-slot:prepend>
-                  <q-icon name="local_hospital" />
-                </template>
-              </q-select>
-            </div>
-          </div>
-
-          <!-- Source System -->
-          <div class="row q-gutter-md">
-            <div class="col"></div>
-            <div class="col">
+          <div class="form-row">
+            <q-select v-model="formData.INOUT_CD" :options="inOutOptions" :label="$t('visit.inOutStatus')" outlined dense hide-bottom-space emit-value map-options clearable>
+              <template v-slot:prepend>
+                <q-icon name="local_hospital" />
+              </template>
+            </q-select>
+            <template v-if="sourceSystemOptions.length > 0">
               <q-select
-                v-if="sourceSystemOptions.length > 0"
                 v-model="formData.SOURCESYSTEM_CD"
                 :options="sourceSystemOptions"
-                label="Source System"
+                :label="$t('visit.sourceSystem')"
                 outlined
                 dense
+                hide-bottom-space
                 emit-value
                 map-options
                 clearable
@@ -133,16 +118,16 @@
                   <q-icon name="source" />
                 </template>
               </q-select>
-              <q-input v-else v-model="formData.SOURCESYSTEM_CD" label="Source System" outlined dense placeholder="e.g., SYSTEM, EMR, MANUAL" clearable>
-                <template v-slot:prepend>
-                  <q-icon name="source" />
-                </template>
-              </q-input>
-            </div>
+            </template>
+            <q-input v-else v-model="formData.SOURCESYSTEM_CD" :label="$t('visit.sourceSystem')" outlined dense hide-bottom-space placeholder="z. B. SYSTEM, EMR" clearable>
+              <template v-slot:prepend>
+                <q-icon name="source" />
+              </template>
+            </q-input>
           </div>
 
           <!-- Notes/Blob -->
-          <q-input v-model="formData.VISIT_BLOB" label="Notes" type="textarea" outlined rows="3" placeholder="Additional notes or information about this visit..." clearable>
+          <q-input v-model="formData.VISIT_BLOB" :label="$t('visit.visitNotes')" type="textarea" outlined dense hide-bottom-space autogrow clearable>
             <template v-slot:prepend>
               <q-icon name="notes" />
             </template>
@@ -150,9 +135,9 @@
         </q-form>
       </q-card-section>
 
-      <q-card-actions align="right" class="q-pa-md">
-        <q-btn flat label="Cancel" color="grey-7" v-close-popup :disable="loading" />
-        <q-btn unelevated label="Update Visit" color="primary" icon="save" @click="handleSubmit" :loading="loading" :disable="!isFormValid || !hasChanges" />
+      <q-card-actions align="right" class="q-px-md q-pb-md q-pt-none">
+        <q-btn flat :label="$t('common.cancel')" color="grey-7" v-close-popup :disable="loading" />
+        <q-btn unelevated :label="$t('common.save')" color="primary" icon="save" @click="handleSubmit" :loading="loading" :disable="!isFormValid || !hasChanges" />
       </q-card-actions>
     </q-card>
   </q-dialog>
@@ -616,9 +601,20 @@ const handleSubmit = async () => {
   letter-spacing: -0.025em;
 }
 
-.q-form {
-  .q-field {
-    margin-bottom: 8px;
+// Compact form: one small consistent gap, two-column rows share the width
+.edit-visit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  .form-row {
+    display: flex;
+    gap: 10px;
+
+    > * {
+      flex: 1;
+      min-width: 0;
+    }
   }
 }
 
