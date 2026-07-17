@@ -422,6 +422,7 @@
     "fieldGroupsInactive": "More groups",
     "fieldGroupsFilter": "Filter groups…",
     "fieldGroupHidden": "Hidden — values are kept",
+    "editVisitDetails": "Edit visit details",
     "fieldGroupAdd": "Add group to this visit"
   },
   "observation": {

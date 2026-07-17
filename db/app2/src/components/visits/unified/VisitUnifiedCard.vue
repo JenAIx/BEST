@@ -19,7 +19,7 @@
       <!-- Editing: visit metadata (date/type/status) + "done" -->
       <template v-if="editing">
         <q-btn flat round dense size="sm" icon="edit_calendar" color="primary" data-cy="editor-edit-meta" @click.stop="$emit('edit-meta')">
-          <q-tooltip>{{ $t('visit.editVisit') }}</q-tooltip>
+          <q-tooltip>{{ $t('visit.editVisitDetails') }}</q-tooltip>
         </q-btn>
         <q-btn unelevated dense no-caps color="primary" icon="check" :label="$t('visit.finishEditing')" data-cy="unified-card-finish" @click.stop="$emit('finish')" />
       </template>
@@ -32,9 +32,9 @@
         <q-btn flat round dense size="sm" icon="more_vert" color="grey-7" data-cy="unified-card-menu" @click.stop>
           <q-menu>
             <q-list dense style="min-width: 190px">
-              <q-item v-close-popup clickable data-cy="unified-menu-edit" @click="$emit('edit')">
-                <q-item-section avatar><q-icon name="edit" size="18px" /></q-item-section>
-                <q-item-section>{{ $t('visit.editVisit') }}</q-item-section>
+              <q-item v-close-popup clickable data-cy="unified-menu-edit-meta" @click="$emit('edit-meta')">
+                <q-item-section avatar><q-icon name="edit_calendar" size="18px" /></q-item-section>
+                <q-item-section>{{ $t('visit.editVisitDetails') }}</q-item-section>
               </q-item>
               <q-item v-close-popup clickable data-cy="unified-menu-clone" @click="$emit('clone')">
                 <q-item-section avatar><q-icon name="content_copy" size="18px" /></q-item-section>

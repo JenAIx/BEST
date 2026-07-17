@@ -59,7 +59,7 @@ Das Skript nutzt `data-cy`-Anker statt Label-Texten (stabil gegen
 i18n-Änderungen): `view-mode-unified`, `unified-search`,
 `unified-expand-toggle`, `unified-new-visit`, `unified-card`,
 `unified-card-header`, `unified-card-edit`, `unified-card-menu`,
-`unified-menu-edit|clone|delete`, `unified-card-finish`,
+`unified-menu-edit-meta|clone|delete`, `unified-card-finish`,
 `unified-card-editing-chip`, `editor-edit-meta`, `editor-add-observation`,
 `editor-add-questionnaire`. Nur Quasar-Plugin-Dialoge (Confirm/NewVisit)
 werden über deutsche Button-Texte angesprochen — das Skript erzwingt

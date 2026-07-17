@@ -74,7 +74,7 @@
                 :status-meta="statusMeta(visit)"
                 @toggle="toggleCard(visit)"
                 @edit="enterEditMode(visit)"
-                @edit-meta="editVisitMeta"
+                @edit-meta="editVisitMeta(visit)"
                 @finish="stopEditing"
                 @clone="confirmClone(visit)"
                 @delete="confirmDelete(visit)"
@@ -297,14 +297,14 @@ onBeforeUnmount(() => {
   }
 })
 
-// Visit metadata (date/type/status) via the pencil in the editor sidebar
+// Visit metadata (date/type/status) — reachable from the 3-dot menu in read
+// mode and from the pencil in the editing card's header
 const showEditVisitDialog = ref(false)
 const selectedVisitForEdit = ref(null)
 
-const editVisitMeta = () => {
-  const visit = editingStoreVisit.value
-  if (!visit) return
-  selectedVisitForEdit.value = buildVisitForEdit(visit)
+const editVisitMeta = (visit) => {
+  const full = visitStore.visits.find((v) => v.id === visit.id) || visit
+  selectedVisitForEdit.value = buildVisitForEdit(full)
   showEditVisitDialog.value = true
 }
 
