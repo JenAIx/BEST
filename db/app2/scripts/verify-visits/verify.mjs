@@ -88,6 +88,7 @@ const cards = page.locator('[data-cy="unified-card"]')
 const bodies = page.locator('[data-cy="unified-card"] .visit-block-body')
 const baseline = await cards.count()
 check('Karten vorhanden', baseline > 0, `${baseline} Visiten`)
+check('Schnellnavigation sichtbar', (await page.locator('[data-cy="unified-quick-nav"]').count()) === 1)
 await shot('01-collapsed')
 
 // --- Correct visit-type labels (CODE_LOOKUP, not the static fallback) ---

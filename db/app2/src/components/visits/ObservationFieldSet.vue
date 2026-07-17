@@ -1,5 +1,5 @@
 <template>
-  <div class="field-set-section">
+  <div class="field-set-section" :data-group-name="fieldSet.name">
     <div class="field-set-header cursor-pointer" @click="collapsed = !collapsed">
       <div class="field-set-title">
         <q-icon :name="fieldSet.icon" size="24px" class="q-mr-sm" />

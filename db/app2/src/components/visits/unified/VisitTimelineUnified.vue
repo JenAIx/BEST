@@ -13,58 +13,72 @@
           </template>
         </q-input>
         <q-space />
-        <q-btn flat round dense :icon="allVisibleExpanded ? 'unfold_less' : 'unfold_more'" color="grey-7" :disable="!!searchTerm || visibleVisits.length === 0" data-cy="unified-expand-toggle" @click="toggleExpandAll">
+        <q-btn
+          flat
+          round
+          dense
+          :icon="allVisibleExpanded ? 'unfold_less' : 'unfold_more'"
+          color="grey-7"
+          :disable="!!searchTerm || visibleVisits.length === 0"
+          data-cy="unified-expand-toggle"
+          @click="toggleExpandAll"
+        >
           <q-tooltip>{{ allVisibleExpanded ? $t('visit.collapseAll') : $t('visit.expandAll') }}</q-tooltip>
         </q-btn>
         <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" data-cy="unified-new-visit" @click="showNewVisitDialog = true" />
       </div>
 
-      <!-- Scroll area: notes strip + visit cards -->
-      <div class="unified-scroll">
-        <PatientNotesStrip v-if="!loading" :patient-num="patientNum" />
+      <!-- Body: quick navigation left, scrollable card list right -->
+      <div class="unified-body">
+        <VisitQuickNav v-if="!loading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" @select-visit="navToVisit" @select-group="navToGroup" />
 
-        <div v-if="loading" class="state-block">
-          <q-spinner-grid size="50px" color="primary" />
-          <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
-        </div>
+        <!-- Scroll area: notes strip + visit cards -->
+        <div ref="scrollArea" class="unified-scroll">
+          <PatientNotesStrip v-if="!loading" :patient-num="patientNum" />
 
-        <div v-else-if="visits.length === 0" class="state-block">
-          <q-icon name="event_busy" size="64px" color="grey-4" />
-          <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noVisitsRecorded') }}</div>
-          <div class="text-body2 text-grey-5 q-mb-md">{{ $t('visit.startByCreating') }}</div>
-          <q-btn color="primary" icon="add" :label="$t('visit.createFirstVisit')" @click="showNewVisitDialog = true" />
-        </div>
+          <div v-if="loading" class="state-block">
+            <q-spinner-grid size="50px" color="primary" />
+            <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
+          </div>
 
-        <div v-else-if="searchTerm && visibleVisits.length === 0" class="state-block text-grey-6">
-          <q-icon name="search_off" size="32px" class="q-mb-xs" />
-          <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
-        </div>
+          <div v-else-if="visits.length === 0" class="state-block">
+            <q-icon name="event_busy" size="64px" color="grey-4" />
+            <div class="text-h6 text-grey-6 q-mt-sm">{{ $t('visit.noVisitsRecorded') }}</div>
+            <div class="text-body2 text-grey-5 q-mb-md">{{ $t('visit.startByCreating') }}</div>
+            <q-btn color="primary" icon="add" :label="$t('visit.createFirstVisit')" @click="showNewVisitDialog = true" />
+          </div>
 
-        <div v-else class="unified-list">
-          <VisitUnifiedCard
-            v-for="visit in visibleVisits"
-            :key="visit.id"
-            :visit="visit"
-            :categorized-observations="observationsForVisit(visit.id)"
-            :observation-count="observationCountFor(visit)"
-            :expanded="isExpanded(visit)"
-            :editing="isEditing(visit.id)"
-            :type-meta="typeMeta(visit)"
-            :status-meta="statusMeta(visit)"
-            @toggle="toggleCard(visit)"
-            @edit="startEditing(visit)"
-            @edit-meta="editVisitMeta"
-            @finish="stopEditing"
-            @clone="confirmClone(visit)"
-            @delete="confirmDelete(visit)"
-            @preview-file="previewFile"
-            @preview-questionnaire="previewQuestionnaire"
-          >
-            <!-- Inline edit mode: split layout, mounted only for the editing card -->
-            <template #editor>
-              <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @uploaded="onDataChanged" />
-            </template>
-          </VisitUnifiedCard>
+          <div v-else-if="searchTerm && visibleVisits.length === 0" class="state-block text-grey-6">
+            <q-icon name="search_off" size="32px" class="q-mb-xs" />
+            <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
+          </div>
+
+          <div v-else class="unified-list">
+            <VisitUnifiedCard
+              v-for="visit in visibleVisits"
+              :key="visit.id"
+              :visit="visit"
+              :categorized-observations="observationsForVisit(visit.id)"
+              :observation-count="observationCountFor(visit)"
+              :expanded="isExpanded(visit)"
+              :editing="isEditing(visit.id)"
+              :type-meta="typeMeta(visit)"
+              :status-meta="statusMeta(visit)"
+              @toggle="toggleCard(visit)"
+              @edit="startEditing(visit)"
+              @edit-meta="editVisitMeta"
+              @finish="stopEditing"
+              @clone="confirmClone(visit)"
+              @delete="confirmDelete(visit)"
+              @preview-file="previewFile"
+              @preview-questionnaire="previewQuestionnaire"
+            >
+              <!-- Inline edit mode: split layout, mounted only for the editing card -->
+              <template #editor>
+                <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @uploaded="onDataChanged" @groups-changed="editorGroups = $event" />
+              </template>
+            </VisitUnifiedCard>
+          </div>
         </div>
       </div>
 
@@ -98,7 +112,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -109,8 +123,10 @@ import { useVisitActions } from 'src/composables/useVisitActions'
 import { useSingleVisitEdit } from 'src/composables/useSingleVisitEdit'
 import { groupObservationsByFieldSets, filterObservations } from 'src/shared/utils/file-category'
 import { toggleExpanded, allExpanded, expandAll, collapseAll } from 'src/shared/utils/expand-state.js'
+import { formatDate } from 'src/shared/utils/medical-utils.js'
 import VisitUnifiedCard from './VisitUnifiedCard.vue'
 import VisitCardEditor from './VisitCardEditor.vue'
+import VisitQuickNav from './VisitQuickNav.vue'
 import PatientNotesStrip from '../PatientNotesStrip.vue'
 import VisitFileUploadArea from '../VisitFileUploadArea.vue'
 import NewVisitDialog from '../NewVisitDialog.vue'
@@ -162,10 +178,7 @@ const groupedByVisit = computed(() => groupObservationsByFieldSets(filterObserva
 
 const observationsForVisit = (visitId) => groupedByVisit.value.get(visitId) || []
 
-const matchedCount = (visitId) =>
-  observationsForVisit(visitId)
-    .flatMap((category) => category.observations)
-    .length
+const matchedCount = (visitId) => observationsForVisit(visitId).flatMap((category) => category.observations).length
 
 // Edit mode is a focus mode: only the visit being edited is shown.
 // Otherwise: while searching only visits with matching results are shown.
@@ -302,6 +315,77 @@ const onDataChanged = async () => {
   }
 }
 
+// ---- Quick navigation (left column) + scroll spy ----
+const scrollArea = ref(null)
+const activeNav = ref(null)
+const editorGroups = ref([]) // reported by VisitCardEditor while editing
+
+const navEntries = computed(() => {
+  if (editingVisitId.value != null) {
+    const visit = editingStoreVisit.value
+    if (!visit) return []
+    return [{ visitId: visit.id, label: formatDate(visit.date), sublabel: typeMeta(visit).label, expanded: true, groups: editorGroups.value }]
+  }
+  return visibleVisits.value.map((visit) => ({
+    visitId: visit.id,
+    label: formatDate(visit.date),
+    sublabel: typeMeta(visit).label,
+    expanded: isExpanded(visit),
+    groups: isExpanded(visit) ? observationsForVisit(visit.id).map((group) => ({ name: group.name, icon: group.icon })) : [],
+  }))
+})
+
+const scrollToSelector = async (selector) => {
+  await nextTick()
+  const el = scrollArea.value?.querySelector(selector)
+  el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+const navToVisit = (visitId) => {
+  if (editingVisitId.value == null && !expandedIds.value.has(visitId) && !searchTerm.value) {
+    expandedIds.value = expandAll(expandedIds.value, [visitId])
+  }
+  scrollToSelector(`[data-visit-id="${visitId}"]`)
+}
+
+const navToGroup = ({ visitId, group }) => {
+  if (editingVisitId.value == null && !expandedIds.value.has(visitId) && !searchTerm.value) {
+    expandedIds.value = expandAll(expandedIds.value, [visitId])
+  }
+  scrollToSelector(`[data-visit-id="${visitId}"] [data-group-name="${CSS.escape(group)}"]`)
+}
+
+// Scroll spy: the last visit/group anchor above the threshold line is active
+let spyTicking = false
+const onSpyScroll = () => {
+  if (spyTicking) return
+  spyTicking = true
+  requestAnimationFrame(() => {
+    spyTicking = false
+    const container = scrollArea.value
+    if (!container) return
+    const threshold = container.getBoundingClientRect().top + 80
+    let current = null
+    for (const card of container.querySelectorAll('[data-visit-id]')) {
+      const visitId = Number(card.dataset.visitId)
+      if (card.getBoundingClientRect().top <= threshold) current = { visitId, group: null }
+      for (const section of card.querySelectorAll('[data-group-name]')) {
+        const rect = section.getBoundingClientRect()
+        if (rect.height > 0 && rect.top <= threshold) current = { visitId, group: section.dataset.groupName }
+      }
+    }
+    activeNav.value = current
+  })
+}
+
+onMounted(() => {
+  scrollArea.value?.addEventListener('scroll', onSpyScroll, { passive: true })
+})
+
+onBeforeUnmount(() => {
+  scrollArea.value?.removeEventListener('scroll', onSpyScroll)
+})
+
 // ---- Preview dialogs (same wiring as the compact summary) ----
 const selectedFileObservation = ref(null)
 const showFilePreview = ref(false)
@@ -337,8 +421,23 @@ const previewQuestionnaire = (observation) => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1000px;
+  max-width: 1220px; // 190px quick nav + 16px gap + ~1000px card column
   margin: 0 auto;
+}
+
+// Quick nav left (fixed, outside the scroll area), card column right
+.unified-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.unified-nav {
+  @media (max-width: 1100px) {
+    display: none;
+  }
 }
 
 .unified-header {
@@ -357,8 +456,22 @@ const previewQuestionnaire = (observation) => {
 .unified-scroll {
   flex: 1;
   min-height: 0;
+  max-width: 1000px;
   overflow-y: auto;
   padding-right: 4px;
+
+  // Jump targets clear the (sticky) headers when scrolled to
+  :deep([data-visit-id]) {
+    scroll-margin-top: 8px;
+  }
+
+  :deep([data-group-name]) {
+    scroll-margin-top: 12px;
+  }
+
+  :deep(.visit-block--editing [data-group-name]) {
+    scroll-margin-top: 64px; // below the pinned visit header
+  }
 }
 
 // Timeline rail: one unbroken vertical line, dots come from the cards

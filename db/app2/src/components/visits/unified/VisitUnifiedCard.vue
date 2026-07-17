@@ -1,7 +1,7 @@
 <template>
   <!-- One collapsible visit card in the unified timeline. Dumb component:
        labels/status arrive pre-resolved via props, all actions bubble up. -->
-  <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing }]" data-cy="unified-card">
+  <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing }]" data-cy="unified-card" :data-visit-id="visit.id">
     <!-- Header: click toggles expand/collapse -->
     <div class="visit-block-header row items-center q-gutter-sm" data-cy="unified-card-header" @click="$emit('toggle')">
       <q-icon :name="expanded || editing ? 'expand_more' : 'chevron_right'" color="grey-6" size="20px" />

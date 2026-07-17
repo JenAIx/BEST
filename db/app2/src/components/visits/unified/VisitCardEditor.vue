@@ -134,7 +134,7 @@
 </template>
 
 <script setup>
-import { ref, computed, toRef, onMounted } from 'vue'
+import { ref, computed, toRef, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useNotify } from 'src/composables/useNotify'
 import { useObservationStore } from 'src/stores/observation-store'
@@ -159,7 +159,7 @@ const props = defineProps({
   patient: { type: Object, required: true },
 })
 
-const emit = defineEmits(['uploaded'])
+const emit = defineEmits(['uploaded', 'groups-changed'])
 
 const observationStore = useObservationStore()
 const visitRef = toRef(props, 'visit')
@@ -250,6 +250,18 @@ const onFileSaved = async (payload) => {
   await visitObservationService.selectVisitAndLoadObservations(props.visit)
   emit('uploaded', payload)
 }
+
+// Report the rendered panel list to the container's quick navigation
+// (names match the data-group-name anchors on the panels)
+watch(
+  [activeFieldSetsList, uncategorizedFieldSet],
+  ([activeList, uncategorized]) => {
+    const groups = activeList.map((fs) => ({ name: fs.name, icon: fs.icon }))
+    if (uncategorized) groups.push({ name: uncategorized.name, icon: uncategorized.icon })
+    emit('groups-changed', groups)
+  },
+  { immediate: true },
+)
 
 onMounted(async () => {
   await loadFieldSets()
