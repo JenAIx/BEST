@@ -61,7 +61,7 @@
           >
             <!-- Inline edit mode: split layout, mounted only for the editing card -->
             <template #editor>
-              <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @edit-meta="editVisitMeta" />
+              <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @edit-meta="editVisitMeta" @uploaded="onDataChanged" />
             </template>
           </VisitUnifiedCard>
         </div>

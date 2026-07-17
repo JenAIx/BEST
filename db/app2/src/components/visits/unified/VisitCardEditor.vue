@@ -76,12 +76,18 @@
 
           <q-btn outline color="primary" icon="add" class="full-width" no-caps :label="$t('observation.addObservation')" data-cy="editor-add-observation" @click="showAddCustomDialog = true" />
           <q-btn flat color="primary" icon="quiz" class="full-width q-mt-sm" no-caps :label="$t('visit.addQuestionnaire')" data-cy="editor-add-questionnaire" @click="showAddDialog = true" />
+          <q-btn flat color="primary" icon="upload_file" class="full-width q-mt-sm" no-caps :label="$t('visit.uploadAddFile')" data-cy="editor-add-file" @click="fileInput?.click()" />
+          <input ref="fileInput" type="file" :accept="UPLOAD_ACCEPTED_TYPES" class="hidden-file-input" @change="onFileInputChange" />
         </div>
       </aside>
     </template>
 
     <!-- Dialogs (teleported) -->
     <CustomObservationDialog v-model="showAddCustomDialog" :visit="visit" :patient="patient" field-set-name="Custom" field-set-id="custom" @questionnaire-added="onQuestionnaireAddedFromSearch" />
+
+    <!-- Same upload flow as the drop zone: category suggestion + confirm
+         dialog (the editing visit is the store-selected one → preselected) -->
+    <FileUploadConfirmDialog v-model="showUploadConfirm" :file-data="pendingFile" @saved="onFileSaved" />
 
     <AddQuestionnaireToVisitDialog v-model="showAddDialog" :existing-questionnaire-codes="existingQuestionnaireCodes" :visit-type-code="visitTypeCode" @questionnaire-selected="onQuestionnaireSelected" />
 
@@ -102,6 +108,8 @@
 
 <script setup>
 import { ref, computed, toRef, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { useNotify } from 'src/composables/useNotify'
 import { useObservationStore } from 'src/stores/observation-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useVisitFieldSets } from 'src/composables/useVisitFieldSets'
@@ -113,6 +121,7 @@ import VisitQuestionnaireSection from '../VisitQuestionnaireSection.vue'
 import CustomObservationDialog from '../CustomObservationDialog.vue'
 import AddQuestionnaireToVisitDialog from '../AddQuestionnaireToVisitDialog.vue'
 import VisitQuestionnaireFillDialog from '../VisitQuestionnaireFillDialog.vue'
+import FileUploadConfirmDialog from '../FileUploadConfirmDialog.vue'
 
 defineOptions({
   name: 'VisitCardEditor',
@@ -123,7 +132,7 @@ const props = defineProps({
   patient: { type: Object, required: true },
 })
 
-defineEmits(['edit-meta'])
+const emit = defineEmits(['edit-meta', 'uploaded'])
 
 const observationStore = useObservationStore()
 const visitRef = toRef(props, 'visit')
@@ -160,6 +169,48 @@ const countFor = (fieldSetId) => (fieldSetId === 'questionnaires' ? visitQuestio
 
 const onQuestionnaireAddedFromSearch = async (data) => {
   await onQuestionnaireSelected({ code: data.code, title: data.title, shortTitle: data.shortTitle })
+}
+
+// ---- File upload (same flow/limits as the VisitFileUploadArea drop zone) ----
+const { t } = useI18n()
+const notify = useNotify()
+
+const UPLOAD_ACCEPTED_TYPES = '.pdf,.doc,.docx,.txt,.rtf,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp,.mp4,.mov,.webm,.mkv,.avi'
+const UPLOAD_MAX_SIZE_MB = 50 // matches the uploadRawData DB guard
+
+const fileInput = ref(null)
+const pendingFile = ref(null)
+const showUploadConfirm = ref(false)
+
+const onFileInputChange = async (event) => {
+  const file = event.target.files?.[0]
+  event.target.value = '' // allow re-selecting the same file
+  if (!file) return
+
+  const ext = file.name.split('.').pop()?.toLowerCase() || ''
+  if (!UPLOAD_ACCEPTED_TYPES.includes(`.${ext}`)) {
+    notify.error(t('visit.uploadUnsupportedType', { ext }))
+    return
+  }
+  if (file.size > UPLOAD_MAX_SIZE_MB * 1024 * 1024) {
+    notify.error(t('visit.uploadTooLarge', { max: UPLOAD_MAX_SIZE_MB }))
+    return
+  }
+
+  const arrayBuffer = await file.arrayBuffer()
+  pendingFile.value = {
+    fileInfo: { filename: file.name, size: file.size, ext },
+    blob: new Uint8Array(arrayBuffer),
+    originalFile: file,
+  }
+  showUploadConfirm.value = true
+}
+
+const onFileSaved = async (payload) => {
+  pendingFile.value = null
+  // Show the new R observation in the panels; the container refreshes counts
+  await visitObservationService.selectVisitAndLoadObservations(props.visit)
+  emit('uploaded', payload)
 }
 
 onMounted(async () => {
@@ -253,6 +304,10 @@ onMounted(async () => {
 
   .sidebar-label {
     font-size: 0.85rem;
+  }
+
+  .hidden-file-input {
+    display: none;
   }
 }
 
