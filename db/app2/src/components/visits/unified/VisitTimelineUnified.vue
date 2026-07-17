@@ -428,24 +428,29 @@ const previewQuestionnaire = (observation) => {
   margin: 0 auto;
 }
 
-// The quick nav floats in the left gutter (absolute) so the main column
-// (header + cards) never shifts, whether the nav is there or not
 .unified-body {
   position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
+  gap: 16px;
 }
 
+// Default: the nav sits in-flow inside the 1000px column (cards narrow a
+// bit, the header row above stays put). On wide screens it floats in the
+// left gutter instead, so the cards keep their full width.
 .unified-nav {
-  position: absolute;
-  right: 100%;
-  top: 0;
-  bottom: 0;
-  margin-right: 16px;
+  flex-shrink: 0;
 
-  // Not enough gutter space next to the centered 1000px column
-  @media (max-width: 1420px) {
+  @media (min-width: 1480px) {
+    position: absolute;
+    right: 100%;
+    top: 0;
+    bottom: 0;
+    margin-right: 16px;
+  }
+
+  @media (max-width: 900px) {
     display: none;
   }
 }
