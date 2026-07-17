@@ -440,6 +440,7 @@
     "deleteObservation": "Delete observation",
     "deleteObservationConfirm": "Delete \"{name}\"? The value will be removed.",
     "saveFailed": "Failed to save observation",
+    "revertTooltip": "Undo — restore the previous value ({value})",
     "editObservation": "Edit Observation",
     "searchAndAddObservation": "Search and Add Observation",
     "category": "Category",

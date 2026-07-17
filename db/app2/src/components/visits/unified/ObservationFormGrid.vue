@@ -37,6 +37,15 @@
         </div>
 
         <ObservationValueEditor v-else :row-data="field.row" :concept="field.concept" :visit="visit" :patient="patient" @value-changed="onValueChanged" @save-requested="onSaveRequested" />
+
+        <!-- Save feedback overlay: check for ~2.5s, then an undo button for
+             another ~7.5s that restores the pre-save value (legacy revert) -->
+        <div v-if="feedbackFor(field.key) === 'saved'" class="save-feedback save-feedback--ok">
+          <q-icon name="check_circle" size="16px" color="positive" />
+        </div>
+        <q-btn v-else-if="feedbackFor(field.key) === 'revert' && field.obs" flat round dense size="xs" icon="undo" color="orange-8" class="save-feedback" @click.stop="revertField(field)">
+          <q-tooltip>{{ $t('observation.revertTooltip', { value: revertValueLabel(field) }) }}</q-tooltip>
+        </q-btn>
       </div>
     </div>
 
@@ -45,7 +54,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
@@ -164,6 +173,7 @@ const onSaveRequested = async (rowData) => {
 
   try {
     if (field.obs) {
+      const previousValue = field.row.originalValue
       const updateData = buildObservationUpdate(field.concept.valueType, value)
       await visitObservationService.updateObservation(field.obs.observationId, updateData, { skipReload: true })
       // Mirror into the store object so a re-render shows the saved value
@@ -172,6 +182,7 @@ const onSaveRequested = async (rowData) => {
         field.obs.rawData.TVAL_CHAR = updateData.TVAL_CHAR ?? null
         field.obs.rawData.VALUEFLAG_CD = null
       }
+      scheduleFeedback(field.key, previousValue, true)
     } else {
       // Empty field → first input creates the observation (service reloads)
       await visitObservationService.createObservation(
@@ -183,6 +194,7 @@ const onSaveRequested = async (rowData) => {
           visitDate: props.visit.date,
         }),
       )
+      scheduleFeedback(field.key, null, false)
     }
     pendingValues.value.delete(rowData.key)
   } catch (error) {
@@ -190,6 +202,75 @@ const onSaveRequested = async (rowData) => {
     notify.error(t('observation.saveFailed'))
   }
 }
+
+// ---- Save feedback + revert window (legacy recordRecentSave/revertRow) ----
+const SAVED_MS = 2500 // check icon
+const REVERT_MS = 7500 // then undo button — 10s window in total
+
+const recentSaves = ref(new Map()) // key → { previousValue, phase, t1, t2 }
+
+const bumpRecentSaves = () => {
+  recentSaves.value = new Map(recentSaves.value)
+}
+
+const clearFeedback = (key) => {
+  const entry = recentSaves.value.get(key)
+  if (!entry) return
+  clearTimeout(entry.t1)
+  clearTimeout(entry.t2)
+  recentSaves.value.delete(key)
+  bumpRecentSaves()
+}
+
+const scheduleFeedback = (key, previousValue, revertable) => {
+  clearFeedback(key)
+  const entry = { previousValue, phase: 'saved', t1: null, t2: null }
+  entry.t1 = setTimeout(() => {
+    if (!revertable) {
+      clearFeedback(key)
+      return
+    }
+    entry.phase = 'revert'
+    bumpRecentSaves()
+    entry.t2 = setTimeout(() => clearFeedback(key), REVERT_MS)
+  }, SAVED_MS)
+  recentSaves.value.set(key, entry)
+  bumpRecentSaves()
+}
+
+const feedbackFor = (key) => recentSaves.value.get(key)?.phase || null
+
+const revertValueLabel = (field) => {
+  const entry = recentSaves.value.get(field.key)
+  const value = entry?.previousValue
+  return value === '' || value === null || value === undefined ? '∅' : String(value)
+}
+
+const revertField = async (field) => {
+  const entry = recentSaves.value.get(field.key)
+  if (!entry || !field.obs) return
+  try {
+    const updateData = buildObservationUpdate(field.concept.valueType, entry.previousValue ?? '')
+    await visitObservationService.updateObservation(field.obs.observationId, updateData, { skipReload: true })
+    if (field.obs.rawData) {
+      field.obs.rawData.NVAL_NUM = updateData.NVAL_NUM ?? null
+      field.obs.rawData.TVAL_CHAR = updateData.TVAL_CHAR ?? null
+      field.obs.rawData.VALUEFLAG_CD = null
+    }
+    pendingValues.value.delete(field.key)
+    clearFeedback(field.key)
+  } catch (error) {
+    logger.error('Failed to revert observation', error, { conceptCode: field.concept.code })
+    notify.error(t('observation.saveFailed'))
+  }
+}
+
+onUnmounted(() => {
+  for (const entry of recentSaves.value.values()) {
+    clearTimeout(entry.t1)
+    clearTimeout(entry.t2)
+  }
+})
 
 const confirmDelete = (field) => {
   $q.dialog({
@@ -272,6 +353,7 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
 }
 
 .form-field {
+  position: relative; // anchor for the save/revert feedback overlay
   min-width: 0;
 
   &--m {
@@ -280,6 +362,37 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
 
   &--full {
     grid-column: 1 / -1;
+  }
+}
+
+// Sits over the right edge of the input (left of select carets)
+.save-feedback {
+  position: absolute;
+  right: 28px;
+  bottom: 6px;
+  z-index: 3;
+
+  &--ok {
+    pointer-events: none;
+    line-height: 1;
+    animation: feedback-in 0.15s ease;
+  }
+}
+
+@keyframes feedback-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .save-feedback--ok {
+    animation: none;
   }
 }
 

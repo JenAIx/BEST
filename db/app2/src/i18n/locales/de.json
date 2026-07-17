@@ -440,6 +440,7 @@
     "deleteObservation": "Beobachtung löschen",
     "deleteObservationConfirm": "„{name}“ wirklich löschen? Der Wert wird entfernt.",
     "saveFailed": "Beobachtung konnte nicht gespeichert werden",
+    "revertTooltip": "Rückgängig — vorherigen Wert wiederherstellen ({value})",
     "editObservation": "Beobachtung bearbeiten",
     "searchAndAddObservation": "Beobachtung suchen und hinzufügen",
     "category": "Kategorie",
