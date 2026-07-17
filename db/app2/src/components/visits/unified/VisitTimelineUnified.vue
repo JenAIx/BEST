@@ -47,15 +47,23 @@
             :categorized-observations="observationsForVisit(visit.id)"
             :observation-count="observationCountFor(visit)"
             :expanded="isExpanded(visit)"
+            :editing="isEditing(visit.id)"
+            :muted="editingVisitId !== null && !isEditing(visit.id)"
             :type-meta="typeMeta(visit)"
             :status-meta="statusMeta(visit)"
             @toggle="toggleCard(visit)"
-            @edit="editVisit(visit)"
+            @edit="startEditing(visit)"
+            @finish="stopEditing"
             @clone="confirmClone(visit)"
             @delete="confirmDelete(visit)"
             @preview-file="previewFile"
             @preview-questionnaire="previewQuestionnaire"
-          />
+          >
+            <!-- Inline edit mode: split layout, mounted only for the editing card -->
+            <template #editor>
+              <VisitCardEditor v-if="editingStoreVisit" :visit="editingStoreVisit" :patient="patient" @edit-meta="editVisitMeta" />
+            </template>
+          </VisitUnifiedCard>
         </div>
       </div>
 
@@ -88,15 +96,18 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onBeforeUnmount } from 'vue'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { visitObservationService } from 'src/services/visit-observation-service'
 import { useVisitLabels } from 'src/composables/useVisitLabels'
 import { useVisitActions } from 'src/composables/useVisitActions'
+import { useSingleVisitEdit } from 'src/composables/useSingleVisitEdit'
 import { groupObservationsByVisit, filterObservations } from 'src/shared/utils/file-category'
 import { toggleExpanded, allExpanded, expandAll, collapseAll } from 'src/shared/utils/expand-state.js'
 import VisitUnifiedCard from './VisitUnifiedCard.vue'
+import VisitCardEditor from './VisitCardEditor.vue'
 import PatientNotesStrip from '../PatientNotesStrip.vue'
 import VisitFileUploadArea from '../VisitFileUploadArea.vue'
 import NewVisitDialog from '../NewVisitDialog.vue'
@@ -157,7 +168,13 @@ const expandedIds = ref(new Set())
 // clearing the search restores the previous expand state for free
 const isExpanded = (visit) => (searchTerm.value ? true : expandedIds.value.has(visit.id))
 
-const toggleCard = (visit) => {
+const toggleCard = async (visit) => {
+  // Collapsing the editing card means "done" (autosave model, nothing to lose)
+  if (isEditing(visit.id)) {
+    await stopEditing()
+    expandedIds.value = collapseAll(expandedIds.value, [visit.id])
+    return
+  }
   if (searchTerm.value) return // cards are pinned open while searching
   expandedIds.value = toggleExpanded(expandedIds.value, visit.id)
 }
@@ -179,6 +196,7 @@ const toggleExpandAll = () => {
 watch(patientNum, () => {
   expandedIds.value = new Set()
   searchTerm.value = ''
+  editingVisitId.value = null // no cross-patient edit state
 })
 
 watch(
@@ -194,26 +212,62 @@ const { confirmClone, confirmDelete, buildVisitForEdit } = useVisitActions({
   getPatientNum: () => patientNum.value,
 })
 
+// ---- Inline edit mode (at most one visit at a time) ----
+const { editingVisitId, isEditing, startEditing, stopEditing } = useSingleVisitEdit({
+  // Always edit the store's full copy (rawData/visitType parsed from VISIT_BLOB)
+  resolveVisit: (visit) => visitStore.visits.find((v) => v.id === visit.id) || visit,
+  // The panels read observationStore.observations → select BEFORE the editor mounts
+  selectVisit: (visit) => visitObservationService.selectVisitAndLoadObservations(visit),
+  onEnter: (visit) => {
+    expandedIds.value = expandAll(expandedIds.value, [visit.id])
+  },
+  // Autosaves write with skipReload → refresh the read cards on exit
+  onExit: () => onDataChanged(),
+})
+
+const editingStoreVisit = computed(() => (editingVisitId.value == null ? null : visitStore.visits.find((v) => v.id === editingVisitId.value) || null))
+
+// Leaving the view (tab switch) while editing: refresh the patient-wide list
+onBeforeUnmount(() => {
+  if (editingVisitId.value != null && patientNum.value != null) {
+    observationStore.loadAllObservationsForPatient(patientNum.value)
+  }
+})
+
+// Visit metadata (date/type/status) via the pencil in the editor sidebar
 const showEditVisitDialog = ref(false)
 const selectedVisitForEdit = ref(null)
 
-const editVisit = (visit) => {
+const editVisitMeta = () => {
+  const visit = editingStoreVisit.value
+  if (!visit) return
   selectedVisitForEdit.value = buildVisitForEdit(visit)
   showEditVisitDialog.value = true
 }
 
 const onVisitUpdated = async () => {
   await onDataChanged()
+  // Keep the editor working on the fresh store copy
+  const visit = editingStoreVisit.value
+  if (visit) {
+    try {
+      await visitObservationService.selectVisitAndLoadObservations(visit)
+    } catch (error) {
+      logger.error('Failed to re-select visit after metadata update', error)
+    }
+  }
 }
 
-// ---- New visit ----
+// ---- New visit: created → straight into edit mode ----
 const showNewVisitDialog = ref(false)
 
 const onVisitCreated = async (newVisit) => {
   try {
+    // Dialog payload has no visitType/rawData — reload and use the store copy
     await onDataChanged()
     const id = newVisit?.id ?? newVisit?.ENCOUNTER_NUM
-    if (id != null) expandedIds.value = expandAll(expandedIds.value, [id])
+    const full = id != null ? visitStore.visits.find((v) => v.id === id) : null
+    if (full) await startEditing(full)
   } catch (error) {
     logger.error('Failed to refresh after visit creation', error)
   }
