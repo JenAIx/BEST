@@ -422,7 +422,9 @@
     "fieldGroups": "Field groups",
     "noFieldGroupsActive": "No field groups active — enable one on the right",
     "addQuestionnaire": "Add questionnaire",
-    "uploadAddFile": "Add document"
+    "uploadAddFile": "Add document",
+    "fieldGroupsInactive": "More groups",
+    "fieldGroupsFilter": "Filter groups…"
   },
   "observation": {
     "observation": "Observation",

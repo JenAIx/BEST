@@ -55,13 +55,14 @@
             </q-btn>
           </div>
 
+          <!-- Active groups pinned on top -->
           <q-list dense>
-            <q-item v-for="fs in availableFieldSets" :key="fs.id" tag="label" dense class="sidebar-item">
+            <q-item v-for="fs in activeFieldSetsList" :key="fs.id" tag="label" dense class="sidebar-item">
               <q-item-section side>
-                <q-checkbox dense size="sm" :model-value="activeFieldSets.includes(fs.id)" @update:model-value="toggleFieldSet(fs.id)" />
+                <q-checkbox dense size="sm" :model-value="true" @update:model-value="toggleFieldSet(fs.id)" />
               </q-item-section>
               <q-item-section avatar class="sidebar-icon">
-                <q-icon :name="fs.icon || 'category'" size="16px" color="grey-7" />
+                <q-icon :name="fs.icon || 'category'" size="16px" color="primary" />
               </q-item-section>
               <q-item-section>
                 <q-item-label class="ellipsis sidebar-label">{{ fs.name }}</q-item-label>
@@ -70,7 +71,39 @@
                 <q-badge v-if="countFor(fs.id) > 0" rounded color="primary" :label="countFor(fs.id)" />
               </q-item-section>
             </q-item>
+            <div v-if="activeFieldSetsList.length === 0" class="text-caption text-grey-6 q-px-sm q-py-xs">{{ $t('visit.noFieldGroupsActive') }}</div>
           </q-list>
+
+          <!-- Inactive groups: search filter + own scroll area -->
+          <template v-if="inactiveFieldSetsAll.length > 0">
+            <div class="sidebar-subtitle">{{ $t('visit.fieldGroupsInactive') }}</div>
+            <q-input v-model="fieldSetFilter" dense outlined clearable :placeholder="$t('visit.fieldGroupsFilter')" class="sidebar-filter">
+              <template v-slot:prepend>
+                <q-icon name="search" size="14px" />
+              </template>
+            </q-input>
+            <div class="inactive-scroll">
+              <q-list dense>
+                <q-item v-for="fs in inactiveFieldSets" :key="fs.id" tag="label" dense class="sidebar-item sidebar-item--inactive">
+                  <q-item-section side>
+                    <q-checkbox dense size="sm" :model-value="false" @update:model-value="toggleFieldSet(fs.id)" />
+                  </q-item-section>
+                  <q-item-section avatar class="sidebar-icon">
+                    <q-icon :name="fs.icon || 'category'" size="16px" color="grey-6" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label class="ellipsis sidebar-label">{{ fs.name }}</q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-badge v-if="countFor(fs.id) > 0" rounded color="grey-5" :label="countFor(fs.id)" />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-if="fieldSetFilter && inactiveFieldSets.length === 0" class="text-caption text-grey-6 q-pa-sm">
+                {{ $t('visit.compactSearchNoResults', { term: fieldSetFilter }) }}
+              </div>
+            </div>
+          </template>
 
           <q-separator spaced />
 
@@ -166,6 +199,17 @@ const visitTypeCode = computed(() => extractVisitType(props.visit) || '')
 const showAddCustomDialog = ref(false)
 
 const countFor = (fieldSetId) => (fieldSetId === 'questionnaires' ? visitQuestionnaires.value.length : getFieldSetObservationCount(fieldSetId))
+
+// Sidebar: active groups pinned on top, inactive below (filterable)
+const fieldSetFilter = ref('')
+
+const inactiveFieldSetsAll = computed(() => availableFieldSets.value.filter((fs) => !activeFieldSets.value.includes(fs.id)))
+
+const inactiveFieldSets = computed(() => {
+  const term = fieldSetFilter.value?.trim().toLowerCase()
+  if (!term) return inactiveFieldSetsAll.value
+  return inactiveFieldSetsAll.value.filter((fs) => fs.name.toLowerCase().includes(term))
+})
 
 const onQuestionnaireAddedFromSearch = async (data) => {
   await onQuestionnaireSelected({ code: data.code, title: data.title, shortTitle: data.shortTitle })
@@ -335,6 +379,36 @@ onMounted(async () => {
   .sidebar-item {
     padding: 2px 4px;
     min-height: 32px;
+
+    &--inactive .sidebar-label {
+      color: $grey-7;
+    }
+  }
+
+  .sidebar-subtitle {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: $grey-6;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 10px 4px 4px;
+  }
+
+  .sidebar-filter {
+    padding: 0 4px 4px;
+
+    :deep(.q-field__control) {
+      height: 30px;
+    }
+
+    :deep(.q-field__marginal) {
+      height: 30px;
+    }
+  }
+
+  .inactive-scroll {
+    max-height: 220px;
+    overflow-y: auto;
   }
 
   .sidebar-icon {

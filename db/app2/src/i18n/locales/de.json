@@ -422,7 +422,9 @@
     "fieldGroups": "Feldgruppen",
     "noFieldGroupsActive": "Keine Feldgruppen aktiv — rechts eine Gruppe aktivieren",
     "addQuestionnaire": "Fragebogen hinzufügen",
-    "uploadAddFile": "Dokument hinzufügen"
+    "uploadAddFile": "Dokument hinzufügen",
+    "fieldGroupsInactive": "Weitere Gruppen",
+    "fieldGroupsFilter": "Gruppen filtern…"
   },
   "observation": {
     "observation": "Beobachtung",
