@@ -94,13 +94,31 @@ describe('buildFormFields (delete semantics of the edit grid)', () => {
     const duplicate = obsOf({ observationId: 2, displayValue: '138', rawData: { NVAL_NUM: 138 } })
     const fields = buildFormFields({ conceptCodes: ['LID: 2947-0'], resolvedConcepts: resolved, observations: [fuzzy, duplicate] })
     expect(fields).toHaveLength(2)
-    expect(fields[0].obs.observationId).toBe(1) // fuzzy match fills the slot
-    expect(fields[1].obs.observationId).toBe(2) // second row appended
+    expect(fields[0].obs.observationId).toBe(2) // the EXACT code wins the slot
+    expect(fields[1].obs.observationId).toBe(1) // fuzzy variant appended as extra
     // same concept twice (e.g. several medications) → v-for keys must differ,
     // the concept code stays intact for saves
     expect(new Set(fields.map((f) => f.key)).size).toBe(2)
-    expect(fields[1].concept.code).toBe('LID: 2947-0')
-    expect(fields[1].row.conceptCode).toBe('LID: 2947-0')
+    expect(fields[1].row.conceptCode).toBe('LID:2947-0')
+
+    // a lone fuzzy row still fills the slot
+    const only = buildFormFields({ conceptCodes: ['LID: 2947-0'], resolvedConcepts: resolved, observations: [fuzzy] })
+    expect(only).toHaveLength(1)
+    expect(only[0].obs.observationId).toBe(1)
+  })
+
+  it('exact matches claim their slot before fuzzy ones (regardless of row order)', () => {
+    const symptoms = obsOf({ observationId: 1, conceptCode: 'STROKE_LIPID:STATIN_INTOLERANCE_SYMPTOMS', valueType: 'T', displayValue: 'sdfe', rawData: { TVAL_CHAR: 'sdfe' } })
+    const intolerance = obsOf({ observationId: 2, conceptCode: 'STROKE_LIPID:STATIN_INTOLERANCE', valueType: 'F', displayValue: 'No', rawData: { TVAL_CHAR: 'SCTID: 373067005' } })
+    // symptoms first in the array — with naive first-match it would land in
+    // the STATIN_INTOLERANCE slot (substring containment)
+    const fields = buildFormFields({
+      conceptCodes: ['STROKE_LIPID:STATIN_INTOLERANCE', 'STROKE_LIPID:STATIN_INTOLERANCE_SYMPTOMS'],
+      resolvedConcepts: new Map(),
+      observations: [symptoms, intolerance],
+    })
+    expect(fields[0].obs.observationId).toBe(2)
+    expect(fields[1].obs.observationId).toBe(1)
   })
 
   it('pending (unsaved) input overrides the stored value', () => {
@@ -174,6 +192,27 @@ describe('fieldSetCompletion (subtle group percentage)', () => {
 
   it('empty group → 0/0, percent 0', () => {
     expect(fieldSetCompletion({ conceptCodes: [], observations: [] })).toEqual({ filled: 0, total: 0, percent: 0 })
+  })
+
+  it('exact matches beat fuzzy substring collapses (10041940 V1 regression: 5/6 despite all filled)', () => {
+    // STATIN_INTOLERANCE_SYMPTOMS contains STATIN_INTOLERANCE as substring —
+    // it must fill ITS OWN concept, not collapse onto the prefix concept
+    const result = fieldSetCompletion({
+      conceptCodes: ['STROKE_LIPID:STATIN_INTOLERANCE', 'STROKE_LIPID:STATIN_INTOLERANCE_SYMPTOMS'],
+      observations: [
+        filled('STROKE_LIPID:STATIN_INTOLERANCE_SYMPTOMS', { valueType: 'T', displayValue: 'sdfe' }),
+        filled('STROKE_LIPID:STATIN_INTOLERANCE', { observationId: 2, valueType: 'F', displayValue: 'No' }),
+      ],
+    })
+    expect(result).toEqual({ filled: 2, total: 2, percent: 100 })
+  })
+
+  it('medications (M) never count — open-ended list has no meaningful ratio', () => {
+    const med = (id) => obsOf({ observationId: id, valueType: 'M', conceptCode: 'LID: 52418-1', displayValue: 'Aspirin', rawData: { TVAL_CHAR: 'Aspirin' } })
+    // pure medication group → nothing to count, percent hidden via total 0
+    expect(fieldSetCompletion({ conceptCodes: ['LID: 52418-1'], observations: [med(1), med(2)] })).toEqual({ filled: 0, total: 0, percent: 0 })
+    // mixed group: the M concept leaves the denominator, the rest counts
+    expect(fieldSetCompletion({ conceptCodes: ['A', 'LID: 52418-1'], observations: [filled('A'), med(1)] })).toEqual({ filled: 1, total: 1, percent: 100 })
   })
 })
 

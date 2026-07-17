@@ -8,7 +8,9 @@
     <div class="form-group-head">
       <q-icon :name="fieldSet.icon || 'category'" size="16px" />
       <span>{{ fieldSet.name }}</span>
-      <span class="form-group-count">({{ completion.filled }}/{{ completion.total }})</span>
+      <!-- Countable groups show filled/total; groups without a meaningful
+           denominator (pure medication lists, raw media) just the row count -->
+      <span class="form-group-count">{{ completion.total > 0 ? `(${completion.filled}/${completion.total})` : `(${fields.length})` }}</span>
       <!-- Not for the virtual groups (raw media / uncategorized): they only
            ever contain existing rows, a percentage carries no information -->
       <span v-if="completion.total > 0 && !fieldSet.isVirtual" class="head-percent" :class="{ 'head-percent--full': completion.percent === 100 }">{{ completion.percent }} %</span>
@@ -165,8 +167,13 @@ const fields = computed(() =>
 )
 
 // Distinct-concept completion (2× HDL counts once) — same helper as the
-// read tiles, so both modes show identical numbers
-const completion = computed(() => fieldSetCompletion({ conceptCodes: props.fieldSet.concepts || [], observations: props.existingObservations || [] }))
+// read tiles, so both modes show identical numbers. Configured M concepts
+// are excluded up front (open-ended medication list, no meaningful ratio);
+// the helper drops M rows itself.
+const completion = computed(() => {
+  const codes = (props.fieldSet.concepts || []).filter((code) => resolvedConcepts.value.get(code)?.valueType !== 'M')
+  return fieldSetCompletion({ conceptCodes: codes, observations: props.existingObservations || [] })
+})
 
 // Width by content: numbers small (side by side), text wide, files medium
 const fieldSpan = (field) => tileSpan({ valueType: field.concept.valueType, displayValue: String(field.row.value ?? '') })

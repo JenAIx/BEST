@@ -92,12 +92,15 @@ describe('ObservationTileGrid (read tiles)', () => {
   })
 
   it('field-set groups show the subtle completion percentage on the right', () => {
+    const sodium = { observationId: 9, conceptCode: 'LID: 2947-0', conceptName: 'Natrium', valueType: 'N', displayValue: '140', rawData: { NVAL_NUM: 140 } }
     // 1 of 2 configured concepts filled → 50 %
-    const wrapper = makeWrapper([medicationObs], { conceptCodes: ['LID: 52418-1', 'LID: 2085-9'] })
+    const wrapper = makeWrapper([sodium], { conceptCodes: ['LID: 2947-0', 'LID: 2085-9'] })
     expect(wrapper.find('.head-percent').text()).toContain('50 %')
   })
 
-  it('no percentage for category remainder groups or while searching', () => {
+  it('no percentage for pure medication groups, remainder groups or while searching', () => {
+    // medications are an open-ended list — no meaningful ratio
+    expect(makeWrapper([medicationObs], { conceptCodes: ['LID: 52418-1'] }).find('.head-percent').exists()).toBe(false)
     expect(makeWrapper([medicationObs]).find('.head-percent').exists()).toBe(false) // no conceptCodes
     expect(makeWrapper([medicationObs], { conceptCodes: ['LID: 52418-1'] }, { showCompletion: false }).find('.head-percent').exists()).toBe(false)
   })

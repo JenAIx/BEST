@@ -57,8 +57,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (z. B. 2× HDL) zählen einmal, Fuzzy-Matches kollabieren auf ihr
     konfiguriertes Konzept, Fragebögen zählen pro Bogen (nur
     abgeschlossene als gefüllt), NV gilt als erfasst. Ausgeblendet bei
-    aktiver Ergebnissuche (gefilterte Zahlen wären irreführend) und für
-    virtuelle Gruppen (Raw Data / Unkategorisiert).
+    aktiver Ergebnissuche (gefilterte Zahlen wären irreführend), für
+    virtuelle Gruppen (Raw Data / Unkategorisiert) und für
+    M-Medikamentenlisten (offene Liste — kein sinnvoller Nenner; der
+    Kopf zeigt dort nur die Zeilenzahl).
+  - **Fix Konzept-Matching (Exakt vor Fuzzy)**: Das Substring-Matching
+    ließ `…STATIN_INTOLERANCE_SYMPTOMS` auf `…STATIN_INTOLERANCE`
+    kollabieren — Folge: 5/6 trotz vollständiger Eingabe (Pat. 10041940
+    V1) und potenziell falsch zugeordnete Editor-Slots. Exakte
+    Code-Treffer haben jetzt überall Vorrang: Completion-Zählung,
+    Slot-Zuordnung im Formular-Raster (`buildFormFields`, zwei Pässe)
+    und Lese-Gruppierung (`groupObservationsByFieldSets`).
   - **Last-Audit View/Edit-Modus**: Alle Listen-Queries der Zeitlinie
     verifiziert — R-Blobs (Datei-Bytes, z. B. PDF/MP4) werden nirgends in
     Listen geladen (nur On-Demand in Vorschau-Dialogen), Q/M-Blobs sind

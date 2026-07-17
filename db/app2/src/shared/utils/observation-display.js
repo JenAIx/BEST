@@ -136,13 +136,28 @@ export function buildFormFields({ conceptCodes = [], resolvedConcepts = new Map(
   }
 
   const used = new Set()
-  const out = []
 
-  for (const code of conceptCodes) {
-    const obs = observations.find((o) => !used.has(o.observationId) && matchesConceptCode(o.conceptCode, [code]))
-    if (obs) used.add(obs.observationId)
-    out.push(makeField(code, resolvedConcepts.get(code), obs))
+  // Two passes: exact code matches claim their slot first, fuzzy matches
+  // only fill what is left — otherwise STATIN_INTOLERANCE_SYMPTOMS would
+  // land in the STATIN_INTOLERANCE slot (substring containment)
+  const slots = conceptCodes.map((code) => ({ code, obs: null }))
+  for (const slot of slots) {
+    const obs = observations.find((o) => !used.has(o.observationId) && o.conceptCode === slot.code)
+    if (obs) {
+      slot.obs = obs
+      used.add(obs.observationId)
+    }
   }
+  for (const slot of slots) {
+    if (slot.obs) continue
+    const obs = observations.find((o) => !used.has(o.observationId) && matchesConceptCode(o.conceptCode, [slot.code]))
+    if (obs) {
+      slot.obs = obs
+      used.add(obs.observationId)
+    }
+  }
+
+  const out = slots.map((slot) => makeField(slot.code, resolvedConcepts.get(slot.code), slot.obs))
 
   for (const obs of observations) {
     if (used.has(obs.observationId)) continue
@@ -172,9 +187,17 @@ const QUESTIONNAIRE_CONCEPT = 'CUSTOM: QUESTIONNAIRE'
  * @param {Array} args.observations - transformed observations of the group
  * @returns {{filled: number, total: number, percent: number}}
  */
+// Exact code equality wins over the fuzzy containment rules — substring
+// matching would collapse e.g. STATIN_INTOLERANCE_SYMPTOMS onto
+// STATIN_INTOLERANCE and leave the real concept "unfilled"
+function canonicalConceptFor(obsConceptCode, configured) {
+  return configured.find((code) => code === obsConceptCode) ?? configured.find((code) => matchesConceptCode(obsConceptCode, [code])) ?? null
+}
+
 export function fieldSetCompletion({ conceptCodes = [], observations = [] }) {
   const configured = [...new Set(conceptCodes)].filter((code) => code !== QUESTIONNAIRE_CONCEPT)
   const filledConfigured = new Set()
+  const medicationClaimed = new Set()
   const extraAll = new Set()
   const extraFilled = new Set()
   let questTotal = 0
@@ -186,8 +209,16 @@ export function fieldSetCompletion({ conceptCodes = [], observations = [] }) {
       if (parseQuestionnaireObservation(obs).isCompleted) questFilled += 1
       continue
     }
+    if (obs.valueType === 'M') {
+      // Medications are an open-ended list ("add another") — a completion
+      // ratio carries no meaning, so M rows never count and their
+      // configured concept leaves the denominator
+      const canonical = canonicalConceptFor(obs.conceptCode, configured)
+      if (canonical) medicationClaimed.add(canonical)
+      continue
+    }
     const filled = !isBlankObservation(obs)
-    const canonical = configured.find((code) => matchesConceptCode(obs.conceptCode, [code]))
+    const canonical = canonicalConceptFor(obs.conceptCode, configured)
     if (canonical) {
       if (filled) filledConfigured.add(canonical)
     } else {
@@ -196,7 +227,7 @@ export function fieldSetCompletion({ conceptCodes = [], observations = [] }) {
     }
   }
 
-  const total = configured.length + extraAll.size + questTotal
+  const total = configured.filter((code) => !medicationClaimed.has(code)).length + extraAll.size + questTotal
   const filled = filledConfigured.size + extraFilled.size + questFilled
   return { filled, total, percent: total > 0 ? Math.round((filled / total) * 100) : 0 }
 }
