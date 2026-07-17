@@ -4,13 +4,12 @@
        no navigation to the legacy entry tab. -->
   <div class="unified-view">
     <div class="unified-container">
-      <!-- Body: quick navigation left, main column (header + cards) right -->
-      <div class="unified-body">
-        <!-- One side column: quick nav on top, editor tools (teleported)
-             beneath while editing -->
-        <div v-if="showSideColumn" class="unified-side">
-          <VisitQuickNav v-if="navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
-          <div v-if="editingVisitId !== null" id="unified-edit-sidebar" class="unified-edit-rail"></div>
+      <!-- Fixed three-column grid: nav left, cards middle (constant width in
+           every state), editor tools right. Below 1000px the edit tools
+           replace the nav in the single side column. -->
+      <div class="unified-body" :class="{ 'unified-body--editing': editingVisitId !== null }">
+        <div class="unified-side">
+          <VisitQuickNav v-if="!loading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
         </div>
 
         <div class="unified-main">
@@ -88,6 +87,9 @@
             </div>
           </div>
         </div>
+
+        <!-- Editor tools target (teleported from VisitCardEditor) -->
+        <div v-if="editingVisitId !== null" id="unified-edit-sidebar" class="unified-edit-rail"></div>
       </div>
 
       <!-- File upload (drop zone, fixed below the scroll area; hidden while
@@ -328,8 +330,6 @@ const scrollArea = ref(null)
 const activeNav = ref(null)
 const editorGroups = ref([]) // reported by VisitCardEditor while editing
 
-const showSideColumn = computed(() => (!loading.value && navEntries.value.length > 0) || editingVisitId.value !== null)
-
 const navEntries = computed(() => {
   if (editingVisitId.value != null) {
     const visit = editingStoreVisit.value
@@ -500,65 +500,65 @@ const previewQuestionnaire = (observation) => {
   display: flex;
   flex-direction: column;
   width: 100%;
-  max-width: 1080px;
+  max-width: 1440px;
   margin: 0 auto;
 }
 
+// Fixed three-column grid: both side columns are ALWAYS reserved, so the
+// middle column keeps a constant width in every state (collapsed overview,
+// expanded read mode, edit mode)
 .unified-body {
-  position: relative;
   flex: 1;
   min-height: 0;
-  display: flex;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr) 200px;
   gap: 16px;
+}
+
+.unified-side {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 0;
+  overflow: hidden;
+
+  .unified-nav {
+    width: 100%;
+    height: 100%;
+  }
 }
 
 // Header row + scroll area — the header always sits exactly above the cards
 .unified-main {
-  flex: 1;
+  grid-column: 2;
+  grid-row: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
 
-// One side column for everything: quick nav on top, editor tools beneath
-// while editing. In-flow inside the column by default (cards narrow a bit,
-// identically in read and edit mode); on very wide screens it floats in the
-// left gutter and the cards keep the full container width.
-.unified-side {
-  flex-shrink: 0;
-  width: 200px;
+// Editor tools (teleported from VisitCardEditor)
+.unified-edit-rail {
+  grid-column: 3;
+  grid-row: 1;
   min-height: 0;
-  display: flex;
-  flex-direction: column;
-
-  @media (min-width: 1560px) {
-    position: absolute;
-    right: 100%;
-    top: 0;
-    bottom: 0;
-    margin-right: 16px;
-  }
-
-  @media (max-width: 900px) {
-    display: none;
-  }
-
-  .unified-nav {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-  }
+  overflow-y: auto;
 }
 
-// Editor tools (teleported from VisitCardEditor) docked at the bottom
-.unified-edit-rail {
-  flex-shrink: 0;
-  max-height: 55%;
-  overflow-y: auto;
-  border-top: 1px solid $grey-4;
-  margin-top: 8px;
-  padding-top: 4px;
+// Small screens: one side column only — while editing the tools replace
+// the quick navigation there
+@media (max-width: 1000px) {
+  .unified-body {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+
+  .unified-edit-rail {
+    grid-column: 1;
+  }
+
+  .unified-body--editing .unified-side {
+    display: none;
+  }
 }
 
 .unified-header {
