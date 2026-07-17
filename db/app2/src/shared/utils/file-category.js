@@ -117,6 +117,92 @@ export function filterObservations(observations, term) {
  * @param {Array} observations - transformed observations (with encounterNum, category)
  * @returns {Map<number, Array>} - encounterNum → categorized groups
  */
+/**
+ * Concept-code matcher — same hybrid logic as observation-store:
+ * exact match → trailing numeric code → substring containment.
+ */
+function matchesConceptCode(obsConceptCode, conceptList) {
+  if (!conceptList || !obsConceptCode) return false
+  return conceptList.some((concept) => {
+    if (obsConceptCode === concept) return true
+
+    const conceptNumMatch = concept.match(/[:\s]([0-9-]+)$/)
+    const obsNumMatch = obsConceptCode.match(/[:\s]([0-9-]+)$/)
+    if (conceptNumMatch && obsNumMatch && conceptNumMatch[1] === obsNumMatch[1]) return true
+
+    if (concept.includes(obsConceptCode) || obsConceptCode.includes(concept)) return true
+    if (obsConceptCode.toLowerCase().includes(concept.toLowerCase())) return true
+
+    return false
+  })
+}
+
+/**
+ * Group a patient's observations by visit, primarily into FIELD GROUPS
+ * (LOOKUP_BLOB concepts[]/categories[]; a concept-code claim by ANY group
+ * beats a category claim — same semantics as the card editor's panels),
+ * the remainder into the observation's own category. Field-group order
+ * first, category groups alphabetical after. With no field sets given this
+ * degrades to pure category grouping (= groupObservationsByVisit).
+ * @param {Array} observations - transformed observations (encounterNum, conceptCode, category)
+ * @param {Array} fieldSets - field-set defs ({id, name, icon, concepts[], categories[]})
+ * @returns {Map<number, Array<{name, icon?, observations: Array}>>}
+ */
+export function groupObservationsByFieldSets(observations, fieldSets) {
+  const sets = fieldSets || []
+  const byVisit = new Map()
+
+  for (const observation of observations || []) {
+    const encounterNum = observation.encounterNum
+    if (encounterNum == null) continue
+    if (!byVisit.has(encounterNum)) byVisit.set(encounterNum, [])
+    byVisit.get(encounterNum).push(observation)
+  }
+
+  const grouped = new Map()
+  for (const [encounterNum, rows] of byVisit) {
+    const byFieldSet = new Map()
+    const remainder = []
+
+    for (const row of rows) {
+      // Strategy 1: concept-code match (first field group in order wins)
+      let claimed = sets.find((fs) => matchesConceptCode(row.conceptCode, fs.concepts))
+      // Strategy 2: category fallback — only when no group claims it by concept
+      if (!claimed && row.category) {
+        claimed = sets.find((fs) => fs.categories?.length > 0 && fs.categories.includes(row.category))
+      }
+      if (claimed) {
+        if (!byFieldSet.has(claimed.id)) byFieldSet.set(claimed.id, [])
+        byFieldSet.get(claimed.id).push(row)
+      } else {
+        remainder.push(row)
+      }
+    }
+
+    const groups = []
+    for (const fs of sets) {
+      const fsRows = byFieldSet.get(fs.id)
+      if (fsRows && fsRows.length > 0) groups.push({ name: fs.name, icon: fs.icon, observations: fsRows })
+    }
+
+    const byCategory = {}
+    for (const row of remainder) {
+      const category = row.category || 'General'
+      if (!byCategory[category]) byCategory[category] = []
+      byCategory[category].push(row)
+    }
+    groups.push(
+      ...Object.keys(byCategory)
+        .sort((a, b) => a.localeCompare(b))
+        .map((name) => ({ name, observations: byCategory[name] })),
+    )
+
+    grouped.set(encounterNum, groups)
+  }
+
+  return grouped
+}
+
 export function groupObservationsByVisit(observations) {
   const byVisit = new Map()
 

@@ -98,15 +98,16 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useVisitLabels } from 'src/composables/useVisitLabels'
 import { useVisitActions } from 'src/composables/useVisitActions'
 import { useSingleVisitEdit } from 'src/composables/useSingleVisitEdit'
-import { groupObservationsByVisit, filterObservations } from 'src/shared/utils/file-category'
+import { groupObservationsByFieldSets, filterObservations } from 'src/shared/utils/file-category'
 import { toggleExpanded, allExpanded, expandAll, collapseAll } from 'src/shared/utils/expand-state.js'
 import VisitUnifiedCard from './VisitUnifiedCard.vue'
 import VisitCardEditor from './VisitCardEditor.vue'
@@ -141,10 +142,23 @@ const loading = computed(() => visitStore.loading)
 const { resolveAll, typeMeta, statusMeta } = useVisitLabels()
 watch(sortedVisits, (list) => resolveAll(list), { immediate: true })
 
-// ---- Search / grouping (same data flow as the compact summary) ----
+// ---- Search / grouping ----
+// Read cards group like the editor: field groups first (concept match beats
+// category claim), remainder by observation category
+const globalSettingsStore = useGlobalSettingsStore()
+const fieldSetDefs = ref([])
+
+onMounted(async () => {
+  try {
+    fieldSetDefs.value = (await globalSettingsStore.getFieldSetOptions()) || []
+  } catch (error) {
+    logger.error('Failed to load field set definitions', error)
+  }
+})
+
 const searchTerm = ref('')
 
-const groupedByVisit = computed(() => groupObservationsByVisit(filterObservations(observationStore.allObservations, searchTerm.value)))
+const groupedByVisit = computed(() => groupObservationsByFieldSets(filterObservations(observationStore.allObservations, searchTerm.value), fieldSetDefs.value))
 
 const observationsForVisit = (visitId) => groupedByVisit.value.get(visitId) || []
 
