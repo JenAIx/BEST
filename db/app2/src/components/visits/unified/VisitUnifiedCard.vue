@@ -10,9 +10,6 @@
       <q-chip dense size="sm" outline :color="typeMeta.color || 'primary'" :icon="typeMeta.icon">
         {{ typeMeta.label }}
       </q-chip>
-      <q-chip v-if="statusMeta.label && statusMeta.label !== 'Unknown'" dense size="sm" outline :color="statusMeta.color || 'grey'">
-        {{ statusMeta.label }}
-      </q-chip>
       <q-chip v-if="editing" dense size="sm" color="primary" text-color="white" icon="edit" data-cy="unified-card-editing-chip">
         {{ $t('visit.editingChip') }}
       </q-chip>
@@ -123,6 +120,25 @@ defineEmits(['toggle', 'edit', 'edit-meta', 'clone', 'delete', 'finish', 'previe
   &.status-cancelled::before {
     background: $grey-5;
     box-shadow: 0 0 0 4px rgba($grey-5, 0.2);
+  }
+
+  // Status shows through the card itself instead of a chip:
+  // completed → subtle green header tint, inactive/cancelled → deactivated look
+  &.status-completed:not(.visit-block--editing) .visit-block-header {
+    background: rgba(76, 175, 80, 0.09);
+    border-bottom-color: rgba(76, 175, 80, 0.25);
+
+    &:hover {
+      background: $blue-1;
+    }
+  }
+
+  &.status-cancelled:not(.visit-block--editing) {
+    opacity: 0.65;
+
+    .visit-date {
+      color: $grey-6;
+    }
   }
 }
 
