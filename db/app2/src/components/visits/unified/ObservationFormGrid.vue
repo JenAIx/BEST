@@ -12,7 +12,13 @@
     </div>
 
     <div class="form-grid">
-      <div v-for="field in fields" :key="field.key" class="form-field" :class="`form-field--${fieldSpan(field)}`" :style="{ '--tv': valueTypeHex(field.concept.valueType) }">
+      <div
+        v-for="field in fields"
+        :key="field.key"
+        class="form-field"
+        :class="[`form-field--${fieldSpan(field)}`, { 'form-field--blank': isBlankFormField(field) }]"
+        :style="{ '--tv': valueTypeHex(field.concept.valueType) }"
+      >
         <div class="field-label">
           <span class="field-dot"></span>
           <span class="ellipsis">{{ shortConceptName(field.concept.name) }}</span>
@@ -36,6 +42,14 @@
           <span v-if="field.obs?.fileInfo?.size" class="field-file-size">{{ formatFileSize(field.obs.fileInfo.size) }}</span>
         </div>
 
+        <!-- M (medication): compact summary line, click opens the structured
+             medication dialog (drug/dosage/frequency/route/instructions) -->
+        <div v-else-if="field.concept.valueType === 'M'" class="field-medication" @click="openMedicationEdit(field)">
+          <q-icon name="medication" size="15px" :color="field.obs ? 'purple-7' : 'grey-6'" />
+          <span v-if="medicationSummary(field)" class="ellipsis">{{ medicationSummary(field) }}</span>
+          <span v-else class="field-medication-add ellipsis">{{ $t('visit.addMedication') }}</span>
+        </div>
+
         <ObservationValueEditor v-else :row-data="field.row" :concept="field.concept" :visit="visit" :patient="patient" @value-changed="onValueChanged" @save-requested="onSaveRequested" />
 
         <!-- Save feedback overlay: check for ~2.5s, then an undo button for
@@ -50,22 +64,44 @@
     </div>
 
     <FileDetailsDialog v-if="fileToEdit" v-model="showFileDetails" :observation="fileToEdit" @saved="onFileDetailsSaved" />
+
+    <MedicationEditDialog
+      v-if="medicationField"
+      v-model="showMedicationDialog"
+      :medication-data="medicationDialogData"
+      :observation-id="medicationField.obs?.observationId ?? null"
+      :frequency-options="frequencyOptions"
+      :route-options="routeOptions"
+      @save="onMedicationSave"
+    />
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useMedicationsStore } from 'src/stores/medications-store'
 import { useNotify } from 'src/composables/useNotify'
+import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 import { visitObservationService } from 'src/services/visit-observation-service'
-import { matchesConceptCode } from 'src/shared/utils/file-category.js'
 import { getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
-import { shortConceptName, tileSpan, valueTypeHex, buildObservationUpdate, buildNewObservationData } from 'src/shared/utils/observation-display.js'
+import {
+  shortConceptName,
+  tileSpan,
+  valueTypeHex,
+  buildObservationUpdate,
+  buildNewObservationData,
+  buildFormFields,
+  isBlankFormField,
+  parseMedicationObservation,
+  formatMedicationSummary,
+} from 'src/shared/utils/observation-display.js'
 import ObservationValueEditor from '../ObservationValueEditor.vue'
 import FileDetailsDialog from './FileDetailsDialog.vue'
+import MedicationEditDialog from '../MedicationEditDialog.vue'
 
 defineOptions({
   name: 'ObservationFormGrid',
@@ -102,59 +138,17 @@ onMounted(async () => {
 // on typing, save-requested on blur/Enter/selection)
 const pendingValues = ref(new Map())
 
-const editValueOf = (obs) => {
-  if (!obs) return ''
-  if (obs.valueType === 'N') return obs.rawData?.NVAL_NUM ?? ''
-  // Coded values (S/F/A) need the CODE for the select, not the display label
-  return obs.rawData?.TVAL_CHAR ?? obs.displayValue ?? ''
-}
-
-const makeField = (code, meta, obs) => {
-  const concept = {
-    code,
-    name: meta?.label || obs?.conceptName || code,
-    valueType: obs?.valueType || meta?.valueType || 'T',
-    unit: obs?.unit || meta?.unit || null,
-  }
-  const current = editValueOf(obs)
-  const value = pendingValues.value.has(code) ? pendingValues.value.get(code) : current
-  return {
-    key: code,
-    concept,
-    obs: obs || null,
-    row: {
-      id: code,
-      key: code,
-      observationId: obs?.observationId ?? null,
-      conceptCode: code,
-      valueType: concept.valueType,
-      currentValue: value,
-      originalValue: current,
-      value,
-    },
-  }
-}
-
-// Every field-set concept becomes a field (filled or empty); observations the
-// group claimed by category (not listed in concepts[]) are appended after
-const fields = computed(() => {
-  const observations = props.existingObservations || []
-  const used = new Set()
-  const out = []
-
-  for (const code of props.fieldSet.concepts || []) {
-    const obs = observations.find((o) => !used.has(o.observationId) && matchesConceptCode(o.conceptCode, [code]))
-    if (obs) used.add(obs.observationId)
-    out.push(makeField(code, resolvedConcepts.value.get(code), obs))
-  }
-
-  for (const obs of observations) {
-    if (used.has(obs.observationId)) continue
-    out.push(makeField(obs.conceptCode, { label: obs.conceptName, valueType: obs.valueType, unit: obs.unit }, obs))
-  }
-
-  return out
-})
+// Every field-set concept becomes a field (filled or empty — a deleted
+// observation leaves its slot as an empty field); observations the group
+// claimed by category only are appended after and vanish with their row
+const fields = computed(() =>
+  buildFormFields({
+    conceptCodes: props.fieldSet.concepts || [],
+    resolvedConcepts: resolvedConcepts.value,
+    observations: props.existingObservations || [],
+    pendingValues: pendingValues.value,
+  }),
+)
 
 const filledCount = computed(() => fields.value.filter((field) => field.obs).length)
 
@@ -318,6 +312,80 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
     obs.fileInfo = { ...envelope }
   }
 }
+
+// ---- M (medication) fields: structured edit via MedicationEditDialog ----
+const medicationsStore = useMedicationsStore()
+const { frequencyOptions, routeOptions, loadMedicationOptions, getFrequencyLabel, getRouteLabel } = useMedicationOptions()
+
+// Load frequency/route lookups only when this group actually shows M fields
+const medicationOptionsLoaded = ref(false)
+watch(
+  fields,
+  (list) => {
+    if (medicationOptionsLoaded.value) return
+    if (list.some((field) => field.concept.valueType === 'M')) {
+      medicationOptionsLoaded.value = true
+      loadMedicationOptions()
+    }
+  },
+  { immediate: true },
+)
+
+const medicationSummary = (field) => {
+  if (!field.obs) return ''
+  const medication = parseMedicationObservation(field.obs)
+  return formatMedicationSummary(medication, {
+    frequencyLabel: getFrequencyLabel(medication.frequency),
+    routeLabel: getRouteLabel(medication.route),
+  })
+}
+
+const medicationField = ref(null)
+const medicationDialogData = ref({})
+const showMedicationDialog = ref(false)
+
+const openMedicationEdit = (field) => {
+  medicationField.value = field
+  medicationDialogData.value = field.obs ? parseMedicationObservation(field.obs) : { drugName: '', dosage: null, dosageUnit: 'mg', frequency: '', route: '', instructions: '' }
+  showMedicationDialog.value = true
+}
+
+const onMedicationSave = async (medicationData) => {
+  const field = medicationField.value
+  if (!field) return
+  try {
+    if (field.obs) {
+      const result = await medicationsStore.updateMedication({ observationId: field.obs.observationId, medicationData })
+      // Mirror into the store object (same invariant as every other save)
+      if (field.obs.rawData) {
+        field.obs.rawData.TVAL_CHAR = result.drugName
+        field.obs.rawData.NVAL_NUM = result.dosage
+        field.obs.rawData.UNIT_CD = result.dosageUnit
+        field.obs.rawData.OBSERVATION_BLOB = result.observationBlob
+      }
+      field.obs.displayValue = result.drugName
+      field.obs.value = result.drugName
+      field.obs.numericValue = result.dosage
+      field.obs.unit = result.dosageUnit
+      scheduleFeedback(field.key, null, false)
+    } else {
+      // Empty field → create against the field-set concept, then reload the
+      // visit observations so the new row fills the slot
+      await medicationsStore.createMedication({
+        patientNum: props.patient.PATIENT_NUM,
+        visitId: props.visit.id,
+        conceptCode: field.concept.code,
+        visitDate: props.visit.date,
+        medicationData,
+      })
+      await visitObservationService.selectVisitAndLoadObservations(props.visit)
+      scheduleFeedback(field.key, null, false)
+    }
+  } catch (error) {
+    logger.error('Failed to save medication', error, { conceptCode: field.concept.code })
+    notify.error(t('observation.saveFailed'))
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -362,6 +430,18 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
 
   &--full {
     grid-column: 1 / -1;
+  }
+
+  // Blank fields (no value yet, or value deleted while the concept stays in
+  // the field set) step back visually; hover/focus restores full presence
+  &--blank {
+    opacity: 0.55;
+    transition: opacity 0.15s ease;
+
+    &:hover,
+    &:focus-within {
+      opacity: 1;
+    }
   }
 }
 
@@ -458,6 +538,28 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
     flex-shrink: 0;
     font-size: 0.68rem;
     font-style: italic;
+    color: $grey-6;
+  }
+
+  &:hover {
+    background: $blue-1;
+    border-color: $primary;
+  }
+}
+
+// Medication field — same box language as the file field, purple accent
+.field-medication {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid $grey-4;
+  border-radius: 5px;
+  padding: 5px 9px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  min-width: 0;
+
+  .field-medication-add {
     color: $grey-6;
   }
 

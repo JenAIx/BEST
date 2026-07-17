@@ -27,8 +27,15 @@
             <span v-if="obs.fileInfo?.size" class="tile-unit">{{ formatFileSize(obs.fileInfo.size) }}</span>
           </div>
           <div v-else-if="obs.valueType === 'Q'" class="tile-value">
-            <q-icon name="quiz" size="15px" color="deep-purple-6" />
+            <q-icon :name="questMeta(obs).isCompleted ? 'check_circle' : 'pending'" size="15px" :color="questMeta(obs).isCompleted ? 'positive' : 'amber-8'" />
+            <span class="ellipsis">{{ questMeta(obs).title }}</span>
+            <span v-if="questMeta(obs).score !== null" class="tile-unit">{{ $t('visit.questionnaireScore', { score: questMeta(obs).score }) }}</span>
+            <span v-else-if="!questMeta(obs).isCompleted" class="tile-unit">{{ $t('visit.questionnaireFill') }}</span>
+          </div>
+          <div v-else-if="obs.valueType === 'M'" class="tile-value">
+            <q-icon name="medication" size="15px" color="purple-7" />
             <span class="ellipsis">{{ obs.displayValue }}</span>
+            <span v-if="obs.numericValue != null" class="tile-unit">{{ obs.numericValue }} {{ obs.unit || '' }}</span>
           </div>
           <div v-else-if="isEmptyValue(obs)" class="tile-value tile-value--empty">
             <span>∅</span>
@@ -41,8 +48,10 @@
           </div>
 
           <!-- R tiles: file-typical subline (filename — description);
+               Q tiles: questionnaire short title/code;
                everything else shows the short concept name -->
           <div v-if="obs.valueType === 'R'" class="tile-concept ellipsis">{{ fileSubline(obs) }}</div>
+          <div v-else-if="obs.valueType === 'Q'" class="tile-concept ellipsis">{{ questMeta(obs).shortTitle || questMeta(obs).questionnaireCode || shortConceptName(obs.conceptName) }}</div>
           <div v-else class="tile-concept ellipsis">{{ shortConceptName(obs.conceptName) }}</div>
 
           <q-tooltip :delay="350" max-width="360px">
@@ -62,6 +71,7 @@
 <script setup>
 import { getCategoryIcon, getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
 import { shortConceptName, tileSpan, valueTypeHex } from 'src/shared/utils/observation-display.js'
+import { parseQuestionnaireObservation } from 'src/shared/utils/questionnaire-display.js'
 
 defineOptions({
   name: 'ObservationTileGrid',
@@ -75,6 +85,10 @@ defineProps({
 const emit = defineEmits(['preview-file', 'preview-questionnaire'])
 
 const isPreviewable = (obs) => obs.valueType === 'R' || obs.valueType === 'Q'
+
+// Q tiles show completion status + score/progress hint (shared parse with
+// the editor's questionnaire grid)
+const questMeta = (obs) => parseQuestionnaireObservation(obs)
 
 // NV-flagged ("explicitly no value") or simply unfilled observations render
 // as a subtle ∅ tile instead of a bold "No value" text

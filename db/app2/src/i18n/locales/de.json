@@ -431,7 +431,11 @@
     "fileDetailsSaved": "Mediendetails gespeichert",
     "inOutStatus": "Aufnahmeart (ambulant/stationär)",
     "sourceSystem": "Quellsystem",
-    "fieldGroupAdd": "Gruppe zur Visite hinzufügen"
+    "fieldGroupAdd": "Gruppe zur Visite hinzufügen",
+    "removeQuestionnaire": "Fragebogen entfernen",
+    "removeQuestionnaireConfirm": "Fragebogen „{title}“ wirklich entfernen? Bereits erfasste Antworten werden gelöscht.",
+    "questionnaireFill": "Ausfüllen",
+    "questionnaireScore": "Score: {score}"
   },
   "observation": {
     "observation": "Beobachtung",

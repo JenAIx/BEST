@@ -9,7 +9,15 @@
  * - the exact same save/create payload semantics as the legacy
  *   ObservationFieldSet.saveRow / buildEmptyObservationData (incl. the
  *   VALUEFLAG_CD reset policy from CLAUDE.md §3)
+ * - form-field building for the edit grid (field-set concepts stay as empty
+ *   fields when their observation is deleted; extra observations claimed
+ *   only by category disappear with their observation)
+ * - blank detection: read mode hides observations that were merely created
+ *   without a value (NV-flagged rows stay — "explicitly no value" is data),
+ *   edit mode dims blank fields
  */
+
+import { matchesConceptCode } from './file-category.js'
 
 // Value-type accent colors (hex — used as CSS custom property values)
 export const VALUE_TYPE_HEX = {
@@ -60,6 +68,105 @@ export function tileSpan(obs) {
 }
 
 /**
+ * True when the observation carries no value at all — created (e.g. as an
+ * empty CRF field or via "add all") but never filled. NV-flagged rows are
+ * NOT blank: "explicitly no value" is recorded information (CLAUDE.md §3).
+ * Q rows are never blank (pending fills are meaningful), R rows always
+ * carry their file.
+ */
+export function isBlankObservation(obs) {
+  if (!obs) return true
+  if (obs.valueType === 'Q' || obs.valueType === 'R') return false
+  const flag = obs.rawData?.VALUEFLAG_CD ?? obs.valueFlag ?? null
+  if (flag === 'NV') return false
+  const value = obs.displayValue
+  return value == null || value === '' || value === 'No value'
+}
+
+/**
+ * The value a form-grid field edits: numerics from NVAL_NUM, coded values
+ * (S/F/A) need the CODE for the select — TVAL_CHAR, not the resolved label.
+ */
+export function editValueOf(obs) {
+  if (!obs) return ''
+  if (obs.valueType === 'N') return obs.rawData?.NVAL_NUM ?? ''
+  return obs.rawData?.TVAL_CHAR ?? obs.displayValue ?? ''
+}
+
+/**
+ * Build the form-grid fields for one field set (pure — testable):
+ * every configured concept becomes a field, filled by the first matching
+ * observation or empty (delete keeps the slot); observations the group
+ * claimed only by category (not listed in concepts[]) are appended after
+ * and disappear together with their observation.
+ *
+ * @param {Object} args
+ * @param {string[]} args.conceptCodes - fieldSet.concepts
+ * @param {Map} args.resolvedConcepts - code → {label, valueType, unit}
+ * @param {Array} args.observations - transformed observations of this group
+ * @param {Map} args.pendingValues - key → unsaved input
+ * @returns {Array<{key, concept, obs, row}>}
+ */
+export function buildFormFields({ conceptCodes = [], resolvedConcepts = new Map(), observations = [], pendingValues = new Map() }) {
+  const makeField = (code, meta, obs) => {
+    const concept = {
+      code,
+      name: meta?.label || obs?.conceptName || code,
+      valueType: obs?.valueType || meta?.valueType || 'T',
+      unit: obs?.unit || meta?.unit || null,
+    }
+    const current = editValueOf(obs)
+    const value = pendingValues.has(code) ? pendingValues.get(code) : current
+    return {
+      key: code,
+      concept,
+      obs: obs || null,
+      row: {
+        id: code,
+        key: code,
+        observationId: obs?.observationId ?? null,
+        conceptCode: code,
+        valueType: concept.valueType,
+        currentValue: value,
+        originalValue: current,
+        value,
+      },
+    }
+  }
+
+  const used = new Set()
+  const out = []
+
+  for (const code of conceptCodes) {
+    const obs = observations.find((o) => !used.has(o.observationId) && matchesConceptCode(o.conceptCode, [code]))
+    if (obs) used.add(obs.observationId)
+    out.push(makeField(code, resolvedConcepts.get(code), obs))
+  }
+
+  for (const obs of observations) {
+    if (used.has(obs.observationId)) continue
+    out.push(makeField(obs.conceptCode, { label: obs.conceptName, valueType: obs.valueType, unit: obs.unit }, obs))
+  }
+
+  return out
+}
+
+/**
+ * Blank check for a form-grid field (edit mode dims blank fields):
+ * no observation, or an observation whose edited value is empty. R fields
+ * are blank only without their observation (a file row always has a file);
+ * M fields are blank without a drug name.
+ */
+export function isBlankFormField(field) {
+  if (!field) return true
+  const type = field.concept?.valueType
+  if (type === 'R') return !field.obs
+  if (type === 'M') return !field.obs || !parseMedicationObservation(field.obs).drugName
+  const value = field.row?.value
+  return value == null || value === ''
+}
+
+/**
  * Update payload for writing a value — mirrors ObservationFieldSet.saveRow:
  * writing a value always clears VALUEFLAG_CD (NV/AUDIT/CONFIRMED reset).
  */
@@ -103,6 +210,51 @@ export function buildObservationUpdate(valueType, value) {
  * ObservationFieldSet.buildEmptyObservationData, optionally with an initial
  * value merged in (create-on-first-input in the form grid).
  */
+/**
+ * Synchronous parse of an M-type observation into medication data — the
+ * storage convention from medications-store: TVAL_CHAR = drug name,
+ * NVAL_NUM = dosage, UNIT_CD = dosage unit, OBSERVATION_BLOB = JSON with
+ * frequency/route/instructions. List queries include the (small) M blob,
+ * so no async loading is needed here.
+ */
+export function parseMedicationObservation(obs) {
+  const raw = obs?.rawData || {}
+  let blob = {}
+  const blobText = raw.OBSERVATION_BLOB
+  if (typeof blobText === 'string' && blobText) {
+    try {
+      const parsed = JSON.parse(blobText)
+      if (parsed && typeof parsed === 'object') blob = parsed
+    } catch {
+      blob = {}
+    }
+  }
+  return {
+    drugName: blob.drugName || raw.TVAL_CHAR || obs?.value || '',
+    dosage: blob.dosage ?? raw.NVAL_NUM ?? obs?.numericValue ?? null,
+    dosageUnit: blob.dosageUnit || raw.UNIT_CD || obs?.unit || 'mg',
+    frequency: blob.frequency || '',
+    route: blob.route || '',
+    instructions: blob.instructions || '',
+  }
+}
+
+/**
+ * One-line medication summary for tiles/fields: "ASS 100 mg · 2x täglich ·
+ * p.o.". Frequency/route arrive as display labels (resolved by the caller,
+ * e.g. useMedicationOptions) — raw codes pass through unchanged.
+ */
+export function formatMedicationSummary(medication, { frequencyLabel = null, routeLabel = null } = {}) {
+  if (!medication?.drugName) return ''
+  const parts = [medication.drugName]
+  if (medication.dosage != null && medication.dosage !== '') parts.push(`${medication.dosage} ${medication.dosageUnit || ''}`.trim())
+  const frequency = frequencyLabel || medication.frequency
+  if (frequency) parts.push(frequency)
+  const route = routeLabel || medication.route
+  if (route) parts.push(route)
+  return parts.join(' · ')
+}
+
 export function buildNewObservationData({ patientNum, encounterNum, concept, value = null, visitDate = null }) {
   const base = {
     PATIENT_NUM: patientNum,

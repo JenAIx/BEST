@@ -636,10 +636,21 @@ Components (`src/components/visits/unified/`):
   spinner, otherwise list+editor unmount and lose state.
 - E2E: `bash scripts/verify-visits/run.sh` (19 checks, DB backup + ID-diff
   delete guards + integrity check; app must be closed).
-- NOT yet integrated into the new grid look: `VisitQuestionnaireSection`
-  (legacy styling inside the editor) and true M-type medication editing
-  (form grid falls back to the plain editor; Stroke-Lipid drugs are N-type
-  and unaffected).
+- Questionnaires + M-type medications are part of the grid look (July 2026):
+  `QuestionnaireFormGrid.vue` (one tile per questionnaire, add tile,
+  confirm-remove; Q-blob parsing shared via
+  `shared/utils/questionnaire-display.js` with the read tiles and
+  `useVisitQuestionnaires`). M fields render a summary line and edit via
+  `MedicationEditDialog`; saves go through `medications-store`
+  (`createMedication` accepts `patientNum`/`conceptCode`/`visitDate`,
+  update/create return the serialized blob for local mirroring — same
+  propagation invariant as `valueFlag`).
+- Blank handling: read mode HIDES observations that are merely created
+  without a value (`isBlankObservation` — NV rows stay visible as ∅);
+  edit mode dims blank fields (`form-field--blank`). Deleting a field-set
+  observation keeps its slot as an empty (dimmed) field; observations the
+  group claimed only by category disappear with their row
+  (`buildFormFields` in `shared/utils/observation-display.js`).
 
 ---
 

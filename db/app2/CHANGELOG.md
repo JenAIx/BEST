@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Zeitlinie: Fragebögen + Medikamente im Formular-Raster**
+  (`features/questionnaire-medication-grid`):
+  - **Fragebögen im Raster-Look**: neue `QuestionnaireFormGrid.vue` ersetzt
+    die Legacy-`VisitQuestionnaireSection` im Karten-Editor — eine breite
+    Kachel pro Fragebogen (Status-Icon, Titel, Score bzw.
+    Ausfüll-Fortschritt), gestrichelte „Fragebogen hinzufügen“-Kachel,
+    Entfernen mit Bestätigungsdialog. Die Blob-Parsing-Logik ist nach
+    `shared/utils/questionnaire-display.js` extrahiert und wird von
+    Editor, Lese-Kacheln und `useVisitQuestionnaires` geteilt; die
+    Lese-Kachel zeigt jetzt Status (abgeschlossen/ausstehend) und Score.
+  - **Echte M-Typ-Medikamenten-Bearbeitung im Formular-Raster**: M-Felder
+    zeigen eine kompakte Zusammenfassung („ASS · 100 mg · 2x täglich ·
+    p.o.“, Frequenz/Route über CODE_LOOKUP-Labels) statt des toten
+    Platzhalters; Klick öffnet den strukturierten `MedicationEditDialog`.
+    Leere M-Felder legen die Observation mit dem Feldset-Konzeptcode an
+    (`medications-store.createMedication` akzeptiert jetzt `patientNum`,
+    `conceptCode`, `visitDate`; Update/Create liefern den serialisierten
+    Blob für die lokale Spiegelung zurück). Lese-Kachel zeigt
+    Wirkstoff + Dosis/Einheit.
+  - **Leere Observations**: Der Lese-Modus blendet nur angelegte
+    Observations ohne Wert aus (NV-markierte „explizit kein Wert“-Zeilen
+    bleiben als ∅ sichtbar); im Editor werden leere Felder gedimmt
+    (Opacity, bei Hover/Fokus voll sichtbar) — auch nach dem Löschen einer
+    Feldset-Observation, deren Feld als leerer Slot bestehen bleibt. Nur
+    per Kategorie zugeordnete Observations verschwinden beim Löschen
+    komplett aus dem Raster (`buildFormFields`, per Test abgesichert).
+  - 34 neue Unit-Tests (Dateien 38–40): Leer-Erkennung, Feld-/Löschsemantik,
+    Medikamenten-Parsing/-Payloads, Fragebogen-Parsing, Komponententest
+    `QuestionnaireFormGrid`.
+
 - **„Zeitlinie neu“ — vereinheitlichte Visitenansicht** (`features/visits-unified`,
   4. Ansichts-Button auf `/visits/:id`; Testphase, alte Tabs unverändert):
   - **Lese-Modus**: Kompakt-Karten-Layout mit Zeitstrahl-Schiene links
