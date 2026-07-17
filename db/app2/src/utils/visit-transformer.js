@@ -249,7 +249,9 @@ export function prepareVisitClone(originalVisit, patientNum, providerId = 'SYSTE
   return {
     PATIENT_NUM: patientNum,
     START_DATE: new Date().toISOString().split('T')[0],
-    END_DATE: originalVisit.endDate || null,
+    // The clone starts today — the original END_DATE would lie in the past
+    // and fail the createVisit END>=START validation
+    END_DATE: null,
     UPDATE_DATE: currentTimestamp,
     INOUT_CD: originalVisit.inout || 'O',
     ACTIVE_STATUS_CD: originalVisit.status || 'SCTID: 55561003',
