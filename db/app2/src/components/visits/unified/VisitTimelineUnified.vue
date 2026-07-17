@@ -6,7 +6,7 @@
     <div class="unified-container">
       <!-- Body: quick navigation left, main column (header + cards) right -->
       <div class="unified-body">
-        <VisitQuickNav v-if="!loading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" @select-visit="navToVisit" @select-group="navToGroup" />
+        <VisitQuickNav v-if="!loading && navEntries.length > 0" class="unified-nav" :entries="navEntries" :active="activeNav" :tops="navTops" @select-visit="navToVisit" @select-group="navToGroup" />
 
         <div class="unified-main">
           <!-- Fixed header row above the card list: filter left, expand-all +
@@ -361,6 +361,30 @@ const navToGroup = ({ visitId, group }) => {
   scrollToSelector(`[data-visit-id="${visitId}"] [data-group-name="${CSS.escape(group)}"]`)
 }
 
+// Nav entries dock at the height of their card: visitId → px offset within
+// the nav column, re-measured on every scroll frame. Entries whose card
+// scrolled above the viewport clamp to the top (stacked, no overlap).
+const navTops = ref({})
+
+const measureNavPositions = () => {
+  const container = scrollArea.value
+  const body = container?.closest('.unified-body')
+  if (!container || !body) return
+  // Nav origin = body top; cards start below the header row → clamp there
+  const bodyTop = body.getBoundingClientRect().top
+  const tops = {}
+  let minTop = container.getBoundingClientRect().top - bodyTop + 2
+  for (const entry of navEntries.value) {
+    const card = container.querySelector(`[data-visit-id="${entry.visitId}"]`)
+    if (!card) continue
+    const top = Math.max(card.getBoundingClientRect().top - bodyTop, minTop)
+    tops[entry.visitId] = top
+    // reserve the entry's approximate height before the next one may start
+    minTop = top + 34 + entry.groups.length * 23 + 10
+  }
+  navTops.value = tops
+}
+
 // Scroll spy: the last visit/group anchor above the threshold line is active
 let spyTicking = false
 const onSpyScroll = () => {
@@ -387,15 +411,29 @@ const onSpyScroll = () => {
     // treat "scrolled to the end" as "last entry active"
     const atBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 4
     activeNav.value = atBottom && last ? last : current
+    measureNavPositions()
   })
 }
 
+// Re-measure when the entry set or card contents change size (expand/collapse,
+// editor panels mounting, data reloads)
+watch(
+  [navEntries, groupedByVisit],
+  async () => {
+    await nextTick()
+    requestAnimationFrame(measureNavPositions)
+  },
+  { immediate: true },
+)
+
 onMounted(() => {
   scrollArea.value?.addEventListener('scroll', onSpyScroll, { passive: true })
+  window.addEventListener('resize', onSpyScroll, { passive: true })
 })
 
 onBeforeUnmount(() => {
   scrollArea.value?.removeEventListener('scroll', onSpyScroll)
+  window.removeEventListener('resize', onSpyScroll)
 })
 
 // ---- Preview dialogs (same wiring as the compact summary) ----
