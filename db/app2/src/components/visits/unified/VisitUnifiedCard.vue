@@ -13,7 +13,7 @@
       <!-- Visit note: subtle marker, full text on header hover -->
       <q-icon v-if="visit.notes" name="sticky_note_2" size="14px" color="grey-5" />
       <q-tooltip v-if="visit.notes" :delay="350" max-width="380px">
-        <div class="note-tooltip">{{ visit.notes }}</div>
+        <div class="note-tooltip">{{ $t('visit.noteLabel') }}: {{ visit.notes }}</div>
       </q-tooltip>
       <q-chip v-if="editing" dense size="sm" color="primary" text-color="white" icon="edit" data-cy="unified-card-editing-chip">
         {{ $t('visit.editingChip') }}

@@ -423,6 +423,7 @@
     "fieldGroupsFilter": "Gruppen filtern…",
     "fieldGroupHidden": "Ausgeblendet — Werte bleiben erhalten",
     "editVisitDetails": "Visitendetails bearbeiten",
+    "noteLabel": "Notiz",
     "inOutStatus": "Aufnahmeart (ambulant/stationär)",
     "sourceSystem": "Quellsystem",
     "fieldGroupAdd": "Gruppe zur Visite hinzufügen"
