@@ -402,7 +402,12 @@
     "fileCategoryConsent": "Consent form",
     "fileCategoryOther": "Other / raw data",
     "compactSearchPlaceholder": "Filter results… (e.g. potassium, LDL, 39.9)",
-    "compactSearchNoResults": "No results match \"{term}\""
+    "compactSearchNoResults": "No results match \"{term}\"",
+    "patientNotes": "My notes on this patient ({count})",
+    "notesExpandAll": "Show all notes",
+    "notesCollapse": "Collapse notes",
+    "noteAdd": "Add note",
+    "noteAddFirst": "Attach a note to this patient"
   },
   "observation": {
     "observation": "Observation",

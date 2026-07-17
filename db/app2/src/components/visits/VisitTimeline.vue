@@ -2,33 +2,42 @@
   <!-- Compact mode pins header + search and scrolls only the visit blocks -->
   <div class="timeline-view" :class="{ 'timeline-view--compact': compactMode && !loading }">
     <div class="timeline-container">
-      <div class="timeline-header">
-        <h3 class="timeline-title">{{ $t('visit.timeline') }}</h3>
-        <div class="row items-center q-gutter-sm">
-          <!-- Card timeline vs. compact all-visits summary -->
-          <q-btn-toggle
-            v-model="compactMode"
-            :options="[
-              { value: false, icon: 'view_agenda', slot: 'cards' },
-              { value: true, icon: 'table_rows', slot: 'compact' },
-            ]"
-            toggle-color="primary"
-            color="grey-3"
-            text-color="grey-7"
-            size="sm"
-            unelevated
-            dense
+      <!-- Slim header: result filter (compact mode) left, view toggle +
+           new-visit button at the right edge — no page title -->
+      <div class="timeline-header row items-center q-gutter-sm">
+        <q-input v-if="compactMode" v-model="compactSearch" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="compact-search" debounce="200">
+          <template v-slot:prepend>
+            <q-icon name="search" size="18px" />
+          </template>
+        </q-input>
+        <q-space />
+        <!-- Card timeline vs. compact all-visits summary -->
+        <q-btn-toggle
+          v-model="compactMode"
+          :options="[
+            { value: false, icon: 'view_agenda', slot: 'cards' },
+            { value: true, icon: 'table_rows', slot: 'compact' },
+          ]"
+          toggle-color="primary"
+          color="grey-3"
+          text-color="grey-7"
+          size="sm"
+          unelevated
+          dense
+        >
+          <template v-slot:cards
+            ><q-tooltip>{{ $t('visit.cardView') }}</q-tooltip></template
           >
-            <template v-slot:cards
-              ><q-tooltip>{{ $t('visit.cardView') }}</q-tooltip></template
-            >
-            <template v-slot:compact
-              ><q-tooltip>{{ $t('visit.compactSummary') }}</q-tooltip></template
-            >
-          </q-btn-toggle>
-          <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="createNewVisit" />
-        </div>
+          <template v-slot:compact
+            ><q-tooltip>{{ $t('visit.compactSummary') }}</q-tooltip></template
+          >
+        </q-btn-toggle>
+        <q-btn color="primary" icon="add" :label="$t('visit.newVisit')" @click="createNewVisit" />
       </div>
+
+      <!-- Quick notes attached to this patient (card mode; the compact view
+           renders its own strip inside the scroll area, below the filter) -->
+      <PatientNotesStrip v-if="!loading && !compactMode" :patient-num="patientNum" />
 
       <div v-if="loading" class="loading-state">
         <q-spinner-grid size="50px" color="primary" />
@@ -43,7 +52,7 @@
       </div>
 
       <!-- Compact all-visits summary -->
-      <VisitCompactSummary v-else-if="compactMode" @visit-selected="selectVisit" />
+      <VisitCompactSummary v-else-if="compactMode" :patient-num="patientNum" :search-term="compactSearch" @visit-selected="selectVisit" />
 
       <div v-else class="timeline-list">
         <VisitTimelineItem
@@ -87,6 +96,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import VisitTimelineItem from './VisitTimelineItem.vue'
 import VisitCompactSummary from './VisitCompactSummary.vue'
 import VisitFileUploadArea from './VisitFileUploadArea.vue'
+import PatientNotesStrip from './PatientNotesStrip.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
 import VisitSummaryDialog from './VisitSummaryDialog.vue'
 import EditVisitDialog from '../patient/EditVisitDialog.vue'
@@ -114,6 +124,9 @@ const logger = loggingStore.createLogger('VisitTimeline')
 // View mode: card timeline vs. compact all-visits summary (persisted per device)
 const compactMode = ref(localSettings.getSetting('visits.timelineCompact', false) === true)
 watch(compactMode, (value) => localSettings.setSetting('visits.timelineCompact', value === true))
+
+// Result filter for the compact summary (input lives in the header row)
+const compactSearch = ref('')
 
 // State
 const showNewVisitDialog = ref(false)
@@ -399,16 +412,15 @@ const deleteVisit = async (visit) => {
 }
 
 .timeline-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
 
-  .timeline-title {
-    font-size: 1.5rem;
-    font-weight: 400;
-    color: $grey-8;
-    margin: 0;
+  .compact-search {
+    width: 100%;
+    max-width: 380px;
+
+    :deep(.q-field__control) {
+      background: white;
+    }
   }
 }
 

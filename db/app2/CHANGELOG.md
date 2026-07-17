@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Patienten-Notizleiste in der Zeitachse** (`features/patientvisit-notes`):
+  Quick Notes mit Kontext zum geöffneten Patienten erscheinen als kompakte
+  Haftnotiz-Leiste — in der Karten-Zeitachse oben, in der Kompaktübersicht
+  im Scrollbereich unter dem Suchfilter. Direkt in der Leiste: **Inline-
+  Bearbeiten** (Klick auf den Text), **Löschen** (mit Bestätigung) und
+  **neue Notiz anheften** (Plus; Kontext wird automatisch erfasst, da der
+  Patient geöffnet ist). Klick auf das Notiz-Symbol klappt die Leiste auf
+  eine Zeile zusammen (pro Gerät gemerkt); ohne Notizen bleibt nur ein
+  dezenter „Notiz anheften“-Link. Live-Sync mit dem Quick-Notes-Fenster
+  über das neue `quick-notes-changed`-Event. Repo/Store:
+  `getQuickNotes({patientNum})` + `note-store.fetchQuickNotesForPatient`.
+
 - **Dashboard-Überarbeitung** (`features/dashboard-overview`):
   - **Karte „Patienten & Besuche“** zeigt jetzt drei klar getrennte
     Gesamtzahlen: Patienten, Visiten, Beobachtungen (statt einer
@@ -70,6 +82,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Capture-Skript (playwright-core, crash-resilient mit Re-Login) gegen die
   headless laufende Electron-App; `REMOTE_DEBUG_PORT`-Schalter in
   `electron-main.js` (nur aktiv, wenn gesetzt). Dokumentiert im README.
+
+### Changed
+
+- **Schlanker Zeitachsen-Kopf in der Patientenansicht**
+  (`features/patientvisit-notes`): Der Titel „Zeitlinie“ entfällt; Suchfilter
+  (nur Kompaktmodus), Ansichts-Umschalter und „+Besuch“ stehen jetzt in einer
+  einzigen Kopfzeile (Filter links, Buttons am rechten Rand) — spart eine
+  komplette Zeile über der Visitenliste.
 
 ### Fixed
 

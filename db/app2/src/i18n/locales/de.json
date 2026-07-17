@@ -402,7 +402,12 @@
     "fileCategoryConsent": "Aufklärung / Einwilligung",
     "fileCategoryOther": "Sonstiges / Rohdaten",
     "compactSearchPlaceholder": "Ergebnisse filtern… (z. B. Kalium, LDL, 39,9)",
-    "compactSearchNoResults": "Keine Ergebnisse zu „{term}“"
+    "compactSearchNoResults": "Keine Ergebnisse zu „{term}“",
+    "patientNotes": "Meine Notizen zu diesem Patienten ({count})",
+    "notesExpandAll": "Alle Notizen anzeigen",
+    "notesCollapse": "Notizen einklappen",
+    "noteAdd": "Notiz hinzufügen",
+    "noteAddFirst": "Notiz an diesen Patienten heften"
   },
   "observation": {
     "observation": "Beobachtung",
