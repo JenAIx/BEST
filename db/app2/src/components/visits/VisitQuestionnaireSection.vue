@@ -1,5 +1,5 @@
 <template>
-  <div v-if="visit" class="field-set-section">
+  <div v-if="visit" class="field-set-section" :data-group-name="fieldSet?.name || 'Fragebögen'">
     <!-- Collapsible Header (matching ObservationFieldSet pattern) -->
     <div class="field-set-header cursor-pointer" @click="collapsed = !collapsed">
       <div class="field-set-title">

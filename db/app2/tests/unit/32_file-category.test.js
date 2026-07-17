@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { suggestFileCategory, getFileExtension, getFileCategory, groupObservationsByVisit, filterObservations, FILE_CATEGORIES } from '../../src/shared/utils/file-category.js'
+import { suggestFileCategory, getFileExtension, getFileCategory, groupObservationsByVisit, groupObservationsByFieldSets, filterObservations, FILE_CATEGORIES } from '../../src/shared/utils/file-category.js'
 
 describe('getFileExtension', () => {
   it('extracts the lower-cased extension', () => {
@@ -129,5 +129,58 @@ describe('groupObservationsByVisit', () => {
   it('handles empty input', () => {
     expect(groupObservationsByVisit([]).size).toBe(0)
     expect(groupObservationsByVisit(null).size).toBe(0)
+  })
+})
+
+describe('groupObservationsByFieldSets', () => {
+  const FIELD_SETS = [
+    { id: 'lipid_labor', name: 'Lipid Study - Laboratory', icon: 'science', concepts: ['LID: 22748-8'], categories: [] },
+    { id: 'vitals', name: 'Vital Signs Group', icon: 'monitor_heart', concepts: [], categories: ['Vital Signs'] },
+  ]
+
+  const OBS = [
+    // claimed by concept code (exact)
+    { encounterNum: 1, conceptCode: 'LID: 22748-8', conceptName: 'LDL', category: 'Laboratory' },
+    // claimed by category fallback
+    { encounterNum: 1, conceptCode: 'SCTID: 271649006', conceptName: 'RR systolisch', category: 'Vital Signs' },
+    // remainder → own category group
+    { encounterNum: 1, conceptCode: 'CUSTOM: NOTES', conceptName: 'Notiz', category: 'General' },
+    { encounterNum: 2, conceptCode: 'CUSTOM: X', conceptName: 'X', category: 'Stroke' },
+  ]
+
+  it('groups field groups first (in order), remainder by category', () => {
+    const groups = groupObservationsByFieldSets(OBS, FIELD_SETS).get(1)
+    expect(groups.map((g) => g.name)).toEqual(['Lipid Study - Laboratory', 'Vital Signs Group', 'General'])
+    expect(groups[0].icon).toBe('science')
+    expect(groups[0].observations[0].conceptName).toBe('LDL')
+  })
+
+  it('concept-code claim beats a category claim by another group', () => {
+    const sets = [
+      { id: 'labs', name: 'Labs', concepts: ['LID: 22748-8'], categories: [] },
+      { id: 'labcat', name: 'Lab Category', concepts: [], categories: ['Laboratory'] },
+    ]
+    const groups = groupObservationsByFieldSets([OBS[0]], sets).get(1)
+    expect(groups).toHaveLength(1)
+    expect(groups[0].name).toBe('Labs')
+  })
+
+  it('matches concepts across differing prefixes (trailing numeric code)', () => {
+    // both sides prefixed → the trailing-numeric branch matches despite
+    // different prefixes; a bare '22748-8' would match via substring instead
+    const sets = [{ id: 'labs', name: 'Labs', concepts: ['LOCAL: 22748-8'], categories: [] }]
+    const groups = groupObservationsByFieldSets([OBS[0]], sets).get(1)
+    expect(groups[0].name).toBe('Labs')
+  })
+
+  it('degrades to pure category grouping without field sets', () => {
+    const grouped = groupObservationsByFieldSets(OBS, [])
+    expect(grouped.get(1).map((g) => g.name)).toEqual(['General', 'Laboratory', 'Vital Signs'])
+    expect(grouped.get(2).map((g) => g.name)).toEqual(['Stroke'])
+  })
+
+  it('handles empty input', () => {
+    expect(groupObservationsByFieldSets([], FIELD_SETS).size).toBe(0)
+    expect(groupObservationsByFieldSets(null, null).size).toBe(0)
   })
 })

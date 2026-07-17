@@ -1,10 +1,10 @@
 <template>
   <div v-if="categorizedObservations.length > 0" class="observations-section">
-    <div v-for="category in categorizedObservations" :key="category.name" class="category-section q-mb-xl">
+    <div v-for="category in categorizedObservations" :key="category.name" class="category-section q-mb-xl" :data-group-name="category.name">
       <!-- Category Header -->
       <div class="category-header q-mb-md">
         <h6 class="text-h6 text-primary q-my-none">
-          <q-icon :name="getCategoryIcon(category.name)" class="q-mr-sm" />
+          <q-icon :name="category.icon || getCategoryIcon(category.name)" class="q-mr-sm" />
           {{ category.name }}
           <span class="text-grey-6 text-body2 q-ml-sm">({{ category.observations.length }} observations)</span>
         </h6>

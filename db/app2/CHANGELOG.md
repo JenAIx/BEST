@@ -9,6 +9,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **„Zeitlinie neu“ — vereinheitlichte Visitenansicht** (`features/visits-unified`,
+  4. Ansichts-Button auf `/visits/:id`; Testphase, alte Tabs unverändert):
+  - **Lese-Modus**: Kompakt-Karten-Layout mit Zeitstrahl-Schiene links
+    (Status-Punkte pro Visite). Karten starten eingeklappt; Kopf zeigt Datum,
+    korrektes Visitentyp-Label aus CODE_LOOKUP (z. B. „Stroke-Lipid V1 -
+    Index Stroke“ — vorher zeigte die Kompaktübersicht „General Visit“),
+    Status und Beobachtungszahl. Klick klappt die Ergebnistabelle auf.
+    Kopfzeile: Ergebnisfilter (Treffer-Visiten werden automatisch
+    aufgeklappt, Filter löschen stellt den Zustand wieder her),
+    Alle-auf-/zuklappen-Toggle, „+Besuch“. 3-Punkte-Menü pro Karte:
+    Bearbeiten / Klonen / Löschen (erstmals i18n de/en).
+  - **Inline-Bearbeitungsmodus** (max. eine Visite gleichzeitig): Split-View
+    im Kartenkörper — links die editierbaren Feldgruppen-Panels (Autosave +
+    Revert wie in der Dateneingabe), rechts kompakte sticky Sidebar mit
+    Feldgruppen-Checkboxen (ersetzt Feldgruppen-Kopf + Configure-Dialog),
+    „+ Beobachtung“, „Fragebogen hinzufügen“ und Visiten-Metadaten-Stift.
+    Neue Visite startet direkt im Bearbeitungsmodus; „Fertig“/Einklappen
+    beendet und aktualisiert die Lese-Karten. Fokus-Modus: während der
+    Bearbeitung wird nur die Edit-Karte angezeigt.
+  - Neue geteilte Bausteine: `useVisitLabels` (Label-Auflösung einmal pro
+    Code), `useVisitActions` (Klonen/Löschen mit Confirm + Doppel-Reload),
+    `useVisitFieldSets`/`useVisitQuestionnaires` (Extraktion aus
+    VisitDataEntry, Original unangetastet), `useSingleVisitEdit`
+    (Edit-Zustandsmaschine); Utilities `visit-labels`, `visit-edit-transform`,
+    `expand-state`. 40 neue Unit-Tests (Dateien 33–36 plus Erweiterungen
+    in 32 und 35).
+  - **E2E-Testroutine** `scripts/verify-visits/run.sh`: startet die App
+    headless (eigenes Display :98, CDP), prüft Labels, Auf-/Zuklappen,
+    Filter, Klonen, Bearbeitungsmodus, Autosave und Löschen über
+    `data-cy`-Anker — mit DB-Backup vorab, Lösch-Guards (nur nachweislich
+    selbst erzeugte Visiten) und Integritätscheck der Zeilenzahlen am Ende.
+
 - **Patienten-Notizleiste in der Zeitachse** (`features/patientvisit-notes`):
   Quick Notes mit Kontext zum geöffneten Patienten erscheinen als kompakte
   Haftnotiz-Leiste — in der Karten-Zeitachse oben, in der Kompaktübersicht
@@ -85,6 +117,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Alte Tabs „Zeitlinie“ (Karten/Kompakt) und „Dateneingabe“ entfernt** —
+  die vereinheitlichte Ansicht ist jetzt DIE „Zeitlinie“ (umbenannt von
+  „Zeitlinie neu“) und deckt Lesen + Bearbeiten ab; daneben bleibt nur
+  „Patientendaten“. Gelöscht: `VisitTimeline`, `VisitTimelineItem`,
+  `VisitCompactSummary`, `VisitDataEntry`, `VisitSelector`,
+  `FieldSetSelector`, `FieldSetConfigDialog`, `useFieldSetStatistics`
+  (exklusive Kinder der alten Views; geteilte Bausteine wie
+  `ObservationFieldSet`, `VisitSummaryObservations`, Dialoge und Services
+  bleiben). Hilfe-Seite und Doku angepasst; verwaiste i18n-Keys entfernt.
+
 - **Schlanker Zeitachsen-Kopf in der Patientenansicht**
   (`features/patientvisit-notes`): Der Titel „Zeitlinie“ entfällt; Suchfilter
   (nur Kompaktmodus), Ansichts-Umschalter und „+Besuch“ stehen jetzt in einer
@@ -92,6 +134,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   komplette Zeile über der Visitenliste.
 
 ### Fixed
+
+- **Visite klonen schlug bei Visiten mit Enddatum still fehl**:
+  `prepareVisitClone` setzte das Startdatum auf heute, kopierte aber das
+  alte `END_DATE` — die Validierung „Ende ≥ Start“ lehnte den Klon dann ab
+  (betraf auch die Karten-Zeitachse). Der Klon startet jetzt ohne Enddatum.
 
 - **Dashboard „Heutige Statistiken“ zeigte Falsch-/Platzhalterwerte**:
   „Aktive Studien“ und „Ausstehende Berichte“ waren hartkodiert 0;
