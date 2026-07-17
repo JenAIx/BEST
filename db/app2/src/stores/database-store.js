@@ -550,13 +550,15 @@ export const useDatabaseStore = defineStore('database', () => {
         throw new Error(`File size (${Math.round(size / 1024 / 1024)}MB) exceeds maximum allowed size (50MB)`)
       }
 
-      // Prepare the observation data with file information
+      // Prepare the observation data with file information. The title starts
+      // as the filename — editable later via the media-details dialog
       const fileInfoJson = JSON.stringify({
         filename,
         size,
         ext,
         uploadDate: new Date().toISOString(),
         mimeType: getMimeTypeFromExtension(ext),
+        title: fileData.fileInfo.title || filename,
       })
 
       loggingStore.debug('DatabaseStore', 'Preparing raw data observation', {

@@ -48,7 +48,7 @@
           <q-tooltip :delay="350" max-width="360px">
             <div class="tile-tooltip">
               {{ obs.conceptName }}
-              <div v-if="obs.fileInfo?.title && obs.fileInfo?.filename" class="tile-tooltip-file">{{ obs.fileInfo.filename }}</div>
+              <div v-if="obs.fileInfo?.title && obs.fileInfo?.filename && obs.fileInfo.title !== obs.fileInfo.filename" class="tile-tooltip-file">{{ obs.fileInfo.filename }}</div>
               <div v-if="obs.fileInfo?.description" class="tile-tooltip-desc">{{ obs.fileInfo.description }}</div>
               <div class="tile-tooltip-code">{{ obs.conceptCode }}</div>
             </div>
@@ -88,11 +88,13 @@ const onTileClick = (obs) => {
   else if (obs.valueType === 'Q') emit('preview-questionnaire', obs)
 }
 
-// With a title the subline carries the file facts: filename — description
+// Subline with the file facts; the filename appears only when a custom
+// title differs from it (uploads default title = filename)
 const fileSubline = (obs) => {
   const info = obs.fileInfo || {}
-  if (!info.title) return info.description || shortConceptName(obs.conceptName)
-  return [info.filename, info.description].filter(Boolean).join(' — ')
+  const filenameDiffers = info.title && info.filename && info.title !== info.filename
+  const parts = [filenameDiffers ? info.filename : null, info.description].filter(Boolean)
+  return parts.join(' — ') || shortConceptName(obs.conceptName)
 }
 </script>
 

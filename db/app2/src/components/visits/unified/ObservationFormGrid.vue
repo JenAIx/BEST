@@ -32,6 +32,7 @@
         <div v-if="field.concept.valueType === 'R'" class="field-file" @click="openFileDetails(field.obs)">
           <q-icon :name="getFileIcon(field.obs?.fileInfo?.ext)" size="15px" :color="getFileColor(field.obs?.fileInfo?.ext)" />
           <span class="ellipsis">{{ field.obs?.fileInfo?.title || field.obs?.fileInfo?.filename || field.obs?.displayValue }}</span>
+          <span v-if="fileNameDiffers(field.obs)" class="field-file-name ellipsis">{{ field.obs.fileInfo.filename }}</span>
           <span v-if="field.obs?.fileInfo?.size" class="field-file-size">{{ formatFileSize(field.obs.fileInfo.size) }}</span>
         </div>
 
@@ -218,13 +219,23 @@ const openFileDetails = (obs) => {
   showFileDetails.value = true
 }
 
-// Mirror the saved envelope into the (store-owned) observation so tiles and
-// tooltips update without a reload
+// Show the filename alongside only when a custom title differs from it
+const fileNameDiffers = (obs) => {
+  const info = obs?.fileInfo || {}
+  return Boolean(info.title && info.filename && info.title !== info.filename)
+}
+
+// Mirror the saved envelope into the CURRENT store object (the store may
+// have replaced the array entry with a copy — always re-locate by id)
 const onFileDetailsSaved = ({ envelope, serialized }) => {
-  const obs = fileToEdit.value
-  if (!obs) return
-  if (obs.rawData) obs.rawData.TVAL_CHAR = serialized
-  obs.fileInfo = { ...envelope }
+  const id = fileToEdit.value?.observationId
+  if (id == null) return
+  const targets = [fileToEdit.value, (props.existingObservations || []).find((o) => o.observationId === id)]
+  for (const obs of targets) {
+    if (!obs) continue
+    if (obs.rawData) obs.rawData.TVAL_CHAR = serialized
+    obs.fileInfo = { ...envelope }
+  }
 }
 </script>
 
@@ -322,6 +333,13 @@ const onFileDetailsSaved = ({ envelope, serialized }) => {
   font-size: 0.82rem;
   cursor: pointer;
   min-width: 0;
+
+  .field-file-name {
+    flex-shrink: 1;
+    font-size: 0.68rem;
+    color: $grey-6;
+    max-width: 40%;
+  }
 
   .field-file-size {
     flex-shrink: 0;

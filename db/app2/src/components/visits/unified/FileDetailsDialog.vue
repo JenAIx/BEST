@@ -87,14 +87,11 @@ const save = async () => {
   if (!props.observation) return
   saving.value = true
   try {
-    // Merge into the existing envelope — file metadata stays untouched
-    let envelope = {}
-    try {
-      envelope = JSON.parse(props.observation.rawData?.TVAL_CHAR || '{}')
-    } catch {
-      envelope = { ...fileInfo.value }
-    }
-    envelope.title = title.value.trim() || undefined
+    // Merge into the CURRENT envelope. fileInfo is the parsed envelope and
+    // survives store-side object replacement — rawData.TVAL_CHAR may be
+    // stale after a previous save, so never read from it here.
+    const envelope = { ...fileInfo.value }
+    envelope.title = title.value.trim() || envelope.filename
     envelope.description = description.value.trim() || undefined
     const serialized = JSON.stringify(envelope)
 

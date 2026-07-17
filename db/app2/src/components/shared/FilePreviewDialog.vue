@@ -20,7 +20,7 @@
                 <!-- User metadata from the TVAL_CHAR envelope: title leads,
                      filename becomes the secondary line -->
                 <div class="text-h6">{{ fileInfo.title || fileInfo.filename }}</div>
-                <div v-if="fileInfo.title" class="text-body2 text-grey-6">{{ fileInfo.filename }}</div>
+                <div v-if="fileInfo.title && fileInfo.title !== fileInfo.filename" class="text-body2 text-grey-6">{{ fileInfo.filename }}</div>
                 <div v-if="fileInfo.description" class="text-body2 file-description">{{ fileInfo.description }}</div>
                 <div class="text-body2 text-grey-6">Size: {{ formatFileSize(fileInfo.size) }}</div>
                 <div class="text-body2 text-grey-6">Type: {{ fileInfo.ext.toUpperCase() }}</div>
