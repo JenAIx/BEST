@@ -132,7 +132,7 @@ import { useStudyStore } from 'src/stores/study-store'
 import PatientCard from 'src/components/shared/PatientCard.vue'
 import PageHeader from 'src/components/shared/PageHeader.vue'
 import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const emit = defineEmits(['patient-selected'])
 
@@ -153,6 +153,8 @@ const recentPatientsSource = ref('history')
 const showCreateDialog = ref(false)
 const showAdvancedFilters = ref(false)
 
+const route = useRoute()
+
 const DEFAULT_AGE_RANGE = { min: 0, max: 120 }
 const filters = ref({
   sex: null,
@@ -160,7 +162,8 @@ const filters = ref({
   ageRange: { ...DEFAULT_AGE_RANGE },
   studies: [],
   createdBy: null,
-  onlyMine: false,
+  // /visits?mine=1 (e.g. dashboard "my patients" tile) pre-activates the scope
+  onlyMine: route.query.mine === '1',
 })
 
 // Filter option lists
@@ -549,6 +552,9 @@ onMounted(async () => {
   loadStudyOptions()
   loadUserOptions()
   loadPatientStats()
+
+  // Pre-activated scope via /visits?mine=1: run the filtered search right away
+  if (hasActiveFilters.value) runSearch()
 })
 
 watch(

@@ -4,16 +4,23 @@
       <div class="row q-col-gutter-md">
         <!-- Quick Actions -->
         <div class="col-12 col-md-4">
-          <DashboardCard
-            icon="person_search"
-            icon-color="primary"
-            :title="$t('dashboard.patientsAndVisits')"
-            :subtitle="$t('dashboard.patientsAndVisitsSubtitle')"
-            :value="stats.visitsToday"
-            value-color="text-primary"
-            :clickable="true"
-            @click="$router.push('/visits')"
-          />
+          <DashboardCard icon="person_search" icon-color="primary" :title="$t('dashboard.patientsAndVisits')" :subtitle="$t('dashboard.patientsAndVisitsSubtitle')" :clickable="true" @click="$router.push('/visits')">
+            <!-- Totals: patients / visits / observations, clearly separated -->
+            <div class="row q-gutter-md q-mt-sm justify-center totals-row">
+              <div class="text-center">
+                <div class="text-h5 text-primary">{{ stats.totalPatients }}</div>
+                <div class="text-caption text-grey-6">{{ $t('dashboard.totalPatients') }}</div>
+              </div>
+              <div class="text-center">
+                <div class="text-h5 text-secondary">{{ stats.totalVisits }}</div>
+                <div class="text-caption text-grey-6">{{ $t('dashboard.totalVisitsLabel') }}</div>
+              </div>
+              <div class="text-center">
+                <div class="text-h5 text-info">{{ stats.totalObservations }}</div>
+                <div class="text-caption text-grey-6">{{ $t('dashboard.totalObservations') }}</div>
+              </div>
+            </div>
+          </DashboardCard>
         </div>
 
         <div class="col-12 col-md-4">
@@ -103,9 +110,46 @@
           </q-card>
         </div>
 
-        <!-- Quick Stats -->
+        <!-- Right column: personal overview + today's stats + notes + reminders -->
         <div class="col-12 col-lg-4">
+          <!-- My overview -->
           <q-card>
+            <q-card-section>
+              <div class="text-h6">{{ $t('dashboard.myOverview') }}</div>
+            </q-card-section>
+            <q-separator />
+            <q-card-section>
+              <div class="row q-col-gutter-sm">
+                <div class="col-6">
+                  <div class="stat-item stat-item--clickable" @click="$router.push('/visits?mine=1')">
+                    <div class="text-h4 text-primary">{{ stats.myPatients }}</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.myPatients') }}</div>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="stat-item stat-item--clickable" @click="$router.push('/studies')">
+                    <div class="text-h4" :class="stats.openAudits > 0 ? 'text-negative' : 'text-positive'">{{ stats.openAudits }}</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.openAudits') }}</div>
+                  </div>
+                </div>
+                <div class="col-6 q-mt-md">
+                  <div class="stat-item stat-item--clickable" @click="openNotesWindow">
+                    <div class="text-h4" :class="noteStore.unreadMessagesCount > 0 ? 'text-negative' : 'text-grey-7'">{{ noteStore.unreadMessagesCount }}</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.unreadMessages') }}</div>
+                  </div>
+                </div>
+                <div class="col-6 q-mt-md">
+                  <div class="stat-item stat-item--clickable" @click="openNotesWindow">
+                    <div class="text-h4 text-secondary">{{ noteStore.quickNotesCount }}</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.myNotes') }}</div>
+                  </div>
+                </div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Today's statistics -->
+          <q-card class="q-mt-md">
             <q-card-section>
               <div class="text-h6">{{ $t('dashboard.todaysStatistics') }}</div>
             </q-card-section>
@@ -114,20 +158,20 @@
               <div class="row q-col-gutter-sm">
                 <div class="col-6">
                   <div class="stat-item">
-                    <div class="text-h4 text-primary">{{ stats.patientsToday }}</div>
+                    <div class="text-h4 text-primary">{{ stats.patientsSeenToday }}</div>
                     <div class="text-caption text-grey-6">{{ $t('dashboard.patientsSeen') }}</div>
                   </div>
                 </div>
                 <div class="col-6">
                   <div class="stat-item">
                     <div class="text-h4 text-positive">{{ stats.visitsToday }}</div>
-                    <div class="text-caption text-grey-6">{{ $t('dashboard.totalVisits') }}</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.visitsToday') }}</div>
                   </div>
                 </div>
                 <div class="col-6 q-mt-md">
                   <div class="stat-item">
-                    <div class="text-h4 text-warning">{{ stats.pendingReports }}</div>
-                    <div class="text-caption text-grey-6">{{ $t('dashboard.pendingReports') }}</div>
+                    <div class="text-h4 text-warning">{{ stats.observationsToday }}</div>
+                    <div class="text-caption text-grey-6">{{ $t('dashboard.observationsToday') }}</div>
                   </div>
                 </div>
                 <div class="col-6 q-mt-md">
@@ -155,16 +199,53 @@
             </q-card-section>
           </q-card>
 
-          <!-- Recent Activities -->
+          <!-- Recent notes -->
           <q-card class="q-mt-md">
-            <q-card-section>
-              <div class="text-h6">{{ $t('dashboard.recentActivities') }}</div>
+            <q-card-section class="row items-center">
+              <div class="text-h6">{{ $t('dashboard.recentNotes') }}</div>
+              <q-space />
+              <q-btn flat dense size="sm" color="primary" icon="edit_note" @click="openNotesWindow">
+                <q-tooltip>{{ $t('dashboard.openNotes') }}</q-tooltip>
+              </q-btn>
             </q-card-section>
             <q-separator />
-            <q-card-section class="q-pa-lg text-center text-grey-6">
-              <q-icon name="timeline" size="48px" class="q-mb-sm" />
-              <div>{{ $t('dashboard.activityTracking') }}</div>
-              <div class="text-caption">{{ $t('dashboard.comingSoon') }}</div>
+            <q-card-section class="q-pa-none">
+              <q-list v-if="noteStore.recentQuickNotes.length > 0" separator>
+                <NoteListItem v-for="n in noteStore.recentQuickNotes" :key="n.NOTE_ID" :note="n" compact @open-context="onNoteContext" />
+              </q-list>
+              <div v-else class="q-pa-md text-center text-grey-6">
+                <q-icon name="sticky_note_2" size="32px" class="q-mb-xs" />
+                <div class="text-caption">{{ $t('dashboard.noNotes') }}</div>
+              </div>
+            </q-card-section>
+          </q-card>
+
+          <!-- Upcoming visits (planned visits with a future date act as reminders) -->
+          <q-card class="q-mt-md">
+            <q-card-section>
+              <div class="text-h6">{{ $t('dashboard.upcomingVisits') }}</div>
+            </q-card-section>
+            <q-separator />
+            <q-card-section class="q-pa-none">
+              <q-list v-if="upcomingVisits.length > 0" separator>
+                <q-item v-for="visit in upcomingVisits" :key="visit.encounterNum" clickable v-ripple @click="$router.push(`/visits/${visit.patientCd}`)">
+                  <q-item-section avatar>
+                    <q-avatar color="blue-1" text-color="primary" icon="event_upcoming" size="36px" />
+                  </q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ visit.patientCd }}</q-item-label>
+                    <q-item-label caption>{{ visit.startDate }}<template v-if="visit.daysUntil !== null"> • {{ $t('dashboard.inDays', { days: visit.daysUntil }) }}</template></q-item-label>
+                  </q-item-section>
+                  <q-item-section side>
+                    <q-icon name="chevron_right" color="grey-5" />
+                  </q-item-section>
+                </q-item>
+              </q-list>
+              <div v-else class="q-pa-md text-center text-grey-6">
+                <q-icon name="event_available" size="32px" class="q-mb-xs" />
+                <div class="text-caption">{{ $t('dashboard.noUpcomingVisits') }}</div>
+                <div class="text-caption text-grey-5">{{ $t('dashboard.upcomingVisitsHint') }}</div>
+              </div>
             </q-card-section>
           </q-card>
         </div>
@@ -183,10 +264,12 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import DashboardCard from '../components/shared/DashboardCard.vue'
 import PatientCard from '../components/shared/PatientCard.vue'
+import NoteListItem from '../components/smartbtn/NoteListItem.vue'
 import CreatePatientDialog from '../components/patient/CreatePatientDialog.vue'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useStudyStore } from 'src/stores/study-store'
 import { useAuthStore } from 'src/stores/auth-store'
+import { useNoteStore } from 'src/stores/note-store'
 import { visitObservationService } from 'src/services/visit-observation-service'
 
 const notify = useNotify()
@@ -195,10 +278,12 @@ const { t } = useI18n()
 const dbStore = useDatabaseStore()
 const studyStore = useStudyStore()
 const authStore = useAuthStore()
+const noteStore = useNoteStore()
 
 // Dashboard data
 const recentPatients = ref([])
 const recentStudies = ref([])
+const upcomingVisits = ref([])
 const loading = ref(false)
 const loadingStudies = ref(false)
 
@@ -206,11 +291,15 @@ const loadingStudies = ref(false)
 const showCreatePatientDialog = ref(false)
 
 const stats = ref({
-  patientsToday: 0,
+  patientsSeenToday: 0,
   visitsToday: 0,
-  pendingReports: 0,
+  observationsToday: 0,
   activeStudies: 0,
+  openAudits: 0,
+  myPatients: 0,
   totalPatients: 0,
+  totalVisits: 0,
+  totalObservations: 0,
   visiblePatients: 0,
   hiddenPatients: 0,
 })
@@ -287,56 +376,124 @@ const loadDashboardStatistics = async () => {
     if (!dbStore.canPerformOperations) return
 
     const patientRepo = dbStore.getRepository('patient')
-
-    // Get patient statistics
     const patientStats = await patientRepo.getPatientStatistics()
 
-    // Get today's date for filtering
     const today = new Date().toISOString().split('T')[0]
+    const userId = authStore.currentUser?.USER_ID
+    const isAdmin = authStore.isAdmin
 
-    // Count patients created today
-    const todayPatientsResult = await dbStore.executeQuery(`SELECT COUNT(*) as count FROM patient_list WHERE DATE(CREATED_AT) = ?`, [today])
+    const count = async (sql, params = []) => {
+      const result = await dbStore.executeQuery(sql, params)
+      return result.success ? result.data[0]?.count || 0 : 0
+    }
 
-    // Count total visits
-    const visitsResult = await dbStore.executeQuery('SELECT COUNT(*) as count FROM VISIT_DIMENSION')
+    // Totals (card 1: patients / visits / observations)
+    const [totalVisits, totalObservations] = await Promise.all([
+      count('SELECT COUNT(*) as count FROM VISIT_DIMENSION'),
+      count('SELECT COUNT(*) as count FROM OBSERVATION_FACT'),
+    ])
 
-    // Get user access statistics (for non-admin users)
+    // Today: distinct patients with a visit today, visits today, observations
+    // entered/edited today (UPDATE_DATE = actual data entry, not clinical date)
+    const [patientsSeenToday, visitsToday, observationsToday] = await Promise.all([
+      count('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM VISIT_DIMENSION WHERE DATE(START_DATE) = ?', [today]),
+      count('SELECT COUNT(*) as count FROM VISIT_DIMENSION WHERE DATE(START_DATE) = ?', [today]),
+      count('SELECT COUNT(*) as count FROM OBSERVATION_FACT WHERE DATE(UPDATE_DATE) = ?', [today]),
+    ])
+
+    // Open audits (access-filtered for regular users)
+    const auditAccessFilter = !isAdmin && userId != null ? ' AND PATIENT_NUM IN (SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID IN (?, 0))' : ''
+    const openAudits = await count(`SELECT COUNT(*) as count FROM OBSERVATION_FACT WHERE VALUEFLAG_CD = 'AUDIT'${auditAccessFilter}`, !isAdmin && userId != null ? [userId] : [])
+
+    // My patients: directly assigned to me (owner/creator rows, not public)
+    const myPatients = userId != null ? await count('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = ?', [userId]) : 0
+
+    // Access statistics (non-admin users)
     let visiblePatients = 0
     let hiddenPatients = 0
-
-    if (!authStore.isAdmin && authStore.currentUser?.USER_ID) {
-      // Count all patients in database
-      const totalPatientsResult = await dbStore.executeQuery('SELECT COUNT(*) as count FROM PATIENT_DIMENSION')
-      const totalPatientsCount = totalPatientsResult.success ? totalPatientsResult.data[0]?.count || 0 : 0
-
-      // Count patients visible to current user
-      const visiblePatientsResult = await dbStore.executeQuery(
-        `
-        SELECT COUNT(DISTINCT PATIENT_NUM) as count
-        FROM USER_PATIENT_LOOKUP
-        WHERE USER_ID = ? OR USER_ID = 0
-      `,
-        [authStore.currentUser.USER_ID],
-      )
-
-      visiblePatients = visiblePatientsResult.success ? visiblePatientsResult.data[0]?.count || 0 : 0
+    if (!isAdmin && userId != null) {
+      const totalPatientsCount = await count('SELECT COUNT(*) as count FROM PATIENT_DIMENSION')
+      visiblePatients = await count('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? OR USER_ID = 0', [userId])
       hiddenPatients = totalPatientsCount - visiblePatients
     }
 
     stats.value = {
-      patientsToday: todayPatientsResult.success ? todayPatientsResult.data[0]?.count || 0 : 0,
-      visitsToday: visitsResult.success ? visitsResult.data[0]?.count || 0 : 0,
-      pendingReports: 0, // Not implemented yet
-      activeStudies: 0, // Not implemented yet
+      ...stats.value,
+      patientsSeenToday,
+      visitsToday,
+      observationsToday,
+      openAudits,
+      myPatients,
       totalPatients: patientStats.totalPatients || 0,
+      totalVisits,
+      totalObservations,
       visiblePatients,
       hiddenPatients,
     }
-
   } catch (error) {
     console.error('Failed to load dashboard statistics:', error)
     notify.error('Failed to load dashboard statistics')
   }
+}
+
+// Active studies come from the already-loaded study store (was hardcoded 0)
+const updateActiveStudies = () => {
+  stats.value.activeStudies = studyStore.activeStudies.length
+}
+
+// Planned visits with a future date act as reminders ("Anstehende Visiten")
+const loadUpcomingVisits = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+
+    const userId = authStore.currentUser?.USER_ID
+    const accessFilter = !authStore.isAdmin && userId != null ? ' AND v.PATIENT_NUM IN (SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID IN (?, 0))' : ''
+    const params = !authStore.isAdmin && userId != null ? [userId] : []
+
+    const result = await dbStore.executeQuery(
+      `SELECT v.ENCOUNTER_NUM, v.START_DATE, p.PATIENT_CD
+       FROM VISIT_DIMENSION v
+       JOIN PATIENT_DIMENSION p ON p.PATIENT_NUM = v.PATIENT_NUM
+       WHERE DATE(v.START_DATE) > DATE('now')${accessFilter}
+       ORDER BY v.START_DATE ASC
+       LIMIT 5`,
+      params,
+    )
+
+    const now = new Date()
+    upcomingVisits.value = (result.success ? result.data : []).map((row) => {
+      const start = new Date(row.START_DATE)
+      const daysUntil = Number.isNaN(start.getTime()) ? null : Math.max(0, Math.ceil((start - now) / 86400000))
+      return {
+        encounterNum: row.ENCOUNTER_NUM,
+        patientCd: row.PATIENT_CD,
+        startDate: row.START_DATE?.split('T')[0] || row.START_DATE,
+        daysUntil,
+      }
+    })
+  } catch (error) {
+    console.error('Failed to load upcoming visits:', error)
+    upcomingVisits.value = []
+  }
+}
+
+// Notes/messages for the personal overview (best-effort, silent without DB)
+const loadNotesOverview = async () => {
+  try {
+    if (!dbStore.canPerformOperations) return
+    await Promise.all([noteStore.loadQuickNotes(), noteStore.loadMessages()])
+  } catch (error) {
+    console.error('Failed to load notes overview:', error)
+  }
+}
+
+// Opens the SmartButton quick-notes window (handled globally in SmartButton)
+const openNotesWindow = () => {
+  window.dispatchEvent(new CustomEvent('open-smart-plugin', { detail: 'notes' }))
+}
+
+const onNoteContext = (target) => {
+  router.push(target.to)
 }
 
 // Helper methods
@@ -452,7 +609,8 @@ const initializeDashboard = async () => {
 
   loading.value = true
   try {
-    await Promise.all([loadRecentPatients(), loadRecentStudies(), loadDashboardStatistics()])
+    await Promise.all([loadRecentPatients(), loadRecentStudies(), loadDashboardStatistics(), loadUpcomingVisits(), loadNotesOverview()])
+    updateActiveStudies()
   } catch (error) {
     console.error('Failed to initialize dashboard:', error)
     notify.error('Failed to load dashboard data')
@@ -486,6 +644,22 @@ onMounted(async () => {
   padding: 16px;
   background-color: $grey-1;
   border-radius: 8px;
+
+  &--clickable {
+    cursor: pointer;
+    transition: background 0.15s ease;
+
+    &:hover {
+      background: $blue-1;
+    }
+  }
+}
+
+.totals-row {
+  .text-h5 {
+    font-weight: 600;
+    line-height: 1.2;
+  }
 }
 
 .patient-cards-grid {

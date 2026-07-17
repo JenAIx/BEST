@@ -9,6 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Dashboard-Überarbeitung** (`features/dashboard-overview`):
+  - **Karte „Patienten & Besuche“** zeigt jetzt drei klar getrennte
+    Gesamtzahlen: Patienten, Visiten, Beobachtungen (statt einer
+    unbeschrifteten Visitenzahl).
+  - **Neue Karte „Meine Übersicht“**: Meine Patienten (Klick →
+    `/visits?mine=1`, der „Nur meine Patienten“-Filter startet
+    vorbelegt), Offene Audits (access-gefiltert; Klick → /studies),
+    Ungelesene Nachrichten und Meine Notizen (Klick öffnet das
+    Quick-Notes-Fenster über ein neues globales
+    `open-smart-plugin`-Event am SmartButton).
+  - **Neue Karte „Letzte Notizen“**: die letzten 3 Quick Notes mit
+    Kontext-Chip-Navigation (reuse `NoteListItem`).
+  - **„Aktuelle Aktivität“ → „Anstehende Visiten“**: Der leere
+    Platzhalter ist ersetzt durch einen Visiten-Reminder — Visiten mit
+    Zukunftsdatum erscheinen als Liste (Patient, Datum, „in n Tagen“,
+    Klick öffnet die Akte). Kein neues Datenmodell: geplante Visiten
+    einfach mit künftigem Datum anlegen.
+
 - **Patientenansicht: Kompaktübersicht aller Visiten + Ergebnisse**
   (`features/patientvisit-overview`): Neuer Umschalter links neben
   „Neue Visite“ (Karten-Zeitachse ↔ Kompaktübersicht, pro Gerät
@@ -54,6 +72,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `electron-main.js` (nur aktiv, wenn gesetzt). Dokumentiert im README.
 
 ### Fixed
+
+- **Dashboard „Heutige Statistiken“ zeigte Falsch-/Platzhalterwerte**:
+  „Aktive Studien“ und „Ausstehende Berichte“ waren hartkodiert 0;
+  „Patienten gesehen“ zählte heute *angelegte* Patienten; „Besuche“
+  zählte ALLE Visiten. Jetzt: Aktive Studien real (Study-Store),
+  Patienten gesehen = Patienten mit Visite heute, Besuche heute =
+  Visiten mit heutigem Datum, neu „Beobachtungen heute“
+  (Datenerfassung heute) statt des Berichte-Platzhalters.
 
 - **VisitTimeline: Visiten-Reload nach Bearbeitung** übergab das
   Patient-Objekt statt `PATIENT_NUM` an `loadVisitsForPatient` —
