@@ -407,7 +407,21 @@
     "notesExpandAll": "Alle Notizen anzeigen",
     "notesCollapse": "Notizen einklappen",
     "noteAdd": "Notiz hinzufügen",
-    "noteAddFirst": "Notiz an diesen Patienten heften"
+    "noteAddFirst": "Notiz an diesen Patienten heften",
+    "timelineUnified": "Zeitlinie neu",
+    "expandAll": "Alle Visiten ausklappen",
+    "collapseAll": "Alle Visiten einklappen",
+    "cloneVisit": "Visite klonen",
+    "cloneVisitTitle": "Visite klonen",
+    "cloneVisitConfirm": "Erstellt eine neue Visite mit allen Beobachtungen vom {date}. Fortfahren?",
+    "deleteVisitTitle": "Visite löschen",
+    "deleteVisit": "Visite löschen",
+    "deleteVisitConfirm": "Visite vom {date} wirklich löschen? Alle {count} Beobachtungen werden ebenfalls gelöscht. Dies kann nicht rückgängig gemacht werden.",
+    "editingChip": "Bearbeitung",
+    "finishEditing": "Fertig",
+    "fieldGroups": "Feldgruppen",
+    "noFieldGroupsActive": "Keine Feldgruppen aktiv — rechts eine Gruppe aktivieren",
+    "addQuestionnaire": "Fragebogen hinzufügen"
   },
   "observation": {
     "observation": "Beobachtung",

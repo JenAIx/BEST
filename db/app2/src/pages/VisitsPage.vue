@@ -37,6 +37,13 @@
                 @click="viewMode = 'timeline'"
               />
               <q-btn
+                :color="viewMode === 'unified' ? 'white' : 'grey-4'"
+                :text-color="viewMode === 'unified' ? 'primary' : 'white'"
+                icon="view_timeline"
+                :label="$t('visit.timelineUnified')"
+                @click="viewMode = 'unified'"
+              />
+              <q-btn
                 :color="viewMode === 'entry' ? 'white' : 'grey-4'"
                 :text-color="viewMode === 'entry' ? 'primary' : 'white'"
                 icon="edit"
@@ -60,6 +67,9 @@
 
       <!-- Timeline View -->
       <VisitTimeline v-if="viewMode === 'timeline'" :patient="selectedPatient" :selected-visit="selectedVisit" @visit-selected="onVisitSelected" @visit-edited="onVisitEdited" />
+
+      <!-- Unified Timeline View (new, self-contained) -->
+      <VisitTimelineUnified v-if="viewMode === 'unified'" :patient="selectedPatient" :selected-visit="selectedVisit" />
 
       <!-- Data Entry View -->
       <VisitDataEntry v-if="viewMode === 'entry'" :patient="selectedPatient" :initial-visit="selectedVisit" @visit-created="onVisitCreated" />
@@ -89,6 +99,7 @@ import { visitObservationService } from 'src/services/visit-observation-service'
 import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
 import VisitTimeline from 'src/components/visits/VisitTimeline.vue'
+import VisitTimelineUnified from 'src/components/visits/unified/VisitTimelineUnified.vue'
 import VisitDataEntry from 'src/components/visits/VisitDataEntry.vue'
 import PatientDataView from 'src/components/visits/PatientDataView.vue'
 import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
