@@ -274,12 +274,12 @@ onMounted(async () => {
 
   .sidebar-sticky {
     position: sticky;
-    top: 8px;
+    top: 56px; // below the pinned visit header of the editing card
     background: white;
     border: 1px solid $grey-4;
     border-radius: 8px;
     padding: 8px;
-    max-height: calc(100vh - 140px);
+    max-height: calc(100vh - 190px);
     overflow-y: auto;
   }
 

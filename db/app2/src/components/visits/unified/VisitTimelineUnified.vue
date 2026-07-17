@@ -4,8 +4,9 @@
        no navigation to the legacy entry tab. -->
   <div class="unified-view">
     <div class="unified-container">
-      <!-- Fixed header row: filter left, expand-all + new visit at the right edge -->
-      <div class="unified-header row items-center q-gutter-sm">
+      <!-- Fixed header row: filter left, expand-all + new visit at the right
+           edge. Hidden while editing — the sticky card header takes over. -->
+      <div v-if="editingVisitId === null" class="unified-header row items-center q-gutter-sm">
         <q-input v-model="searchTerm" dense outlined clearable :placeholder="$t('visit.compactSearchPlaceholder')" class="unified-search" debounce="200" data-cy="unified-search">
           <template v-slot:prepend>
             <q-icon name="search" size="18px" />
@@ -152,10 +153,11 @@ const matchedCount = (visitId) =>
     .flatMap((category) => category.observations)
     .length
 
-// While searching only visits with matching results are shown
+// While searching only visits with matching results are shown; the visit in
+// edit mode always stays visible (the filter input is hidden while editing)
 const visibleVisits = computed(() => {
   if (!searchTerm.value) return sortedVisits.value
-  return sortedVisits.value.filter((visit) => observationsForVisit(visit.id).length > 0)
+  return sortedVisits.value.filter((visit) => isEditing(visit.id) || observationsForVisit(visit.id).length > 0)
 })
 
 // Header count: the visit query's count is the source of truth; while

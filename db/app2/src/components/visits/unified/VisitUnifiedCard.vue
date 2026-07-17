@@ -138,9 +138,15 @@ defineEmits(['toggle', 'edit', 'clone', 'delete', 'finish', 'preview-file', 'pre
       box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.25) !important;
     }
 
+    // Pinned while scrolling through the editor so the visit (and the
+    // Fertig button) stays visible — the view header row is hidden then
     .visit-block-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
       background: $blue-1;
       border-bottom-color: rgba(25, 118, 210, 0.25);
+      border-radius: 6px 6px 0 0;
     }
   }
 
