@@ -9,6 +9,9 @@
 
     <!-- Only this area scrolls; the search input above stays fixed -->
     <div class="compact-scroll">
+      <!-- Quick notes on this patient (scrolls with the content) -->
+      <PatientNotesStrip :patient-num="patientNum" />
+
       <div v-if="searchTerm && visibleVisits.length === 0" class="text-center text-grey-6 q-pa-lg">
         <q-icon name="search_off" size="32px" class="q-mb-xs" />
         <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
@@ -64,11 +67,16 @@ import { useObservationStore } from 'src/stores/observation-store'
 import { groupObservationsByVisit, filterObservations } from 'src/shared/utils/file-category'
 import { formatDate, getVisitTypeLabel } from 'src/shared/utils/medical-utils.js'
 import VisitSummaryObservations from './VisitSummaryObservations.vue'
+import PatientNotesStrip from './PatientNotesStrip.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
 
 defineOptions({
   name: 'VisitCompactSummary',
+})
+
+defineProps({
+  patientNum: { type: [Number, String], default: null },
 })
 
 defineEmits(['visit-selected'])

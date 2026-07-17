@@ -70,13 +70,17 @@ class NoteRepository extends BaseRepository {
    * @param {Object} options - { userCd, limit, offset, searchTerm }
    * @returns {Promise<Array>} - Array of quick notes
    */
-  async getQuickNotes({ userCd, limit = 50, offset = 0, searchTerm = '' } = {}) {
+  async getQuickNotes({ userCd, patientNum = null, limit = 50, offset = 0, searchTerm = '' } = {}) {
     let sql = `SELECT * FROM ${this.tableName} WHERE CATEGORY_CHAR = 'QUICK_NOTE'`
     const params = []
 
     if (userCd) {
       sql += ` AND SOURCESYSTEM_CD = ?`
       params.push(userCd)
+    }
+    if (patientNum != null) {
+      sql += ` AND PATIENT_NUM = ?`
+      params.push(patientNum)
     }
     if (searchTerm && searchTerm.trim().length > 0) {
       sql += ` AND (NOTE_TEXT LIKE ? OR NAME_CHAR LIKE ?)`

@@ -30,6 +30,10 @@
         </div>
       </div>
 
+      <!-- Quick notes attached to this patient (card mode; the compact view
+           renders its own strip inside the scroll area, below the filter) -->
+      <PatientNotesStrip v-if="!loading && !compactMode" :patient-num="patientNum" />
+
       <div v-if="loading" class="loading-state">
         <q-spinner-grid size="50px" color="primary" />
         <div class="text-h6 q-mt-md">{{ $t('visit.loadingVisits') }}</div>
@@ -43,7 +47,7 @@
       </div>
 
       <!-- Compact all-visits summary -->
-      <VisitCompactSummary v-else-if="compactMode" @visit-selected="selectVisit" />
+      <VisitCompactSummary v-else-if="compactMode" :patient-num="patientNum" @visit-selected="selectVisit" />
 
       <div v-else class="timeline-list">
         <VisitTimelineItem
@@ -87,6 +91,7 @@ import { useLoggingStore } from 'src/stores/logging-store'
 import VisitTimelineItem from './VisitTimelineItem.vue'
 import VisitCompactSummary from './VisitCompactSummary.vue'
 import VisitFileUploadArea from './VisitFileUploadArea.vue'
+import PatientNotesStrip from './PatientNotesStrip.vue'
 import NewVisitDialog from './NewVisitDialog.vue'
 import VisitSummaryDialog from './VisitSummaryDialog.vue'
 import EditVisitDialog from '../patient/EditVisitDialog.vue'
