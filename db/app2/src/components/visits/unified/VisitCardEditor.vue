@@ -30,7 +30,11 @@
         </template>
 
         <!-- Observations outside every configured field group -->
-        <ObservationFormGrid v-if="uncategorizedFieldSet" :key="`${visit.id}-uncategorized`" :field-set="uncategorizedFieldSet" :visit="visit" :patient="patient" :existing-observations="uncategorizedObservations" />
+        <!-- Raw media (R files) get their own group — named like the read
+             mode's 'Raw Data' category so nav anchors match -->
+        <ObservationFormGrid v-if="rawMediaFieldSet" :key="`${visit.id}-raw-media`" :field-set="rawMediaFieldSet" :visit="visit" :patient="patient" :existing-observations="rawMediaObservations" />
+
+        <ObservationFormGrid v-if="restUncategorizedFieldSet" :key="`${visit.id}-uncategorized`" :field-set="restUncategorizedFieldSet" :visit="visit" :patient="patient" :existing-observations="restUncategorizedObservations" />
 
         <div v-if="activeFieldSetsList.length === 0 && !uncategorizedFieldSet" class="editor-empty text-grey-6">
           <q-icon name="category" size="28px" class="q-mb-xs" />
@@ -203,6 +207,32 @@ const {
 // Observations that no configured field group claims
 const { uncategorizedObservations, uncategorizedFieldSet } = useUncategorizedObservations(observationStore, availableFieldSets, visitRef)
 
+// Split the unmatched observations: R files → their own "Raw Data" group
+// (same name as the read mode's category → shared nav anchor), the rest
+// stays "Uncategorized"
+const rawMediaObservations = computed(() => uncategorizedObservations.value.filter((obs) => obs.valueType === 'R'))
+
+const restUncategorizedObservations = computed(() => uncategorizedObservations.value.filter((obs) => obs.valueType !== 'R'))
+
+const rawMediaFieldSet = computed(() => {
+  if (rawMediaObservations.value.length === 0) return null
+  return {
+    id: 'raw_media',
+    name: 'Raw Data',
+    icon: 'perm_media',
+    concepts: rawMediaObservations.value.map((obs) => obs.conceptCode),
+    isVirtual: true,
+  }
+})
+
+const restUncategorizedFieldSet = computed(() => {
+  if (!uncategorizedFieldSet.value || restUncategorizedObservations.value.length === 0) return null
+  return {
+    ...uncategorizedFieldSet.value,
+    concepts: restUncategorizedObservations.value.map((obs) => obs.conceptCode),
+  }
+})
+
 const visitTypeCode = computed(() => extractVisitType(props.visit) || '')
 
 const showAddCustomDialog = ref(false)
@@ -279,10 +309,11 @@ const onFileSaved = async (payload) => {
 // Report the rendered panel list to the container's quick navigation
 // (names match the data-group-name anchors on the panels)
 watch(
-  [activeFieldSetsList, uncategorizedFieldSet],
-  ([activeList, uncategorized]) => {
+  [activeFieldSetsList, rawMediaFieldSet, restUncategorizedFieldSet],
+  ([activeList, rawMedia, rest]) => {
     const groups = activeList.map((fs) => ({ name: fs.name, icon: fs.icon }))
-    if (uncategorized) groups.push({ name: uncategorized.name, icon: uncategorized.icon })
+    if (rawMedia) groups.push({ name: rawMedia.name, icon: rawMedia.icon })
+    if (rest) groups.push({ name: rest.name, icon: rest.icon })
     emit('groups-changed', groups)
   },
   { immediate: true },

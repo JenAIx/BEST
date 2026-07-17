@@ -23,7 +23,7 @@
           <!-- Value line by type -->
           <div v-if="obs.valueType === 'R'" class="tile-value">
             <q-icon :name="getFileIcon(obs.fileInfo?.ext)" size="15px" :color="getFileColor(obs.fileInfo?.ext)" />
-            <span class="ellipsis">{{ obs.fileInfo?.filename || obs.displayValue }}</span>
+            <span class="ellipsis">{{ obs.fileInfo?.title || obs.fileInfo?.filename || obs.displayValue }}</span>
             <span v-if="obs.fileInfo?.size" class="tile-unit">{{ formatFileSize(obs.fileInfo.size) }}</span>
           </div>
           <div v-else-if="obs.valueType === 'Q'" class="tile-value">
@@ -45,6 +45,8 @@
           <q-tooltip :delay="350" max-width="360px">
             <div class="tile-tooltip">
               {{ obs.conceptName }}
+              <div v-if="obs.fileInfo?.title && obs.fileInfo?.filename" class="tile-tooltip-file">{{ obs.fileInfo.filename }}</div>
+              <div v-if="obs.fileInfo?.description" class="tile-tooltip-desc">{{ obs.fileInfo.description }}</div>
               <div class="tile-tooltip-code">{{ obs.conceptCode }}</div>
             </div>
           </q-tooltip>
@@ -191,6 +193,17 @@ const onTileClick = (obs) => {
 
 .tile-tooltip {
   font-size: 0.75rem;
+
+  .tile-tooltip-file {
+    color: $grey-4;
+    font-size: 0.7rem;
+    margin-top: 2px;
+  }
+
+  .tile-tooltip-desc {
+    margin-top: 3px;
+    white-space: pre-wrap;
+  }
 
   .tile-tooltip-code {
     color: $blue-3;

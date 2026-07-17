@@ -424,6 +424,11 @@
     "fieldGroupHidden": "Hidden — values are kept",
     "editVisitDetails": "Edit visit details",
     "noteLabel": "Note",
+    "fileDetailsTitle": "Media details",
+    "fileTitleLabel": "Title",
+    "fileDescriptionLabel": "Description",
+    "filePreviewOpen": "Preview",
+    "fileDetailsSaved": "Media details saved",
     "inOutStatus": "In/out status",
     "sourceSystem": "Source system",
     "fieldGroupAdd": "Add group to this visit"

@@ -424,6 +424,11 @@
     "fieldGroupHidden": "Ausgeblendet — Werte bleiben erhalten",
     "editVisitDetails": "Visitendetails bearbeiten",
     "noteLabel": "Notiz",
+    "fileDetailsTitle": "Mediendetails",
+    "fileTitleLabel": "Titel",
+    "fileDescriptionLabel": "Beschreibung",
+    "filePreviewOpen": "Vorschau",
+    "fileDetailsSaved": "Mediendetails gespeichert",
     "inOutStatus": "Aufnahmeart (ambulant/stationär)",
     "sourceSystem": "Quellsystem",
     "fieldGroupAdd": "Gruppe zur Visite hinzufügen"

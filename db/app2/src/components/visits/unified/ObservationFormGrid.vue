@@ -27,24 +27,18 @@
           </q-tooltip>
         </div>
 
-        <!-- R (file): read tile with preview, no inline editing -->
-        <div v-if="field.concept.valueType === 'R'" class="field-file" @click="previewFile(field.obs)">
+        <!-- R (file): click opens the media-details dialog (title/description
+             into the TVAL_CHAR envelope, preview from there) -->
+        <div v-if="field.concept.valueType === 'R'" class="field-file" @click="openFileDetails(field.obs)">
           <q-icon :name="getFileIcon(field.obs?.fileInfo?.ext)" size="15px" :color="getFileColor(field.obs?.fileInfo?.ext)" />
-          <span class="ellipsis">{{ field.obs?.fileInfo?.filename || field.obs?.displayValue }}</span>
+          <span class="ellipsis">{{ field.obs?.fileInfo?.title || field.obs?.fileInfo?.filename || field.obs?.displayValue }}</span>
         </div>
 
         <ObservationValueEditor v-else :row-data="field.row" :concept="field.concept" :visit="visit" :patient="patient" @value-changed="onValueChanged" @save-requested="onSaveRequested" />
       </div>
     </div>
 
-    <FilePreviewDialog
-      v-if="fileToPreview"
-      v-model="showFilePreview"
-      :observation-id="fileToPreview.observationId"
-      :file-info="fileToPreview.fileInfo"
-      :concept-name="fileToPreview.conceptName"
-      :upload-date="fileToPreview.date"
-    />
+    <FileDetailsDialog v-if="fileToEdit" v-model="showFileDetails" :observation="fileToEdit" />
   </div>
 </template>
 
@@ -60,7 +54,7 @@ import { matchesConceptCode } from 'src/shared/utils/file-category.js'
 import { getFileIcon, getFileColor } from 'src/shared/utils/medical-utils.js'
 import { shortConceptName, tileSpan, valueTypeHex, buildObservationUpdate, buildNewObservationData } from 'src/shared/utils/observation-display.js'
 import ObservationValueEditor from '../ObservationValueEditor.vue'
-import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
+import FileDetailsDialog from './FileDetailsDialog.vue'
 
 defineOptions({
   name: 'ObservationFormGrid',
@@ -213,14 +207,14 @@ const confirmDelete = (field) => {
   })
 }
 
-// R-file preview
-const fileToPreview = ref(null)
-const showFilePreview = ref(false)
+// R-file details (title/description + preview)
+const fileToEdit = ref(null)
+const showFileDetails = ref(false)
 
-const previewFile = (obs) => {
+const openFileDetails = (obs) => {
   if (!obs) return
-  fileToPreview.value = obs
-  showFilePreview.value = true
+  fileToEdit.value = obs
+  showFileDetails.value = true
 }
 </script>
 

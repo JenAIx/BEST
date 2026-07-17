@@ -397,6 +397,9 @@ Files attached to a visit (upload area on `/visits/:id`, R-fields in the data
 entry) are stored as `VALTYPE_CD='R'` observations with this convention:
 
 - `TVAL_CHAR` = JSON envelope `{filename, size, ext, uploadDate, mimeType}`
+  plus optional user metadata `{title, description}` (edited via the
+  timeline's FileDetailsDialog; envelope-only updates must NEVER write
+  `OBSERVATION_BLOB`)
 - `OBSERVATION_BLOB` = the raw file bytes (Uint8Array, NOT base64)
 - other value columns null, `SOURCESYSTEM_CD='FILE_UPLOAD'`, max 50 MB
 
