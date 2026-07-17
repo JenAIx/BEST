@@ -33,6 +33,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Unvollständige Fragebögen im Lese-Modus**: Kacheln ausstehender
     Fragebögen sind klar als unvollständig markiert (amberfarbener
     Akzent + Hintergrund, „Ausfüllen“-Hinweis, Fortschrittsbalken).
+  - **Fix Datenquelle Lese-Modus**: `loadAllObservationsForPatient` (die
+    Quelle der Lese-Karten) lud weder `VALUEFLAG_CD` noch
+    `OBSERVATION_BLOB` — dadurch fehlten im View-Modus die
+    Medikamenten-Notation und der Fragebogen-Status, und NV-Zeilen (∅)
+    hätte der neue Leer-Filter fälschlich versteckt. Beide Listen-Queries
+    liefern jetzt `VALUEFLAG_CD` + die kleinen Q/M-Blobs; R-Blobs bleiben
+    gemäß Perf-Invariante in Listen immer NULL (Regressionstests 41/42).
   - **Leere Observations**: Der Lese-Modus blendet nur angelegte
     Observations ohne Wert aus (NV-markierte „explizit kein Wert“-Zeilen
     bleiben als ∅ sichtbar); im Editor werden leere Felder gedimmt
