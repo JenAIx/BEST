@@ -166,8 +166,19 @@ const visitRef = toRef(props, 'visit')
 const patientRef = toRef(props, 'patient')
 
 // Field groups (shared extraction from VisitDataEntry)
-const { availableFieldSets, activeFieldSets, activeFieldSetsList, loadingFieldSets, loadFieldSets, activateFieldSetsForVisitType, toggleFieldSet, ensureQuestionnaireFieldSetActive, getFieldSetObservations, getFieldSetObservationCount } =
-  useVisitFieldSets()
+const {
+  availableFieldSets,
+  activeFieldSets,
+  activeFieldSetsList,
+  loadingFieldSets,
+  loadFieldSets,
+  activateFieldSetsForVisitType,
+  activateFieldSetsWithData,
+  toggleFieldSet,
+  ensureQuestionnaireFieldSetActive,
+  getFieldSetObservations,
+  getFieldSetObservationCount,
+} = useVisitFieldSets()
 
 // Questionnaires (Q-type) on this visit
 const {
@@ -266,6 +277,10 @@ watch(
 onMounted(async () => {
   await loadFieldSets()
   await activateFieldSetsForVisitType(props.visit)
+  // Read/edit parity: also show groups the visit type doesn't list but that
+  // carry data on this visit (e.g. Vital Signs on a Stroke-Lipid visit)
+  activateFieldSetsWithData()
+  if (visitQuestionnaires.value.length > 0) await ensureQuestionnaireFieldSetActive()
 })
 </script>
 

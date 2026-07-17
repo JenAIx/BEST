@@ -144,6 +144,23 @@ describe('useVisitFieldSets', () => {
     expect(setSettingMock).not.toHaveBeenCalled()
   })
 
+  it('activateFieldSetsWithData activates inactive groups that carry data', async () => {
+    const fs = await setup()
+    fs.activeFieldSets.value = ['lipid_labor']
+    // vitals has one observation on this visit, lipid_drugs none
+    getFieldSetObservationsMock.mockImplementation((id) => (id === 'vitals' ? [{ observationId: 1 }] : []))
+
+    fs.activateFieldSetsWithData()
+    expect(fs.activeFieldSets.value).toEqual(['lipid_labor', 'vitals'])
+    expect(setSettingMock).toHaveBeenCalledWith('visits.activeFieldSets', ['lipid_labor', 'vitals'])
+
+    // idempotent + no persist when nothing changes
+    setSettingMock.mockClear()
+    fs.activateFieldSetsWithData()
+    expect(fs.activeFieldSets.value).toEqual(['lipid_labor', 'vitals'])
+    expect(setSettingMock).not.toHaveBeenCalled()
+  })
+
   it('getFieldSetObservations delegates to the observation store with available sets', async () => {
     const fs = await setup()
     getFieldSetObservationsMock.mockReturnValue([{ observationId: 1 }])

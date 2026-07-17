@@ -86,6 +86,23 @@ export function useVisitFieldSets(options = {}) {
     }
   }
 
+  /**
+   * Additionally activate every field set that has observations on the
+   * selected visit — read/edit parity: a data-bearing group must never be
+   * invisible just because the visit type doesn't list it.
+   */
+  const activateFieldSetsWithData = () => {
+    let changed = false
+    for (const fs of availableFieldSets.value) {
+      if (activeFieldSets.value.includes(fs.id)) continue
+      if (getFieldSetObservations(fs.id).length > 0) {
+        activeFieldSets.value.push(fs.id)
+        changed = true
+      }
+    }
+    if (changed) persist()
+  }
+
   const toggleFieldSet = (fieldSetId) => {
     const index = activeFieldSets.value.indexOf(fieldSetId)
     if (index > -1) activeFieldSets.value.splice(index, 1)
@@ -136,6 +153,7 @@ export function useVisitFieldSets(options = {}) {
     loadingFieldSets,
     loadFieldSets,
     activateFieldSetsForVisitType,
+    activateFieldSetsWithData,
     toggleFieldSet,
     ensureQuestionnaireFieldSetActive,
     getFieldSetObservations,
