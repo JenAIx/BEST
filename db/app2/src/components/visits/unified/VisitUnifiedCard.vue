@@ -10,6 +10,11 @@
       <q-chip dense size="sm" outline :color="typeMeta.color || 'primary'" :icon="typeMeta.icon">
         {{ typeMeta.label }}
       </q-chip>
+      <!-- Visit note: subtle marker, full text on header hover -->
+      <q-icon v-if="visit.notes" name="sticky_note_2" size="14px" color="grey-5" />
+      <q-tooltip v-if="visit.notes" :delay="350" max-width="380px">
+        <div class="note-tooltip">{{ visit.notes }}</div>
+      </q-tooltip>
       <q-chip v-if="editing" dense size="sm" color="primary" text-color="white" icon="edit" data-cy="unified-card-editing-chip">
         {{ $t('visit.editingChip') }}
       </q-chip>
@@ -213,5 +218,10 @@ const isOpen = computed(() => props.expanded || props.editing)
 
 .visit-block-empty {
   padding: 10px 16px;
+}
+
+.note-tooltip {
+  white-space: pre-wrap;
+  font-size: 0.8rem;
 }
 </style>
