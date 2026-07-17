@@ -2,8 +2,9 @@
   <!-- One collapsible visit card in the unified timeline. Dumb component:
        labels/status arrive pre-resolved via props, all actions bubble up. -->
   <div class="unified-card visit-block" :class="[statusMeta.cssClass, { 'visit-block--editing': editing }]" data-cy="unified-card" :data-visit-id="visit.id">
-    <!-- Header: click toggles expand/collapse -->
-    <div class="visit-block-header row items-center q-gutter-sm" data-cy="unified-card-header" @click="$emit('toggle')">
+    <!-- Header: click toggles expand/collapse; pinned while scrolling
+         through the expanded body -->
+    <div class="visit-block-header row items-center q-gutter-sm" :class="{ 'visit-block-header--collapsed': !expanded && !editing }" data-cy="unified-card-header" @click="$emit('toggle')">
       <q-icon :name="expanded || editing ? 'expand_more' : 'chevron_right'" color="grey-6" size="20px" />
       <span class="visit-date">{{ formatDate(visit.date) }}</span>
       <q-chip dense size="sm" outline :color="typeMeta.color || 'primary'" :icon="typeMeta.icon">
@@ -129,38 +130,43 @@ defineEmits(['toggle', 'edit', 'edit-meta', 'clone', 'delete', 'finish', 'previe
   background: white;
   border: 1px solid $grey-4;
   border-radius: 8px;
-  overflow: hidden;
+  // visible (not hidden): the sticky header must escape the card's box
+  overflow: visible;
 
-  // The editing card is clearly marked; sticky sidebar needs visible overflow
+  // The editing card is clearly marked
   &--editing {
     border: 2px solid $primary;
     box-shadow: 0 4px 16px rgba(25, 118, 210, 0.18);
-    overflow: visible;
 
     &::before {
       background: $primary !important;
       box-shadow: 0 0 0 4px rgba(25, 118, 210, 0.25) !important;
     }
 
-    // Pinned while scrolling through the editor so the visit (and the
-    // Fertig button) stays visible — the view header row is hidden then
     .visit-block-header {
-      position: sticky;
-      top: 0;
       z-index: 20;
       background: $blue-1;
       border-bottom-color: rgba(25, 118, 210, 0.25);
-      border-radius: 6px 6px 0 0;
     }
   }
-
 }
 
+// Pinned at the top of the scroll area while its (expanded) card passes —
+// date, type chip and the edit/Fertig buttons stay visible when scrolling
 .visit-block-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
   padding: 10px 16px;
   background: $grey-2;
   border-bottom: 1px solid $grey-4;
+  border-radius: 7px 7px 0 0;
   cursor: pointer;
+
+  &--collapsed {
+    border-radius: 7px;
+    border-bottom: none;
+  }
 
   &:hover {
     background: $blue-1;

@@ -67,7 +67,7 @@
                 :type-meta="typeMeta(visit)"
                 :status-meta="statusMeta(visit)"
                 @toggle="toggleCard(visit)"
-                @edit="startEditing(visit)"
+                @edit="enterEditMode(visit)"
                 @edit-meta="editVisitMeta"
                 @finish="stopEditing"
                 @clone="confirmClone(visit)"
@@ -359,6 +359,28 @@ const navToGroup = ({ visitId, group }) => {
     expandedIds.value = expandAll(expandedIds.value, [visitId])
   }
   scrollToSelector(`[data-visit-id="${visitId}"] [data-group-name="${CSS.escape(group)}"]`)
+}
+
+// Entering edit mode keeps the section the user was looking at: remember the
+// scroll spy's active group and jump there once the editor panels exist
+// (they mount async after field-set activation — retry briefly)
+const scrollToGroupWhenReady = async (visitId, group) => {
+  const selector = `[data-visit-id="${visitId}"] [data-group-name="${CSS.escape(group)}"]`
+  for (let attempt = 0; attempt < 20; attempt++) {
+    await nextTick()
+    const el = scrollArea.value?.querySelector(selector)
+    if (el && el.offsetHeight > 0) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+}
+
+const enterEditMode = async (visit) => {
+  const targetGroup = activeNav.value?.visitId === visit.id ? activeNav.value.group : null
+  await startEditing(visit)
+  if (targetGroup) await scrollToGroupWhenReady(visit.id, targetGroup)
 }
 
 // Nav entries dock at the height of their card: visitId → px offset within
