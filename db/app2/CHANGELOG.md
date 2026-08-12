@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Zeitlinie: Leere Dropdown-Felder (S/F) ohne Auswahloptionen**
+  (`bugfix/cannot_use_dropdown_observat`): Leere CRF-Slots im
+  Formular-Raster mounten als Typ `T`, bevor `resolveBatch` die
+  Feldset-Konzepttypen liefert; kippte der Typ danach auf `S`/`F`
+  (gleiche Komponenteninstanz, kein Remount), blieb das `q-select` ohne
+  Optionen — anklickbar, aber leer (z. B. `STROKE_LIPID:V1:NEW_MED`
+  nach dem Löschen des Werts). `ObservationValueEditor` lädt die
+  Optionen jetzt über einen Watcher auf den effektiven Wertetyp statt
+  nur in `onMounted`. Regressionstest:
+  `tests/unit/43_observation-value-editor-late-type.test.js`.
+
 ## [0.5_20260717] - 2026-07-17
 
 ### Added
