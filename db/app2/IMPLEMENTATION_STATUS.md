@@ -5,6 +5,18 @@
 
 ## Recent Milestones
 
+### 2026-08-12 — Release v0.6_20260812: Versionsanzeige + In-App-Changelog repariert
+
+- Released v0.6_20260812 to `main` (`bugfix/about-version-changelog`):
+  der Login-About-Dialog zeigte `0.0.1`, weil `quasar.config.js`
+  `VITE_APP_VERSION` mit der nie gepflegten `package.json`-Version
+  überschrieb — die Config parst jetzt `.env` (Source of Truth) und
+  bevorzugt sie. Die Changelog-Seite fetchte eine tote Kopie aus
+  `public/` (Stand April 2026); sie bündelt jetzt das Root-CHANGELOG
+  per `?raw`-Import zur Build-Zeit (Kopie gelöscht). Ihr Zurück-Button
+  schwebt fix zentriert über einem klick-transparenten Fade-out
+  (`q-page-sticky`).
+
 ### 2026-08-12 — Release v0.5_20260812: Bugfix leere S/F-Dropdowns
 
 - Released v0.5_20260812 to `main` (Bugfix-Release,
