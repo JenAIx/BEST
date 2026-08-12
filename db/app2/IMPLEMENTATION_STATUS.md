@@ -5,6 +5,17 @@
 
 ## Recent Milestones
 
+### 2026-08-12 — Release v0.5_20260812: Bugfix leere S/F-Dropdowns
+
+- Released v0.5_20260812 to `main` (Bugfix-Release,
+  `bugfix/cannot_use_dropdown_observat`): leere Dropdown-Slots (S/F) im
+  Formular-Raster der Zeitlinie blieben ohne Auswahloptionen, weil die
+  Optionen nur in `onMounted` geladen wurden — der Konzepttyp leerer
+  Felder kommt aber erst nach dem Mount aus `resolveBatch` ('T' → S/F
+  auf derselben Komponenteninstanz). `ObservationValueEditor` lädt
+  Optionen jetzt per Watcher auf den effektiven Wertetyp;
+  Regressionstest `tests/unit/43_observation-value-editor-late-type.test.js`.
+
 ### 2026-07-17 — Release v0.5_20260717: Unified Zeitlinie ist DIE Visitenansicht
 
 - Released v0.5_20260717 to `main`. `/visits/:id` hat nur noch zwei Ansichten:
