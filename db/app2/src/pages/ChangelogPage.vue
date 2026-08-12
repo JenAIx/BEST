@@ -31,18 +31,24 @@
           </q-card-section>
         </q-card>
 
-        <!-- Back Button -->
-        <div class="text-center q-mt-lg">
-          <q-btn
-            flat
-            color="primary"
-            :label="$t('common.back')"
-            icon="arrow_back"
-            @click="$router.back()"
-          />
-        </div>
       </div>
     </div>
+
+    <!-- Fixed back button, centered over a fade-out so scrolling content
+         visibly runs out underneath it -->
+    <q-page-sticky expand position="bottom" class="changelog-footer">
+      <div class="changelog-footer-fade">
+        <q-btn
+          unelevated
+          rounded
+          color="primary"
+          :label="$t('common.back')"
+          icon="arrow_back"
+          class="changelog-back-btn"
+          @click="$router.back()"
+        />
+      </div>
+    </q-page-sticky>
   </q-page>
 </template>
 
@@ -141,6 +147,29 @@ onMounted(() => {
 .changelog-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  // Clearance so the last lines can scroll above the fixed footer fade
+  padding-bottom: 120px;
+}
+
+.changelog-footer {
+  z-index: 5;
+  // The strip must not swallow clicks/scroll on the content it overlays —
+  // only the button itself is interactive
+  pointer-events: none;
+
+  .changelog-footer-fade {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+    padding: 64px 16px 20px;
+    background: linear-gradient(to top, rgba(223, 230, 240, 0.95) 0%, rgba(223, 230, 240, 0.75) 40%, rgba(223, 230, 240, 0) 100%);
+  }
+
+  .changelog-back-btn {
+    pointer-events: auto;
+    box-shadow: 0 4px 14px rgba(25, 118, 210, 0.3);
+  }
 }
 
 .changelog-card {

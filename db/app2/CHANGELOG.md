@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Changelog-Seite: Zurück-Button fixiert** — der Button hing als letztes
+  Element unter dem (langen) Changelog. Jetzt schwebt er zentriert und fix
+  am unteren Rand (`q-page-sticky`), der Content läuft unter einem sanften
+  Fade-out aus; die Fade-Leiste selbst ist klick-transparent.
+
 ### Fixed
 
 - **About-Dialog zeigte veraltete Version, In-App-Changelog uralt**
