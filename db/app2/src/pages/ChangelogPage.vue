@@ -48,6 +48,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+// Bundle the repo-root CHANGELOG at build time — single source of truth.
+// (The old fetch('/CHANGELOG.md') served a stale, long-dead copy from
+// public/ and failed entirely in the packaged Electron app.)
+import changelogMarkdown from '../../CHANGELOG.md?raw'
 
 const loading = ref(true)
 const error = ref(null)
@@ -114,25 +118,12 @@ const markdownToHtml = (markdown) => {
 /**
  * Load changelog file
  */
-const loadChangelog = async () => {
+const loadChangelog = () => {
   loading.value = true
   error.value = null
 
   try {
-    // Try to fetch from public folder first, then fallback to root
-    let response = await fetch('/CHANGELOG.md')
-    
-    if (!response.ok) {
-      // Try alternative path
-      response = await fetch('./CHANGELOG.md')
-    }
-    
-    if (!response.ok) {
-      throw new Error(`Failed to load changelog: ${response.status} ${response.statusText}`)
-    }
-
-    const markdown = await response.text()
-    changelogHtml.value = markdownToHtml(markdown)
+    changelogHtml.value = markdownToHtml(changelogMarkdown)
   } catch (err) {
     console.error('Error loading changelog:', err)
     error.value = err.message || 'Failed to load changelog'

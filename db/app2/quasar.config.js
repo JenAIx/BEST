@@ -7,6 +7,19 @@ import { readFileSync } from 'fs'
 // Read package.json for version info
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'))
 
+// The release version lives in .env (VITE_APP_VERSION=X.Y_YYYYMMDD — the
+// value the release tags derive from). package.json stays at a static npm
+// semver and must NOT win over it, so parse .env here and prefer it.
+const dotEnv = Object.fromEntries(
+  readFileSync('./.env', 'utf8')
+    .split(/\r?\n/)
+    .filter((line) => line.trim() && !line.trim().startsWith('#') && line.includes('='))
+    .map((line) => {
+      const idx = line.indexOf('=')
+      return [line.slice(0, idx).trim(), line.slice(idx + 1).trim()]
+    }),
+)
+
 export default defineConfig((/* ctx */) => {
   return {
     // https://v2.quasar.dev/quasar-cli-vite/prefetch-feature
@@ -51,9 +64,9 @@ export default defineConfig((/* ctx */) => {
       // publicPath: '/',
       // analyze: true,
 
-      // Inject version information from package.json
+      // Inject version information (.env wins, see dotEnv above)
       env: {
-        VITE_APP_VERSION: packageJson.version,
+        VITE_APP_VERSION: dotEnv.VITE_APP_VERSION || packageJson.version,
         VITE_APP_NAME: packageJson.productName || packageJson.name,
         VITE_APP_BUILD_DATE: new Date().toISOString().split('T')[0],
       },

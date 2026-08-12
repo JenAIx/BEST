@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **About-Dialog zeigte veraltete Version, In-App-Changelog uralt**
+  (`bugfix/about-version-changelog`):
+  - `quasar.config.js` überschrieb `VITE_APP_VERSION` mit der nie
+    gepflegten `package.json`-Version (`0.0.1`) — die Release-Version aus
+    `.env` (Source of Truth, `X.Y_YYYYMMDD`) kam im Login-About-Dialog
+    nie an. Die Config parst `.env` jetzt selbst und bevorzugt sie;
+    `package.json` bleibt nur Fallback.
+  - `ChangelogPage.vue` fetchte `/CHANGELOG.md` und bekam damit eine
+    tote Kopie aus `public/` (Stand April 2026) — im gepackten
+    Electron-Build schlug der Fetch ganz fehl. Das Root-CHANGELOG wird
+    jetzt zur Build-Zeit gebündelt (`?raw`-Import), die `public/`-Kopie
+    ist gelöscht.
+
 ## [0.5_20260812] - 2026-08-12
 
 ### Fixed
