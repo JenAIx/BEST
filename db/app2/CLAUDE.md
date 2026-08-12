@@ -1522,5 +1522,5 @@ console.log($t('category.key'))
 ---
 
 **Last Updated**: August 12, 2026  
-**App Version**: 0.5_20260812  
+**App Version**: 0.6_20260812  
 **Database Schema Version**: 002 (Current)
