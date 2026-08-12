@@ -411,16 +411,28 @@ onMounted(async () => {
 
   // Initialize current value
   currentValue.value = props.rowData.currentValue || ''
-
-  // Load type-specific data
-  if (actualValueType.value === 'S' || actualValueType.value === 'F' || actualValueType.value === 'A') {
-    await loadSelectionOptions()
-  } else if (actualValueType.value === 'R') {
-    initializeFileInfo()
-  } else if (actualValueType.value === 'M') {
-    initializeMedicationData()
-  }
 })
+
+// Load type-specific data. The value type can arrive AFTER mount: blank
+// form-grid fields render as 'T' until ObservationFormGrid's async
+// resolveBatch delivers the field-set concept types, then flip to S/F on
+// the SAME component instance (v-for key = concept code, no remount) — so
+// options must follow the type, not the mount, or empty dropdowns stay
+// optionless forever. Only S and F carry selectable options; A-types are
+// the answer concepts themselves and never appear as editable fields.
+watch(
+  actualValueType,
+  async (type) => {
+    if (type === 'S' || type === 'F') {
+      await loadSelectionOptions()
+    } else if (type === 'R') {
+      initializeFileInfo()
+    } else if (type === 'M') {
+      initializeMedicationData()
+    }
+  },
+  { immediate: true },
+)
 
 // Watch for changes in row data
 watch(
