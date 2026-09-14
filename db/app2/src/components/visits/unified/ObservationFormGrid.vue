@@ -38,7 +38,7 @@
           <!-- Audit flag (grid parity): hidden until hover unless a review
                flag is set; click opens mark / resolve / clear -->
           <q-btn
-            v-if="field.obs && auditActionsFor(fieldFlag(field)).length"
+            v-if="field.obs"
             flat
             round
             dense
@@ -60,6 +60,16 @@
                     <q-icon :name="AUDIT_ACTION_META[entry.action].icon" :color="AUDIT_ACTION_META[entry.action].color" size="18px" />
                   </q-item-section>
                   <q-item-section>{{ $t(AUDIT_ACTION_META[entry.action].label) }}</q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item clickable data-cy="field-audit-open" @click="openAuditDialog(field)">
+                  <q-item-section avatar><q-icon name="chat_bubble_outline" color="primary" size="18px" /></q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ $t('visit.auditOpen') }}</q-item-label>
+                    <q-item-label v-if="observationStore.auditCommentCount(field.obs.observationId) > 0" caption>
+                      {{ $t('visit.auditComments', { count: observationStore.auditCommentCount(field.obs.observationId) }) }}
+                    </q-item-label>
+                  </q-item-section>
                 </q-item>
               </q-list>
             </q-menu>
@@ -114,6 +124,7 @@
       </div>
     </div>
 
+    <ObservationAuditDialog v-model="showAuditDialog" :observation="auditObservation" source="VISITS" />
     <FileDetailsDialog v-if="fileToEdit" v-model="showFileDetails" :observation="fileToEdit" @saved="onFileDetailsSaved" />
 
     <MedicationEditDialog
@@ -156,6 +167,7 @@ import {
 } from 'src/shared/utils/observation-display.js'
 import ObservationValueEditor from '../ObservationValueEditor.vue'
 import FileDetailsDialog from './FileDetailsDialog.vue'
+import ObservationAuditDialog from 'src/components/shared/ObservationAuditDialog.vue'
 import MedicationEditDialog from '../MedicationEditDialog.vue'
 
 defineOptions({
@@ -185,6 +197,14 @@ const AUDIT_ACTION_META = {
 }
 
 const fieldFlag = (field) => readValueFlag(field.obs)
+
+const showAuditDialog = ref(false)
+const auditObservation = ref(null)
+const openAuditDialog = (field) => {
+  if (!field.obs) return
+  auditObservation.value = field.obs
+  showAuditDialog.value = true
+}
 
 const setFlag = async (field, flag) => {
   if (!field.obs) return

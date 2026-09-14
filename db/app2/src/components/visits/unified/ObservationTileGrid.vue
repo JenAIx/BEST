@@ -36,8 +36,16 @@
         >
           <!-- Audit state marker (same semantics as the grid: red = needs
                review, green = reviewed) -->
-          <q-icon v-if="readValueFlag(obs) === 'AUDIT'" name="flag" size="12px" class="tile-flag tile-flag--audit" data-cy="tile-flag-audit" />
-          <q-icon v-else-if="readValueFlag(obs) === 'CONFIRMED'" name="check_circle" size="12px" class="tile-flag tile-flag--confirmed" data-cy="tile-flag-confirmed" />
+          <span
+            v-if="readValueFlag(obs) === 'AUDIT' || readValueFlag(obs) === 'CONFIRMED' || commentCountFor(obs) > 0"
+            class="tile-flag"
+            :class="{ 'tile-flag--audit': readValueFlag(obs) === 'AUDIT', 'tile-flag--confirmed': readValueFlag(obs) === 'CONFIRMED' }"
+            :data-cy="readValueFlag(obs) === 'AUDIT' ? 'tile-flag-audit' : readValueFlag(obs) === 'CONFIRMED' ? 'tile-flag-confirmed' : 'tile-flag-comments'"
+            @click.stop="emit('open-audit', obs)"
+          >
+            <q-icon :name="readValueFlag(obs) === 'AUDIT' ? 'flag' : readValueFlag(obs) === 'CONFIRMED' ? 'check_circle' : 'chat_bubble_outline'" size="12px" />
+            <span v-if="commentCountFor(obs) > 0" class="tile-flag__count" data-cy="tile-comment-count">{{ commentCountFor(obs) }}</span>
+          </span>
 
           <!-- Right-click: the grid's audit actions (mark / resolve / clear)
                — annotations, not value edits, so allowed in read mode -->
@@ -48,6 +56,14 @@
                   <q-icon :name="AUDIT_ACTION_META[entry.action].icon" :color="AUDIT_ACTION_META[entry.action].color" size="18px" />
                 </q-item-section>
                 <q-item-section>{{ $t(AUDIT_ACTION_META[entry.action].label) }}</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item clickable data-cy="tile-audit-open" @click="emit('open-audit', obs)">
+                <q-item-section avatar><q-icon name="chat_bubble_outline" color="primary" size="18px" /></q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ $t('visit.auditOpen') }}</q-item-label>
+                  <q-item-label v-if="commentCountFor(obs) > 0" caption>{{ $t('visit.auditComments', { count: commentCountFor(obs) }) }}</q-item-label>
+                </q-item-section>
               </q-item>
             </q-list>
           </q-menu>
@@ -120,9 +136,13 @@ const props = defineProps({
   categorizedObservations: { type: Array, default: () => [] },
   // Off while searching — a percentage over filtered rows would mislead
   showCompletion: { type: Boolean, default: true },
+  // observationId → number of audit comments (badge next to the flag)
+  commentCounts: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['preview-file', 'preview-questionnaire', 'set-flag'])
+const emit = defineEmits(['preview-file', 'preview-questionnaire', 'set-flag', 'open-audit'])
+
+const commentCountFor = (obs) => props.commentCounts?.[obs.observationId] || 0
 
 // Context-menu presentation per audit action (labels reuse the grid's keys)
 const AUDIT_ACTION_META = {
@@ -299,8 +319,20 @@ const fileSubline = (obs) => {
 
 .tile-flag {
   position: absolute;
-  top: 3px;
-  right: 4px;
+  top: 2px;
+  right: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  color: $grey-6;
+  cursor: pointer;
+  line-height: 1;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
 
   &--audit {
     color: $negative;
@@ -308,6 +340,12 @@ const fileSubline = (obs) => {
 
   &--confirmed {
     color: $positive;
+  }
+
+  &__count {
+    font-size: 0.62rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
   }
 }
 

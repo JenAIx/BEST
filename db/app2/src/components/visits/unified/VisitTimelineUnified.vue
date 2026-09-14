@@ -86,6 +86,7 @@
                 :categorized-observations="observationsForVisit(visit.id)"
                 :observation-count="observationCountFor(visit)"
                 :open-audit-count="openAuditCountFor(visit.id)"
+                :comment-counts="commentCounts"
                 :expanded="isExpanded(visit)"
                 :editing="isEditing(visit.id)"
                 :type-meta="typeMeta(visit)"
@@ -100,6 +101,7 @@
                 @preview-file="previewFile"
                 @preview-questionnaire="previewQuestionnaire"
                 @set-flag="onSetFlag"
+                @open-audit="openAuditDialog"
               >
                 <!-- Inline edit mode: split layout, mounted only for the editing card -->
                 <template #editor>
@@ -132,6 +134,8 @@
       :concept-name="selectedFileObservation.conceptName"
       :upload-date="selectedFileObservation.date"
     />
+
+    <ObservationAuditDialog v-model="showAuditDialog" :observation="auditObservation" source="VISITS" />
 
     <QuestionnairePreviewDialog
       v-if="selectedQuestionnaireObservation"
@@ -170,6 +174,7 @@ import NewVisitDialog from '../NewVisitDialog.vue'
 import EditVisitDialog from '../../patient/EditVisitDialog.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
+import ObservationAuditDialog from 'src/components/shared/ObservationAuditDialog.vue'
 
 defineOptions({
   name: 'VisitTimelineUnified',
@@ -243,6 +248,25 @@ onMounted(() => {
 const totalOpenAudits = computed(() => countOpenAudits(observationStore.allObservations))
 
 const openAuditCountFor = (visitId) => countOpenAudits(observationStore.allObservations.filter((obs) => obs.encounterNum === visitId))
+
+// Audit dialog (trail + comments) for one observation; tile badges show
+// the comment count from the patient-wide trail cache
+const showAuditDialog = ref(false)
+const auditObservation = ref(null)
+
+const openAuditDialog = (observation) => {
+  auditObservation.value = observation
+  showAuditDialog.value = true
+}
+
+const commentCounts = computed(() => {
+  const counts = {}
+  for (const [observationId, events] of observationStore.auditTrail) {
+    const n = events.filter((e) => e.COMMENT_TEXT).length
+    if (n > 0) counts[observationId] = n
+  }
+  return counts
+})
 
 // Flag transitions from the read tiles' context menu — the store mirrors
 // the new flag in place, so tiles, chips and nav badges update immediately
@@ -417,10 +441,15 @@ const onDataChanged = async () => {
   try {
     await visitStore.loadVisitsForPatient(patientNum.value)
     await observationStore.loadAllObservationsForPatient(patientNum.value)
+    await observationStore.loadAuditTrailForPatient(patientNum.value)
   } catch (error) {
     logger.error('Failed to refresh visits/observations', error)
   }
 }
+
+// The trail (comment badges) loads alongside the patient's observations;
+// the page itself loads visits/observations before this component mounts
+watch(patientNum, (num) => observationStore.loadAuditTrailForPatient(num), { immediate: true })
 
 // ---- Quick navigation (left column) + scroll spy ----
 const scrollArea = ref(null)

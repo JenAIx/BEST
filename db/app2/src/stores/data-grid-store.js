@@ -454,8 +454,26 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
     }
 
-    // Mirror the flag (and possibly the cleared value) into local state so the
-    // cell re-renders without a reload.
+    // Audit trail (OBSERVATION_AUDIT_FACT) — best effort, never blocks the write
+    try {
+      const auditRepo = dbStore.getRepository?.('observationAudit')
+      if (auditRepo) {
+        await auditRepo.logEvent({ observationId, eventCd: 'FLAG', flagCd: flag, commentText: payload?.comment ?? null, createdBy: authStore.providerId, source: 'GRID' })
+      }
+    } catch (err) {
+      logger.warn('Failed to log audit event', { observationId, flag, error: err?.message })
+    }
+
+    mirrorObservationFlag({ patientId, encounterNum, conceptCode, flag, clearValue })
+
+    lastUpdateTime.value = new Date().toLocaleTimeString()
+    logger.info('Observation flag updated', { observationId, flag })
+  }
+
+  // Mirror a flag (and possibly the cleared value) into local state so the
+  // cell re-renders without a reload. Also used when the shared audit dialog
+  // wrote the flag through observation-store (DB already updated).
+  const mirrorObservationFlag = ({ patientId, encounterNum, conceptCode, flag, clearValue = flag === 'NV' }) => {
     const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
     if (row && row.observations[conceptCode]) {
       row.observations[conceptCode].valueFlag = flag
@@ -463,9 +481,6 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         row.observations[conceptCode].value = ''
       }
     }
-
-    lastUpdateTime.value = new Date().toLocaleTimeString()
-    logger.info('Observation flag updated', { observationId, flag })
   }
 
   // deleteObservationFromGrid hard-deletes the OBSERVATION_FACT row and
@@ -1047,6 +1062,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
     // Audit workflow
     setObservationFlag,
+    mirrorObservationFlag,
     deleteObservationFromGrid,
     toggleAuditFilter,
     loadVisitTypeLockData,

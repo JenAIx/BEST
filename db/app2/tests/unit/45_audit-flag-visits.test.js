@@ -14,13 +14,21 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { toRaw } from 'vue'
 import { buildSetFlagStatement, readValueFlag, hasOpenAudit, countOpenAudits, auditActionsFor } from '../../src/shared/utils/audit-flag.js'
+import { isBlankObservation } from '../../src/shared/utils/observation-display.js'
 
 const executeQueryMock = vi.fn()
+const auditRepoMock = {
+  logEvent: vi.fn(),
+  getTrailForPatient: vi.fn(),
+  getTrailForObservation: vi.fn(),
+  deleteEvent: vi.fn(),
+}
+const observationRepoMock = { updateObservation: vi.fn() }
 
 vi.mock('src/stores/database-store', () => ({
   useDatabaseStore: () => ({
     executeQuery: executeQueryMock,
-    getRepository: vi.fn(),
+    getRepository: (name) => (name === 'observationAudit' ? auditRepoMock : name === 'observation' ? observationRepoMock : null),
     canPerformOperations: true,
   }),
 }))
@@ -79,10 +87,16 @@ describe('audit-flag utils', () => {
 describe('observation-store.setObservationFlag', () => {
   let store
 
+  let nextAuditId = 100
   beforeEach(() => {
     setActivePinia(createPinia())
     executeQueryMock.mockReset()
     executeQueryMock.mockResolvedValue({ success: true, data: [] })
+    for (const fn of Object.values(auditRepoMock)) fn.mockReset()
+    auditRepoMock.logEvent.mockImplementation(async (e) => ({ AUDIT_ID: nextAuditId++, OBSERVATION_ID: e.observationId, EVENT_CD: e.eventCd, FLAG_CD: e.flagCd ?? null, COMMENT_TEXT: e.commentText ?? null, CREATED_BY: e.createdBy }))
+    auditRepoMock.deleteEvent.mockResolvedValue(true)
+    observationRepoMock.updateObservation.mockReset()
+    observationRepoMock.updateObservation.mockResolvedValue(true)
     store = useObservationStore()
   })
 
@@ -139,5 +153,86 @@ describe('observation-store.setObservationFlag', () => {
 
     executeQueryMock.mockResolvedValue({ success: false, error: 'locked' })
     await expect(store.setObservationFlag({ observationId: 7, flag: 'AUDIT' })).rejects.toThrow('locked')
+  })
+})
+
+describe('observation-store audit trail', () => {
+  let store
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    executeQueryMock.mockReset()
+    executeQueryMock.mockResolvedValue({ success: true, data: [] })
+    for (const fn of Object.values(auditRepoMock)) fn.mockReset()
+    let id = 1
+    auditRepoMock.logEvent.mockImplementation(async (e) => ({ AUDIT_ID: id++, OBSERVATION_ID: e.observationId, EVENT_CD: e.eventCd, FLAG_CD: e.flagCd ?? null, COMMENT_TEXT: e.commentText ?? null, CREATED_BY: e.createdBy }))
+    auditRepoMock.deleteEvent.mockResolvedValue(true)
+    observationRepoMock.updateObservation.mockReset()
+    observationRepoMock.updateObservation.mockResolvedValue(true)
+    store = useObservationStore()
+    store.observations = [{ observationId: 7, valueFlag: 'AUDIT', rawData: { VALUEFLAG_CD: 'AUDIT' } }]
+    store.allObservations = []
+  })
+
+  it('setObservationFlag logs a FLAG event (with the optional comment) and caches it', async () => {
+    await store.setObservationFlag({ observationId: 7, flag: 'CONFIRMED', comment: 'passt' })
+    expect(auditRepoMock.logEvent).toHaveBeenCalledWith(expect.objectContaining({ observationId: 7, eventCd: 'FLAG', flagCd: 'CONFIRMED', commentText: 'passt', createdBy: 'ste', source: 'VISITS' }))
+    expect(store.auditTrailFor(7)).toHaveLength(1)
+    expect(store.auditCommentCount(7)).toBe(1)
+  })
+
+  it('a failing trail write never breaks the flag write', async () => {
+    auditRepoMock.logEvent.mockRejectedValue(new Error('disk full'))
+    await expect(store.setObservationFlag({ observationId: 7, flag: 'CONFIRMED' })).resolves.toBe('CONFIRMED')
+    expect(store.observations[0].valueFlag).toBe('CONFIRMED')
+  })
+
+  it('addAuditComment appends a COMMENT event; blank text is ignored', async () => {
+    expect(await store.addAuditComment({ observationId: 7, text: '   ' })).toBeNull()
+    expect(auditRepoMock.logEvent).not.toHaveBeenCalled()
+    await store.addAuditComment({ observationId: 7, text: 'Bitte prüfen' })
+    expect(auditRepoMock.logEvent).toHaveBeenCalledWith(expect.objectContaining({ eventCd: 'COMMENT', commentText: 'Bitte prüfen' }))
+    expect(store.auditCommentCount(7)).toBe(1)
+  })
+
+  it('deleteAuditComment removes the cached row', async () => {
+    const row = await store.addAuditComment({ observationId: 7, text: 'x' })
+    await store.deleteAuditComment({ observationId: 7, auditId: row.AUDIT_ID })
+    expect(auditRepoMock.deleteEvent).toHaveBeenCalledWith(row.AUDIT_ID)
+    expect(store.auditTrailFor(7)).toEqual([])
+  })
+
+  it('loadAuditTrailForPatient groups rows by observation', async () => {
+    auditRepoMock.getTrailForPatient.mockResolvedValue([
+      { AUDIT_ID: 1, OBSERVATION_ID: 7, EVENT_CD: 'FLAG', COMMENT_TEXT: 'a' },
+      { AUDIT_ID: 2, OBSERVATION_ID: 9, EVENT_CD: 'COMMENT', COMMENT_TEXT: 'b' },
+      { AUDIT_ID: 3, OBSERVATION_ID: 7, EVENT_CD: 'COMMENT', COMMENT_TEXT: null },
+    ])
+    await store.loadAuditTrailForPatient(42)
+    expect(store.auditTrailFor(7).map((e) => e.AUDIT_ID)).toEqual([1, 3])
+    expect(store.auditCommentCount(7)).toBe(1)
+    expect(store.auditCommentCount(9)).toBe(1)
+    expect(store.auditCommentCount(11)).toBe(0)
+  })
+
+  it('a value save that resets AUDIT/CONFIRMED logs a VALUE_EDIT event and mirrors the cleared flag', async () => {
+    await store.updateObservation(7, { VALUEFLAG_CD: null, NVAL_NUM: 5 })
+    expect(auditRepoMock.logEvent).toHaveBeenCalledWith(expect.objectContaining({ observationId: 7, eventCd: 'VALUE_EDIT', flagCd: null }))
+    expect(store.observations[0].valueFlag).toBeNull()
+    expect(store.observations[0].rawData.VALUEFLAG_CD).toBeNull()
+
+    // no review flag before → nothing logged
+    auditRepoMock.logEvent.mockClear()
+    await store.updateObservation(7, { VALUEFLAG_CD: null, NVAL_NUM: 6 })
+    expect(auditRepoMock.logEvent).not.toHaveBeenCalled()
+  })
+})
+
+describe('isBlankObservation with review flags', () => {
+  it('AUDIT / CONFIRMED rows without a value stay visible; plain empty rows are blank', () => {
+    expect(isBlankObservation({ valueType: 'T', displayValue: '', valueFlag: 'AUDIT' })).toBe(false)
+    expect(isBlankObservation({ valueType: 'T', displayValue: '', rawData: { VALUEFLAG_CD: 'CONFIRMED' } })).toBe(false)
+    expect(isBlankObservation({ valueType: 'T', displayValue: '', valueFlag: 'NV' })).toBe(false)
+    expect(isBlankObservation({ valueType: 'T', displayValue: '' })).toBe(true)
+    expect(isBlankObservation({ valueType: 'T', displayValue: 'No value', valueFlag: null })).toBe(true)
   })
 })

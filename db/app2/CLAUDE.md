@@ -381,6 +381,28 @@ UI hint: in the Excel-like grid, render checkbox "no value" when
 `VALUEFLAG_CD='NV'`, number input when `NVAL_NUM != NULL`, empty field when
 no observation exists, red border for `'AUDIT'`, green border for `'CONFIRMED'`.
 
+**Audit trail (migration 015)** — `OBSERVATION_AUDIT_FACT` records the
+HISTORY behind `VALUEFLAG_CD` (which stays the only source of the CURRENT
+state): one row per event — `EVENT_CD` `FLAG` (with `FLAG_CD` = new value),
+`COMMENT` (free text, no state change), `VALUE_EDIT` (a value save reset a
+review flag) — plus `CREATED_BY`/`CREATED_AT`/`SOURCESYSTEM_CD` (`GRID` |
+`VISITS`), FK → `OBSERVATION_FACT` ON DELETE CASCADE + trigger
+`delete_observation_audit_cascade`. Write ONLY via
+`ObservationAuditRepository.logEvent` (copies PATIENT_NUM/ENCOUNTER_NUM from
+the observation) — both flag writers (`data-grid-store.setObservationFlag`,
+`observation-store.setObservationFlag`) and both value-edit paths that reset
+a flag log an event automatically. UI: `shared/ObservationAuditDialog.vue`
+(trail + comments + flag actions), reachable from tiles, form fields and grid
+cells alike; the grid mirrors a dialog-written flag via
+`data-grid-store.mirrorObservationFlag`. Never store audit comments in
+`NOTE_FACT` (no OBSERVATION_ID) or `OBSERVATION_BLOB` (nulled on every save).
+
+**Triggers in migrations** — write them in an `execute()` function, one
+`executeCommand` per statement (see 015/016). The Electron preload used to
+split multi-statement SQL on `;`, which cut `CREATE TRIGGER` bodies; it is
+fixed (BEGIN…END-aware splitter) and migration 016 re-creates every schema
+trigger idempotently, but statement-by-statement stays the safe pattern.
+
 **Per-observation date** — `OBSERVATION_FACT.START_DATE` defaults to the parent
 visit's `START_DATE` on INSERT, but can diverge per observation (e.g. a lab
 drawn on a different day). The grid exposes this via the right-click menu

@@ -67,9 +67,11 @@
           <ObservationTileGrid
             :categorized-observations="categorizedObservations"
             :show-completion="showCompletion"
+            :comment-counts="commentCounts"
             @preview-file="$emit('preview-file', $event)"
             @preview-questionnaire="$emit('preview-questionnaire', $event)"
             @set-flag="$emit('set-flag', $event)"
+            @open-audit="$emit('open-audit', $event)"
           />
         </div>
         <div v-else class="visit-block-empty text-caption text-grey-6">{{ $t('visit.noObservationsShort') }}</div>
@@ -93,6 +95,8 @@ const props = defineProps({
   observationCount: { type: Number, default: 0 },
   // Observations of this visit flagged VALUEFLAG_CD='AUDIT' (red chip in the header)
   openAuditCount: { type: Number, default: 0 },
+  // observationId → audit comment count (tile badges)
+  commentCounts: { type: Object, default: () => ({}) },
   expanded: { type: Boolean, default: false },
   editing: { type: Boolean, default: false },
   typeMeta: { type: Object, required: true },
@@ -100,7 +104,7 @@ const props = defineProps({
   showCompletion: { type: Boolean, default: true },
 })
 
-defineEmits(['toggle', 'edit', 'edit-meta', 'clone', 'delete', 'finish', 'preview-file', 'preview-questionnaire', 'set-flag'])
+defineEmits(['toggle', 'edit', 'edit-meta', 'clone', 'delete', 'finish', 'preview-file', 'preview-questionnaire', 'set-flag', 'open-audit'])
 
 // The card body is open in exactly two states: expanded (read) or editing
 const isOpen = computed(() => props.expanded || props.editing)
