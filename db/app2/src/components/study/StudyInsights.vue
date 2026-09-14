@@ -13,32 +13,131 @@
     </div>
 
     <div v-else-if="insights" class="insights-grid">
-      <!-- Visit Retention -->
+      <!-- Visit Retention (optionally narrowed to an enrolment window) -->
       <q-card flat bordered class="span-2">
         <q-card-section>
-          <div class="row items-center q-mb-md">
-            <q-icon name="groups" color="primary" size="24px" class="q-mr-sm" />
+          <div class="row items-center q-mb-md q-gutter-x-sm">
+            <q-icon name="groups" color="primary" size="24px" />
             <div class="text-subtitle1">{{ $t('study.insights.retention') }}</div>
+            <q-space />
+            <div class="retention-window row items-center no-wrap q-gutter-x-xs">
+              <q-icon name="date_range" color="grey-7" size="18px">
+                <q-tooltip>{{ $t('study.insights.windowHint') }}</q-tooltip>
+              </q-icon>
+              <q-input
+                v-model="windowFromText"
+                dense
+                outlined
+                mask="##.##.####"
+                placeholder="TT.MM.JJJJ"
+                :label="$t('study.insights.windowFrom')"
+                :error="windowFromError"
+                :error-message="$t('study.insights.windowInvalid')"
+                hide-bottom-space
+                class="retention-window__input"
+                data-cy="insights-window-from"
+              >
+                <template #append>
+                  <q-icon name="event" class="cursor-pointer">
+                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                      <q-date v-model="windowFromText" mask="DD.MM.YYYY" minimal>
+                        <div class="row items-center justify-end">
+                          <q-btn v-close-popup :label="$t('common.close')" color="primary" flat dense />
+                        </div>
+                      </q-date>
+                    </q-popup-proxy>
+                  </q-icon>
+                </template>
+              </q-input>
+              <span class="text-grey-6">–</span>
+              <q-input
+                v-model="windowToText"
+                dense
+                outlined
+                mask="##.##.####"
+                placeholder="TT.MM.JJJJ"
+                :label="$t('study.insights.windowTo')"
+                :error="windowToError"
+                :error-message="windowOrderError ? $t('study.insights.windowOrder') : $t('study.insights.windowInvalid')"
+                hide-bottom-space
+                class="retention-window__input"
+                data-cy="insights-window-to"
+              >
+                <template #append>
+                  <q-icon name="event" class="cursor-pointer">
+                    <q-popup-proxy cover transition-show="scale" transition-hide="scale">
+                      <q-date v-model="windowToText" mask="DD.MM.YYYY" minimal>
+                        <div class="row items-center justify-end">
+                          <q-btn v-close-popup :label="$t('common.close')" color="primary" flat dense />
+                        </div>
+                      </q-date>
+                    </q-popup-proxy>
+                  </q-icon>
+                </template>
+              </q-input>
+              <q-btn
+                v-if="windowFromText || windowToText"
+                flat
+                dense
+                round
+                icon="close"
+                size="sm"
+                color="grey-7"
+                data-cy="insights-window-clear"
+                @click="clearWindow"
+              >
+                <q-tooltip>{{ $t('study.insights.windowClear') }}</q-tooltip>
+              </q-btn>
+              <q-spinner v-if="retentionLoading" size="18px" color="primary" />
+            </div>
           </div>
           <div class="row q-col-gutter-sm">
-            <div class="col-12 col-sm-3">
+            <div class="col-12 col-sm-6 col-md">
               <CohortKpiCard
                 :label="$t('study.insights.enrolled')"
-                :value="insights.counts.enrolled"
+                :value="retentionCounts.enrolled"
+                :caption="windowCaption"
                 icon="how_to_reg"
                 icon-color="primary"
               />
             </div>
-            <div v-for="vt in insights.counts.perVisitType" :key="vt.visitType" class="col-12 col-sm-3">
+            <div v-for="vt in retentionCounts.perVisitType" :key="vt.visitType" class="col-12 col-sm-6 col-md">
               <CohortKpiCard
                 :label="visitTypeLabel(vt.visitType)"
                 :value="vt.patientCount"
-                :caption="`${pct(vt.patientCount, insights.counts.enrolled)}% ${$t('study.insights.ofEnrolled')}`"
+                :caption="`${pct(vt.patientCount, retentionCounts.enrolled)}% ${$t('study.insights.ofEnrolled')}`"
                 icon="event"
                 icon-color="indigo"
               />
             </div>
           </div>
+
+          <!-- Enrolments per month (same card: the window filter dims months outside) -->
+          <q-separator class="q-my-md" />
+          <div class="row items-center q-mb-xs">
+            <q-icon name="bar_chart" color="indigo" size="20px" class="q-mr-sm" />
+            <div class="text-body2 text-weight-medium">{{ $t('study.insights.enrollmentsPerMonth') }}</div>
+            <q-space />
+            <span class="text-caption text-grey-6">{{ $t('study.insights.enrollmentsHint') }}</span>
+          </div>
+          <div v-if="monthlySummary" class="text-caption text-grey-7 q-mb-sm monthly-summary">
+            <span>{{ $t('study.insights.totalEnrolled') }}: <b>{{ monthlySummary.total }}</b></span>
+            <span>{{ $t('study.insights.avgPerMonth') }}: <b>{{ formatAvg(monthlySummary.avgPerMonth) }}</b></span>
+            <span>{{ $t('study.insights.last12Months') }}: <b>{{ monthlySummary.last12 }}</b></span>
+            <span v-if="monthlySummary.peak">
+              {{ $t('study.insights.peakMonth') }}:
+              <b>{{ formatMonth(monthlySummary.peak.month, monthLocale, 'short') }} ({{ monthlySummary.peak.count }})</b>
+            </span>
+            <span v-if="insights.enrollmentsPerMonth?.undated">
+              {{ $t('study.insights.undated', { n: insights.enrollmentsPerMonth.undated }) }}
+            </span>
+          </div>
+          <CohortMonthlyChart
+            :months="insights.enrollmentsPerMonth?.months || []"
+            :window-from="activeWindow.from"
+            :window-to="activeWindow.to"
+            :empty-label="$t('study.insights.noEnrollments')"
+          />
         </q-card-section>
       </q-card>
 
@@ -142,18 +241,29 @@
 </template>
 
 <script setup>
-import { computed, watch, onMounted } from 'vue'
+import { computed, ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useStudyStore } from 'src/stores/study-store'
+import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
+import {
+  buildMonthlySeries,
+  formatMonth,
+  parseGermanDate,
+  summarizeMonthlySeries,
+  toGermanDate,
+} from 'src/shared/utils/enrollment-timeline'
 import CohortBarList from './CohortBarList.vue'
 import CohortKpiCard from './CohortKpiCard.vue'
+import CohortMonthlyChart from './CohortMonthlyChart.vue'
 
 const props = defineProps({
   studyCd: { type: String, required: true },
 })
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const studyStore = useStudyStore()
+const globalSettingsStore = useGlobalSettingsStore()
+const monthLocale = computed(() => (String(locale.value).startsWith('en') ? 'en-GB' : 'de-DE'))
 
 const loading = computed(() => studyStore.cohortInsightsLoading)
 const errorMsg = computed(() => studyStore.cohortInsightsError)
@@ -161,8 +271,17 @@ const insights = computed(() =>
   studyStore.cohortInsightsStudyCd === props.studyCd ? studyStore.cohortInsights : null,
 )
 
-onMounted(() => loadIfNeeded())
-watch(() => props.studyCd, () => loadIfNeeded())
+onMounted(() => {
+  loadIfNeeded()
+  restoreWindowFromStore()
+})
+watch(
+  () => props.studyCd,
+  () => {
+    loadIfNeeded()
+    restoreWindowFromStore()
+  },
+)
 
 async function loadIfNeeded() {
   if (!props.studyCd) return
@@ -172,6 +291,78 @@ async function loadIfNeeded() {
   } catch {
     // surfaced via errorMsg
   }
+}
+
+// -- Enrolment window ("Visiten-Verlauf" filter) ----------------------------
+//
+// Text inputs hold DD.MM.YYYY; the store holds ISO dates. A window is applied
+// as soon as both inputs are either empty or a complete, valid date. The
+// retention KPI tiles then read from `studyStore.cohortRetention` instead of
+// the unfiltered `insights.counts`; the monthly chart dims months outside.
+
+const windowFromText = ref('')
+const windowToText = ref('')
+
+const windowFromIso = computed(() => parseGermanDate(windowFromText.value))
+const windowToIso = computed(() => parseGermanDate(windowToText.value))
+const windowFromError = computed(() => windowFromText.value.length === 10 && !windowFromIso.value)
+const windowOrderError = computed(
+  () => !!windowFromIso.value && !!windowToIso.value && windowToIso.value < windowFromIso.value,
+)
+const windowToError = computed(
+  () => (windowToText.value.length === 10 && !windowToIso.value) || windowOrderError.value,
+)
+const windowReady = computed(() => {
+  const fromOk = !windowFromText.value || !!windowFromIso.value
+  const toOk = !windowToText.value || !!windowToIso.value
+  return fromOk && toOk && !windowOrderError.value
+})
+
+const retentionLoading = computed(() => studyStore.cohortRetentionLoading)
+const storedRetention = computed(() =>
+  studyStore.cohortRetention?.studyCd === props.studyCd ? studyStore.cohortRetention : null,
+)
+const activeWindow = computed(() => ({
+  from: storedRetention.value?.from ?? null,
+  to: storedRetention.value?.to ?? null,
+}))
+const retentionCounts = computed(
+  () => storedRetention.value?.counts || insights.value?.counts || { enrolled: 0, perVisitType: [] },
+)
+const windowCaption = computed(() => {
+  if (!storedRetention.value) return ''
+  return t('study.insights.windowActive', {
+    from: activeWindow.value.from ? toGermanDate(activeWindow.value.from) : t('study.insights.windowOpenStart'),
+    to: activeWindow.value.to ? toGermanDate(activeWindow.value.to) : t('study.insights.windowOpenEnd'),
+  })
+})
+
+function restoreWindowFromStore() {
+  windowFromText.value = toGermanDate(storedRetention.value?.from)
+  windowToText.value = toGermanDate(storedRetention.value?.to)
+}
+
+function clearWindow() {
+  windowFromText.value = ''
+  windowToText.value = ''
+}
+
+watch([windowFromIso, windowToIso, windowReady], async ([from, to, ready]) => {
+  if (!ready || !props.studyCd) return
+  if (from === activeWindow.value.from && to === activeWindow.value.to) return
+  try {
+    await studyStore.loadCohortRetention(props.studyCd, { from, to })
+  } catch {
+    // surfaced via the store logger; tiles keep the previous counts
+  }
+})
+
+// -- Enrolments per month ---------------------------------------------------
+
+const monthlySeries = computed(() => buildMonthlySeries(insights.value?.enrollmentsPerMonth?.months || []))
+const monthlySummary = computed(() => (monthlySeries.value.length ? summarizeMonthlySeries(monthlySeries.value) : null))
+function formatAvg(n) {
+  return new Intl.NumberFormat(monthLocale.value, { maximumFractionDigits: 1 }).format(n || 0)
 }
 
 // -- Helpers ---------------------------------------------------------------
@@ -241,13 +432,24 @@ function selectionItems(data) {
   }))
 }
 
+// Short study-specific labels keep the KPI tiles compact; anything else
+// (e.g. a stray "consultation" visit) resolves to its CODE_LOOKUP label.
 const VISIT_TYPE_LABELS = {
   stroke_lipid_v0: 'V0 (Baseline)',
   stroke_lipid_v1: 'V1 (Index Stroke)',
   stroke_lipid_v2: 'V2 (Follow-up)',
 }
+const visitTypeLabelsFromDb = ref({})
+onMounted(async () => {
+  try {
+    const options = (await globalSettingsStore.getVisitTypeOptions()) || []
+    visitTypeLabelsFromDb.value = Object.fromEntries(options.map((o) => [o.value, o.label]))
+  } catch {
+    // fall back to the static map / raw code
+  }
+})
 function visitTypeLabel(code) {
-  return VISIT_TYPE_LABELS[code] || code
+  return VISIT_TYPE_LABELS[code] || visitTypeLabelsFromDb.value[code] || code
 }
 
 const SELECTION_META = {
@@ -295,6 +497,28 @@ function formatLabValue(v) {
 
   .span-2 {
     grid-column: 1 / -1;
+  }
+}
+
+.monthly-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+.retention-window {
+  &__input {
+    width: 150px;
+  }
+
+  @media (max-width: 600px) {
+    width: 100%;
+    margin-top: 8px;
+
+    &__input {
+      flex: 1 1 auto;
+      width: auto;
+    }
   }
 }
 </style>

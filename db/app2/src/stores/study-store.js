@@ -41,6 +41,10 @@ export const useStudyStore = defineStore('study', () => {
   // Which study the current `cohortInsights` belongs to. Used by the UI to
   // decide whether to trust the cached payload or re-load for a new study.
   const cohortInsightsStudyCd = ref(null)
+  // "Visiten-Verlauf" narrowed to an enrolment window ({from, to} ISO dates).
+  // `counts` mirrors the shape of `cohortInsights.counts`; null = no window.
+  const cohortRetention = ref(null)
+  const cohortRetentionLoading = ref(false)
 
   // Study audit — open audits (VALUEFLAG_CD='AUDIT') + enrollment status
   // counts for one study. Loaded lazily by StudyAuditPanel via loadStudyAudit.
@@ -572,8 +576,10 @@ export const useStudyStore = defineStore('study', () => {
     if (!studyCd) {
       cohortInsights.value = null
       cohortInsightsStudyCd.value = null
+      cohortRetention.value = null
       return
     }
+    if (cohortInsightsStudyCd.value !== studyCd) cohortRetention.value = null
     cohortInsightsLoading.value = true
     cohortInsightsError.value = null
     try {
@@ -582,8 +588,9 @@ export const useStudyStore = defineStore('study', () => {
       const selectionCodes = options.selectionCodes ?? ['STROKE_LIPID:ETIOLOGY', 'STROKE_LIPID:EVENT_TYPE']
       const labCodes = options.labCodes ?? ['LID: 22748-8', 'LID: 14646-4']
 
-      const [counts, drugs, findings, userStats, ...rest] = await Promise.all([
+      const [counts, enrollmentsPerMonth, drugs, findings, userStats, ...rest] = await Promise.all([
         repo.getCohortPatientCount(studyCd),
+        repo.getCohortEnrollmentsPerMonth(studyCd),
         repo.getCohortDrugUsage(studyCd, drugPrefix),
         repo.getCohortFindingPrevalence(studyCd),
         dbStore.getCohortUserStats(studyCd),
@@ -595,6 +602,7 @@ export const useStudyStore = defineStore('study', () => {
 
       cohortInsights.value = {
         counts,
+        enrollmentsPerMonth,
         drugs,
         findings,
         userStats,
@@ -614,6 +622,31 @@ export const useStudyStore = defineStore('study', () => {
       throw err
     } finally {
       cohortInsightsLoading.value = false
+    }
+  }
+
+  /**
+   * Re-run the retention counts for an enrolment window. Passing an empty
+   * window (no from/to) clears the filter so the UI falls back to the
+   * unfiltered `cohortInsights.counts`. Kept in the store so the filter
+   * survives tab switches on the study page.
+   */
+  const loadCohortRetention = async (studyCd, { from = null, to = null } = {}) => {
+    if (!studyCd || (!from && !to)) {
+      cohortRetention.value = null
+      return null
+    }
+    cohortRetentionLoading.value = true
+    try {
+      const repo = dbStore.getRepository('study')
+      const counts = await repo.getCohortPatientCount(studyCd, { from, to })
+      cohortRetention.value = { studyCd, from, to, counts }
+      return cohortRetention.value
+    } catch (err) {
+      logger.error('Failed to load cohort retention window', err, { studyCd, from, to })
+      throw err
+    } finally {
+      cohortRetentionLoading.value = false
     }
   }
 
@@ -741,6 +774,9 @@ export const useStudyStore = defineStore('study', () => {
     cohortInsightsLoading,
     cohortInsightsError,
     cohortInsightsStudyCd,
+    cohortRetention,
+    cohortRetentionLoading,
+    loadCohortRetention,
     auditSummary,
     auditSummaryLoading,
     auditSummaryError,

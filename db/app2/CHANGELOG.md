@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Kohorten-Insights: Einschlüsse pro Monat + Einschluss-Zeitraum-Filter**
+  (`bugfix/diverse-issues`): Die Karte „Visiten-Verlauf“ auf der
+  Studienseite (Tab Kohorten-Insights) hat zwei neue Fähigkeiten:
+  - **Zeitraum-Filter (von / bis, TT.MM.JJJJ, Kalender-Popup)** im
+    Kartenkopf. Er greift auf das **Einschlussdatum**
+    (`STUDY_PATIENT_LOOKUP.ENROLLMENT_DATE`, inklusive Grenzen): die Kacheln
+    „Eingeschrieben“ + V0/V1/V2 zählen nur Patienten, die im Zeitraum
+    eingeschlossen wurden — ihre Visiten zählen unabhängig vom
+    Visitendatum. So lässt sich der Fortschritt getrennter Kohorten
+    (z. B. 01.01.2024–15.09.2025 vs. 16.09.2025–heute) vergleichen. Offene
+    Enden sind erlaubt, ungültige Daten/„bis vor von“ werden am Feld
+    markiert, der Filter überlebt Tab-Wechsel (Store
+    `study-store.cohortRetention` / `loadCohortRetention`). Einschlüsse ohne
+    Datum fallen bei aktivem Filter heraus.
+  - **Balkendiagramm „Einschlüsse pro Monat“** in derselben Karte (neue
+    `CohortMonthlyChart.vue`, Inline-SVG ohne Chart-Library): ein Balken je
+    Kalendermonat vom ersten Einschluss bis heute (Lücken als Nullmonate),
+    Hover-Tooltip mit Monat, Anzahl und kumuliertem Stand, ganzzahlige
+    Achsenticks, Kennzahlenzeile (Gesamt, Ø pro Monat, letzte 12 Monate,
+    stärkster Monat, ggf. „n ohne Einschlussdatum“). Bei aktivem Filter
+    werden Monate außerhalb des Zeitraums ausgegraut.
+  - Repository: `StudyRepository.getCohortPatientCount(studyCd, {from, to})`
+    (optionales Einschluss-Fenster) und neu
+    `getCohortEnrollmentsPerMonth(studyCd)`; reine Reihen-/Datumslogik in
+    `shared/utils/enrollment-timeline.js`.
+  - Nebenbei: Visitentypen außerhalb des kurzen Stroke-Lipid-Mappings
+    (z. B. ein versehentlicher `consultation`-Besuch) zeigen jetzt ihr
+    CODE_LOOKUP-Label statt des rohen Codes.
+  - Tests: `tests/unit/44_enrollment-timeline.test.js` (Reihe, Fenster,
+    Datumsparser) + erweiterte `tests/integration/14_cohort-insights.test.js`
+    (Fenster-Semantik inkl. undatierter Einschlüsse, Monatsaggregat).
+
 ## [0.6_20260812] - 2026-08-12
 
 ### Changed

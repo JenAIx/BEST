@@ -950,22 +950,51 @@ class StudyRepository extends BaseRepository {
   }
 
   /**
+   * Build the optional enrolment-date window used by the retention counts.
+   * `from` / `to` are ISO dates (YYYY-MM-DD); either may be omitted. When a
+   * window is set, enrolments without an ENROLLMENT_DATE are excluded — an
+   * undated enrolment cannot be placed inside a period.
+   *
+   * @returns {{sql: string, params: Array}}
+   */
+  _enrollmentWindow({ from = null, to = null } = {}) {
+    const parts = []
+    const params = []
+    if (from) {
+      parts.push('date(spl.ENROLLMENT_DATE) >= date(?)')
+      params.push(from)
+    }
+    if (to) {
+      parts.push('date(spl.ENROLLMENT_DATE) <= date(?)')
+      params.push(to)
+    }
+    return { sql: parts.length ? ` AND ${parts.join(' AND ')}` : '', params }
+  }
+
+  /**
    * Cohort size + a per-visit-type breakdown. For each distinct visit-type code
    * found in VISIT_BLOB.visitType, returns the number of patients with at
    * least one visit of that type. Lets the dashboard show "425 enrolled · 425
    * with V0 · 425 with V1 · 187 with V2" rather than an opaque "≥N visits".
    *
+   * An optional enrolment window (`{from, to}`, ISO dates, inclusive) narrows
+   * the cohort to patients ENROLLED inside the period — their visits count
+   * regardless of visit date, so "how far is the 2024 cohort" stays answerable.
+   *
+   * @param {string} studyCd
+   * @param {{from?: string|null, to?: string|null}} [window]
    * @returns {Promise<{enrolled:number, perVisitType: Array<{visitType:string, patientCount:number}>}>}
    */
-  async getCohortPatientCount(studyCd) {
+  async getCohortPatientCount(studyCd, window = {}) {
     if (!studyCd) return { enrolled: 0, perVisitType: [] }
+    const win = this._enrollmentWindow(window)
     const enrolledRow = await this._execAggregate(
       `SELECT COUNT(*) AS enrolled
          FROM STUDY_PATIENT_LOOKUP spl
          JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
         WHERE s.STUDY_CD = ?
-          AND ${ENROLLED_STATUS_SQL}`,
-      [studyCd],
+          AND ${ENROLLED_STATUS_SQL}${win.sql}`,
+      [studyCd, ...win.params],
       'cohort enrolled count',
     )
     const enrolled = enrolledRow[0]?.enrolled || 0
@@ -978,14 +1007,55 @@ class StudyRepository extends BaseRepository {
          JOIN STUDY_PATIENT_LOOKUP spl ON spl.PATIENT_NUM = v.PATIENT_NUM
          JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
         WHERE s.STUDY_CD = ?
-          AND ${ENROLLED_STATUS_SQL}
+          AND ${ENROLLED_STATUS_SQL}${win.sql}
           AND json_extract(v.VISIT_BLOB, '$.visitType') IS NOT NULL
         GROUP BY visitType
         ORDER BY visitType ASC`,
-      [studyCd],
+      [studyCd, ...win.params],
       'cohort per-visit-type count',
     )
     return { enrolled, perVisitType: perVisitType.map((r) => ({ visitType: r.visitType, patientCount: r.patientCount || 0 })) }
+  }
+
+  /**
+   * Enrolments per calendar month, keyed by ENROLLMENT_DATE (YYYY-MM). Only
+   * months with at least one enrolment are returned — the UI fills the gaps
+   * from the first month to today. Withdrawn enrolments are excluded like
+   * everywhere else in the insights; enrolments without a date are reported
+   * separately in `undated` so the total stays reconcilable with `enrolled`.
+   *
+   * @returns {Promise<{months: Array<{month:string, count:number}>, undated:number}>}
+   */
+  async getCohortEnrollmentsPerMonth(studyCd) {
+    if (!studyCd) return { months: [], undated: 0 }
+    const rows = await this._execAggregate(
+      `SELECT substr(spl.ENROLLMENT_DATE, 1, 7) AS month,
+              COUNT(*) AS count
+         FROM STUDY_PATIENT_LOOKUP spl
+         JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
+        WHERE s.STUDY_CD = ?
+          AND ${ENROLLED_STATUS_SQL}
+          AND spl.ENROLLMENT_DATE IS NOT NULL
+          AND length(spl.ENROLLMENT_DATE) >= 7
+        GROUP BY month
+        ORDER BY month ASC`,
+      [studyCd],
+      'cohort enrolments per month',
+    )
+    const undatedRow = await this._execAggregate(
+      `SELECT COUNT(*) AS undated
+         FROM STUDY_PATIENT_LOOKUP spl
+         JOIN STUDY_DIMENSION s ON s.STUDY_NUM = spl.STUDY_NUM
+        WHERE s.STUDY_CD = ?
+          AND ${ENROLLED_STATUS_SQL}
+          AND (spl.ENROLLMENT_DATE IS NULL OR length(spl.ENROLLMENT_DATE) < 7)`,
+      [studyCd],
+      'cohort undated enrolments',
+    )
+    return {
+      months: rows.map((r) => ({ month: r.month, count: r.count || 0 })),
+      undated: undatedRow[0]?.undated || 0,
+    }
   }
 
   /**

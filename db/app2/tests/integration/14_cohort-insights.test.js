@@ -66,11 +66,13 @@ async function seedFixture() {
     patientNumByCd[cd] = pat.PATIENT_NUM
   }
 
-  // Enrolments
+  // Enrolments — dated so the enrolment-window / per-month aggregates have
+  // something to bite on: P1 + P2 Jan 2024, P3 Mar 2024, P4 undated.
+  const enrollmentDates = { P1: '2024-01-05', P2: '2024-01-20', P3: '2024-03-10', P4: null }
   for (const cd of ['P1', 'P2', 'P3', 'P4']) {
     await connection.executeCommand(
-      `INSERT INTO STUDY_PATIENT_LOOKUP (STUDY_NUM, PATIENT_NUM, ENROLLMENT_STATUS_CD) VALUES (?, ?, 'active')`,
-      [aStudy, patientNumByCd[cd]],
+      `INSERT INTO STUDY_PATIENT_LOOKUP (STUDY_NUM, PATIENT_NUM, ENROLLMENT_STATUS_CD, ENROLLMENT_DATE) VALUES (?, ?, 'active', ?)`,
+      [aStudy, patientNumByCd[cd], enrollmentDates[cd]],
     )
   }
   await connection.executeCommand(
@@ -166,6 +168,48 @@ describe('StudyRepository cohort insights', () => {
   it('getCohortPatientCount: returns empty shape for unknown study', async () => {
     const r = await repo.getCohortPatientCount('NO_SUCH_STUDY')
     expect(r).toEqual({ enrolled: 0, perVisitType: [] })
+  })
+
+  it('getCohortPatientCount: enrolment window narrows the cohort by ENROLLMENT_DATE', async () => {
+    // January 2024 only → P1 + P2 (P3 is March, P4 undated)
+    const jan = await repo.getCohortPatientCount('STUDY_A', { from: '2024-01-01', to: '2024-01-31' })
+    expect(jan.enrolled).toBe(2)
+    const byType = Object.fromEntries(jan.perVisitType.map((v) => [v.visitType, v.patientCount]))
+    expect(byType.v0).toBe(2) // P1, P2
+    expect(byType.v1).toBe(2) // P1, P2
+    expect(byType.v2).toBe(1) // P2 — visit date irrelevant, enrolment date decides
+
+    // open-ended "from" → P3 only
+    const fromMar = await repo.getCohortPatientCount('STUDY_A', { from: '2024-03-01' })
+    expect(fromMar.enrolled).toBe(1)
+    expect(fromMar.perVisitType).toEqual([{ visitType: 'v0', patientCount: 1 }])
+
+    // open-ended "to" → everyone dated up to Jan (undated P4 excluded)
+    const toJan = await repo.getCohortPatientCount('STUDY_A', { to: '2024-01-31' })
+    expect(toJan.enrolled).toBe(2)
+
+    // window with no enrolments → empty shape
+    const none = await repo.getCohortPatientCount('STUDY_A', { from: '2030-01-01', to: '2030-12-31' })
+    expect(none).toEqual({ enrolled: 0, perVisitType: [] })
+
+    // empty window object behaves like no filter (undated P4 included)
+    const all = await repo.getCohortPatientCount('STUDY_A', {})
+    expect(all.enrolled).toBe(4)
+  })
+
+  it('getCohortEnrollmentsPerMonth: sparse per-month counts + undated remainder', async () => {
+    const r = await repo.getCohortEnrollmentsPerMonth('STUDY_A')
+    expect(r.months).toEqual([
+      { month: '2024-01', count: 2 },
+      { month: '2024-03', count: 1 },
+    ])
+    expect(r.undated).toBe(1) // P4
+    expect(r.months.reduce((s, m) => s + m.count, 0) + r.undated).toBe(4)
+  })
+
+  it('getCohortEnrollmentsPerMonth: empty shape for unknown study', async () => {
+    expect(await repo.getCohortEnrollmentsPerMonth('NO_SUCH_STUDY')).toEqual({ months: [], undated: 0 })
+    expect(await repo.getCohortEnrollmentsPerMonth('')).toEqual({ months: [], undated: 0 })
   })
 
   it('getCohortDrugUsage: counts taking / not-taking / unknown across the cohort', async () => {
