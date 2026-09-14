@@ -10,6 +10,7 @@ import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useLoggingStore } from './logging-store'
 import { useAuthStore } from './auth-store'
+import { buildSetFlagStatement, FLAG_NV } from 'src/shared/utils/audit-flag.js'
 
 export const useObservationStore = defineStore('observation', () => {
   const dbStore = useDatabaseStore()
@@ -422,6 +423,50 @@ export const useObservationStore = defineStore('observation', () => {
     }
   }
 
+  /**
+   * Flip VALUEFLAG_CD of one observation (AUDIT / CONFIRMED / NV / null) —
+   * the timeline's counterpart of data-grid-store.setObservationFlag, built
+   * on the same SQL. Mirrors the flag into BOTH local arrays in place (the
+   * form grid holds references into `observations`, so no object swap) and
+   * clears the value fields when the flag is NV.
+   *
+   * @param {{observationId:number, flag:string|null}} payload
+   * @returns {Promise<string|null>} the flag written
+   */
+  const setObservationFlag = async ({ observationId, flag = null } = {}) => {
+    if (observationId == null) {
+      logger.warn('setObservationFlag called without observationId — skipped')
+      return null
+    }
+    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId)
+    const result = await dbStore.executeQuery(sql, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
+    }
+
+    const mirror = (obsArray) => {
+      const obs = obsArray.find((o) => o.observationId === observationId)
+      if (!obs) return
+      obs.valueFlag = flag
+      if (obs.rawData) obs.rawData.VALUEFLAG_CD = flag
+      if (clearValue) {
+        obs.value = null
+        obs.numericValue = null
+        obs.originalValue = null
+        obs.displayValue = 'No value'
+        if (obs.rawData) {
+          obs.rawData.NVAL_NUM = null
+          obs.rawData.TVAL_CHAR = null
+        }
+      }
+    }
+    mirror(observations.value)
+    mirror(allObservations.value)
+
+    logger.info('Observation flag updated', { observationId, flag, cleared: flag === FLAG_NV })
+    return flag
+  }
+
   const deleteObservation = async (observationId) => {
     try {
       loading.value = true
@@ -537,6 +582,8 @@ export const useObservationStore = defineStore('observation', () => {
       unit: obs.UNIT_CD,
       category: obs.CATEGORY_CHAR || 'General',
       date: obs.START_DATE,
+      // Audit / NV state (CLAUDE.md §3) — same name as the grid's cell state
+      valueFlag: obs.VALUEFLAG_CD || null,
       displayValue: null,
       fileInfo: null,
       encounterNum: obs.ENCOUNTER_NUM,
@@ -680,6 +727,7 @@ export const useObservationStore = defineStore('observation', () => {
     findPreviousObservation,
     createObservation,
     updateObservation,
+    setObservationFlag,
     deleteObservation,
     getObservationBlob,
     loadObservationDetails,

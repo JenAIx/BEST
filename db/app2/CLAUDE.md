@@ -634,6 +634,21 @@ Components (`src/components/visits/unified/`):
   via `downloadRawData`. `visitStore.loading` flips on every refresh —
   only a COLD load (`loading && visits.length===0`) may swap UI for a
   spinner, otherwise list+editor unmount and lose state.
+- **Audit flags in the timeline** (Sept 2026): tiles/fields render the grid's
+  red (`AUDIT`) / green (`CONFIRMED`) frames from `obs.valueFlag`
+  (`transformObservation` exposes it; `readValueFlag()` in
+  `shared/utils/audit-flag.js` falls back to `rawData.VALUEFLAG_CD`).
+  Right-click on a read tile / flag button in the form-grid field label →
+  mark / resolve / clear (`auditActionsFor(flag)` = the grid's menu rules).
+  Writes go through `observationStore.setObservationFlag({observationId,
+  flag})`, which shares the SQL with the grid (`buildSetFlagStatement`) and
+  mirrors the flag IN PLACE into `observations` + `allObservations` (the
+  form grid keeps references — never swap the objects). Card chip "N Audits
+  offen", quick-nav badge and the "nur offene Audits" header chip all derive
+  from `countOpenAudits(observationStore.allObservations)`; the chip is the
+  counterpart of the grid footer filter and behaves like a search (pins
+  matches open). `StudyAuditPanel` → "Im Patientenbesuch öffnen" sets the
+  same one-shot `pendingAuditFilter` the grid consumes.
 - E2E: `bash scripts/verify-visits/run.sh` (19 checks, DB backup + ID-diff
   delete guards + integrity check; app must be closed).
 - Questionnaires + M-type medications are part of the grid look (July 2026):

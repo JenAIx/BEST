@@ -11,6 +11,7 @@ import { useAuthStore } from './auth-store'
 import { useLocalSettingsStore } from './local-settings-store'
 import { useLoggingStore } from './logging-store'
 import { getPatientInitials, formatDate } from 'src/shared/utils/medical-utils'
+import { buildSetFlagStatement } from 'src/shared/utils/audit-flag.js'
 import {
   getCellClass,
   hasRowChanges,
@@ -447,11 +448,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       return
     }
 
-    const clearValue = flag === 'NV'
-    const sql = clearValue
-      ? 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, NVAL_NUM = NULL, TVAL_CHAR = NULL, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-      : 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-    const result = await dbStore.executeQuery(sql, [flag, authStore.providerId, observationId])
+    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId)
+    const result = await dbStore.executeQuery(sql, params)
     if (!result.success) {
       throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
     }

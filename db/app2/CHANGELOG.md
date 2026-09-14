@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Audit-Funktion im Patientenbesuch** (`features/visit-audit-comments`,
+  Schritt 1): Die bisher nur im Datentabellen-Editor erreichbare
+  Prüfmarkierung (`VALUEFLAG_CD` `AUDIT` / `CONFIRMED`) ist jetzt auch in
+  der Zeitlinie unter `/visits/:patientId` sichtbar und bedienbar — gleiche
+  Optik und gleiche Aktionen wie im Grid:
+  - **Lese-Modus**: markierte Kacheln tragen den roten 2px-Rahmen mit
+    Flaggen-Eck (`AUDIT`) bzw. grünen Rahmen mit Häkchen (`CONFIRMED`),
+    Tooltip nennt den Zustand. **Rechtsklick** auf eine Kachel öffnet
+    „Zur Prüfung markieren“ / „Prüfung auflösen“ / „Prüfmarkierung
+    entfernen“ (Annotation, keine Wertänderung — deshalb auch im Lese-Modus).
+  - **Edit-Modus**: Formularfelder zeigen denselben Rahmen; ein
+    Flaggen-Button neben dem Löschen-Button im Feldkopf (bei Hover, bei
+    gesetzter Markierung dauerhaft) bietet dieselben Aktionen.
+  - **Karte + Navigation**: roter Chip „N Audits offen“ im Kartenkopf,
+    Zähler pro Visite in der Schnellnavigation.
+  - **Filter „Nur offene Audits“** neben der Suche (Pendant zum
+    Footer-Chip im Grid): blendet alle anderen Kacheln aus und klappt
+    betroffene Visiten auf. Die Studienseite (Tab Audit) hat pro Patient
+    neben „Im Grid öffnen“ jetzt „Im Patientenbesuch öffnen“, das den
+    Filter über den vorhandenen Einmal-Merker vorab aktiviert.
+  - Technik: das Flag-SQL liegt einmalig in
+    `shared/utils/audit-flag.js` (`buildSetFlagStatement`) und wird von
+    `data-grid-store.setObservationFlag` und dem neuen
+    `observation-store.setObservationFlag` benutzt; letzteres spiegelt
+    `valueFlag` + `rawData.VALUEFLAG_CD` **in place** in beide
+    Beobachtungs-Arrays (Propagations-Invariante wie im Grid).
+    `transformObservation` liefert `valueFlag` jetzt als eigenes Feld.
+    Unverändert: eine Wertänderung setzt das Flag weiterhin zurück.
+  - Tests: `tests/unit/45_audit-flag-visits.test.js` (Helper + Store-Aktion),
+    `tests/unit/42_observation-tile-grid.test.js` (Kachel-Optik).
+
 - **Kohorten-Insights: Einschlüsse pro Monat + Einschluss-Zeitraum-Filter**
   (`bugfix/diverse-issues`): Die Karte „Visiten-Verlauf“ auf der
   Studienseite (Tab Kohorten-Insights) hat zwei neue Fähigkeiten:

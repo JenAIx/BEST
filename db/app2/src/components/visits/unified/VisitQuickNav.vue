@@ -10,6 +10,9 @@
           <span class="nav-date">{{ item.label }}</span>
           <span v-if="item.sublabel" class="nav-type ellipsis">{{ item.sublabel }}</span>
         </div>
+        <span v-if="item.auditCount" class="nav-audit" data-cy="nav-audit-count">
+          <q-icon name="flag" size="11px" />{{ item.auditCount }}
+        </span>
       </div>
 
       <div v-else class="nav-group" :class="{ 'nav-active': item.active }" @click="$emit('select-group', { visitId: item.visitId, group: item.group })">
@@ -28,7 +31,7 @@ defineOptions({
 })
 
 const props = defineProps({
-  // [{ visitId, label, sublabel, expanded, groups: [{name, icon}] }]
+  // [{ visitId, label, sublabel, expanded, auditCount?, groups: [{name, icon}] }]
   entries: { type: Array, default: () => [] },
   // { visitId, group|null } from the container's scroll spy
   active: { type: Object, default: null },
@@ -50,6 +53,7 @@ const items = computed(() => {
       label: entry.label,
       sublabel: entry.sublabel,
       expanded: entry.expanded,
+      auditCount: entry.auditCount || 0,
       active: entry.visitId === activeVisitId && activeGroup === null,
     },
     ...entry.groups.map((group) => ({
@@ -155,5 +159,16 @@ const items = computed(() => {
   .nav-type {
     color: $primary;
   }
+}
+.nav-audit {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: $negative;
+  font-variant-numeric: tabular-nums;
 }
 </style>
