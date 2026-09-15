@@ -124,6 +124,7 @@ CASCADE DELETE:
 ```
 STUDY_DIMENSION          - Research study metadata
 STUDY_PATIENT_LOOKUP     - Patient-study enrollment relationships
+OBSERVATION_AUDIT_FACT   - Audit trail per observation (flag transitions + comments), FK → OBSERVATION_FACT CASCADE (migration 015)
 USER_PATIENT_LOOKUP      - User-patient access control (who can see which patients)
 patient_list (VIEW)      - Materialized patient view with resolved codes
 ```
@@ -381,6 +382,28 @@ UI hint: in the Excel-like grid, render checkbox "no value" when
 `VALUEFLAG_CD='NV'`, number input when `NVAL_NUM != NULL`, empty field when
 no observation exists, red border for `'AUDIT'`, green border for `'CONFIRMED'`.
 
+**Audit trail (migration 015)** — `OBSERVATION_AUDIT_FACT` records the
+HISTORY behind `VALUEFLAG_CD` (which stays the only source of the CURRENT
+state): one row per event — `EVENT_CD` `FLAG` (with `FLAG_CD` = new value),
+`COMMENT` (free text, no state change), `VALUE_EDIT` (a value save reset a
+review flag) — plus `CREATED_BY`/`CREATED_AT`/`SOURCESYSTEM_CD` (`GRID` |
+`VISITS`), FK → `OBSERVATION_FACT` ON DELETE CASCADE + trigger
+`delete_observation_audit_cascade`. Write ONLY via
+`ObservationAuditRepository.logEvent` (copies PATIENT_NUM/ENCOUNTER_NUM from
+the observation) — both flag writers (`data-grid-store.setObservationFlag`,
+`observation-store.setObservationFlag`) and both value-edit paths that reset
+a flag log an event automatically. UI: `shared/ObservationAuditDialog.vue`
+(trail + comments + flag actions), reachable from tiles, form fields and grid
+cells alike; the grid mirrors a dialog-written flag via
+`data-grid-store.mirrorObservationFlag`. Never store audit comments in
+`NOTE_FACT` (no OBSERVATION_ID) or `OBSERVATION_BLOB` (nulled on every save).
+
+**Triggers in migrations** — write them in an `execute()` function, one
+`executeCommand` per statement (see 015/016). The Electron preload used to
+split multi-statement SQL on `;`, which cut `CREATE TRIGGER` bodies; it is
+fixed (BEGIN…END-aware splitter) and migration 016 re-creates every schema
+trigger idempotently, but statement-by-statement stays the safe pattern.
+
 **Per-observation date** — `OBSERVATION_FACT.START_DATE` defaults to the parent
 visit's `START_DATE` on INSERT, but can diverge per observation (e.g. a lab
 drawn on a different day). The grid exposes this via the right-click menu
@@ -634,6 +657,21 @@ Components (`src/components/visits/unified/`):
   via `downloadRawData`. `visitStore.loading` flips on every refresh —
   only a COLD load (`loading && visits.length===0`) may swap UI for a
   spinner, otherwise list+editor unmount and lose state.
+- **Audit flags in the timeline** (Sept 2026): tiles/fields render the grid's
+  red (`AUDIT`) / green (`CONFIRMED`) frames from `obs.valueFlag`
+  (`transformObservation` exposes it; `readValueFlag()` in
+  `shared/utils/audit-flag.js` falls back to `rawData.VALUEFLAG_CD`).
+  Right-click on a read tile / flag button in the form-grid field label →
+  mark / resolve / clear (`auditActionsFor(flag)` = the grid's menu rules).
+  Writes go through `observationStore.setObservationFlag({observationId,
+  flag})`, which shares the SQL with the grid (`buildSetFlagStatement`) and
+  mirrors the flag IN PLACE into `observations` + `allObservations` (the
+  form grid keeps references — never swap the objects). Card chip "N Audits
+  offen", quick-nav badge and the "nur offene Audits" header chip all derive
+  from `countOpenAudits(observationStore.allObservations)`; the chip is the
+  counterpart of the grid footer filter and behaves like a search (pins
+  matches open). `StudyAuditPanel` → "Im Patientenbesuch öffnen" sets the
+  same one-shot `pendingAuditFilter` the grid consumes.
 - E2E: `bash scripts/verify-visits/run.sh` (19 checks, DB backup + ID-diff
   delete guards + integrity check; app must be closed).
 - Questionnaires + M-type medications are part of the grid look (July 2026):
@@ -904,7 +942,7 @@ All users are seeded automatically during database initialization.
   - Cannot access admin pages
   - Cannot modify system settings
 
-**Note**: Fine-grained patient access via `USER_PATIENT_LOOKUP` table exists but is not yet enforced in the UI.
+**Note**: Fine-grained patient access via `USER_PATIENT_LOOKUP` is enforced in every access-filtered query (see "User-Patient Access Control" above).
 
 ### Authentication Flow
 
@@ -1027,9 +1065,17 @@ search/management lives on `/visits`)*
 **Individual study details and patient enrollment**
 
 - Study metadata
-- Enrolled patients
-- Study timeline
-- Data collection forms
+- Enrolled patients (tab "Übersicht")
+- Tab "Kohorten-Insights" (`components/study/StudyInsights.vue`): card
+  "Visiten-Verlauf" with an enrolment-date window filter (von/bis, applies
+  to the KPI tiles) and the "Einschlüsse pro Monat" bar chart
+  (`CohortMonthlyChart.vue`, inline SVG; helpers in
+  `shared/utils/enrollment-timeline.js`), drug usage, comorbidities,
+  selections, team activity, lab trends — all via
+  `studyStore.loadCohortInsights` / `loadCohortRetention`
+- Tab "Audit" (`StudyAuditPanel.vue`): open audits per user/patient,
+  "Im Grid öffnen" / "Im Patientenbesuch öffnen" (one-shot
+  `pendingAuditFilter`)
 - Study status management
 
 **Key Features**: Study editing, patient enrollment, data collection
@@ -1318,6 +1364,11 @@ npm test tests/integration/ -- --run # Integration tests
 # check built in (see scripts/verify-visits/README.md). App must NOT be
 # running (shares the SQLite DB).
 bash scripts/verify-visits/run.sh
+
+# Integrationstest gegen eine beliebige DB-Datei (arbeitet auf einer Kopie):
+# Migrationen, integrity/FK-Check, Trigger, Konsistenz, CLAUDE.md-Konventionen,
+# Audit-Trail, echte Insights-Abfragen + Antwortzeiten. Exit 0 = kein FAIL.
+node scripts/db-check/check-db.mjs tests/demodata/production.db
 ```
 
 ### Windows Build
@@ -1521,6 +1572,6 @@ console.log($t('category.key'))
 
 ---
 
-**Last Updated**: August 12, 2026  
-**App Version**: 0.6_20260812  
-**Database Schema Version**: 002 (Current)
+**Last Updated**: September 15, 2026  
+**App Version**: 0.6_20260812 (unreleased work on `features/visit-audit-comments`)  
+**Database Schema Version**: migrations 001–016 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation)

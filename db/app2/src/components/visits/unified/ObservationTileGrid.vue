@@ -20,10 +20,53 @@
           v-for="obs in category.observations"
           :key="obs.observationId"
           class="obs-tile"
-          :class="[`obs-tile--${tileSpan(obs)}`, { 'obs-tile--clickable': isPreviewable(obs), 'obs-tile--empty': isEmptyValue(obs), 'obs-tile--pending': isPendingQuest(obs) }]"
+          :class="[
+            `obs-tile--${tileSpan(obs)}`,
+            {
+              'obs-tile--clickable': isPreviewable(obs),
+              'obs-tile--empty': isEmptyValue(obs),
+              'obs-tile--pending': isPendingQuest(obs),
+              'obs-tile--audit': readValueFlag(obs) === 'AUDIT',
+              'obs-tile--confirmed': readValueFlag(obs) === 'CONFIRMED',
+            },
+          ]"
           :style="{ '--tv': valueTypeHex(obs.valueType) }"
+          :data-observation-id="obs.observationId"
           @click="onTileClick(obs)"
         >
+          <!-- Audit state marker (same semantics as the grid: red = needs
+               review, green = reviewed) -->
+          <span
+            v-if="readValueFlag(obs) === 'AUDIT' || readValueFlag(obs) === 'CONFIRMED' || commentCountFor(obs) > 0"
+            class="tile-flag"
+            :class="{ 'tile-flag--audit': readValueFlag(obs) === 'AUDIT', 'tile-flag--confirmed': readValueFlag(obs) === 'CONFIRMED' }"
+            :data-cy="readValueFlag(obs) === 'AUDIT' ? 'tile-flag-audit' : readValueFlag(obs) === 'CONFIRMED' ? 'tile-flag-confirmed' : 'tile-flag-comments'"
+            @click.stop="emit('open-audit', obs)"
+          >
+            <q-icon :name="readValueFlag(obs) === 'AUDIT' ? 'flag' : readValueFlag(obs) === 'CONFIRMED' ? 'check_circle' : 'chat_bubble_outline'" size="12px" />
+            <span v-if="commentCountFor(obs) > 0" class="tile-flag__count" data-cy="tile-comment-count">{{ commentCountFor(obs) }}</span>
+          </span>
+
+          <!-- Right-click: the grid's audit actions (mark / resolve / clear)
+               — annotations, not value edits, so allowed in read mode -->
+          <q-menu v-if="obs.observationId != null" context-menu touch-position auto-close>
+            <q-list dense style="min-width: 220px">
+              <q-item v-for="entry in auditActionsFor(readValueFlag(obs))" :key="entry.action" clickable :data-cy="`tile-audit-${entry.action}`" @click="emit('set-flag', { observation: obs, flag: entry.flag })">
+                <q-item-section avatar>
+                  <q-icon :name="AUDIT_ACTION_META[entry.action].icon" :color="AUDIT_ACTION_META[entry.action].color" size="18px" />
+                </q-item-section>
+                <q-item-section>{{ $t(AUDIT_ACTION_META[entry.action].label) }}</q-item-section>
+              </q-item>
+              <q-separator />
+              <q-item clickable data-cy="tile-audit-open" @click="emit('open-audit', obs)">
+                <q-item-section avatar><q-icon name="chat_bubble_outline" color="primary" size="18px" /></q-item-section>
+                <q-item-section>
+                  <q-item-label>{{ $t('visit.auditOpen') }}</q-item-label>
+                  <q-item-label v-if="commentCountFor(obs) > 0" caption>{{ $t('visit.auditComments', { count: commentCountFor(obs) }) }}</q-item-label>
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </q-menu>
           <!-- Value line by type -->
           <div v-if="obs.valueType === 'R'" class="tile-value">
             <q-icon :name="getFileIcon(obs.fileInfo?.ext)" size="15px" :color="getFileColor(obs.fileInfo?.ext)" />
@@ -66,6 +109,8 @@
               <div v-if="obs.fileInfo?.title && obs.fileInfo?.filename && obs.fileInfo.title !== obs.fileInfo.filename" class="tile-tooltip-file">{{ obs.fileInfo.filename }}</div>
               <div v-if="obs.fileInfo?.description" class="tile-tooltip-desc">{{ obs.fileInfo.description }}</div>
               <div class="tile-tooltip-code">{{ obs.conceptCode }}</div>
+              <div v-if="readValueFlag(obs) === 'AUDIT'" class="tile-tooltip-flag">{{ $t('visit.flagAudit') }}</div>
+              <div v-else-if="readValueFlag(obs) === 'CONFIRMED'" class="tile-tooltip-flag tile-tooltip-flag--ok">{{ $t('visit.flagConfirmed') }}</div>
             </div>
           </q-tooltip>
         </div>
@@ -79,6 +124,7 @@ import { ref, computed, watch } from 'vue'
 import { getCategoryIcon, getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
 import { shortConceptName, tileSpan, valueTypeHex, parseMedicationObservation, formatMedicationSummary, fieldSetCompletion } from 'src/shared/utils/observation-display.js'
 import { parseQuestionnaireObservation } from 'src/shared/utils/questionnaire-display.js'
+import { readValueFlag, auditActionsFor } from 'src/shared/utils/audit-flag.js'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 
 defineOptions({
@@ -90,9 +136,20 @@ const props = defineProps({
   categorizedObservations: { type: Array, default: () => [] },
   // Off while searching — a percentage over filtered rows would mislead
   showCompletion: { type: Boolean, default: true },
+  // observationId → number of audit comments (badge next to the flag)
+  commentCounts: { type: Object, default: () => ({}) },
 })
 
-const emit = defineEmits(['preview-file', 'preview-questionnaire'])
+const emit = defineEmits(['preview-file', 'preview-questionnaire', 'set-flag', 'open-audit'])
+
+const commentCountFor = (obs) => props.commentCounts?.[obs.observationId] || 0
+
+// Context-menu presentation per audit action (labels reuse the grid's keys)
+const AUDIT_ACTION_META = {
+  mark: { icon: 'flag', color: 'negative', label: 'dataGrid.markForAudit' },
+  resolve: { icon: 'check_circle', color: 'positive', label: 'dataGrid.resolveAudit' },
+  clear: { icon: 'outlined_flag', color: 'grey-7', label: 'dataGrid.clearAuditFlag' },
+}
 
 const isPreviewable = (obs) => obs.valueType === 'R' || obs.valueType === 'Q'
 
@@ -247,6 +304,49 @@ const fileSubline = (obs) => {
     border-left-color: $amber-6;
     background: rgba($amber-1, 0.35);
   }
+
+  // Audit state — mirrors the grid cell borders (2px red / 1px green)
+  &--audit {
+    border-color: $negative;
+    box-shadow: inset 0 0 0 1px $negative;
+    opacity: 1;
+  }
+
+  &--confirmed {
+    border-color: $positive;
+  }
+}
+
+.tile-flag {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 1px 2px;
+  border-radius: 4px;
+  color: $grey-6;
+  cursor: pointer;
+  line-height: 1;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.06);
+  }
+
+  &--audit {
+    color: $negative;
+  }
+
+  &--confirmed {
+    color: $positive;
+  }
+
+  &__count {
+    font-size: 0.62rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 .tile-progress {
@@ -311,6 +411,16 @@ const fileSubline = (obs) => {
     font-family: monospace;
     font-size: 0.68rem;
     margin-top: 2px;
+  }
+
+  .tile-tooltip-flag {
+    margin-top: 3px;
+    color: $red-3;
+    font-weight: 600;
+
+    &--ok {
+      color: $green-3;
+    }
   }
 }
 

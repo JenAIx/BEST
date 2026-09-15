@@ -189,6 +189,10 @@
           <q-item-section avatar><q-icon name="check_circle" color="positive" /></q-item-section>
           <q-item-section>{{ $t('dataGrid.resolveAudit') }}</q-item-section>
         </q-item>
+        <q-item clickable data-cy="cell-audit-open" @click="onContextOpenAudit">
+          <q-item-section avatar><q-icon name="chat_bubble_outline" color="primary" /></q-item-section>
+          <q-item-section>{{ $t('visit.auditOpen') }}</q-item-section>
+        </q-item>
         <!-- NV toggle (3-state, numeric only). Mutually exclusive with AUDIT. -->
         <q-item
           v-if="props.valueType === 'N' && props.valueFlag !== 'NV' && props.valueFlag !== 'AUDIT'"
@@ -344,6 +348,7 @@ const emit = defineEmits([
   'delete-value',
   'mark-audit',
   'resolve-audit',
+  'open-audit',
   'mark-no-value',
   'clear-no-value',
   'set-observation-date',
@@ -460,6 +465,12 @@ const onContextMarkAudit = () => {
 
 const onContextResolveAudit = () => {
   emit('resolve-audit', auditPayload())
+}
+
+// Shared audit dialog (trail + comments) — the parent owns the instance and
+// resolves concept name / display value from its column model
+const onContextOpenAudit = () => {
+  emit('open-audit', { ...auditPayload(), valueType: props.valueType, valueFlag: props.valueFlag, value: props.value })
 }
 
 const onContextMarkNoValue = () => {
@@ -735,6 +746,19 @@ const updateObservation = async () => {
 
   if (!result.success) {
     throw new Error(result.error || 'Failed to update observation')
+  }
+
+  // A value edit resets AUDIT/CONFIRMED — record that in the audit trail so
+  // reviewers can see why a flag vanished (best effort, never blocks the save)
+  if (updates.VALUEFLAG_CD == null && (props.valueFlag === 'AUDIT' || props.valueFlag === 'CONFIRMED')) {
+    try {
+      const auditRepo = dbStore.getRepository?.('observationAudit')
+      if (auditRepo) {
+        await auditRepo.logEvent({ observationId: props.observationId, eventCd: 'VALUE_EDIT', flagCd: null, createdBy: authStore.providerId, source: 'GRID' })
+      }
+    } catch {
+      // trail is secondary to the value write
+    }
   }
 }
 

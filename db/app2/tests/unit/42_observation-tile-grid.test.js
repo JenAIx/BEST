@@ -26,7 +26,10 @@ const i18n = createI18n({
   globalInjection: true,
   locale: 'de',
   messages: {
-    de: { visit: { questionnaireFill: 'Ausfüllen', questionnaireScore: 'Score: {score}' } },
+    de: {
+      visit: { questionnaireFill: 'Ausfüllen', questionnaireScore: 'Score: {score}', flagAudit: 'Zur Prüfung markiert', flagConfirmed: 'Geprüft' },
+      dataGrid: { markForAudit: 'Zur Prüfung markieren', resolveAudit: 'Prüfung auflösen', clearAuditFlag: 'Prüfmarkierung entfernen' },
+    },
   },
 })
 
@@ -96,6 +99,23 @@ describe('ObservationTileGrid (read tiles)', () => {
     // 1 of 2 configured concepts filled → 50 %
     const wrapper = makeWrapper([sodium], { conceptCodes: ['LID: 2947-0', 'LID: 2085-9'] })
     expect(wrapper.find('.head-percent').text()).toContain('50 %')
+  })
+
+  it('audit-flagged tiles wear the grid colours: red frame + flag for AUDIT, green + check for CONFIRMED', () => {
+    const audit = { observationId: 11, conceptCode: 'LID: 2947-0', conceptName: 'Natrium', valueType: 'N', displayValue: '140', valueFlag: 'AUDIT', rawData: { NVAL_NUM: 140, VALUEFLAG_CD: 'AUDIT' } }
+    const confirmed = { observationId: 12, conceptCode: 'LID: 2085-9', conceptName: 'HDL', valueType: 'N', displayValue: '1.2', valueFlag: 'CONFIRMED', rawData: { NVAL_NUM: 1.2, VALUEFLAG_CD: 'CONFIRMED' } }
+    const plain = { observationId: 13, conceptCode: 'LID: 1', conceptName: 'X', valueType: 'N', displayValue: '1', rawData: { NVAL_NUM: 1 } }
+    const wrapper = makeWrapper([audit, confirmed, plain])
+    const tiles = wrapper.findAll('.obs-tile')
+    expect(tiles[0].classes()).toContain('obs-tile--audit')
+    expect(tiles[0].find('[data-cy="tile-flag-audit"]').exists()).toBe(true)
+    expect(tiles[1].classes()).toContain('obs-tile--confirmed')
+    expect(tiles[1].find('[data-cy="tile-flag-confirmed"]').exists()).toBe(true)
+    expect(tiles[2].classes()).not.toContain('obs-tile--audit')
+    expect(tiles[2].find('.tile-flag').exists()).toBe(false)
+    // the raw row alone is enough (older objects without valueFlag)
+    const rawOnly = { ...plain, observationId: 14, rawData: { NVAL_NUM: 1, VALUEFLAG_CD: 'AUDIT' } }
+    expect(makeWrapper([rawOnly]).find('.obs-tile').classes()).toContain('obs-tile--audit')
   })
 
   it('no percentage for pure medication groups, remainder groups or while searching', () => {

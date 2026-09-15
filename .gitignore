@@ -3,3 +3,4 @@
 # DS_Store
 # REMOVE: find . -name .DS_Store -print0 | xargs -0 git rm -f --ignore-unmatch
 .DS_Store
+db/app2/tests/demodata/production.db

@@ -78,8 +78,9 @@ export function tileSpan(obs) {
 export function isBlankObservation(obs) {
   if (!obs) return true
   if (obs.valueType === 'Q' || obs.valueType === 'R') return false
-  const flag = obs.rawData?.VALUEFLAG_CD ?? obs.valueFlag ?? null
-  if (flag === 'NV') return false
+  const flag = obs.valueFlag ?? obs.rawData?.VALUEFLAG_CD ?? null
+  // NV is recorded information; a review flag must stay visible (and countable)
+  if (flag === 'NV' || flag === 'AUDIT' || flag === 'CONFIRMED') return false
   const value = obs.displayValue
   return value == null || value === '' || value === 'No value'
 }

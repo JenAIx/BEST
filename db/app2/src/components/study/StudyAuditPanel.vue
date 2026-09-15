@@ -87,6 +87,9 @@
                   <q-btn flat round dense size="sm" icon="grid_on" color="primary" @click="openPatientsInGrid([row], { auditFilter: true })">
                     <q-tooltip>{{ $t('study.audit.openInGrid') }}</q-tooltip>
                   </q-btn>
+                  <q-btn flat round dense size="sm" icon="event_note" color="primary" data-cy="audit-open-in-visits" @click="openPatientInVisits(row)">
+                    <q-tooltip>{{ $t('study.audit.openInVisits') }}</q-tooltip>
+                  </q-btn>
                 </div>
               </q-item-section>
             </q-item>
@@ -179,6 +182,15 @@ function openPatientsInGrid(rows, { auditFilter = false } = {}) {
   localSettings.setDataGridSelectedPatients(patientCds)
   if (auditFilter) localSettings.setPendingAuditFilter(true)
   router.push('/data-grid/editor')
+}
+
+// Jump to the patient's visits timeline with the "only open audits" filter
+// pre-activated (same one-shot flag the grid consumes).
+function openPatientInVisits(row) {
+  const patientCd = String(row.patientCd || row.PATIENT_CD || '')
+  if (!patientCd) return
+  localSettings.setPendingAuditFilter(true)
+  router.push(`/visits/${encodeURIComponent(patientCd)}`)
 }
 </script>
 

@@ -9,6 +9,88 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Audit-Trail + Kommentare pro Beobachtung** (`features/visit-audit-comments`,
+  Schritt 2): Neue Tabelle `OBSERVATION_AUDIT_FACT` (Migration 015) hält
+  die **Historie** hinter `VALUEFLAG_CD` — ein Ereignis pro Zeile
+  (`EVENT_CD` `FLAG` = Statuswechsel mit `FLAG_CD`, `COMMENT` = Kommentar,
+  `VALUE_EDIT` = Markierung durch Wertänderung zurückgesetzt) mit Autor,
+  Zeitstempel, Quelle (`GRID`/`VISITS`) und echtem FK auf
+  `OBSERVATION_FACT` (ON DELETE CASCADE + Trigger). `VALUEFLAG_CD` bleibt die
+  einzige Quelle für den **aktuellen** Zustand; alle bestehenden
+  Audit-Abfragen (Studienseite, Dashboard, Grid-Footer) sind unverändert.
+  - Entscheidung gegen `NOTE_FACT` (kein `OBSERVATION_ID`, keine Kaskade,
+    nur JSON-Verweis) und gegen `OBSERVATION_BLOB` (wird bei jedem
+    Speichern genullt, trägt Q/M/R-Payloads).
+  - **Dialog „Prüfung & Kommentare“** (`shared/ObservationAuditDialog.vue`),
+    identisch in Zeitlinie und Datentabellen-Editor: Konzept + Wert +
+    Zustand, chronologischer Thread (Markiert/Aufgelöst/Entfernt/
+    Wertänderung/Kommentar), Kommentarfeld, Aktionen Markieren/Auflösen/
+    Entfernen (ein eingetippter Kommentar hängt an der Aktion),
+    „Kommentar hinzufügen“ ohne Statuswechsel (Strg+Enter), eigene
+    Kommentare (oder als Admin) löschbar. Erreichbar über Klick auf das
+    Flaggen-Eck einer Kachel, „Prüfung & Kommentare …“ im Kachel-/Feld-/
+    Grid-Zellenmenü. Kacheln zeigen einen Kommentar-Zähler neben der Flagge.
+  - Alle Flag-Schreibpfade protokollieren: Grid-Store, Observation-Store,
+    und Wertänderungen, die eine Markierung zurücksetzen (Zeitlinie über
+    `observation-store.updateObservation`, Grid über `EditableCell`).
+  - Repository `ObservationAuditRepository` (`logEvent` kopiert
+    PATIENT_NUM/ENCOUNTER_NUM aus der Beobachtung, `getTrailForObservation`,
+    `getTrailForPatient`, `getCommentCountsForObservations`, `deleteEvent`);
+    Store-Cache `observation-store.auditTrail` (+ `addAuditComment`,
+    `deleteAuditComment`, `loadAuditTrailForPatient/Observation`).
+  - Tests: `tests/integration/15_observation-audit-trail.test.js` (Trail,
+    Kaskaden per Beobachtung/Visite), `tests/unit/45_audit-flag-visits.test.js`
+    erweitert (Event-Logging, VALUE_EDIT, Kommentare, Blank-Regel).
+
+### Fixed
+
+- **Electron: Migrationen mit `CREATE TRIGGER` haben nie Trigger angelegt.**
+  `src-electron/electron-preload.js` teilte Mehrfach-SQL naiv an jedem `;`
+  — Trigger-Bodies (`BEGIN … ; … END`) wurden zerschnitten, sqlite meldete
+  „incomplete input“. Folge (auf der Dev-DB nachgewiesen): **keine einzige**
+  der 12 Trigger aus 003/009 existierte (kein Patient-/Visit-Cascade für
+  `NOTE_FACT`, keine `UPDATE_DATE`-Bumps). Der Preload nutzt jetzt denselben
+  BEGIN…END-/Literal-bewussten Splitter wie `real-connection.js`; Migration
+  015 läuft Statement für Statement; neue **Migration 016** legt alle
+  Schema-Trigger idempotent neu an (heilt bestehende Datenbanken).
+  Test: `tests/integration/16_recreate-triggers.test.js` (Kaskaden greifen
+  auch mit `foreign_keys = OFF`).
+- **Zeitlinie: markierte, aber leere Beobachtungen waren unsichtbar** —
+  `isBlankObservation` blendete AUDIT/CONFIRMED-Zeilen ohne Wert aus,
+  obwohl der Karten-Chip sie zählte. Review-Flags gelten jetzt wie NV als
+  „nicht leer“ (Kachel ∅ mit Rahmen).
+
+- **Audit-Funktion im Patientenbesuch** (`features/visit-audit-comments`,
+  Schritt 1): Die bisher nur im Datentabellen-Editor erreichbare
+  Prüfmarkierung (`VALUEFLAG_CD` `AUDIT` / `CONFIRMED`) ist jetzt auch in
+  der Zeitlinie unter `/visits/:patientId` sichtbar und bedienbar — gleiche
+  Optik und gleiche Aktionen wie im Grid:
+  - **Lese-Modus**: markierte Kacheln tragen den roten 2px-Rahmen mit
+    Flaggen-Eck (`AUDIT`) bzw. grünen Rahmen mit Häkchen (`CONFIRMED`),
+    Tooltip nennt den Zustand. **Rechtsklick** auf eine Kachel öffnet
+    „Zur Prüfung markieren“ / „Prüfung auflösen“ / „Prüfmarkierung
+    entfernen“ (Annotation, keine Wertänderung — deshalb auch im Lese-Modus).
+  - **Edit-Modus**: Formularfelder zeigen denselben Rahmen; ein
+    Flaggen-Button neben dem Löschen-Button im Feldkopf (bei Hover, bei
+    gesetzter Markierung dauerhaft) bietet dieselben Aktionen.
+  - **Karte + Navigation**: roter Chip „N Audits offen“ im Kartenkopf,
+    Zähler pro Visite in der Schnellnavigation.
+  - **Filter „Nur offene Audits“** neben der Suche (Pendant zum
+    Footer-Chip im Grid): blendet alle anderen Kacheln aus und klappt
+    betroffene Visiten auf. Die Studienseite (Tab Audit) hat pro Patient
+    neben „Im Grid öffnen“ jetzt „Im Patientenbesuch öffnen“, das den
+    Filter über den vorhandenen Einmal-Merker vorab aktiviert.
+  - Technik: das Flag-SQL liegt einmalig in
+    `shared/utils/audit-flag.js` (`buildSetFlagStatement`) und wird von
+    `data-grid-store.setObservationFlag` und dem neuen
+    `observation-store.setObservationFlag` benutzt; letzteres spiegelt
+    `valueFlag` + `rawData.VALUEFLAG_CD` **in place** in beide
+    Beobachtungs-Arrays (Propagations-Invariante wie im Grid).
+    `transformObservation` liefert `valueFlag` jetzt als eigenes Feld.
+    Unverändert: eine Wertänderung setzt das Flag weiterhin zurück.
+  - Tests: `tests/unit/45_audit-flag-visits.test.js` (Helper + Store-Aktion),
+    `tests/unit/42_observation-tile-grid.test.js` (Kachel-Optik).
+
 - **Kohorten-Insights: Einschlüsse pro Monat + Einschluss-Zeitraum-Filter**
   (`bugfix/diverse-issues`): Die Karte „Visiten-Verlauf“ auf der
   Studienseite (Tab Kohorten-Insights) hat zwei neue Fähigkeiten:

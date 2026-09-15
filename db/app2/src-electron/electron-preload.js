@@ -10,6 +10,67 @@ const __dirname = process.cwd()
 console.log('electron-preload.js loaded')
 
 // Database manager - similar to original app
+// Split SQL into statements while respecting string literals, comments and
+// BEGIN…END / CASE…END blocks — a naive split(';') cuts CREATE TRIGGER
+// bodies in half ("incomplete input"), which is how every trigger migration
+// silently failed to create its triggers through this preload. Mirror of
+// splitSqlStatements() in src/core/database/sqlite/real-connection.js
+// (kept in sync by hand: the preload cannot import from src/).
+function splitSqlStatements(sql) {
+  const statements = []
+  const len = sql.length
+  let buf = ''
+  let i = 0
+  let depth = 0
+  const isWordChar = (c) => /[A-Za-z0-9_]/.test(c)
+  while (i < len) {
+    const c = sql[i]
+    const next = sql[i + 1]
+    if (c === '-' && next === '-') {
+      while (i < len && sql[i] !== '\n') { buf += sql[i]; i++ }
+      continue
+    }
+    if (c === '/' && next === '*') {
+      buf += c; buf += next; i += 2
+      while (i < len && !(sql[i] === '*' && sql[i + 1] === '/')) { buf += sql[i]; i++ }
+      if (i < len) { buf += sql[i]; buf += sql[i + 1]; i += 2 }
+      continue
+    }
+    if (c === "'" || c === '"') {
+      const q = c
+      buf += c; i++
+      while (i < len) {
+        if (sql[i] === q && sql[i + 1] === q) { buf += q + q; i += 2; continue }
+        buf += sql[i]
+        if (sql[i] === q) { i++; break }
+        i++
+      }
+      continue
+    }
+    const prevChar = i === 0 ? '\0' : sql[i - 1]
+    if (!isWordChar(prevChar)) {
+      const rest = sql.slice(i, i + 5).toUpperCase()
+      if ((rest.startsWith('BEGIN') && !isWordChar(sql[i + 5] || ' ')) || (rest.startsWith('CASE') && !isWordChar(sql[i + 4] || ' '))) {
+        depth++
+      } else if (rest.startsWith('END') && !isWordChar(sql[i + 3] || ' ')) {
+        depth = Math.max(0, depth - 1)
+      }
+    }
+    if (c === ';' && depth === 0) {
+      const stmt = buf.trim()
+      if (stmt) statements.push(stmt)
+      buf = ''
+      i++
+      continue
+    }
+    buf += c
+    i++
+  }
+  const tail = buf.trim()
+  if (tail) statements.push(tail)
+  return statements
+}
+
 const dbman = {
   database: null,
 
@@ -140,14 +201,9 @@ const dbman = {
         return
       }
 
-      // Handle multi-statement SQL (like migrations)
-      if (
-        sql.includes(';') &&
-        sql
-          .trim()
-          .split(';')
-          .filter((s) => s.trim()).length > 1
-      ) {
+      // Handle multi-statement SQL (like migrations). A single CREATE TRIGGER
+      // contains semicolons inside BEGIN…END — the splitter keeps it whole.
+      if (sql.includes(';') && splitSqlStatements(sql).length > 1) {
         this.runMultipleStatements(sql).then(resolve).catch(reject)
         return
       }
@@ -184,11 +240,8 @@ const dbman = {
         return
       }
 
-      // Split SQL into individual statements
-      const statements = sql
-        .split(';')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
+      // Split SQL into individual statements (BEGIN…END aware)
+      const statements = splitSqlStatements(sql)
 
       console.log(`Executing ${statements.length} SQL statements`)
 
