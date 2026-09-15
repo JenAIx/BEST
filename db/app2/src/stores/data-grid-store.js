@@ -11,7 +11,7 @@ import { useAuthStore } from './auth-store'
 import { useLocalSettingsStore } from './local-settings-store'
 import { useLoggingStore } from './logging-store'
 import { getPatientInitials, formatDate } from 'src/shared/utils/medical-utils'
-import { buildSetFlagStatement, buildValueUpdateStatement, assertRowChanged, StaleObservationError } from 'src/shared/utils/audit-flag.js'
+import { buildSetFlagStatement, buildValueUpdateStatement, assertRowChanged, StaleObservationError, versionGuard, nextVersion } from 'src/shared/utils/audit-flag.js'
 import {
   getCellClass,
   getCellValue,
@@ -353,6 +353,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   }
 
   const findRow = (patientId, encounterNum) => tableRows.value.find((r) => r.patientId === patientId && String(r.encounterNum) === String(encounterNum))
+  // VERSION the grid loaded for a cell (null = unknown → unguarded write)
+  const cellVersion = (patientId, encounterNum, conceptCode) => findRow(patientId, encounterNum)?.observations?.[conceptCode]?.version ?? null
 
   /**
    * Re-read ONE visit row from the database and replace its cells in place
@@ -397,7 +399,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   }
 
   const handleCellUpdate = (data) => {
-    const { patientId, encounterNum, conceptCode, value, observationId, valueFlag, startDate, updateDate } = data
+    const { patientId, encounterNum, conceptCode, value, observationId, valueFlag, startDate, updateDate, version } = data
     const key = createChangeKey(patientId, encounterNum, conceptCode)
 
     logger.debug('Handling cell update', { key, value, observationId, valueFlag, startDate })
@@ -425,6 +427,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       }
       if (updateDate !== undefined) {
         row.observations[conceptCode].updateDate = updateDate
+      }
+      if (version !== undefined && version !== null) {
+        row.observations[conceptCode].version = version
       }
     }
     touch()
@@ -462,7 +467,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   const writeObservation = async ({ patientId, encounterNum, conceptCode, observationId, valueType, value, displayValue, flag, previousFlag = null }) => {
     // flag: undefined = leave VALUEFLAG_CD untouched (undo/redo), null = clear, 'NV' = no value
     if (observationId == null) throw new Error('writeObservation needs an observationId (INSERT is EditableCell.createObservation)')
-    const { sql, params } = buildValueUpdateStatement({ valueType, value, flag, providerId: authStore.providerId, observationId })
+    // Optimistic locking: the version this grid loaded for the cell
+    const expectedVersion = cellVersion(patientId, encounterNum, conceptCode)
+    const { sql, params } = buildValueUpdateStatement({ valueType, value, flag, providerId: authStore.providerId, observationId, expectedVersion })
     try {
       assertRowChanged(await dbStore.executeCommand(sql, params), observationId)
     } catch (error) {
@@ -486,6 +493,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       conceptCode,
       observationId,
       value: displayValue === undefined ? value : displayValue,
+      version: nextVersion(expectedVersion),
       ...(flag !== undefined ? { valueFlag: flag } : {}),
     })
     lastUpdateTime.value = new Date().toLocaleTimeString()
@@ -528,7 +536,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       return
     }
 
-    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId)
+    const expectedVersion = cellVersion(patientId, encounterNum, conceptCode)
+    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId, expectedVersion)
     try {
       assertRowChanged(await dbStore.executeCommand(sql, params), observationId)
     } catch (error) {
@@ -545,7 +554,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       logger.warn('Failed to log audit event', { observationId, flag, error: err?.message })
     }
 
-    mirrorObservationFlag({ patientId, encounterNum, conceptCode, flag, clearValue })
+    mirrorObservationFlag({ patientId, encounterNum, conceptCode, flag, clearValue, version: nextVersion(expectedVersion) })
 
     lastUpdateTime.value = new Date().toLocaleTimeString()
     logger.info('Observation flag updated', { observationId, flag })
@@ -554,13 +563,15 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // Mirror a flag (and possibly the cleared value) into local state so the
   // cell re-renders without a reload. Also used when the shared audit dialog
   // wrote the flag through observation-store (DB already updated).
-  const mirrorObservationFlag = ({ patientId, encounterNum, conceptCode, flag, clearValue = flag === 'NV' }) => {
+  const mirrorObservationFlag = ({ patientId, encounterNum, conceptCode, flag, clearValue = flag === 'NV', version = null }) => {
     const row = findRow(patientId, encounterNum)
     if (row && row.observations[conceptCode]) {
       row.observations[conceptCode].valueFlag = flag
       if (clearValue) {
         row.observations[conceptCode].value = ''
       }
+      if (version !== null && version !== undefined) row.observations[conceptCode].version = version
+      else if (row.observations[conceptCode].version != null) row.observations[conceptCode].version += 1 // written elsewhere (audit dialog) — bumped by that write
     }
     touch()
   }
@@ -576,9 +587,10 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       return
     }
 
-    const sql = 'DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?'
+    const guard = versionGuard(cellVersion(patientId, encounterNum, conceptCode))
+    const sql = `DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?${guard.sql}`
     try {
-      assertRowChanged(await dbStore.executeCommand(sql, [observationId]), observationId)
+      assertRowChanged(await dbStore.executeCommand(sql, [observationId, ...guard.params]), observationId)
     } catch (error) {
       await onWriteFailure(error, patientId, encounterNum)
     }
@@ -626,9 +638,11 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       throw new Error('setObservationStartDate requires a non-empty startDate')
     }
 
-    const sql = 'UPDATE OBSERVATION_FACT SET START_DATE = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
+    const expectedVersion = cellVersion(patientId, encounterNum, conceptCode)
+    const guard = versionGuard(expectedVersion)
+    const sql = `UPDATE OBSERVATION_FACT SET START_DATE = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP, VERSION = VERSION + 1 WHERE OBSERVATION_ID = ?${guard.sql}`
     try {
-      assertRowChanged(await dbStore.executeCommand(sql, [startDate, authStore.providerId, observationId]), observationId)
+      assertRowChanged(await dbStore.executeCommand(sql, [startDate, authStore.providerId, observationId, ...guard.params]), observationId)
     } catch (error) {
       await onWriteFailure(error, patientId, encounterNum)
     }
@@ -636,6 +650,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     const row = findRow(patientId, encounterNum)
     if (row && row.observations[conceptCode]) {
       row.observations[conceptCode].startDate = startDate
+      const bumped = nextVersion(expectedVersion)
+      if (bumped !== null) row.observations[conceptCode].version = bumped
     }
     touch()
 

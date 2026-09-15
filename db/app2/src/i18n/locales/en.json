@@ -562,6 +562,7 @@
     "questionnaireScore": "Score: {score}"
   },
   "observation": {
+    "conflict": "This observation was changed or deleted by another user in the meantime – the current state has been loaded, please check your input.",
     "observation": "Observation",
     "observations": "Observations",
     "addObservation": "Add Observation",

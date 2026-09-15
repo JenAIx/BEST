@@ -22,12 +22,30 @@ export const FLAG_NV = 'NV'
  * @param {number} observationId
  * @returns {{sql: string, params: Array}}
  */
-export function buildSetFlagStatement(flag, providerId, observationId) {
+export function buildSetFlagStatement(flag, providerId, observationId, expectedVersion = null) {
   const clearValue = flag === FLAG_NV
-  const sql = clearValue
-    ? 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, NVAL_NUM = NULL, TVAL_CHAR = NULL, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-    : 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-  return { sql, params: [flag, providerId, observationId], clearValue }
+  const guard = versionGuard(expectedVersion)
+  const sql =
+    (clearValue
+      ? 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, NVAL_NUM = NULL, TVAL_CHAR = NULL, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP, VERSION = VERSION + 1 WHERE OBSERVATION_ID = ?'
+      : 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP, VERSION = VERSION + 1 WHERE OBSERVATION_ID = ?') + guard.sql
+  return { sql, params: [flag, providerId, observationId, ...guard.params], clearValue }
+}
+
+/**
+ * Optimistic-locking guard (OBSERVATION_FACT.VERSION, migration 019): appended
+ * to the WHERE of every observation write. `null`/`undefined` = no guard
+ * (legacy rows / callers without a loaded version).
+ * @returns {{sql: string, params: number[]}}
+ */
+export function versionGuard(expectedVersion) {
+  if (expectedVersion === null || expectedVersion === undefined) return { sql: '', params: [] }
+  return { sql: ' AND VERSION = ?', params: [Number(expectedVersion)] }
+}
+
+/** Next version after a successful guarded write (null when the version was unknown). */
+export function nextVersion(expectedVersion) {
+  return expectedVersion === null || expectedVersion === undefined ? null : Number(expectedVersion) + 1
 }
 
 /**
@@ -100,8 +118,8 @@ export function assertRowChanged(result, observationId) {
  *   the flag column untouched (undo/redo), `null` = clear, 'NV' = no value
  * @param {string|null} o.providerId
  * @param {number} o.observationId
- * @param {number|null} [o.expectedVersion]  reserved for optimistic locking
- *   (adds `AND VERSION = ?` once OBSERVATION_FACT.VERSION exists)
+ * @param {number|null} [o.expectedVersion]  optimistic locking: the VERSION the
+ *   client loaded; adds `AND VERSION = ?` (zero rows = changed elsewhere)
  * @returns {{sql: string, params: Array}}
  */
 export function buildValueUpdateStatement({ valueType, value, flag, providerId, observationId, expectedVersion = null }) {
@@ -121,11 +139,8 @@ export function buildValueUpdateStatement({ valueType, value, flag, providerId, 
   }
   sets.push('PROVIDER_ID = ?')
   params.push(providerId)
-  let where = 'WHERE OBSERVATION_ID = ?'
   params.push(observationId)
-  if (expectedVersion !== null && expectedVersion !== undefined) {
-    where += ' AND VERSION = ?'
-    params.push(expectedVersion)
-  }
-  return { sql: `UPDATE OBSERVATION_FACT SET ${sets.join(', ')}, UPDATE_DATE = CURRENT_TIMESTAMP ${where}`, params }
+  const guard = versionGuard(expectedVersion)
+  params.push(...guard.params)
+  return { sql: `UPDATE OBSERVATION_FACT SET ${sets.join(', ')}, UPDATE_DATE = CURRENT_TIMESTAMP, VERSION = VERSION + 1 WHERE OBSERVATION_ID = ?${guard.sql}`, params }
 }

@@ -24,6 +24,7 @@ import MigrationManager from '../../src/core/database/migrations/migration-manag
 import StudyRepository from '../../src/core/database/repositories/study-repository.js'
 import ObservationAuditRepository from '../../src/core/database/repositories/observation-audit-repository.js'
 import { collectSchemaTriggers } from '../../src/core/database/migrations/016-recreate-triggers.js'
+import { OBSERVATION_VERSION_TRIGGER } from '../../src/core/database/migrations/019-observation-version.js'
 
 const MIGRATIONS = [
   ['001-core-schema', 'coreSchema'], ['002-views', 'databaseViews'], ['003-triggers', 'databaseTriggers'],
@@ -34,7 +35,7 @@ const MIGRATIONS = [
   ['012-public-patient-access', 'publicPatientAccess'], ['013-provider-user-sync', 'providerUserSync'],
   ['014-raw-file-concepts', 'rawFileConcepts'], ['015-observation-audit-fact', 'observationAuditFact'],
   ['016-recreate-triggers', 'recreateTriggers'], ['017-neuro-consult-seed', 'neuroConsultSeed'],
-  ['018-patient-list-view-perf', 'patientListViewPerf'],
+  ['018-patient-list-view-perf', 'patientListViewPerf'], ['019-observation-version', 'observationVersion'],
 ]
 const EXPECTED_TABLES = ['PATIENT_DIMENSION', 'VISIT_DIMENSION', 'OBSERVATION_FACT', 'CONCEPT_DIMENSION', 'PROVIDER_DIMENSION', 'CODE_LOOKUP', 'USER_MANAGEMENT', 'USER_PATIENT_LOOKUP', 'NOTE_FACT', 'CQL_FACT', 'CONCEPT_CQL_LOOKUP', 'STUDY_DIMENSION', 'STUDY_PATIENT_LOOKUP', 'OBSERVATION_AUDIT_FACT', 'migrations']
 const EXPECTED_VIEWS = ['patient_list', 'patient_observations']
@@ -118,7 +119,7 @@ console.log(`\n=== db-check: ${src} (${(fs.statSync(src).size / 1048576).toFixed
   check('schema', 'Erwartete Tabellen', missingT.length === 0, missingT.length ? 'fehlen: ' + missingT.join(', ') : `${tables.length} Tabellen`)
   const missingV = EXPECTED_VIEWS.filter((v) => !views.includes(v))
   check('schema', 'Views', missingV.length === 0, missingV.length ? 'fehlen: ' + missingV.join(', ') : views.join(', '))
-  const expectedTriggers = collectSchemaTriggers().map((t) => t.name)
+  const expectedTriggers = [...collectSchemaTriggers().map((t) => t.name), OBSERVATION_VERSION_TRIGGER.name]
   const missingTr = expectedTriggers.filter((t) => !triggers.includes(t))
   check('schema', `Trigger (${expectedTriggers.length} erwartet)`, missingTr.length === 0, missingTr.length ? 'fehlen: ' + missingTr.join(', ') : `${triggers.length} vorhanden`)
   const idx = await one("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'")
@@ -126,6 +127,15 @@ console.log(`\n=== db-check: ${src} (${(fs.statSync(src).size / 1048576).toFixed
   // Mehrbenutzer über SMB: journal_mode ist eine Datei-Eigenschaft — WAL wäre dort unsicher
   const journal = (await q('PRAGMA journal_mode'))[0]?.journal_mode
   check('schema', 'journal_mode = delete (SMB-tauglich, kein WAL)', String(journal).toLowerCase() === 'delete', `journal_mode=${journal}`, true)
+  // Optimistic Locking (Migration 019): Spalte, View-Spalte, keine NULL-Versionen
+  const obsCols = (await q('PRAGMA table_info(OBSERVATION_FACT)')).map((r) => r.name)
+  check('schema', 'OBSERVATION_FACT.VERSION vorhanden', obsCols.includes('VERSION'))
+  const viewCols = (await q('PRAGMA table_info(patient_observations)')).map((r) => r.name)
+  check('schema', 'patient_observations.VERSION vorhanden', viewCols.includes('VERSION'))
+  if (obsCols.includes('VERSION')) {
+    const nullVersions = await one('SELECT COUNT(*) FROM OBSERVATION_FACT WHERE VERSION IS NULL')
+    check('consistency', 'OBSERVATION_FACT.VERSION ohne NULL', nullVersions === 0, `${nullVersions} NULL`)
+  }
   const fkAudit = await q('PRAGMA foreign_key_list(OBSERVATION_AUDIT_FACT)')
   check('schema', 'OBSERVATION_AUDIT_FACT FK ON DELETE CASCADE', fkAudit.some((r) => r.table === 'OBSERVATION_FACT' && r.on_delete === 'CASCADE'))
 }

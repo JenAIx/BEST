@@ -28,6 +28,7 @@ const observationRepoMock = { updateObservation: vi.fn() }
 vi.mock('src/stores/database-store', () => ({
   useDatabaseStore: () => ({
     executeQuery: executeQueryMock,
+    executeCommand: executeQueryMock,
     getRepository: (name) => (name === 'observationAudit' ? auditRepoMock : name === 'observation' ? observationRepoMock : null),
     canPerformOperations: true,
   }),
@@ -46,9 +47,14 @@ const { useObservationStore } = await import('src/stores/observation-store')
 describe('audit-flag utils', () => {
   it('buildSetFlagStatement: AUDIT / CONFIRMED / null keep the value, NV clears it', () => {
     const audit = buildSetFlagStatement('AUDIT', 'ste', 42)
-    expect(audit.sql).toBe('UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?')
+    expect(audit.sql).toBe('UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP, VERSION = VERSION + 1 WHERE OBSERVATION_ID = ?')
     expect(audit.params).toEqual(['AUDIT', 'ste', 42])
     expect(audit.clearValue).toBe(false)
+
+    // optimistic locking guard when the caller knows the loaded version
+    const guarded = buildSetFlagStatement('AUDIT', 'ste', 42, 3)
+    expect(guarded.sql).toMatch(/WHERE OBSERVATION_ID = \? AND VERSION = \?$/)
+    expect(guarded.params).toEqual(['AUDIT', 'ste', 42, 3])
 
     const nv = buildSetFlagStatement('NV', 'ste', 42)
     expect(nv.sql).toContain('NVAL_NUM = NULL, TVAL_CHAR = NULL')

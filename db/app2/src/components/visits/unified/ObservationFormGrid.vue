@@ -296,6 +296,14 @@ const onSaveRequested = async (rowData) => {
     }
     pendingValues.value.delete(rowData.key)
   } catch (error) {
+    if (error?.code === 'STALE_OBSERVATION') {
+      // another user changed/deleted this observation since we loaded it —
+      // observation-store already refreshed it in place
+      logger.warn('Stale observation write rejected', { conceptCode: field.concept.code, observationId: field.obs?.observationId })
+      notify.warning(t('observation.conflict'), { timeout: 5000 })
+      pendingValues.value.delete(rowData.key)
+      return
+    }
     logger.error('Failed to save observation', error, { conceptCode: field.concept.code })
     notify.error(t('observation.saveFailed'))
   }

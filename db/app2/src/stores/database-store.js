@@ -894,6 +894,7 @@ export const useDatabaseStore = defineStore('database', () => {
           VALUEFLAG_CD,
           START_DATE,
           UPDATE_DATE,
+          VERSION,
           CATEGORY_CHAR,
           CONCEPT_NAME_CHAR as CONCEPT_NAME,
           TVAL_RESOLVED`
@@ -988,8 +989,11 @@ export const useDatabaseStore = defineStore('database', () => {
       valueFlag: obs.VALUEFLAG_CD || null,
       // per-observation date (may diverge from the visit date)
       startDate: obs.START_DATE || null,
-      // last write on the row — freshness marker / locking token
+      // last write on the row — freshness marker
       updateDate: obs.UPDATE_DATE ?? null,
+      // optimistic-locking token (migration 019); every grid write sends
+      // `AND VERSION = ?` and mirrors version + 1 on success
+      version: obs.VERSION ?? 0,
       originalValue: obs.TVAL_CHAR ?? obs.NVAL_NUM ?? '',
       resolvedValue: obs.TVAL_RESOLVED,
     }

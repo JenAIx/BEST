@@ -10,7 +10,7 @@ import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useLoggingStore } from './logging-store'
 import { useAuthStore } from './auth-store'
-import { buildSetFlagStatement, FLAG_NV, FLAG_AUDIT, FLAG_CONFIRMED } from 'src/shared/utils/audit-flag.js'
+import { buildSetFlagStatement, FLAG_NV, FLAG_AUDIT, FLAG_CONFIRMED, assertRowChanged, StaleObservationError, nextVersion } from 'src/shared/utils/audit-flag.js'
 import { AUDIT_EVENT_FLAG, AUDIT_EVENT_COMMENT, AUDIT_EVENT_VALUE_EDIT } from 'src/core/database/repositories/observation-audit-repository.js'
 
 export const useObservationStore = defineStore('observation', () => {
@@ -23,6 +23,28 @@ export const useObservationStore = defineStore('observation', () => {
   const allObservations = ref([]) // All observations for patient
   // Audit trail (OBSERVATION_AUDIT_FACT rows) per observation id, loaded per
   // patient / per observation; comment counts derive from it for the tiles
+  // Column list of every observation list load (visit / patient / single-row
+  // refresh). VERSION is the optimistic-locking token (migration 019).
+  // R blobs are raw file bytes (up to 50 MB) — NEVER shipped with lists; Q/M
+  // blobs are small JSON needed for display (questionnaire status/score,
+  // medication frequency/route).
+  const OBSERVATION_LIST_COLUMNS = `
+          OBSERVATION_ID,
+          CONCEPT_CD,
+          VALTYPE_CD,
+          TVAL_CHAR,
+          NVAL_NUM,
+          UNIT_CD,
+          START_DATE,
+          CATEGORY_CHAR,
+          CONCEPT_NAME_CHAR as CONCEPT_NAME,
+          CONCEPT_DESCRIPTION,
+          TVAL_RESOLVED,
+          ENCOUNTER_NUM,
+          VALUEFLAG_CD,
+          VERSION,
+          CASE WHEN VALTYPE_CD = 'R' THEN NULL ELSE OBSERVATION_BLOB END AS OBSERVATION_BLOB`
+
   const auditTrail = ref(new Map())
   // observationId → number of comments (badge source; the trail itself loads per dialog)
   const commentCounts = ref(new Map())
@@ -95,23 +117,7 @@ export const useObservationStore = defineStore('observation', () => {
       logger.info('Loading observations for visit', { visitId, limit, offset })
 
       const query = `
-        SELECT
-          OBSERVATION_ID,
-          CONCEPT_CD,
-          VALTYPE_CD,
-          TVAL_CHAR,
-          NVAL_NUM,
-          UNIT_CD,
-          START_DATE,
-          CATEGORY_CHAR,
-          CONCEPT_NAME_CHAR as CONCEPT_NAME,
-          CONCEPT_DESCRIPTION,
-          TVAL_RESOLVED,
-          ENCOUNTER_NUM,
-          VALUEFLAG_CD,
-          -- R blobs are raw file bytes (up to 50 MB) — NEVER ship them with
-          -- list loads; Q/M blobs are small JSON and are needed for display
-          CASE WHEN VALTYPE_CD = 'R' THEN NULL ELSE OBSERVATION_BLOB END AS OBSERVATION_BLOB
+        SELECT ${OBSERVATION_LIST_COLUMNS}
         FROM patient_observations
         WHERE ENCOUNTER_NUM = ?
         ORDER BY CATEGORY_CHAR, CONCEPT_NAME_CHAR
@@ -155,24 +161,7 @@ export const useObservationStore = defineStore('observation', () => {
       logger.info('Loading all observations for patient', { patientNum })
 
       const query = `
-        SELECT
-          OBSERVATION_ID,
-          CONCEPT_CD,
-          VALTYPE_CD,
-          TVAL_CHAR,
-          NVAL_NUM,
-          UNIT_CD,
-          START_DATE,
-          CATEGORY_CHAR,
-          CONCEPT_NAME_CHAR as CONCEPT_NAME,
-          CONCEPT_DESCRIPTION,
-          TVAL_RESOLVED,
-          ENCOUNTER_NUM,
-          VALUEFLAG_CD,
-          -- Same rule as the visit query: R blobs (raw file bytes) never
-          -- ship with lists; Q/M blobs are small JSON needed for display
-          -- (questionnaire status/score, medication frequency/route)
-          CASE WHEN VALTYPE_CD = 'R' THEN NULL ELSE OBSERVATION_BLOB END AS OBSERVATION_BLOB
+        SELECT ${OBSERVATION_LIST_COLUMNS}
         FROM patient_observations
         WHERE PATIENT_NUM = ?
         ORDER BY START_DATE DESC, CATEGORY_CHAR, CONCEPT_NAME_CHAR
@@ -367,12 +356,24 @@ export const useObservationStore = defineStore('observation', () => {
       }
 
       const observationRepo = dbStore.getRepository('observation')
-      const result = await observationRepo.updateObservation(observationId, enhancedUpdateData)
+      const local = observations.value.find((o) => o.observationId === observationId) || allObservations.value.find((o) => o.observationId === observationId)
+      // Optimistic locking: write only if the row is still at the version we
+      // loaded; otherwise refresh it from the DB and tell the caller (stale)
+      const expectedVersion = local?.rawData?.VERSION ?? null
+      let result
+      try {
+        result = await observationRepo.updateObservation(observationId, enhancedUpdateData, { expectedVersion })
+      } catch (writeError) {
+        if (writeError instanceof StaleObservationError || writeError?.code === 'STALE_OBSERVATION') {
+          await refreshObservationById(observationId)
+        }
+        throw writeError
+      }
+      const newVersion = result?.newVersion ?? (expectedVersion === null ? null : expectedVersion + 1)
 
       // A value save resets AUDIT/CONFIRMED (CLAUDE.md §3) — keep that visible
       // in the trail so reviewers can see WHY a flag vanished
       if ('VALUEFLAG_CD' in enhancedUpdateData && enhancedUpdateData.VALUEFLAG_CD == null) {
-        const local = observations.value.find((o) => o.observationId === observationId) || allObservations.value.find((o) => o.observationId === observationId)
         const previousFlag = local?.valueFlag ?? local?.rawData?.VALUEFLAG_CD ?? null
         if (previousFlag === FLAG_AUDIT || previousFlag === FLAG_CONFIRMED) {
           await logAuditEvent({ observationId, eventCd: AUDIT_EVENT_VALUE_EDIT, flagCd: null })
@@ -424,6 +425,11 @@ export const useObservationStore = defineStore('observation', () => {
             }
           })
 
+          // Mirror the new locking token so the next save is guarded correctly
+          if (newVersion !== null) {
+            updatedObs.rawData = { ...(updatedObs.rawData || {}), VERSION: newVersion }
+          }
+
           // Replace the observation in the array
           obsArray[index] = updatedObs
         }
@@ -459,18 +465,28 @@ export const useObservationStore = defineStore('observation', () => {
       logger.warn('setObservationFlag called without observationId — skipped')
       return null
     }
-    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId)
-    const result = await dbStore.executeQuery(sql, params)
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
+    const local = observations.value.find((o) => o.observationId === observationId) || allObservations.value.find((o) => o.observationId === observationId)
+    const expectedVersion = local?.rawData?.VERSION ?? null
+    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId, expectedVersion)
+    try {
+      // executeCommand (not executeQuery): the changes-count is what tells us
+      // the row is still there and still at our version
+      assertRowChanged(await dbStore.executeCommand(sql, params), observationId)
+    } catch (writeError) {
+      if (writeError instanceof StaleObservationError || writeError?.code === 'STALE_OBSERVATION') {
+        await refreshObservationById(observationId)
+      }
+      throw writeError
     }
     await logAuditEvent({ observationId, eventCd: AUDIT_EVENT_FLAG, flagCd: flag, commentText: comment, source })
+    const newVersion = nextVersion(expectedVersion)
 
     const mirror = (obsArray) => {
       const obs = obsArray.find((o) => o.observationId === observationId)
       if (!obs) return
       obs.valueFlag = flag
       if (obs.rawData) obs.rawData.VALUEFLAG_CD = flag
+      if (obs.rawData && newVersion !== null) obs.rawData.VERSION = newVersion
       if (clearValue) {
         obs.value = null
         obs.numericValue = null
@@ -487,6 +503,27 @@ export const useObservationStore = defineStore('observation', () => {
 
     logger.info('Observation flag updated', { observationId, flag, cleared: flag === FLAG_NV })
     return flag
+  }
+
+  /**
+   * Re-read ONE observation and mirror it IN PLACE into both arrays (the form
+   * grid keeps references — never swap the objects). Removes it locally when
+   * the row no longer exists. Used after a stale write (changed / deleted by
+   * another user) so the UI shows the database's truth.
+   * @returns {Promise<boolean>} true when the row still exists
+   */
+  const refreshObservationById = async (observationId) => {
+    if (observationId == null) return false
+    const result = await dbStore.executeQuery(`SELECT ${OBSERVATION_LIST_COLUMNS} FROM patient_observations WHERE OBSERVATION_ID = ?`, [observationId])
+    const row = result.success && result.data?.length ? result.data[0] : null
+    for (const list of [observations.value, allObservations.value]) {
+      const index = list.findIndex((o) => o.observationId === observationId)
+      if (index === -1) continue
+      if (row) Object.assign(list[index], transformObservation(row))
+      else list.splice(index, 1)
+    }
+    logger.info(row ? 'Observation refreshed from database' : 'Observation vanished — removed locally', { observationId })
+    return !!row
   }
 
   /**
@@ -870,6 +907,7 @@ export const useObservationStore = defineStore('observation', () => {
     setObservationFlag,
     getObservationHistory,
     auditTrail,
+    refreshObservationById,
     commentCounts,
     loadCommentCountsForPatient,
     auditTrailFor,

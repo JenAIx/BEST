@@ -562,6 +562,7 @@
     "questionnaireScore": "Score: {score}"
   },
   "observation": {
+    "conflict": "Diese Beobachtung wurde inzwischen von einem anderen Nutzer geändert oder gelöscht – der aktuelle Stand wurde geladen, bitte Eingabe prüfen.",
     "observation": "Beobachtung",
     "observations": "Beobachtungen",
     "addObservation": "Beobachtung hinzufügen",
