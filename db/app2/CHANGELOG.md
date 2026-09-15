@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Navigation: „Ich lande auf einer Unterseite und komme nicht mehr
+  zurück“** — reproduziert und behoben. Zwei Ursachen:
+  - Nach einem Sitzungs-Timeout schickt der Router-Guard zur Anmeldung
+    (`/login?redirect=…`); die Anmeldeseite legte das Ziel per `push` auf den
+    Verlauf. Der Zurück-Pfeil in der Patientenvisite / im Grid-Editor führte
+    damit zur Anmeldeseite, die sofort wieder auf die Unterseite
+    weiterleitete — eine Schleife. Die Anmeldeseite nutzt jetzt
+    `router.replace`, sodass sie nie im Verlauf bleibt.
+  - Changelog-Seite und 403-Seite riefen `router.back()` ohne Rückfall —
+    ohne Verlaufseintrag (Deep-Link, Neustart auf der Seite) passierte nichts.
+  - Neuer Helfer `shared/utils/navigation.js` (`goBackOr`): geht nur zurück,
+    wenn der vorherige Eintrag eine echte Seite ist (nie `/login`, `/403`,
+    nie in dieselbe Sektion), sonst explizites Ziel — in Patientenvisite
+    (`/visits`), Grid-Editor (`/data-grid`), Changelog (Dashboard bzw.
+    Login) und 403 (Dashboard). Test `tests/unit/46_back-navigation.test.js`.
+
+### Changed
+
+- **In-App-Hilfe ausgebaut**: neues Kapitel „Datenprüfung (Audit) &
+  Kommentare“ (Zustände, Setzen/Auflösen, Dialog mit Verlauf und
+  Kommentaren, Wertänderung, Filter), Studien-Kapitel mit eigenen
+  Unterabschnitten „Kohorten-Insights“ (Zeitraum-Filter, Einschlüsse pro
+  Monat) und „Audit-Tab“, Datenmodell-Kapitel um Werttypen, Drei-Zustands-
+  Logik, Prüfmarkierung/Verlauf, Feldgruppen, Einschlussdatum und Bearbeiter
+  ergänzt. Screenshots `study-details`, `study-insights` (neu),
+  `visits-patient`, `audit-dialog` (neu) mit der Demo-DB aufgenommen.
+- `package.json`-Version auf 0.7.0 angehoben (Fallback; die Release-Version
+  bleibt in `.env`).
+
 ## [0.7_20260915] - 2026-09-15
 
 ### Added

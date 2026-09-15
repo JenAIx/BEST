@@ -130,10 +130,16 @@ const sections = [
       'Visite (Besuch): ein Kontakt/Termin des Patienten zu einem Datum, mit Visitentyp (z. B. Erstvorstellung, Verlaufskontrolle, Studienvisite V0/V1/V2). Der Visitentyp bestimmt, welche Eingabefelder angeboten werden.',
       'Beobachtung: ein einzelner Messwert oder Befund innerhalb einer Visite — z. B. ein Laborwert, ein Medikament mit Dosis, ein Ja/Nein-Befund oder ein Fragebogen-Score.',
       'Konzept: die standardisierte Definition einer Beobachtung (SNOMED CT, LOINC, ICD-10 oder eigene Codes). Konzepte sorgen dafür, dass „LDL-Cholesterin“ überall dasselbe bedeutet.',
-      'Studie: fasst Patienten zu einer Kohorte zusammen. Patienten werden eingeschrieben (Status: aktiv, abgeschlossen, zurückgezogen) und können studienspezifische Visiten erhalten.',
+      'Werttypen einer Beobachtung: Zahl (mit Einheit), Text, Datum, Ja/Nein-Befund, Auswahl aus einer Liste, Medikament (Wirkstoff, Dosis, Schema), Fragebogen und Datei (PDF/Bild/Video an einer Visite). Jede Beobachtung trägt ihr eigenes Datum — standardmäßig das der Visite, bei Bedarf abweichend (z. B. Laborabnahme an einem anderen Tag).',
+      'Drei Zustände bei Zahlenwerten: ein Wert = gemessen; „kein Wert“ (NV, ∅) = erfragt, aber bewusst kein Wert (etwa Medikament nicht eingenommen); gar keine Beobachtung = nicht erhoben. So bleibt „0“ von „unbekannt“ unterscheidbar.',
+      'Prüfmarkierung (Audit): Jede Beobachtung kann „zur Prüfung“ markiert (roter Rahmen) oder als „geprüft“ bestätigt (grüner Rahmen) werden — in der Datentabelle wie in der Zeitlinie. Zu jeder Beobachtung führt die App einen Prüfverlauf: wer wann markiert, bestätigt oder kommentiert hat und ob eine Wertänderung die Markierung zurückgesetzt hat. Details im Abschnitt „Datenprüfung (Audit)“.',
+      'Feldgruppen: Der Visitentyp verweist auf Feldgruppen (z. B. „Labor“, „Medikamente“), und jede Feldgruppe listet die Konzepte, die dort erfasst werden. Administratoren pflegen beides unter „Globale Einstellungen“ — neue Studienvisiten brauchen keine Programmierung.',
+      'Studie: fasst Patienten zu einer Kohorte zusammen. Patienten werden mit Einschlussdatum eingeschrieben (Status: aktiv, abgeschlossen, zurückgezogen) und können studienspezifische Visiten erhalten. Das Einschlussdatum ist die Basis für Zeitraum-Auswertungen in den Kohorten-Insights.',
       'Sichtbarkeit: Jeder Patient hat einen Besitzer (Ersteller). „Öffentliche“ Patienten sehen alle Nutzer, private nur der Besitzer und Administratoren. Löschen darf nur der Besitzer oder ein Admin.',
+      'Bearbeiter: Jede gespeicherte Beobachtung merkt sich den zuletzt bearbeitenden Benutzer; die Team-Aktivität in den Studien-Insights und die Audit-Übersicht bauen darauf auf.',
       'Rollen: Administratoren sehen zusätzlich die Bereiche Konzepte, CQL, Benutzerverwaltung, Globale Einstellungen und Datenbank-Test.',
     ],
+    tip: 'Alle Daten liegen in einer einzigen SQLite-Datei (Sternschema nach i2b2-Vorbild: Patient → Visite → Beobachtung, Konzepte als Dimension). Beim Öffnen einer älteren Datei aktualisiert die App das Schema automatisch — ein Backup vorab ist trotzdem gute Praxis.',
   },
   {
     id: 'login',
@@ -208,14 +214,50 @@ const sections = [
       {
         title: 'Studiendetails',
         paragraphs: [
-          'Die Detailseite einer Studie bündelt Stammdaten (bearbeitbar), Einschreibungs-Fortschritt und drei Tabs: „Übersicht“ mit der Patientenliste (Statusfilter, Bulk-Aktionen wie „Gefilterte als abgeschlossen markieren“, Sprung in den Datentabellen-Editor), „Insights“ mit Kohorten-Auswertungen und Team-Aktivität sowie „Audit“ mit offenen Datenprüfungen pro Patient und Nutzer (Sprung „Im Grid öffnen“ oder „Im Patientenbesuch öffnen“, jeweils mit aktivem Audit-Filter).',
-          'In den Insights zeigt die Karte „Visiten-Verlauf“ die Eingeschriebenen und je Visitentyp die Patienten mit dieser Visite; die Felder „von/bis“ im Kartenkopf grenzen auf einen Einschluss-Zeitraum ein (z. B. vor und ab 15.09.2025 getrennt). Darunter zählt das Balkendiagramm „Einschlüsse pro Monat“ die neu eingeschlossenen Patienten seit dem ersten Einschluss; Monate außerhalb des gewählten Zeitraums erscheinen grau.',
-          'Patienten schreiben Sie über das Rechtsklick-Menü einer Patientenkarte („Studie zuordnen“) oder direkt auf der Studienseite ein. Der Einschreibestatus (aktiv/abgeschlossen/zurückgezogen) lässt sich am Status-Chip jeder Patientenkarte umschalten. Der Kohorten-Export (CSV oder HL7-JSON) liegt oben rechts.',
+          'Die Detailseite einer Studie bündelt Stammdaten (bearbeitbar), Einschreibungs-Fortschritt und drei Tabs: „Übersicht“ mit der Patientenliste, „Kohorten-Insights“ mit Auswertungen und „Audit“ mit den offenen Datenprüfungen.',
+          'Patienten schreiben Sie über das Rechtsklick-Menü einer Patientenkarte („Studie zuordnen“) oder direkt auf der Studienseite ein. Der Einschreibestatus (aktiv/abgeschlossen/zurückgezogen) lässt sich am Status-Chip jeder Patientenkarte umschalten; „Gefilterte als abgeschlossen markieren“ erledigt das für eine ganze Auswahl. Der Kohorten-Export (CSV oder HL7-JSON) liegt oben rechts, der Sprung in den Datentabellen-Editor öffnet die ausgewählten Patienten direkt dort.',
         ],
         image: 'study-details',
       },
+      {
+        title: 'Kohorten-Insights',
+        paragraphs: [
+          'Der Tab fasst die Kohorte in Karten zusammen: „Visiten-Verlauf“ (Eingeschriebene und je Visitentyp die Patienten, die diese Visite haben), „Medikamenten-Nutzung“ (nehmen / erfragt), „Komorbiditäten“, die Auswahlverteilungen (Ätiologie, Event-Typ), „Team-Aktivität“ (Patienten und Beobachtungen pro Benutzer) und „Lab-Verlauf“ (Median je Visite).',
+        ],
+        bullets: [
+          'Einschluss-Zeitraum: Die Felder „von/bis“ im Kopf des Visiten-Verlaufs grenzen die Kacheln auf Patienten ein, die in diesem Zeitraum eingeschlossen wurden — die Visiten zählen unabhängig vom Visitendatum. So lassen sich Teilkohorten getrennt betrachten, z. B. „bis 14.09.2025“ und „ab 15.09.2025“. Der Filter bleibt beim Tab-Wechsel erhalten; das × setzt ihn zurück.',
+          'Einschlüsse pro Monat: Das Balkendiagramm zählt die neu eingeschlossenen Patienten je Kalendermonat vom ersten Einschluss bis heute (Lücken als Nullmonate). Die Kennzahlenzeile nennt Gesamt, Durchschnitt pro Monat, die letzten 12 Monate und den stärksten Monat; beim Überfahren zeigt jeder Balken Monat, Anzahl und kumulierten Stand. Bei aktivem Zeitraum-Filter erscheinen Monate außerhalb grau.',
+          'Die Zahlen berücksichtigen nur aktive und abgeschlossene Einschreibungen; zurückgezogene Patienten zählen nicht mit.',
+        ],
+        image: 'study-insights',
+      },
+      {
+        title: 'Audit-Tab',
+        paragraphs: [
+          'Der Tab „Audit“ zeigt die offenen Prüfmarkierungen der Kohorte: Gesamtzahl, Verteilung pro Benutzer und eine Liste pro Patient mit Anzahl. Von dort springen Sie mit „Im Grid öffnen“ in den Datentabellen-Editor oder mit „Im Patientenbesuch öffnen“ in die Zeitlinie des Patienten — in beiden Fällen ist der Filter „Nur offene Audits“ bereits aktiv, sodass nur die zu prüfenden Werte sichtbar sind. Das Badge am Tab und auf der Studienkarte zählt die offenen Prüfungen.',
+        ],
+      },
     ],
     tip: 'Die App merkt sich Ihre zuletzt geöffnete Studie: Wer „Studien“ in der Seitenleiste wählt, landet direkt wieder in ihr. Der Zurück-Pfeil in der Studie führt zur Studienliste.',
+  },
+  {
+    id: 'audit',
+    icon: 'flag',
+    title: 'Datenprüfung (Audit) & Kommentare',
+    paragraphs: [
+      'Die Prüfmarkierung ist das Werkzeug für die Datenqualität im Team: Wer einen Wert für fragwürdig hält, markiert ihn „zur Prüfung“; wer ihn geprüft hat, bestätigt ihn. Der Wert selbst bleibt dabei unverändert. Markierungen sind überall sichtbar, wo der Wert erscheint — Datentabelle, Zeitlinie, Studienseite und Dashboard — und lassen sich an jeder dieser Stellen setzen.',
+    ],
+    bullets: [
+      'Zustände: roter Rahmen mit Flagge = „zur Prüfung markiert“ (offen); grüner Rahmen mit Häkchen = „geprüft“. „Prüfmarkierung entfernen“ nimmt beides zurück.',
+      'Setzen und auflösen: in der Datentabelle per Rechtsklick auf die Zelle; in der Zeitlinie per Rechtsklick auf eine Kachel oder über das Flaggen-Symbol im Feldkopf während der Bearbeitung. Beim Auflösen wechselt die Markierung von rot auf grün.',
+      'Kommentare und Verlauf: „Prüfung & Kommentare …“ (im Kontextmenü, oder ein Klick auf das Flaggen-Eck einer Kachel) öffnet den Dialog zur Beobachtung. Oben stehen Konzept, Wert und Zustand, darunter der Verlauf: jede Markierung, Bestätigung, Entfernung und jeder Kommentar mit Autor und Zeitpunkt. Ein eingetippter Kommentar wird an die gewählte Aktion angehängt; „Kommentar hinzufügen“ speichert ihn ohne Zustandswechsel (Strg+Enter). Eigene Kommentare lassen sich löschen, Administratoren dürfen alle löschen.',
+      'Kommentar-Zähler: Kacheln mit Kommentaren zeigen neben der Flagge die Anzahl; die Kontextmenüs nennen sie ebenfalls.',
+      'Wertänderung: Wird ein markierter Wert geändert, setzt die App die Markierung zurück — der Prüfverlauf hält das als „Markierung durch Wertänderung zurückgesetzt“ fest, damit nachvollziehbar bleibt, warum eine Flagge verschwunden ist. Soll der Wert erneut geprüft werden, markieren Sie ihn wieder.',
+      'Filter: Der Chip „N Audits offen“ (Fußzeile der Datentabelle bzw. Kopf der Zeitlinie) blendet alles außer den offenen Prüfungen aus. In der Zeitlinie zeigt jede Visitenkarte zusätzlich ihren Zähler, ebenso die Schnellnavigation links.',
+      'Löschen: Wird eine Beobachtung gelöscht, verschwindet ihr Prüfverlauf mit ihr.',
+    ],
+    image: 'audit-dialog',
+    tip: 'Typischer Ablauf: markieren mit kurzem Kommentar („Wert unplausibel, bitte Laborbefund prüfen“) → Kollege korrigiert oder antwortet im Dialog → Prüfung auflösen. Der Studien-Tab „Audit“ zeigt jederzeit, wo noch etwas offen ist.',
   },
   {
     id: 'datagrid',
@@ -233,7 +275,7 @@ const sections = [
         ],
         bullets: [
           'Visitentyp-Sperre (Kalender-Schloss-Symbol neben dem Zoom): blendet Zellen aus, deren Konzept nicht zum Visitentyp der Zeile gehört — schraffierte Zellen sind gesperrt, vorhandene Werte bleiben sichtbar.',
-          'Rechtsklick auf eine Zelle: Wert löschen, „kein Wert“ (NV) setzen, Audit-Markierung (roter Rahmen = zu prüfen, grüner Rahmen = geprüft), Beobachtungsdatum abweichend von der Visite setzen.',
+          'Rechtsklick auf eine Zelle: Wert löschen, „kein Wert“ (NV) setzen, Audit-Markierung (roter Rahmen = zu prüfen, grüner Rahmen = geprüft), „Prüfung & Kommentare …“ (Verlauf und Kommentare zur Beobachtung), Beobachtungsdatum abweichend von der Visite setzen.',
           'Fußzeile: Speicherstatus, Spalten-/Zellstatistik, „% ausgefüllt“ und der Audit-Chip — ein Klick darauf filtert die Ansicht auf offene Audits.',
           '„Hinzufügen“ in der Kopfzeile ergänzt Spalten (Konzepte), Visiten oder Patienten, ohne den Editor zu verlassen.',
         ],

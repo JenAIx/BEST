@@ -65,6 +65,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { goBackOr } from 'src/shared/utils/navigation.js'
 import { useRoute, useRouter } from 'vue-router'
 import { usePatientStore } from 'src/stores/patient-store'
 import { useVisitStore } from 'src/stores/visit-store'
@@ -126,13 +127,9 @@ const deselectPatient = () => {
   visitObservationService.clearAllData()
   viewMode.value = 'unified'
   // Go back to where the user came from (e.g. a study's enrolled-patients
-  // list or the dashboard); default to the visits patient list.
-  const previous = router.options.history.state?.back
-  if (previous && !String(previous).startsWith('/visits')) {
-    router.back()
-  } else {
-    router.push('/visits')
-  }
+  // list or the dashboard); default to the visits patient list. Never
+  // "back" into login/403 (they redirect forward again → loop).
+  goBackOr(router, '/visits', ['/visits'])
 }
 
 const showPatientData = () => {

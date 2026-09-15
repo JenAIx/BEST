@@ -45,7 +45,7 @@
           :label="$t('common.back')"
           icon="arrow_back"
           class="changelog-back-btn"
-          @click="$router.back()"
+          @click="goBack"
         />
       </div>
     </q-page-sticky>
@@ -53,6 +53,14 @@
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+import { useAuthStore } from 'src/stores/auth-store'
+import { goBackOr } from 'src/shared/utils/navigation.js'
+
+const router = useRouter()
+const authStore = useAuthStore()
+// No history (deep link / restart on this page) → dashboard or login
+const goBack = () => goBackOr(router, authStore.isAuthenticated ? '/dashboard' : '/login', ['/changelog'])
 import { ref, onMounted } from 'vue'
 // Bundle the repo-root CHANGELOG at build time — single source of truth.
 // (The old fetch('/CHANGELOG.md') served a stale, long-dead copy from

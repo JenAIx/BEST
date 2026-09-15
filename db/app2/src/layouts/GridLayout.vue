@@ -37,6 +37,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { goBackOr } from 'src/shared/utils/navigation.js'
 import { useRouter } from 'vue-router'
 import { useQuasar } from 'quasar'
 import { useI18n } from 'vue-i18n'
@@ -67,14 +68,7 @@ const gridInfo = computed(() => {
 const exitDataGrid = () => {
   // Go back to where the editor was opened from (e.g. a patient card's
   // context menu on the dashboard); default: the grid's patient selection.
-  const navigateBack = () => {
-    const previous = router.options.history.state?.back
-    if (previous && !String(previous).startsWith('/data-grid')) {
-      router.back()
-    } else {
-      router.push('/data-grid')
-    }
-  }
+  const navigateBack = () => goBackOr(router, '/data-grid', ['/data-grid'])
 
   // Check if there are unsaved changes
   if (dataGridStore?.hasUnsavedChanges) {
