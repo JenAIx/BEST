@@ -111,36 +111,6 @@ class VisitObservationService {
     }
   }
 
-  /**
-   * Create a new visit for the current patient
-   * @param {Object} visitData - Visit form data
-   * @returns {Promise<Object>} Created visit
-   */
-  async createVisit(visitData) {
-    try {
-      const patientStore = usePatientStore()
-      const visitStore = useVisitStore()
-
-      if (!patientStore.hasPatient) {
-        throw new Error('No patient selected')
-      }
-
-      this.logger.info('Creating new visit', {
-        patientId: patientStore.patientId,
-      })
-
-      // Create the visit
-      const newVisit = await visitStore.createVisit(patientStore.patientNum, visitData)
-
-      this.showSuccessNotification('Visit created successfully')
-
-      return newVisit
-    } catch (error) {
-      this.logger.error('Failed to create visit', error)
-      this.showErrorNotification('Failed to create visit')
-      throw error
-    }
-  }
 
   /**
    * Duplicate a visit with all its observations
@@ -210,7 +180,11 @@ class VisitObservationService {
             PROVIDER_ID: providerId,
             LOCATION_CD: 'CLONED',
             SOURCESYSTEM_CD: conceptMetadata.sourceSystemCd,
-            INSTANCE_NUM: 1,
+            // Keep the structured payload (medication dose/frequency, Q results,
+            // diagnosis metadata) and the NV/audit state; R blobs are NULL above
+            OBSERVATION_BLOB: obs.OBSERVATION_BLOB ?? null,
+            VALUEFLAG_CD: obs.VALUEFLAG_CD ?? null,
+            INSTANCE_NUM: obs.INSTANCE_NUM ?? 1,
             UPLOAD_ID: 1,
           }
 
@@ -280,7 +254,7 @@ class VisitObservationService {
    * @param {Object} observationData - Observation data
    * @returns {Promise<Object>} Created observation
    */
-  async createObservation(observationData) {
+  async createObservation(observationData, options = {}) {
     try {
       const patientStore = usePatientStore()
       const visitStore = useVisitStore()
@@ -303,16 +277,14 @@ class VisitObservationService {
       // Create the observation
       const newObservation = await observationStore.createObservation(observationData)
 
-      // Reload observations for the visit
-      if (visitStore.selectedVisitId) {
-        await observationStore.loadObservationsForVisit(visitStore.selectedVisitId)
-
-        // Update visit observation count
-        visitStore.updateVisitObservationCount(visitStore.selectedVisitId, observationStore.observationCount)
+      // Reload unless the caller batches many creates (cockpit / carry-forward)
+      if (!options.skipReload) {
+        if (visitStore.selectedVisitId) {
+          await observationStore.loadObservationsForVisit(visitStore.selectedVisitId)
+          visitStore.updateVisitObservationCount(visitStore.selectedVisitId, observationStore.observationCount)
+        }
+        await observationStore.loadAllObservationsForPatient(patientStore.patientNum)
       }
-
-      // Reload all observations for the patient
-      await observationStore.loadAllObservationsForPatient(patientStore.patientNum)
 
       this.logger.success('Observation created successfully', {
         observationId: newObservation?.OBSERVATION_ID,

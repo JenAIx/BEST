@@ -113,7 +113,7 @@
         ],
         "coding": {
             "display": "RBD-SQ Score",
-            "code": "446004",
+            "code": "NEURO:SCORE:RBD_SQ",
             "system": "http://snomed.info/sct"
         }
     }

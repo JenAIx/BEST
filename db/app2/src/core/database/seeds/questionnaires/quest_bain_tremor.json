@@ -203,7 +203,7 @@
     ],
     "results": {
         "method": "sum",
-        "coding": { "display": "Bain Tremor Total Score", "code": "CUSTOM: SCORES_BAIN_TREMOR_TOTAL", "system": "CUSTOM" },
+        "coding": { "display": "Bain Tremor Total Score", "code": "CUSTOM: SCORES_BAIN_TREMOR", "system": "CUSTOM" },
         "evaluation": [
             { "min": 0, "max": 9, "label": "Leichter Tremor" },
             { "min": 10, "max": 30, "label": "Mäßiger Tremor" },

@@ -33,7 +33,7 @@ const MIGRATIONS = [
   ['010-stroke-lipid-seed', 'strokeLipidSeed'], ['011-audit-valueflags', 'auditValueflags'],
   ['012-public-patient-access', 'publicPatientAccess'], ['013-provider-user-sync', 'providerUserSync'],
   ['014-raw-file-concepts', 'rawFileConcepts'], ['015-observation-audit-fact', 'observationAuditFact'],
-  ['016-recreate-triggers', 'recreateTriggers'],
+  ['016-recreate-triggers', 'recreateTriggers'], ['017-neuro-consult-seed', 'neuroConsultSeed'],
 ]
 const EXPECTED_TABLES = ['PATIENT_DIMENSION', 'VISIT_DIMENSION', 'OBSERVATION_FACT', 'CONCEPT_DIMENSION', 'PROVIDER_DIMENSION', 'CODE_LOOKUP', 'USER_MANAGEMENT', 'USER_PATIENT_LOOKUP', 'NOTE_FACT', 'CQL_FACT', 'CONCEPT_CQL_LOOKUP', 'STUDY_DIMENSION', 'STUDY_PATIENT_LOOKUP', 'OBSERVATION_AUDIT_FACT', 'migrations']
 const EXPECTED_VIEWS = ['patient_list', 'patient_observations']
@@ -91,7 +91,7 @@ console.log(`\n=== db-check: ${src} (${(fs.statSync(src).size / 1048576).toFixed
     const after = (await q('SELECT name FROM migrations ORDER BY id')).map((r) => r.name)
     const ran = after.filter((n) => !before.includes(n))
     add('migration', 'Neu ausgeführt', 'PASS', ran.length ? ran.join(', ') : 'nichts (bereits aktuell)')
-    check('migration', 'Alle 16 Migrationen registriert', after.length === MIGRATIONS.length && MIGRATIONS.every(([f]) => after.includes(f)), `${after.length}/${MIGRATIONS.length}`)
+    check('migration', `Alle ${MIGRATIONS.length} Migrationen registriert`, after.length === MIGRATIONS.length && MIGRATIONS.every(([f]) => after.includes(f)), `${after.length}/${MIGRATIONS.length}`)
   } catch (e) {
     add('migration', 'Migration fehlgeschlagen', 'FAIL', e.message)
   }

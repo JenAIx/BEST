@@ -5,6 +5,26 @@
 
 ## Recent Milestones
 
+### 2026-09-15 — Visitenmodus (Konsultations-Cockpit), Iteration 1 — EXPERIMENTELL
+
+- **Status: experimentelles Feature.** Iteration 1 ist in `development`
+  gemerged, damit es in der Sprechstunde ausprobiert werden kann; Iteration
+  2/3 (siehe unten) stehen aus und das Layout/die Vorlagen werden nach dem
+  ersten Praxiseinsatz überarbeitet. Nicht Teil des offiziellen Funktions-
+  umfangs bis zur Abnahme.
+- `features/visit-cockpit` (gemerged 2026-09-15): dritte Ansicht auf
+  `/visits/:patientId` als Karteikarte für die Ambulanzsprechstunde —
+  Kopf (letzte/heutige Visite, „Visite beginnen“ mit Vorlage, Aktensuche),
+  Diagnosen (Freitext + ICD-10-Mini-Katalog), Score-Leiste mit Δ und
+  Sparklines, berechnete LEDD (MDS 2023), Medikation mit Diff zur letzten
+  Visite und „Fortführen“, Textabschnitte mit Referenz-Pane und Übernehmen,
+  Werkzeuge (Checkliste, Fragebögen, Dateien, Briefe, Notizen). Alles
+  datengetrieben über `CONSULT_TEMPLATE_CD`-Vorlagen (Migration 017: PD
+  Erst/Verlauf, THS, Tremor Erst/Verlauf, Ataxie, Sonstiges). Verifiziert im
+  laufenden Programm auf der Demo-DB (Visite anlegen, Text, Diagnose G20,
+  H&Y, zwei Medikamente → LEDD 550 mg/d persistiert). Offen für Iteration
+  2/3: Medikations-Verlaufsmatrix, THS-Panel, Brief-Dialog, Verlaufsfenster.
+
 ### 2026-09-15 — Release v0.8_20260915: Navigations-Fix, Audit-Parität im Grid, SmartButton, Hilfe
 
 - Released v0.8_20260915 to `main` (`bugfix/nav-back-loop`,
