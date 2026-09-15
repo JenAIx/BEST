@@ -50,9 +50,10 @@ export const useDatabaseStore = defineStore('database', () => {
 
         loggingStore.debug('DatabaseStore', 'Loading initial database data')
 
-        // Load initial data
+        // Load initial data. The 8-table row-count statistics are NOT loaded
+        // here any more — only DatabaseTest/Feedback show them and they call
+        // loadStatistics() / refreshDatabaseInfo() themselves.
         await loadMigrationStatus()
-        await loadStatistics()
 
         const duration = timer.end()
         loggingStore.success('DatabaseStore', 'Database initialized successfully', {
@@ -203,17 +204,22 @@ export const useDatabaseStore = defineStore('database', () => {
 
   // Resolve the current auth context for access-controlled queries
   // (dynamic import to avoid circular dependency with auth-store)
+  // FAIL CLOSED: never return null here — null means "system context, no
+  // filtering" to the repositories. No logged-in user or an auth-store error
+  // yields a context WITHOUT a user id, which the repositories turn into a
+  // deny-all predicate (see shared/utils/patient-access.js resolveAccessMode).
+  const DENY_ALL_ACCESS = Object.freeze({ userId: null, isAdmin: false })
   const resolveUserAccess = async () => {
     try {
       const { useAuthStore } = await import('./auth-store')
       const authStore = useAuthStore()
       const userId = authStore.currentUser?.USER_ID
-      if (userId === undefined || userId === null) return null
-      return { userId, isAdmin: authStore.isAdmin }
+      if (userId === undefined || userId === null) return DENY_ALL_ACCESS
+      return { userId, isAdmin: authStore.isAdmin === true }
     } catch (error) {
       const loggingStore = useLoggingStore()
-      loggingStore.warn('DatabaseStore', 'Could not resolve auth context for access control', error)
-      return null
+      loggingStore.warn('DatabaseStore', 'Could not resolve auth context for access control — denying access', error)
+      return DENY_ALL_ACCESS
     }
   }
 
@@ -291,30 +297,9 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const findPatients = async (criteria = {}) => {
-    // Get current user context for access control
-    let currentUserId = null
-    let isAdmin = false
-    
-    try {
-      const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      currentUserId = authStore.currentUser?.USER_ID
-      isAdmin = authStore.isAdmin
-    } catch (error) {
-      console.warn('Could not get auth context for patient query:', error)
-    }
-    
     const patientRepo = getPatientRepository()
-    
-    // Add user access control to criteria
-    const enhancedCriteria = {
-      ...criteria,
-      _userAccess: {
-        userId: currentUserId,
-        isAdmin: isAdmin,
-      },
-    }
-    
+    // Single source of the auth context (fail-closed, see resolveUserAccess)
+    const enhancedCriteria = { ...criteria, _userAccess: await resolveUserAccess() }
     return await patientRepo.findPatientsByCriteriaWithConcepts(enhancedCriteria)
   }
 
@@ -355,31 +340,40 @@ export const useDatabaseStore = defineStore('database', () => {
     return await patientRepo.getPatientStatistics()
   }
 
+  // Dashboard tiles — one access-filtered round trip
+  const getDashboardStatistics = async () => {
+    const userAccess = await resolveUserAccess()
+    return await getPatientRepository().getDashboardStatistics(userAccess, new Date().toISOString().slice(0, 10))
+  }
+
+  const getUpcomingVisits = async (limit = 5) => {
+    const userAccess = await resolveUserAccess()
+    const predicate = getPatientRepository().getAccessPredicate(userAccess, 'v.PATIENT_NUM')
+    return await getRepository('visit').getUpcomingVisits(limit, predicate)
+  }
+
+  // visitCount / lastVisitDate per patient for card lists (one GROUP BY)
+  const getVisitStatsForPatients = async (patientNums) => {
+    return await getRepository('visit').getVisitStatsForPatients(patientNums)
+  }
+
+  // Access-filtered batch lookup by code from the patient_list view (resolved
+  // codes, for card lists); the raw PATIENT_DIMENSION variant stays for the grid
+  const getAccessiblePatientsByCodes = async (patientCodes, { fromView = false } = {}) => {
+    const userAccess = await resolveUserAccess()
+    return await getPatientRepository().findAccessiblePatientsByCodes(patientCodes, userAccess, { fromView })
+  }
+
   const searchPatients = async (searchTerm) => {
-    // Get current user context for access control
-    let currentUserId = null
-    let isAdmin = false
-    
-    try {
-      const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      currentUserId = authStore.currentUser?.USER_ID
-      isAdmin = authStore.isAdmin
-    } catch (error) {
-      console.warn('Could not get auth context for patient search:', error)
-    }
-    
     const patientRepo = getPatientRepository()
-    
-    // Use the search method with user access control
-    const userAccess = currentUserId ? { userId: currentUserId, isAdmin: isAdmin } : null
-    return await patientRepo.searchPatientsWithConcepts(searchTerm, userAccess)
+    // fail-closed auth context (USER_ID 0 = public is a regular user)
+    return await patientRepo.searchPatientsWithConcepts(searchTerm, await resolveUserAccess())
   }
 
   const getPatientsPaginated = async (page = 1, pageSize = 20, criteria = {}) => {
     const userAccess = await resolveUserAccess()
     const patientRepo = getPatientRepository()
-    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, userAccess?.userId ?? null, userAccess?.isAdmin ?? false)
+    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, userAccess)
   }
 
   // Access-controlled single-patient lookup for UI paths (recent patients,
@@ -401,7 +395,7 @@ export const useDatabaseStore = defineStore('database', () => {
   // deletion, which keeps the stricter admin-or-creator rule.
   const assertOwnerOrAdmin = async (patientNum) => {
     const userAccess = await resolveUserAccess()
-    if (!userAccess) throw new Error('Not authenticated')
+    if (userAccess.userId === undefined || userAccess.userId === null) throw new Error('Not authenticated')
     if (userAccess.isAdmin) return
     const lookupRepo = getRepository('userPatientLookup')
     const accessMap = await lookupRepo.getPatientAccessInfo([patientNum])
@@ -1032,7 +1026,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
         // Group by patient and encounter
         const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
-        
+
         // If row doesn't exist (shouldn't happen, but handle gracefully)
         if (!patientVisitMap.has(key)) {
           // Find patient data
@@ -1169,6 +1163,10 @@ export const useDatabaseStore = defineStore('database', () => {
     updatePatient,
     deletePatient,
     getPatientStatistics,
+    getDashboardStatistics,
+    getUpcomingVisits,
+    getVisitStatsForPatients,
+    getAccessiblePatientsByCodes,
     searchPatients,
     getPatientsPaginated,
     getAccessiblePatientByCode,

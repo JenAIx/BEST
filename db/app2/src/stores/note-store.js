@@ -47,7 +47,10 @@ export const useNoteStore = defineStore('note', () => {
     return !blob.readAt
   }
 
-  const unreadMessagesCount = computed(() => messages.value.filter((m) => isUnreadMessage(m)).length)
+  // Badge count from the lightweight header query (refreshUnreadCount); the
+  // full message list, once loaded, is the exact source.
+  const unreadCount = ref(0)
+  const unreadMessagesCount = computed(() => (messages.value.length > 0 ? messages.value.filter((m) => isUnreadMessage(m)).length : unreadCount.value))
 
   const currentUserCd = () => authStore.currentUser?.USER_CD || null
 
@@ -280,7 +283,9 @@ export const useNoteStore = defineStore('note', () => {
   const refreshUnreadCount = async () => {
     if (!dbStore.canPerformOperations || !currentUserCd()) return
     try {
-      await loadMessages()
+      // headers of received messages only — not 100 full rows incl. NOTE_TEXT
+      const headers = await getRepo().getReceivedMessageHeaders(currentUserCd())
+      unreadCount.value = headers.filter((m) => isUnreadMessage(m)).length
     } catch {
       /* badge refresh is best-effort */
     }

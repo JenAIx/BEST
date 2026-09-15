@@ -100,7 +100,10 @@ const onOpenPluginEvent = (event) => {
 
 onMounted(() => {
   noteStore.refreshUnreadCount()
-  unreadTimer = setInterval(() => noteStore.refreshUnreadCount(), 60000)
+  // no DB polling while the window is hidden/minimised
+  unreadTimer = setInterval(() => {
+    if (typeof document === 'undefined' || !document.hidden) noteStore.refreshUnreadCount()
+  }, 60000)
   window.addEventListener('open-smart-plugin', onOpenPluginEvent)
 })
 

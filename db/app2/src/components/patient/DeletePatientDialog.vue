@@ -88,13 +88,15 @@ const onDeleteConfirmed = async () => {
     let dataDescription = ''
 
     if (visitRepo && observationRepo) {
-      const [visits, observations] = await Promise.all([
-        visitRepo.findByPatientNum(currentPatient.value.PATIENT_NUM),
-        observationRepo.findByPatientNum(currentPatient.value.PATIENT_NUM),
-      ])
-
-      const visitCount = visits?.length || 0
-      const observationCount = observations?.length || 0
+      // COUNTs only — findByPatientNum would ship every row incl. file blobs
+      const countResult = await dbStore.executeQuery(
+        `SELECT (SELECT COUNT(*) FROM VISIT_DIMENSION WHERE PATIENT_NUM = ?) AS visits,
+                (SELECT COUNT(*) FROM OBSERVATION_FACT WHERE PATIENT_NUM = ?) AS observations`,
+        [currentPatient.value.PATIENT_NUM, currentPatient.value.PATIENT_NUM],
+      )
+      const counts = (countResult.success && countResult.data[0]) || {}
+      const visitCount = Number(counts.visits) || 0
+      const observationCount = Number(counts.observations) || 0
 
       if (visitCount > 0 || observationCount > 0) {
         hasData = true

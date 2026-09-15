@@ -5,6 +5,7 @@
  */
 
 import BaseRepository from './base-repository.js'
+import { resolveAccessMode } from '../../../shared/utils/patient-access.js'
 
 class PatientRepository extends BaseRepository {
   constructor(connection) {
@@ -40,19 +41,114 @@ class PatientRepository extends BaseRepository {
    * patient query. A regular user sees a patient when USER_PATIENT_LOOKUP
    * links the patient to them OR to the public user (USER_ID = 0).
    *
-   * Returns null for admins or missing user context (no filtering). Otherwise
-   * returns the JOIN fragment (expects the patient table aliased as `p`), the
-   * WHERE condition, and its parameter.
+   * Returns null for admins or when NO context object is passed (system
+   * callers, no filtering). A context object WITHOUT a user id yields a
+   * deny-all filter (fail closed). USER_ID 0 (`public`) is a regular user.
+   * Otherwise returns the JOIN fragment (expects the patient table aliased
+   * as `p`), the WHERE condition, and its parameter.
    *
    * @param {{userId: number, isAdmin: boolean}|null} userAccess
    * @returns {{join: string, condition: string, param: number}|null}
    */
   getAccessFilter(userAccess) {
-    if (!userAccess || !userAccess.userId || userAccess.isAdmin) return null
+    const mode = resolveAccessMode(userAccess)
+    if (mode === 'unfiltered') return null
+    if (mode === 'deny') {
+      // Fail closed: a context object without a user id must see nothing.
+      return {
+        join: 'INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM',
+        condition: '(1 = 0 AND upl.USER_ID = ?)',
+        param: -1,
+      }
+    }
     return {
       join: 'INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM',
       condition: '(upl.USER_ID = ? OR upl.USER_ID = 0)',
       param: userAccess.userId,
+    }
+  }
+
+  /**
+   * Access predicate for an arbitrary PATIENT_NUM column (no JOIN needed) —
+   * for aggregate/COUNT queries on VISIT_DIMENSION, OBSERVATION_FACT etc.
+   * Same fail-closed semantics as getAccessFilter.
+   *
+   * @param {{userId: number|null, isAdmin: boolean}|null} userAccess
+   * @param {string} [patientNumExpr='PATIENT_NUM']
+   * @returns {{sql: string, params: Array}|null} null = no filtering
+   */
+  getAccessPredicate(userAccess, patientNumExpr = 'PATIENT_NUM') {
+    const mode = resolveAccessMode(userAccess)
+    if (mode === 'unfiltered') return null
+    if (mode === 'deny') return { sql: '1 = 0', params: [] }
+    return {
+      sql: `${patientNumExpr} IN (SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? OR USER_ID = 0)`,
+      params: [userAccess.userId],
+    }
+  }
+
+  /**
+   * Every dashboard counter in ONE round trip (scalar subqueries).
+   *
+   * All counters are access-filtered for regular users, so the tiles agree
+   * with the (filtered) patient list underneath them. `hiddenPatients` is the
+   * only unfiltered number: total minus accessible.
+   *
+   * Dates are compared as half-open text ranges (`>= day AND < nextDay`) —
+   * START_DATE ('YYYY-MM-DD') and UPDATE_DATE ('YYYY-MM-DD HH:MM:SS') are ISO
+   * text, so this stays index-friendly, unlike `DATE(col) = ?`.
+   *
+   * @param {{userId: number|null, isAdmin: boolean}|null} userAccess
+   * @param {string} todayIso - 'YYYY-MM-DD'
+   */
+  async getDashboardStatistics(userAccess, todayIso) {
+    const day = todayIso || new Date().toISOString().slice(0, 10)
+    const next = new Date(`${day}T00:00:00Z`)
+    next.setUTCDate(next.getUTCDate() + 1)
+    const nextDay = next.toISOString().slice(0, 10)
+
+    const access = this.getAccessPredicate(userAccess)
+    const params = []
+    const sub = (sql, subParams = []) => {
+      params.push(...subParams)
+      return `(${sql})`
+    }
+    const filtered = (base, extra = null, extraParams = []) => {
+      const clauses = [extra, access?.sql].filter(Boolean)
+      const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''
+      return sub(base + where, [...extraParams, ...(access?.params || [])])
+    }
+    const userId = userAccess?.userId
+    const hasUser = userId !== undefined && userId !== null
+
+    const sql = `SELECT
+      ${filtered(`SELECT COUNT(*) FROM ${this.tableName}`)} AS totalPatients,
+      ${filtered('SELECT COUNT(*) FROM VISIT_DIMENSION')} AS totalVisits,
+      ${filtered('SELECT COUNT(*) FROM OBSERVATION_FACT')} AS totalObservations,
+      ${filtered('SELECT COUNT(DISTINCT PATIENT_NUM) FROM VISIT_DIMENSION', 'START_DATE >= ? AND START_DATE < ?', [day, nextDay])} AS patientsSeenToday,
+      ${filtered('SELECT COUNT(*) FROM VISIT_DIMENSION', 'START_DATE >= ? AND START_DATE < ?', [day, nextDay])} AS visitsToday,
+      ${filtered('SELECT COUNT(*) FROM OBSERVATION_FACT', 'UPDATE_DATE >= ? AND UPDATE_DATE < ?', [day, nextDay])} AS observationsToday,
+      ${filtered('SELECT COUNT(*) FROM OBSERVATION_FACT', "VALUEFLAG_CD = 'AUDIT'")} AS openAudits,
+      ${hasUser ? sub(`SELECT COUNT(DISTINCT upl.PATIENT_NUM) FROM USER_PATIENT_LOOKUP upl JOIN ${this.tableName} p ON p.PATIENT_NUM = upl.PATIENT_NUM WHERE upl.USER_ID = ?`, [userId]) : '0'} AS myPatients,
+      ${sub(`SELECT COUNT(*) FROM ${this.tableName}`)} AS allPatients`
+
+    const result = await this.connection.executeQuery(sql, params)
+    const row = (result.success && result.data[0]) || {}
+    const n = (v) => Number(v) || 0
+    const totalPatients = n(row.totalPatients)
+    const allPatients = n(row.allPatients)
+    return {
+      totalPatients,
+      totalVisits: n(row.totalVisits),
+      totalObservations: n(row.totalObservations),
+      patientsSeenToday: n(row.patientsSeenToday),
+      visitsToday: n(row.visitsToday),
+      observationsToday: n(row.observationsToday),
+      openAudits: n(row.openAudits),
+      myPatients: n(row.myPatients),
+      // accessible vs. hidden — identical to total for admins (nothing hidden)
+      visiblePatients: totalPatients,
+      hiddenPatients: Math.max(0, allPatients - totalPatients),
     }
   }
 
@@ -85,15 +181,18 @@ class PatientRepository extends BaseRepository {
    *
    * @param {string[]} patientCodes
    * @param {{userId: number, isAdmin: boolean}|null} userAccess
+   * @param {{fromView?: boolean}} [options] - fromView: read from patient_list
+   *   (resolved SEX/STATUS labels, computed age) instead of the raw table
    * @returns {Promise<Array>}
    */
-  async findAccessiblePatientsByCodes(patientCodes, userAccess = null) {
+  async findAccessiblePatientsByCodes(patientCodes, userAccess = null, { fromView = false } = {}) {
     if (!Array.isArray(patientCodes) || patientCodes.length === 0) return []
     const placeholders = patientCodes.map(() => '?').join(',')
     const access = this.getAccessFilter(userAccess)
+    const source = fromView ? this.viewName : this.tableName
     const sql = access
-      ? `SELECT DISTINCT p.* FROM ${this.tableName} p ${access.join} WHERE p.PATIENT_CD IN (${placeholders}) AND ${access.condition}`
-      : `SELECT * FROM ${this.tableName} WHERE PATIENT_CD IN (${placeholders})`
+      ? `SELECT DISTINCT p.* FROM ${source} p ${access.join} WHERE p.PATIENT_CD IN (${placeholders}) AND ${access.condition}`
+      : `SELECT * FROM ${source} WHERE PATIENT_CD IN (${placeholders})`
     const params = access ? [...patientCodes, access.param] : patientCodes
     const result = await this.connection.executeQuery(sql, params)
     return result.success ? result.data : []
@@ -250,7 +349,7 @@ class PatientRepository extends BaseRepository {
    */
   async findPatientsByCriteriaWithConcepts(criteria) {
     const searchCriteria = {}
-    
+
     // Preserve user access control
     if (criteria._userAccess) {
       searchCriteria._userAccess = criteria._userAccess
@@ -323,14 +422,18 @@ class PatientRepository extends BaseRepository {
 
     // Handle searchTerm with view-based search
     if (criteria.searchTerm) {
-      // Pass user access control to search
-      const searchResults = await this.searchPatientsWithConcepts(criteria.searchTerm, criteria._userAccess)
-      // Apply additional filters to search results if any other criteria exist
       const otherCriteria = { ...searchCriteria }
       delete otherCriteria._userAccess // Don't include _userAccess in filter logic
-      
-      if (Object.keys(otherCriteria).length > 0) {
-        return searchResults.filter((patient) => {
+      const hasOtherCriteria = Object.keys(otherCriteria).length > 0
+      const limit = criteria.options?.limit
+      const offset = criteria.options?.offset || 0
+
+      // Plain text search: page in SQL. With extra criteria the filters run in
+      // JS, so fetch the full match list and slice afterwards.
+      const searchResults = await this.searchPatientsWithConcepts(criteria.searchTerm, criteria._userAccess, hasOtherCriteria ? {} : { limit, offset })
+
+      if (hasOtherCriteria) {
+        const filtered = searchResults.filter((patient) => {
           // Apply filters to search results
           // Filter by patient numbers (for study enrollment)
           if (otherCriteria.PATIENT_NUM && otherCriteria.PATIENT_NUM.operator === 'IN') {
@@ -347,6 +450,7 @@ class PatientRepository extends BaseRepository {
           if (otherCriteria.STATECITYZIP_PATH && !patient.STATECITYZIP_PATH?.includes(otherCriteria.STATECITYZIP_PATH)) return false
           return true
         })
+        return Number.isInteger(limit) && limit > 0 ? filtered.slice(offset, offset + limit) : filtered
       }
       return searchResults
     }
@@ -356,54 +460,58 @@ class PatientRepository extends BaseRepository {
   }
 
   /**
+   * WHERE fragment shared by the text search and its COUNT.
+   *
+   * Targets: PATIENT_CD, PATIENT_BLOB (the only name carrier) and
+   * STATECITYZIP_PATH. The former six `*_RESOLVED LIKE ?` targets were dropped
+   * (Sept 2026): "male"/"alive"/"German" matched almost every patient and each
+   * one was an unindexable leading-wildcard scan over the view.
+   *
+   * @returns {{from: string, where: string, params: Array}} — expects the view
+   *   aliased as `p` (both the access JOIN and the criteria use that alias)
+   */
+  _buildSearchQuery(searchTerm, userAccess) {
+    const searchPattern = `%${searchTerm}%`
+    const access = this.getAccessFilter(userAccess)
+    const from = `FROM ${this.viewName} p${access ? `\n        ${access.join}` : ''}`
+    const textMatch = '(p.PATIENT_CD LIKE ? OR p.PATIENT_BLOB LIKE ? OR p.STATECITYZIP_PATH LIKE ?)'
+    const where = access ? `WHERE ${access.condition} AND ${textMatch}` : `WHERE ${textMatch}`
+    const params = access ? [access.param, searchPattern, searchPattern, searchPattern] : [searchPattern, searchPattern, searchPattern]
+    return { from, where, params, distinct: !!access }
+  }
+
+  /**
    * Search patients with resolved concepts by text (name, code, location)
    * @param {string} searchTerm - Search term
    * @param {Object} userAccess - User access control (optional)
+   * @param {{limit?: number, offset?: number}} [options] - page window; without
+   *   a limit the full match list is returned (callers that post-filter in JS)
    * @returns {Promise<Array>} - Array of matching patients with resolved concepts
    */
-  async searchPatientsWithConcepts(searchTerm, userAccess = null) {
-    const searchPattern = `%${searchTerm}%`
-    let sql
-    let params
-    const access = this.getAccessFilter(userAccess)
-
-    if (access) {
-      sql = `
-        SELECT DISTINCT p.* FROM ${this.viewName} p
-        ${access.join}
-        WHERE ${access.condition}
-          AND (p.PATIENT_CD LIKE ?
-             OR p.PATIENT_BLOB LIKE ?
-             OR p.STATECITYZIP_PATH LIKE ?
-             OR p.SEX_RESOLVED LIKE ?
-             OR p.VITAL_STATUS_RESOLVED LIKE ?
-             OR p.LANGUAGE_RESOLVED LIKE ?
-             OR p.RACE_RESOLVED LIKE ?
-             OR p.MARITAL_STATUS_RESOLVED LIKE ?
-             OR p.RELIGION_RESOLVED LIKE ?)
-        ORDER BY p.PATIENT_CD
-      `
-      params = [access.param, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern]
-    } else {
-      // Admin or no user context - show all
-      sql = `
-        SELECT * FROM ${this.viewName}
-        WHERE PATIENT_CD LIKE ?
-           OR PATIENT_BLOB LIKE ?
-           OR STATECITYZIP_PATH LIKE ?
-           OR SEX_RESOLVED LIKE ?
-           OR VITAL_STATUS_RESOLVED LIKE ?
-           OR LANGUAGE_RESOLVED LIKE ?
-           OR RACE_RESOLVED LIKE ?
-           OR MARITAL_STATUS_RESOLVED LIKE ?
-           OR RELIGION_RESOLVED LIKE ?
-        ORDER BY PATIENT_CD
-      `
-      params = [searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern, searchPattern]
+  async searchPatientsWithConcepts(searchTerm, userAccess = null, options = {}) {
+    const { from, where, params, distinct } = this._buildSearchQuery(searchTerm, userAccess)
+    let sql = `
+        SELECT ${distinct ? 'DISTINCT ' : ''}p.*
+        ${from}
+        ${where}
+        ORDER BY p.PATIENT_CD`
+    const queryParams = [...params]
+    if (Number.isInteger(options.limit) && options.limit > 0) {
+      sql += '\n        LIMIT ? OFFSET ?'
+      queryParams.push(options.limit, Number.isInteger(options.offset) && options.offset > 0 ? options.offset : 0)
     }
-    
-    const result = await this.connection.executeQuery(sql, params)
+
+    const result = await this.connection.executeQuery(sql, queryParams)
     return result.success ? result.data : []
+  }
+
+  /**
+   * COUNT for the text search — same WHERE as searchPatientsWithConcepts, no rows.
+   */
+  async countSearchPatientsWithConcepts(searchTerm, userAccess = null) {
+    const { from, where, params } = this._buildSearchQuery(searchTerm, userAccess)
+    const result = await this.connection.executeQuery(`SELECT COUNT(DISTINCT p.PATIENT_NUM) as count ${from} ${where}`, params)
+    return result.success ? result.data[0]?.count || 0 : 0
   }
 
   /**
@@ -415,7 +523,7 @@ class PatientRepository extends BaseRepository {
   async findByCriteriaFromView(searchCriteria, options = {}) {
     const conditions = []
     const params = []
-    
+
     // Extract user access control (if present)
     const userAccess = searchCriteria._userAccess
     delete searchCriteria._userAccess // Remove from actual search criteria
@@ -443,7 +551,7 @@ class PatientRepository extends BaseRepository {
     for (const [field, value] of Object.entries(searchCriteria)) {
       if (value !== undefined && value !== null) {
         const fieldName = tableAlias ? `${tableAlias}${field}` : field
-        
+
         if (typeof value === 'object' && value.operator) {
           // Handle special operators like BETWEEN, IN, etc.
           if (value.operator === 'BETWEEN' && Array.isArray(value.value) && value.value.length === 2) {
@@ -618,11 +726,11 @@ class PatientRepository extends BaseRepository {
    * @param {number} page - Page number (1-based)
    * @param {number} pageSize - Page size
    * @param {Object} criteria - Search criteria
-   * @param {number|null} currentUserId - Current user ID for access control
-   * @param {boolean} isAdmin - Whether current user is admin
+   * @param {{userId: number|null, isAdmin: boolean}|null} userAccess - auth
+   *   context; null = system caller (unfiltered), see getAccessFilter
    * @returns {Promise<Object>} - Paginated results with metadata
    */
-  async getPatientsPaginated(page = 1, pageSize = 20, criteria = {}, currentUserId = null, isAdmin = false) {
+  async getPatientsPaginated(page = 1, pageSize = 20, criteria = {}, userAccess = null) {
     const offset = (page - 1) * pageSize
 
     // Merge pagination options with any existing options
@@ -638,13 +746,19 @@ class PatientRepository extends BaseRepository {
     const enhancedCriteria = {
       ...criteria,
       options: mergedOptions,
-      _userAccess: {
-        userId: currentUserId,
-        isAdmin: isAdmin,
-      },
+      _userAccess: userAccess,
     }
 
     const patients = await this.findPatientsByCriteriaWithConcepts(enhancedCriteria)
+
+    // Callers that only render the first page (dashboard, SmartSearch, recents)
+    // pass options.skipCount — the COUNT over the view is then not run at all.
+    if (mergedOptions.skipCount === true) {
+      return {
+        patients,
+        pagination: { currentPage: page, pageSize, totalCount: null, totalPages: null, hasNextPage: null, hasPreviousPage: page > 1 },
+      }
+    }
 
     // Filter out options from criteria for count query
     const countCriteria = { ...criteria, _userAccess: enhancedCriteria._userAccess }
@@ -674,7 +788,7 @@ class PatientRepository extends BaseRepository {
     // Extract user access control
     const userAccess = criteria._userAccess
     delete criteria._userAccess
-    
+
     // Convert criteria to searchCriteria format (same as findPatientsByCriteriaWithConcepts)
     const searchCriteria = {}
 
@@ -743,9 +857,8 @@ class PatientRepository extends BaseRepository {
 
         return filteredResults.length
       } else {
-        // Simple search count — access-filtered so it matches the result list
-        const searchResults = await this.searchPatientsWithConcepts(criteria.searchTerm, userAccess)
-        return searchResults.length
+        // Simple search count — same WHERE as the result list, but COUNT only
+        return await this.countSearchPatientsWithConcepts(criteria.searchTerm, userAccess)
       }
     }
 

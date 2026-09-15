@@ -333,6 +333,49 @@ class VisitRepository extends BaseRepository {
   }
 
   /**
+   * Visit count + last visit date for many patients in ONE query
+   * (replaces the per-card `findByPatientNum` N+1 in the patient lists).
+   * @param {number[]} patientNums
+   * @returns {Promise<Map<number, {visitCount: number, lastVisitDate: string|null}>>}
+   */
+  async getVisitStatsForPatients(patientNums) {
+    const nums = [...new Set((patientNums || []).filter((n) => n != null))]
+    const map = new Map()
+    if (!nums.length) return map
+    const sql = `
+      SELECT PATIENT_NUM, COUNT(*) AS visitCount, MAX(START_DATE) AS lastVisitDate
+      FROM ${this.tableName}
+      WHERE PATIENT_NUM IN (${nums.map(() => '?').join(',')})
+      GROUP BY PATIENT_NUM
+    `
+    const result = await this.connection.executeQuery(sql, nums)
+    for (const row of result.success ? result.data : []) {
+      map.set(row.PATIENT_NUM, { visitCount: row.visitCount || 0, lastVisitDate: row.lastVisitDate || null })
+    }
+    return map
+  }
+
+  /**
+   * Planned visits with a future START_DATE (dashboard reminders).
+   * @param {number} limit
+   * @param {{sql: string, params: Array}|null} accessPredicate - from
+   *   PatientRepository.getAccessPredicate(userAccess, 'v.PATIENT_NUM')
+   */
+  async getUpcomingVisits(limit = 5, accessPredicate = null) {
+    const today = new Date().toISOString().slice(0, 10)
+    const sql = `
+      SELECT v.ENCOUNTER_NUM, v.START_DATE, p.PATIENT_CD
+      FROM ${this.tableName} v
+      JOIN PATIENT_DIMENSION p ON p.PATIENT_NUM = v.PATIENT_NUM
+      WHERE v.START_DATE > ?${accessPredicate ? ` AND ${accessPredicate.sql}` : ''}
+      ORDER BY v.START_DATE ASC
+      LIMIT ?
+    `
+    const result = await this.connection.executeQuery(sql, [today, ...(accessPredicate?.params || []), limit])
+    return result.success ? result.data : []
+  }
+
+  /**
    * Get visit timeline for a patient
    * @param {number} patientNum - Patient number
    * @returns {Promise<Array>} - Array of visits ordered by date

@@ -534,11 +534,15 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
      * @returns {Promise<Array>} Array of selection options
      */
     async getSelectionOptions(conceptCode) {
-      if (!this.optionsLoader) {
+      if (!this.optionsLoader || !this.cacheManager) {
         await this.initialize()
       }
 
-      return await this.optionsLoader.getSelectionOptions(conceptCode)
+      // Cached like getFindingOptions — this used to hit the DB with 2–3
+      // queries per S-type field on EVERY editor mount / grid cell open.
+      return await this.cacheManager.getOrSet(`${conceptCode}_selection_options`, async () => await this.optionsLoader.getSelectionOptions(conceptCode), {
+        tags: ['selection_options', conceptCode],
+      })
     },
 
     /**

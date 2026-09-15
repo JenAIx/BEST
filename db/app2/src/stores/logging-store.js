@@ -43,6 +43,12 @@ export const useLoggingStore = defineStore('logging', () => {
 
   const setLogLevel = (level) => {
     loggingService.logLevel = loggingService.levels[level] || loggingService.levels.INFO
+    try {
+      // persist so a support engineer can switch to DEBUG in a packaged build
+      globalThis.localStorage?.setItem('BEST_LOG_LEVEL', loggingService.levels[level] !== undefined ? level : 'INFO')
+    } catch {
+      /* storage unavailable */
+    }
     currentLogLevel.value = level
     loggingService.info('LoggingStore', `Log level changed to ${level}`)
   }

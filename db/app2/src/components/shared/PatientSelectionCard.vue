@@ -154,6 +154,7 @@ const searchPatients = async () => {
       criteria.patientNums = Array.from(mine)
     }
 
+    criteria.options = { ...(criteria.options || {}), skipCount: true }
     const result = await dbStore.getPatientsPaginated(1, 10, criteria)
     const rows = result.patients || []
     const accessMap = await dbStore.getPatientAccessInfo(rows.map((p) => p.PATIENT_NUM))

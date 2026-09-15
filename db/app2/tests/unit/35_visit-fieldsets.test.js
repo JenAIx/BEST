@@ -78,8 +78,9 @@ describe('useVisitFieldSets', () => {
 
     await fs.activateFieldSetsForVisitType({ id: 1, visitType: 'stroke_lipid_v1' })
 
-    expect(clearCacheMock).toHaveBeenCalled()
-    expect(getFieldSetsForVisitTypeMock).toHaveBeenCalledWith('stroke_lipid_v1', true)
+    // cached lookup: no global cache wipe, no forced refresh on every editor mount
+    expect(clearCacheMock).not.toHaveBeenCalled()
+    expect(getFieldSetsForVisitTypeMock).toHaveBeenCalledWith('stroke_lipid_v1')
     expect(fs.activeFieldSets.value).toEqual(['lipid_labor', 'lipid_drugs']) // unknown dropped
     expect(setSettingMock).toHaveBeenCalledWith('visits.activeFieldSets', ['lipid_labor', 'lipid_drugs'])
   })
@@ -93,7 +94,7 @@ describe('useVisitFieldSets', () => {
       rawData: { VISIT_BLOB: JSON.stringify({ visitType: 'stroke_lipid_v0' }) },
     })
 
-    expect(getFieldSetsForVisitTypeMock).toHaveBeenCalledWith('stroke_lipid_v0', true)
+    expect(getFieldSetsForVisitTypeMock).toHaveBeenCalledWith('stroke_lipid_v0')
     expect(fs.activeFieldSets.value).toEqual(['vitals'])
   })
 

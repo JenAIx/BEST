@@ -67,12 +67,18 @@ class LoggingService {
     let envLevel = 'INFO'
 
     try {
+      // Explicit override (settings UI / support): survives restarts
+      const override = this.getStoredLogLevelOverride()
+      if (override) return this.levels[override]
+
       // Try to access process.env (available in Node.js/Electron main process)
       if (typeof process !== 'undefined' && process.env && process.env.NODE_ENV) {
         envLevel = process.env.NODE_ENV === 'development' ? 'DEBUG' : 'INFO'
       } else if (typeof window !== 'undefined' && window.location) {
-        // Browser/Electron renderer fallback - check for development indicators
-        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port !== '' || window.location.protocol === 'file:'
+        // Browser/Electron renderer fallback - check for development indicators.
+        // NOTE: the packaged Electron app loads via file:// — that is
+        // production, not development (it used to log every SQL statement).
+        const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.port !== ''
         envLevel = isDevelopment ? 'DEBUG' : 'INFO'
       } else {
         // Default fallback for other environments (like tests)
@@ -84,6 +90,18 @@ class LoggingService {
     }
 
     return this.levels[envLevel] || this.levels.INFO
+  }
+
+  /** localStorage override key (set by logging-store.setLogLevel). */
+  static LOG_LEVEL_STORAGE_KEY = 'BEST_LOG_LEVEL'
+
+  getStoredLogLevelOverride() {
+    try {
+      const v = globalThis.localStorage?.getItem(LoggingService.LOG_LEVEL_STORAGE_KEY)
+      return v && this.levels[v] !== undefined ? v : null
+    } catch {
+      return null
+    }
   }
 
   /**

@@ -75,8 +75,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: unit 48 (LEDD), 49 (Medikations-Diff), 50 (Vorlagen-Logik),
     53 (Consult-Store); integration 17 (Migration 017), 18 (Repositories).
 
+### Changed
+
+- **Query-Performance (Audit Sept 2026, Phase 2, `features/perf-queries`)**:
+  - **Migration 018 `patient_list`**: die Alters-Subquery (`ROW_NUMBER()` +
+    fünf `LIKE '%…%'` über ganz OBSERVATION_FACT) wurde bei JEDER Abfrage der
+    View materialisiert — auch bei `WHERE PATIENT_CD = ?` und `COUNT(*)` — und
+    wuchs mit der Zahl der Observations. Jetzt korrelierte Skalar-Subquery auf
+    das exakte Konzept `LID: 63900-5` (Index-Seek, bei COUNT weggeprunt),
+    trailing `ORDER BY` entfernt. Neue Indizes `idx_observation_valueflag`
+    (partial, Audit-Zähler) und `idx_patient_recent` (Dashboard-Sortierung).
+    Messung (better-sqlite3, 22 k Observations): COUNT 2,6 → 0,08 ms,
+    „Zuletzt bearbeitet“-Top-5 2,8 → 0,04 ms, Audit-COUNT Full-Scan → Index.
+  - **Dashboard**: alle Kacheln in EINER Abfrage
+    (`PatientRepository.getDashboardStatistics`, Skalar-Subqueries, ~6 ms)
+    statt ~15 Roundtrips in 9 sequentiellen Stufen; drei nie gerenderte
+    Patientenstatistiken, der doppelte Patienten-COUNT und der ungenutzte
+    Pagination-COUNT entfallen. Datumsfilter als indexfähige Bereiche
+    (`>= Tag AND < Folgetag`) statt `DATE(x) = ?`. Anstehende Visiten über
+    `dbStore.getUpcomingVisits`. Die 8 Tabellen-COUNTs beim Login
+    (`getDatabaseStatistics`) laufen nicht mehr bei jedem Start, sondern nur
+    auf Anforderung (DatabaseTest/Feedback) — und dort als eine Abfrage.
+  - **SmartSearch** (auf jeder Seite, pro Tastendruck): `LIMIT/OFFSET` im
+    SQL statt Vollliste, `COUNT(DISTINCT)` statt Zweitsuche für `.length`,
+    drei statt neun `LIKE`-Ziele (die `*_RESOLVED`-Spalten „male“/„alive“
+    matchten fast jeden). Doppelte Suche für den bereits angezeigten Begriff
+    entfällt. `getPatientsPaginated` kann den COUNT über die View per
+    `options.skipCount` auslassen (Dashboard, SmartSearch, Recents,
+    Suchliste, PatientSelectionCard).
+  - **/visits Patientenliste**: Visitenzahl + letzte Visite kommen aus EINER
+    `GROUP BY`-Abfrage (`getVisitStatsForPatients`) statt zwei
+    `SELECT * FROM VISIT_DIMENSION` pro Karte (25 Karten: 52 → 3 Queries);
+    Recents als ein Batch (`getAccessiblePatientsByCodes({fromView})`); der
+    Filter-Watcher ist entprellt (Alters-Slider feuerte pro Drag-Tick).
+  - **Visiten-Zeitlinie**: `getSelectionOptions` läuft über den
+    Konzept-Cache (vorher 2–3 Queries pro S-Feld bei jedem Editor-Mount);
+    der 5-Minuten-Lookup-Cache im Global-Settings-Store greift jetzt
+    wirklich (`lastRefresh` wurde nur von `loadColumnTypes` gesetzt) und
+    `useVisitFieldSets` leert ihn nicht mehr bei jedem Mount;
+    Kommentar-Badges laden eine `GROUP BY`-Zählung statt des unbegrenzten
+    Patienten-Audit-Trails; `openAuditCountFor` ist eine einmal berechnete
+    Map statt Filter pro Karte pro Render; Reloads nach Create/Update/Delete
+    laufen parallel; `LIMIT 1000` in `loadAllObservationsForPatient`
+    (stille Abschneidung) entfernt.
+  - **Blobs**: `ObservationRepository.updateObservation` macht keinen
+    `SELECT *` (inkl. OBSERVATION_BLOB) mehr vor jedem UPDATE;
+    `DeletePatientDialog` zählt per COUNT statt alle Zeilen inkl. Datei-Blobs
+    zu laden; Unread-Badge lädt nur Header empfangener Nachrichten
+    (`getReceivedMessageHeaders`) statt 100 Volltext-Zeilen, und pausiert
+    bei verstecktem Fenster.
+  - **Logging**: `file://` (gepackte Electron-App) gilt nicht mehr als
+    Entwicklung — vorher wurde in Produktion jedes SQL-Statement geloggt.
+    Override per `localStorage.BEST_LOG_LEVEL` (`logging-store.setLogLevel`
+    persistiert).
+
 ### Fixed
 
+- **Zugriffsfilter fail-closed — der Public-User (USER_ID 0) sah ALLE
+  Patienten**: `getAccessFilter` prüfte `!userAccess.userId`, und 0 ist
+  falsy; dasselbe Muster in sechs Study-Repository-Methoden. Neue gemeinsame
+  Semantik `resolveAccessMode` (`shared/utils/patient-access.js`): kein
+  Kontext = System-Aufruf (ungefiltert), Kontext ohne User = deny-all
+  (`1 = 0`), sonst Filter. `resolveUserAccess` liefert nie mehr `null`;
+  `searchPatients`/`findPatients`/`getPatientsPaginated` nutzen denselben
+  Kontext; `PatientSelector` geht über den Store-Wrapper statt direkt ans
+  Repo. Dashboard-Zähler sind jetzt für normale Nutzer ebenfalls gefiltert
+  (Kachel und Liste darunter zeigten unterschiedliche Grundmengen).
+- **Angezeigtes Alter**: `patient_list` nahm über `LIKE '%age%'` auch
+  „Age at stroke event“ als Alter — Stroke-Lipid-Patienten zeigten das Alter
+  beim Ereignis statt `AGE_IN_YEARS` (Migration 018).
 - **Fragebögen Schwab & England, WOQ-9, RBD-SQ, Bain-Tremor schrieben keinen
   Score** — ihre Ergebniscodes waren unpräfixiert bzw. zeigten auf nicht
   existierende Konzepte. JSONs korrigiert, Konzepte geseedet, Migration 017

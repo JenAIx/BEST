@@ -80,6 +80,25 @@ class ObservationAuditRepository extends BaseRepository {
     return map
   }
 
+  /**
+   * Comment counts for every observation of a patient — the tile badges need
+   * nothing more, so the timeline loads this instead of the whole trail.
+   * @returns {Promise<Map<number, number>>}
+   */
+  async getCommentCountsForPatient(patientNum) {
+    const map = new Map()
+    if (patientNum == null) return map
+    const rows = await this._query(
+      `SELECT OBSERVATION_ID, COUNT(*) AS n
+         FROM OBSERVATION_AUDIT_FACT
+        WHERE PATIENT_NUM = ? AND COMMENT_TEXT IS NOT NULL
+        GROUP BY OBSERVATION_ID`,
+      [patientNum],
+    )
+    for (const r of rows) map.set(r.OBSERVATION_ID, r.n || 0)
+    return map
+  }
+
   /** Delete one comment event (the store enforces "own comment or admin"). */
   async deleteEvent(auditId) {
     const result = await this.connection.executeCommand('DELETE FROM OBSERVATION_AUDIT_FACT WHERE AUDIT_ID = ? AND EVENT_CD = ?', [auditId, AUDIT_EVENT_COMMENT])
