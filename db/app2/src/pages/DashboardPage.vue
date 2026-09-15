@@ -314,6 +314,7 @@ const loadRecentPatients = async () => {
       options: {
         orderBy: 'UPDATE_DATE_WITH_FALLBACK',
         orderDirection: 'DESC',
+        skipCount: true, // first page only — no COUNT over the view
       },
     })
 

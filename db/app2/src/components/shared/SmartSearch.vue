@@ -180,8 +180,14 @@ const onEnterSearch = () => {
   }
 }
 
+let lastSearchedTerm = null
+
 const performSearch = async () => {
-  if (!searchQuery.value.trim()) return
+  const term = searchQuery.value.trim()
+  if (!term) return
+  // the debounced watcher can fire for a value that is already on screen
+  if (term === lastSearchedTerm && searchResults.value.length > 0) return
+  lastSearchedTerm = term
 
   isSearching.value = true
   try {
@@ -191,6 +197,7 @@ const performSearch = async () => {
       options: {
         orderBy: 'PATIENT_CD',
         orderDirection: 'ASC',
+        skipCount: true, // top 10 only — the total is never shown
       },
     }
 

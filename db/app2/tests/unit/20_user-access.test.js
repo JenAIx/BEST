@@ -154,7 +154,40 @@ describe('PatientRepository.searchPatientsWithConcepts (access)', () => {
     expect(sql).toContain('INNER JOIN USER_PATIENT_LOOKUP')
     expect(sql).toContain('(upl.USER_ID = ? OR upl.USER_ID = 0)')
     expect(params[0]).toBe(3)
-    expect(params).toHaveLength(10)
+    expect(params).toHaveLength(4) // access + PATIENT_CD / PATIENT_BLOB / STATECITYZIP_PATH
+    expect(sql).not.toContain('SEX_RESOLVED LIKE')
+  })
+
+  it('pages in SQL when a limit is given and counts without fetching rows', async () => {
+    const connection = makeConnection()
+    connection.executeQuery.mockResolvedValue({ success: true, data: [{ count: 7 }] })
+    const repo = new PatientRepository(connection)
+
+    await repo.searchPatientsWithConcepts('abc', { userId: 3, isAdmin: false }, { limit: 10, offset: 20 })
+    const [sql, params] = connection.executeQuery.mock.calls[0]
+    expect(sql).toMatch(/LIMIT \? OFFSET \?/)
+    expect(params.slice(-2)).toEqual([10, 20])
+
+    const count = await repo.countSearchPatientsWithConcepts('abc', { userId: 3, isAdmin: false })
+    const [countSql] = connection.executeQuery.mock.calls[1]
+    expect(countSql).toMatch(/SELECT COUNT\(DISTINCT p\.PATIENT_NUM\)/)
+    expect(countSql).toContain('INNER JOIN USER_PATIENT_LOOKUP')
+    expect(count).toBe(7)
+  })
+
+  it('getPatientsPaginated skips the COUNT query with options.skipCount', async () => {
+    const connection = makeConnection()
+    const repo = new PatientRepository(connection)
+
+    const result = await repo.getPatientsPaginated(1, 5, { options: { skipCount: true } }, { userId: 3, isAdmin: false })
+    expect(connection.executeQuery).toHaveBeenCalledTimes(1)
+    expect(result.pagination.totalCount).toBeNull()
+
+    await repo.getPatientsPaginated(1, 10, { searchTerm: 'x', options: { skipCount: true } }, { userId: 3, isAdmin: false })
+    expect(connection.executeQuery).toHaveBeenCalledTimes(2)
+    const [searchSql, searchParams] = connection.executeQuery.mock.calls[1]
+    expect(searchSql).toMatch(/LIMIT \? OFFSET \?/)
+    expect(searchParams.slice(-2)).toEqual([10, 0])
   })
 })
 

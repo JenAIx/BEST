@@ -212,6 +212,7 @@ const loadLatestAddedPatients = async () => {
     options: {
       orderBy: 'IMPORT_DATE',
       orderDirection: 'DESC',
+      skipCount: true,
     },
   })
   const patients = result.patients || []
@@ -335,6 +336,7 @@ const runSearch = async () => {
     if (patientNumFilter && patientNumFilter.size > 0) {
       criteria.patientNums = Array.from(patientNumFilter)
     }
+    criteria.options = { skipCount: true } // result list only, no total shown
 
     const result = await dbStore.getPatientsPaginated(1, 25, criteria)
 
