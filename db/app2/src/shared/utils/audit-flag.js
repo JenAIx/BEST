@@ -63,3 +63,69 @@ export function auditActionsFor(flag) {
   if (flag === FLAG_AUDIT || flag === FLAG_CONFIRMED) actions.push({ action: 'clear', flag: null })
   return actions
 }
+
+/**
+ * A write hit ZERO rows: the observation was deleted (or, once optimistic
+ * locking lands, changed) by another user since this grid loaded it.
+ */
+export class StaleObservationError extends Error {
+  constructor(observationId, message) {
+    super(message || `Observation ${observationId} no longer exists or was changed by another user`)
+    this.name = 'StaleObservationError'
+    this.code = 'STALE_OBSERVATION'
+    this.observationId = observationId
+  }
+}
+
+/**
+ * Every UPDATE/DELETE must go through `executeCommand` (never `executeQuery`,
+ * whose `db.all` path returns no changes-count and reports success for a
+ * write that hit nothing). This turns `{success, changes}` into exceptions.
+ */
+export function assertRowChanged(result, observationId) {
+  if (!result || result.success === false) throw new Error(result?.error || 'Database write failed')
+  if (typeof result.changes === 'number' && result.changes === 0) throw new StaleObservationError(observationId)
+  return result
+}
+
+/**
+ * The single UPDATE statement behind every grid VALUE write (EditableCell,
+ * undo/redo, fill-down). Param order is fixed — tests assert on it:
+ * value columns, [VALUEFLAG_CD], PROVIDER_ID, OBSERVATION_ID.
+ *
+ * @param {Object} o
+ * @param {string} o.valueType   VALTYPE_CD of the concept
+ * @param {*} o.value            number/string; ''/null/undefined → NULL
+ * @param {string|null|undefined} o.flag  new VALUEFLAG_CD; `undefined` = leave
+ *   the flag column untouched (undo/redo), `null` = clear, 'NV' = no value
+ * @param {string|null} o.providerId
+ * @param {number} o.observationId
+ * @param {number|null} [o.expectedVersion]  reserved for optimistic locking
+ *   (adds `AND VERSION = ?` once OBSERVATION_FACT.VERSION exists)
+ * @returns {{sql: string, params: Array}}
+ */
+export function buildValueUpdateStatement({ valueType, value, flag, providerId, observationId, expectedVersion = null }) {
+  const isEmpty = value === null || value === undefined || value === ''
+  const sets = []
+  const params = []
+  if (valueType === 'N') {
+    sets.push('NVAL_NUM = ?', 'TVAL_CHAR = ?')
+    params.push(isEmpty ? null : Number(value), null)
+  } else {
+    sets.push('TVAL_CHAR = ?', 'NVAL_NUM = ?')
+    params.push(isEmpty ? null : String(value), null)
+  }
+  if (flag !== undefined) {
+    sets.push('VALUEFLAG_CD = ?')
+    params.push(flag)
+  }
+  sets.push('PROVIDER_ID = ?')
+  params.push(providerId)
+  let where = 'WHERE OBSERVATION_ID = ?'
+  params.push(observationId)
+  if (expectedVersion !== null && expectedVersion !== undefined) {
+    where += ' AND VERSION = ?'
+    params.push(expectedVersion)
+  }
+  return { sql: `UPDATE OBSERVATION_FACT SET ${sets.join(', ')}, UPDATE_DATE = CURRENT_TIMESTAMP ${where}`, params }
+}

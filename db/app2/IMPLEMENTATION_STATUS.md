@@ -5,6 +5,17 @@
 
 ## Recent Milestones
 
+### 2026-09-15 — UI-/Daten-Audit, Phase 3: Datentabellen-Editor Korrektheit + Reaktivität (`features/grid-consistency`)
+
+- Ein Grid-Schreibpfad (`data-grid-store.writeObservation`), alle Writes über
+  `executeCommand` mit `changes`-Prüfung → `StaleObservationError` + `reloadRow`
+  statt „Erfolg“ auf gelöschten Zeilen; erst speichern, dann spiegeln.
+- Refresh ohne Merge mit altem Zustand; `0` ist ein Wert; S/F-Klick ohne
+  Änderung schreibt nichts mehr (löschte Audit-Flags); ungültige Zahlen abgelehnt.
+- Statistik/Filter über `toRaw` + `statsVersion`; hiddenVisits im Store;
+  Medikamenten-Zähler aus dem Load statt Query pro Zelle; IN-Listen gechunkt.
+- Details: CHANGELOG `[Unreleased]` → Changed, CLAUDE.md §3 „Grid writes“.
+
 ### 2026-09-15 — UI-/Daten-Audit, Phase 2: Query-Performance + Zugriffsfilter (`features/perf-queries`)
 
 - Audit der drei Hauptbereiche (Dashboard, Datagrid, Patientenvisite) auf

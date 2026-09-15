@@ -43,3 +43,31 @@ export function unstringify_char(str) {
   if (str === null || str === undefined) return null
   return str.replace(/\\n/g, '\n')
 }
+
+/**
+ * SQLite caps bound parameters (999 in old builds, 32 766 in current ones).
+ * Any `IN (?,?,…)` over a user-selected set must be chunked.
+ */
+export const SQL_IN_CHUNK_SIZE = 500
+
+export function chunkArray(items, size = SQL_IN_CHUNK_SIZE) {
+  const list = Array.isArray(items) ? items : []
+  const out = []
+  for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size))
+  return out
+}
+
+/**
+ * Run `runChunk(chunk)` for every chunk and concatenate the row arrays.
+ * @param {Array} items
+ * @param {(chunk: Array) => Promise<Array>} runChunk
+ * @param {number} [size]
+ */
+export async function queryInChunks(items, runChunk, size = SQL_IN_CHUNK_SIZE) {
+  const rows = []
+  for (const chunk of chunkArray(items, size)) {
+    const part = await runChunk(chunk)
+    if (Array.isArray(part)) rows.push(...part)
+  }
+  return rows
+}

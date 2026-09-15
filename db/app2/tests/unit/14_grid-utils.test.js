@@ -9,6 +9,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   groupConceptsByCategory,
+  parseNumericInput,
   getCellValue,
   getCellObservationId,
   createChangeKey,
@@ -109,5 +110,27 @@ describe('grid-utils existing helpers (smoke)', () => {
     expect(parsed.patientId).toBe('11223280')
     expect(parsed.encounterNum).toBe(99)
     expect(parsed.conceptCode).toBe('LID: 14927-8')
+  })
+})
+
+describe('getCellValue treats 0 as a value', () => {
+  it('returns 0 for a stored zero and "" only for a missing cell', () => {
+    const row = { observations: { A: { value: 0 }, B: { value: null } } }
+    expect(getCellValue(row, { code: 'A' })).toBe(0)
+    expect(getCellValue(row, { code: 'B' })).toBe('')
+    expect(getCellValue(row, { code: 'C' })).toBe('')
+  })
+})
+
+describe('parseNumericInput', () => {
+  it('parses numbers, tolerates a decimal comma, null for empty, NaN for garbage', () => {
+    expect(parseNumericInput('12.5')).toBe(12.5)
+    expect(parseNumericInput('12,5')).toBe(12.5)
+    expect(parseNumericInput(0)).toBe(0)
+    expect(parseNumericInput('0')).toBe(0)
+    expect(parseNumericInput('')).toBeNull()
+    expect(parseNumericInput(null)).toBeNull()
+    expect(Number.isNaN(parseNumericInput('abc'))).toBe(true)
+    expect(Number.isNaN(parseNumericInput('1e999'))).toBe(true)
   })
 })
