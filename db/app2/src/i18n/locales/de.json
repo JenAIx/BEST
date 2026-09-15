@@ -1,4 +1,10 @@
 {
+  "db": {
+    "lockedByOtherUser": "Die Datenbank ist gerade durch einen anderen Nutzer gesperrt – die Aktion bitte in ein paar Sekunden wiederholen.",
+    "readonly": "Die Datenbankdatei ist schreibgeschützt – Änderungen können nicht gespeichert werden.",
+    "ioError": "Datenbankfehler: {message}",
+    "mockBanner": "Browser-Modus ohne Datenbankverbindung – es werden keine Daten geladen oder gespeichert."
+  },
   "common": {
     "menu": "Menü",
     "dashboard": "Dashboard",

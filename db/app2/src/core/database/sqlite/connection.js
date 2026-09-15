@@ -8,6 +8,10 @@ class SQLiteConnection {
     this.database = null
     this.isConnected = false
     this.filePath = null
+    // This is a MOCK: queries return [] and writes pretend to succeed. Only
+    // for `quasar dev` in a plain browser — DatabaseService refuses it in a
+    // production build and the app shows a banner (database-store.isMockConnection).
+    this.isMock = true
   }
 
   /**

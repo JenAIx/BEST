@@ -64,7 +64,13 @@ class DatabaseService {
         this.logger.info(null, 'Using Electron database connection')
         this.connection = new ElectronConnection()
       } else {
-        this.logger.info(null, 'Using browser database connection (limited functionality)')
+        // The browser fallback is a MOCK that silently returns empty data.
+        // Acceptable for `quasar dev` / tests, never for a packaged build.
+        const isDevOrTest = import.meta.env.DEV === true || import.meta.env.MODE === 'test'
+        if (!isDevOrTest) {
+          throw new Error('Electron APIs not available — no database access in this environment')
+        }
+        this.logger.warn(null, 'Using browser MOCK database connection — no real data is read or written')
         this.connection = new SQLiteConnection()
       }
 
@@ -283,6 +289,27 @@ class DatabaseService {
     }
 
     return await this.connection.executeCommand(sql, params)
+  }
+
+  /**
+   * Run `fn(tx)` atomically (BEGIN IMMEDIATE … COMMIT) with the statement gate
+   * held — hand `tx` to repositories: `new PatientRepository(tx)`.
+   * Falls back to plain execution on connections without transaction support
+   * (the browser mock).
+   */
+  async withTransaction(fn) {
+    if (!this.connection) {
+      throw new Error('Database connection not established')
+    }
+    if (typeof this.connection.withTransaction === 'function') {
+      return await this.connection.withTransaction(fn)
+    }
+    return await fn(this.connection)
+  }
+
+  /** True when the active connection is the browser mock (no real database). */
+  get isMockConnection() {
+    return this.connection?.isMock === true
   }
 
   /**

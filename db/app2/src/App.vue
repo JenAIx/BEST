@@ -15,6 +15,10 @@
     </div>
   </div>
   <template v-else>
+    <q-banner v-if="dbStore.isMockConnection" dense class="bg-negative text-white text-center">
+      <template v-slot:avatar><q-icon name="warning" /></template>
+      {{ $t('db.mockBanner') }}
+    </q-banner>
     <router-view />
     <!-- SmartButton FAB - available on all pages after login -->
     <SmartButton v-if="isAuthenticated" />
@@ -22,14 +26,38 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onErrorCaptured, ref } from 'vue'
+import { computed, onMounted, onErrorCaptured, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import SmartButton from 'src/components/smartbtn/SmartButton.vue'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useDatabaseStore } from 'src/stores/database-store'
+import { useNotify } from 'src/composables/useNotify'
 
 const authStore = useAuthStore()
 const loggingStore = useLoggingStore()
+const dbStore = useDatabaseStore()
+const notify = useNotify()
+const { t } = useI18n()
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+
+// SQLite failures from the connection layer (another instance holds the
+// lock, read-only share, …) — one toast per 5 s so a burst of failing
+// statements does not stack notifications. Callers still get their
+// `success: false`; this is the user-facing part.
+let lastDbToastAt = 0
+watch(
+  () => dbStore.lastDbError,
+  (failure) => {
+    if (!failure) return
+    const now = Date.now()
+    if (now - lastDbToastAt < 5000) return
+    lastDbToastAt = now
+    if (failure.kind === 'busy' || failure.kind === 'locked') notify.warning(t('db.lockedByOtherUser'), { timeout: 5000 })
+    else if (failure.kind === 'readonly') notify.error(t('db.readonly'), { timeout: 6000 })
+    else if (failure.kind === 'corrupt' || failure.kind === 'io') notify.error(t('db.ioError', { message: failure.message }), { timeout: 8000 })
+  },
+)
 
 const hasError = ref(false)
 const errorMessage = ref('')

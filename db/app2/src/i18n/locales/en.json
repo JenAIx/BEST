@@ -1,4 +1,10 @@
 {
+  "db": {
+    "lockedByOtherUser": "The database is currently locked by another user – please retry the action in a few seconds.",
+    "readonly": "The database file is read-only – changes cannot be saved.",
+    "ioError": "Database error: {message}",
+    "mockBanner": "Browser mode without a database connection – no data is loaded or saved."
+  },
   "common": {
     "menu": "Menu",
     "dashboard": "Dashboard",

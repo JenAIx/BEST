@@ -123,6 +123,9 @@ console.log(`\n=== db-check: ${src} (${(fs.statSync(src).size / 1048576).toFixed
   check('schema', `Trigger (${expectedTriggers.length} erwartet)`, missingTr.length === 0, missingTr.length ? 'fehlen: ' + missingTr.join(', ') : `${triggers.length} vorhanden`)
   const idx = await one("SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name LIKE 'idx_%'")
   add('schema', 'Indizes', 'INFO', `${idx} idx_*`)
+  // Mehrbenutzer über SMB: journal_mode ist eine Datei-Eigenschaft — WAL wäre dort unsicher
+  const journal = (await q('PRAGMA journal_mode'))[0]?.journal_mode
+  check('schema', 'journal_mode = delete (SMB-tauglich, kein WAL)', String(journal).toLowerCase() === 'delete', `journal_mode=${journal}`, true)
   const fkAudit = await q('PRAGMA foreign_key_list(OBSERVATION_AUDIT_FACT)')
   check('schema', 'OBSERVATION_AUDIT_FACT FK ON DELETE CASCADE', fkAudit.some((r) => r.table === 'OBSERVATION_FACT' && r.on_delete === 'CASCADE'))
 }

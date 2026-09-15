@@ -7,6 +7,7 @@ import sqlite3 from 'sqlite3'
 import fs from 'fs'
 import path from 'path'
 import { createLogger } from '../../services/logging-service.js'
+import { createStatementGate, runInTransaction } from './statement-gate.js'
 
 /**
  * Split a multi-statement SQL string into individual statements.
@@ -100,6 +101,10 @@ class RealSQLiteConnection {
     this.isConnected = false
     this.filePath = null
     this.logger = createLogger('RealSQLiteConnection')
+    // Serialises statements so a transaction never interleaves with other
+    // callers on this connection (see statement-gate.js)
+    this._gate = createStatementGate({ onLongHold: (ms) => this.logger.warn('Statement gate held for a long time', { ms }) })
+    this._inTransaction = false
   }
 
   /**
@@ -107,7 +112,7 @@ class RealSQLiteConnection {
    * @param {string} filePath - Path to the SQLite database file
    * @returns {Promise<boolean>} - Success status
    */
-  async connect(filePath) {
+  async connect(filePath, { busyTimeoutMs = 4000 } = {}) {
     try {
       if (this.isConnected) {
         await this.disconnect()
@@ -135,8 +140,9 @@ class RealSQLiteConnection {
       // Set connection status first
       this.isConnected = true
 
-      // Enable foreign keys
+      // Enable foreign keys; wait for other writers like the Electron preload does
       await this.executeCommand('PRAGMA foreign_keys = ON')
+      await this.executeCommand(`PRAGMA busy_timeout = ${Number(busyTimeoutMs) || 0}`)
 
       console.log(`Connected to database: ${filePath}`)
       return true
@@ -184,7 +190,15 @@ class RealSQLiteConnection {
     if (!this.isConnected || !this.database) {
       throw new Error('Database not connected')
     }
+    const release = await this._gate.acquire()
+    try {
+      return await this._rawQuery(sql, params)
+    } finally {
+      release()
+    }
+  }
 
+  _rawQuery(sql, params = []) {
     return new Promise((resolve, reject) => {
       this.database.all(sql, params, (err, rows) => {
         if (err) {
@@ -211,7 +225,15 @@ class RealSQLiteConnection {
     if (!this.isConnected || !this.database) {
       throw new Error('Database not connected')
     }
+    const release = await this._gate.acquire()
+    try {
+      return await this._rawCommand(sql, params)
+    } finally {
+      release()
+    }
+  }
 
+  async _rawCommand(sql, params = []) {
     // Check connection health before executing
     try {
       await this.testConnection()
@@ -286,40 +308,49 @@ class RealSQLiteConnection {
    * @returns {Promise<Object>} - Transaction result
    */
   async executeTransaction(commands) {
+    const results = await this.withTransaction(async (tx) => {
+      const out = []
+      for (const command of commands) {
+        out.push(await tx.executeCommand(command.sql, command.params))
+      }
+      return out
+    })
+    return {
+      success: true,
+      results,
+      message: 'Transaction completed successfully',
+    }
+  }
+
+  /**
+   * Run `fn(tx)` in BEGIN IMMEDIATE … COMMIT while holding the statement
+   * gate, so no other caller's statement can land inside the transaction.
+   * `tx` offers executeQuery/executeCommand on the raw path — hand it to the
+   * repositories (`new PatientRepository(tx)`).
+   */
+  async withTransaction(fn) {
     if (!this.isConnected || !this.database) {
       throw new Error('Database not connected')
     }
-
-    let inTransaction = false
-    try {
-      await this.executeCommand('BEGIN TRANSACTION')
-      inTransaction = true
-
-      const results = []
-      for (const command of commands) {
-        const result = await this.executeCommand(command.sql, command.params)
-        results.push(result)
-      }
-
-      await this.executeCommand('COMMIT')
-      inTransaction = false
-
-      return {
-        success: true,
-        results,
-        message: 'Transaction completed successfully',
-      }
-    } catch (error) {
-      if (inTransaction) {
-        // Wrap ROLLBACK so a secondary failure here doesn't mask the real error
-        try {
-          await this.executeCommand('ROLLBACK')
-        } catch (rollbackError) {
-          console.error('Rollback failed after transaction error:', rollbackError)
-        }
-      }
-      throw error
+    const tx = {
+      executeQuery: (sql, params = []) => this._rawQuery(sql, params),
+      executeCommand: (sql, params = []) => this._rawCommand(sql, params),
+      isTransaction: true,
     }
+    return runInTransaction(
+      this._gate,
+      {
+        run: (sql) => this._rawCommand(sql),
+        tx,
+        onBegin: () => {
+          this._inTransaction = true
+        },
+        onEnd: () => {
+          this._inTransaction = false
+        },
+      },
+      fn,
+    )
   }
 
   /**

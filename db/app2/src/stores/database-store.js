@@ -10,6 +10,9 @@ import { ref, computed } from 'vue'
 import databaseService from '../core/services/database-service.js'
 import { useLoggingStore } from './logging-store.js'
 import { canManagePatientAccess } from '../shared/utils/patient-access.js'
+import { dbErrorBus } from '../core/database/sqlite/db-errors.js'
+import PatientRepository from '../core/database/repositories/patient-repository.js'
+import UserPatientLookupRepository from '../core/database/repositories/user-patient-lookup-repository.js'
 
 export const useDatabaseStore = defineStore('database', () => {
   // State
@@ -30,6 +33,16 @@ export const useDatabaseStore = defineStore('database', () => {
   }))
 
   const canPerformOperations = computed(() => isConnected.value && isInitialized.value && !connectionError.value)
+
+  // Last SQLite failure reported by the connection layer ({kind, message,
+  // sql, at}) — App.vue turns it into a throttled toast ("gesperrt durch
+  // anderen Nutzer"). Stores never notify themselves.
+  const lastDbError = ref(null)
+  dbErrorBus.on((event) => {
+    lastDbError.value = event
+  })
+
+  const isMockConnection = computed(() => isConnected.value && databaseService.isMockConnection === true)
 
   // Actions
   const initializeDatabase = async (path) => {
@@ -227,7 +240,9 @@ export const useDatabaseStore = defineStore('database', () => {
   // Patient operations
   const createPatient = async (patientData, { isPublic = false } = {}) => {
     const loggingStore = useLoggingStore()
-    const patientRepo = getPatientRepository()
+    if (!canPerformOperations.value) {
+      throw new Error('Database not ready for operations')
+    }
 
     // Resolve creator before opening the transaction so a circular-import failure
     // doesn't leave us holding an orphan BEGIN.
@@ -241,47 +256,38 @@ export const useDatabaseStore = defineStore('database', () => {
 
     // Atomic: patient INSERT + USER_PATIENT_LOOKUP INSERT must commit or rollback together,
     // otherwise a regular (non-admin) user would be locked out of patients they just created.
-    let inTransaction = false
+    // withTransaction holds the statement gate — no other caller's statement can land
+    // inside this transaction (the old inline BEGIN/COMMIT was not isolated).
     try {
-      await executeCommand('BEGIN TRANSACTION')
-      inTransaction = true
+      return await databaseService.withTransaction(async (tx) => {
+        const txPatientRepo = new PatientRepository(tx)
+        const txLookupRepo = new UserPatientLookupRepository(tx)
+        const createdPatient = await txPatientRepo.createPatient(patientData)
 
-      const createdPatient = await patientRepo.createPatient(patientData)
-
-      if (currentUserId && createdPatient.PATIENT_NUM) {
-        const lookupRepo = getRepository('userPatientLookup')
-        await lookupRepo.addAssociationIfMissing(currentUserId, createdPatient.PATIENT_NUM, {
-          nameChar: 'Creator access - auto-assigned',
-        })
-        loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
-          userId: currentUserId,
-          patientNum: createdPatient.PATIENT_NUM,
-        })
-      }
-
-      // Public patients are additionally assigned to the public user (USER_ID 0),
-      // which every access-filtered query treats as "visible to all users".
-      if (isPublic && createdPatient.PATIENT_NUM) {
-        const lookupRepo = getRepository('userPatientLookup')
-        await lookupRepo.addAssociationIfMissing(0, createdPatient.PATIENT_NUM, {
-          nameChar: 'Public access',
-        })
-        loggingStore.success('DatabaseStore', 'Public access entry committed', {
-          patientNum: createdPatient.PATIENT_NUM,
-        })
-      }
-
-      await executeCommand('COMMIT')
-      inTransaction = false
-      return createdPatient
-    } catch (error) {
-      if (inTransaction) {
-        try {
-          await executeCommand('ROLLBACK')
-        } catch (rollbackError) {
-          loggingStore.error('DatabaseStore', 'Rollback after createPatient failure failed', rollbackError)
+        if (currentUserId !== null && currentUserId !== undefined && createdPatient.PATIENT_NUM) {
+          await txLookupRepo.addAssociationIfMissing(currentUserId, createdPatient.PATIENT_NUM, {
+            nameChar: 'Creator access - auto-assigned',
+          })
+          loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
+            userId: currentUserId,
+            patientNum: createdPatient.PATIENT_NUM,
+          })
         }
-      }
+
+        // Public patients are additionally assigned to the public user (USER_ID 0),
+        // which every access-filtered query treats as "visible to all users".
+        if (isPublic && createdPatient.PATIENT_NUM) {
+          await txLookupRepo.addAssociationIfMissing(0, createdPatient.PATIENT_NUM, {
+            nameChar: 'Public access',
+          })
+          loggingStore.success('DatabaseStore', 'Public access entry committed', {
+            patientNum: createdPatient.PATIENT_NUM,
+          })
+        }
+
+        return createdPatient
+      })
+    } catch (error) {
       loggingStore.error('DatabaseStore', 'createPatient transaction failed', error)
       throw error
     }
@@ -1148,6 +1154,8 @@ export const useDatabaseStore = defineStore('database', () => {
     // Getters
     connectionStatus,
     canPerformOperations,
+    lastDbError,
+    isMockConnection,
 
     // Actions
     initializeDatabase,
