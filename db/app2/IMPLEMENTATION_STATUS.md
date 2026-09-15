@@ -5,6 +5,41 @@
 
 ## Recent Milestones
 
+### 2026-09-15 — Audit-Trail + Kommentare, Audit in der Patientenvisite, Trigger-Fix
+
+- `features/visit-audit-comments` (2 Commits, noch nicht nach `development`
+  gemerged):
+  - **Audit im Patientenbesuch** — die Grid-Prüfmarkierung (`VALUEFLAG_CD`
+    `AUDIT`/`CONFIRMED`) ist in der Zeitlinie sichtbar und bedienbar
+    (Kachel-Rahmen + Flaggen-Eck, Rechtsklick-Menü, Flaggen-Button im
+    Formularfeld, Chip „N Audits offen“ pro Karte, Nav-Zähler, Filter
+    „Nur offene Audits“, „Im Patientenbesuch öffnen“ auf der Studienseite).
+    Gemeinsames Flag-SQL in `shared/utils/audit-flag.js`.
+  - **Audit-Trail** — `OBSERVATION_AUDIT_FACT` (Migration 015) als
+    Ereignis-Historie (FLAG/COMMENT/VALUE_EDIT, Autor, Zeit, Quelle) mit FK
+    → OBSERVATION_FACT + Trigger; `VALUEFLAG_CD` bleibt der aktuelle
+    Zustand. Dialog „Prüfung & Kommentare“ (`shared/ObservationAuditDialog`)
+    identisch in Zeitlinie und Grid. Entscheidung gegen NOTE_FACT /
+    OBSERVATION_BLOB dokumentiert in CLAUDE.md §3.
+  - **Trigger-Fix** — der Electron-Preload zerschnitt `CREATE TRIGGER` an
+    `;`; Datenbanken aus der App hatten keinen einzigen Trigger. Splitter
+    ist BEGIN…END-bewusst, Migration 016 legt alle Trigger idempotent neu
+    an. Verifiziert an einem Backup von Mai 2026 (9 → 16 Migrationen,
+    0 → 13 Trigger, integrity ok).
+
+### 2026-09-14 — Kohorten-Insights: Einschlüsse pro Monat + Einschluss-Zeitraum
+
+- `bugfix/diverse-issues` → `development`: Karte „Visiten-Verlauf“ auf der
+  Studienseite mit von/bis-Filter auf `ENROLLMENT_DATE` (Kacheln zählen nur
+  im Zeitraum eingeschlossene Patienten, Visiten datumsunabhängig) und
+  Inline-SVG-Balkendiagramm „Einschlüsse pro Monat“ (Lücken als
+  Nullmonate, Tooltip mit kumuliertem Stand, Kennzahlenzeile, Monate
+  außerhalb des Filters gedimmt). Repository:
+  `getCohortPatientCount(studyCd, {from,to})`,
+  `getCohortEnrollmentsPerMonth`; Logik in
+  `shared/utils/enrollment-timeline.js`. Hinweis: Filterbasis ist das
+  Einschlussdatum (beim Stroke-Lipid-Import = Index-Stroke-Datum).
+
 ### 2026-08-12 — Release v0.6_20260812: Versionsanzeige + In-App-Changelog repariert
 
 - Released v0.6_20260812 to `main` (`bugfix/about-version-changelog`):

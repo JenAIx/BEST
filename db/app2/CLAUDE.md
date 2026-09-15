@@ -124,6 +124,7 @@ CASCADE DELETE:
 ```
 STUDY_DIMENSION          - Research study metadata
 STUDY_PATIENT_LOOKUP     - Patient-study enrollment relationships
+OBSERVATION_AUDIT_FACT   - Audit trail per observation (flag transitions + comments), FK → OBSERVATION_FACT CASCADE (migration 015)
 USER_PATIENT_LOOKUP      - User-patient access control (who can see which patients)
 patient_list (VIEW)      - Materialized patient view with resolved codes
 ```
@@ -941,7 +942,7 @@ All users are seeded automatically during database initialization.
   - Cannot access admin pages
   - Cannot modify system settings
 
-**Note**: Fine-grained patient access via `USER_PATIENT_LOOKUP` table exists but is not yet enforced in the UI.
+**Note**: Fine-grained patient access via `USER_PATIENT_LOOKUP` is enforced in every access-filtered query (see "User-Patient Access Control" above).
 
 ### Authentication Flow
 
@@ -1064,9 +1065,17 @@ search/management lives on `/visits`)*
 **Individual study details and patient enrollment**
 
 - Study metadata
-- Enrolled patients
-- Study timeline
-- Data collection forms
+- Enrolled patients (tab "Übersicht")
+- Tab "Kohorten-Insights" (`components/study/StudyInsights.vue`): card
+  "Visiten-Verlauf" with an enrolment-date window filter (von/bis, applies
+  to the KPI tiles) and the "Einschlüsse pro Monat" bar chart
+  (`CohortMonthlyChart.vue`, inline SVG; helpers in
+  `shared/utils/enrollment-timeline.js`), drug usage, comorbidities,
+  selections, team activity, lab trends — all via
+  `studyStore.loadCohortInsights` / `loadCohortRetention`
+- Tab "Audit" (`StudyAuditPanel.vue`): open audits per user/patient,
+  "Im Grid öffnen" / "Im Patientenbesuch öffnen" (one-shot
+  `pendingAuditFilter`)
 - Study status management
 
 **Key Features**: Study editing, patient enrollment, data collection
@@ -1558,6 +1567,6 @@ console.log($t('category.key'))
 
 ---
 
-**Last Updated**: August 12, 2026  
-**App Version**: 0.6_20260812  
-**Database Schema Version**: 002 (Current)
+**Last Updated**: September 15, 2026  
+**App Version**: 0.6_20260812 (unreleased work on `features/visit-audit-comments`)  
+**Database Schema Version**: migrations 001–016 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation)

@@ -171,6 +171,7 @@ const sections = [
         ],
         bullets: [
           'Zeitlinie: alle Visiten als aufklappbare Karten am Zeitstrahl, links eine Schnellnavigation der Feldgruppen. Der Stift am Visitenkopf startet die Bearbeitung direkt in der Karte (Feldgruppen des Visitentyps, Autosave); über das 3-Punkte-Menü lassen sich Visiten klonen oder löschen, unten können Dateien (PDF, Bild, Video) an eine Visite angehängt werden.',
+          'Datenprüfung (Audit) direkt in der Zeitlinie: Rechtsklick auf eine Kachel (oder das Flaggen-Symbol im Feldkopf während der Bearbeitung) markiert eine Beobachtung „zur Prüfung“ (roter Rahmen), löst sie auf (grün) oder entfernt die Markierung. „Prüfung & Kommentare …“ öffnet den Verlauf der Beobachtung — wer wann markiert oder bestätigt hat — samt Kommentarfunktion; ein Klick auf das Flaggen-Eck einer Kachel tut dasselbe. Der Chip „N Audits offen“ neben der Suche filtert die Zeitlinie auf offene Prüfungen.',
           'Patientendaten: Stammdaten bearbeiten, Statistiken, Studienmitgliedschaften (mit Status-Umschalter und Entfernen) sowie die Rechte-Karte (Besitzer, öffentlich/privat).',
         ],
         image: 'visits-patient',
@@ -207,7 +208,8 @@ const sections = [
       {
         title: 'Studiendetails',
         paragraphs: [
-          'Die Detailseite einer Studie bündelt Stammdaten (bearbeitbar), Einschreibungs-Fortschritt und drei Tabs: „Übersicht“ mit der Patientenliste (Statusfilter, Bulk-Aktionen wie „Gefilterte als abgeschlossen markieren“, Sprung in den Datentabellen-Editor), „Insights“ mit Kohorten-Auswertungen und Team-Aktivität sowie „Audit“ mit offenen Datenprüfungen pro Patient und Nutzer.',
+          'Die Detailseite einer Studie bündelt Stammdaten (bearbeitbar), Einschreibungs-Fortschritt und drei Tabs: „Übersicht“ mit der Patientenliste (Statusfilter, Bulk-Aktionen wie „Gefilterte als abgeschlossen markieren“, Sprung in den Datentabellen-Editor), „Insights“ mit Kohorten-Auswertungen und Team-Aktivität sowie „Audit“ mit offenen Datenprüfungen pro Patient und Nutzer (Sprung „Im Grid öffnen“ oder „Im Patientenbesuch öffnen“, jeweils mit aktivem Audit-Filter).',
+          'In den Insights zeigt die Karte „Visiten-Verlauf“ die Eingeschriebenen und je Visitentyp die Patienten mit dieser Visite; die Felder „von/bis“ im Kartenkopf grenzen auf einen Einschluss-Zeitraum ein (z. B. vor und ab 15.09.2025 getrennt). Darunter zählt das Balkendiagramm „Einschlüsse pro Monat“ die neu eingeschlossenen Patienten seit dem ersten Einschluss; Monate außerhalb des gewählten Zeitraums erscheinen grau.',
           'Patienten schreiben Sie über das Rechtsklick-Menü einer Patientenkarte („Studie zuordnen“) oder direkt auf der Studienseite ein. Der Einschreibestatus (aktiv/abgeschlossen/zurückgezogen) lässt sich am Status-Chip jeder Patientenkarte umschalten. Der Kohorten-Export (CSV oder HL7-JSON) liegt oben rechts.',
         ],
         image: 'study-details',
@@ -319,7 +321,7 @@ const sections = [
           '1. Studie auf der Studienseite anlegen („Neue Studie“) mit Kategorie und Ziel-Patientenzahl.',
           '2. Patienten einschreiben: Rechtsklick auf Patientenkarten → „Studie zuordnen“, oder auf der Studienseite hinzufügen.',
           '3. Daten in der Datentabelle erfassen; unklare Werte per Rechtsklick mit einer Audit-Markierung versehen.',
-          '4. Im Studien-Tab „Audit“ die offenen Prüfungen abarbeiten („Im Grid öffnen“ springt mit aktivem Audit-Filter in den Editor); geprüfte Werte grün bestätigen.',
+          '4. Im Studien-Tab „Audit“ die offenen Prüfungen abarbeiten („Im Grid öffnen“ oder „Im Patientenbesuch öffnen“ springt mit aktivem Audit-Filter dorthin); Rückfragen als Kommentar an der Beobachtung hinterlassen („Prüfung & Kommentare …“), geprüfte Werte grün bestätigen.',
           '5. Abgeschlossene Patienten über den Status-Chip auf „abgeschlossen“ setzen; am Ende die Kohorte exportieren.',
         ],
       },
