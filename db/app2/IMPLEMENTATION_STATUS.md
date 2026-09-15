@@ -5,9 +5,14 @@
 
 ## Recent Milestones
 
-### 2026-09-15 — Visitenmodus (Konsultations-Cockpit), Iteration 1
+### 2026-09-15 — Visitenmodus (Konsultations-Cockpit), Iteration 1 — EXPERIMENTELL
 
-- `features/visit-cockpit` (in Arbeit): dritte Ansicht auf
+- **Status: experimentelles Feature.** Iteration 1 ist in `development`
+  gemerged, damit es in der Sprechstunde ausprobiert werden kann; Iteration
+  2/3 (siehe unten) stehen aus und das Layout/die Vorlagen werden nach dem
+  ersten Praxiseinsatz überarbeitet. Nicht Teil des offiziellen Funktions-
+  umfangs bis zur Abnahme.
+- `features/visit-cockpit` (gemerged 2026-09-15): dritte Ansicht auf
   `/visits/:patientId` als Karteikarte für die Ambulanzsprechstunde —
   Kopf (letzte/heutige Visite, „Visite beginnen“ mit Vorlage, Aktensuche),
   Diagnosen (Freitext + ICD-10-Mini-Katalog), Score-Leiste mit Δ und

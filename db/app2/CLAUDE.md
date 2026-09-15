@@ -698,7 +698,14 @@ Components (`src/components/visits/unified/`):
 
 ---
 
-## 🩺 Visitenmodus (Consultation Cockpit, Sept 2026)
+## 🩺 Visitenmodus (Consultation Cockpit, Sept 2026) — EXPERIMENTAL
+
+**Status: experimental.** Iteration 1 landed in `development` on 2026-09-15
+so it can be tried in real consultations; Iterations 2/3 (medication history
+matrix, DBS panel, template editor, letter dialog, second window) are open —
+see `IMPLEMENTATION_STATUS.md`. Expect the templates and layout to change
+after first clinical use; keep the data contracts below stable, they are
+what later iterations build on.
 
 `/visits/:patientId?view=cockpit` — third view mode next to Zeitlinie /
 Patientendaten (`VisitsPage.vue`, last mode remembered in
@@ -1638,4 +1645,4 @@ console.log($t('category.key'))
 
 **Last Updated**: September 15, 2026  
 **App Version**: 0.8_20260915  
-**Database Schema Version**: migrations 001–016 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation)
+**Database Schema Version**: migrations 001–017 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation, 017 neuro consult seed)

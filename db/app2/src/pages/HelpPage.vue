@@ -195,8 +195,9 @@ const sections = [
   {
     id: 'cockpit',
     icon: 'medical_services',
-    title: 'Visitenmodus (Sprechstunde)',
+    title: 'Visitenmodus (Sprechstunde) — experimentell',
     paragraphs: [
+      'Hinweis: Der Visitenmodus ist ein experimentelles Feature in der ersten Ausbaustufe. Er wird nach den ersten Einsätzen in der Sprechstunde weiterentwickelt; Layout und Vorlagen können sich noch ändern. Alle eingetragenen Daten sind trotzdem normale Beobachtungen und bleiben erhalten.',
       'Der Visitenmodus ist die Karteikarte für die Ambulanzsprechstunde: eine Seite, auf der Sie während der Visite alles Wichtige sehen und direkt dokumentieren. Sie erreichen ihn über den Schalter „Visitenmodus“ im Kopf der Patientenseite (neben Zeitlinie und Patientendaten); die zuletzt genutzte Ansicht wird gemerkt.',
       'Oben steht, wann der Patient zuletzt da war (mit Visitentyp und Tagen seither), daneben die heutige Visite. Solange heute keine Visite existiert, ist alles nur Ansicht — „Visite beginnen“ legt sie mit einer Vorlage an (z. B. Parkinson-Verlaufskontrolle, THS-Verlauf, Tremor, Ataxie, Sonstiges) und bietet an, Diagnosen, Medikation und Texte der letzten Visite als Ausgangspunkt zu übernehmen. Die Vorlage bestimmt, welche Scores, Textabschnitte und Checklistenpunkte erscheinen; Administratoren pflegen die Vorlagen unter „Globale Einstellungen“ (Spalte CONSULT_TEMPLATE_CD).',
     ],

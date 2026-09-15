@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Visitenmodus (Konsultations-Cockpit)** (`features/visit-cockpit`,
-  Iteration 1): dritte Ansicht auf `/visits/:patientId` neben Zeitlinie und
+- **Visitenmodus (Konsultations-Cockpit) — EXPERIMENTELL** (`features/visit-cockpit`,
+  Iteration 1; wird in weiteren Iterationen ausgebaut, Datenverträge können
+  sich noch ändern): dritte Ansicht auf `/visits/:patientId` neben Zeitlinie und
   Patientendaten (`?view=cockpit`, der zuletzt genutzte Modus wird gemerkt).
   Karteikarten-Layout für die Ambulanzsprechstunde — alles datengetrieben
   über **Vorlagen** (`CODE_LOOKUP VISIT_DIMENSION/CONSULT_TEMPLATE_CD`):
