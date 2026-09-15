@@ -321,7 +321,9 @@ onMounted(async () => {
   if (authStore.isAuthenticated) {
     const redirect = route.query.redirect || '/dashboard'
     logger.info('User already authenticated, redirecting', { redirect })
-    router.push(redirect)
+    // replace: the login page must not remain in history (back → login →
+    // redirect → back … loop)
+    router.replace(redirect)
   }
 
   // Set default database
@@ -376,7 +378,7 @@ const onLogin = async () => {
     // Redirect to intended page or dashboard
     const redirect = route.query.redirect || '/dashboard'
     logger.logNavigation('/login', redirect, 'redirect')
-    router.push(redirect)
+    router.replace(redirect)
   } catch (error) {
     timer.end()
     logger.error('Login form error', error, {
