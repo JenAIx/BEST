@@ -376,6 +376,33 @@ Patienten-Enrollment in Studien.
 
 **Indizes:** `idx_study_patient_study_num`, `idx_study_patient_patient_num`, `idx_study_patient_status`
 
+### 2.14 OBSERVATION_AUDIT_FACT
+
+Audit-Trail pro Beobachtung (Migration 015). `OBSERVATION_FACT.VALUEFLAG_CD`
+bleibt die einzige Quelle des **aktuellen** Prüfzustands (`AUDIT` = offen,
+`CONFIRMED` = geprüft, `NV` = explizit kein Wert); diese Tabelle hält die
+**Historie** — ein Ereignis pro Zeile.
+
+| Feld | Typ | Beschreibung |
+|---|---|---|
+| **AUDIT_ID** | INTEGER PK AUTOINCREMENT | Ereignis-ID |
+| **OBSERVATION_ID** | INTEGER FK → OBSERVATION_FACT ON DELETE CASCADE | Beobachtung |
+| PATIENT_NUM | INTEGER | Kopie aus der Beobachtung (Abfragen pro Patient) |
+| ENCOUNTER_NUM | INTEGER | Kopie aus der Beobachtung (Abfragen pro Visite) |
+| EVENT_CD | TEXT NOT NULL | `FLAG` (Statuswechsel), `COMMENT` (Kommentar), `VALUE_EDIT` (Markierung durch Wertänderung zurückgesetzt) |
+| FLAG_CD | TEXT | Neuer `VALUEFLAG_CD` bei `FLAG` (`AUDIT`/`CONFIRMED`/`NV`/NULL) |
+| COMMENT_TEXT | TEXT | Kommentar (optional auch an `FLAG`-Ereignissen) |
+| CREATED_BY | TEXT | USER_CD des Autors |
+| CREATED_AT | TEXT DEFAULT datetime('now') | Zeitstempel (UTC) |
+| SOURCESYSTEM_CD | TEXT | `GRID` (Datentabellen-Editor) oder `VISITS` (Zeitlinie) |
+
+**Indizes:** `idx_obs_audit_observation`, `idx_obs_audit_patient`, `idx_obs_audit_encounter`
+
+**Schreibpfad:** ausschließlich `ObservationAuditRepository.logEvent()`
+(kopiert PATIENT_NUM/ENCOUNTER_NUM aus der Beobachtung). Kommentare
+gehören NICHT in NOTE_FACT (kein OBSERVATION_ID, keine Kaskade) und nicht
+in OBSERVATION_BLOB (wird bei jedem Speichern genullt).
+
 ---
 
 ## 3. Entity-Relationship Diagramm
@@ -384,6 +411,7 @@ Patienten-Enrollment in Studien.
 PATIENT_DIMENSION (1) ──────── (M) VISIT_DIMENSION
     │                                   │
     │                                   ├──── (M) OBSERVATION_FACT ──→ (1) CONCEPT_DIMENSION
+    │                                   │            └──── (M) OBSERVATION_AUDIT_FACT
     │                                   │
     │                                   └──── (M) NOTE_FACT
     │
@@ -400,6 +428,7 @@ CONCEPT_DIMENSION (1) ──── (M) CONCEPT_CQL_LOOKUP ──→ (1) CQL_FACT
 |---|---|
 | PATIENT_DIMENSION | → VISIT_DIMENSION, USER_PATIENT_LOOKUP |
 | VISIT_DIMENSION | → OBSERVATION_FACT, NOTE_FACT |
+| OBSERVATION_FACT | → OBSERVATION_AUDIT_FACT (FK CASCADE + Trigger `delete_observation_audit_cascade`) |
 | CONCEPT_DIMENSION | → OBSERVATION_FACT, CONCEPT_CQL_LOOKUP |
 | USER_MANAGEMENT | → USER_PATIENT_LOOKUP |
 | STUDY_DIMENSION | → STUDY_PATIENT_LOOKUP |
@@ -439,6 +468,15 @@ Aktualisieren automatisch `UPDATE_DATE` in PATIENT_DIMENSION wenn:
 ### Cascade-Delete Trigger
 
 Loeschen verknuepfte Datensaetze (siehe Kaskadierungs-Tabelle oben).
+
+### Hinweis: Trigger in Migrationen (Sept 2026)
+
+Der Electron-Preload teilte Mehrfach-SQL früher naiv an `;` — Trigger-Bodies
+(`BEGIN … ; … END`) wurden zerschnitten, sodass über die App migrierte
+Datenbanken **keine Trigger** hatten. Der Splitter ist inzwischen
+BEGIN…END-bewusst; Migration 016 legt alle Schema-Trigger idempotent neu an
+und heilt so bestehende Datenbanken. Neue Trigger-Migrationen bitte als
+`execute()` mit einem `executeCommand` pro Statement schreiben (Vorbild 015/016).
 
 ---
 

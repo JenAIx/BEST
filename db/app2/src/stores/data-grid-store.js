@@ -11,6 +11,7 @@ import { useAuthStore } from './auth-store'
 import { useLocalSettingsStore } from './local-settings-store'
 import { useLoggingStore } from './logging-store'
 import { getPatientInitials, formatDate } from 'src/shared/utils/medical-utils'
+import { buildSetFlagStatement } from 'src/shared/utils/audit-flag.js'
 import {
   getCellClass,
   hasRowChanges,
@@ -447,17 +448,32 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       return
     }
 
-    const clearValue = flag === 'NV'
-    const sql = clearValue
-      ? 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, NVAL_NUM = NULL, TVAL_CHAR = NULL, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-      : 'UPDATE OBSERVATION_FACT SET VALUEFLAG_CD = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-    const result = await dbStore.executeQuery(sql, [flag, authStore.providerId, observationId])
+    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId)
+    const result = await dbStore.executeQuery(sql, params)
     if (!result.success) {
       throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
     }
 
-    // Mirror the flag (and possibly the cleared value) into local state so the
-    // cell re-renders without a reload.
+    // Audit trail (OBSERVATION_AUDIT_FACT) — best effort, never blocks the write
+    try {
+      const auditRepo = dbStore.getRepository?.('observationAudit')
+      if (auditRepo) {
+        await auditRepo.logEvent({ observationId, eventCd: 'FLAG', flagCd: flag, commentText: payload?.comment ?? null, createdBy: authStore.providerId, source: 'GRID' })
+      }
+    } catch (err) {
+      logger.warn('Failed to log audit event', { observationId, flag, error: err?.message })
+    }
+
+    mirrorObservationFlag({ patientId, encounterNum, conceptCode, flag, clearValue })
+
+    lastUpdateTime.value = new Date().toLocaleTimeString()
+    logger.info('Observation flag updated', { observationId, flag })
+  }
+
+  // Mirror a flag (and possibly the cleared value) into local state so the
+  // cell re-renders without a reload. Also used when the shared audit dialog
+  // wrote the flag through observation-store (DB already updated).
+  const mirrorObservationFlag = ({ patientId, encounterNum, conceptCode, flag, clearValue = flag === 'NV' }) => {
     const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
     if (row && row.observations[conceptCode]) {
       row.observations[conceptCode].valueFlag = flag
@@ -465,9 +481,6 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         row.observations[conceptCode].value = ''
       }
     }
-
-    lastUpdateTime.value = new Date().toLocaleTimeString()
-    logger.info('Observation flag updated', { observationId, flag })
   }
 
   // deleteObservationFromGrid hard-deletes the OBSERVATION_FACT row and
@@ -1049,6 +1062,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
     // Audit workflow
     setObservationFlag,
+    mirrorObservationFlag,
     deleteObservationFromGrid,
     toggleAuditFilter,
     loadVisitTypeLockData,

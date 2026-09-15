@@ -21,12 +21,59 @@
         v-for="field in fields"
         :key="field.key"
         class="form-field"
-        :class="[`form-field--${fieldSpan(field)}`, { 'form-field--blank': isBlankFormField(field) }]"
+        :class="[
+          `form-field--${fieldSpan(field)}`,
+          {
+            'form-field--blank': isBlankFormField(field),
+            'form-field--audit': fieldFlag(field) === 'AUDIT',
+            'form-field--confirmed': fieldFlag(field) === 'CONFIRMED',
+          },
+        ]"
         :style="{ '--tv': valueTypeHex(field.concept.valueType) }"
+        :data-observation-id="field.obs?.observationId"
       >
         <div class="field-label">
           <span class="field-dot"></span>
           <span class="ellipsis">{{ shortConceptName(field.concept.name) }}</span>
+          <!-- Audit flag (grid parity): hidden until hover unless a review
+               flag is set; click opens mark / resolve / clear -->
+          <q-btn
+            v-if="field.obs"
+            flat
+            round
+            dense
+            size="xs"
+            :icon="fieldFlag(field) === 'CONFIRMED' ? 'check_circle' : 'flag'"
+            class="field-flag"
+            :class="{ 'field-flag--audit': fieldFlag(field) === 'AUDIT', 'field-flag--confirmed': fieldFlag(field) === 'CONFIRMED' }"
+            tabindex="-1"
+            data-cy="field-flag"
+            @click.stop
+          >
+            <q-tooltip v-if="fieldFlag(field) === 'AUDIT'">{{ $t('visit.flagAudit') }}</q-tooltip>
+            <q-tooltip v-else-if="fieldFlag(field) === 'CONFIRMED'">{{ $t('visit.flagConfirmed') }}</q-tooltip>
+            <q-tooltip v-else>{{ $t('visit.auditMenu') }}</q-tooltip>
+            <q-menu auto-close>
+              <q-list dense style="min-width: 220px">
+                <q-item v-for="entry in auditActionsFor(fieldFlag(field))" :key="entry.action" clickable :data-cy="`field-audit-${entry.action}`" @click="setFlag(field, entry.flag)">
+                  <q-item-section avatar>
+                    <q-icon :name="AUDIT_ACTION_META[entry.action].icon" :color="AUDIT_ACTION_META[entry.action].color" size="18px" />
+                  </q-item-section>
+                  <q-item-section>{{ $t(AUDIT_ACTION_META[entry.action].label) }}</q-item-section>
+                </q-item>
+                <q-separator />
+                <q-item clickable data-cy="field-audit-open" @click="openAuditDialog(field)">
+                  <q-item-section avatar><q-icon name="chat_bubble_outline" color="primary" size="18px" /></q-item-section>
+                  <q-item-section>
+                    <q-item-label>{{ $t('visit.auditOpen') }}</q-item-label>
+                    <q-item-label v-if="observationStore.auditCommentCount(field.obs.observationId) > 0" caption>
+                      {{ $t('visit.auditComments', { count: observationStore.auditCommentCount(field.obs.observationId) }) }}
+                    </q-item-label>
+                  </q-item-section>
+                </q-item>
+              </q-list>
+            </q-menu>
+          </q-btn>
           <q-btn v-if="field.obs" flat round dense size="xs" icon="close" class="field-delete" tabindex="-1" @click.stop="confirmDelete(field)">
             <q-tooltip>{{ $t('observation.deleteObservation') }}</q-tooltip>
           </q-btn>
@@ -77,6 +124,7 @@
       </div>
     </div>
 
+    <ObservationAuditDialog v-model="showAuditDialog" :observation="auditObservation" source="VISITS" />
     <FileDetailsDialog v-if="fileToEdit" v-model="showFileDetails" :observation="fileToEdit" @saved="onFileDetailsSaved" />
 
     <MedicationEditDialog
@@ -101,6 +149,8 @@ import { useMedicationsStore } from 'src/stores/medications-store'
 import { useNotify } from 'src/composables/useNotify'
 import { useMedicationOptions } from 'src/composables/useMedicationOptions'
 import { visitObservationService } from 'src/services/visit-observation-service'
+import { useObservationStore } from 'src/stores/observation-store'
+import { readValueFlag, auditActionsFor } from 'src/shared/utils/audit-flag.js'
 import { getFileIcon, getFileColor, formatFileSize } from 'src/shared/utils/medical-utils.js'
 import {
   shortConceptName,
@@ -117,6 +167,7 @@ import {
 } from 'src/shared/utils/observation-display.js'
 import ObservationValueEditor from '../ObservationValueEditor.vue'
 import FileDetailsDialog from './FileDetailsDialog.vue'
+import ObservationAuditDialog from 'src/components/shared/ObservationAuditDialog.vue'
 import MedicationEditDialog from '../MedicationEditDialog.vue'
 
 defineOptions({
@@ -136,6 +187,36 @@ const { t } = useI18n()
 const conceptStore = useConceptResolutionStore()
 const notify = useNotify()
 const logger = useLoggingStore().createLogger('ObservationFormGrid')
+const observationStore = useObservationStore()
+
+// ---- Audit flag (mark / resolve / clear — same actions as the grid cell menu) ----
+const AUDIT_ACTION_META = {
+  mark: { icon: 'flag', color: 'negative', label: 'dataGrid.markForAudit' },
+  resolve: { icon: 'check_circle', color: 'positive', label: 'dataGrid.resolveAudit' },
+  clear: { icon: 'outlined_flag', color: 'grey-7', label: 'dataGrid.clearAuditFlag' },
+}
+
+const fieldFlag = (field) => readValueFlag(field.obs)
+
+const showAuditDialog = ref(false)
+const auditObservation = ref(null)
+const openAuditDialog = (field) => {
+  if (!field.obs) return
+  auditObservation.value = field.obs
+  showAuditDialog.value = true
+}
+
+const setFlag = async (field, flag) => {
+  if (!field.obs) return
+  try {
+    // The store mirrors valueFlag + rawData.VALUEFLAG_CD in place, so the
+    // field re-renders without a reload (same invariant as the grid)
+    await observationStore.setObservationFlag({ observationId: field.obs.observationId, flag })
+  } catch (error) {
+    logger.error('Failed to set audit flag', error, { conceptCode: field.concept.code, flag })
+    notify.error(t('observation.saveFailed'))
+  }
+}
 
 // Field-set concept metadata (label/valueType/unit) — resolved once per mount
 const resolvedConcepts = ref(new Map())
@@ -538,15 +619,47 @@ const onMedicationSave = async (medicationData) => {
     background: var(--tv, $grey-5);
   }
 
-  .field-delete {
+  .field-delete,
+  .field-flag {
     opacity: 0;
     transition: opacity 0.15s ease;
     color: $grey-6;
   }
+
+  // A set review flag is always visible
+  .field-flag--audit {
+    opacity: 1;
+    color: $negative;
+  }
+
+  .field-flag--confirmed {
+    opacity: 1;
+    color: $positive;
+  }
 }
 
-.form-field:hover .field-delete {
+.form-field:hover .field-delete,
+.form-field:hover .field-flag {
   opacity: 1;
+}
+
+// Audit state on the input itself — mirrors the grid cell borders
+.form-field--audit {
+  opacity: 1;
+
+  :deep(.q-field--outlined .q-field__control:before),
+  .field-file,
+  .field-medication {
+    border: 2px solid $negative;
+  }
+}
+
+.form-field--confirmed {
+  :deep(.q-field--outlined .q-field__control:before),
+  .field-file,
+  .field-medication {
+    border: 1px solid $positive;
+  }
 }
 
 .field-tooltip {

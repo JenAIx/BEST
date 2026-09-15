@@ -356,6 +356,7 @@
                   @delete-value="onDeleteCellValue"
                   @mark-audit="onMarkAudit"
                   @resolve-audit="onResolveAudit"
+                  @open-audit="onOpenAudit"
                   @mark-no-value="onMarkNoValue"
                   @clear-no-value="onClearNoValue"
                   @set-observation-date="onSetObservationDate"
@@ -400,6 +401,8 @@
     />
 
     <!-- Questionnaire Preview Dialog -->
+    <ObservationAuditDialog v-model="showAuditDialog" :observation="auditObservation" source="GRID" @flag-changed="onAuditFlagChanged" />
+
     <QuestionnairePreviewDialog
       v-if="selectedQuestionnaireData"
       v-model="showQuestionnairePreview"
@@ -643,6 +646,7 @@ import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
 import CreatePatientDialog from 'src/components/patient/CreatePatientDialog.vue'
 import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
+import ObservationAuditDialog from 'src/components/shared/ObservationAuditDialog.vue'
 import QuestionnaireFillDialog from 'src/components/shared/QuestionnaireFillDialog.vue'
 import PatientSelectionCard from 'src/components/shared/PatientSelectionCard.vue'
 import StudyMembershipMenuItems from 'src/components/shared/StudyMembershipMenuItems.vue'
@@ -1265,6 +1269,33 @@ const onResolveAudit = async (payload) => {
   } catch (error) {
     notify.error(error.message || t('dataGrid.resolveAudit'))
   }
+}
+
+// Shared audit dialog (trail + comments). It writes flags through
+// observation-store (DB + trail); we only mirror the result into the grid's
+// local cell state.
+const showAuditDialog = ref(false)
+const auditObservation = ref(null)
+const auditCellPayload = ref(null)
+
+const onOpenAudit = (payload) => {
+  const concept = (dataGridStore.observationConcepts || []).find((c) => c.code === payload.conceptCode)
+  auditCellPayload.value = payload
+  auditObservation.value = {
+    observationId: payload.observationId,
+    conceptCode: payload.conceptCode,
+    conceptName: concept?.name || payload.conceptCode,
+    displayValue: payload.value,
+    unit: concept?.unit || null,
+    valueType: payload.valueType,
+    valueFlag: payload.valueFlag,
+  }
+  showAuditDialog.value = true
+}
+
+const onAuditFlagChanged = ({ flag }) => {
+  if (!auditCellPayload.value) return
+  dataGridStore.mirrorObservationFlag({ ...auditCellPayload.value, flag })
 }
 
 const onMarkNoValue = async (payload) => {

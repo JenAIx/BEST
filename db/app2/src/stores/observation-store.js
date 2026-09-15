@@ -10,6 +10,8 @@ import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useLoggingStore } from './logging-store'
 import { useAuthStore } from './auth-store'
+import { buildSetFlagStatement, FLAG_NV, FLAG_AUDIT, FLAG_CONFIRMED } from 'src/shared/utils/audit-flag.js'
+import { AUDIT_EVENT_FLAG, AUDIT_EVENT_COMMENT, AUDIT_EVENT_VALUE_EDIT } from 'src/core/database/repositories/observation-audit-repository.js'
 
 export const useObservationStore = defineStore('observation', () => {
   const dbStore = useDatabaseStore()
@@ -19,6 +21,9 @@ export const useObservationStore = defineStore('observation', () => {
   // State
   const observations = ref([]) // Observations for selected visit
   const allObservations = ref([]) // All observations for patient
+  // Audit trail (OBSERVATION_AUDIT_FACT rows) per observation id, loaded per
+  // patient / per observation; comment counts derive from it for the tiles
+  const auditTrail = ref(new Map())
   const loading = ref(false)
   const error = ref(null)
 
@@ -362,6 +367,16 @@ export const useObservationStore = defineStore('observation', () => {
       const observationRepo = dbStore.getRepository('observation')
       const result = await observationRepo.updateObservation(observationId, enhancedUpdateData)
 
+      // A value save resets AUDIT/CONFIRMED (CLAUDE.md §3) — keep that visible
+      // in the trail so reviewers can see WHY a flag vanished
+      if ('VALUEFLAG_CD' in enhancedUpdateData && enhancedUpdateData.VALUEFLAG_CD == null) {
+        const local = observations.value.find((o) => o.observationId === observationId) || allObservations.value.find((o) => o.observationId === observationId)
+        const previousFlag = local?.valueFlag ?? local?.rawData?.VALUEFLAG_CD ?? null
+        if (previousFlag === FLAG_AUDIT || previousFlag === FLAG_CONFIRMED) {
+          await logAuditEvent({ observationId, eventCd: AUDIT_EVENT_VALUE_EDIT, flagCd: null })
+        }
+      }
+
       // Update local state immediately to reflect changes
       const updateLocalObservation = (obsArray) => {
         const index = obsArray.findIndex((obs) => obs.observationId === observationId)
@@ -395,6 +410,11 @@ export const useObservationStore = defineStore('observation', () => {
                 updatedObs.category = enhancedUpdateData[key]
                 updatedObs.CATEGORY_CHAR = enhancedUpdateData[key]
                 break
+              case 'VALUEFLAG_CD':
+                updatedObs.valueFlag = enhancedUpdateData[key] ?? null
+                updatedObs.VALUEFLAG_CD = enhancedUpdateData[key] ?? null
+                if (updatedObs.rawData) updatedObs.rawData = { ...updatedObs.rawData, VALUEFLAG_CD: enhancedUpdateData[key] ?? null }
+                break
               default:
                 // Handle other fields generically
                 updatedObs[key] = enhancedUpdateData[key]
@@ -421,6 +441,131 @@ export const useObservationStore = defineStore('observation', () => {
       loading.value = false
     }
   }
+
+  /**
+   * Flip VALUEFLAG_CD of one observation (AUDIT / CONFIRMED / NV / null) —
+   * the timeline's counterpart of data-grid-store.setObservationFlag, built
+   * on the same SQL. Mirrors the flag into BOTH local arrays in place (the
+   * form grid holds references into `observations`, so no object swap) and
+   * clears the value fields when the flag is NV.
+   *
+   * @param {{observationId:number, flag:string|null}} payload
+   * @returns {Promise<string|null>} the flag written
+   */
+  const setObservationFlag = async ({ observationId, flag = null, comment = null, source = 'VISITS' } = {}) => {
+    if (observationId == null) {
+      logger.warn('setObservationFlag called without observationId — skipped')
+      return null
+    }
+    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId)
+    const result = await dbStore.executeQuery(sql, params)
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
+    }
+    await logAuditEvent({ observationId, eventCd: AUDIT_EVENT_FLAG, flagCd: flag, commentText: comment, source })
+
+    const mirror = (obsArray) => {
+      const obs = obsArray.find((o) => o.observationId === observationId)
+      if (!obs) return
+      obs.valueFlag = flag
+      if (obs.rawData) obs.rawData.VALUEFLAG_CD = flag
+      if (clearValue) {
+        obs.value = null
+        obs.numericValue = null
+        obs.originalValue = null
+        obs.displayValue = 'No value'
+        if (obs.rawData) {
+          obs.rawData.NVAL_NUM = null
+          obs.rawData.TVAL_CHAR = null
+        }
+      }
+    }
+    mirror(observations.value)
+    mirror(allObservations.value)
+
+    logger.info('Observation flag updated', { observationId, flag, cleared: flag === FLAG_NV })
+    return flag
+  }
+
+  // ---- Audit trail --------------------------------------------------------
+
+  /** Append an event to the trail; never breaks the calling write (logs instead). */
+  const logAuditEvent = async ({ observationId, eventCd, flagCd = null, commentText = null, source = 'VISITS' }) => {
+    try {
+      const auditRepo = dbStore.getRepository?.('observationAudit')
+      if (!auditRepo) return null
+      const row = await auditRepo.logEvent({ observationId, eventCd, flagCd, commentText, createdBy: authStore.providerId, source })
+      if (row) {
+        const next = new Map(auditTrail.value)
+        next.set(observationId, [...(next.get(observationId) || []), row])
+        auditTrail.value = next
+      }
+      return row
+    } catch (err) {
+      logger.error('Failed to log audit event', err, { observationId, eventCd })
+      return null
+    }
+  }
+
+  /** Comment on an observation without changing its flag. */
+  const addAuditComment = async ({ observationId, text }) => {
+    if (observationId == null || !text || !String(text).trim()) return null
+    const auditRepo = dbStore.getRepository('observationAudit')
+    const row = await auditRepo.logEvent({ observationId, eventCd: AUDIT_EVENT_COMMENT, commentText: text, createdBy: authStore.providerId, source: 'VISITS' })
+    if (row) {
+      const next = new Map(auditTrail.value)
+      next.set(observationId, [...(next.get(observationId) || []), row])
+      auditTrail.value = next
+    }
+    return row
+  }
+
+  /** Delete a comment — author or admin only (UI hides the button otherwise). */
+  const deleteAuditComment = async ({ observationId, auditId }) => {
+    const auditRepo = dbStore.getRepository('observationAudit')
+    const ok = await auditRepo.deleteEvent(auditId)
+    if (ok) {
+      const next = new Map(auditTrail.value)
+      next.set(observationId, (next.get(observationId) || []).filter((e) => e.AUDIT_ID !== auditId))
+      auditTrail.value = next
+    }
+    return ok
+  }
+
+  const groupTrail = (rows) => {
+    const map = new Map()
+    for (const row of rows || []) {
+      if (!map.has(row.OBSERVATION_ID)) map.set(row.OBSERVATION_ID, [])
+      map.get(row.OBSERVATION_ID).push(row)
+    }
+    return map
+  }
+
+  /** Replace the trail cache with every event of one patient. */
+  const loadAuditTrailForPatient = async (patientNum) => {
+    if (patientNum == null) return
+    const auditRepo = dbStore.getRepository?.('observationAudit')
+    if (!auditRepo) return
+    try {
+      auditTrail.value = groupTrail(await auditRepo.getTrailForPatient(patientNum))
+    } catch (err) {
+      logger.error('Failed to load audit trail', err, { patientNum })
+    }
+  }
+
+  /** Refresh the trail of one observation (dialog open). */
+  const loadAuditTrailForObservation = async (observationId) => {
+    if (observationId == null) return []
+    const auditRepo = dbStore.getRepository('observationAudit')
+    const rows = await auditRepo.getTrailForObservation(observationId)
+    const next = new Map(auditTrail.value)
+    next.set(observationId, rows)
+    auditTrail.value = next
+    return rows
+  }
+
+  const auditTrailFor = (observationId) => auditTrail.value.get(observationId) || []
+  const auditCommentCount = (observationId) => auditTrailFor(observationId).filter((e) => e.COMMENT_TEXT).length
 
   const deleteObservation = async (observationId) => {
     try {
@@ -537,6 +682,8 @@ export const useObservationStore = defineStore('observation', () => {
       unit: obs.UNIT_CD,
       category: obs.CATEGORY_CHAR || 'General',
       date: obs.START_DATE,
+      // Audit / NV state (CLAUDE.md §3) — same name as the grid's cell state
+      valueFlag: obs.VALUEFLAG_CD || null,
       displayValue: null,
       fileInfo: null,
       encounterNum: obs.ENCOUNTER_NUM,
@@ -680,6 +827,14 @@ export const useObservationStore = defineStore('observation', () => {
     findPreviousObservation,
     createObservation,
     updateObservation,
+    setObservationFlag,
+    auditTrail,
+    auditTrailFor,
+    auditCommentCount,
+    addAuditComment,
+    deleteAuditComment,
+    loadAuditTrailForPatient,
+    loadAuditTrailForObservation,
     deleteObservation,
     getObservationBlob,
     loadObservationDetails,

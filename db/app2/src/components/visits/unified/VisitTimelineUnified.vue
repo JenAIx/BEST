@@ -22,6 +22,23 @@
                 <q-icon name="search" size="18px" />
               </template>
             </q-input>
+            <!-- "Only open audits" — the grid footer chip's counterpart:
+                 visible whenever there is something to filter (or the filter
+                 is still on after the last audit was resolved) -->
+            <q-chip
+              v-if="totalOpenAudits > 0 || auditOnly"
+              clickable
+              dense
+              size="sm"
+              :color="auditOnly ? 'negative' : 'red-1'"
+              :text-color="auditOnly ? 'white' : 'negative'"
+              :icon="auditOnly ? 'filter_alt' : 'flag'"
+              data-cy="unified-audit-filter"
+              @click="auditOnly = !auditOnly"
+            >
+              {{ $t('visit.openAudits', { count: totalOpenAudits }) }}
+              <q-tooltip>{{ auditOnly ? $t('visit.auditFilterActive') : $t('visit.showOnlyAudits') }}</q-tooltip>
+            </q-chip>
             <q-space />
             <q-btn
               flat
@@ -29,7 +46,7 @@
               dense
               :icon="allVisibleExpanded ? 'unfold_less' : 'unfold_more'"
               color="grey-7"
-              :disable="!!searchTerm || visibleVisits.length === 0"
+              :disable="filterActive || visibleVisits.length === 0"
               data-cy="unified-expand-toggle"
               @click="toggleExpandAll"
             >
@@ -57,8 +74,8 @@
             </div>
 
             <div v-if="listState === 'noResults'" class="state-block text-grey-6">
-              <q-icon name="search_off" size="32px" class="q-mb-xs" />
-              <div class="text-caption">{{ $t('visit.compactSearchNoResults', { term: searchTerm }) }}</div>
+              <q-icon :name="searchTerm ? 'search_off' : 'flag'" size="32px" class="q-mb-xs" />
+              <div class="text-caption">{{ searchTerm ? $t('visit.compactSearchNoResults', { term: searchTerm }) : $t('visit.noOpenAudits') }}</div>
             </div>
 
             <div v-if="listState === 'ready'" class="unified-list">
@@ -68,11 +85,13 @@
                 :visit="visit"
                 :categorized-observations="observationsForVisit(visit.id)"
                 :observation-count="observationCountFor(visit)"
+                :open-audit-count="openAuditCountFor(visit.id)"
+                :comment-counts="commentCounts"
                 :expanded="isExpanded(visit)"
                 :editing="isEditing(visit.id)"
                 :type-meta="typeMeta(visit)"
                 :status-meta="statusMeta(visit)"
-                :show-completion="!searchTerm"
+                :show-completion="!filterActive"
                 @toggle="toggleCard(visit)"
                 @edit="enterEditMode(visit)"
                 @edit-meta="editVisitMeta(visit)"
@@ -81,6 +100,8 @@
                 @delete="confirmDelete(visit)"
                 @preview-file="previewFile"
                 @preview-questionnaire="previewQuestionnaire"
+                @set-flag="onSetFlag"
+                @open-audit="openAuditDialog"
               >
                 <!-- Inline edit mode: split layout, mounted only for the editing card -->
                 <template #editor>
@@ -114,6 +135,8 @@
       :upload-date="selectedFileObservation.date"
     />
 
+    <ObservationAuditDialog v-model="showAuditDialog" :observation="auditObservation" source="VISITS" />
+
     <QuestionnairePreviewDialog
       v-if="selectedQuestionnaireObservation"
       v-model="showQuestionnairePreview"
@@ -130,12 +153,16 @@ import { useVisitStore } from 'src/stores/visit-store'
 import { useObservationStore } from 'src/stores/observation-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
+import { useLocalSettingsStore } from 'src/stores/local-settings-store'
+import { useNotify } from 'src/composables/useNotify'
+import { useI18n } from 'vue-i18n'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useVisitLabels } from 'src/composables/useVisitLabels'
 import { useVisitActions } from 'src/composables/useVisitActions'
 import { useSingleVisitEdit } from 'src/composables/useSingleVisitEdit'
 import { groupObservationsByFieldSets, filterObservations } from 'src/shared/utils/file-category'
 import { isBlankObservation } from 'src/shared/utils/observation-display.js'
+import { hasOpenAudit, countOpenAudits } from 'src/shared/utils/audit-flag.js'
 import { toggleExpanded, allExpanded, expandAll, collapseAll } from 'src/shared/utils/expand-state.js'
 import { formatDate } from 'src/shared/utils/medical-utils.js'
 import VisitUnifiedCard from './VisitUnifiedCard.vue'
@@ -147,6 +174,7 @@ import NewVisitDialog from '../NewVisitDialog.vue'
 import EditVisitDialog from '../../patient/EditVisitDialog.vue'
 import FilePreviewDialog from 'src/components/shared/FilePreviewDialog.vue'
 import QuestionnairePreviewDialog from 'src/components/shared/QuestionnairePreviewDialog.vue'
+import ObservationAuditDialog from 'src/components/shared/ObservationAuditDialog.vue'
 
 defineOptions({
   name: 'VisitTimelineUnified',
@@ -160,6 +188,9 @@ const props = defineProps({
 const visitStore = useVisitStore()
 const observationStore = useObservationStore()
 const logger = useLoggingStore().createLogger('VisitTimelineUnified')
+const localSettings = useLocalSettingsStore()
+const notify = useNotify()
+const { t } = useI18n()
 
 const patientNum = computed(() => props.patient?.PATIENT_NUM ?? props.patient?.rawData?.PATIENT_NUM ?? null)
 
@@ -204,13 +235,57 @@ onMounted(async () => {
 
 const searchTerm = ref('')
 
+// ---- Audit filter ("nur offene Audits") — counterpart of the grid footer chip ----
+// Behaves like a search: matching visits are pinned open, non-matching
+// tiles hidden. Pre-activated once via the study audit panel's one-shot flag.
+const auditOnly = ref(false)
+const filterActive = computed(() => !!searchTerm.value || auditOnly.value)
+
+onMounted(() => {
+  if (localSettings.consumePendingAuditFilter()) auditOnly.value = true
+})
+
+const totalOpenAudits = computed(() => countOpenAudits(observationStore.allObservations))
+
+const openAuditCountFor = (visitId) => countOpenAudits(observationStore.allObservations.filter((obs) => obs.encounterNum === visitId))
+
+// Audit dialog (trail + comments) for one observation; tile badges show
+// the comment count from the patient-wide trail cache
+const showAuditDialog = ref(false)
+const auditObservation = ref(null)
+
+const openAuditDialog = (observation) => {
+  auditObservation.value = observation
+  showAuditDialog.value = true
+}
+
+const commentCounts = computed(() => {
+  const counts = {}
+  for (const [observationId, events] of observationStore.auditTrail) {
+    const n = events.filter((e) => e.COMMENT_TEXT).length
+    if (n > 0) counts[observationId] = n
+  }
+  return counts
+})
+
+// Flag transitions from the read tiles' context menu — the store mirrors
+// the new flag in place, so tiles, chips and nav badges update immediately
+const onSetFlag = async ({ observation, flag }) => {
+  try {
+    await observationStore.setObservationFlag({ observationId: observation.observationId, flag })
+  } catch (error) {
+    logger.error('Failed to set audit flag', error, { observationId: observation?.observationId, flag })
+    notify.error(t('observation.saveFailed'))
+  }
+}
+
 // Read mode hides observations that were merely created without a value —
 // NV rows ("explicitly no value") stay visible as ∅ tiles. Blank rows are
 // still editable: the form grid shows every field-set concept anyway.
 const groupedByVisit = computed(() =>
   groupObservationsByFieldSets(
     filterObservations(
-      observationStore.allObservations.filter((obs) => !isBlankObservation(obs)),
+      observationStore.allObservations.filter((obs) => !isBlankObservation(obs) && (!auditOnly.value || hasOpenAudit(obs))),
       searchTerm.value,
     ),
     fieldSetDefs.value,
@@ -222,23 +297,24 @@ const observationsForVisit = (visitId) => groupedByVisit.value.get(visitId) || [
 const matchedCount = (visitId) => observationsForVisit(visitId).flatMap((category) => category.observations).length
 
 // Edit mode is a focus mode: only the visit being edited is shown.
-// Otherwise: while searching only visits with matching results are shown.
+// Otherwise: while searching / audit-filtering only visits with matching
+// results are shown.
 const visibleVisits = computed(() => {
   if (editingVisitId.value != null) return sortedVisits.value.filter((visit) => isEditing(visit.id))
-  if (!searchTerm.value) return sortedVisits.value
+  if (!filterActive.value) return sortedVisits.value
   return sortedVisits.value.filter((visit) => observationsForVisit(visit.id).length > 0)
 })
 
 // Header count: the visit query's count is the source of truth; while
-// searching the number of matches is more useful
-const observationCountFor = (visit) => (searchTerm.value ? matchedCount(visit.id) : visit.observationCount || 0)
+// filtering the number of matches is more useful
+const observationCountFor = (visit) => (filterActive.value ? matchedCount(visit.id) : visit.observationCount || 0)
 
 // ---- Expand state (session-local, default: everything collapsed) ----
 const expandedIds = ref(new Set())
 
-// Searching force-expands matches WITHOUT touching the user's state —
-// clearing the search restores the previous expand state for free
-const isExpanded = (visit) => (searchTerm.value ? true : expandedIds.value.has(visit.id))
+// Searching / audit-filtering force-expands matches WITHOUT touching the
+// user's state — clearing the filter restores the previous expand state
+const isExpanded = (visit) => (filterActive.value ? true : expandedIds.value.has(visit.id))
 
 const toggleCard = async (visit) => {
   // Collapsing the editing card means "done" (autosave model, nothing to lose)
@@ -247,7 +323,7 @@ const toggleCard = async (visit) => {
     expandedIds.value = collapseAll(expandedIds.value, [visit.id])
     return
   }
-  if (searchTerm.value) return // cards are pinned open while searching
+  if (filterActive.value) return // cards are pinned open while filtering
   expandedIds.value = toggleExpanded(expandedIds.value, visit.id)
 }
 
@@ -268,6 +344,7 @@ const toggleExpandAll = () => {
 watch(patientNum, () => {
   expandedIds.value = new Set()
   searchTerm.value = ''
+  auditOnly.value = false
   editingVisitId.value = null // no cross-patient edit state
 })
 
@@ -364,10 +441,15 @@ const onDataChanged = async () => {
   try {
     await visitStore.loadVisitsForPatient(patientNum.value)
     await observationStore.loadAllObservationsForPatient(patientNum.value)
+    await observationStore.loadAuditTrailForPatient(patientNum.value)
   } catch (error) {
     logger.error('Failed to refresh visits/observations', error)
   }
 }
+
+// The trail (comment badges) loads alongside the patient's observations;
+// the page itself loads visits/observations before this component mounts
+watch(patientNum, (num) => observationStore.loadAuditTrailForPatient(num), { immediate: true })
 
 // ---- Quick navigation (left column) + scroll spy ----
 const scrollArea = ref(null)
@@ -389,6 +471,7 @@ const navEntries = computed(() => {
     label: formatDate(visit.date),
     sublabel: typeMeta(visit).label,
     expanded: isExpanded(visit),
+    auditCount: openAuditCountFor(visit.id),
     groups: isExpanded(visit) ? observationsForVisit(visit.id).map((group) => ({ name: group.name, icon: group.icon })) : [],
   }))
 })
@@ -400,14 +483,14 @@ const scrollToSelector = async (selector) => {
 }
 
 const navToVisit = (visitId) => {
-  if (editingVisitId.value == null && !expandedIds.value.has(visitId) && !searchTerm.value) {
+  if (editingVisitId.value == null && !expandedIds.value.has(visitId) && !filterActive.value) {
     expandedIds.value = expandAll(expandedIds.value, [visitId])
   }
   scrollToSelector(`[data-visit-id="${visitId}"]`)
 }
 
 const navToGroup = ({ visitId, group }) => {
-  if (editingVisitId.value == null && !expandedIds.value.has(visitId) && !searchTerm.value) {
+  if (editingVisitId.value == null && !expandedIds.value.has(visitId) && !filterActive.value) {
     expandedIds.value = expandAll(expandedIds.value, [visitId])
   }
   scrollToSelector(`[data-visit-id="${visitId}"] [data-group-name="${CSS.escape(group)}"]`)
