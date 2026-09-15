@@ -68,8 +68,8 @@ export function useVisitFieldSets(options = {}) {
     }
 
     try {
-      globalSettingsStore.clearCache()
-      const visitTypeFieldSets = await globalSettingsStore.getFieldSetsForVisitType(visitType, true)
+      // cached (5-min TTL); admin edits invalidate via the settings page
+      const visitTypeFieldSets = await globalSettingsStore.getFieldSetsForVisitType(visitType)
       if (!visitTypeFieldSets || visitTypeFieldSets.length === 0) return
 
       const validFieldSets = visitTypeFieldSets.filter((fsId) => availableFieldSets.value.some((fs) => fs.id === fsId))
@@ -116,7 +116,6 @@ export function useVisitFieldSets(options = {}) {
    */
   const ensureQuestionnaireFieldSetActive = async () => {
     if (!availableFieldSets.value.some((fs) => fs.id === 'questionnaires')) {
-      globalSettingsStore.clearCache()
       const fresh = await globalSettingsStore.getFieldSetOptions(true)
       if (fresh && fresh.length > 0) availableFieldSets.value = fresh
 

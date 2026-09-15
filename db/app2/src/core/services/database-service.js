@@ -346,10 +346,11 @@ class DatabaseService {
       // Get table row counts
       const tables = ['PATIENT_DIMENSION', 'VISIT_DIMENSION', 'OBSERVATION_FACT', 'CONCEPT_DIMENSION', 'PROVIDER_DIMENSION', 'CODE_LOOKUP', 'USER_MANAGEMENT', 'CQL_FACT']
 
-      for (const table of tables) {
-        const result = await this.connection.executeQuery(`SELECT COUNT(*) as count FROM ${table}`)
-        stats[table] = result.success ? result.data[0].count : 0
-      }
+      // one round trip instead of eight sequential COUNTs
+      const sql = `SELECT ${tables.map((t) => `(SELECT COUNT(*) FROM ${t}) AS ${t}`).join(', ')}`
+      const result = await this.connection.executeQuery(sql)
+      const row = (result.success && result.data[0]) || {}
+      for (const table of tables) stats[table] = Number(row[table]) || 0
 
       // Get database file size
       stats.databasePath = this.getDatabasePath()

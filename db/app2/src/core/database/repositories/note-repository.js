@@ -117,6 +117,24 @@ class NoteRepository extends BaseRepository {
   }
 
   /**
+   * Messages ADDRESSED to a user (direct or broadcast) — headers only, for
+   * the unread badge. Sent messages are never unread, so they are excluded;
+   * NOTE_TEXT is not needed for the count.
+   * @param {string} userCd
+   * @param {Object} options - { limit }
+   */
+  async getReceivedMessageHeaders(userCd, { limit = 200 } = {}) {
+    const sql = `
+      SELECT NOTE_ID, NOTE_BLOB, SOURCESYSTEM_CD, IMPORT_DATE FROM ${this.tableName}
+      WHERE CATEGORY_CHAR = 'MESSAGE'
+        AND (NOTE_BLOB LIKE ? OR NOTE_BLOB LIKE ?)
+      ORDER BY IMPORT_DATE DESC LIMIT ?
+    `
+    const result = await this.connection.executeQuery(sql, [`%"to":"${userCd}"%`, `%"to":"*"%`, limit])
+    return result.success ? result.data : []
+  }
+
+  /**
    * Find notes by name pattern
    * @param {string} namePattern - Name pattern to search for
    * @returns {Promise<Array>} - Array of matching notes
@@ -160,9 +178,9 @@ class NoteRepository extends BaseRepository {
     }
 
     const sql = `
-      SELECT * FROM ${this.tableName} 
-      WHERE CATEGORY_CHAR LIKE ? 
-         OR NAME_CHAR LIKE ? 
+      SELECT * FROM ${this.tableName}
+      WHERE CATEGORY_CHAR LIKE ?
+         OR NAME_CHAR LIKE ?
          OR NOTE_BLOB LIKE ?
       ORDER BY IMPORT_DATE DESC
     `
@@ -404,7 +422,7 @@ class NoteRepository extends BaseRepository {
   async getNotesSummaryByCategory() {
     try {
       const sql = `
-        SELECT 
+        SELECT
           CATEGORY_CHAR,
           COUNT(*) as totalNotes,
           COUNT(CASE WHEN NOTE_BLOB IS NOT NULL THEN 1 END) as notesWithBlob,

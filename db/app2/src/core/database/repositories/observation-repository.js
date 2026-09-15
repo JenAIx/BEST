@@ -206,7 +206,7 @@ class ObservationRepository extends BaseRepository {
    */
   async getObservationsWithContext(patientNum) {
     const sql = `
-      SELECT o.*, 
+      SELECT o.*,
              p.PATIENT_CD,
              v.LOCATION_CD,
              v.START_DATE as VISIT_START_DATE
@@ -370,10 +370,10 @@ class ObservationRepository extends BaseRepository {
     }
 
     const sql = `
-      SELECT * FROM ${this.tableName} 
-      WHERE CATEGORY_CHAR LIKE ? 
-         OR CONCEPT_CD LIKE ? 
-         OR TVAL_CHAR LIKE ? 
+      SELECT * FROM ${this.tableName}
+      WHERE CATEGORY_CHAR LIKE ?
+         OR CONCEPT_CD LIKE ?
+         OR TVAL_CHAR LIKE ?
          OR CAST(PATIENT_NUM AS TEXT) LIKE ?
          OR CAST(ENCOUNTER_NUM AS TEXT) LIKE ?
       ORDER BY START_DATE DESC
@@ -390,13 +390,13 @@ class ObservationRepository extends BaseRepository {
    * @returns {Promise<boolean>} - Success status
    */
   async updateObservation(observationId, updateData) {
-    // Validate observation exists
-    const existingObservation = await this.findById(observationId)
-    if (!existingObservation) {
+    // No SELECT * pre-check (it shipped OBSERVATION_BLOB — up to 50 MB for
+    // R rows — over IPC on every save): the UPDATE's changes-count tells us.
+    const updated = await this.update(observationId, updateData)
+    if (!updated) {
       throw new Error(`Observation with OBSERVATION_ID ${observationId} not found`)
     }
-
-    return await this.update(observationId, updateData)
+    return true
   }
 
   /**
@@ -428,8 +428,8 @@ class ObservationRepository extends BaseRepository {
    */
   async getSurveyObservations(surveyCode) {
     const sql = `
-      SELECT * FROM ${this.tableName} 
-      WHERE CATEGORY_CHAR = 'surveyBEST' 
+      SELECT * FROM ${this.tableName}
+      WHERE CATEGORY_CHAR = 'surveyBEST'
         AND OBSERVATION_BLOB LIKE ?
       ORDER BY START_DATE DESC
     `
@@ -444,7 +444,7 @@ class ObservationRepository extends BaseRepository {
    */
   async getPatientNumericSummary(patientNum) {
     const sql = `
-      SELECT 
+      SELECT
         CONCEPT_CD,
         COUNT(*) as count,
         AVG(NVAL_NUM) as average,

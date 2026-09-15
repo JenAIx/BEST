@@ -24,6 +24,8 @@ export const useObservationStore = defineStore('observation', () => {
   // Audit trail (OBSERVATION_AUDIT_FACT rows) per observation id, loaded per
   // patient / per observation; comment counts derive from it for the tiles
   const auditTrail = ref(new Map())
+  // observationId → number of comments (badge source; the trail itself loads per dialog)
+  const commentCounts = ref(new Map())
   const loading = ref(false)
   const error = ref(null)
 
@@ -174,12 +176,12 @@ export const useObservationStore = defineStore('observation', () => {
         FROM patient_observations
         WHERE PATIENT_NUM = ?
         ORDER BY START_DATE DESC, CATEGORY_CHAR, CONCEPT_NAME_CHAR
-        LIMIT 1000
       `
 
       const result = await dbStore.executeQuery(query, [patientNum])
 
       if (result.success) {
+        if (result.data.length > 5000) logger.warn('Very large observation set for one patient', { patientNum, count: result.data.length })
         allObservations.value = result.data.map((obs) => transformObservation(obs))
 
         logger.success('All observations loaded successfully', {
@@ -220,7 +222,7 @@ export const useObservationStore = defineStore('observation', () => {
       // Query database for most recent observation of this concept for this patient
       // Join with VISIT_DIMENSION to use the visit's START_DATE for proper chronological ordering
       const query = `
-        SELECT 
+        SELECT
           OF.TVAL_CHAR,
           OF.NVAL_NUM,
           OF.UNIT_CD,
@@ -241,16 +243,16 @@ export const useObservationStore = defineStore('observation', () => {
         ORDER BY VD.START_DATE DESC
         LIMIT 1
       `
-      
+
       const result = await dbStore.executeQuery(query, [
         conceptCode,
         patientNum,
         beforeDate
       ])
-      
+
       if (result.success && result.data.length > 0) {
         const obs = result.data[0]
-        
+
         // Extract the value based on type
         let value = null
         if (obs.NVAL_NUM !== null && obs.NVAL_NUM !== undefined) {
@@ -258,7 +260,7 @@ export const useObservationStore = defineStore('observation', () => {
         } else if (obs.TVAL_CHAR !== null && obs.TVAL_CHAR !== undefined && obs.TVAL_CHAR.trim() !== '') {
           value = obs.TVAL_CHAR
         }
-        
+
         if (value !== null) {
           const previousObservation = {
             value: value,
@@ -268,14 +270,14 @@ export const useObservationStore = defineStore('observation', () => {
             valueType: obs.VALTYPE_CD,
             observationId: obs.OBSERVATION_ID,
           }
-          
+
           logger.success('Found previous observation', {
             conceptCode,
             value: value,
             visitDate: obs.VISIT_START_DATE, // Use the visit's start date for logging
             observationId: obs.OBSERVATION_ID,
           })
-          
+
           return previousObservation
         } else {
           logger.info('Found observation but no valid value')
@@ -289,7 +291,7 @@ export const useObservationStore = defineStore('observation', () => {
         })
         return null
       }
-      
+
     } catch (error) {
       logger.error('Failed to query for previous observation', error, {
         conceptCode,
@@ -510,6 +512,7 @@ export const useObservationStore = defineStore('observation', () => {
         const next = new Map(auditTrail.value)
         next.set(observationId, [...(next.get(observationId) || []), row])
         auditTrail.value = next
+        if (row.COMMENT_TEXT) bumpCommentCount(observationId, 1)
       }
       return row
     } catch (err) {
@@ -527,6 +530,7 @@ export const useObservationStore = defineStore('observation', () => {
       const next = new Map(auditTrail.value)
       next.set(observationId, [...(next.get(observationId) || []), row])
       auditTrail.value = next
+      bumpCommentCount(observationId, 1)
     }
     return row
   }
@@ -539,8 +543,29 @@ export const useObservationStore = defineStore('observation', () => {
       const next = new Map(auditTrail.value)
       next.set(observationId, (next.get(observationId) || []).filter((e) => e.AUDIT_ID !== auditId))
       auditTrail.value = next
+      bumpCommentCount(observationId, -1)
     }
     return ok
+  }
+
+  const bumpCommentCount = (observationId, delta) => {
+    const next = new Map(commentCounts.value)
+    const n = Math.max(0, (next.get(observationId) || 0) + delta)
+    if (n > 0) next.set(observationId, n)
+    else next.delete(observationId)
+    commentCounts.value = next
+  }
+
+  /** Badge counts for every observation of a patient (one GROUP BY, no trail rows). */
+  const loadCommentCountsForPatient = async (patientNum) => {
+    if (patientNum == null) return
+    const auditRepo = dbStore.getRepository?.('observationAudit')
+    if (!auditRepo) return
+    try {
+      commentCounts.value = await auditRepo.getCommentCountsForPatient(patientNum)
+    } catch (err) {
+      logger.error('Failed to load audit comment counts', err, { patientNum })
+    }
   }
 
   const groupTrail = (rows) => {
@@ -572,11 +597,15 @@ export const useObservationStore = defineStore('observation', () => {
     const next = new Map(auditTrail.value)
     next.set(observationId, rows)
     auditTrail.value = next
+    const n = rows.filter((e) => e.COMMENT_TEXT).length
+    if ((commentCounts.value.get(observationId) || 0) !== n) bumpCommentCount(observationId, n - (commentCounts.value.get(observationId) || 0))
     return rows
   }
 
   const auditTrailFor = (observationId) => auditTrail.value.get(observationId) || []
-  const auditCommentCount = (observationId) => auditTrailFor(observationId).filter((e) => e.COMMENT_TEXT).length
+  // Loaded trail wins (exact), otherwise the patient-wide count map
+  const auditCommentCount = (observationId) =>
+    auditTrail.value.has(observationId) ? auditTrailFor(observationId).filter((e) => e.COMMENT_TEXT).length : commentCounts.value.get(observationId) || 0
 
   const deleteObservation = async (observationId) => {
     try {
@@ -841,6 +870,8 @@ export const useObservationStore = defineStore('observation', () => {
     setObservationFlag,
     getObservationHistory,
     auditTrail,
+    commentCounts,
+    loadCommentCountsForPatient,
     auditTrailFor,
     auditCommentCount,
     addAuditComment,

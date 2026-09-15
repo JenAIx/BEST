@@ -193,11 +193,21 @@ VALUES (1, 42, 'Access granted for study XYZ', datetime('now'));
   `findByPatientCode` stays unfiltered for internal checks (duplicate
   detection on create) and must not be used for user-facing lists (2026-07-14)
 - ✅ Single source of the access predicate: `PatientRepository.getAccessFilter(userAccess)`
-  returns `{join, condition, param}` (or null for admins) — every filtered
-  query composes from it; never inline the UPL join by hand. For list queries
-  in components, always call the `dbStore` wrappers (`getPatientsPaginated`,
-  `getAccessiblePatientByCode`), never `patientRepo.*` directly — the repo
-  methods don't resolve the auth context themselves
+  returns `{join, condition, param}` (or null = unfiltered) — every filtered
+  query composes from it; never inline the UPL join by hand. For aggregate
+  queries without a `p` alias use `getAccessPredicate(userAccess, 'x.PATIENT_NUM')`
+  (`{sql, params}` or null). For list queries in components, always call the
+  `dbStore` wrappers (`getPatientsPaginated`, `getAccessiblePatientByCode`,
+  `getEnrolledPatientsForStudy`, …), never `patientRepo.*`/`studyRepo.*`
+  directly — the repo methods don't resolve the auth context themselves
+- ✅ **Access modes are FAIL-CLOSED** (`shared/utils/patient-access.js`
+  `resolveAccessMode`, Sept 2026): `userAccess === null/undefined` = system
+  caller (imports, tests) → unfiltered; `isAdmin` → unfiltered; a context
+  object WITHOUT `userId` → deny-all (`1 = 0`); otherwise filtered. **Never
+  test `userId` for truthiness** — `USER_ID = 0` is the seeded `public` user
+  and used to fall through to "no filter" (public saw every patient).
+  `database-store.resolveUserAccess` therefore never returns null: no
+  session / auth error → `{userId: null, isAdmin: false}` → deny-all
 - ✅ Every patient-creating path MUST write access rows: interactive creation
   via `database-store.createPatient` (creator + optional public), imports via
   `database-import-service.assignPatientAccess` (creator + public by default),
@@ -537,6 +547,38 @@ For one-off fix-ups of existing rows that this migration doesn't own, add explic
 `UPDATE` statements after the upserts (see `010-stroke-lipid-seed.js`'s
 `categoryFixups` block — that's how `SCTID: 371484003` was moved from `'General'`
 to `'Demographics'`).
+
+### 8. Query-performance conventions (audit Sept 2026)
+
+Several users work on ONE SQLite file over SMB, so every avoidable round trip
+and every shipped blob costs real time. Rules that came out of the audit:
+
+- **`patient_list` view**: `AGE_IN_YEARS` comes from the exact concept
+  `LID: 63900-5` (correlated scalar subquery, migration 018) — never re-add
+  `LIKE '%age%'`-style matching or a window function to the view; it turns
+  every point lookup into a scan of OBSERVATION_FACT.
+- **No per-card queries.** Card lists batch everything:
+  `getPatientAccessInfo`, `getPatientStudyInfo`, `getVisitStatsForPatients`
+  (visit count + last visit, one `GROUP BY`), `getAccessiblePatientsByCodes`.
+- **First-page-only callers pass `options.skipCount`** to
+  `getPatientsPaginated` (dashboard, SmartSearch, recents) — the COUNT over
+  the view is otherwise a second full query.
+- **Text search** = `searchPatientsWithConcepts(term, access, {limit, offset})`
+  + `countSearchPatientsWithConcepts`; both share `_buildSearchQuery`
+  (PATIENT_CD / PATIENT_BLOB / STATECITYZIP_PATH only).
+- **Dashboard counters** = ONE query, `PatientRepository.getDashboardStatistics`
+  (scalar subqueries, access predicate on every counter). Date filters are
+  half-open text ranges (`>= day AND < nextDay`), never `DATE(col) = ?`.
+- **Never `SELECT *` from OBSERVATION_FACT on a hot path** (it ships
+  OBSERVATION_BLOB): count with `COUNT(*)`, update without a `findById`
+  pre-check (`changes` tells you), list with explicit columns and the R-blob
+  NULLed.
+- **Lookup caches**: `global-settings-store` has a 5-minute TTL — every
+  successful lookup load must call `markLookupLoaded()`; components must not
+  call `clearCache()` on mount. `concept-resolution-store` option loaders go
+  through `cacheManager.getOrSet` (`getFindingOptions`, `getSelectionOptions`).
+- **Logging**: `file://` is production. Debug logging in a packaged build
+  only via `localStorage.BEST_LOG_LEVEL = 'DEBUG'` (settings UI).
 
 ---
 
@@ -1645,4 +1687,4 @@ console.log($t('category.key'))
 
 **Last Updated**: September 15, 2026  
 **App Version**: 0.8_20260915  
-**Database Schema Version**: migrations 001–017 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation, 017 neuro consult seed)
+**Database Schema Version**: migrations 001–018 (latest: 016 trigger re-creation, 017 neuro consult seed, 018 patient_list perf + indexes)

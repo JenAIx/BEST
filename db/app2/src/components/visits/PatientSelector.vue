@@ -124,6 +124,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { debounce } from 'quasar'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
@@ -188,24 +189,33 @@ const hasActiveFilters = computed(() =>
 const isSearchActive = computed(() => !!searchQuery.value || hasActiveFilters.value)
 
 // Methods
-const mapPatientForCard = async (patient, access = null, studies = []) => ({
+const mapPatientForCard = (patient, access = null, studies = [], visitStats = null) => ({
   id: patient.PATIENT_CD,
   PATIENT_NUM: patient.PATIENT_NUM,
   name: getPatientName(patient),
   age: patient.AGE_IN_YEARS,
   gender: patient.SEX_RESOLVED || patient.SEX_CD,
-  lastVisit: await getLastVisitDate(patient.PATIENT_NUM),
-  visitCount: await getVisitCount(patient.PATIENT_NUM),
+  lastVisit: visitStats?.lastVisitDate ? formatVisitDate(visitStats.lastVisitDate) : null,
+  visitCount: visitStats?.visitCount || 0,
   owner: access?.ownerUserCd || null,
   isPublic: access?.isPublic || false,
   studies,
 })
 
+// Three batched queries for a whole card list (access, studies, visit stats)
+// — previously two VISIT_DIMENSION queries PER card.
 const loadPatientCardMaps = async (patients) => {
   const patientNums = patients.map((p) => p.PATIENT_NUM)
-  const [accessMap, studyMap] = await Promise.all([dbStore.getPatientAccessInfo(patientNums), dbStore.getPatientStudyInfo(patientNums)])
-  return { accessMap, studyMap }
+  const [accessMap, studyMap, visitMap] = await Promise.all([
+    dbStore.getPatientAccessInfo(patientNums),
+    dbStore.getPatientStudyInfo(patientNums),
+    dbStore.getVisitStatsForPatients(patientNums),
+  ])
+  return { accessMap, studyMap, visitMap }
 }
+
+const toCards = (patients, { accessMap, studyMap, visitMap }) =>
+  patients.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM), studyMap.get(p.PATIENT_NUM) || [], visitMap.get(p.PATIENT_NUM)))
 
 const loadLatestAddedPatients = async () => {
   const result = await dbStore.getPatientsPaginated(1, 3, {
@@ -216,8 +226,7 @@ const loadLatestAddedPatients = async () => {
     },
   })
   const patients = result.patients || []
-  const { accessMap, studyMap } = await loadPatientCardMaps(patients)
-  return await Promise.all(patients.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM), studyMap.get(p.PATIENT_NUM) || [])))
+  return toCards(patients, await loadPatientCardMaps(patients))
 }
 
 const loadRecentPatients = async () => {
@@ -227,23 +236,20 @@ const loadRecentPatients = async () => {
     const recent = localSettings.getSetting('visits.recentPatients') || []
 
     if (recent.length > 0) {
-      // Access-controlled lookup: entries the current user may not see
+      // Access-controlled batch lookup: entries the current user may not see
       // (e.g. left over from an admin session) drop out here instead of
       // rendering cards whose click would then be denied.
-      const patientDetails = await Promise.all(
-        recent.slice(0, 5).map(async (patientId) => {
-          try {
-            return await dbStore.getAccessiblePatientByCode(patientId)
-          } catch (error) {
-            logger.warn('Failed to load recent patient', { patientId, error })
-            return null
-          }
-        }),
-      )
-      const accessible = patientDetails.filter((p) => p !== null)
+      const codes = recent.slice(0, 5)
+      let accessible = []
+      try {
+        const rows = await dbStore.getAccessiblePatientsByCodes(codes, { fromView: true })
+        const byCode = new Map(rows.map((p) => [p.PATIENT_CD, p]))
+        accessible = codes.map((code) => byCode.get(code)).filter(Boolean) // keep recents order
+      } catch (error) {
+        logger.warn('Failed to load recent patients', { codes, error })
+      }
       if (accessible.length > 0) {
-        const { accessMap, studyMap } = await loadPatientCardMaps(accessible)
-        recentPatients.value = await Promise.all(accessible.map((p) => mapPatientForCard(p, accessMap.get(p.PATIENT_NUM), studyMap.get(p.PATIENT_NUM) || [])))
+        recentPatients.value = toCards(accessible, await loadPatientCardMaps(accessible))
         recentPatientsSource.value = 'history'
         return
       }
@@ -341,28 +347,7 @@ const runSearch = async () => {
     const result = await dbStore.getPatientsPaginated(1, 25, criteria)
 
     const patients = result.patients || []
-    const { accessMap, studyMap } = await loadPatientCardMaps(patients)
-
-    const enhanced = await Promise.all(
-      patients.map(async (patient) => {
-        const visitCount = await getVisitCount(patient.PATIENT_NUM)
-        const access = accessMap.get(patient.PATIENT_NUM)
-        return {
-          id: patient.PATIENT_CD,
-          PATIENT_NUM: patient.PATIENT_NUM,
-          name: getPatientName(patient),
-          age: patient.AGE_IN_YEARS,
-          gender: patient.SEX_RESOLVED || patient.SEX_CD,
-          visitCount,
-          lastVisit: visitCount > 0 ? await getLastVisitDate(patient.PATIENT_NUM) : null,
-          owner: access?.ownerUserCd || null,
-          isPublic: access?.isPublic || false,
-          studies: studyMap.get(patient.PATIENT_NUM) || [],
-        }
-      }),
-    )
-
-    searchResults.value = enhanced
+    searchResults.value = toCards(patients, await loadPatientCardMaps(patients))
   } catch (error) {
     logger.error('Search failed', error)
     searchResults.value = []
@@ -460,32 +445,6 @@ const getPatientName = (patient) => {
   return patient.PATIENT_CD || 'Unknown Patient'
 }
 
-const getLastVisitDate = async (patientNum) => {
-  try {
-    const visitRepo = dbStore.getRepository('visit')
-    const visits = await visitRepo.findByPatientNum(patientNum)
-
-    if (visits.length > 0) {
-      const lastVisit = visits.sort((a, b) => new Date(b.START_DATE) - new Date(a.START_DATE))[0]
-      return formatVisitDate(lastVisit.START_DATE)
-    }
-  } catch (error) {
-    logger.warn('Failed to get last visit date', error)
-  }
-  return null
-}
-
-const getVisitCount = async (patientNum) => {
-  try {
-    const visitRepo = dbStore.getRepository('visit')
-    const visits = await visitRepo.findByPatientNum(patientNum)
-    return visits.length
-  } catch (error) {
-    logger.warn('Failed to get visit count', error)
-    return 0
-  }
-}
-
 const formatVisitDate = (dateStr) => {
   if (!dateStr) return null
   const date = new Date(dateStr)
@@ -559,12 +518,13 @@ onMounted(async () => {
   if (hasActiveFilters.value) runSearch()
 })
 
+// Debounced: the age q-range fires on every drag tick
 watch(
   filters,
-  () => {
+  debounce(() => {
     if (hasActiveFilters.value) runSearch()
     else if (!searchQuery.value) searchResults.value = []
-  },
+  }, 250),
   { deep: true },
 )
 </script>

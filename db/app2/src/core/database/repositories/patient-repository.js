@@ -69,6 +69,90 @@ class PatientRepository extends BaseRepository {
   }
 
   /**
+   * Access predicate for an arbitrary PATIENT_NUM column (no JOIN needed) —
+   * for aggregate/COUNT queries on VISIT_DIMENSION, OBSERVATION_FACT etc.
+   * Same fail-closed semantics as getAccessFilter.
+   *
+   * @param {{userId: number|null, isAdmin: boolean}|null} userAccess
+   * @param {string} [patientNumExpr='PATIENT_NUM']
+   * @returns {{sql: string, params: Array}|null} null = no filtering
+   */
+  getAccessPredicate(userAccess, patientNumExpr = 'PATIENT_NUM') {
+    const mode = resolveAccessMode(userAccess)
+    if (mode === 'unfiltered') return null
+    if (mode === 'deny') return { sql: '1 = 0', params: [] }
+    return {
+      sql: `${patientNumExpr} IN (SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? OR USER_ID = 0)`,
+      params: [userAccess.userId],
+    }
+  }
+
+  /**
+   * Every dashboard counter in ONE round trip (scalar subqueries).
+   *
+   * All counters are access-filtered for regular users, so the tiles agree
+   * with the (filtered) patient list underneath them. `hiddenPatients` is the
+   * only unfiltered number: total minus accessible.
+   *
+   * Dates are compared as half-open text ranges (`>= day AND < nextDay`) —
+   * START_DATE ('YYYY-MM-DD') and UPDATE_DATE ('YYYY-MM-DD HH:MM:SS') are ISO
+   * text, so this stays index-friendly, unlike `DATE(col) = ?`.
+   *
+   * @param {{userId: number|null, isAdmin: boolean}|null} userAccess
+   * @param {string} todayIso - 'YYYY-MM-DD'
+   */
+  async getDashboardStatistics(userAccess, todayIso) {
+    const day = todayIso || new Date().toISOString().slice(0, 10)
+    const next = new Date(`${day}T00:00:00Z`)
+    next.setUTCDate(next.getUTCDate() + 1)
+    const nextDay = next.toISOString().slice(0, 10)
+
+    const access = this.getAccessPredicate(userAccess)
+    const params = []
+    const sub = (sql, subParams = []) => {
+      params.push(...subParams)
+      return `(${sql})`
+    }
+    const filtered = (base, extra = null, extraParams = []) => {
+      const clauses = [extra, access?.sql].filter(Boolean)
+      const where = clauses.length ? ` WHERE ${clauses.join(' AND ')}` : ''
+      return sub(base + where, [...extraParams, ...(access?.params || [])])
+    }
+    const userId = userAccess?.userId
+    const hasUser = userId !== undefined && userId !== null
+
+    const sql = `SELECT
+      ${filtered(`SELECT COUNT(*) FROM ${this.tableName}`)} AS totalPatients,
+      ${filtered('SELECT COUNT(*) FROM VISIT_DIMENSION')} AS totalVisits,
+      ${filtered('SELECT COUNT(*) FROM OBSERVATION_FACT')} AS totalObservations,
+      ${filtered('SELECT COUNT(DISTINCT PATIENT_NUM) FROM VISIT_DIMENSION', 'START_DATE >= ? AND START_DATE < ?', [day, nextDay])} AS patientsSeenToday,
+      ${filtered('SELECT COUNT(*) FROM VISIT_DIMENSION', 'START_DATE >= ? AND START_DATE < ?', [day, nextDay])} AS visitsToday,
+      ${filtered('SELECT COUNT(*) FROM OBSERVATION_FACT', 'UPDATE_DATE >= ? AND UPDATE_DATE < ?', [day, nextDay])} AS observationsToday,
+      ${filtered('SELECT COUNT(*) FROM OBSERVATION_FACT', "VALUEFLAG_CD = 'AUDIT'")} AS openAudits,
+      ${hasUser ? sub(`SELECT COUNT(DISTINCT upl.PATIENT_NUM) FROM USER_PATIENT_LOOKUP upl JOIN ${this.tableName} p ON p.PATIENT_NUM = upl.PATIENT_NUM WHERE upl.USER_ID = ?`, [userId]) : '0'} AS myPatients,
+      ${sub(`SELECT COUNT(*) FROM ${this.tableName}`)} AS allPatients`
+
+    const result = await this.connection.executeQuery(sql, params)
+    const row = (result.success && result.data[0]) || {}
+    const n = (v) => Number(v) || 0
+    const totalPatients = n(row.totalPatients)
+    const allPatients = n(row.allPatients)
+    return {
+      totalPatients,
+      totalVisits: n(row.totalVisits),
+      totalObservations: n(row.totalObservations),
+      patientsSeenToday: n(row.patientsSeenToday),
+      visitsToday: n(row.visitsToday),
+      observationsToday: n(row.observationsToday),
+      openAudits: n(row.openAudits),
+      myPatients: n(row.myPatients),
+      // accessible vs. hidden — identical to total for admins (nothing hidden)
+      visiblePatients: totalPatients,
+      hiddenPatients: Math.max(0, allPatients - totalPatients),
+    }
+  }
+
+  /**
    * Find patient by code with user access control (patient_list view).
    * Regular users only get the patient if it is assigned to them or to the
    * public user (USER_ID = 0) in USER_PATIENT_LOOKUP; admins (or missing user
@@ -97,15 +181,18 @@ class PatientRepository extends BaseRepository {
    *
    * @param {string[]} patientCodes
    * @param {{userId: number, isAdmin: boolean}|null} userAccess
+   * @param {{fromView?: boolean}} [options] - fromView: read from patient_list
+   *   (resolved SEX/STATUS labels, computed age) instead of the raw table
    * @returns {Promise<Array>}
    */
-  async findAccessiblePatientsByCodes(patientCodes, userAccess = null) {
+  async findAccessiblePatientsByCodes(patientCodes, userAccess = null, { fromView = false } = {}) {
     if (!Array.isArray(patientCodes) || patientCodes.length === 0) return []
     const placeholders = patientCodes.map(() => '?').join(',')
     const access = this.getAccessFilter(userAccess)
+    const source = fromView ? this.viewName : this.tableName
     const sql = access
-      ? `SELECT DISTINCT p.* FROM ${this.tableName} p ${access.join} WHERE p.PATIENT_CD IN (${placeholders}) AND ${access.condition}`
-      : `SELECT * FROM ${this.tableName} WHERE PATIENT_CD IN (${placeholders})`
+      ? `SELECT DISTINCT p.* FROM ${source} p ${access.join} WHERE p.PATIENT_CD IN (${placeholders}) AND ${access.condition}`
+      : `SELECT * FROM ${source} WHERE PATIENT_CD IN (${placeholders})`
     const params = access ? [...patientCodes, access.param] : patientCodes
     const result = await this.connection.executeQuery(sql, params)
     return result.success ? result.data : []

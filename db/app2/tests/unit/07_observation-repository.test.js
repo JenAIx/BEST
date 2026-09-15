@@ -366,17 +366,20 @@ describe('ObservationRepository', () => {
       const existingObservation = { OBSERVATION_ID: 9397, PATIENT_NUM: 72 }
       const updateData = { TVAL_CHAR: 'Updated Value' }
 
-      vi.spyOn(observationRepository, 'findById').mockResolvedValue(existingObservation)
+      const findById = vi.spyOn(observationRepository, 'findById')
       vi.spyOn(observationRepository, 'update').mockResolvedValue(true)
 
       const result = await observationRepository.updateObservation(9397, updateData)
 
       expect(result).toBe(true)
       expect(observationRepository.update).toHaveBeenCalledWith(9397, updateData)
+      // no SELECT * (incl. OBSERVATION_BLOB) round trip before the UPDATE
+      expect(findById).not.toHaveBeenCalled()
+      void existingObservation
     })
 
-    it('should throw error for non-existent observation', async () => {
-      vi.spyOn(observationRepository, 'findById').mockResolvedValue(null)
+    it('should throw error for non-existent observation (UPDATE changed 0 rows)', async () => {
+      vi.spyOn(observationRepository, 'update').mockResolvedValue(false)
 
       await expect(observationRepository.updateObservation(999, { TVAL_CHAR: 'New' })).rejects.toThrow('Observation with OBSERVATION_ID 999 not found')
     })

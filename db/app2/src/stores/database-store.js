@@ -50,9 +50,10 @@ export const useDatabaseStore = defineStore('database', () => {
 
         loggingStore.debug('DatabaseStore', 'Loading initial database data')
 
-        // Load initial data
+        // Load initial data. The 8-table row-count statistics are NOT loaded
+        // here any more — only DatabaseTest/Feedback show them and they call
+        // loadStatistics() / refreshDatabaseInfo() themselves.
         await loadMigrationStatus()
-        await loadStatistics()
 
         const duration = timer.end()
         loggingStore.success('DatabaseStore', 'Database initialized successfully', {
@@ -337,6 +338,30 @@ export const useDatabaseStore = defineStore('database', () => {
   const getPatientStatistics = async () => {
     const patientRepo = getPatientRepository()
     return await patientRepo.getPatientStatistics()
+  }
+
+  // Dashboard tiles — one access-filtered round trip
+  const getDashboardStatistics = async () => {
+    const userAccess = await resolveUserAccess()
+    return await getPatientRepository().getDashboardStatistics(userAccess, new Date().toISOString().slice(0, 10))
+  }
+
+  const getUpcomingVisits = async (limit = 5) => {
+    const userAccess = await resolveUserAccess()
+    const predicate = getPatientRepository().getAccessPredicate(userAccess, 'v.PATIENT_NUM')
+    return await getRepository('visit').getUpcomingVisits(limit, predicate)
+  }
+
+  // visitCount / lastVisitDate per patient for card lists (one GROUP BY)
+  const getVisitStatsForPatients = async (patientNums) => {
+    return await getRepository('visit').getVisitStatsForPatients(patientNums)
+  }
+
+  // Access-filtered batch lookup by code from the patient_list view (resolved
+  // codes, for card lists); the raw PATIENT_DIMENSION variant stays for the grid
+  const getAccessiblePatientsByCodes = async (patientCodes, { fromView = false } = {}) => {
+    const userAccess = await resolveUserAccess()
+    return await getPatientRepository().findAccessiblePatientsByCodes(patientCodes, userAccess, { fromView })
   }
 
   const searchPatients = async (searchTerm) => {
@@ -1001,7 +1026,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
         // Group by patient and encounter
         const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
-        
+
         // If row doesn't exist (shouldn't happen, but handle gracefully)
         if (!patientVisitMap.has(key)) {
           // Find patient data
@@ -1138,6 +1163,10 @@ export const useDatabaseStore = defineStore('database', () => {
     updatePatient,
     deletePatient,
     getPatientStatistics,
+    getDashboardStatistics,
+    getUpcomingVisits,
+    getVisitStatsForPatients,
+    getAccessiblePatientsByCodes,
     searchPatients,
     getPatientsPaginated,
     getAccessiblePatientByCode,
