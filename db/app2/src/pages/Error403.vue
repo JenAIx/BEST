@@ -14,7 +14,7 @@
       <div class="q-gutter-sm">
         <q-btn color="primary" unelevated :label="$t('navigation.dashboard')" icon="dashboard" to="/dashboard" />
 
-        <q-btn outline color="primary" :label="$t('common.goBack')" icon="arrow_back" @click="$router.go(-1)" />
+        <q-btn outline color="primary" :label="$t('common.goBack')" icon="arrow_back" @click="goBack" />
       </div>
     </div>
   </q-page>
@@ -22,11 +22,15 @@
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { goBackOr } from 'src/shared/utils/navigation.js'
 
 defineOptions({
   name: 'ErrorForbidden',
 })
+
+const router = useRouter()
+const goBack = () => goBackOr(router, '/dashboard', ['/403'])
 
 const route = useRoute()
 
