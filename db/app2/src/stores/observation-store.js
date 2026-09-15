@@ -487,6 +487,17 @@ export const useObservationStore = defineStore('observation', () => {
     return flag
   }
 
+  /**
+   * Every observation of the given concepts across all visits of the patient
+   * (newest visit first) — dedicated query without the 1000-row cap of
+   * `allObservations`. Read-only; nothing is mirrored into the store.
+   */
+  const getObservationHistory = async ({ patientNum, conceptCodes }) => {
+    const repo = dbStore.getRepository('consult')
+    if (!repo) return []
+    return repo.getObservationHistory({ patientNum, conceptCodes })
+  }
+
   // ---- Audit trail --------------------------------------------------------
 
   /** Append an event to the trail; never breaks the calling write (logs instead). */
@@ -828,6 +839,7 @@ export const useObservationStore = defineStore('observation', () => {
     createObservation,
     updateObservation,
     setObservationFlag,
+    getObservationHistory,
     auditTrail,
     auditTrailFor,
     auditCommentCount,

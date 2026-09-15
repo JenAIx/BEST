@@ -125,6 +125,7 @@ CASCADE DELETE:
 STUDY_DIMENSION          - Research study metadata
 STUDY_PATIENT_LOOKUP     - Patient-study enrollment relationships
 OBSERVATION_AUDIT_FACT   - Audit trail per observation (flag transitions + comments), FK → OBSERVATION_FACT CASCADE (migration 015)
+(NOTE_FACT LETTER rows)   - Doctor's letters of the Visitenmodus live in NOTE_FACT with CATEGORY_CHAR='LETTER' (migration-free)
 USER_PATIENT_LOOKUP      - User-patient access control (who can see which patients)
 patient_list (VIEW)      - Materialized patient view with resolved codes
 ```
@@ -696,6 +697,69 @@ Components (`src/components/visits/unified/`):
   (`buildFormFields` in `shared/utils/observation-display.js`).
 
 ---
+
+## 🩺 Visitenmodus (Consultation Cockpit, Sept 2026)
+
+`/visits/:patientId?view=cockpit` — third view mode next to Zeitlinie /
+Patientendaten (`VisitsPage.vue`, last mode remembered in
+`localSettings visits.lastViewMode`). Container `components/visits/cockpit/
+VisitCockpit.vue`, orchestration `stores/consult-store.js`. Layout: header
+(last visit · today's visit / "Visite beginnen" · record search · actions),
+band (diagnoses, score tiles, context chips), then
+`320px | 1fr | 230px` = medication | today's text sections with reference
+panes | tools rail. **Nothing neurological lives in code** — everything comes
+from the consult template.
+
+- **Templates** = `CODE_LOOKUP(VISIT_DIMENSION/CONSULT_TEMPLATE_CD)` rows,
+  blob normalized by `shared/utils/consult-template.js:normalizeConsultTemplate`
+  (`visitType`, `followUpTemplate`, `order`, `isDefault`, `diagnosis`,
+  `medication{ledd, carryForward, showDiff, groups}`, `scoreConcepts[{code,
+  short, higherIsWorse, questionnaireCode, derived:'ledd', required}]`,
+  `contextConcepts`, `textConcepts[{code,label,carryForward,letter}]`,
+  `panels`, `checklist`, `suggestedQuestionnaires`, `letterSections`,
+  `previousVisitScope`). Editable in Global Settings (generic JSON editor).
+  Seeded by migration 017 (7 templates); `parkinson_erst/verlauf` are
+  co-owned: 007 creates them, 017 MERGES the `neuro_*` field sets in.
+- **Today's visit** = visit dated today whose `VISIT_BLOB.consultTemplate`
+  is set (`resolveTodayVisit`); it is ALWAYS `visitStore.selectedVisit`
+  (editor semantics, one editor at a time). Created explicitly via
+  `consultStore.startConsultation` (never auto-created); an untyped visit of
+  today can be adopted. Last visit = newest before today
+  (`findLastVisit`, scope `any|consult`).
+- **Diagnoses**: S observations per visit — primary `SCTID: 8319008`
+  (`INSTANCE_NUM` 1), secondary `NEURO:DX:SECONDARY` (`INSTANCE_NUM` 1..n =
+  order). `TVAL_CHAR` = `ICD10: G20` when coded (the concept join resolves the
+  name) else the free text; `OBSERVATION_BLOB = {icd, text, since, status:
+  aktiv|verdacht|inaktiv, laterality, order, carriedFrom}`. Status is NEVER
+  stored in `VALUEFLAG_CD`. Only `DiagnosisRepository` writes these rows
+  (the generic editor nulls the blob on S-saves — the cockpit tolerates
+  blob-less rows). ICD-10 catalogue = `ICD10: <code>` A-concepts under
+  `\ICD-10\…`, searched via `searchIcd10`.
+- **Medication**: per-visit M snapshots stay the model; changes are DERIVED
+  (`shared/utils/medication-diff.js` — `normalizeDrugKey` strips strengths/
+  forms and maps `DRUG_OPTIONS` aliases; `diffMedications` →
+  added/stopped/changed). Carry-over = `medicationsStore.carryForwardMedications`
+  (copies rows, `blob.carriedFrom`). **LEDD** = `shared/utils/ledd.js`
+  (`LED_FACTORS` MDS 2023 — single source, the SmartButton widget imports it;
+  `computeLEDD(rows, {frequencyOptions, drugOptions})` → total/breakdown/
+  unresolved, COMT applied once to the levodopa subtotal). Persisted per visit
+  as `NEURO:SCORE:LEDD` (N, mg/d, blob `{computed:true, breakdown}`) by
+  `consultStore.recomputeLEDD`; a row without `computed` is a manual value and
+  is left alone. Frequency → doses/day via `LOOKUP_BLOB.dosesPerDay`
+  (fallback table), `DRUG_OPTIONS.LOOKUP_BLOB.ledType/aliases/comt`.
+- **Texts**: one T observation per concept and visit (Anamnese
+  `SCTID: 422625006`, Befund `SCTID: 84728005`, Beurteilung `LID: 51848-0`,
+  Empfehlung `SCTID: 304541006`); history via
+  `observationStore.getObservationHistory` (dedicated SQL, no 1000-row cap).
+  Carry-forward is always a COPY (`carryForwardText`, replace/append). Saves
+  use `createObservation/updateObservation(…, {skipReload:true})` and then
+  reload only today's visit rows.
+- **Letters** go to `NOTE_FACT` `CATEGORY_CHAR='LETTER'` (HTML in
+  `NOTE_TEXT`, `NOTE_BLOB` {template, sections, snapshot}; quick-note queries
+  filter on `QUICK_NOTE`, so they never mix). Record search =
+  `ConsultRepository.searchPatientText` (texts, M/DX blobs, notes, letters).
+- Pinia stores are NOT hot-replaced by HMR — after editing a store, reload
+  the renderer before testing in the running app.
 
 ## 🩺 Building a New Visit Template
 

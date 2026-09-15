@@ -48,6 +48,8 @@ export function normalizeConsultTemplate(blob, code = null) {
     followUpOf: b.followUpOf || null,
     followUpTemplate: b.followUpTemplate || null,
     staleAfterDays: Number.isFinite(b.staleAfterDays) ? b.staleAfterDays : 365,
+    order: Number.isFinite(b.order) ? b.order : 999,
+    isDefault: !!b.isDefault,
     diagnosis: { show: true, carryForward: true, ...(b.diagnosis || {}) },
     medication: { show: true, ledd: true, carryForward: true, showDiff: true, groups: [], ...(b.medication || {}) },
     scoreConcepts: scores,
@@ -163,11 +165,12 @@ function isBlank(o) {
 /** Suggest the template for the next visit: explicit followUpTemplate, else itself. */
 export function suggestNextTemplate(templates, lastVisit) {
   const list = templates || []
-  if (!lastVisit) return list[0] || null
+  const fallback = list.find((t) => t.isDefault) || list.find((t) => /sonstiges|other|generic/i.test(t.code || '')) || list[0] || null
+  if (!lastVisit) return fallback
   const code = blobOf(lastVisit).consultTemplate
   const vt = blobOf(lastVisit).visitType || lastVisit.visitType
   const last = list.find((t) => t.code === code) || list.find((t) => t.visitType === vt) || null
-  if (!last) return list[0] || null
+  if (!last) return fallback
   if (last.followUpTemplate) return list.find((t) => t.code === last.followUpTemplate) || last
   return last
 }

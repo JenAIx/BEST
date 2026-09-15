@@ -50,7 +50,9 @@ describe('findLastVisit / daysBetween', () => {
     { id: 4, date: '2026-09-15', rawData: { VISIT_BLOB: '{}' } },
   ]
   it('newest strictly before the reference', () => {
-    expect(findLastVisit(visits, visits[2]).id).toBe(4 === 4 && findLastVisit(visits, visits[2]).id === 4 ? 4 : 2)
+    // reference given as a visit object: same-day siblings other than itself count
+    expect(findLastVisit(visits, visits[2]).id).toBe(4)
+    // reference given as a date string: strictly before that date
     expect(findLastVisit(visits, '2026-09-15').id).toBe(2)
     expect(findLastVisit(visits, '2026-09-15', 'consult').id).toBe(2)
     expect(findLastVisit(visits, '2025-03-01')).toBeNull()
@@ -85,7 +87,8 @@ describe('suggestNextTemplate', () => {
     expect(suggestNextTemplate(templates, { rawData: { VISIT_BLOB: '{"consultTemplate":"consult_pd_erst"}' } }).code).toBe('consult_pd_verlauf')
     expect(suggestNextTemplate(templates, { rawData: { VISIT_BLOB: '{"consultTemplate":"consult_pd_verlauf"}' } }).code).toBe('consult_pd_verlauf')
     expect(suggestNextTemplate(templates, { visitType: 'parkinson_erst', rawData: { VISIT_BLOB: '{"visitType":"parkinson_erst"}' } }).code).toBe('consult_pd_verlauf')
-    expect(suggestNextTemplate(templates, null).code).toBe('consult_pd_erst')
-    expect(suggestNextTemplate(templates, { rawData: { VISIT_BLOB: '{"visitType":"routine"}' } }).code).toBe('consult_pd_erst')
+    // no match → the generic template (isDefault / "sonstiges"), never an arbitrary first entry
+    expect(suggestNextTemplate(templates, null).code).toBe('consult_sonstiges')
+    expect(suggestNextTemplate(templates, { rawData: { VISIT_BLOB: '{"visitType":"routine"}' } }).code).toBe('consult_sonstiges')
   })
 })

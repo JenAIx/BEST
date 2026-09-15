@@ -193,6 +193,25 @@ const sections = [
     tip: 'Neue Patienten sind standardmäßig „öffentlich“. Den Schalter dafür finden Sie direkt im Anlege-Dialog.',
   },
   {
+    id: 'cockpit',
+    icon: 'medical_services',
+    title: 'Visitenmodus (Sprechstunde)',
+    paragraphs: [
+      'Der Visitenmodus ist die Karteikarte für die Ambulanzsprechstunde: eine Seite, auf der Sie während der Visite alles Wichtige sehen und direkt dokumentieren. Sie erreichen ihn über den Schalter „Visitenmodus“ im Kopf der Patientenseite (neben Zeitlinie und Patientendaten); die zuletzt genutzte Ansicht wird gemerkt.',
+      'Oben steht, wann der Patient zuletzt da war (mit Visitentyp und Tagen seither), daneben die heutige Visite. Solange heute keine Visite existiert, ist alles nur Ansicht — „Visite beginnen“ legt sie mit einer Vorlage an (z. B. Parkinson-Verlaufskontrolle, THS-Verlauf, Tremor, Ataxie, Sonstiges) und bietet an, Diagnosen, Medikation und Texte der letzten Visite als Ausgangspunkt zu übernehmen. Die Vorlage bestimmt, welche Scores, Textabschnitte und Checklistenpunkte erscheinen; Administratoren pflegen die Vorlagen unter „Globale Einstellungen“ (Spalte CONSULT_TEMPLATE_CD).',
+    ],
+    bullets: [
+      'Diagnosen: Hauptdiagnose fett, Nebendiagnosen als Chips mit ICD-Code, Seit-Jahr und Status (aktiv, V. a., inaktiv). Klick bearbeitet, „+“ legt an — Freitext genügt, ein ICD-10-Code aus dem Katalog ist optional (Tippen Sie „G20“ oder „Tremor“). Die Diagnosen der letzten Visite erscheinen ausgegraut, bis Sie sie übernehmen.',
+      'Scores: Kacheln mit dem heutigen Wert (blau), dem Vorwert in Klammern, der Änderung (rot = Verschlechterung, grün = Verbesserung) und einer kleinen Verlaufskurve. Klick öffnet den Verlauf; dort tragen Sie einen Wert direkt ein oder starten den zugehörigen Fragebogen. Pflicht-Scores der Vorlage ohne heutigen Wert sind gestrichelt markiert („heute offen“). LEDD wird aus der Medikation berechnet (MDS-2023-Faktoren) und mit Aufschlüsselung gespeichert.',
+      'Medikation: Verordnungsnotation („Levodopa/Benserazid 100mg 1-1-1-1 p.o.“), Marker NEU / Dosis ↑↓ / geändert („war …“) und abgesetzte Präparate gegenüber der letzten Visite mit Medikation. „Fortführen“ kopiert die letzte Medikation in die heutige Visite, „+ Medikament“ öffnet den Medikations-Dialog, das × an einer Zeile setzt ab.',
+      'Heute: die Textabschnitte der Vorlage (Verlauf/Anamnese, Befund, Beurteilung für den Brief, Empfehlungen). Links tippen Sie, rechts steht der frühere Text desselben Abschnitts — blätterbar durch alle Visiten. „Übernehmen“ kopiert ihn ins leere Feld, „Anhängen“ hängt ihn mit Datumszeile an. Gespeichert wird automatisch beim Verlassen des Feldes (✓, danach kurz ↶ zum Zurücknehmen).',
+      'Suche: das Feld „Akte durchsuchen“ (Taste /) findet Textstellen, Medikamente, Diagnosen, Notizen und Briefe aller Visiten; ein Treffer springt in den Abschnitt und stellt den Referenz-Pane auf diese Visite.',
+      'Werkzeuge rechts: Checkliste der Vorlage (Klick fokussiert das Feld oder startet den Fragebogen), Fragebogen-Chips (erledigte grün), Dateien mit Upload, gespeicherte Briefe, Notizen.',
+      'Tastatur: / Suche · Strg+1…4 Abschnitt · Strg+Enter speichern und weiter · Alt+U Übernehmen · Strg+M Medikament.',
+    ],
+    tip: 'Alles, was Sie im Visitenmodus eintragen, sind normale Beobachtungen der heutigen Visite — in der Zeitlinie, der Datentabelle und im Export tauchen sie wie gewohnt auf. Der Arztbrief aus diesen Abschnitten folgt in der nächsten Ausbaustufe.',
+  },
+  {
     id: 'questionnaires',
     icon: 'quiz',
     title: 'Fragebögen',

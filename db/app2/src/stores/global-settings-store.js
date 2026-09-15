@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { normalizeConsultTemplate } from 'src/shared/utils/consult-template.js'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { createLogger } from 'src/core/services/logging-service'
@@ -830,6 +831,26 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
    * @param {boolean} forceRefresh - Force refresh from database
    * @returns {Promise<Array>} Array of visit template configurations
    */
+  /**
+   * Consultation templates of the Visitenmodus
+   * (CODE_LOOKUP VISIT_DIMENSION/CONSULT_TEMPLATE_CD), normalized.
+   */
+  const getConsultTemplateOptions = async (forceRefresh = false) => {
+    const cacheKey = 'consult_templates'
+    if (!forceRefresh && lookupData.value[cacheKey] && isCacheValid.value) return lookupData.value[cacheKey]
+    const result = await dbStore.executeQuery(`SELECT * FROM CODE_LOOKUP WHERE TABLE_CD = 'VISIT_DIMENSION' AND COLUMN_CD = 'CONSULT_TEMPLATE_CD' ORDER BY NAME_CHAR`)
+    if (!result.success) throw new Error(result.error || 'Failed to load consult templates')
+    const templates = result.data.map((row) => normalizeConsultTemplate({ label: row.NAME_CHAR, ...parseMetadata(row.LOOKUP_BLOB) }, row.CODE_CD)).sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))
+    lookupData.value[cacheKey] = templates
+    return templates
+  }
+
+  const getConsultTemplate = async (code, forceRefresh = false) => {
+    if (!code) return null
+    const list = await getConsultTemplateOptions(forceRefresh)
+    return list.find((t) => t.code === code) || null
+  }
+
   const getVisitTemplateOptions = async (forceRefresh = false) => {
     const cacheKey = 'visit_templates'
 
@@ -1335,6 +1356,8 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
     // Visit template methods
     getVisitTemplateOptions,
+    getConsultTemplateOptions,
+    getConsultTemplate,
     getDefaultVisitTemplates,
 
     // Drug methods

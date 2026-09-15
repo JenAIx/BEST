@@ -6,11 +6,26 @@
  */
 
 import { defineStore } from 'pinia'
+import { normalizeDrugKey } from 'src/shared/utils/medication-diff.js'
 import { ref, computed } from 'vue'
 import { useDatabaseStore } from './database-store.js'
 import { useAuthStore } from './auth-store.js'
 import { useGlobalSettingsStore } from './global-settings-store.js'
 import { useLoggingStore } from './logging-store.js'
+
+/** Map a medication query row (columns + blob) to the medication object used everywhere. */
+function rowToMedication(obs, visitId) {
+  let data = { drugName: obs.value || '', dosage: obs.numericValue || null, dosageUnit: obs.unit || 'mg', frequency: '', route: '', instructions: '', carriedFrom: null }
+  if (obs.observationBlob) {
+    try {
+      const b = JSON.parse(obs.observationBlob)
+      data = { drugName: b.drugName || obs.value || '', dosage: b.dosage || obs.numericValue || null, dosageUnit: b.dosageUnit || obs.unit || 'mg', frequency: b.frequency || '', route: b.route || '', instructions: b.instructions || '', carriedFrom: b.carriedFrom || null }
+    } catch {
+      /* keep column data */
+    }
+  }
+  return { observationId: obs.observationId, conceptCode: obs.conceptCode, visitId, ...data, date: obs.date }
+}
 
 export const useMedicationsStore = defineStore('medications', () => {
   const dbStore = useDatabaseStore()
@@ -41,14 +56,16 @@ export const useMedicationsStore = defineStore('medications', () => {
     }
   }
 
-  const createMedicationBlob = (medicationData) => {
+  const createMedicationBlob = (medicationData, { carriedFrom = null } = {}) => {
     const normalized = normalizeMedicationData(medicationData)
-    return {
+    const blob = {
       ...normalized,
       prescribedDate: new Date().toISOString(),
-      prescribedBy: 'CURRENT_DOCTOR', // TODO: Get from auth store
+      prescribedBy: authStore.providerId || 'CURRENT_DOCTOR',
       isActive: true,
     }
+    if (carriedFrom) blob.carriedFrom = carriedFrom
+    return blob
   }
 
   // CRUD Operations
@@ -64,7 +81,7 @@ export const useMedicationsStore = defineStore('medications', () => {
    * @param {string} [params.visitDate] - START_DATE (default: today)
    * @returns {Promise<Object>} Created medication observation
    */
-  const createMedication = async ({ patientId, patientNum, visitId, medicationData, conceptCode, visitDate }) => {
+  const createMedication = async ({ patientId, patientNum, visitId, medicationData, conceptCode, visitDate, carriedFrom = null }) => {
     try {
       loading.value = true
       error.value = null
@@ -97,7 +114,7 @@ export const useMedicationsStore = defineStore('medications', () => {
       const defaultSourceSystem = await globalSettingsStore.getDefaultSourceSystem('VISITS_PAGE')
 
       // Create medication BLOB
-      const medicationBlob = createMedicationBlob(normalized)
+      const medicationBlob = createMedicationBlob(normalized, { carriedFrom })
       const conceptCd = conceptCode || 'LID: 52418-1' // Standard medication concept
 
       // Prepare observation data
@@ -272,6 +289,55 @@ export const useMedicationsStore = defineStore('medications', () => {
    * @param {number} params.visitId - Visit/Encounter ID
    * @returns {Promise<Array>} Array of medication observations
    */
+  /**
+   * All medication rows of a patient grouped per visit, oldest visit first —
+   * the basis for "changes since last time" and the history matrix.
+   * @returns {Promise<Array<{encounterNum:number, visitDate:string, medications:Array}>>}
+   */
+  const getMedicationHistoryForPatient = async (patientNum) => {
+    if (patientNum == null) return []
+    const result = await dbStore.executeQuery(
+      `SELECT o.OBSERVATION_ID as observationId, o.ENCOUNTER_NUM as encounterNum, o.CONCEPT_CD as conceptCode,
+              o.TVAL_CHAR as value, o.NVAL_NUM as numericValue, o.UNIT_CD as unit, o.OBSERVATION_BLOB as observationBlob,
+              o.START_DATE as date, v.START_DATE as visitDate
+         FROM OBSERVATION_FACT o
+         JOIN VISIT_DIMENSION v ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
+        WHERE o.PATIENT_NUM = ? AND (o.CONCEPT_CD = 'LID: 52418-1' OR o.VALTYPE_CD = 'M')
+        ORDER BY v.START_DATE ASC, o.ENCOUNTER_NUM ASC, o.OBSERVATION_ID ASC`,
+      [patientNum],
+    )
+    if (!result.success) throw new Error(result.error || 'Failed to load medication history')
+    const byVisit = new Map()
+    for (const obs of result.data) {
+      if (!byVisit.has(obs.encounterNum)) byVisit.set(obs.encounterNum, { encounterNum: obs.encounterNum, visitDate: String(obs.visitDate || '').slice(0, 10), medications: [] })
+      byVisit.get(obs.encounterNum).medications.push(rowToMedication(obs, obs.encounterNum))
+    }
+    return [...byVisit.values()]
+  }
+
+  /**
+   * Copy the medication rows of one visit into another (Visitenmodus
+   * „Fortführen"). Rows whose drug already exists in the target (same
+   * normalized key) are skipped; copies carry `carriedFrom` in the blob.
+   */
+  const carryForwardMedications = async ({ fromEncounter, toEncounter, patientNum, visitDate = null, conceptCode = 'LID: 52418-1' }) => {
+    const [source, target] = await Promise.all([getMedicationsForVisit({ visitId: fromEncounter }), getMedicationsForVisit({ visitId: toEncounter })])
+    const present = new Set(target.map((m) => normalizeDrugKey(m.drugName).key))
+    const created = []
+    const skipped = []
+    for (const med of source) {
+      const key = normalizeDrugKey(med.drugName).key
+      if (!key || present.has(key)) {
+        skipped.push({ drugName: med.drugName, reason: 'duplicate' })
+        continue
+      }
+      const row = await createMedication({ patientNum, visitId: toEncounter, medicationData: med, conceptCode: med.conceptCode || conceptCode, visitDate, carriedFrom: { encounterNum: fromEncounter, observationId: med.observationId } })
+      created.push(row)
+      present.add(key)
+    }
+    return { created, skipped }
+  }
+
   const getMedicationsForVisit = async ({ visitId }) => {
     try {
       loading.value = true
@@ -876,6 +942,8 @@ export const useMedicationsStore = defineStore('medications', () => {
     updateMedication,
     deleteMedication,
     getMedicationsForVisit,
+    getMedicationHistoryForPatient,
+    carryForwardMedications,
     clearMedication,
 
     // Medication options

@@ -7,6 +7,87 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Visitenmodus (Konsultations-Cockpit)** (`features/visit-cockpit`,
+  Iteration 1): dritte Ansicht auf `/visits/:patientId` neben Zeitlinie und
+  Patientendaten (`?view=cockpit`, der zuletzt genutzte Modus wird gemerkt).
+  Karteikarten-Layout für die Ambulanzsprechstunde — alles datengetrieben
+  über **Vorlagen** (`CODE_LOOKUP VISIT_DIMENSION/CONSULT_TEMPLATE_CD`):
+  - **Kopf**: „Zuletzt hier“ mit Visitentyp und Δ Tagen (amber > 120, rot >
+    `staleAfterDays`), heutige Visite mit Vorlagen-Wechsel oder
+    **„Visite beginnen: ‹Vorschlag›“** (Split-Button, Vorschlag = Folge-
+    Vorlage des letzten Typs); ohne heutige Visite ist alles nur Ansicht.
+    Beim Start optional **alles aus der letzten Visite übernehmen**
+    (Diagnosen, Medikation, Texte nach Vorlagen-Flags). Volltextsuche über
+    die Akte (Texte, Medikamente, Diagnosen, Notizen, Briefe) mit Sprung in
+    den Abschnitt und Treffer-Hervorhebung.
+  - **Diagnosen**: Hauptdiagnose (`SCTID: 8319008`) + Nebendiagnosen
+    (`NEURO:DX:SECONDARY`, `INSTANCE_NUM` = Reihenfolge) als Freitext mit
+    optionalem ICD-10-Code aus einem Mini-Neurologie-Katalog (62 Codes,
+    Typeahead), Seit-Jahr, Status (aktiv / V. a. / inaktiv), Seite. Stand der
+    letzten Visite wird ausgegraut angezeigt und per Klick übernommen.
+  - **Scores-Leiste**: Kacheln aus der Vorlage (H&Y, UPDRS I–IV, LEDD, S&E,
+    MoCA, NMS, PDQ-8, WOQ-9, RBD-SQ …) mit heutigem Wert, Vorwert, Δ (Farbe
+    nach `higherIsWorse`), Sparkline; Popover mit Verlaufstabelle, „Wert
+    eintragen“ und „Fragebogen ausfüllen“; Pflicht-Scores ohne heutigen Wert
+    gestrichelt + „heute offen“. Untersuchungs-Kontext (ON/OFF, Dyskinesien,
+    Fluktuationen) als Toggle-Chips.
+  - **LEDD** (Levodopa-Äquivalenzdosis, MDS 2023) wird aus der Medikation
+    berechnet (`shared/utils/ledd.js`, aus dem SmartButton-Rechner
+    extrahiert; Widget nutzt dieselbe Tabelle) und als
+    `NEURO:SCORE:LEDD` (N, mg/d) mit Aufschlüsselung im Blob gespeichert;
+    manuell eingetragene Werte werden nicht überschrieben.
+  - **Medikation**: Verordnungsnotation mit Gruppen aus der Vorlage, Marker
+    NEU / Dosis ↑↓ / geändert („war …“) und abgesetzte Präparate gegenüber
+    der letzten Visite mit Medikation (`shared/utils/medication-diff.js`),
+    „Fortführen“ kopiert das letzte M-Set (mit `carriedFrom`), Hinzufügen /
+    Bearbeiten über den bestehenden Medikations-Dialog, Absetzen.
+  - **Heute**: Textabschnitte aus der Vorlage (Verlauf/Anamnese
+    `SCTID: 422625006`, Befund `SCTID: 84728005`, Beurteilung
+    `LID: 51848-0` (neu), Empfehlungen `SCTID: 304541006`) mit Autosave
+    (Blur / 1,5 s, ✓ → ↶) und daneben der **Referenz-Pane** mit den
+    früheren Texten desselben Konzepts (blättern, „Übernehmen“ bzw.
+    „Anhängen“ mit Datumszeile, Chip „übernommen von …“ bis zur ersten
+    Änderung). Umschaltbar auf Einzeiler-Referenz.
+  - **Werkzeuge**: Checkliste aus der Vorlage (Klick fokussiert Feld /
+    Fragebogen), Fragebogen-Chips, Dateien mit Upload, Briefe, Notizen.
+  - Tastatur: `/` bzw. Strg+K Suche, Strg+1…4 Abschnitt, Strg+Enter
+    speichern + nächster, Alt+U Übernehmen, Strg+M Medikament.
+  - Migration **017** seedet Konzepte (Nebendiagnose, Beurteilung, LEDD,
+    S&E, WOQ-9, RBD-SQ, SARA, TETRAS, FTM, Bain-Items, ON/OFF-Kontext, THS-
+    Parameter, Tremortyp), ICD-10-Katalog, Feldgruppen `neuro_*`,
+    Visitentypen `ths_verlauf` / `tremor_erst` / `tremor_verlauf` / `ataxie`
+    / `neuro_sonstiges`, mergt `neuro_*` in `parkinson_erst/verlauf` (Admin-
+    Änderungen bleiben), 7 Vorlagen, einen Parkinson-Medikamentenkatalog
+    (36 DRUG_OPTIONS mit `ledType`/`aliases`, `carbidopa_levodopa` von
+    „25-100mg“ auf „100/25mg“ korrigiert), `dosesPerDay` auf allen
+    Frequenzen (+ `cont`), Routen `td`/`jej`, `DX_STATUS_CD`.
+    Apply-Skript `scripts/neuro-consult/apply-migration.mjs`.
+  - Neue Repositories `diagnosis-repository.js` (Problemliste, ICD-Suche,
+    Übernehmen) und `consult-repository.js` (Konzept-Historie ohne
+    1000er-Limit, Aktensuche, Briefe in `NOTE_FACT` `CATEGORY_CHAR='LETTER'`),
+    Store `consult-store.js` (Orchestrierung), Erweiterungen in
+    `observation-store` (`getObservationHistory`), `medications-store`
+    (`getMedicationHistoryForPatient`, `carryForwardMedications`,
+    `carriedFrom`), `global-settings-store` (`getConsultTemplateOptions`).
+  - Tests: unit 48 (LEDD), 49 (Medikations-Diff), 50 (Vorlagen-Logik),
+    53 (Consult-Store); integration 17 (Migration 017), 18 (Repositories).
+
+### Fixed
+
+- **Fragebögen Schwab & England, WOQ-9, RBD-SQ, Bain-Tremor schrieben keinen
+  Score** — ihre Ergebniscodes waren unpräfixiert bzw. zeigten auf nicht
+  existierende Konzepte. JSONs korrigiert, Konzepte geseedet, Migration 017
+  frischt die vier `SURVEY_BEST/QUESTIONNAIRE`-Blobs auf.
+- **Visite klonen verlor Medikationsdosis/-schema und den NV-Status**:
+  `duplicateVisit` kopiert jetzt `OBSERVATION_BLOB`, `VALUEFLAG_CD` und
+  `INSTANCE_NUM` (R-Dateien weiterhin nicht).
+- `visitObservationService.createObservation` kennt `{ skipReload }`; das
+  tote, falsch parametrierte `createVisit` des Services ist entfernt.
+- `parseDosageFromStrength` las bei „25-100mg“ (Carbidopa-Levodopa) die
+  Carbidopa-Zahl — Katalogeintrag korrigiert.
+
 ## [0.8_20260915] - 2026-09-15
 
 ### Fixed

@@ -19,6 +19,8 @@ import StudyRepository from '../database/repositories/study-repository.js'
 import UserPatientLookupRepository from '../database/repositories/user-patient-lookup-repository.js'
 import NoteRepository from '../database/repositories/note-repository.js'
 import ObservationAuditRepository from '../database/repositories/observation-audit-repository.js'
+import DiagnosisRepository from '../database/repositories/diagnosis-repository.js'
+import ConsultRepository from '../database/repositories/consult-repository.js'
 import { coreSchema } from '../database/migrations/001-core-schema.js'
 import { databaseViews } from '../database/migrations/002-views.js'
 import { databaseTriggers } from '../database/migrations/003-triggers.js'
@@ -163,6 +165,8 @@ class DatabaseService {
     this.repositories.userPatientLookup = new UserPatientLookupRepository(this.connection)
     this.repositories.note = new NoteRepository(this.connection)
     this.repositories.observationAudit = new ObservationAuditRepository(this.connection)
+    this.repositories.diagnosis = new DiagnosisRepository(this.connection)
+    this.repositories.consult = new ConsultRepository(this.connection)
 
     // TODO: Add other repositories as they are implemented
     // this.repositories.provider = new ProviderRepository(this.connection)

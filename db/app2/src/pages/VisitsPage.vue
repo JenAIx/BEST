@@ -5,8 +5,8 @@
 
     <!-- Patient Visits View -->
     <div v-else class="visits-view-container">
-      <!-- Patient Header -->
-      <div class="patient-header">
+      <!-- Patient Header (compact in the cockpit: every pixel goes to the record) -->
+      <div class="patient-header" :class="{ 'patient-header--compact': viewMode === 'cockpit' }">
         <div class="patient-header-content">
           <div class="patient-header-left">
             <q-btn flat round icon="arrow_back" color="white" @click="deselectPatient" class="back-btn">
@@ -38,6 +38,14 @@
                 @click="viewMode = 'unified'"
               />
               <q-btn
+                :color="viewMode === 'cockpit' ? 'white' : 'grey-4'"
+                :text-color="viewMode === 'cockpit' ? 'primary' : 'white'"
+                icon="medical_services"
+                :label="$t('visit.cockpit.mode')"
+                data-cy="view-mode-cockpit"
+                @click="viewMode = 'cockpit'"
+              />
+              <q-btn
                 :color="viewMode === 'patient' ? 'white' : 'grey-4'"
                 :text-color="viewMode === 'patient' ? 'primary' : 'white'"
                 icon="person"
@@ -54,6 +62,9 @@
 
       <!-- Timeline (unified view: read + inline edit, self-contained) -->
       <VisitTimelineUnified v-if="viewMode === 'unified'" :patient="selectedPatient" :selected-visit="selectedVisit" />
+
+      <!-- Visitenmodus: consultation cockpit (data-driven via consult templates) -->
+      <VisitCockpit v-if="viewMode === 'cockpit'" :patient="selectedPatient" @open-timeline="openTimelineAt" />
 
       <!-- Patient Data View -->
       <PatientDataView v-if="viewMode === 'patient' && patientRawData" :patient="patientRawData" :visits="visits" :observations="observations" @updated="onPatientUpdated" />
@@ -75,6 +86,7 @@ import { visitObservationService } from 'src/services/visit-observation-service'
 import { getPatientInitials } from 'src/shared/utils/medical-utils'
 import PatientSelector from 'src/components/visits/PatientSelector.vue'
 import VisitTimelineUnified from 'src/components/visits/unified/VisitTimelineUnified.vue'
+import VisitCockpit from 'src/components/visits/cockpit/VisitCockpit.vue'
 import PatientDataView from 'src/components/visits/PatientDataView.vue'
 import DeletePatientDialog from 'src/components/patient/DeletePatientDialog.vue'
 
@@ -85,8 +97,18 @@ const visitStore = useVisitStore()
 const observationStore = useObservationStore()
 const localSettings = useLocalSettingsStore()
 
-// Local state ('unified' = timeline incl. inline editing, 'patient' = master data)
-const viewMode = ref('unified')
+// Local state ('unified' = timeline incl. inline editing, 'cockpit' = consultation
+// cockpit, 'patient' = master data). The last mode is remembered per user.
+const VIEW_MODES = ['unified', 'cockpit', 'patient']
+const modeFromQuery = (q) => (VIEW_MODES.includes(q) ? q : null)
+const viewMode = ref(modeFromQuery(localSettings.getSetting('visits.lastViewMode')) || 'unified')
+watch(viewMode, (mode) => localSettings.setSetting('visits.lastViewMode', mode))
+
+// Cockpit → "Zeitlinie öffnen": switch view with the given visit expanded
+const openTimelineAt = (visit) => {
+  if (visit?.id != null) visitObservationService.selectVisitAndLoadObservations(visit).catch(() => {})
+  viewMode.value = 'unified'
+}
 const deletePatientDialog = ref(null)
 
 // Computed properties from stores
@@ -119,7 +141,7 @@ const onPatientSelected = async (patient) => {
     visitObservationService.initialize()
     // Load patient with all data
     await visitObservationService.loadPatientWithData(patient.id)
-    viewMode.value = 'unified'
+    viewMode.value = modeFromQuery(localSettings.getSetting('visits.lastViewMode')) || 'unified'
   }
 }
 
@@ -176,7 +198,7 @@ const loadPatientFromRoute = async () => {
     // Patient is already loaded and matches route
     // Save to recent patients and set view mode
     addToRecentPatients(patientId)
-    viewMode.value = route.query.view === 'patient' ? 'patient' : 'unified'
+    viewMode.value = modeFromQuery(route.query.view) || viewMode.value
     return
   }
 
@@ -191,8 +213,8 @@ const loadPatientFromRoute = async () => {
     if (loadedPatient) {
       // Save patient to recent patients when loaded from route
       addToRecentPatients(patientId)
-      // ?view=patient opens the patient-data view directly (context menu)
-      viewMode.value = route.query.view === 'patient' ? 'patient' : 'unified'
+      // ?view=patient|cockpit opens that view directly (context menu / study audit)
+      viewMode.value = modeFromQuery(route.query.view) || viewMode.value
     } else {
       // Patient not found, redirect to visits list
       router.push('/visits')
@@ -225,6 +247,22 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   background: white;
+}
+
+.patient-header--compact {
+  padding-top: 0.5rem !important;
+  padding-bottom: 0.5rem !important;
+
+  .patient-name {
+    font-size: 1.15rem;
+    margin: 0;
+  }
+
+  .patient-avatar-clickable {
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 0.85rem;
+  }
 }
 
 .patient-header {
