@@ -5,10 +5,11 @@
 
 ## Recent Milestones
 
-### 2026-09-15 — Audit-Trail + Kommentare, Audit in der Patientenvisite, Trigger-Fix
+### 2026-09-15 — Release v0.7_20260915: Audit-Trail + Kommentare, Audit in der Patientenvisite, Trigger-Fix
 
-- `features/visit-audit-comments` (2 Commits, noch nicht nach `development`
-  gemerged):
+- Released v0.7_20260915 to `main` (`features/visit-audit-comments` + `bugfix/diverse-issues`);
+  verifiziert mit `scripts/db-check` gegen die Demo-DB (687 Patienten,
+  52 PASS · 1 WARN · 0 FAIL), Suite 1070 Tests grün:
   - **Audit im Patientenbesuch** — die Grid-Prüfmarkierung (`VALUEFLAG_CD`
     `AUDIT`/`CONFIRMED`) ist in der Zeitlinie sichtbar und bedienbar
     (Kachel-Rahmen + Flaggen-Eck, Rechtsklick-Menü, Flaggen-Button im

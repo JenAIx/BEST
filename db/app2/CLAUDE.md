@@ -1573,5 +1573,5 @@ console.log($t('category.key'))
 ---
 
 **Last Updated**: September 15, 2026  
-**App Version**: 0.6_20260812 (unreleased work on `features/visit-audit-comments`)  
+**App Version**: 0.7_20260915  
 **Database Schema Version**: migrations 001–016 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation)
