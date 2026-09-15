@@ -39,7 +39,7 @@
         "method": "sum",
         "coding": {
             "display": "Schwab-England Score (%)",
-            "code": "273544001",
+            "code": "SCTID: 273544001",
             "system": "http://snomed.info/sct"
         }
     }

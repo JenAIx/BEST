@@ -77,7 +77,7 @@
         ],
         "coding": {
             "display": "WOQ-9 Score",
-            "code": "443679007",
+            "code": "NEURO:SCORE:WOQ9",
             "system": "http://snomed.info/sct"
         }
     }

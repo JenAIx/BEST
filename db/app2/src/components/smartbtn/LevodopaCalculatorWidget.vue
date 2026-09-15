@@ -171,6 +171,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { LED_FACTORS } from 'src/shared/utils/ledd.js'
 
 defineOptions({
   name: 'LevodopaCalculatorWidget',
@@ -218,273 +219,29 @@ const columns = [
   },
 ]
 
-const drugOptions = [
-  // Levodopa-containing drugs
-  {
-    label: 'Levodopa (Standard)',
-    value: 'levodopa',
-    factor: 1.0,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'Dual-release Levodopa',
-    value: 'levodopa-dual',
-    factor: 0.85,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'Controlled-release Levodopa',
-    value: 'levodopa-cr',
-    factor: 0.75,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'Extended-release Levodopa (IPX066)',
-    value: 'levodopa-er',
-    factor: 0.5,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'Inhaled Levodopa (Capsules)',
-    value: 'levodopa-inhaled',
-    factor: 0.69,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'LCIG (Intrajejunal L/C)',
-    value: 'lcig',
-    factor: 1.11,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'LECIG Morning Dose',
-    value: 'lecig-morning',
-    factor: 1.11,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'LECIG Maintenance/Extra',
-    value: 'lecig-maintenance',
-    factor: 1.46,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
-  {
-    label: 'Foslevodopa/Foscarbidopa (SC)',
-    value: 'foslevodopa',
-    factor: 0.75,
-    unit: 'mg/day',
-    category: 'Levodopa',
-  },
+// Drug table from the shared LEDD module (single source of truth with the
+// Visitenmodus). Presented in the widget's legacy shape {label, value, factor,
+// unit, category, special, fixedLED}.
+const CATEGORY_OF = (key, def) => {
+  if (def.kind === 'levodopa') return 'Levodopa'
+  if (def.kind === 'comt') return 'COMT'
+  if (def.kind === 'fixed') return 'Fixed LED'
+  if (def.kind === 'multiplier') return 'Special'
+  if (/selegiline|rasagiline/.test(key)) return 'MAO-B'
+  if (/lisuride|bromocriptine|pergolide|cabergoline|dihydroergocryptine/.test(key)) return 'Ergot DA'
+  if (/amantadine/.test(key)) return 'Other'
+  return 'DA Agonist'
+}
+const drugOptions = Object.entries(LED_FACTORS).map(([key, def]) => ({
+  label: def.label,
+  value: key,
+  factor: def.factor ?? 0,
+  unit: 'mg/day',
+  category: CATEGORY_OF(key, def),
+  special: def.kind === 'comt' || def.kind === 'fixed' || def.kind === 'multiplier' ? def.kind : undefined,
+  fixedLED: def.led,
+}))
 
-  // COMT Inhibitors (special calculation)
-  {
-    label: 'Entacapone',
-    value: 'entacapone',
-    factor: 0.33,
-    unit: 'mg/day',
-    category: 'COMT',
-    special: 'comt',
-  },
-  {
-    label: 'Tolcapone',
-    value: 'tolcapone',
-    factor: 0.5,
-    unit: 'mg/day',
-    category: 'COMT',
-    special: 'comt',
-  },
-  {
-    label: 'Opicapone',
-    value: 'opicapone',
-    factor: 0.5,
-    unit: 'mg/day',
-    category: 'COMT',
-    special: 'comt',
-  },
-
-  // MAO-B Inhibitors
-  {
-    label: 'Selegiline (Oral)',
-    value: 'selegiline-oral',
-    factor: 10.0,
-    unit: 'mg/day',
-    category: 'MAO-B',
-  },
-  {
-    label: 'Selegiline (Sublingual)',
-    value: 'selegiline-sublingual',
-    factor: 80.0,
-    unit: 'mg/day',
-    category: 'MAO-B',
-  },
-  {
-    label: 'Rasagiline',
-    value: 'rasagiline',
-    factor: 100.0,
-    unit: 'mg/day',
-    category: 'MAO-B',
-  },
-
-  // Non-ergot Dopamine Agonists
-  {
-    label: 'Pramipexole (Salt)',
-    value: 'pramipexole-salt',
-    factor: 100.0,
-    unit: 'mg/day',
-    category: 'DA Agonist',
-  },
-  {
-    label: 'Pramipexole (Base)',
-    value: 'pramipexole-base',
-    factor: 142.86,
-    unit: 'mg/day',
-    category: 'DA Agonist',
-  },
-  {
-    label: 'Ropinirole',
-    value: 'ropinirole',
-    factor: 20.0,
-    unit: 'mg/day',
-    category: 'DA Agonist',
-  },
-  {
-    label: 'Rotigotine',
-    value: 'rotigotine',
-    factor: 30.3,
-    unit: 'mg/day',
-    category: 'DA Agonist',
-  },
-  {
-    label: 'Piribedil',
-    value: 'piribedil',
-    factor: 1.0,
-    unit: 'mg/day',
-    category: 'DA Agonist',
-  },
-  {
-    label: 'Apomorphine (SC)',
-    value: 'apomorphine-sc',
-    factor: 10.0,
-    unit: 'mg/day',
-    category: 'DA Agonist',
-  },
-  {
-    label: 'Apomorphine (Sublingual)',
-    value: 'apomorphine-sublingual',
-    factor: 1.5,
-    unit: 'mg/day',
-    category: 'DA Agonist',
-  },
-
-  // Ergot Dopamine Agonists
-  {
-    label: 'Lisuride',
-    value: 'lisuride',
-    factor: 100.0,
-    unit: 'mg/day',
-    category: 'Ergot DA',
-  },
-  {
-    label: 'Bromocriptine',
-    value: 'bromocriptine',
-    factor: 10.0,
-    unit: 'mg/day',
-    category: 'Ergot DA',
-  },
-  {
-    label: 'Pergolide',
-    value: 'pergolide',
-    factor: 100.0,
-    unit: 'mg/day',
-    category: 'Ergot DA',
-  },
-  {
-    label: 'Cabergoline',
-    value: 'cabergoline',
-    factor: 66.67,
-    unit: 'mg/day',
-    category: 'Ergot DA',
-  },
-  {
-    label: 'Dihydroergocryptine',
-    value: 'dihydroergocryptine',
-    factor: 5.0,
-    unit: 'mg/day',
-    category: 'Ergot DA',
-  },
-
-  // Others
-  {
-    label: 'Amantadine IR',
-    value: 'amantadine-ir',
-    factor: 1.0,
-    unit: 'mg/day',
-    category: 'Other',
-  },
-  {
-    label: 'Amantadine ER (ADS-5102)',
-    value: 'amantadine-er',
-    factor: 1.25,
-    unit: 'mg/day',
-    category: 'Other',
-  },
-  {
-    label: 'Amantadine IR/ER (OS320)',
-    value: 'amantadine-os320',
-    factor: 1.0,
-    unit: 'mg/day',
-    category: 'Other',
-  },
-
-  // Fixed LED values
-  {
-    label: 'Safinamide (50-100mg)',
-    value: 'safinamide',
-    factor: 0,
-    fixedLED: 150,
-    unit: 'mg/day',
-    category: 'Fixed LED',
-    special: 'fixed',
-  },
-  {
-    label: 'Zonisamide (25-50mg)',
-    value: 'zonisamide',
-    factor: 0,
-    fixedLED: 100,
-    unit: 'mg/day',
-    category: 'Fixed LED',
-    special: 'fixed',
-  },
-  {
-    label: 'Trihexyphenidyl',
-    value: 'trihexyphenidyl',
-    factor: 0,
-    fixedLED: 100,
-    unit: 'mg/day',
-    category: 'Fixed LED',
-    special: 'fixed',
-  },
-
-  // Special multiplier
-  {
-    label: 'Istradefylline',
-    value: 'istradefylline',
-    factor: 0.2,
-    unit: 'mg/day',
-    category: 'Special',
-    special: 'multiplier',
-  },
-]
-
-// Filtered drug options for searchable select
 const filteredDrugOptions = ref(drugOptions)
 
 const referenceMedications = [
