@@ -1,5 +1,7 @@
 <template>
   <div class="excel-editor">
+    <!-- Another user changed one of the shown patients while cells are being edited -->
+    <StaleDataBanner :show="remoteStale" class="q-ma-sm" @refresh="refreshFromRemote" />
     <!-- Header Controls -->
     <div class="editor-header q-pa-md bg-white shadow-1">
       <div class="row items-center justify-between q-gutter-sm">
@@ -642,6 +644,8 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
+import StaleDataBanner from 'src/components/shared/StaleDataBanner.vue'
+import { useDbFreshness } from 'src/composables/useDbFreshness'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
 import AddObservationDialog from './AddObservationDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
@@ -906,8 +910,23 @@ const loadPatientData = async () => {
     if (dataGridStore?.initializeColumnOrder) {
       dataGridStore.initializeColumnOrder()
     }
+    await markFresh()
   }
 }
+
+// Other users' commits on the shown patients: reload silently, unless a
+// cell is being edited or a write is in flight — then show the banner
+const {
+  stale: remoteStale,
+  refresh: refreshFromRemote,
+  markFresh,
+} = useDbFreshness({
+  patientNums: () => (dataGridStore?.patientData || []).map((entry) => entry?.patient?.PATIENT_NUM).filter((n) => n != null),
+  isEditing: () => (dataGridStore?.editingCellCount || 0) > 0 || (dataGridStore?.pendingChanges?.size || 0) > 0,
+  reload: async () => {
+    if (dataGridStore?.loadGridData) await dataGridStore.loadGridData(props.patientIds)
+  },
+})
 
 // Visit-type lock toggle (same viewOptions flag as ViewOptionsDialog)
 const visitTypeLockActive = computed(() => dataGridStore?.viewOptions?.visitTypeLockActive === true)

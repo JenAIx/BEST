@@ -55,6 +55,13 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // row filter and the footer statistics agree on what is visible.
   const hiddenVisits = ref(new Set())
 
+  // Cells currently in edit mode (EditableCell reports enter/leave). A remote
+  // change must not auto-reload the grid while someone is typing.
+  const editingCellCount = ref(0)
+  const noteCellEditing = (delta) => {
+    editingCellCount.value = Math.max(0, editingCellCount.value + delta)
+  }
+
   // Undo/redo: each entry is a recorded cell edit with both old and new value.
   // Once a cell is saved (DB write done by EditableCell), an entry is pushed
   // here; undo/redo replay the same UPDATE OBSERVATION_FACT path via
@@ -1096,6 +1103,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     visitTypeMeta,
     statsVersion,
     hiddenVisits,
+    editingCellCount,
+    noteCellEditing,
 
     // Getters
     totalObservations,

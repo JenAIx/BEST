@@ -13,6 +13,8 @@
         </div>
 
         <div class="unified-main">
+          <!-- Another user changed this patient while a visit is being edited -->
+          <StaleDataBanner :show="remoteStale" @refresh="refreshFromRemote" />
           <!-- Fixed header row above the card list: filter left, expand-all +
                new visit right. Hidden while editing — the sticky card header
                takes over. -->
@@ -158,6 +160,8 @@ import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useVisitLabels } from 'src/composables/useVisitLabels'
+import { useDbFreshness } from 'src/composables/useDbFreshness'
+import StaleDataBanner from 'src/components/shared/StaleDataBanner.vue'
 import { useVisitActions } from 'src/composables/useVisitActions'
 import { useSingleVisitEdit } from 'src/composables/useSingleVisitEdit'
 import { groupObservationsByFieldSets, filterObservations } from 'src/shared/utils/file-category'
@@ -456,10 +460,23 @@ const onDataChanged = async () => {
   try {
     // independent reads — run them in parallel
     await Promise.all([visitStore.loadVisitsForPatient(patientNum.value), observationStore.loadAllObservationsForPatient(patientNum.value), observationStore.loadCommentCountsForPatient(patientNum.value)])
+    await markFresh()
   } catch (error) {
     logger.error('Failed to refresh visits/observations', error)
   }
 }
+
+// Other users' commits: reload silently in read mode, banner while editing
+// (useSingleVisitEdit = at most one visit in edit mode)
+const {
+  stale: remoteStale,
+  refresh: refreshFromRemote,
+  markFresh,
+} = useDbFreshness({
+  patientNums: () => (patientNum.value == null ? [] : [patientNum.value]),
+  isEditing: () => editingVisitId.value != null,
+  reload: onDataChanged,
+})
 
 // Comment badge counts load alongside the patient's observations (one
 // GROUP BY — the per-observation trail loads only when a dialog opens);

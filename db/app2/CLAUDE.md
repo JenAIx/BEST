@@ -6,7 +6,7 @@
 
 ## 📁 Project Overview
 
-**BEST - Scientific DB Manager**  
+**BEST - Scientific DB Manager**
 A modern research database for neuroscientific data built with Vue 3, Quasar, and SQLite.
 
 - **Architecture**: Clean MVC (Model-View-Controller) pattern
@@ -588,6 +588,43 @@ and every shipped blob costs real time. Rules that came out of the audit:
   through `cacheManager.getOrSet` (`getFindingOptions`, `getSelectionOptions`).
 - **Logging**: `file://` is production. Debug logging in a packaged build
   only via `localStorage.BEST_LOG_LEVEL = 'DEBUG'` (settings UI).
+
+### 9. Multi-user conventions (several app instances, one SQLite file on SMB)
+
+- **Journal stays `DELETE`**, `synchronous = FULL`, `busy_timeout = 4000`
+  (`electron-preload.js dbman.connect`, mirrored in `real-connection.js`).
+  WAL is NOT safe over SMB; journal_mode is a property of the FILE, so never
+  flip it from one instance. `check-db` fails on anything but `delete`.
+- **Transactions only via `databaseService.withTransaction(async (tx) => …)`**
+  and bind repositories to `tx` (`new PatientRepository(tx)`). It runs
+  `BEGIN IMMEDIATE … COMMIT` while holding the connection's statement gate
+  (`core/database/sqlite/statement-gate.js`), so no other caller's statement
+  lands inside. Raw `BEGIN`/`COMMIT` through `executeCommand` throws in dev.
+- **Optimistic locking on OBSERVATION_FACT** (`VERSION`, migration 019):
+  every UPDATE/DELETE of an observation carries `AND VERSION = ?` with the
+  version the client loaded and bumps `VERSION = VERSION + 1` — use
+  `buildValueUpdateStatement` / `buildSetFlagStatement(…, expectedVersion)` /
+  `versionGuard()` from `shared/utils/audit-flag.js` or
+  `ObservationRepository.updateObservation(id, data, {expectedVersion})`.
+  `changes === 0` → `StaleObservationError`: reload that observation
+  (`observation-store.refreshObservationById`, `data-grid-store.reloadRow`)
+  and tell the user (`observation.conflict` / `dataGrid.cellChangedElsewhere`).
+  Every list load must SELECT `VERSION` and mirror `version + 1` after a
+  successful write. The guard trigger `observation_version_guard` bumps
+  VERSION for legacy writers, so never rely on it for your own statements'
+  row count semantics — bump explicitly.
+- **Writes use `executeCommand`, never `executeQuery`** — only the command
+  path returns `changes`. Failures carry `errorKind`
+  (`busy|locked|readonly|corrupt|io|other`, `db-errors.classifyDbError`) and
+  are reported on `dbErrorBus` → `database-store.lastDbError` → App toast.
+  Stores never call notify.
+- **Freshness**: `db-freshness-store` (App-wide, `PRAGMA data_version` every
+  5 s) + `useDbFreshness({patientNums, isEditing, reload})` per page.
+  A page that reloads itself calls `markFresh()`. Never auto-reload while
+  `isEditing()` — show `StaleDataBanner`.
+- **Caches follow the connection**: `database-store.resetDerivedCaches()`
+  runs on connect/close (concept cache prefix = hash of the DB path); a
+  remote CODE_LOOKUP/CONCEPT_DIMENSION change invalidates both caches.
 
 ---
 
@@ -1694,6 +1731,6 @@ console.log($t('category.key'))
 
 ---
 
-**Last Updated**: September 15, 2026  
-**App Version**: 0.8_20260915  
-**Database Schema Version**: migrations 001–018 (latest: 016 trigger re-creation, 017 neuro consult seed, 018 patient_list perf + indexes)
+**Last Updated**: September 15, 2026
+**App Version**: 0.8_20260915
+**Database Schema Version**: migrations 001–019 (latest: 017 neuro consult seed, 018 patient_list perf + indexes, 019 OBSERVATION_FACT.VERSION optimistic locking)

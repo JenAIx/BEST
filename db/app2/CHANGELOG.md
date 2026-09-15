@@ -75,6 +75,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: unit 48 (LEDD), 49 (Medikations-Diff), 50 (Vorlagen-Logik),
     53 (Consult-Store); integration 17 (Migration 017), 18 (Repositories).
 
+### Added
+
+- **Mehrbenutzer-Betrieb auf einer SQLite-Datei (Audit Sept 2026, Phase 1,
+  `features/multi-user-db`)** — mehrere App-Instanzen arbeiten auf derselben
+  `production.db` auf einem Netzlaufwerk:
+  - **Sperren statt Nullen**: `PRAGMA busy_timeout = 4000` (Journal bleibt
+    DELETE — WAL ist über SMB nicht sicher, der Modus wird beim Verbinden
+    zurückgelesen), `withBusyRetry` (3 Versuche) in der Connection,
+    Fehlerklassifikation (`db-errors.js`) und ein gedrosselter Toast
+    „Datenbank durch anderen Nutzer gesperrt“ (`App.vue`) statt stiller
+    `0`/`[]`-Ergebnisse.
+  - **Transaktionen sind isoliert**: `statement-gate.js` serialisiert alle
+    Statements einer Connection; `withTransaction(fn)` hält das Gate von
+    `BEGIN IMMEDIATE` bis COMMIT/ROLLBACK — Grid-Autosave oder Nachrichten-
+    Poll landen nicht mehr in fremden Transaktionen (`createPatient`,
+    `executeTransaction`). Rohes `BEGIN` außerhalb wird im Dev-Build abgelehnt.
+  - **Optimistic Locking** (Migration **019**): `OBSERVATION_FACT.VERSION`
+    + Guard-Trigger; jeder Beobachtungs-Write (Zeitlinie, Grid, Flags, Datum,
+    Löschen) sendet `AND VERSION = ?` und bumpt `VERSION + 1`. Trifft der
+    Write keine Zeile, meldet die UI „von einem anderen Nutzer geändert“ und
+    lädt die Beobachtung/Zeile nach — kein stilles Überschreiben mehr.
+  - **Änderungserkennung**: `db-freshness-store` pollt alle 5 s
+    `PRAGMA data_version` (nur sichtbar + verbunden); bei fremdem Commit
+    prüft `useDbFreshness` `MAX(UPDATE_DATE)` der angezeigten Patienten —
+    ohne laufende Bearbeitung stiller Reload, sonst `StaleDataBanner`
+    (Zeitlinie, Datentabelle). Ändern sich CODE_LOOKUP/CONCEPT_DIMENSION,
+    werden Lookup- und Konzept-Cache invalidiert.
+  - **Cache-Scoping**: Konzept-Cache-Schlüssel tragen einen Hash des DB-Pfads;
+    Wechsel der Datenbank/Logout setzen Konzept- und Lookup-Cache zurück.
+  - Browser-Mock-Connection wird im Produktiv-Build abgelehnt, im Dev-Build als
+    Banner gekennzeichnet. `check-db` prüft journal_mode, VERSION-Spalte/View,
+    14 Trigger. Tests: Unit 51 (Gate/Retry/Bus/Connection), Integration 20
+    (zwei Connections: BUSY, Atomarität, data_version) und 21 (VERSION).
+
 ### Changed
 
 - **Query-Performance (Audit Sept 2026, Phase 2, `features/perf-queries`)**:

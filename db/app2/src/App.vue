@@ -32,11 +32,14 @@ import SmartButton from 'src/components/smartbtn/SmartButton.vue'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useDbFreshnessStore } from 'src/stores/db-freshness-store'
 import { useNotify } from 'src/composables/useNotify'
 
 const authStore = useAuthStore()
 const loggingStore = useLoggingStore()
 const dbStore = useDatabaseStore()
+// Remote-change detection (PRAGMA data_version poll) — follows the connection
+useDbFreshnessStore()
 const notify = useNotify()
 const { t } = useI18n()
 const isAuthenticated = computed(() => authStore.isAuthenticated)

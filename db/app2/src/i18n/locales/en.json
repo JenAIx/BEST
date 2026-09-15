@@ -1,4 +1,7 @@
 {
+  "freshness": {
+    "remoteChange": "Another user changed data shown here. Refresh to load the current state."
+  },
   "db": {
     "lockedByOtherUser": "The database is currently locked by another user – please retry the action in a few seconds.",
     "readonly": "The database file is read-only – changes cannot be saved.",

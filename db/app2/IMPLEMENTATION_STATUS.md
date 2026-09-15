@@ -5,6 +5,20 @@
 
 ## Recent Milestones
 
+### 2026-09-15 — UI-/Daten-Audit, Phase 1: Mehrbenutzer-Betrieb auf einer SQLite-Datei (`features/multi-user-db`)
+
+- Branch enthält Phase 2 + 3 als Basis (Merges), darauf: `busy_timeout`,
+  Statement-Gate + `withTransaction` (BEGIN IMMEDIATE), Fehlerklassifikation
+  mit Toast statt stiller Nullen, Optimistic Locking über
+  `OBSERVATION_FACT.VERSION` (Migration 019, Guard-Trigger), Änderungserkennung
+  per `PRAGMA data_version` (Auto-Reload / `StaleDataBanner`), Cache-Scoping
+  pro DB-Datei, Browser-Mock im Produktiv-Build abgelehnt.
+- Offen / Follow-ups: `findAccessiblePatientsByCodes` chunken (kollidiert
+  sonst mit Phase 2 in `patient-repository.js`); `scripts/verify-visits`
+  um VERSION-Assertion ergänzen; manueller Zwei-Instanzen-Test auf dem
+  Share (Konflikt-Warnung, Banner ≤ 5 s, Lock-Toast).
+- Details: CHANGELOG `[Unreleased]` → Added, CLAUDE.md §9.
+
 ### 2026-09-15 — UI-/Daten-Audit, Phase 3: Datentabellen-Editor Korrektheit + Reaktivität (`features/grid-consistency`)
 
 - Ein Grid-Schreibpfad (`data-grid-store.writeObservation`), alle Writes über

@@ -913,6 +913,15 @@ onBeforeUnmount(() => {
   }
 })
 
+// Tell the store while this cell is in edit mode (blocks remote auto-reload)
+watch(isEditing, (editing, wasEditing) => {
+  if (editing === wasEditing) return
+  dataGridStore.noteCellEditing?.(editing ? 1 : -1)
+})
+onBeforeUnmount(() => {
+  if (isEditing.value) dataGridStore.noteCellEditing?.(-1)
+})
+
 // Watch for external value changes
 watch(
   () => props.value,

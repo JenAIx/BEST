@@ -1,4 +1,7 @@
 {
+  "freshness": {
+    "remoteChange": "Ein anderer Nutzer hat Daten dieser Ansicht geändert. Aktualisieren, um den aktuellen Stand zu laden."
+  },
   "db": {
     "lockedByOtherUser": "Die Datenbank ist gerade durch einen anderen Nutzer gesperrt – die Aktion bitte in ein paar Sekunden wiederholen.",
     "readonly": "Die Datenbankdatei ist schreibgeschützt – Änderungen können nicht gespeichert werden.",

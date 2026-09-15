@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { shortHash } from 'src/shared/utils/hash.js'
 import { useDatabaseStore } from './database-store'
 import { useGlobalSettingsStore } from './global-settings-store'
 import { createLogger } from 'src/core/services/logging-service'
@@ -73,9 +74,11 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
         const dbStore = useDatabaseStore()
         const globalSettingsStore = useGlobalSettingsStore()
 
-        // Initialize shared utilities
+        // Initialize shared utilities. The localStorage prefix carries a hash
+        // of the database path: switching production ↔ demo (or pointing a
+        // profile at another folder) must not reuse the other file's labels.
         this.cacheManager = createCacheManager({
-          storagePrefix: 'concept_resolution_',
+          storagePrefix: `concept_resolution_${shortHash(dbStore.databasePath || 'default')}_`,
           cacheExpiry: 24 * 60 * 60 * 1000, // 24 hours
           maxCacheSize: 1000,
           logger: this.logger,
@@ -300,6 +303,17 @@ export const useConceptResolutionStore = defineStore('conceptResolution', {
     getVisitTypeLabel(visitType) {
       const resolved = this.getResolved(visitType)
       return resolved?.label || visitType || 'General Visit'
+    },
+
+    /**
+     * Forget the in-memory state (DB switch / remote CONCEPT_DIMENSION change)
+     * without wiping other databases' persisted entries. The next call
+     * re-initialises with the current database's prefix.
+     */
+    async reset() {
+      this.cacheManager?.clearMemory?.()
+      this.isInitialized = false
+      this.logger.info('Concept resolution store reset (memory cache dropped)')
     },
 
     /**

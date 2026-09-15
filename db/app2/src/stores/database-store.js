@@ -44,6 +44,19 @@ export const useDatabaseStore = defineStore('database', () => {
 
   const isMockConnection = computed(() => isConnected.value && databaseService.isMockConnection === true)
 
+  // Lookup/concept caches belong to ONE database file — drop them whenever
+  // the connection changes (login to another profile, logout).
+  const resetDerivedCaches = async () => {
+    try {
+      const [{ useConceptResolutionStore }, { useGlobalSettingsStore }] = await Promise.all([import('./concept-resolution-store'), import('./global-settings-store')])
+      await useConceptResolutionStore().reset?.()
+      useGlobalSettingsStore().clearCache()
+    } catch (error) {
+      const loggingStore = useLoggingStore()
+      loggingStore.warn('DatabaseStore', 'Could not reset derived caches', error)
+    }
+  }
+
   // Actions
   const initializeDatabase = async (path) => {
     const loggingStore = useLoggingStore()
@@ -68,6 +81,7 @@ export const useDatabaseStore = defineStore('database', () => {
         // here any more — only DatabaseTest/Feedback show them and they call
         // loadStatistics() / refreshDatabaseInfo() themselves.
         await loadMigrationStatus()
+        await resetDerivedCaches()
 
         const duration = timer.end()
         loggingStore.success('DatabaseStore', 'Database initialized successfully', {
@@ -94,6 +108,7 @@ export const useDatabaseStore = defineStore('database', () => {
       isLoading.value = true
 
       await databaseService.close()
+      await resetDerivedCaches()
 
       isConnected.value = false
       isInitialized.value = false
