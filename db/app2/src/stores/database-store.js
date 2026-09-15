@@ -5,6 +5,7 @@
  */
 
 import { defineStore } from 'pinia'
+import { queryInChunks } from 'src/shared/utils/sql-tools.js'
 import { ref, computed } from 'vue'
 import databaseService from '../core/services/database-service.js'
 import { useLoggingStore } from './logging-store.js'
@@ -294,7 +295,7 @@ export const useDatabaseStore = defineStore('database', () => {
     // Get current user context for access control
     let currentUserId = null
     let isAdmin = false
-    
+
     try {
       const { useAuthStore } = await import('./auth-store')
       const authStore = useAuthStore()
@@ -303,9 +304,9 @@ export const useDatabaseStore = defineStore('database', () => {
     } catch (error) {
       console.warn('Could not get auth context for patient query:', error)
     }
-    
+
     const patientRepo = getPatientRepository()
-    
+
     // Add user access control to criteria
     const enhancedCriteria = {
       ...criteria,
@@ -314,7 +315,7 @@ export const useDatabaseStore = defineStore('database', () => {
         isAdmin: isAdmin,
       },
     }
-    
+
     return await patientRepo.findPatientsByCriteriaWithConcepts(enhancedCriteria)
   }
 
@@ -359,7 +360,7 @@ export const useDatabaseStore = defineStore('database', () => {
     // Get current user context for access control
     let currentUserId = null
     let isAdmin = false
-    
+
     try {
       const { useAuthStore } = await import('./auth-store')
       const authStore = useAuthStore()
@@ -368,9 +369,9 @@ export const useDatabaseStore = defineStore('database', () => {
     } catch (error) {
       console.warn('Could not get auth context for patient search:', error)
     }
-    
+
     const patientRepo = getPatientRepository()
-    
+
     // Use the search method with user access control
     const userAccess = currentUserId ? { userId: currentUserId, isAdmin: isAdmin } : null
     return await patientRepo.searchPatientsWithConcepts(searchTerm, userAccess)
@@ -823,23 +824,28 @@ export const useDatabaseStore = defineStore('database', () => {
 
       const visitsByPatient = new Map()
       if (patients.length > 0) {
-        const numPlaceholders = patients.map(() => '?').join(',')
-        const visitResult = await executeQuery(
-          `SELECT v.*, COUNT(o.OBSERVATION_ID) AS observationCount
-           FROM VISIT_DIMENSION v
-           LEFT JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
-           WHERE v.PATIENT_NUM IN (${numPlaceholders})
-           GROUP BY v.ENCOUNTER_NUM
-           ORDER BY v.START_DATE DESC`,
+        // medicationCount feeds the grid's medication cell badge (was one
+        // COUNT query per visible medication cell, fired from the template)
+        const visitRows = await queryInChunks(
           patients.map((p) => p.PATIENT_NUM),
+          async (nums) => {
+            const visitResult = await executeQuery(
+              `SELECT v.*, SUM(CASE WHEN o.VALTYPE_CD = 'M' THEN 1 ELSE 0 END) AS medicationCount
+               FROM VISIT_DIMENSION v
+               LEFT JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
+               WHERE v.PATIENT_NUM IN (${nums.map(() => '?').join(',')})
+               GROUP BY v.ENCOUNTER_NUM
+               ORDER BY v.START_DATE DESC`,
+              nums,
+            )
+            return visitResult.success ? visitResult.data : []
+          },
         )
-        if (visitResult.success) {
-          for (const visit of visitResult.data) {
-            if (!visitsByPatient.has(visit.PATIENT_NUM)) {
-              visitsByPatient.set(visit.PATIENT_NUM, [])
-            }
-            visitsByPatient.get(visit.PATIENT_NUM).push(visit)
+        for (const visit of visitRows) {
+          if (!visitsByPatient.has(visit.PATIENT_NUM)) {
+            visitsByPatient.set(visit.PATIENT_NUM, [])
           }
+          visitsByPatient.get(visit.PATIENT_NUM).push(visit)
         }
       }
 
@@ -874,7 +880,30 @@ export const useDatabaseStore = defineStore('database', () => {
     }
   }
 
-  const loadBatchObservationData = async (patientIds) => {
+  // Column list of the grid's observation load. UPDATE_DATE rides along as the
+  // freshness marker of each cell (and the future optimistic-locking token).
+  const GRID_OBSERVATION_COLUMNS = `
+          OBSERVATION_ID,
+          PATIENT_CD,
+          ENCOUNTER_NUM,
+          CONCEPT_CD,
+          VALTYPE_CD,
+          TVAL_CHAR,
+          NVAL_NUM,
+          UNIT_CD,
+          VALUEFLAG_CD,
+          START_DATE,
+          UPDATE_DATE,
+          CATEGORY_CHAR,
+          CONCEPT_NAME_CHAR as CONCEPT_NAME,
+          TVAL_RESOLVED`
+
+  /**
+   * @param {string[]} patientIds - PATIENT_CDs
+   * @param {{encounterNums?: number[]}} [options] - restrict to some visits
+   *   (single-row reload after a stale write / medication save)
+   */
+  const loadBatchObservationData = async (patientIds, { encounterNums = null } = {}) => {
     const loggingStore = useLoggingStore()
     const timer = loggingStore.startTimer('Batch Observation Data Load')
 
@@ -903,41 +932,30 @@ export const useDatabaseStore = defineStore('database', () => {
       // Get all observations for selected patients using the patient_observations view
       // Note: OBSERVATION_BLOB is NOT loaded here to avoid performance issues with large files/images
       // BLOB data is loaded on-demand when editing medications or viewing questionnaires
-      const placeholders = cleanPatientIds.map(() => '?').join(',')
-      const observationQuery = `
-        SELECT
-          OBSERVATION_ID,
-          PATIENT_CD,
-          ENCOUNTER_NUM,
-          CONCEPT_CD,
-          VALTYPE_CD,
-          TVAL_CHAR,
-          NVAL_NUM,
-          UNIT_CD,
-          VALUEFLAG_CD,
-          START_DATE,
-          CATEGORY_CHAR,
-          CONCEPT_NAME_CHAR as CONCEPT_NAME,
-          TVAL_RESOLVED
+      const encounterFilter = Array.isArray(encounterNums) && encounterNums.length > 0 ? encounterNums : null
+      const rows = await queryInChunks(cleanPatientIds, async (codes) => {
+        const observationQuery = `
+        SELECT ${GRID_OBSERVATION_COLUMNS}
         FROM patient_observations
-        WHERE PATIENT_CD IN (${placeholders})
+        WHERE PATIENT_CD IN (${codes.map(() => '?').join(',')})
+        ${encounterFilter ? `AND ENCOUNTER_NUM IN (${encounterFilter.map(() => '?').join(',')})` : ''}
         ORDER BY PATIENT_CD, ENCOUNTER_NUM, CONCEPT_CD
       `
-
-      const result = await executeQuery(observationQuery, cleanPatientIds)
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load observations')
-      }
+        const result = await executeQuery(observationQuery, encounterFilter ? [...codes, ...encounterFilter] : codes)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load observations')
+        }
+        return result.data
+      })
 
       const duration = timer.end()
       loggingStore.success('DatabaseStore', 'Batch observation data loaded successfully', {
         patientCount: cleanPatientIds.length,
-        observationCount: result.data.length,
+        observationCount: rows.length,
         duration: `${duration.toFixed(2)}ms`,
       })
 
-      return result.data
+      return rows
     } catch (error) {
       timer.end()
       loggingStore.error('DatabaseStore', 'Failed to load batch observation data', error, {
@@ -945,6 +963,35 @@ export const useDatabaseStore = defineStore('database', () => {
         patientCount: patientIds?.length,
       })
       throw error
+    }
+  }
+
+  /**
+   * One grid cell from one patient_observations row. Shared by the initial
+   * load and the single-row reload (data-grid-store.reloadRow) so both produce
+   * identical cell shapes.
+   */
+  const mapObservationToCell = (obs) => {
+    // For Selection (S) and Finding (F) types, prefer resolved values.
+    // `??` everywhere: NVAL_NUM 0 is a value, not an empty cell.
+    let displayValue = obs.VALTYPE_CD === 'N' ? (obs.NVAL_NUM ?? '') : (obs.TVAL_CHAR ?? obs.NVAL_NUM ?? '')
+    if ((obs.VALTYPE_CD === 'S' || obs.VALTYPE_CD === 'F') && obs.TVAL_RESOLVED) {
+      displayValue = obs.TVAL_RESOLVED
+    }
+    return {
+      observationId: obs.OBSERVATION_ID,
+      value: displayValue,
+      valueType: obs.VALTYPE_CD,
+      unit: obs.UNIT_CD,
+      // valueFlag carries OBSERVATION_FACT.VALUEFLAG_CD ('NV' / 'AUDIT' /
+      // 'CONFIRMED', see CLAUDE.md §3)
+      valueFlag: obs.VALUEFLAG_CD || null,
+      // per-observation date (may diverge from the visit date)
+      startDate: obs.START_DATE || null,
+      // last write on the row — freshness marker / locking token
+      updateDate: obs.UPDATE_DATE ?? null,
+      originalValue: obs.TVAL_CHAR ?? obs.NVAL_NUM ?? '',
+      resolvedValue: obs.TVAL_RESOLVED,
     }
   }
 
@@ -990,6 +1037,7 @@ export const useDatabaseStore = defineStore('database', () => {
                 encounterNum: visit.ENCOUNTER_NUM,
                 visitDate: visit.START_DATE || null,
                 visitTypeCode,
+                medicationCount: Number(visit.medicationCount) || 0,
                 observations: {},
               })
             }
@@ -1032,7 +1080,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
         // Group by patient and encounter
         const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
-        
+
         // If row doesn't exist (shouldn't happen, but handle gracefully)
         if (!patientVisitMap.has(key)) {
           // Find patient data
@@ -1050,44 +1098,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
         // Add observation to the row
         const row = patientVisitMap.get(key)
-
-        // For Selection (S) and Finding (F) types, prefer resolved values
-        let displayValue = obs.TVAL_CHAR || obs.NVAL_NUM
-        if ((obs.VALTYPE_CD === 'S' || obs.VALTYPE_CD === 'F') && obs.TVAL_RESOLVED) {
-          displayValue = obs.TVAL_RESOLVED
-        }
-
-        row.observations[obs.CONCEPT_CD] = {
-          observationId: obs.OBSERVATION_ID,
-          value: displayValue,
-          valueType: obs.VALTYPE_CD,
-          unit: obs.UNIT_CD,
-          // valueFlag carries OBSERVATION_FACT.VALUEFLAG_CD. The grid uses
-          // 'NV' (no value / explicit absence, e.g. drug not taken) to render
-          // a distinct cell state. See CLAUDE.md "3-state pattern for numerics".
-          valueFlag: obs.VALUEFLAG_CD || null,
-          // startDate is OBSERVATION_FACT.START_DATE. Defaults to the visit's
-          // START_DATE on insert, but can diverge — the right-click "Datum
-          // bearbeiten" workflow lets users set a per-observation date when
-          // e.g. a lab was drawn on a different day than the visit.
-          startDate: obs.START_DATE || null,
-          originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
-          resolvedValue: obs.TVAL_RESOLVED,
-          // rawObservation without BLOB for performance (BLOB loaded on-demand)
-          rawObservation: {
-            OBSERVATION_ID: obs.OBSERVATION_ID,
-            CONCEPT_CD: obs.CONCEPT_CD,
-            CONCEPT_NAME: obs.CONCEPT_NAME,
-            VALTYPE_CD: obs.VALTYPE_CD,
-            TVAL_CHAR: obs.TVAL_CHAR,
-            tval_char: obs.TVAL_CHAR,
-            NVAL_NUM: obs.NVAL_NUM,
-            nval_num: obs.NVAL_NUM,
-            UNIT_CD: obs.UNIT_CD,
-            ENCOUNTER_NUM: obs.ENCOUNTER_NUM,
-            PATIENT_CD: obs.PATIENT_CD,
-          },
-        }
+        row.observations[obs.CONCEPT_CD] = mapObservationToCell(obs)
       })
 
       // Convert to arrays
@@ -1192,6 +1203,7 @@ export const useDatabaseStore = defineStore('database', () => {
     // Data Grid operations
     loadBatchPatientData,
     loadBatchObservationData,
+    mapObservationToCell,
     processObservationDataForGrid,
   }
 })

@@ -854,6 +854,8 @@
     "pageSubtitle": "Persönliche Einstellungen, Profil und lokale Konfiguration"
   },
   "dataGrid": {
+    "cellChangedElsewhere": "Diese Zelle wurde inzwischen von einem anderen Nutzer geändert oder gelöscht – Zeile wurde neu geladen.",
+    "invalidNumber": "Bitte eine gültige Zahl eingeben.",
     "dataGrid": "Datentabelle",
     "editor": "Editor",
     "deleteValue": "Wert löschen",

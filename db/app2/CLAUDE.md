@@ -365,7 +365,16 @@ is the single entry point:
 - `flag='NV'` — flips to NV **and** clears `NVAL_NUM` + `TVAL_CHAR` (so "no value" really is no value).
 - `flag=null` — clears the flag, value untouched.
 
-Direct value edits via `EditableCell.updateObservation` also write
+**Grid writes (Sept 2026)**: `data-grid-store.writeObservation` is the ONLY
+value-write of the grid (EditableCell edits, undo/redo, fill-down);
+`setObservationFlag`, `deleteObservationFromGrid`, `setObservationStartDate`
+are the other writers. All use `dbStore.executeCommand` and
+`assertRowChanged` — `changes === 0` throws `StaleObservationError`, the
+store reloads that row (`reloadRow`) and the cell shows a warning. Never
+write OBSERVATION_FACT from a component via `executeQuery`. Cells mirror
+`updateDate`; `0` is a value (`??`, never `||`).
+
+Direct value edits via `data-grid-store.writeObservation` also write
 `VALUEFLAG_CD = null` whenever a real numeric value is entered, so any prior
 NV/AUDIT/CONFIRMED state is cleared automatically (see test
 `tests/unit/15_editable-cell-nv-state.test.js`, case "value → value").

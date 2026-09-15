@@ -26,13 +26,26 @@ vi.mock('quasar', () => ({
 }))
 
 const executeQueryMock = vi.fn()
+// UPDATE/DELETE go through data-grid-store.writeObservation → executeCommand
+// (changes-count aware); executeQuery only serves the INSERT path's lookups.
+const executeCommandMock = vi.fn()
 const createObservationMock = vi.fn().mockResolvedValue({ OBSERVATION_ID: 999 })
 vi.mock('src/stores/database-store', () => ({
   useDatabaseStore: () => ({
     executeQuery: executeQueryMock,
+    executeCommand: executeCommandMock,
+    mapObservationToCell: (obs) => ({ observationId: obs.OBSERVATION_ID, value: obs.NVAL_NUM ?? obs.TVAL_CHAR ?? '', valueType: obs.VALTYPE_CD, valueFlag: obs.VALUEFLAG_CD || null }),
+    loadBatchObservationData: vi.fn().mockResolvedValue([]),
     getRepository: () => ({
       createObservation: createObservationMock,
     }),
+  }),
+}))
+
+vi.mock('src/stores/local-settings-store', () => ({
+  useLocalSettingsStore: () => ({
+    getSetting: () => null,
+    setSetting: () => {},
   }),
 }))
 
@@ -84,6 +97,8 @@ describe('EditableCell 3-state numeric edit flow', () => {
     setActivePinia(createPinia())
     executeQueryMock.mockReset()
     executeQueryMock.mockResolvedValue({ success: true, data: [{ PATIENT_NUM: 1, START_DATE: '2026-01-01' }] })
+    executeCommandMock.mockReset()
+    executeCommandMock.mockResolvedValue({ success: true, changes: 1 })
     createObservationMock.mockClear()
     createObservationMock.mockResolvedValue({ OBSERVATION_ID: 999 })
   })
@@ -97,7 +112,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     await wrapper.vm.saveEdit()
     await flushPromises()
 
-    const updateCall = executeQueryMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
+    const updateCall = executeCommandMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
     expect(updateCall).toBeTruthy()
     const [sql, params] = updateCall
     expect(sql).toContain('NVAL_NUM = ?')
@@ -115,7 +130,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     await wrapper.vm.saveEdit()
     await flushPromises()
 
-    const updateCall = executeQueryMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
+    const updateCall = executeCommandMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
     expect(updateCall).toBeTruthy()
     const [, params] = updateCall
     expect(params).toEqual([null, null, 'NV', 'SYSTEM', 100])
@@ -131,7 +146,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     await wrapper.vm.saveEdit()
     await flushPromises()
 
-    const updateCall = executeQueryMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
+    const updateCall = executeCommandMock.mock.calls.find((c) => /UPDATE OBSERVATION_FACT/.test(c[0]))
     expect(updateCall).toBeTruthy()
     const [, params] = updateCall
     expect(params).toEqual([40, null, null, 'SYSTEM', 100])
@@ -145,7 +160,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     await wrapper.vm.saveEdit()
     await flushPromises()
 
-    const deleteCall = executeQueryMock.mock.calls.find((c) => /DELETE FROM OBSERVATION_FACT/.test(c[0]))
+    const deleteCall = executeCommandMock.mock.calls.find((c) => /DELETE FROM OBSERVATION_FACT/.test(c[0]))
     expect(deleteCall).toBeTruthy()
     expect(deleteCall[1]).toEqual([100])
   })
@@ -158,7 +173,7 @@ describe('EditableCell 3-state numeric edit flow', () => {
     await wrapper.vm.saveEdit()
     await flushPromises()
 
-    const updateCall = executeQueryMock.mock.calls.find((c) => /UPDATE|DELETE/.test(c[0]))
+    const updateCall = executeCommandMock.mock.calls.find((c) => /UPDATE|DELETE/.test(c[0]))
     expect(updateCall).toBeFalsy()
   })
 
@@ -219,6 +234,58 @@ describe('EditableCell 3-state numeric edit flow', () => {
     expect(obs.VALUEFLAG_CD).toBe('NV')
     expect(obs.VALTYPE_CD).toBe('N')
     expect(obs.CONCEPT_CD).toBe('STROKE_LIPID:DRUG:ATORVASTATIN')
+  })
+
+  it('0 is a value: renders "0" and does not count as an empty cell', async () => {
+    const wrapper = makeWrapper({ value: 0, observationId: 100, valueFlag: null })
+    expect(wrapper.find('.cell-value').exists()).toBe(true)
+    expect(wrapper.find('.cell-value').text()).toContain('0')
+    expect(wrapper.find('.cell-empty').exists()).toBe(false)
+  })
+
+  it('rejects non-numeric input without writing and stays in edit mode', async () => {
+    const wrapper = makeWrapper({ value: 40, observationId: 100, valueFlag: null })
+    await wrapper.find('.editable-cell').trigger('click')
+    await nextTick()
+    wrapper.vm.editValue = 'abc'
+    await wrapper.vm.saveEdit()
+    await flushPromises()
+    expect(executeCommandMock).not.toHaveBeenCalled()
+    expect(wrapper.vm.isEditing).toBe(true)
+  })
+
+  it('a write that hits 0 rows (deleted elsewhere) is reported as stale, not as success', async () => {
+    executeCommandMock.mockResolvedValue({ success: true, changes: 0 })
+    const wrapper = makeWrapper({ value: 40, observationId: 100, valueFlag: null })
+    await wrapper.find('.editable-cell').trigger('click')
+    await nextTick()
+    wrapper.vm.editValue = 80
+    await wrapper.vm.saveEdit()
+    await flushPromises()
+    expect(wrapper.emitted('save')).toBeFalsy()
+    expect(wrapper.emitted('update')).toBeFalsy()
+    const errors = wrapper.emitted('error') || []
+    expect(errors.length).toBe(1)
+    expect(errors[0][0].error.name).toBe('StaleObservationError')
+    expect(wrapper.vm.isEditing).toBe(false)
+  })
+
+  it('emits save-start before the write and update only after it succeeded', async () => {
+    const order = []
+    executeCommandMock.mockImplementation(async () => {
+      order.push('write')
+      return { success: true, changes: 1 }
+    })
+    const wrapper = makeWrapper({ value: 40, observationId: 100, valueFlag: null })
+    await wrapper.find('.editable-cell').trigger('click')
+    await nextTick()
+    wrapper.vm.editValue = 80
+    await wrapper.vm.saveEdit()
+    await flushPromises()
+    expect(wrapper.emitted('save-start')).toBeTruthy()
+    expect(order).toEqual(['write'])
+    expect(wrapper.emitted('update')[0][0]).toMatchObject({ value: 80, observationId: 100, valueFlag: null })
+    expect(wrapper.emitted('save')).toBeTruthy()
   })
 
   it('NV state shows the placeholder and the toggle is highlighted', async () => {

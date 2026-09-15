@@ -17,6 +17,8 @@ const executeQueryMock = vi.fn()
 vi.mock('src/stores/database-store', () => ({
   useDatabaseStore: () => ({
     executeQuery: executeQueryMock,
+    executeCommand: executeQueryMock,
+    mapObservationToCell: (obs) => ({ observationId: obs.OBSERVATION_ID, value: obs.NVAL_NUM ?? obs.TVAL_CHAR ?? '', valueType: obs.VALTYPE_CD, valueFlag: obs.VALUEFLAG_CD || null }),
     loadBatchPatientData: vi.fn(),
     loadBatchObservationData: vi.fn(),
     processObservationDataForGrid: vi.fn(),

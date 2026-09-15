@@ -854,6 +854,8 @@
     "pageSubtitle": "Personal preferences, profile and local configuration"
   },
   "dataGrid": {
+    "cellChangedElsewhere": "This cell was changed or deleted by another user in the meantime – the row has been reloaded.",
+    "invalidNumber": "Please enter a valid number.",
     "dataGrid": "Data Grid",
     "editor": "Editor",
     "deleteValue": "Delete value",

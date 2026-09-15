@@ -19,19 +19,6 @@ export const getCellClass = (row, concept) => {
 }
 
 /**
- * Check if a table row has unsaved changes
- * @param {Object} row - Table row data
- * @param {Array} concepts - Array of concept definitions
- * @returns {boolean} True if row has changes
- */
-export const hasRowChanges = (row, concepts) => {
-  return concepts.some((concept) => {
-    const key = `${row.patientId}-${row.encounterNum}-${concept.code}`
-    return row.pendingChanges?.has(key)
-  })
-}
-
-/**
  * Get display value for a cell
  * @param {Object} row - Table row data
  * @param {Object} concept - Concept definition
@@ -39,7 +26,22 @@ export const hasRowChanges = (row, concepts) => {
  */
 export const getCellValue = (row, concept) => {
   const obs = row.observations[concept.code]
-  return obs?.value || ''
+  // `??`, not `||`: a stored NVAL_NUM of 0 is a value, not an empty cell
+  return obs?.value ?? ''
+}
+
+/**
+ * Parse what the user typed into a numeric cell.
+ * @returns {number|null|NaN} null for an empty input, a finite number, or
+ *   NaN when the text is not a number (caller rejects the edit)
+ */
+export const parseNumericInput = (raw) => {
+  if (raw === null || raw === undefined) return null
+  if (typeof raw === 'number') return Number.isFinite(raw) ? raw : NaN
+  const text = String(raw).trim().replace(',', '.')
+  if (text === '') return null
+  const n = Number(text)
+  return Number.isFinite(n) ? n : NaN
 }
 
 /**

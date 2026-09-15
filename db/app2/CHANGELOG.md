@@ -75,6 +75,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: unit 48 (LEDD), 49 (Medikations-Diff), 50 (Vorlagen-Logik),
     53 (Consult-Store); integration 17 (Migration 017), 18 (Repositories).
 
+### Changed
+
+- **Datentabellen-Editor: Korrektheit + Reaktivität (Audit Sept 2026, Phase 3,
+  `features/grid-consistency`)**:
+  - **Ein Schreibpfad**: `data-grid-store.writeObservation` (Zellen-Edit,
+    Undo/Redo, Fill-down) baut das UPDATE über `buildValueUpdateStatement`
+    (`shared/utils/audit-flag.js`) und schreibt wie Flag-, Datums- und
+    Lösch-Writes über `executeCommand`. `changes === 0` wirft
+    `StaleObservationError`: die Zeile wurde von einem anderen Nutzer
+    geändert/gelöscht → Warnung, Zeile wird per `reloadRow` aus der DB neu
+    geladen. Vorher liefen alle Grid-Writes über `executeQuery` (`db.all`) —
+    ein UPDATE auf eine gelöschte Zeile „gelang“.
+  - **Erst speichern, dann spiegeln**: die Zelle zeigt den neuen Wert erst nach
+    erfolgreichem Write; bei Fehler wird der Edit verworfen. `pendingChanges`
+    zählt nur noch laufende Writes (`save-start` → `save`/`error`), der
+    Stub `saveAllChanges` ist entfernt.
+  - **DB ist Wahrheit beim Refresh**: der Merge mit dem alten lokalen Zustand
+    (behielt andernorts gelöschte Zellen mit veralteter ID) ist weg; manuell
+    ergänzte Spalten bleiben über `observationConcepts` erhalten.
+  - **`0` ist ein Wert**: Zellen mit NVAL_NUM 0 rendern „0“ statt leer, zählen
+    als ausgefüllt und werden beim Speichern nicht mehr gelöscht; ungültige
+    Zahleneingaben werden abgelehnt statt als 0 gespeichert.
+  - **S/F-Zellen**: Klick + Verlassen ohne Änderung schreibt nichts mehr
+    (Code-mit-Code-Vergleich statt Label-mit-Code) — vorher setzte das
+    stillschweigend `VALUEFLAG_CD = NULL` und löschte Audit-Flags.
+  - **Reaktivität**: Statistik/Audit-Mengen/Zeilenfilter laufen über `toRaw`
+    + `statsVersion` statt Deep-Tracking von ~22 k Zellobjekten;
+    `rawObservation`-Duplikat pro Zelle entfernt; ausgeblendete Visiten
+    liegen im Store (Filter und Footer-Statistik stimmen überein, Audit-Zähler
+    ignoriert ausgeblendete Zeilen); Audit-Filter wird bei neuer
+    Patientenauswahl zurückgesetzt; totes `hasRowChanges` entfernt.
+  - **Keine Queries aus dem Template**: Medikamenten-Zähler kommt mit dem
+    Visiten-Load (`SUM(VALTYPE_CD='M')`) statt einer COUNT-Query pro Zelle;
+    nach Medikamenten-Save nur `reloadRow` statt Voll-Reload; Datei-Vorschau-
+    Dialog wird pro Zelle erst beim Öffnen gemountet, Datei-Envelope einmal
+    geparst; `Object.fromEntries(columnVisibility)` als computed; Spalte
+    hinzufügen löst keinen Voll-Reload mehr aus.
+  - **IN-Listen gechunkt** (`shared/utils/sql-tools.js` `queryInChunks`, 500)
+    in den Grid-Batch-Loadern — „alle gefilterten Patienten“ überschritt
+    sonst das SQLite-Parameterlimit.
+  - Grid-Load liefert `UPDATE_DATE` je Zelle mit (Frische-Marker / künftiges
+    Locking-Token); `buildValueUpdateStatement` kennt bereits
+    `expectedVersion` für Phase 1.
+
 ### Fixed
 
 - **Fragebögen Schwab & England, WOQ-9, RBD-SQ, Bain-Tremor schrieben keinen
