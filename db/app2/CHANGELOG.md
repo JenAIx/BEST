@@ -27,6 +27,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Grid-Zellenmenü nutzt die gemeinsamen Audit-Regeln** (`auditActionsFor`
+  aus `shared/utils/audit-flag.js`, wie die Zeitlinie): neu
+  „Prüfmarkierung entfernen“ für markierte und geprüfte Zellen; die
+  Einträge „Zur Prüfung markieren“ / „Prüfung auflösen“ erscheinen nach
+  denselben Regeln wie in der Patientenvisite.
+- **SmartButton**: „Notizen“ liegt jetzt direkt am Button (erste Aktion, in
+  beiden Ausklapprichtungen), die übrigen Werkzeuge rücken nach. Die
+  KI-Werkzeuge (Ask AI, Rewrite) werden ohne hinterlegten OpenAI-Schlüssel
+  gar nicht mehr angezeigt statt ausgegraut
+  (`components/smartbtn/plugins/fab-order.js`, Test
+  `tests/unit/47_smartbutton-fab-order.test.js`).
 - **In-App-Hilfe ausgebaut**: neues Kapitel „Datenprüfung (Audit) &
   Kommentare“ (Zustände, Setzen/Auflösen, Dialog mit Verlauf und
   Kommentaren, Wertänderung, Filter), Studien-Kapitel mit eigenen

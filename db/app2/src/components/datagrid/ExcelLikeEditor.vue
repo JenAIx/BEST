@@ -356,6 +356,7 @@
                   @delete-value="onDeleteCellValue"
                   @mark-audit="onMarkAudit"
                   @resolve-audit="onResolveAudit"
+                  @clear-audit="onClearAudit"
                   @open-audit="onOpenAudit"
                   @mark-no-value="onMarkNoValue"
                   @clear-no-value="onClearNoValue"
@@ -1268,6 +1269,14 @@ const onResolveAudit = async (payload) => {
     await dataGridStore.setObservationFlag({ ...payload, flag: 'CONFIRMED' })
   } catch (error) {
     notify.error(error.message || t('dataGrid.resolveAudit'))
+  }
+}
+
+const onClearAudit = async (payload) => {
+  try {
+    await dataGridStore.setObservationFlag({ ...payload, flag: null })
+  } catch (error) {
+    notify.error(error.message || t('dataGrid.clearAuditFlag'))
   }
 }
 

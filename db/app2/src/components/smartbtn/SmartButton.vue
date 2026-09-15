@@ -73,6 +73,7 @@
 import { ref, computed, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { pluginManager } from './plugins'
+import { orderFabPlugins } from './plugins/fab-order.js'
 import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { usePluginStateStore } from 'src/stores/plugin-state-store'
 import { useNoteStore } from 'src/stores/note-store'
@@ -125,9 +126,11 @@ const setWindowRef = (id, el) => {
   else windowRefs.delete(id)
 }
 
-// Get registered plugins with disabled state (labels resolved via i18n)
+// Get registered plugins with disabled state (labels resolved via i18n).
+// Order + visibility (notes first, AI tools hidden without key): fab-order.js
 const registeredPlugins = computed(() => {
-  return pluginManager.getPlugins().map((plugin) => {
+  const plugins = orderFabPlugins(pluginManager.getPlugins(), { hasOpenAIKey: localSettingsStore.hasOpenAIApiKey() })
+  return plugins.map((plugin) => {
     let tooltip = plugin.tooltipKey ? t(plugin.tooltipKey) : plugin.tooltip
 
     // Handle dynamic tooltip for Ask AI plugin

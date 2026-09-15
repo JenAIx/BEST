@@ -69,6 +69,8 @@ pluginManager.register({
 
 pluginManager.register({
   id: 'ask-ai',
+  // Hidden from the FAB while no OpenAI key is configured (SmartButton.vue)
+  requiresApiKey: 'openai',
   name: 'Ask AI',
   nameKey: 'smartButton.plugins.askAi.name',
   icon: 'smart_toy',
@@ -83,6 +85,8 @@ pluginManager.register({
 
 pluginManager.register({
   id: 'rewrite',
+  // Hidden from the FAB while no OpenAI key is configured (SmartButton.vue)
+  requiresApiKey: 'openai',
   name: 'Rewrite',
   nameKey: 'smartButton.plugins.rewrite.name',
   icon: 'edit',

@@ -173,21 +173,17 @@
           <q-item-section>{{ $t('dataGrid.deleteValue') }}</q-item-section>
         </q-item>
         <q-separator />
+        <!-- Audit actions from the shared rule set (same as the visits timeline):
+             mark unless AUDIT/NV · resolve while AUDIT · clear while AUDIT/CONFIRMED -->
         <q-item
-          v-if="props.valueFlag !== 'AUDIT' && props.valueFlag !== 'NV'"
+          v-for="entry in auditActionsFor(props.valueFlag)"
+          :key="entry.action"
           clickable
-          @click="onContextMarkAudit"
+          :data-cy="`cell-audit-${entry.action}`"
+          @click="onContextAuditAction(entry)"
         >
-          <q-item-section avatar><q-icon name="flag" color="red" /></q-item-section>
-          <q-item-section>{{ $t('dataGrid.markForAudit') }}</q-item-section>
-        </q-item>
-        <q-item
-          v-if="props.valueFlag === 'AUDIT'"
-          clickable
-          @click="onContextResolveAudit"
-        >
-          <q-item-section avatar><q-icon name="check_circle" color="positive" /></q-item-section>
-          <q-item-section>{{ $t('dataGrid.resolveAudit') }}</q-item-section>
+          <q-item-section avatar><q-icon :name="AUDIT_ACTION_META[entry.action].icon" :color="AUDIT_ACTION_META[entry.action].color" /></q-item-section>
+          <q-item-section>{{ $t(AUDIT_ACTION_META[entry.action].label) }}</q-item-section>
         </q-item>
         <q-item clickable data-cy="cell-audit-open" @click="onContextOpenAudit">
           <q-item-section avatar><q-icon name="chat_bubble_outline" color="primary" /></q-item-section>
@@ -275,6 +271,7 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
+import { auditActionsFor } from 'src/shared/utils/audit-flag.js'
 import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
 import { useAuthStore } from 'src/stores/auth-store'
@@ -348,6 +345,7 @@ const emit = defineEmits([
   'delete-value',
   'mark-audit',
   'resolve-audit',
+  'clear-audit',
   'open-audit',
   'mark-no-value',
   'clear-no-value',
@@ -459,12 +457,15 @@ const onConfirmDelete = () => {
   emit('delete-value', auditPayload())
 }
 
-const onContextMarkAudit = () => {
-  emit('mark-audit', auditPayload())
+const AUDIT_ACTION_META = {
+  mark: { icon: 'flag', color: 'red', label: 'dataGrid.markForAudit' },
+  resolve: { icon: 'check_circle', color: 'positive', label: 'dataGrid.resolveAudit' },
+  clear: { icon: 'outlined_flag', color: 'grey-7', label: 'dataGrid.clearAuditFlag' },
 }
 
-const onContextResolveAudit = () => {
-  emit('resolve-audit', auditPayload())
+const onContextAuditAction = (entry) => {
+  const eventName = { mark: 'mark-audit', resolve: 'resolve-audit', clear: 'clear-audit' }[entry.action]
+  if (eventName) emit(eventName, auditPayload())
 }
 
 // Shared audit dialog (trail + comments) — the parent owns the instance and
