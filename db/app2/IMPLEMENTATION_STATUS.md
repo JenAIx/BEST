@@ -5,6 +5,24 @@
 
 ## Recent Milestones
 
+### 2026-09-15 — Release v0.8_20260915: Navigations-Fix, Audit-Parität im Grid, SmartButton, Hilfe
+
+- Released v0.8_20260915 to `main` (`bugfix/nav-back-loop`,
+  `bugfix/grid-audit-menu-smartbutton`):
+  - **Zurück-Schleife behoben**: nach Sitzungs-Timeout + Login-Redirect
+    führte der Zurück-Pfeil (Visite/Grid) zur Anmeldeseite, die sofort
+    wieder weiterleitete. LoginPage nutzt `router.replace`;
+    `shared/utils/navigation.js` (`goBackOr`) gibt Visite, Grid-Editor,
+    Changelog und 403 ein Rückfallziel, wenn kein brauchbarer Verlauf da ist.
+  - **Grid-Zellenmenü** nutzt `auditActionsFor()` wie die Zeitlinie —
+    neu „Prüfmarkierung entfernen“; beide Oberflächen sind deckungsgleich.
+  - **SmartButton**: Notizen als erste Aktion am Button, KI-Werkzeuge ohne
+    OpenAI-Schlüssel ausgeblendet (`plugins/fab-order.js`).
+  - **In-App-Hilfe**: Kapitel „Datenprüfung (Audit) & Kommentare“,
+    Studien-Unterabschnitte Kohorten-Insights/Audit-Tab, erweitertes
+    Datenmodell, vier Screenshots mit der Demo-DB neu aufgenommen.
+  - Suite: 1080 Tests grün; `package.json` 0.8.0.
+
 ### 2026-09-15 — Release v0.7_20260915: Audit-Trail + Kommentare, Audit in der Patientenvisite, Trigger-Fix
 
 - Released v0.7_20260915 to `main` (`features/visit-audit-comments` + `bugfix/diverse-issues`);

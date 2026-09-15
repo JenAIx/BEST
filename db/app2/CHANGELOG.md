@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8_20260915] - 2026-09-15
+
 ### Fixed
 
 - **Navigation: „Ich lande auf einer Unterseite und komme nicht mehr

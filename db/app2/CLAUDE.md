@@ -1573,5 +1573,5 @@ console.log($t('category.key'))
 ---
 
 **Last Updated**: September 15, 2026  
-**App Version**: 0.7_20260915  
+**App Version**: 0.8_20260915  
 **Database Schema Version**: migrations 001–016 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation)
