@@ -38,6 +38,7 @@ import { rawFileConcepts } from '../database/migrations/014-raw-file-concepts.js
 import { observationAuditFact } from '../database/migrations/015-observation-audit-fact.js'
 import { recreateTriggers } from '../database/migrations/016-recreate-triggers.js'
 import { neuroConsultSeed } from '../database/migrations/017-neuro-consult-seed.js'
+import { patientListViewPerf } from '../database/migrations/018-patient-list-view-perf.js'
 
 class DatabaseService {
   constructor() {
@@ -96,6 +97,7 @@ class DatabaseService {
       this.migrationManager.registerMigration(observationAuditFact)
       this.migrationManager.registerMigration(recreateTriggers)
       this.migrationManager.registerMigration(neuroConsultSeed)
+      this.migrationManager.registerMigration(patientListViewPerf)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()
