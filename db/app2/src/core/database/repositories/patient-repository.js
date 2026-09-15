@@ -5,6 +5,7 @@
  */
 
 import BaseRepository from './base-repository.js'
+import { resolveAccessMode } from '../../../shared/utils/patient-access.js'
 
 class PatientRepository extends BaseRepository {
   constructor(connection) {
@@ -40,15 +41,26 @@ class PatientRepository extends BaseRepository {
    * patient query. A regular user sees a patient when USER_PATIENT_LOOKUP
    * links the patient to them OR to the public user (USER_ID = 0).
    *
-   * Returns null for admins or missing user context (no filtering). Otherwise
-   * returns the JOIN fragment (expects the patient table aliased as `p`), the
-   * WHERE condition, and its parameter.
+   * Returns null for admins or when NO context object is passed (system
+   * callers, no filtering). A context object WITHOUT a user id yields a
+   * deny-all filter (fail closed). USER_ID 0 (`public`) is a regular user.
+   * Otherwise returns the JOIN fragment (expects the patient table aliased
+   * as `p`), the WHERE condition, and its parameter.
    *
    * @param {{userId: number, isAdmin: boolean}|null} userAccess
    * @returns {{join: string, condition: string, param: number}|null}
    */
   getAccessFilter(userAccess) {
-    if (!userAccess || !userAccess.userId || userAccess.isAdmin) return null
+    const mode = resolveAccessMode(userAccess)
+    if (mode === 'unfiltered') return null
+    if (mode === 'deny') {
+      // Fail closed: a context object without a user id must see nothing.
+      return {
+        join: 'INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM',
+        condition: '(1 = 0 AND upl.USER_ID = ?)',
+        param: -1,
+      }
+    }
     return {
       join: 'INNER JOIN USER_PATIENT_LOOKUP upl ON p.PATIENT_NUM = upl.PATIENT_NUM',
       condition: '(upl.USER_ID = ? OR upl.USER_ID = 0)',
@@ -618,11 +630,11 @@ class PatientRepository extends BaseRepository {
    * @param {number} page - Page number (1-based)
    * @param {number} pageSize - Page size
    * @param {Object} criteria - Search criteria
-   * @param {number|null} currentUserId - Current user ID for access control
-   * @param {boolean} isAdmin - Whether current user is admin
+   * @param {{userId: number|null, isAdmin: boolean}|null} userAccess - auth
+   *   context; null = system caller (unfiltered), see getAccessFilter
    * @returns {Promise<Object>} - Paginated results with metadata
    */
-  async getPatientsPaginated(page = 1, pageSize = 20, criteria = {}, currentUserId = null, isAdmin = false) {
+  async getPatientsPaginated(page = 1, pageSize = 20, criteria = {}, userAccess = null) {
     const offset = (page - 1) * pageSize
 
     // Merge pagination options with any existing options
@@ -638,10 +650,7 @@ class PatientRepository extends BaseRepository {
     const enhancedCriteria = {
       ...criteria,
       options: mergedOptions,
-      _userAccess: {
-        userId: currentUserId,
-        isAdmin: isAdmin,
-      },
+      _userAccess: userAccess,
     }
 
     const patients = await this.findPatientsByCriteriaWithConcepts(enhancedCriteria)

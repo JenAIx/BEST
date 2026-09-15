@@ -203,17 +203,22 @@ export const useDatabaseStore = defineStore('database', () => {
 
   // Resolve the current auth context for access-controlled queries
   // (dynamic import to avoid circular dependency with auth-store)
+  // FAIL CLOSED: never return null here — null means "system context, no
+  // filtering" to the repositories. No logged-in user or an auth-store error
+  // yields a context WITHOUT a user id, which the repositories turn into a
+  // deny-all predicate (see shared/utils/patient-access.js resolveAccessMode).
+  const DENY_ALL_ACCESS = Object.freeze({ userId: null, isAdmin: false })
   const resolveUserAccess = async () => {
     try {
       const { useAuthStore } = await import('./auth-store')
       const authStore = useAuthStore()
       const userId = authStore.currentUser?.USER_ID
-      if (userId === undefined || userId === null) return null
-      return { userId, isAdmin: authStore.isAdmin }
+      if (userId === undefined || userId === null) return DENY_ALL_ACCESS
+      return { userId, isAdmin: authStore.isAdmin === true }
     } catch (error) {
       const loggingStore = useLoggingStore()
-      loggingStore.warn('DatabaseStore', 'Could not resolve auth context for access control', error)
-      return null
+      loggingStore.warn('DatabaseStore', 'Could not resolve auth context for access control — denying access', error)
+      return DENY_ALL_ACCESS
     }
   }
 
@@ -291,30 +296,9 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const findPatients = async (criteria = {}) => {
-    // Get current user context for access control
-    let currentUserId = null
-    let isAdmin = false
-    
-    try {
-      const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      currentUserId = authStore.currentUser?.USER_ID
-      isAdmin = authStore.isAdmin
-    } catch (error) {
-      console.warn('Could not get auth context for patient query:', error)
-    }
-    
     const patientRepo = getPatientRepository()
-    
-    // Add user access control to criteria
-    const enhancedCriteria = {
-      ...criteria,
-      _userAccess: {
-        userId: currentUserId,
-        isAdmin: isAdmin,
-      },
-    }
-    
+    // Single source of the auth context (fail-closed, see resolveUserAccess)
+    const enhancedCriteria = { ...criteria, _userAccess: await resolveUserAccess() }
     return await patientRepo.findPatientsByCriteriaWithConcepts(enhancedCriteria)
   }
 
@@ -356,30 +340,15 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const searchPatients = async (searchTerm) => {
-    // Get current user context for access control
-    let currentUserId = null
-    let isAdmin = false
-    
-    try {
-      const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      currentUserId = authStore.currentUser?.USER_ID
-      isAdmin = authStore.isAdmin
-    } catch (error) {
-      console.warn('Could not get auth context for patient search:', error)
-    }
-    
     const patientRepo = getPatientRepository()
-    
-    // Use the search method with user access control
-    const userAccess = currentUserId ? { userId: currentUserId, isAdmin: isAdmin } : null
-    return await patientRepo.searchPatientsWithConcepts(searchTerm, userAccess)
+    // fail-closed auth context (USER_ID 0 = public is a regular user)
+    return await patientRepo.searchPatientsWithConcepts(searchTerm, await resolveUserAccess())
   }
 
   const getPatientsPaginated = async (page = 1, pageSize = 20, criteria = {}) => {
     const userAccess = await resolveUserAccess()
     const patientRepo = getPatientRepository()
-    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, userAccess?.userId ?? null, userAccess?.isAdmin ?? false)
+    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, userAccess)
   }
 
   // Access-controlled single-patient lookup for UI paths (recent patients,
@@ -401,7 +370,7 @@ export const useDatabaseStore = defineStore('database', () => {
   // deletion, which keeps the stricter admin-or-creator rule.
   const assertOwnerOrAdmin = async (patientNum) => {
     const userAccess = await resolveUserAccess()
-    if (!userAccess) throw new Error('Not authenticated')
+    if (userAccess.userId === undefined || userAccess.userId === null) throw new Error('Not authenticated')
     if (userAccess.isAdmin) return
     const lookupRepo = getRepository('userPatientLookup')
     const accessMap = await lookupRepo.getPatientAccessInfo([patientNum])

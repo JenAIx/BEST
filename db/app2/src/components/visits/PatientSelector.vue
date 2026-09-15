@@ -287,10 +287,10 @@ const runSearch = async () => {
     let enrolledPatientNums = null
     if (filters.value.studies && filters.value.studies.length > 0) {
       enrolledPatientNums = new Set()
-      const studyRepo = dbStore.getRepository('study')
       for (const studyId of filters.value.studies) {
         try {
-          const enrolled = await studyRepo.getEnrolledPatients(studyId)
+          // access-filtered store wrapper — never call studyRepo directly here
+          const enrolled = await dbStore.getEnrolledPatientsForStudy(studyId)
           enrolled.forEach((p) => enrolledPatientNums.add(p.PATIENT_NUM))
         } catch (error) {
           logger.warn('Failed to resolve study enrolment', { studyId, error })

@@ -75,11 +75,37 @@ describe('PatientRepository.getAccessFilter', () => {
     expect(access.param).toBe(3)
   })
 
-  it('returns null for admins and missing context', () => {
+  it('returns null for admins and for a missing (system) context', () => {
     const repo = new PatientRepository(makeConnection())
     expect(repo.getAccessFilter({ userId: 1, isAdmin: true })).toBeNull()
     expect(repo.getAccessFilter(null)).toBeNull()
-    expect(repo.getAccessFilter({ userId: null, isAdmin: false })).toBeNull()
+    expect(repo.getAccessFilter(undefined)).toBeNull()
+  })
+
+  it('treats USER_ID 0 (public) as a regular user, not as "no user"', () => {
+    const repo = new PatientRepository(makeConnection())
+    const access = repo.getAccessFilter({ userId: 0, isAdmin: false })
+    expect(access).not.toBeNull()
+    expect(access.condition).toBe('(upl.USER_ID = ? OR upl.USER_ID = 0)')
+    expect(access.param).toBe(0)
+  })
+
+  it('fails closed for a context object without a user id', () => {
+    const repo = new PatientRepository(makeConnection())
+    for (const ctx of [{ userId: null, isAdmin: false }, { userId: undefined, isAdmin: false }, { isAdmin: false }]) {
+      const access = repo.getAccessFilter(ctx)
+      expect(access).not.toBeNull()
+      expect(access.condition).toContain('1 = 0')
+    }
+  })
+
+  it('public user lookups are filtered (regression: public saw every patient)', async () => {
+    const connection = makeConnection()
+    const repo = new PatientRepository(connection)
+    await repo.findAccessiblePatientByCode('X', { userId: 0, isAdmin: false })
+    const [sql, params] = connection.executeQuery.mock.calls[0]
+    expect(sql).toContain('INNER JOIN USER_PATIENT_LOOKUP')
+    expect(params).toEqual(['X', 0])
   })
 })
 
@@ -320,6 +346,32 @@ describe('StudyRepository.getEnrolledPatients (access)', () => {
     expect(sql).toContain('EXISTS')
     expect(sql).toContain('(upl.USER_ID = ? OR upl.USER_ID = 0)')
     expect(params).toEqual([7, 3])
+  })
+
+  it('filters for the public user (USER_ID 0) like any regular user', async () => {
+    const connection = makeConnection()
+    const repo = new StudyRepository(connection)
+
+    await repo.getEnrolledPatients(7, { userId: 0, isAdmin: false })
+
+    const [sql, params] = connection.executeQuery.mock.calls[0]
+    expect(sql).toContain('EXISTS')
+    expect(params).toEqual([7, 0])
+  })
+
+  it('denies everything for a context without a user id (fail closed)', async () => {
+    const connection = makeConnection()
+    const repo = new StudyRepository(connection)
+
+    await repo.getEnrolledPatients(7, { userId: null, isAdmin: false })
+    await repo.getStudyAuditSummary(7, { userId: null, isAdmin: false })
+    await repo.getOpenAuditCountsForStudies([1], { userId: undefined, isAdmin: false })
+
+    expect(connection.executeQuery.mock.calls.length).toBeGreaterThan(0)
+    for (const [sql] of connection.executeQuery.mock.calls) {
+      expect(sql).toContain('1 = 0')
+      expect(sql).not.toContain('upl.USER_ID = ?')
+    }
   })
 
   it('does not filter for admins or without context', async () => {
