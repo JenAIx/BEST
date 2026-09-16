@@ -5,16 +5,15 @@
  */
 
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { ref, computed, toRaw } from 'vue'
 import { useDatabaseStore } from './database-store'
 import { useAuthStore } from './auth-store'
 import { useLocalSettingsStore } from './local-settings-store'
 import { useLoggingStore } from './logging-store'
 import { getPatientInitials, formatDate } from 'src/shared/utils/medical-utils'
-import { buildSetFlagStatement } from 'src/shared/utils/audit-flag.js'
+import { buildSetFlagStatement, buildValueUpdateStatement, assertRowChanged, StaleObservationError, versionGuard, nextVersion } from 'src/shared/utils/audit-flag.js'
 import {
   getCellClass,
-  hasRowChanges,
   getCellValue,
   getCellObservationId,
   getCellValueFlag,
@@ -35,12 +34,33 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
   // State
   const loading = ref(false)
-  const savingAll = ref(false)
   const patientData = ref([])
   const observationConcepts = ref([])
   const tableRows = ref([])
+  // Writes currently in flight (key → payload). Set on save-start, cleared on
+  // save/error — so "unsaved changes" means exactly that, never a stale leftover.
   const pendingChanges = ref(new Map())
   const lastUpdateTime = ref(new Date().toLocaleTimeString())
+
+  // Explicit change counter for the aggregate computeds (statistics, audit
+  // sets, row filter). They read tableRows through toRaw() and depend on this
+  // instead of on ~22k deeply-reactive cell properties — every store mutation
+  // path bumps it. Components never need to.
+  const statsVersion = ref(0)
+  const touch = () => {
+    statsVersion.value++
+  }
+
+  // Visits the user hid in the editor (encounter numbers). Lives here so the
+  // row filter and the footer statistics agree on what is visible.
+  const hiddenVisits = ref(new Set())
+
+  // Cells currently in edit mode (EditableCell reports enter/leave). A remote
+  // change must not auto-reload the grid while someone is typing.
+  const editingCellCount = ref(0)
+  const noteCellEditing = (delta) => {
+    editingCellCount.value = Math.max(0, editingCellCount.value + delta)
+  }
 
   // Undo/redo: each entry is a recorded cell edit with both old and new value.
   // Once a cell is saved (DB write done by EditableCell), an entry is pushed
@@ -101,8 +121,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // Set of concept codes that have at least one AUDIT cell across all rows.
   // Used by the audit filter and by the row-level filter computed below.
   const conceptCodesWithOpenAudit = computed(() => {
+    void statsVersion.value
     const codes = new Set()
-    for (const row of tableRows.value || []) {
+    for (const row of toRaw(tableRows.value) || []) {
       for (const [code, obs] of Object.entries(row.observations || {})) {
         if (obs?.valueFlag === 'AUDIT') codes.add(code)
       }
@@ -152,10 +173,11 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // otherwise the unfiltered tableRows are returned. Components that want to
   // honour the audit filter should iterate this instead of tableRows directly.
   const getVisibleTableRows = computed(() => {
-    if (!auditFilterActive.value) return tableRows.value || []
-    return (tableRows.value || []).filter((row) =>
-      Object.values(row.observations || {}).some((obs) => obs?.valueFlag === 'AUDIT'),
-    )
+    void statsVersion.value
+    let rows = tableRows.value || []
+    if (hiddenVisits.value.size > 0) rows = rows.filter((row) => !hiddenVisits.value.has(row.encounterNum))
+    if (!auditFilterActive.value) return rows
+    return rows.filter((row) => Object.values(toRaw(row).observations || {}).some((obs) => obs?.valueFlag === 'AUDIT'))
   })
 
   // Statistics computation
@@ -165,8 +187,11 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       const visibleObservations = getVisibleObservationConcepts.value?.length || 0
       const hiddenObservations = totalObservations - visibleObservations
 
-      // Calculate cell statistics
-      const rows = tableRows.value || []
+      // Calculate cell statistics over the VISIBLE rows (hidden visits and the
+      // audit filter excluded — the footer describes what the user sees).
+      // toRaw + statsVersion: no dependency on every single cell property.
+      void statsVersion.value
+      const rows = toRaw(getVisibleTableRows.value) || []
       const visibleConcepts = getVisibleObservationConcepts.value || []
 
       let totalCells = 0
@@ -174,7 +199,8 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       let openAuditsCount = 0
       let lockedCellsCount = 0
 
-      rows.forEach((row) => {
+      rows.forEach((reactiveRow) => {
+        const row = toRaw(reactiveRow)
         visibleConcepts.forEach((concept) => {
           try {
             // Open audits stay counted even on locked cells — their red border
@@ -237,16 +263,19 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     return getCellClass(row, concept)
   }
 
-  const hasRowChangesWithContext = (row) => {
-    return hasRowChanges(row, observationConcepts.value)
-  }
-
   // Data loading
   const loadGridData = async (patientIds) => {
     try {
       loading.value = true
       const cleanedIds = cleanPatientIds(patientIds)
       logger.info('Loading grid data for patients', { patientIds: cleanedIds, count: cleanedIds.length })
+
+      // A different patient selection is a new grid session: drop the audit
+      // filter (it would otherwise stick for the app's lifetime). Refreshing
+      // the same selection keeps whatever the user toggled.
+      const previousIds = (patientData.value || []).map((entry) => String(entry.patient?.PATIENT_CD))
+      const sameSelection = previousIds.length === cleanedIds.length && previousIds.every((id) => cleanedIds.includes(id))
+      if (!sameSelection) auditFilterActive.value = false
 
       // Load the visit-type lock map alongside (non-fatal on failure)
       const lockMapPromise = loadVisitTypeLockData()
@@ -264,42 +293,29 @@ export const useDataGridStore = defineStore('dataGrid', () => {
 
       // Process the data for grid display
       const processed = dbStore.processObservationDataForGrid(observations, patients)
-      
+
       // Merge with existing concepts to preserve manually added concepts
       const existingConcepts = Array.isArray(observationConcepts.value) ? [...observationConcepts.value] : []
       const newConceptsFromData = processed.observationConcepts || []
-      
+
       // Create a map of existing concepts by code
       const existingConceptMap = new Map(existingConcepts.map(c => [c.code, c]))
-      
+
       // Add new concepts from data (they will overwrite existing ones if they have the same code)
       newConceptsFromData.forEach(concept => {
         existingConceptMap.set(concept.code, concept)
       })
-      
+
       // Convert back to array
       observationConcepts.value = Array.from(existingConceptMap.values())
-      
-      // Update table rows, but preserve observations for manually added concepts
+
+      // The database is the truth: rows are REPLACED, never merged with the
+      // previous local state. (The old merge kept observations another user
+      // had deleted alive with a stale observationId — the next edit then
+      // "succeeded" against a row that no longer existed.) Manually added
+      // concepts survive via observationConcepts; their cells simply render
+      // empty until a value is entered.
       const updatedRows = processed.tableRows || []
-      
-      // For each existing row, merge observations from processed data with existing observations
-      // This ensures manually added concepts (with empty observations) are preserved
-      if (tableRows.value && tableRows.value.length > 0) {
-        updatedRows.forEach((newRow) => {
-          const existingRow = tableRows.value.find(r => 
-            r.patientId === newRow.patientId && r.encounterNum === newRow.encounterNum
-          )
-          if (existingRow && existingRow.observations) {
-            // Merge existing observations with new ones
-            newRow.observations = {
-              ...existingRow.observations,
-              ...newRow.observations
-            }
-          }
-        })
-      }
-      
       tableRows.value = updatedRows
 
       // Initialize column visibility for any new concepts that were merged
@@ -307,7 +323,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       if (!columnVisibility.value) {
         columnVisibility.value = new Map()
       }
-      
+
       // Only add visibility for new concepts (preserve existing settings)
       let hasNewConcepts = false
       observationConcepts.value.forEach((concept) => {
@@ -316,7 +332,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
           hasNewConcepts = true
         }
       })
-      
+
       // Only save if we added new concepts (avoid overwriting on every load)
       if (hasNewConcepts) {
         const visibilityObject = Object.fromEntries(columnVisibility.value)
@@ -327,6 +343,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       await lockMapPromise
 
       lastUpdateTime.value = new Date().toLocaleTimeString()
+      touch()
 
       logger.success('Grid data loaded successfully', {
         patients: patients.length,
@@ -342,22 +359,57 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     }
   }
 
+  const findRow = (patientId, encounterNum) => tableRows.value.find((r) => r.patientId === patientId && String(r.encounterNum) === String(encounterNum))
+  // VERSION the grid loaded for a cell (null = unknown → unguarded write)
+  const cellVersion = (patientId, encounterNum, conceptCode) => findRow(patientId, encounterNum)?.observations?.[conceptCode]?.version ?? null
+
+  /**
+   * Re-read ONE visit row from the database and replace its cells in place
+   * (row identity survives, so the rendered <tr> just re-renders). Used after
+   * a stale write (row changed/deleted elsewhere) and after medication saves —
+   * instead of reloading the whole grid.
+   */
+  const reloadRow = async (patientId, encounterNum) => {
+    const row = findRow(patientId, encounterNum)
+    if (!row || encounterNum == null) return
+    const observations = await dbStore.loadBatchObservationData([patientId], { encounterNums: [encounterNum] })
+    const fresh = {}
+    let medicationCount = 0
+    for (const obs of observations) {
+      if (obs.VALTYPE_CD === 'M') medicationCount++
+      fresh[obs.CONCEPT_CD] = dbStore.mapObservationToCell(obs)
+    }
+    for (const code of Object.keys(row.observations)) if (!(code in fresh)) delete row.observations[code]
+    Object.assign(row.observations, fresh)
+    row.medicationCount = medicationCount
+    lastUpdateTime.value = new Date().toLocaleTimeString()
+    touch()
+    logger.info('Grid row reloaded from database', { patientId, encounterNum, cells: observations.length })
+  }
+
+  // Stale-row handling shared by every writer: refresh the row, rethrow.
+  const onWriteFailure = async (error, patientId, encounterNum) => {
+    if (error instanceof StaleObservationError) {
+      try {
+        await reloadRow(patientId, encounterNum)
+      } catch (reloadError) {
+        logger.warn('Row reload after stale write failed', { patientId, encounterNum, error: reloadError?.message })
+      }
+    }
+    throw error
+  }
+
   // Event handlers
+  const handleCellSaveStart = (data) => {
+    const { patientId, encounterNum, conceptCode } = data
+    pendingChanges.value.set(createChangeKey(patientId, encounterNum, conceptCode), { ...data, timestamp: new Date() })
+  }
+
   const handleCellUpdate = (data) => {
-    const { patientId, encounterNum, conceptCode, value, observationId, valueFlag, startDate } = data
+    const { patientId, encounterNum, conceptCode, value, observationId, valueFlag, startDate, updateDate, version } = data
     const key = createChangeKey(patientId, encounterNum, conceptCode)
 
     logger.debug('Handling cell update', { key, value, observationId, valueFlag, startDate })
-
-    // Track the change
-    pendingChanges.value.set(key, {
-      patientId,
-      encounterNum,
-      conceptCode,
-      value,
-      observationId,
-      timestamp: new Date(),
-    })
 
     // Update the local data — propagate observationId so subsequent edits
     // know the observation already exists (otherwise EditableCell would try
@@ -365,7 +417,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     // mirrored too so the 3-state NV cell and the per-observation-date
     // workflow render correctly after a save without waiting for a full
     // grid reload.
-    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+    const row = findRow(patientId, encounterNum)
     if (row) {
       if (!row.observations[conceptCode]) {
         row.observations[conceptCode] = {}
@@ -380,7 +432,14 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       if (startDate !== undefined) {
         row.observations[conceptCode].startDate = startDate
       }
+      if (updateDate !== undefined) {
+        row.observations[conceptCode].updateDate = updateDate
+      }
+      if (version !== undefined && version !== null) {
+        row.observations[conceptCode].version = version
+      }
     }
+    touch()
   }
 
   // Undo/redo support — record a completed cell edit so it can be replayed.
@@ -394,40 +453,76 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     redoStack.value = []
   }
 
-  // Persist a value into a specific cell — used by undo/redo and fill-down.
-  // Mirrors EditableCell's UPDATE path; never deletes observations. If
-  // observationId is missing, only the local view updates (the value would
-  // need INSERT, which is the EditableCell's job on initial creation).
-  const applyCellValue = async ({ patientId, encounterNum, conceptCode, value, observationId, valueType }) => {
-    // 1. Update local state immediately for snappy UX
-    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
-    if (row) {
-      if (!row.observations[conceptCode]) row.observations[conceptCode] = {}
-      row.observations[conceptCode].value = value
+  /**
+   * THE grid value-write. EditableCell (typed edits), undo/redo and fill-down
+   * all end up here, so there is exactly one UPDATE statement
+   * (buildValueUpdateStatement), one success check (executeCommand +
+   * changes-count) and one local mirror (handleCellUpdate).
+   *
+   * @param {Object} o
+   * @param {string} o.patientId  PATIENT_CD
+   * @param {number} o.encounterNum
+   * @param {string} o.conceptCode
+   * @param {number} o.observationId  existing row (INSERTs stay in EditableCell)
+   * @param {string} o.valueType
+   * @param {*} o.value            value as stored (code for S/F, number for N)
+   * @param {*} [o.displayValue]   what the cell shows (label for S/F); default = value
+   * @param {string|null|undefined} o.flag  new VALUEFLAG_CD; undefined = keep, null = clear
+   * @param {string|null} [o.previousFlag]  the cell's flag before the edit (audit trail)
+   * @throws {StaleObservationError} when the row no longer exists
+   */
+  const writeObservation = async ({ patientId, encounterNum, conceptCode, observationId, valueType, value, displayValue, flag, previousFlag = null }) => {
+    // flag: undefined = leave VALUEFLAG_CD untouched (undo/redo), null = clear, 'NV' = no value
+    if (observationId == null) throw new Error('writeObservation needs an observationId (INSERT is EditableCell.createObservation)')
+    // Optimistic locking: the version this grid loaded for the cell
+    const expectedVersion = cellVersion(patientId, encounterNum, conceptCode)
+    const { sql, params } = buildValueUpdateStatement({ valueType, value, flag, providerId: authStore.providerId, observationId, expectedVersion })
+    try {
+      assertRowChanged(await dbStore.executeCommand(sql, params), observationId)
+    } catch (error) {
+      await onWriteFailure(error, patientId, encounterNum)
     }
 
-    // 2. Persist to DB if we have an observationId. value can be empty/null —
-    // we set TVAL_CHAR/NVAL_NUM to null, observation row stays.
-    if (observationId != null) {
-      const updates = {}
-      if (valueType === 'N') {
-        updates.NVAL_NUM = value === null || value === '' ? null : Number(value)
-        updates.TVAL_CHAR = null
-      } else {
-        updates.TVAL_CHAR = value === null || value === '' ? null : String(value)
-        updates.NVAL_NUM = null
-      }
-      // Stamp the current user as last editor
-      updates.PROVIDER_ID = authStore.providerId
-      const setClause = Object.keys(updates).map((k) => `${k} = ?`).join(', ')
-      const params = [...Object.values(updates), observationId]
-      const sql = `UPDATE OBSERVATION_FACT SET ${setClause}, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?`
-      const result = await dbStore.executeQuery(sql, params)
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to update observation')
+    // A value edit that resets AUDIT/CONFIRMED is recorded in the trail so
+    // reviewers can see why a flag vanished (best effort, never blocks)
+    if (flag === null && (previousFlag === 'AUDIT' || previousFlag === 'CONFIRMED')) {
+      try {
+        const auditRepo = dbStore.getRepository?.('observationAudit')
+        if (auditRepo) await auditRepo.logEvent({ observationId, eventCd: 'VALUE_EDIT', flagCd: null, createdBy: authStore.providerId, source: 'GRID' })
+      } catch (err) {
+        logger.warn('Failed to log VALUE_EDIT audit event', { observationId, error: err?.message })
       }
     }
+
+    handleCellUpdate({
+      patientId,
+      encounterNum,
+      conceptCode,
+      observationId,
+      value: displayValue === undefined ? value : displayValue,
+      version: nextVersion(expectedVersion),
+      ...(flag !== undefined ? { valueFlag: flag } : {}),
+    })
     lastUpdateTime.value = new Date().toLocaleTimeString()
+    return observationId
+  }
+
+  // Persist a value into a specific cell — used by undo/redo and fill-down.
+  // Never deletes observations and leaves VALUEFLAG_CD untouched. Without an
+  // observationId only the local view updates (the value would need an
+  // INSERT, which is EditableCell's job on initial creation).
+  const applyCellValue = async ({ patientId, encounterNum, conceptCode, value, observationId, valueType }) => {
+    if (observationId == null) {
+      const row = findRow(patientId, encounterNum)
+      if (row) {
+        if (!row.observations[conceptCode]) row.observations[conceptCode] = {}
+        row.observations[conceptCode].value = value
+        touch()
+      }
+      lastUpdateTime.value = new Date().toLocaleTimeString()
+      return
+    }
+    await writeObservation({ patientId, encounterNum, conceptCode, observationId, valueType, value, flag: undefined })
   }
 
   // Audit / NV workflow -----------------------------------------------------
@@ -448,10 +543,12 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       return
     }
 
-    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId)
-    const result = await dbStore.executeQuery(sql, params)
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update VALUEFLAG_CD')
+    const expectedVersion = cellVersion(patientId, encounterNum, conceptCode)
+    const { sql, params, clearValue } = buildSetFlagStatement(flag, authStore.providerId, observationId, expectedVersion)
+    try {
+      assertRowChanged(await dbStore.executeCommand(sql, params), observationId)
+    } catch (error) {
+      await onWriteFailure(error, patientId, encounterNum)
     }
 
     // Audit trail (OBSERVATION_AUDIT_FACT) — best effort, never blocks the write
@@ -464,7 +561,7 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       logger.warn('Failed to log audit event', { observationId, flag, error: err?.message })
     }
 
-    mirrorObservationFlag({ patientId, encounterNum, conceptCode, flag, clearValue })
+    mirrorObservationFlag({ patientId, encounterNum, conceptCode, flag, clearValue, version: nextVersion(expectedVersion) })
 
     lastUpdateTime.value = new Date().toLocaleTimeString()
     logger.info('Observation flag updated', { observationId, flag })
@@ -473,14 +570,17 @@ export const useDataGridStore = defineStore('dataGrid', () => {
   // Mirror a flag (and possibly the cleared value) into local state so the
   // cell re-renders without a reload. Also used when the shared audit dialog
   // wrote the flag through observation-store (DB already updated).
-  const mirrorObservationFlag = ({ patientId, encounterNum, conceptCode, flag, clearValue = flag === 'NV' }) => {
-    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+  const mirrorObservationFlag = ({ patientId, encounterNum, conceptCode, flag, clearValue = flag === 'NV', version = null }) => {
+    const row = findRow(patientId, encounterNum)
     if (row && row.observations[conceptCode]) {
       row.observations[conceptCode].valueFlag = flag
       if (clearValue) {
         row.observations[conceptCode].value = ''
       }
+      if (version !== null && version !== undefined) row.observations[conceptCode].version = version
+      else if (row.observations[conceptCode].version != null) row.observations[conceptCode].version += 1 // written elsewhere (audit dialog) — bumped by that write
     }
+    touch()
   }
 
   // deleteObservationFromGrid hard-deletes the OBSERVATION_FACT row and
@@ -494,23 +594,27 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       return
     }
 
-    const sql = 'DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?'
-    const result = await dbStore.executeQuery(sql, [observationId])
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to delete observation')
+    const guard = versionGuard(cellVersion(patientId, encounterNum, conceptCode))
+    const sql = `DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?${guard.sql}`
+    try {
+      assertRowChanged(await dbStore.executeCommand(sql, [observationId, ...guard.params]), observationId)
+    } catch (error) {
+      await onWriteFailure(error, patientId, encounterNum)
     }
 
-    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+    const row = findRow(patientId, encounterNum)
     if (row && row.observations[conceptCode]) {
       // Keep the cell shell with valueType so the user can still INSERT a new
       // value via direct edit; just blank the value/observationId/flag.
       row.observations[conceptCode].observationId = null
       row.observations[conceptCode].value = ''
       row.observations[conceptCode].valueFlag = null
+      row.observations[conceptCode].updateDate = null
     }
 
     // Drop any pending change so the deleted cell doesn't try to save again.
     pendingChanges.value.delete(createChangeKey(patientId, encounterNum, conceptCode))
+    touch()
 
     lastUpdateTime.value = new Date().toLocaleTimeString()
     logger.info('Observation deleted from grid', { observationId })
@@ -541,16 +645,22 @@ export const useDataGridStore = defineStore('dataGrid', () => {
       throw new Error('setObservationStartDate requires a non-empty startDate')
     }
 
-    const sql = 'UPDATE OBSERVATION_FACT SET START_DATE = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?'
-    const result = await dbStore.executeQuery(sql, [startDate, authStore.providerId, observationId])
-    if (!result.success) {
-      throw new Error(result.error || 'Failed to update observation START_DATE')
+    const expectedVersion = cellVersion(patientId, encounterNum, conceptCode)
+    const guard = versionGuard(expectedVersion)
+    const sql = `UPDATE OBSERVATION_FACT SET START_DATE = ?, PROVIDER_ID = ?, UPDATE_DATE = CURRENT_TIMESTAMP, VERSION = VERSION + 1 WHERE OBSERVATION_ID = ?${guard.sql}`
+    try {
+      assertRowChanged(await dbStore.executeCommand(sql, [startDate, authStore.providerId, observationId, ...guard.params]), observationId)
+    } catch (error) {
+      await onWriteFailure(error, patientId, encounterNum)
     }
 
-    const row = tableRows.value.find((r) => r.patientId === patientId && r.encounterNum === encounterNum)
+    const row = findRow(patientId, encounterNum)
     if (row && row.observations[conceptCode]) {
       row.observations[conceptCode].startDate = startDate
+      const bumped = nextVersion(expectedVersion)
+      if (bumped !== null) row.observations[conceptCode].version = bumped
     }
+    touch()
 
     lastUpdateTime.value = new Date().toLocaleTimeString()
     logger.info('Observation start date updated', { observationId, startDate })
@@ -607,51 +717,13 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     }
   }
 
-  const handleCellError = (error) => {
-    // Caller (ExcelLikeEditor) is responsible for surfacing the error to the user.
-    logger.error('Cell error', error)
-  }
-
-  // Batch operations. Returns { savedCount, errorCount }; the caller decides
-  // how to surface the result to the user (notify, toast, etc.).
-  const saveAllChanges = async () => {
-    if (!hasUnsavedChanges.value) return { savedCount: 0, errorCount: 0 }
-
-    savingAll.value = true
-    logger.info('Starting batch save of all changes', { changeCount: pendingChanges.value.size })
-
-    const changes = Array.from(pendingChanges.value.values())
-    let savedCount = 0
-    let errorCount = 0
-
-    try {
-      for (const change of changes) {
-        try {
-          // Here you would typically call the database store to save the observation
-          // For now, we'll just clear the pending changes
-          const key = createChangeKey(change.patientId, change.encounterNum, change.conceptCode)
-          pendingChanges.value.delete(key)
-          savedCount++
-
-          logger.debug('Change saved', { key, value: change.value })
-        } catch (error) {
-          logger.error('Failed to save change', error, { change })
-          errorCount++
-        }
-      }
-
-      lastUpdateTime.value = new Date().toLocaleTimeString()
-
-      if (errorCount === 0) {
-        logger.success('All changes saved successfully', { savedCount })
-      } else {
-        logger.warn('Some changes failed to save', { savedCount, errorCount })
-      }
-
-      return { savedCount, errorCount }
-    } finally {
-      savingAll.value = false
+  const handleCellError = (payload) => {
+    // Caller (ExcelLikeEditor / EditableCell) surfaces the error to the user;
+    // the in-flight marker must not survive a failed write.
+    if (payload && payload.patientId !== undefined && payload.conceptCode !== undefined) {
+      pendingChanges.value.delete(createChangeKey(payload.patientId, payload.encounterNum, payload.conceptCode))
     }
+    logger.error('Cell error', payload?.error || payload)
   }
 
   const refreshData = async (patientIds) => {
@@ -838,23 +910,23 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         const newConcepts = concepts
           .filter(c => c.code && !existingOrderSet.has(c.code))
           .map(c => c.code)
-        
+
         if (newConcepts.length > 0) {
           columnOrder.value = [...columnOrder.value, ...newConcepts]
           localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
-          logger.debug('Merged new concepts into column order', { 
+          logger.debug('Merged new concepts into column order', {
             existingCount: columnOrder.value.length - newConcepts.length,
-            newCount: newConcepts.length 
+            newCount: newConcepts.length
           })
         }
-        
+
         // Remove concepts that no longer exist
         const filteredOrder = columnOrder.value.filter(code => conceptCodes.has(code))
         if (filteredOrder.length !== columnOrder.value.length) {
           columnOrder.value = filteredOrder
           localSettings.setSetting('dataGrid.columnOrder', columnOrder.value)
-          logger.debug('Removed obsolete concepts from column order', { 
-            removed: columnOrder.value.length - filteredOrder.length 
+          logger.debug('Removed obsolete concepts from column order', {
+            removed: columnOrder.value.length - filteredOrder.length
           })
         }
       }
@@ -913,6 +985,23 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     logger.info('Reset column order - all columns now visible and in original order', { columnCount: concepts.length })
   }
 
+  // Hidden visits (persisted per user in local settings) ---------------------
+  const loadHiddenVisits = () => {
+    const saved = localSettings.getSetting('dataGrid.hiddenVisits', [])
+    hiddenVisits.value = new Set(Array.isArray(saved) ? saved : [])
+  }
+
+  const isVisitHidden = (encounterNum) => hiddenVisits.value.has(encounterNum)
+
+  const toggleVisitHidden = (encounterNum) => {
+    const next = new Set(hiddenVisits.value)
+    if (next.has(encounterNum)) next.delete(encounterNum)
+    else next.add(encounterNum)
+    hiddenVisits.value = next
+    localSettings.setSetting('dataGrid.hiddenVisits', Array.from(next))
+    touch()
+  }
+
   // Reset functions
   const resetGridData = () => {
     patientData.value = []
@@ -921,7 +1010,9 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     pendingChanges.value.clear()
     undoStack.value = []
     redoStack.value = []
+    auditFilterActive.value = false
     lastUpdateTime.value = new Date().toLocaleTimeString()
+    touch()
     logger.info('Grid data reset')
   }
 
@@ -952,37 +1043,20 @@ export const useDataGridStore = defineStore('dataGrid', () => {
         return { success: true, conceptCount: currentConcepts.length, rowCount: tableRows.value?.length || 0, alreadyExists: true }
       }
 
-      // Add new concept
+      // Add new concept. Cells need no placeholder objects — the editor
+      // renders a missing observation as an empty cell, and the first typed
+      // value INSERTs the row (EditableCell.createObservation).
       currentConcepts.push(newConcept)
       observationConcepts.value = [...currentConcepts]
-
-      // Get current rows
-      const currentRows = Array.isArray(tableRows.value) ? [...tableRows.value] : []
-
-      // Update table rows to include empty observations for this concept
-      const updatedRows = currentRows.map((row) => ({
-        ...row,
-        observations: {
-          ...row.observations,
-          [concept.CONCEPT_CD]: {
-            observationId: null,
-            value: '',
-            valueType: concept.VALTYPE_CD || 'T',
-            unit: concept.UNIT_CD || '',
-            originalValue: '',
-            resolvedValue: null,
-          },
-        },
-      }))
-
-      tableRows.value = [...updatedRows]
+      const updatedRows = tableRows.value || []
+      touch()
 
       // Initialize column visibility for the new concept
       if (!columnVisibility.value) {
         columnVisibility.value = new Map()
       }
       columnVisibility.value.set(concept.CONCEPT_CD, true) // Make new column visible by default
-      
+
       // Save visibility to local settings
       const visibilityObject = Object.fromEntries(columnVisibility.value)
       localSettings.setSetting('dataGrid.columnVisibility', visibilityObject)
@@ -1009,13 +1083,13 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     loadViewOptions()
     loadColumnVisibility()
     loadColumnOrder()
+    loadHiddenVisits()
     logger.info('DataGridStore initialized')
   }
 
   return {
     // State
     loading,
-    savingAll,
     patientData,
     observationConcepts,
     tableRows,
@@ -1027,6 +1101,10 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     auditFilterActive,
     visitTypeLockMap,
     visitTypeMeta,
+    statsVersion,
+    hiddenVisits,
+    editingCellCount,
+    noteCellEditing,
 
     // Getters
     totalObservations,
@@ -1046,19 +1124,26 @@ export const useDataGridStore = defineStore('dataGrid', () => {
     getCellValue,
     getCellObservationId,
     getCellClass: getCellClassWithContext,
-    hasRowChanges: hasRowChangesWithContext,
 
     // Data operations
     loadGridData,
-    saveAllChanges,
+    reloadRow,
     refreshData,
     clearPendingChanges,
     addConceptToGrid,
 
     // Event handlers
+    handleCellSaveStart,
     handleCellUpdate,
     handleCellSave,
     handleCellError,
+
+    // Writes
+    writeObservation,
+
+    // Hidden visits
+    isVisitHidden,
+    toggleVisitHidden,
 
     // Audit workflow
     setObservationFlag,

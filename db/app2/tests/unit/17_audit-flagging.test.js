@@ -20,6 +20,8 @@ const executeQueryMock = vi.fn()
 vi.mock('src/stores/database-store', () => ({
   useDatabaseStore: () => ({
     executeQuery: executeQueryMock,
+    executeCommand: executeQueryMock,
+    mapObservationToCell: (obs) => ({ observationId: obs.OBSERVATION_ID, value: obs.NVAL_NUM ?? obs.TVAL_CHAR ?? '', valueType: obs.VALTYPE_CD, valueFlag: obs.VALUEFLAG_CD || null }),
     loadBatchPatientData: vi.fn(),
     loadBatchObservationData: vi.fn(),
     processObservationDataForGrid: vi.fn(),
@@ -190,6 +192,59 @@ describe('data-grid-store: audit workflow', () => {
     expect(store.auditFilterActive).toBe(false)
     expect(store.getVisibleObservationConcepts).toHaveLength(2)
     expect(store.getVisibleTableRows).toHaveLength(3)
+  })
+
+  it('openAuditsCount ignores rows the user hid', () => {
+    const store = setupGrid()
+    expect(store.statistics.openAuditsCount).toBe(1)
+    store.toggleVisitHidden(1) // P1 carries the only AUDIT cell
+    expect(store.getVisibleTableRows.map((r) => r.patientId)).toEqual(['P2', 'P3'])
+    expect(store.statistics.openAuditsCount).toBe(0)
+    store.toggleVisitHidden(1)
+    expect(store.statistics.openAuditsCount).toBe(1)
+  })
+
+  it('a flag write that hits 0 rows throws StaleObservationError and reloads the row', async () => {
+    const store = setupGrid()
+    executeQueryMock.mockResolvedValueOnce({ success: true, changes: 0 })
+    await expect(
+      store.setObservationFlag({ patientId: 'P3', encounterNum: 3, conceptCode: 'LDL', observationId: 301, flag: 'AUDIT' }),
+    ).rejects.toMatchObject({ name: 'StaleObservationError', observationId: 301 })
+    // local state untouched by the failed write
+    expect(store.tableRows[2].observations.LDL.valueFlag).toBeNull()
+  })
+
+  it('writeObservation UPDATEs via executeCommand, mirrors value + flag and logs VALUE_EDIT when a review flag falls', async () => {
+    const store = setupGrid()
+    await store.writeObservation({ patientId: 'P1', encounterNum: 1, conceptCode: 'LDL', observationId: 101, valueType: 'N', value: 130, flag: null, previousFlag: 'AUDIT' })
+    const [sql, params] = executeQueryMock.mock.calls[0]
+    expect(sql).toContain('UPDATE OBSERVATION_FACT')
+    expect(sql).toContain('VALUEFLAG_CD = ?')
+    expect(params).toEqual([130, null, null, 'SYSTEM', 101])
+    const cell = store.tableRows[0].observations.LDL
+    expect(cell.value).toBe(130)
+    expect(cell.valueFlag).toBeNull()
+    expect(store.statistics.openAuditsCount).toBe(0)
+  })
+
+  it('applyCellValue (undo/redo) leaves VALUEFLAG_CD untouched', async () => {
+    const store = setupGrid()
+    await store.applyCellValue({ patientId: 'P1', encounterNum: 1, conceptCode: 'LDL', observationId: 101, valueType: 'N', value: 125 })
+    const [sql, params] = executeQueryMock.mock.calls[0]
+    expect(sql).not.toContain('VALUEFLAG_CD')
+    expect(params).toEqual([125, null, 'SYSTEM', 101])
+    expect(store.tableRows[0].observations.LDL.valueFlag).toBe('AUDIT')
+  })
+
+  it('pendingChanges tracks in-flight writes only (start → save / error)', () => {
+    const store = setupGrid()
+    const cell = { patientId: 'P1', encounterNum: 1, conceptCode: 'HDL' }
+    store.handleCellUpdate({ ...cell, value: '51', observationId: 102 })
+    expect(store.hasUnsavedChanges).toBe(false) // a mirrored value is not "unsaved"
+    store.handleCellSaveStart({ ...cell, value: '52' })
+    expect(store.unsavedChangesCount).toBe(1)
+    store.handleCellError({ ...cell, error: new Error('boom') })
+    expect(store.hasUnsavedChanges).toBe(false)
   })
 
   it('conceptCodesWithOpenAudit returns the right set', () => {

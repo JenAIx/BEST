@@ -75,8 +75,162 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: unit 48 (LEDD), 49 (Medikations-Diff), 50 (Vorlagen-Logik),
     53 (Consult-Store); integration 17 (Migration 017), 18 (Repositories).
 
+### Added
+
+- **Mehrbenutzer-Betrieb auf einer SQLite-Datei (Audit Sept 2026, Phase 1,
+  `features/multi-user-db`)** — mehrere App-Instanzen arbeiten auf derselben
+  `production.db` auf einem Netzlaufwerk:
+  - **Sperren statt Nullen**: `PRAGMA busy_timeout = 4000` (Journal bleibt
+    DELETE — WAL ist über SMB nicht sicher, der Modus wird beim Verbinden
+    zurückgelesen), `withBusyRetry` (3 Versuche) in der Connection,
+    Fehlerklassifikation (`db-errors.js`) und ein gedrosselter Toast
+    „Datenbank durch anderen Nutzer gesperrt“ (`App.vue`) statt stiller
+    `0`/`[]`-Ergebnisse.
+  - **Transaktionen sind isoliert**: `statement-gate.js` serialisiert alle
+    Statements einer Connection; `withTransaction(fn)` hält das Gate von
+    `BEGIN IMMEDIATE` bis COMMIT/ROLLBACK — Grid-Autosave oder Nachrichten-
+    Poll landen nicht mehr in fremden Transaktionen (`createPatient`,
+    `executeTransaction`). Rohes `BEGIN` außerhalb wird im Dev-Build abgelehnt.
+  - **Optimistic Locking** (Migration **019**): `OBSERVATION_FACT.VERSION`
+    + Guard-Trigger; jeder Beobachtungs-Write (Zeitlinie, Grid, Flags, Datum,
+    Löschen) sendet `AND VERSION = ?` und bumpt `VERSION + 1`. Trifft der
+    Write keine Zeile, meldet die UI „von einem anderen Nutzer geändert“ und
+    lädt die Beobachtung/Zeile nach — kein stilles Überschreiben mehr.
+  - **Änderungserkennung**: `db-freshness-store` pollt alle 5 s
+    `PRAGMA data_version` (nur sichtbar + verbunden); bei fremdem Commit
+    prüft `useDbFreshness` `MAX(UPDATE_DATE)` der angezeigten Patienten —
+    ohne laufende Bearbeitung stiller Reload, sonst `StaleDataBanner`
+    (Zeitlinie, Datentabelle). Ändern sich CODE_LOOKUP/CONCEPT_DIMENSION,
+    werden Lookup- und Konzept-Cache invalidiert.
+  - **Cache-Scoping**: Konzept-Cache-Schlüssel tragen einen Hash des DB-Pfads;
+    Wechsel der Datenbank/Logout setzen Konzept- und Lookup-Cache zurück.
+  - Browser-Mock-Connection wird im Produktiv-Build abgelehnt, im Dev-Build als
+    Banner gekennzeichnet. `check-db` prüft journal_mode, VERSION-Spalte/View,
+    14 Trigger. Tests: Unit 51 (Gate/Retry/Bus/Connection), Integration 20
+    (zwei Connections: BUSY, Atomarität, data_version) und 21 (VERSION).
+  - **E2E `scripts/verify-multiuser/run.sh`** (17 Checks): headless App als
+    Instanz A, zweite SQLite-Connection als Instanz B auf derselben Datei —
+    Auto-Reload nach fremder Änderung (~3 s), Banner statt Reload während der
+    Bearbeitung, Konfliktabweisung mit Nachladen, Write wartet auf 6-s-Sperre
+    und gelingt, 24-s-Sperre → Toast, Wert unverändert. Die headless App läuft
+    mit eigenem userData-Verzeichnis (`E2E_USER_DATA_DIR` in
+    `electron-main.js`; auch `verify-visits` nutzt es), damit gespeicherte
+    Entwickler-Einstellungen (eigener DB-Pfad) nicht in Testläufe wirken;
+    `verify-visits` wartet auf die Karten statt fester Pausen und setzt die
+    Sprache vor dem Login (ein Reload mit offener sqlite3-Connection und
+    laufendem Statement kann den Renderer beenden — der Freshness-Poller
+    stoppt deshalb bei `beforeunload`). Beide Routinen: 19/19 bzw. 17/17 grün.
+
+### Changed
+
+- **Query-Performance (Audit Sept 2026, Phase 2, `features/perf-queries`)**:
+  - **Migration 018 `patient_list`**: die Alters-Subquery (`ROW_NUMBER()` +
+    fünf `LIKE '%…%'` über ganz OBSERVATION_FACT) wurde bei JEDER Abfrage der
+    View materialisiert — auch bei `WHERE PATIENT_CD = ?` und `COUNT(*)` — und
+    wuchs mit der Zahl der Observations. Jetzt korrelierte Skalar-Subquery auf
+    das exakte Konzept `LID: 63900-5` (Index-Seek, bei COUNT weggeprunt),
+    trailing `ORDER BY` entfernt. Neue Indizes `idx_observation_valueflag`
+    (partial, Audit-Zähler) und `idx_patient_recent` (Dashboard-Sortierung).
+    Messung (better-sqlite3, 22 k Observations): COUNT 2,6 → 0,08 ms,
+    „Zuletzt bearbeitet“-Top-5 2,8 → 0,04 ms, Audit-COUNT Full-Scan → Index.
+  - **Dashboard**: alle Kacheln in EINER Abfrage
+    (`PatientRepository.getDashboardStatistics`, Skalar-Subqueries, ~6 ms)
+    statt ~15 Roundtrips in 9 sequentiellen Stufen; drei nie gerenderte
+    Patientenstatistiken, der doppelte Patienten-COUNT und der ungenutzte
+    Pagination-COUNT entfallen. Datumsfilter als indexfähige Bereiche
+    (`>= Tag AND < Folgetag`) statt `DATE(x) = ?`. Anstehende Visiten über
+    `dbStore.getUpcomingVisits`. Die 8 Tabellen-COUNTs beim Login
+    (`getDatabaseStatistics`) laufen nicht mehr bei jedem Start, sondern nur
+    auf Anforderung (DatabaseTest/Feedback) — und dort als eine Abfrage.
+  - **SmartSearch** (auf jeder Seite, pro Tastendruck): `LIMIT/OFFSET` im
+    SQL statt Vollliste, `COUNT(DISTINCT)` statt Zweitsuche für `.length`,
+    drei statt neun `LIKE`-Ziele (die `*_RESOLVED`-Spalten „male“/„alive“
+    matchten fast jeden). Doppelte Suche für den bereits angezeigten Begriff
+    entfällt. `getPatientsPaginated` kann den COUNT über die View per
+    `options.skipCount` auslassen (Dashboard, SmartSearch, Recents,
+    Suchliste, PatientSelectionCard).
+  - **/visits Patientenliste**: Visitenzahl + letzte Visite kommen aus EINER
+    `GROUP BY`-Abfrage (`getVisitStatsForPatients`) statt zwei
+    `SELECT * FROM VISIT_DIMENSION` pro Karte (25 Karten: 52 → 3 Queries);
+    Recents als ein Batch (`getAccessiblePatientsByCodes({fromView})`); der
+    Filter-Watcher ist entprellt (Alters-Slider feuerte pro Drag-Tick).
+  - **Visiten-Zeitlinie**: `getSelectionOptions` läuft über den
+    Konzept-Cache (vorher 2–3 Queries pro S-Feld bei jedem Editor-Mount);
+    der 5-Minuten-Lookup-Cache im Global-Settings-Store greift jetzt
+    wirklich (`lastRefresh` wurde nur von `loadColumnTypes` gesetzt) und
+    `useVisitFieldSets` leert ihn nicht mehr bei jedem Mount;
+    Kommentar-Badges laden eine `GROUP BY`-Zählung statt des unbegrenzten
+    Patienten-Audit-Trails; `openAuditCountFor` ist eine einmal berechnete
+    Map statt Filter pro Karte pro Render; Reloads nach Create/Update/Delete
+    laufen parallel; `LIMIT 1000` in `loadAllObservationsForPatient`
+    (stille Abschneidung) entfernt.
+  - **Blobs**: `ObservationRepository.updateObservation` macht keinen
+    `SELECT *` (inkl. OBSERVATION_BLOB) mehr vor jedem UPDATE;
+    `DeletePatientDialog` zählt per COUNT statt alle Zeilen inkl. Datei-Blobs
+    zu laden; Unread-Badge lädt nur Header empfangener Nachrichten
+    (`getReceivedMessageHeaders`) statt 100 Volltext-Zeilen, und pausiert
+    bei verstecktem Fenster.
+  - **Logging**: `file://` (gepackte Electron-App) gilt nicht mehr als
+    Entwicklung — vorher wurde in Produktion jedes SQL-Statement geloggt.
+    Override per `localStorage.BEST_LOG_LEVEL` (`logging-store.setLogLevel`
+    persistiert).
+- **Datentabellen-Editor: Korrektheit + Reaktivität (Audit Sept 2026, Phase 3,
+  `features/grid-consistency`)**:
+  - **Ein Schreibpfad**: `data-grid-store.writeObservation` (Zellen-Edit,
+    Undo/Redo, Fill-down) baut das UPDATE über `buildValueUpdateStatement`
+    (`shared/utils/audit-flag.js`) und schreibt wie Flag-, Datums- und
+    Lösch-Writes über `executeCommand`. `changes === 0` wirft
+    `StaleObservationError`: die Zeile wurde von einem anderen Nutzer
+    geändert/gelöscht → Warnung, Zeile wird per `reloadRow` aus der DB neu
+    geladen. Vorher liefen alle Grid-Writes über `executeQuery` (`db.all`) —
+    ein UPDATE auf eine gelöschte Zeile „gelang“.
+  - **Erst speichern, dann spiegeln**: die Zelle zeigt den neuen Wert erst nach
+    erfolgreichem Write; bei Fehler wird der Edit verworfen. `pendingChanges`
+    zählt nur noch laufende Writes (`save-start` → `save`/`error`), der
+    Stub `saveAllChanges` ist entfernt.
+  - **DB ist Wahrheit beim Refresh**: der Merge mit dem alten lokalen Zustand
+    (behielt andernorts gelöschte Zellen mit veralteter ID) ist weg; manuell
+    ergänzte Spalten bleiben über `observationConcepts` erhalten.
+  - **`0` ist ein Wert**: Zellen mit NVAL_NUM 0 rendern „0“ statt leer, zählen
+    als ausgefüllt und werden beim Speichern nicht mehr gelöscht; ungültige
+    Zahleneingaben werden abgelehnt statt als 0 gespeichert.
+  - **S/F-Zellen**: Klick + Verlassen ohne Änderung schreibt nichts mehr
+    (Code-mit-Code-Vergleich statt Label-mit-Code) — vorher setzte das
+    stillschweigend `VALUEFLAG_CD = NULL` und löschte Audit-Flags.
+  - **Reaktivität**: Statistik/Audit-Mengen/Zeilenfilter laufen über `toRaw`
+    + `statsVersion` statt Deep-Tracking von ~22 k Zellobjekten;
+    `rawObservation`-Duplikat pro Zelle entfernt; ausgeblendete Visiten
+    liegen im Store (Filter und Footer-Statistik stimmen überein, Audit-Zähler
+    ignoriert ausgeblendete Zeilen); Audit-Filter wird bei neuer
+    Patientenauswahl zurückgesetzt; totes `hasRowChanges` entfernt.
+  - **Keine Queries aus dem Template**: Medikamenten-Zähler kommt mit dem
+    Visiten-Load (`SUM(VALTYPE_CD='M')`) statt einer COUNT-Query pro Zelle;
+    nach Medikamenten-Save nur `reloadRow` statt Voll-Reload; Datei-Vorschau-
+    Dialog wird pro Zelle erst beim Öffnen gemountet, Datei-Envelope einmal
+    geparst; `Object.fromEntries(columnVisibility)` als computed; Spalte
+    hinzufügen löst keinen Voll-Reload mehr aus.
+  - **IN-Listen gechunkt** (`shared/utils/sql-tools.js` `queryInChunks`, 500)
+    in den Grid-Batch-Loadern — „alle gefilterten Patienten“ überschritt
+    sonst das SQLite-Parameterlimit.
+  - Grid-Load liefert `UPDATE_DATE` je Zelle mit (Frische-Marker / künftiges
+    Locking-Token); `buildValueUpdateStatement` kennt bereits
+    `expectedVersion` für Phase 1.
+
 ### Fixed
 
+- **Zugriffsfilter fail-closed — der Public-User (USER_ID 0) sah ALLE
+  Patienten**: `getAccessFilter` prüfte `!userAccess.userId`, und 0 ist
+  falsy; dasselbe Muster in sechs Study-Repository-Methoden. Neue gemeinsame
+  Semantik `resolveAccessMode` (`shared/utils/patient-access.js`): kein
+  Kontext = System-Aufruf (ungefiltert), Kontext ohne User = deny-all
+  (`1 = 0`), sonst Filter. `resolveUserAccess` liefert nie mehr `null`;
+  `searchPatients`/`findPatients`/`getPatientsPaginated` nutzen denselben
+  Kontext; `PatientSelector` geht über den Store-Wrapper statt direkt ans
+  Repo. Dashboard-Zähler sind jetzt für normale Nutzer ebenfalls gefiltert
+  (Kachel und Liste darunter zeigten unterschiedliche Grundmengen).
+- **Angezeigtes Alter**: `patient_list` nahm über `LIKE '%age%'` auch
+  „Age at stroke event“ als Alter — Stroke-Lipid-Patienten zeigten das Alter
+  beim Ereignis statt `AGE_IN_YEARS` (Migration 018).
 - **Fragebögen Schwab & England, WOQ-9, RBD-SQ, Bain-Tremor schrieben keinen
   Score** — ihre Ergebniscodes waren unpräfixiert bzw. zeigten auf nicht
   existierende Konzepte. JSONs korrigiert, Konzepte geseedet, Migration 017

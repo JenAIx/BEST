@@ -3,7 +3,7 @@
     <!-- Display Mode -->
     <div v-if="!isEditing" class="cell-display">
       <!-- File Display for R type -->
-      <div v-if="valueType === 'R' && displayValue" class="file-display">
+      <div v-if="valueType === 'R' && hasDisplayValue" class="file-display">
         <div class="file-info">
           <div class="file-type">{{ getFileType() }}</div>
           <div class="file-name">{{ getFileName() }}</div>
@@ -15,7 +15,7 @@
       </div>
 
       <!-- Standard Display for other types -->
-      <div v-else-if="displayValue" class="cell-value" :title="displayValue">
+      <div v-else-if="hasDisplayValue" class="cell-value" :title="String(displayValue)">
         {{ displayValue }}
         <span v-if="unitDisplay" class="cell-unit">{{ unitDisplay }}</span>
       </div>
@@ -146,9 +146,9 @@
       />
     </div>
 
-    <!-- File Preview Dialog -->
+    <!-- File Preview Dialog — mounted lazily on first open, not once per R cell -->
     <FilePreviewDialog
-      v-if="valueType === 'R' && props.observationId"
+      v-if="valueType === 'R' && props.observationId && filePreviewMounted"
       v-model="showFilePreview"
       :observation-id="props.observationId"
       :file-info="getFileInfoForDialog()"
@@ -271,9 +271,12 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onBeforeUnmount } from 'vue'
-import { auditActionsFor } from 'src/shared/utils/audit-flag.js'
+import { useI18n } from 'vue-i18n'
+import { auditActionsFor, StaleObservationError } from 'src/shared/utils/audit-flag.js'
+import { parseNumericInput } from 'src/shared/utils/grid-utils'
 import { useNotify } from 'src/composables/useNotify'
 import { useDatabaseStore } from 'src/stores/database-store'
+import { useDataGridStore } from 'src/stores/data-grid-store'
 import { useAuthStore } from 'src/stores/auth-store'
 import { useConceptResolutionStore } from 'src/stores/concept-resolution-store'
 import { useGlobalSettingsStore } from 'src/stores/global-settings-store'
@@ -338,6 +341,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits([
+  'save-start',
   'update',
   'save',
   'error',
@@ -353,7 +357,9 @@ const emit = defineEmits([
 ])
 
 const notify = useNotify()
+const { t } = useI18n()
 const dbStore = useDatabaseStore()
+const dataGridStore = useDataGridStore()
 const authStore = useAuthStore()
 const conceptStore = useConceptResolutionStore()
 const globalSettingsStore = useGlobalSettingsStore()
@@ -364,6 +370,10 @@ const logger = loggingStore.createLogger('EditableCell')
 const isEditing = ref(false)
 const editValue = ref('')
 const originalValue = ref('')
+// S/F cells: the CODE behind the displayed label, captured on edit start so
+// the no-change check compares code with code (label vs code never matched
+// and every click+tab wrote an UPDATE that also wiped the audit flag)
+const originalCode = ref(null)
 const isSaving = ref(false)
 const hasUnsavedChanges = ref(false)
 const editInput = ref(null)
@@ -378,6 +388,7 @@ const loadingOptions = ref(false)
 
 // File preview state for R type observations
 const showFilePreview = ref(false)
+const filePreviewMounted = ref(false)
 
 // Confirm-delete dialog state for the right-click "Delete value" action.
 const showConfirmDelete = ref(false)
@@ -398,9 +409,12 @@ const displayValue = computed(() => {
     return editValue.value
   }
 
-  // The value should already be resolved for S and F types from ExcelLikeEditor
-  return props.value || ''
+  // The value should already be resolved for S and F types from ExcelLikeEditor.
+  // `??`: a numeric 0 is a value — `||` rendered it as an empty cell.
+  return props.value ?? ''
 })
+
+const hasDisplayValue = computed(() => displayValue.value !== '' && displayValue.value !== null && displayValue.value !== undefined)
 
 const unitDisplay = computed(() => {
   // This could be enhanced to show units for numeric values
@@ -410,10 +424,10 @@ const unitDisplay = computed(() => {
 const cellClasses = computed(() => ({
   'is-editing': isEditing.value,
   'is-locked': props.locked,
-  'has-value': !!displayValue.value,
+  'has-value': hasDisplayValue.value,
   'has-changes': hasUnsavedChanges.value,
   'is-saving': isSaving.value,
-  'has-no-value-flag': props.valueFlag === 'NV' && !displayValue.value,
+  'has-no-value-flag': props.valueFlag === 'NV' && !hasDisplayValue.value,
   'value-flag-audit': props.valueFlag === 'AUDIT',
   'value-flag-confirmed': props.valueFlag === 'CONFIRMED',
   'date-differs-from-visit': dateDiffersFromVisit.value,
@@ -509,7 +523,8 @@ const startEdit = async () => {
   if (isEditing.value || props.locked) return
 
   isEditing.value = true
-  originalValue.value = props.value || ''
+  originalValue.value = props.value ?? ''
+  originalCode.value = null
   // Mirror the current 3-state-numeric flag into the editor so NV cells open
   // in NV-mode (and a click on the side toggle switches to value-entry mode).
   editFlagNV.value = props.valueType === 'N' && props.valueFlag === 'NV'
@@ -522,19 +537,15 @@ const startEdit = async () => {
     if (props.value && selectionOptions.value.length > 0) {
       // Find the option where the label matches the current display value
       const matchingOption = selectionOptions.value.find((option) => option.label === props.value)
-      if (matchingOption) {
-        // Use the code value for editing
-        editValue.value = matchingOption.value
-      } else {
-        // If no match found, use the original value (might be a code)
-        editValue.value = props.value
-      }
+      // Use the code value for editing (fall back to the raw value — might be a code)
+      editValue.value = matchingOption ? matchingOption.value : props.value
     } else {
-      editValue.value = props.value || ''
+      editValue.value = props.value ?? ''
     }
+    originalCode.value = editValue.value
   } else {
     // For other types, use the value directly
-    editValue.value = props.value || ''
+    editValue.value = props.value ?? ''
   }
 
   // Focus the input after DOM update
@@ -599,15 +610,28 @@ const saveEdit = async () => {
   // await; later concurrent calls observe it and bail.
   if (isSaving.value) return
 
-  // 3-state numeric: detect "no change" against the cell's pre-edit state.
-  // For numeric+NV we compare both the numeric value AND the NV-flag intent.
+  // Detect "no change" against the cell's pre-edit state. S/F compare CODE
+  // with code; numerics compare as strings (props may hold 40, the editor
+  // '40') AND the NV-flag intent. An unchanged cell must never write —
+  // a write would also reset VALUEFLAG_CD (AUDIT/CONFIRMED).
   const startedAsNV = props.valueType === 'N' && props.valueFlag === 'NV'
-  if (
-    editValue.value === originalValue.value &&
-    (props.valueType !== 'N' || editFlagNV.value === startedAsNV)
-  ) {
+  const isSelection = props.valueType === 'F' || props.valueType === 'S'
+  const unchanged = isSelection
+    ? editValue.value === originalCode.value
+    : String(editValue.value ?? '') === String(originalValue.value ?? '')
+  if (unchanged && (props.valueType !== 'N' || editFlagNV.value === startedAsNV)) {
     cancelEdit()
     return
+  }
+
+  // Numeric input must be a number (or empty) — never store 0 for garbage
+  if (props.valueType === 'N' && !editFlagNV.value && editValue.value !== '' && editValue.value != null) {
+    const parsed = parseNumericInput(editValue.value)
+    if (Number.isNaN(parsed)) {
+      notify.error(t('dataGrid.invalidNumber'), { position: 'top-right', timeout: 3000 })
+      return // stay in edit mode
+    }
+    editValue.value = parsed
   }
 
   // Snapshot pre-edit state for undo recording. originalValue is in the
@@ -626,25 +650,26 @@ const saveEdit = async () => {
       }
     }
 
-    // Emit update event to parent. Includes the new VALUEFLAG_CD so the
-    // grid's local state mirrors what saveToDatabase will persist — without
-    // this, an NV toggle would write VALUEFLAG_CD='NV' to the DB but the
-    // cell would re-render as empty (valueFlag stays null in row state)
-    // until a full reload.
     const newValueFlag = props.valueType === 'N' && editFlagNV.value ? 'NV' : null
+    const cellRef = { patientId: props.patientId, encounterNum: props.encounterNum, conceptCode: props.conceptCode }
+    emit('save-start', { ...cellRef, value: emitValue, observationId: props.observationId })
+
+    // Save FIRST, mirror on success. (The old order mirrored the new value
+    // into the grid before the write — a failed write left a value on
+    // screen that never reached the database.) Returns the resulting
+    // observationId (existing on UPDATE, new on INSERT) so undo can target it.
+    const savedObservationId = await saveToDatabase({ emitValue, newValueFlag })
+
+    // Mirror into the grid's local state. Includes the new VALUEFLAG_CD so an
+    // NV toggle renders as NV without a full reload (handleCellUpdate is
+    // idempotent — the store writer already mirrored UPDATEs).
     emit('update', {
-      patientId: props.patientId,
-      encounterNum: props.encounterNum,
-      conceptCode: props.conceptCode,
+      ...cellRef,
       value: emitValue,
-      observationId: props.observationId,
+      observationId: savedObservationId,
       valueType: props.valueType,
       valueFlag: newValueFlag,
     })
-
-    // Save to database — returns the resulting observationId (existing on
-    // UPDATE, new on INSERT) so undo can target it later.
-    const savedObservationId = await saveToDatabase()
 
     // Mark as saved
     hasUnsavedChanges.value = false
@@ -668,15 +693,21 @@ const saveEdit = async () => {
     })
   } catch (error) {
     logger.error('Failed to save cell', error)
-    emit('error', error)
+    emit('error', { patientId: props.patientId, encounterNum: props.encounterNum, conceptCode: props.conceptCode, error })
 
-    notify.error(`Failed to save: ${error.message}`, { position: 'top-right', timeout: 3000 })
+    if (error instanceof StaleObservationError) {
+      // the store already reloaded the row from the database
+      notify.warning(t('dataGrid.cellChangedElsewhere'), { position: 'top-right', timeout: 5000 })
+    } else {
+      notify.error(`Failed to save: ${error.message}`, { position: 'top-right', timeout: 3000 })
+    }
+    cancelEdit()
   } finally {
     isSaving.value = false
   }
 }
 
-const saveToDatabase = async () => {
+const saveToDatabase = async ({ emitValue, newValueFlag } = {}) => {
   try {
     // 3-state numeric: an empty value AND the NV-toggle off (= user cleared
     // the cell without explicitly marking it as "not taken") means "this
@@ -689,7 +720,7 @@ const saveToDatabase = async () => {
       return null
     }
     if (props.observationId) {
-      await updateObservation()
+      await updateObservation({ emitValue, newValueFlag })
       return props.observationId
     }
     // Create new observation, return its new id
@@ -701,66 +732,26 @@ const saveToDatabase = async () => {
 }
 
 const deleteObservation = async () => {
-  const result = await dbStore.executeQuery(
-    'DELETE FROM OBSERVATION_FACT WHERE OBSERVATION_ID = ?',
-    [props.observationId],
-  )
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to delete observation')
-  }
+  // single grid delete path: executeCommand + changes-count + local clear
+  await dataGridStore.deleteObservationFromGrid(auditPayload())
 }
 
-const updateObservation = async () => {
-  const updates = {}
-
-  if (props.valueType === 'N') {
-    if (editFlagNV.value) {
-      // 3-state "not taken / no value" — clear numeric, set VALUEFLAG_CD='NV'.
-      updates.NVAL_NUM = null
-      updates.TVAL_CHAR = null
-      updates.VALUEFLAG_CD = 'NV'
-    } else {
-      updates.NVAL_NUM = editValue.value === '' || editValue.value == null ? null : editValue.value
-      updates.TVAL_CHAR = null
-      // Explicitly clear any pre-existing NV flag when a real value is entered.
-      updates.VALUEFLAG_CD = null
-    }
-  } else {
-    updates.TVAL_CHAR = editValue.value
-    updates.NVAL_NUM = null // Clear numeric value for text
-    // Clear any stale NV/AUDIT/CONFIRMED flag — saveEdit emits valueFlag=null
-    // for non-numeric edits, so the DB must match the local mirror.
-    updates.VALUEFLAG_CD = null
-  }
-
-  // Stamp the current user as last editor
-  updates.PROVIDER_ID = authStore.providerId
-
-  const setClause = Object.keys(updates)
-    .map((key) => `${key} = ?`)
-    .join(', ')
-  const values = Object.values(updates)
-  values.push(props.observationId)
-
-  const updateQuery = `UPDATE OBSERVATION_FACT SET ${setClause}, UPDATE_DATE = CURRENT_TIMESTAMP WHERE OBSERVATION_ID = ?`
-  const result = await dbStore.executeQuery(updateQuery, values)
-
-  if (!result.success) {
-    throw new Error(result.error || 'Failed to update observation')
-  }
-
-  // A value edit resets AUDIT/CONFIRMED — record that in the audit trail so
-  // reviewers can see why a flag vanished (best effort, never blocks the save)
-  if (updates.VALUEFLAG_CD == null && (props.valueFlag === 'AUDIT' || props.valueFlag === 'CONFIRMED')) {
-    try {
-      const auditRepo = dbStore.getRepository?.('observationAudit')
-      if (auditRepo) {
-        await auditRepo.logEvent({ observationId: props.observationId, eventCd: 'VALUE_EDIT', flagCd: null, createdBy: authStore.providerId, source: 'GRID' })
-      }
-    } catch {
-      // trail is secondary to the value write
-    }
-  }
+const updateObservation = async ({ emitValue, newValueFlag } = {}) => {
+  // 3-state numeric: NV clears the numeric value and sets VALUEFLAG_CD='NV';
+  // every other value write clears any stale NV/AUDIT/CONFIRMED flag (the
+  // VALUE_EDIT trail entry is written by the store when a review flag falls).
+  const dbValue = props.valueType === 'N' && editFlagNV.value ? null : editValue.value
+  await dataGridStore.writeObservation({
+    patientId: props.patientId,
+    encounterNum: props.encounterNum,
+    conceptCode: props.conceptCode,
+    observationId: props.observationId,
+    valueType: props.valueType,
+    value: dbValue,
+    displayValue: emitValue,
+    flag: newValueFlag ?? null,
+    previousFlag: props.valueFlag,
+  })
 }
 
 const createObservation = async () => {
@@ -806,7 +797,7 @@ const createObservation = async () => {
       observationData.NVAL_NUM = null
       observationData.VALUEFLAG_CD = 'NV'
     } else {
-      observationData.NVAL_NUM = parseFloat(editValue.value) || 0
+      observationData.NVAL_NUM = parseNumericInput(editValue.value) // validated in saveEdit
     }
   } else {
     observationData.TVAL_CHAR = String(editValue.value)
@@ -850,16 +841,7 @@ const cancelEdit = () => {
   isEditing.value = false
   // For S/F types, we need to convert back to the code value for consistency
   if (props.valueType === 'F' || props.valueType === 'S') {
-    if (originalValue.value && selectionOptions.value.length > 0) {
-      const matchingOption = selectionOptions.value.find((option) => option.label === originalValue.value)
-      if (matchingOption) {
-        editValue.value = matchingOption.value
-      } else {
-        editValue.value = originalValue.value
-      }
-    } else {
-      editValue.value = originalValue.value
-    }
+    editValue.value = originalCode.value ?? originalValue.value
   } else {
     editValue.value = originalValue.value
   }
@@ -931,28 +913,38 @@ onBeforeUnmount(() => {
   }
 })
 
+// Tell the store while this cell is in edit mode (blocks remote auto-reload)
+watch(isEditing, (editing, wasEditing) => {
+  if (editing === wasEditing) return
+  dataGridStore.noteCellEditing?.(editing ? 1 : -1)
+})
+onBeforeUnmount(() => {
+  if (isEditing.value) dataGridStore.noteCellEditing?.(-1)
+})
+
 // Watch for external value changes
 watch(
   () => props.value,
   (newValue) => {
     if (!isEditing.value) {
-      editValue.value = newValue || ''
-      originalValue.value = newValue || ''
+      editValue.value = newValue ?? ''
+      originalValue.value = newValue ?? ''
       hasUnsavedChanges.value = false
     }
   },
 )
 
-// File-related methods for R type observations
-const parseFileInfo = () => {
+// File-related methods for R type observations — the TVAL_CHAR envelope is
+// parsed ONCE per value (it used to be JSON.parsed four times per render).
+const fileInfo = computed(() => {
   if (!props.value || props.valueType !== 'R') return null
-
   try {
     return JSON.parse(props.value)
   } catch {
     return null
   }
-}
+})
+const parseFileInfo = () => fileInfo.value
 
 const getFileType = () => {
   const info = parseFileInfo()
@@ -993,6 +985,7 @@ const formatFileSize = (bytes) => {
 }
 
 const openFilePreview = () => {
+  filePreviewMounted.value = true
   showFilePreview.value = true
 }
 
@@ -1210,15 +1203,15 @@ watch(editValue, (newValue) => {
       line-height: 1.2;
       padding: 0;
     }
-    
+
     &.text-input {
       min-width: 200px;
       width: 100%;
-      
+
       :deep(.q-field__control) {
         min-width: 200px;
       }
-      
+
       :deep(.q-field__native) {
         min-width: 200px;
         width: 100%;

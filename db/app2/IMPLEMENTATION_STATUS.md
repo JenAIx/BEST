@@ -5,6 +5,51 @@
 
 ## Recent Milestones
 
+### 2026-09-15 — UI-/Daten-Audit, Phase 1: Mehrbenutzer-Betrieb auf einer SQLite-Datei (`features/multi-user-db`)
+
+- Branch enthält Phase 2 + 3 als Basis (Merges), darauf: `busy_timeout`,
+  Statement-Gate + `withTransaction` (BEGIN IMMEDIATE), Fehlerklassifikation
+  mit Toast statt stiller Nullen, Optimistic Locking über
+  `OBSERVATION_FACT.VERSION` (Migration 019, Guard-Trigger), Änderungserkennung
+  per `PRAGMA data_version` (Auto-Reload / `StaleDataBanner`), Cache-Scoping
+  pro DB-Datei, Browser-Mock im Produktiv-Build abgelehnt.
+- Verifiziert: `scripts/verify-visits/run.sh` 19/19, neu
+  `scripts/verify-multiuser/run.sh` 17/17 (Auto-Reload ~3 s, Banner,
+  Konfliktabweisung, Warten auf Sperre, Lock-Toast), Vitest 1180, Lint,
+  SPA-Build, `check-db` gegen Prod-Kopie (Migrationen 018/019).
+- Offen / Follow-ups: `findAccessiblePatientsByCodes` chunken; Test auf dem
+  echten SMB-Share mit zwei Arbeitsplätzen (Latenz der Sperren).
+- Details: CHANGELOG `[Unreleased]` → Added, CLAUDE.md §9.
+
+### 2026-09-15 — UI-/Daten-Audit, Phase 3: Datentabellen-Editor Korrektheit + Reaktivität (`features/grid-consistency`)
+
+- Ein Grid-Schreibpfad (`data-grid-store.writeObservation`), alle Writes über
+  `executeCommand` mit `changes`-Prüfung → `StaleObservationError` + `reloadRow`
+  statt „Erfolg“ auf gelöschten Zeilen; erst speichern, dann spiegeln.
+- Refresh ohne Merge mit altem Zustand; `0` ist ein Wert; S/F-Klick ohne
+  Änderung schreibt nichts mehr (löschte Audit-Flags); ungültige Zahlen abgelehnt.
+- Statistik/Filter über `toRaw` + `statsVersion`; hiddenVisits im Store;
+  Medikamenten-Zähler aus dem Load statt Query pro Zelle; IN-Listen gechunkt.
+- Details: CHANGELOG `[Unreleased]` → Changed, CLAUDE.md §3 „Grid writes“.
+
+### 2026-09-15 — UI-/Daten-Audit, Phase 2: Query-Performance + Zugriffsfilter (`features/perf-queries`)
+
+- Audit der drei Hauptbereiche (Dashboard, Datagrid, Patientenvisite) auf
+  Roundtrips, Blobs, Konsistenz und Mehrbenutzer-Betrieb (SMB-Share). Plan
+  in drei Phasen; Phase 2 umgesetzt, Phase 3 (Grid-Korrektheit) und Phase 1
+  (Mehrbenutzer: busy_timeout, Transaktions-Gate, VERSION-Locking,
+  Änderungserkennung) folgen.
+- Migration **018**: `patient_list` ohne Full-Table-Scan + exaktes
+  Alterskonzept; Indizes `idx_observation_valueflag`, `idx_patient_recent`.
+- **Sicherheitsfix**: Public-User (USER_ID 0) sah alle Patienten —
+  Zugriffsfilter jetzt fail-closed (`resolveAccessMode`).
+- Dashboard = eine Statistik-Query; SmartSearch mit LIMIT/COUNT;
+  Patientenliste ohne N+1; Zeitlinien-Caches greifen; kein
+  `SELECT *`-Vorabcheck vor Observation-Updates; Logging im gepackten Build
+  auf INFO. Details: CHANGELOG `[Unreleased]`, CLAUDE.md §8.
+- Tests: neu `tests/integration/19_patient-list-view-perf.test.js`,
+  erweitert `20_user-access`, `07_observation-repository`, `35_visit-fieldsets`.
+
 ### 2026-09-15 — Visitenmodus (Konsultations-Cockpit), Iteration 1 — EXPERIMENTELL
 
 - **Status: experimentelles Feature.** Iteration 1 ist in `development`

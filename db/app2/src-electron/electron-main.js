@@ -16,6 +16,13 @@ if (process.env.REMOTE_DEBUG_PORT) {
   app.commandLine.appendSwitch('remote-debugging-port', process.env.REMOTE_DEBUG_PORT)
 }
 
+// Test harnesses (scripts/verify-visits, two-instance tests) run the app with
+// their OWN userData directory: isolated localStorage (no stored custom DB
+// paths, no session) and the possibility to run two instances side by side.
+if (process.env.E2E_USER_DATA_DIR) {
+  app.setPath('userData', process.env.E2E_USER_DATA_DIR)
+}
+
 let mainWindow
 
 async function createWindow() {

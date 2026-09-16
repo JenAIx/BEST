@@ -2,6 +2,8 @@
  * Database Views Migration
  * Creates all database views for enhanced data access
  * Consolidates: 005-create-patient-list-view, 006-create-patient-observations-view, 009-update-patient-observations-view-with-concept-description
+ * NOTE: patient_list is re-created by 018-patient-list-view-perf (exact age concept,
+ * no full-table scan). Do not edit the SQL below — the migration checksum must stay stable.
  */
 
 export const databaseViews = {

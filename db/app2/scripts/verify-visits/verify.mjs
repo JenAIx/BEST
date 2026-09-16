@@ -68,21 +68,30 @@ for (let i = 0; i < 30; i++) {
   if ((await page.locator('[data-cy="login-username"], .q-page').count()) > 0) break
   await wait(2000)
 }
-await ensureLoggedIn()
+// Set the locale BEFORE logging in: a reload while the preload has an open
+// sqlite3 connection with an in-flight statement (e.g. the freshness poll)
+// can crash the renderer (node-sqlite3 napi_throw into a destroyed context).
 if ((await page.evaluate(() => localStorage.getItem('locale'))) !== 'de') {
   await page.evaluate(() => localStorage.setItem('locale', 'de'))
   await page.reload({ waitUntil: 'domcontentloaded' })
   await wait(5000)
-  await ensureLoggedIn()
 }
+await ensureLoggedIn()
 
 // --- Open patient → unified view ---
 await page.evaluate((cd) => {
   window.location.hash = `#/visits/${cd}`
 }, PATIENT_CD)
-await wait(2500)
+// Wait for the page (toggle) and for the first card instead of fixed pauses —
+// a cold start (empty concept cache) or a slow share must not fail the run
+await page.locator('[data-cy="view-mode-unified"]').first().waitFor({ timeout: 30000 })
 await page.locator('[data-cy="view-mode-unified"]').first().click()
-await wait(2000)
+await page
+  .locator('[data-cy="unified-card"]')
+  .first()
+  .waitFor({ timeout: 30000 })
+  .catch(() => {})
+await wait(1000)
 
 const cards = page.locator('[data-cy="unified-card"]')
 // v-show keeps collapsed bodies in the DOM — count only VISIBLE ones

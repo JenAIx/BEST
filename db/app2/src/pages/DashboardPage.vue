@@ -314,6 +314,7 @@ const loadRecentPatients = async () => {
       options: {
         orderBy: 'UPDATE_DATE_WITH_FALLBACK',
         orderDirection: 'DESC',
+        skipCount: true, // first page only — no COUNT over the view
       },
     })
 
@@ -334,9 +335,6 @@ const loadRecentPatients = async () => {
       // Original patient fields for downstream consumers
       SEX_RESOLVED: patient.SEX_RESOLVED,
       SEX_CD: patient.SEX_CD,
-      // Store raw data for reactive translation
-      _rawAge: patient.AGE_IN_YEARS,
-      _rawLastVisit: patient.UPDATE_DATE || patient.IMPORT_DATE || patient.CREATED_AT,
     }))
   } catch (error) {
     console.error('Failed to load recent patients:', error)
@@ -374,62 +372,10 @@ const loadRecentStudies = async () => {
 const loadDashboardStatistics = async () => {
   try {
     if (!dbStore.canPerformOperations) return
-
-    const patientRepo = dbStore.getRepository('patient')
-    const patientStats = await patientRepo.getPatientStatistics()
-
-    const today = new Date().toISOString().split('T')[0]
-    const userId = authStore.currentUser?.USER_ID
-    const isAdmin = authStore.isAdmin
-
-    const count = async (sql, params = []) => {
-      const result = await dbStore.executeQuery(sql, params)
-      return result.success ? result.data[0]?.count || 0 : 0
-    }
-
-    // Totals (card 1: patients / visits / observations)
-    const [totalVisits, totalObservations] = await Promise.all([
-      count('SELECT COUNT(*) as count FROM VISIT_DIMENSION'),
-      count('SELECT COUNT(*) as count FROM OBSERVATION_FACT'),
-    ])
-
-    // Today: distinct patients with a visit today, visits today, observations
-    // entered/edited today (UPDATE_DATE = actual data entry, not clinical date)
-    const [patientsSeenToday, visitsToday, observationsToday] = await Promise.all([
-      count('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM VISIT_DIMENSION WHERE DATE(START_DATE) = ?', [today]),
-      count('SELECT COUNT(*) as count FROM VISIT_DIMENSION WHERE DATE(START_DATE) = ?', [today]),
-      count('SELECT COUNT(*) as count FROM OBSERVATION_FACT WHERE DATE(UPDATE_DATE) = ?', [today]),
-    ])
-
-    // Open audits (access-filtered for regular users)
-    const auditAccessFilter = !isAdmin && userId != null ? ' AND PATIENT_NUM IN (SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID IN (?, 0))' : ''
-    const openAudits = await count(`SELECT COUNT(*) as count FROM OBSERVATION_FACT WHERE VALUEFLAG_CD = 'AUDIT'${auditAccessFilter}`, !isAdmin && userId != null ? [userId] : [])
-
-    // My patients: directly assigned to me (owner/creator rows, not public)
-    const myPatients = userId != null ? await count('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = ?', [userId]) : 0
-
-    // Access statistics (non-admin users)
-    let visiblePatients = 0
-    let hiddenPatients = 0
-    if (!isAdmin && userId != null) {
-      const totalPatientsCount = await count('SELECT COUNT(*) as count FROM PATIENT_DIMENSION')
-      visiblePatients = await count('SELECT COUNT(DISTINCT PATIENT_NUM) as count FROM USER_PATIENT_LOOKUP WHERE USER_ID = ? OR USER_ID = 0', [userId])
-      hiddenPatients = totalPatientsCount - visiblePatients
-    }
-
-    stats.value = {
-      ...stats.value,
-      patientsSeenToday,
-      visitsToday,
-      observationsToday,
-      openAudits,
-      myPatients,
-      totalPatients: patientStats.totalPatients || 0,
-      totalVisits,
-      totalObservations,
-      visiblePatients,
-      hiddenPatients,
-    }
+    // One access-filtered round trip (PatientRepository.getDashboardStatistics)
+    // — every tile uses the same predicate as the patient list below it.
+    const counters = await dbStore.getDashboardStatistics()
+    stats.value = { ...stats.value, ...counters }
   } catch (error) {
     console.error('Failed to load dashboard statistics:', error)
     notify.error('Failed to load dashboard statistics')
@@ -445,23 +391,10 @@ const updateActiveStudies = () => {
 const loadUpcomingVisits = async () => {
   try {
     if (!dbStore.canPerformOperations) return
-
-    const userId = authStore.currentUser?.USER_ID
-    const accessFilter = !authStore.isAdmin && userId != null ? ' AND v.PATIENT_NUM IN (SELECT PATIENT_NUM FROM USER_PATIENT_LOOKUP WHERE USER_ID IN (?, 0))' : ''
-    const params = !authStore.isAdmin && userId != null ? [userId] : []
-
-    const result = await dbStore.executeQuery(
-      `SELECT v.ENCOUNTER_NUM, v.START_DATE, p.PATIENT_CD
-       FROM VISIT_DIMENSION v
-       JOIN PATIENT_DIMENSION p ON p.PATIENT_NUM = v.PATIENT_NUM
-       WHERE DATE(v.START_DATE) > DATE('now')${accessFilter}
-       ORDER BY v.START_DATE ASC
-       LIMIT 5`,
-      params,
-    )
+    const rows = await dbStore.getUpcomingVisits(5)
 
     const now = new Date()
-    upcomingVisits.value = (result.success ? result.data : []).map((row) => {
+    upcomingVisits.value = rows.map((row) => {
       const start = new Date(row.START_DATE)
       const daysUntil = Number.isNaN(start.getTime()) ? null : Math.max(0, Math.ceil((start - now) / 86400000))
       return {
@@ -481,7 +414,7 @@ const loadUpcomingVisits = async () => {
 const loadNotesOverview = async () => {
   try {
     if (!dbStore.canPerformOperations) return
-    await Promise.all([noteStore.loadQuickNotes(), noteStore.loadMessages()])
+    await Promise.all([noteStore.loadQuickNotes({ limit: 25 }), noteStore.refreshUnreadCount()])
   } catch (error) {
     console.error('Failed to load notes overview:', error)
   }

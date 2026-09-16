@@ -277,13 +277,16 @@ class VisitObservationService {
       // Create the observation
       const newObservation = await observationStore.createObservation(observationData)
 
-      // Reload unless the caller batches many creates (cockpit / carry-forward)
+      // Reload unless the caller batches many creates (cockpit / carry-forward).
+      // Visit list and patient-wide list are independent reads — in parallel.
       if (!options.skipReload) {
+        await Promise.all([
+          visitStore.selectedVisitId ? observationStore.loadObservationsForVisit(visitStore.selectedVisitId) : null,
+          observationStore.loadAllObservationsForPatient(patientStore.patientNum),
+        ])
         if (visitStore.selectedVisitId) {
-          await observationStore.loadObservationsForVisit(visitStore.selectedVisitId)
           visitStore.updateVisitObservationCount(visitStore.selectedVisitId, observationStore.observationCount)
         }
-        await observationStore.loadAllObservationsForPatient(patientStore.patientNum)
       }
 
       this.logger.success('Observation created successfully', {
@@ -315,17 +318,12 @@ class VisitObservationService {
       // Update the observation
       const result = await observationStore.updateObservation(observationId, updateData)
 
-      // Reload data unless skipped
+      // Reload data unless skipped (independent reads — in parallel)
       if (!options.skipReload) {
-        // Reload observations for current visit
-        if (visitStore.selectedVisitId) {
-          await observationStore.loadObservationsForVisit(visitStore.selectedVisitId)
-        }
-
-        // Reload all observations for the patient
-        if (patientStore.hasPatient) {
-          await observationStore.loadAllObservationsForPatient(patientStore.patientNum)
-        }
+        await Promise.all([
+          visitStore.selectedVisitId ? observationStore.loadObservationsForVisit(visitStore.selectedVisitId) : null,
+          patientStore.hasPatient ? observationStore.loadAllObservationsForPatient(patientStore.patientNum) : null,
+        ])
       }
 
       this.logger.success('Observation updated successfully', { observationId })
@@ -352,17 +350,13 @@ class VisitObservationService {
       // Delete the observation
       await observationStore.deleteObservation(observationId)
 
-      // Reload observations for the visit
+      // Reload visit + patient-wide observations (independent reads — in parallel)
+      await Promise.all([
+        visitStore.selectedVisitId ? observationStore.loadObservationsForVisit(visitStore.selectedVisitId) : null,
+        patientStore.hasPatient ? observationStore.loadAllObservationsForPatient(patientStore.patientNum) : null,
+      ])
       if (visitStore.selectedVisitId) {
-        await observationStore.loadObservationsForVisit(visitStore.selectedVisitId)
-
-        // Update visit observation count
         visitStore.updateVisitObservationCount(visitStore.selectedVisitId, observationStore.observationCount)
-      }
-
-      // Reload all observations for the patient
-      if (patientStore.hasPatient) {
-        await observationStore.loadAllObservationsForPatient(patientStore.patientNum)
       }
 
       this.showSuccessNotification('Observation removed successfully')

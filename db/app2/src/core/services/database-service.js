@@ -38,6 +38,8 @@ import { rawFileConcepts } from '../database/migrations/014-raw-file-concepts.js
 import { observationAuditFact } from '../database/migrations/015-observation-audit-fact.js'
 import { recreateTriggers } from '../database/migrations/016-recreate-triggers.js'
 import { neuroConsultSeed } from '../database/migrations/017-neuro-consult-seed.js'
+import { patientListViewPerf } from '../database/migrations/018-patient-list-view-perf.js'
+import { observationVersion } from '../database/migrations/019-observation-version.js'
 
 class DatabaseService {
   constructor() {
@@ -63,7 +65,13 @@ class DatabaseService {
         this.logger.info(null, 'Using Electron database connection')
         this.connection = new ElectronConnection()
       } else {
-        this.logger.info(null, 'Using browser database connection (limited functionality)')
+        // The browser fallback is a MOCK that silently returns empty data.
+        // Acceptable for `quasar dev` / tests, never for a packaged build.
+        const isDevOrTest = import.meta.env.DEV === true || import.meta.env.MODE === 'test'
+        if (!isDevOrTest) {
+          throw new Error('Electron APIs not available — no database access in this environment')
+        }
+        this.logger.warn(null, 'Using browser MOCK database connection — no real data is read or written')
         this.connection = new SQLiteConnection()
       }
 
@@ -96,6 +104,8 @@ class DatabaseService {
       this.migrationManager.registerMigration(observationAuditFact)
       this.migrationManager.registerMigration(recreateTriggers)
       this.migrationManager.registerMigration(neuroConsultSeed)
+      this.migrationManager.registerMigration(patientListViewPerf)
+      this.migrationManager.registerMigration(observationVersion)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()
@@ -284,6 +294,27 @@ class DatabaseService {
   }
 
   /**
+   * Run `fn(tx)` atomically (BEGIN IMMEDIATE … COMMIT) with the statement gate
+   * held — hand `tx` to repositories: `new PatientRepository(tx)`.
+   * Falls back to plain execution on connections without transaction support
+   * (the browser mock).
+   */
+  async withTransaction(fn) {
+    if (!this.connection) {
+      throw new Error('Database connection not established')
+    }
+    if (typeof this.connection.withTransaction === 'function') {
+      return await this.connection.withTransaction(fn)
+    }
+    return await fn(this.connection)
+  }
+
+  /** True when the active connection is the browser mock (no real database). */
+  get isMockConnection() {
+    return this.connection?.isMock === true
+  }
+
+  /**
    * Execute multiple commands in a transaction
    * @param {Array} commands - Array of {sql, params} objects
    * @returns {Promise<Object>} - Transaction result
@@ -344,10 +375,11 @@ class DatabaseService {
       // Get table row counts
       const tables = ['PATIENT_DIMENSION', 'VISIT_DIMENSION', 'OBSERVATION_FACT', 'CONCEPT_DIMENSION', 'PROVIDER_DIMENSION', 'CODE_LOOKUP', 'USER_MANAGEMENT', 'CQL_FACT']
 
-      for (const table of tables) {
-        const result = await this.connection.executeQuery(`SELECT COUNT(*) as count FROM ${table}`)
-        stats[table] = result.success ? result.data[0].count : 0
-      }
+      // one round trip instead of eight sequential COUNTs
+      const sql = `SELECT ${tables.map((t) => `(SELECT COUNT(*) FROM ${t}) AS ${t}`).join(', ')}`
+      const result = await this.connection.executeQuery(sql)
+      const row = (result.success && result.data[0]) || {}
+      for (const table of tables) stats[table] = Number(row[table]) || 0
 
       // Get database file size
       stats.databasePath = this.getDatabasePath()

@@ -6,6 +6,7 @@
  */
 
 import BaseRepository from './base-repository.js'
+import { resolveAccessMode } from '../../../shared/utils/patient-access.js'
 import { createLogger } from '../../services/logging-service.js'
 import { ENROLLED_STATUS_SQL, ENROLLMENT_STATUS_CODES, ENROLLMENT_STATUS_WITHDRAWN } from '../../../shared/utils/enrollment-status.js'
 
@@ -515,6 +516,28 @@ class StudyRepository extends BaseRepository {
   }
 
   /**
+   * Access predicate for a patient column inside a study query.
+   * Same semantics as PatientRepository.getAccessFilter (see
+   * shared/utils/patient-access.js resolveAccessMode): admins / no context →
+   * no clause, context without user → deny-all, regular user (incl. USER_ID 0)
+   * → own-or-public.
+   * @returns {{clause: string, params: Array}}
+   */
+  _patientAccessClause(userAccess, patientNumExpr) {
+    const mode = resolveAccessMode(userAccess)
+    if (mode === 'unfiltered') return { clause: '', params: [] }
+    if (mode === 'deny') return { clause: ' AND 1 = 0', params: [] }
+    return {
+      clause: `
+          AND EXISTS (
+            SELECT 1 FROM USER_PATIENT_LOOKUP upl
+            WHERE upl.PATIENT_NUM = ${patientNumExpr} AND (upl.USER_ID = ? OR upl.USER_ID = 0)
+          )`,
+      params: [userAccess.userId],
+    }
+  }
+
+  /**
    * Per-status enrollment counts for one study (NULL counts as 'active').
    * Access-filtered for regular users like getEnrolledPatients.
    *
@@ -527,13 +550,10 @@ class StudyRepository extends BaseRepository {
     try {
       let accessClause = ''
       const params = [studyId]
-      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
-        accessClause = `
-          AND EXISTS (
-            SELECT 1 FROM USER_PATIENT_LOOKUP upl
-            WHERE upl.PATIENT_NUM = spl.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
-          )`
-        params.push(userAccess.userId)
+      {
+        const access = this._patientAccessClause(userAccess, 'spl.PATIENT_NUM')
+        accessClause = access.clause
+        params.push(...access.params)
       }
 
       const result = await this.connection.executeQuery(
@@ -572,13 +592,10 @@ class StudyRepository extends BaseRepository {
     try {
       let accessClause = ''
       const params = [...studyIds]
-      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
-        accessClause = `
-          AND EXISTS (
-            SELECT 1 FROM USER_PATIENT_LOOKUP upl
-            WHERE upl.PATIENT_NUM = spl.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
-          )`
-        params.push(userAccess.userId)
+      {
+        const access = this._patientAccessClause(userAccess, 'spl.PATIENT_NUM')
+        accessClause = access.clause
+        params.push(...access.params)
       }
 
       const placeholders = studyIds.map(() => '?').join(', ')
@@ -631,13 +648,10 @@ class StudyRepository extends BaseRepository {
 
       let accessClause = ''
       const params = [studyId]
-      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
-        accessClause = `
-          AND EXISTS (
-            SELECT 1 FROM USER_PATIENT_LOOKUP upl
-            WHERE upl.PATIENT_NUM = o.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
-          )`
-        params.push(userAccess.userId)
+      {
+        const access = this._patientAccessClause(userAccess, 'o.PATIENT_NUM')
+        accessClause = access.clause
+        params.push(...access.params)
       }
 
       const byPatientRows = await this._execAggregate(
@@ -703,13 +717,10 @@ class StudyRepository extends BaseRepository {
     try {
       let accessClause = ''
       const params = [...studyIds]
-      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
-        accessClause = `
-          AND EXISTS (
-            SELECT 1 FROM USER_PATIENT_LOOKUP upl
-            WHERE upl.PATIENT_NUM = o.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
-          )`
-        params.push(userAccess.userId)
+      {
+        const access = this._patientAccessClause(userAccess, 'o.PATIENT_NUM')
+        accessClause = access.clause
+        params.push(...access.params)
       }
 
       const placeholders = studyIds.map(() => '?').join(', ')
@@ -777,13 +788,10 @@ class StudyRepository extends BaseRepository {
 
       let accessClause = ''
       const params = [studyId]
-      if (userAccess && userAccess.userId && !userAccess.isAdmin) {
-        accessClause = `
-          AND EXISTS (
-            SELECT 1 FROM USER_PATIENT_LOOKUP upl
-            WHERE upl.PATIENT_NUM = p.PATIENT_NUM AND (upl.USER_ID = ? OR upl.USER_ID = 0)
-          )`
-        params.push(userAccess.userId)
+      {
+        const access = this._patientAccessClause(userAccess, 'p.PATIENT_NUM')
+        accessClause = access.clause
+        params.push(...access.params)
       }
 
       const sql = `
@@ -1234,16 +1242,14 @@ class StudyRepository extends BaseRepository {
     let obsAccessClause = ''
     const patientParams = [studyCd]
     const obsParams = [studyCd]
-    if (userAccess && userAccess.userId && !userAccess.isAdmin) {
-      const existsClause = (col) => `
-          AND EXISTS (
-            SELECT 1 FROM USER_PATIENT_LOOKUP acc
-            WHERE acc.PATIENT_NUM = ${col} AND (acc.USER_ID = ? OR acc.USER_ID = 0)
-          )`
-      patientAccessClause = existsClause('spl.PATIENT_NUM')
-      obsAccessClause = existsClause('o.PATIENT_NUM')
-      patientParams.push(userAccess.userId)
-      obsParams.push(userAccess.userId)
+    {
+      // same fail-closed semantics as every other access-filtered study query
+      const patientAccess = this._patientAccessClause(userAccess, 'spl.PATIENT_NUM')
+      const obsAccess = this._patientAccessClause(userAccess, 'o.PATIENT_NUM')
+      patientAccessClause = patientAccess.clause
+      obsAccessClause = obsAccess.clause
+      patientParams.push(...patientAccess.params)
+      obsParams.push(...obsAccess.params)
     }
 
     const ownedRows = await this._execAggregate(

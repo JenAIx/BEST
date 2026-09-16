@@ -13,6 +13,8 @@
         </div>
 
         <div class="unified-main">
+          <!-- Another user changed this patient while a visit is being edited -->
+          <StaleDataBanner :show="remoteStale" @refresh="refreshFromRemote" />
           <!-- Fixed header row above the card list: filter left, expand-all +
                new visit right. Hidden while editing — the sticky card header
                takes over. -->
@@ -158,6 +160,8 @@ import { useNotify } from 'src/composables/useNotify'
 import { useI18n } from 'vue-i18n'
 import { visitObservationService } from 'src/services/visit-observation-service'
 import { useVisitLabels } from 'src/composables/useVisitLabels'
+import { useDbFreshness } from 'src/composables/useDbFreshness'
+import StaleDataBanner from 'src/components/shared/StaleDataBanner.vue'
 import { useVisitActions } from 'src/composables/useVisitActions'
 import { useSingleVisitEdit } from 'src/composables/useSingleVisitEdit'
 import { groupObservationsByFieldSets, filterObservations } from 'src/shared/utils/file-category'
@@ -247,7 +251,19 @@ onMounted(() => {
 
 const totalOpenAudits = computed(() => countOpenAudits(observationStore.allObservations))
 
-const openAuditCountFor = (visitId) => countOpenAudits(observationStore.allObservations.filter((obs) => obs.encounterNum === visitId))
+// One pass over all observations per change instead of a filter per card
+// AND per nav entry on every render
+const openAuditByVisit = computed(() => {
+  const byVisit = new Map()
+  for (const obs of observationStore.allObservations) {
+    if (!byVisit.has(obs.encounterNum)) byVisit.set(obs.encounterNum, [])
+    byVisit.get(obs.encounterNum).push(obs)
+  }
+  const counts = new Map()
+  for (const [visitId, list] of byVisit) counts.set(visitId, countOpenAudits(list))
+  return counts
+})
+const openAuditCountFor = (visitId) => openAuditByVisit.value.get(visitId) || 0
 
 // Audit dialog (trail + comments) for one observation; tile badges show
 // the comment count from the patient-wide trail cache
@@ -260,10 +276,13 @@ const openAuditDialog = (observation) => {
 }
 
 const commentCounts = computed(() => {
+  // patient-wide GROUP BY counts, overridden by any trail the dialog loaded
   const counts = {}
+  for (const [observationId, n] of observationStore.commentCounts) if (n > 0) counts[observationId] = n
   for (const [observationId, events] of observationStore.auditTrail) {
     const n = events.filter((e) => e.COMMENT_TEXT).length
     if (n > 0) counts[observationId] = n
+    else delete counts[observationId]
   }
   return counts
 })
@@ -439,17 +458,30 @@ const onVisitCreated = async (newVisit) => {
 const onDataChanged = async () => {
   if (patientNum.value == null) return
   try {
-    await visitStore.loadVisitsForPatient(patientNum.value)
-    await observationStore.loadAllObservationsForPatient(patientNum.value)
-    await observationStore.loadAuditTrailForPatient(patientNum.value)
+    // independent reads — run them in parallel
+    await Promise.all([visitStore.loadVisitsForPatient(patientNum.value), observationStore.loadAllObservationsForPatient(patientNum.value), observationStore.loadCommentCountsForPatient(patientNum.value)])
+    await markFresh()
   } catch (error) {
     logger.error('Failed to refresh visits/observations', error)
   }
 }
 
-// The trail (comment badges) loads alongside the patient's observations;
+// Other users' commits: reload silently in read mode, banner while editing
+// (useSingleVisitEdit = at most one visit in edit mode)
+const {
+  stale: remoteStale,
+  refresh: refreshFromRemote,
+  markFresh,
+} = useDbFreshness({
+  patientNums: () => (patientNum.value == null ? [] : [patientNum.value]),
+  isEditing: () => editingVisitId.value != null,
+  reload: onDataChanged,
+})
+
+// Comment badge counts load alongside the patient's observations (one
+// GROUP BY — the per-observation trail loads only when a dialog opens);
 // the page itself loads visits/observations before this component mounts
-watch(patientNum, (num) => observationStore.loadAuditTrailForPatient(num), { immediate: true })
+watch(patientNum, (num) => observationStore.loadCommentCountsForPatient(num), { immediate: true })
 
 // ---- Quick navigation (left column) + scroll spy ----
 const scrollArea = ref(null)

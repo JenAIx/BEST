@@ -366,19 +366,43 @@ describe('ObservationRepository', () => {
       const existingObservation = { OBSERVATION_ID: 9397, PATIENT_NUM: 72 }
       const updateData = { TVAL_CHAR: 'Updated Value' }
 
-      vi.spyOn(observationRepository, 'findById').mockResolvedValue(existingObservation)
-      vi.spyOn(observationRepository, 'update').mockResolvedValue(true)
+      const findById = vi.spyOn(observationRepository, 'findById')
+      mockConnection.executeCommand.mockResolvedValue({ success: true, changes: 1 })
 
-      const result = await observationRepository.updateObservation(9397, updateData)
+      const result = await observationRepository.updateObservation(9397, updateData, { expectedVersion: 3 })
 
-      expect(result).toBe(true)
-      expect(observationRepository.update).toHaveBeenCalledWith(9397, updateData)
+      expect(result).toMatchObject({ success: true, changes: 1, newVersion: 4 })
+      const [sql, params] = mockConnection.executeCommand.mock.calls[0]
+      expect(sql).toContain('TVAL_CHAR = ?')
+      expect(sql).toContain('VERSION = VERSION + 1')
+      expect(sql).toMatch(/WHERE OBSERVATION_ID = \? AND VERSION = \?$/)
+      expect(params).toEqual(['Updated Value', 9397, 3])
+      // no SELECT * (incl. OBSERVATION_BLOB) round trip before the UPDATE
+      expect(findById).not.toHaveBeenCalled()
+      void existingObservation
     })
 
-    it('should throw error for non-existent observation', async () => {
-      vi.spyOn(observationRepository, 'findById').mockResolvedValue(null)
+    it('writes unguarded (no AND VERSION) when the caller has no version', async () => {
+      mockConnection.executeCommand.mockResolvedValue({ success: true, changes: 1 })
+      const result = await observationRepository.updateObservation(9397, { NVAL_NUM: 5 })
+      const [sql, params] = mockConnection.executeCommand.mock.calls[0]
+      expect(sql).not.toContain('AND VERSION')
+      expect(params).toEqual([5, 9397])
+      expect(result.newVersion).toBeNull()
+    })
+
+    it('should throw error for non-existent observation (UPDATE changed 0 rows, probe finds nothing)', async () => {
+      mockConnection.executeCommand.mockResolvedValue({ success: true, changes: 0 })
+      mockConnection.executeQuery.mockResolvedValue({ success: true, data: [] })
 
       await expect(observationRepository.updateObservation(999, { TVAL_CHAR: 'New' })).rejects.toThrow('Observation with OBSERVATION_ID 999 not found')
+    })
+
+    it('throws StaleObservationError when the row exists at another version', async () => {
+      mockConnection.executeCommand.mockResolvedValue({ success: true, changes: 0 })
+      mockConnection.executeQuery.mockResolvedValue({ success: true, data: [{ VERSION: 7 }] })
+
+      await expect(observationRepository.updateObservation(9397, { TVAL_CHAR: 'New' }, { expectedVersion: 6 })).rejects.toMatchObject({ name: 'StaleObservationError', code: 'STALE_OBSERVATION', observationId: 9397 })
     })
   })
 

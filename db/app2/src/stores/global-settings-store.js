@@ -17,6 +17,13 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
   // Cache duration in milliseconds (5 minutes)
   const CACHE_DURATION = 5 * 60 * 1000
 
+  // Every successful lookup load refreshes the TTL. Before this, lastRefresh
+  // was only set by loadColumnTypes() (Global-Settings page), so isCacheValid
+  // was false in normal sessions and every getXOptions() call hit the DB.
+  const markLookupLoaded = () => {
+    lastRefresh.value = new Date().toISOString()
+  }
+
   // Check if cache is still valid
   const isCacheValid = computed(() => {
     if (!lastRefresh.value) return false
@@ -111,6 +118,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
       if (result.success) {
         lookupData.value[cacheKey] = result.data
+        markLookupLoaded()
         logger.success(`Loaded ${result.data.length} lookup values for ${tableCd}.${columnCd}`)
         return result.data
       } else {
@@ -504,6 +512,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} source systems from CONCEPT_DIMENSION`)
         return options
       }
@@ -568,6 +577,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} visit types`)
         return options
       }
@@ -627,6 +637,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} file types`)
         return options
       }
@@ -689,6 +700,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} field sets`)
         return options
       }
@@ -797,6 +809,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} user roles from database`)
         return options
       }
@@ -811,6 +824,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
       // Cache the fallback result
       lookupData.value[cacheKey] = fallbackRoles
+      markLookupLoaded()
       logger.info('Using fallback user roles')
       return fallbackRoles
     } catch (error) {
@@ -842,6 +856,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     if (!result.success) throw new Error(result.error || 'Failed to load consult templates')
     const templates = result.data.map((row) => normalizeConsultTemplate({ label: row.NAME_CHAR, ...parseMetadata(row.LOOKUP_BLOB) }, row.CODE_CD)).sort((a, b) => a.order - b.order || a.label.localeCompare(b.label))
     lookupData.value[cacheKey] = templates
+    markLookupLoaded()
     return templates
   }
 
@@ -883,6 +898,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = templates
+        markLookupLoaded()
         logger.success(`Loaded ${templates.length} visit templates`)
         return templates
       }
@@ -947,6 +963,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
       // Cache the result
       lookupData.value[cacheKey] = drugOptions
+      markLookupLoaded()
 
       // Filter by search term if provided
       if (searchTerm && searchTerm.length >= 2) {
@@ -1040,6 +1057,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} unit options`)
         return options
       }
@@ -1088,6 +1106,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} frequency options`)
         return options
       }
@@ -1135,6 +1154,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
         // Cache the result
         lookupData.value[cacheKey] = options
+        markLookupLoaded()
         logger.success(`Loaded ${options.length} route options`)
         return options
       }
@@ -1162,7 +1182,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
     try {
       // Get the visit type data from CODE_LOOKUP
       const visitType = await getLookupValue('VISIT_TYPE_CD', visitTypeCode, 'VISIT_DIMENSION')
-      
+
       if (!visitType || !visitType.LOOKUP_BLOB) {
         logger.warn(`No visit type data found for ${visitTypeCode}`)
         return []
@@ -1170,7 +1190,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
       // Parse the visit type metadata
       const metadata = parseMetadata(visitType.LOOKUP_BLOB)
-      
+
       if (!Array.isArray(metadata.fieldSets)) {
         logger.debug(`Visit type ${visitTypeCode} has no field sets configured`)
         return []
@@ -1184,7 +1204,7 @@ export const useGlobalSettingsStore = defineStore('globalSettings', () => {
 
       // Return array of field set IDs
       const fieldSetIds = fieldSets.map(fs => fs.id)
-      
+
       logger.debug(`Found ${fieldSetIds.length} field sets for visit type ${visitTypeCode}`, {
         visitTypeCode,
         activeOnly,

@@ -152,6 +152,17 @@ export class CacheManager {
   }
 
   /**
+   * Drop the in-memory cache only — persisted entries stay. Used when the
+   * app switches to another database file: the new store instance loads
+   * THAT file's entries (its own storagePrefix) on initialize().
+   */
+  clearMemory() {
+    Object.keys(this.cache).forEach((key) => delete this.cache[key])
+    this.pendingOperations.clear()
+    this.isInitialized = false
+  }
+
+  /**
    * Clear all cached data
    */
   async clear() {

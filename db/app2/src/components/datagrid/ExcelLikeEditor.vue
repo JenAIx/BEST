@@ -1,5 +1,7 @@
 <template>
   <div class="excel-editor">
+    <!-- Another user changed one of the shown patients while cells are being edited -->
+    <StaleDataBanner :show="remoteStale" class="q-ma-sm" @refresh="refreshFromRemote" />
     <!-- Header Controls -->
     <div class="editor-header q-pa-md bg-white shadow-1">
       <div class="row items-center justify-between q-gutter-sm">
@@ -56,7 +58,7 @@
             </q-menu>
           </q-btn>
         </div>
-        
+
         <!-- Right side: Visit-type lock + zoom controls -->
         <div class="row items-center q-gutter-xs zoom-controls">
           <!-- Visit-type lock: composite icon (visit calendar + lock badge) -->
@@ -164,7 +166,7 @@
             <tr v-if="virtualWindow.topPad > 0" class="virtual-spacer" aria-hidden="true">
               <td :colspan="totalColumnCount" :style="{ height: `${virtualWindow.topPad}px` }"></td>
             </tr>
-            <tr v-for="row in renderedRows" :key="`${row.patientId}-${row.encounterNum}`" class="data-row" :class="{ 'has-changes': hasRowChanges(row) }">
+            <tr v-for="row in renderedRows" :key="`${row.patientId}-${row.encounterNum}`" class="data-row">
               <!-- Fixed columns -->
               <td class="fixed-col patient-col" :class="{ 'subsequent-visit': !isFirstVisitForPatient(row) }">
                 <div class="patient-info">
@@ -349,6 +351,7 @@
                   :encounter-num="row.encounterNum"
                   :observation-id="getCellObservationId(row, concept)"
                   :locked="isCellLocked(row, concept)"
+                  @save-start="onCellSaveStart"
                   @update="onCellUpdate"
                   @save="onCellSave"
                   @error="onCellError"
@@ -379,7 +382,7 @@
       v-model="showViewOptions"
       :view-options="viewOptions"
       :observation-concepts="observationConcepts"
-      :column-visibility="dataGridStore?.columnVisibility ? Object.fromEntries(dataGridStore.columnVisibility) : {}"
+      :column-visibility="columnVisibilityObject"
       @update:view-options="updateViewOptions"
       @update:column-visibility="handleColumnVisibilityUpdate"
       @update:column-order="handleColumnOrderUpdate"
@@ -565,15 +568,15 @@
           <!-- Visits List -->
           <div class="text-subtitle2 q-mb-sm">{{ $t('dataGrid.visits') }}</div>
           <q-list bordered separator>
-            <q-item 
-              v-for="visit in patientVisits" 
+            <q-item
+              v-for="visit in patientVisits"
               :key="visit.encounterNum"
               clickable
               @click="toggleVisitVisibility(visit.encounterNum)"
             >
               <q-item-section avatar>
-                <q-icon 
-                  :name="isVisitHidden(visit.encounterNum) ? 'visibility_off' : 'visibility'" 
+                <q-icon
+                  :name="isVisitHidden(visit.encounterNum) ? 'visibility_off' : 'visibility'"
                   :color="isVisitHidden(visit.encounterNum) ? 'grey-6' : 'primary'"
                 />
               </q-item-section>
@@ -582,9 +585,9 @@
                 <q-item-label caption>{{ $t('dataGrid.encounter') }}: {{ visit.encounterNum }}</q-item-label>
               </q-item-section>
               <q-item-section side>
-                <q-chip 
-                  :color="isVisitHidden(visit.encounterNum) ? 'grey' : 'primary'" 
-                  text-color="white" 
+                <q-chip
+                  :color="isVisitHidden(visit.encounterNum) ? 'grey' : 'primary'"
+                  text-color="white"
                   size="sm"
                 >
                   {{ isVisitHidden(visit.encounterNum) ? $t('dataGrid.hidden') : $t('dataGrid.visible') }}
@@ -641,6 +644,8 @@ import { useLocalSettingsStore } from 'src/stores/local-settings-store'
 import { useLoggingStore } from 'src/stores/logging-store'
 import ValueTypeIcon from 'src/components/shared/ValueTypeIcon.vue'
 import EditableCell from './EditableCell.vue'
+import StaleDataBanner from 'src/components/shared/StaleDataBanner.vue'
+import { useDbFreshness } from 'src/composables/useDbFreshness'
 import ViewOptionsDialog from './ViewOptionsDialog.vue'
 import AddObservationDialog from './AddObservationDialog.vue'
 import EditVisitDialog from 'src/components/patient/EditVisitDialog.vue'
@@ -678,7 +683,6 @@ const databaseStore = useDatabaseStore()
 const visitStore = useVisitStore()
 const loggingStore = useLoggingStore()
 const logger = loggingStore.createLogger('ExcelLikeEditor')
-const localSettings = useLocalSettingsStore()
 
 // Medication options
 const { frequencyOptions, routeOptions, loadMedicationOptions } = useMedicationOptions()
@@ -776,18 +780,6 @@ const selectedPatientForManagement = ref(null)
 // associated data and then runs the full cascade transaction).
 const deletePatientDialogRef = ref(null)
 
-// Load hidden visits from localStorage
-const loadHiddenVisits = () => {
-  const saved = localSettings.getSetting('dataGrid.hiddenVisits', [])
-  return new Set(saved)
-}
-
-// Save hidden visits to localStorage
-const saveHiddenVisits = (hiddenVisitsSet) => {
-  localSettings.setSetting('dataGrid.hiddenVisits', Array.from(hiddenVisitsSet))
-}
-
-const hiddenVisits = ref(loadHiddenVisits()) // Track hidden visit encounter numbers
 
 // Focus-column mode: clicking an observation column header toggles a wide view
 // for that single concept so the user can comfortably read longer values
@@ -818,27 +810,16 @@ function getVisitTypeMeta(code) {
   return dataGridStore?.visitTypeMeta?.get(code) || null
 }
 
-// Filter table rows: drop visits the user hid, and — when the audit filter is
-// active — also drop rows that contain no AUDIT cells.
-const tableRows = computed(() => {
-  let rows = dataGridStore?.tableRows || []
-  if (hiddenVisits.value.size > 0) {
-    rows = rows.filter((row) => !hiddenVisits.value.has(row.encounterNum))
-  }
-  if (dataGridStore?.auditFilterActive) {
-    rows = rows.filter((row) =>
-      Object.values(row.observations || {}).some((obs) => obs?.valueFlag === 'AUDIT'),
-    )
-  }
-  return rows
-})
+// Visible rows (hidden visits + audit filter) — ONE implementation, in the store
+const tableRows = computed(() => dataGridStore?.getVisibleTableRows || [])
 const viewOptions = computed(() => dataGridStore?.viewOptions || {})
+const columnVisibilityObject = computed(() => (dataGridStore?.columnVisibility ? Object.fromEntries(dataGridStore.columnVisibility) : {}))
 
 // Computed: Get unique patients from grid
 const gridPatients = computed(() => {
   const rows = tableRows.value || []
   const patientMap = new Map()
-  
+
   rows.forEach(row => {
     if (!patientMap.has(row.patientId)) {
       patientMap.set(row.patientId, {
@@ -847,7 +828,7 @@ const gridPatients = computed(() => {
       })
     }
   })
-  
+
   return Array.from(patientMap.values())
 })
 
@@ -929,8 +910,23 @@ const loadPatientData = async () => {
     if (dataGridStore?.initializeColumnOrder) {
       dataGridStore.initializeColumnOrder()
     }
+    await markFresh()
   }
 }
+
+// Other users' commits on the shown patients: reload silently, unless a
+// cell is being edited or a write is in flight — then show the banner
+const {
+  stale: remoteStale,
+  refresh: refreshFromRemote,
+  markFresh,
+} = useDbFreshness({
+  patientNums: () => (dataGridStore?.patientData || []).map((entry) => entry?.patient?.PATIENT_NUM).filter((n) => n != null),
+  isEditing: () => (dataGridStore?.editingCellCount || 0) > 0 || (dataGridStore?.pendingChanges?.size || 0) > 0,
+  reload: async () => {
+    if (dataGridStore?.loadGridData) await dataGridStore.loadGridData(props.patientIds)
+  },
+})
 
 // Visit-type lock toggle (same viewOptions flag as ViewOptionsDialog)
 const visitTypeLockActive = computed(() => dataGridStore?.viewOptions?.visitTypeLockActive === true)
@@ -1028,53 +1024,15 @@ function visitTypeChipStyle(code) {
   return { '--visit-type-color': c, '--visit-type-bg': bg }
 }
 const getCellClass = dataGridStore?.getCellClass || (() => '')
-const hasRowChanges = dataGridStore?.hasRowChanges || (() => false)
 
 // Medication-specific helpers
 const isMedicationConcept = (concept) => {
   return concept.code === 'LID: 52418-1' || concept.valueType === 'M' || (concept.code && concept.code.includes('52418'))
 }
 
-// Count medications for a visit (cached)
-const medicationCountCache = ref(new Map())
-
-const getMedicationCount = (row, concept) => {
-  const cacheKey = `${row.encounterNum}-${concept.code}`
-  
-  // Return cached count if available
-  if (medicationCountCache.value.has(cacheKey)) {
-    return medicationCountCache.value.get(cacheKey)
-  }
-  
-  // Load count asynchronously
-  loadMedicationCount(row, concept)
-  
-  // Return 0 as default until loaded
-  return 0
-}
-
-const loadMedicationCount = async (row, concept) => {
-  const cacheKey = `${row.encounterNum}-${concept.code}`
-  
-  try {
-    const query = `
-      SELECT COUNT(*) as count
-      FROM OBSERVATION_FACT
-      WHERE ENCOUNTER_NUM = ?
-        AND CONCEPT_CD = 'LID: 52418-1'
-        AND VALTYPE_CD = 'M'
-    `
-    
-    const result = await databaseStore.executeQuery(query, [row.encounterNum])
-    
-    if (result.success && result.data.length > 0) {
-      const count = result.data[0].count
-      medicationCountCache.value.set(cacheKey, count)
-    }
-  } catch (error) {
-    logger.warn('Failed to load medication count', error)
-  }
-}
+// Medication count per visit comes with the visit load (SUM over VALTYPE_CD='M')
+// and is refreshed by reloadRow after a medication save — no query per cell.
+const getMedicationCount = (row) => row?.medicationCount || 0
 
 // Medication Overview Dialog
 const openMedicationOverviewDialog = async (row) => {
@@ -1087,7 +1045,7 @@ const openMedicationOverviewDialog = async (row) => {
     // Load ALL medication observations for this visit from database
     // (not just the one in the grid structure)
     const query = `
-      SELECT 
+      SELECT
         OBSERVATION_ID,
         CONCEPT_CD,
         TVAL_CHAR,
@@ -1095,13 +1053,12 @@ const openMedicationOverviewDialog = async (row) => {
         UNIT_CD
       FROM OBSERVATION_FACT
       WHERE ENCOUNTER_NUM = ?
-        AND CONCEPT_CD = 'LID: 52418-1'
         AND VALTYPE_CD = 'M'
       ORDER BY INSTANCE_NUM
     `
-    
+
     const result = await databaseStore.executeQuery(query, [row.encounterNum])
-    
+
     let allMedications = []
     if (result.success && result.data.length > 0) {
       allMedications = result.data.map(obs => ({
@@ -1116,18 +1073,18 @@ const openMedicationOverviewDialog = async (row) => {
       // No medications found
       allMedications = []
     }
-    
+
     // Load BLOB data for each medication
     const medicationsWithDetails = await Promise.all(
       allMedications.map(async (obs) => {
         const obsId = obs.observationId || obs.OBSERVATION_ID
         if (!obsId) return null
-        
+
         try {
           const { useObservationStore } = await import('src/stores/observation-store.js')
           const observationStore = useObservationStore()
           const loadedBlob = await observationStore.getObservationBlob(obsId)
-          
+
           let medicationData = {
             drugName: obs.TVAL_CHAR || obs.value || '',
             dosage: obs.NVAL_NUM || null,
@@ -1136,7 +1093,7 @@ const openMedicationOverviewDialog = async (row) => {
             route: '',
             instructions: '',
           }
-          
+
           if (loadedBlob) {
             try {
               const parsed = JSON.parse(loadedBlob)
@@ -1148,7 +1105,7 @@ const openMedicationOverviewDialog = async (row) => {
               logger.warn('Failed to parse medication BLOB', parseError)
             }
           }
-          
+
           return {
             ...medicationData,
             observationId: obsId,
@@ -1167,7 +1124,7 @@ const openMedicationOverviewDialog = async (row) => {
         }
       })
     )
-    
+
     medicationOverviewData.value = {
       medications: medicationsWithDetails.filter(m => m !== null),
       patientId: row.patientId,
@@ -1175,7 +1132,7 @@ const openMedicationOverviewDialog = async (row) => {
       encounterNum: row.encounterNum,
       visitDate: row.visitDate,
     }
-    
+
     showMedicationOverviewDialog.value = true
   } catch (error) {
     logger.error('Failed to open medication overview dialog', error)
@@ -1184,25 +1141,19 @@ const openMedicationOverviewDialog = async (row) => {
 }
 
 const onMedicationsUpdated = async () => {
-  // Clear medication count cache to force reload
-  medicationCountCache.value.clear()
-  
-  // Refresh grid data after medications are updated
-  await refreshData()
-  
-  // Reload medication counts for visible rows
+  // Reload just the edited visit row (cells + medicationCount) instead of the whole grid
   if (medicationOverviewData.value) {
     const { patientId, encounterNum } = medicationOverviewData.value
-    const row = tableRows.value?.find(r => r.patientId === patientId && r.encounterNum === encounterNum)
-    if (row) {
-      const concept = observationConcepts.value?.find(c => c.code === 'LID: 52418-1')
-      if (concept) {
-        await loadMedicationCount(row, concept)
-      }
+    try {
+      await dataGridStore.reloadRow(patientId, encounterNum)
+    } catch (error) {
+      logger.warn('Row reload after medication update failed — full refresh', error)
+      await refreshData()
     }
+  } else {
+    await refreshData()
   }
-  
-  logger.success('Medications updated, grid refreshed')
+  logger.success('Medications updated, row refreshed')
 }
 
 // Check if this is the first visit row for a patient
@@ -1241,6 +1192,7 @@ const getObservationCount = async (encounterNum) => {
 }
 
 // Event handlers (using store functions) - with defensive checks
+const onCellSaveStart = dataGridStore?.handleCellSaveStart || (() => {})
 const onCellUpdate = dataGridStore?.handleCellUpdate || (() => {})
 const onCellSave = dataGridStore?.handleCellSave || (() => {})
 const onCellError = dataGridStore?.handleCellError || (() => {})
@@ -1574,7 +1526,7 @@ const getAvailableQuestionnaires = async () => {
     const templateResult = await databaseStore.executeQuery(
       `SELECT NAME_CHAR, CODE_CD, LOOKUP_BLOB
        FROM CODE_LOOKUP
-       WHERE TABLE_CD = 'SURVEY_BEST' 
+       WHERE TABLE_CD = 'SURVEY_BEST'
        AND COLUMN_CD = 'QUESTIONNAIRE'
        AND LOOKUP_BLOB IS NOT NULL
        ORDER BY NAME_CHAR`,
@@ -1604,7 +1556,7 @@ const getQuestionnaireTemplateByName = async (questionnaireName) => {
     const templateResult = await databaseStore.executeQuery(
       `SELECT LOOKUP_BLOB, NAME_CHAR, CODE_CD
        FROM CODE_LOOKUP
-       WHERE TABLE_CD = 'SURVEY_BEST' 
+       WHERE TABLE_CD = 'SURVEY_BEST'
        AND COLUMN_CD = 'QUESTIONNAIRE'
        AND (NAME_CHAR = ? OR NAME_CHAR LIKE ?)
        AND LOOKUP_BLOB IS NOT NULL
@@ -1651,7 +1603,7 @@ const createNewQuestionnaireColumn = async (questionnaireName, baseConceptCode) 
     // Create concept in CONCEPT_DIMENSION
     const conceptResult = await databaseStore.executeQuery(
       `INSERT INTO CONCEPT_DIMENSION (
-        CONCEPT_CD, NAME_CHAR, CONCEPT_BLOB, UPDATE_DATE, DOWNLOAD_DATE, 
+        CONCEPT_CD, NAME_CHAR, CONCEPT_BLOB, UPDATE_DATE, DOWNLOAD_DATE,
         IMPORT_DATE, SOURCESYSTEM_CD, UPLOAD_ID, VALTYPE_CD, CATEGORY_CHAR
       ) VALUES (?, ?, ?, datetime('now'), datetime('now'), datetime('now'), ?, ?, ?, ?)`,
       [
@@ -1893,7 +1845,7 @@ const createSimpleVisit = async () => {
     // Get patient from database
     const patientRepo = databaseStore.getRepository('patient')
     const patient = await patientRepo.findByPatientCode(selectedPatientForVisit.value.patientId)
-    
+
     if (!patient) {
       throw new Error(t('visit.patientNotFound'))
     }
@@ -1915,7 +1867,7 @@ const createSimpleVisit = async () => {
 
     const createdVisit = await visitStore.createVisit(visitData)
 
-    logger.info('Visit created successfully', { 
+    logger.info('Visit created successfully', {
       encounterNum: createdVisit.ENCOUNTER_NUM,
       patientId: selectedPatientForVisit.value.patientId,
     })
@@ -1924,10 +1876,10 @@ const createSimpleVisit = async () => {
     selectedPatientForVisit.value = null
     closeDialog('newVisit')
     newVisitDate.value = new Date().toISOString().split('T')[0]
-    
+
     // Refresh grid data to show new visit
     await refreshData()
-    
+
     notify.success(t('visit.visitCreated'))
   } catch (error) {
     logger.error('Failed to create visit', error)
@@ -1945,7 +1897,7 @@ const handlePatientSelected = async (patient) => {
     logger.warn('Patient selected but no ID found', { patient })
     return
   }
-  
+
   // Create patient object in expected format
   const patientForAdd = {
     PATIENT_CD: patientId,
@@ -1953,7 +1905,7 @@ const handlePatientSelected = async (patient) => {
     NAME_CHAR: patient.NAME_CHAR || patient.name || patientId,
     ...patient,
   }
-  
+
   await addPatientToGrid(patientForAdd)
   closeDialog('addPatient')
 }
@@ -1962,7 +1914,7 @@ const handlePatientSelected = async (patient) => {
 const addPatientToGrid = async (patient) => {
   try {
     const patientId = patient.PATIENT_CD
-    
+
     // Check if patient is already in grid
     if (props.patientIds.includes(patientId)) {
       notify.info(t('dataGrid.patientAlreadyInGrid', { name: patient.NAME_CHAR || patientId }))
@@ -1976,12 +1928,12 @@ const addPatientToGrid = async (patient) => {
     localSettings.setDataGridSelectedPatients(updatedPatients)
 
     closeDialog('addPatient')
-    
+
     // Refresh grid data with updated patient list
     if (dataGridStore?.refreshData) {
       await dataGridStore.refreshData(updatedPatients)
     }
-    
+
     notify.success(t('dataGrid.patientAddedToGrid', { name: patient.NAME_CHAR || patientId }))
   } catch (error) {
     logger.error('Failed to add patient to grid', error)
@@ -1993,10 +1945,8 @@ const addPatientToGrid = async (patient) => {
 const handleConceptAdded = (concept) => {
   logger.info('Concept added to grid', { concept })
   closeDialog('addObservation')
-  
-  // Refresh grid data to show new column
-  refreshData()
-  
+  // the store already added the column; no full reload needed
+
   notify.success(t('dataGrid.columnAddedSuccessfully', { name: concept.name || concept.code }))
 }
 
@@ -2065,22 +2015,9 @@ const patientVisits = computed(() => {
     .sort((a, b) => a.encounterNum - b.encounterNum)
 })
 
-// Check if a visit is hidden
-const isVisitHidden = (encounterNum) => {
-  return hiddenVisits.value.has(encounterNum)
-}
-
-// Toggle visit visibility
-const toggleVisitVisibility = (encounterNum) => {
-  if (hiddenVisits.value.has(encounterNum)) {
-    hiddenVisits.value.delete(encounterNum)
-  } else {
-    hiddenVisits.value.add(encounterNum)
-  }
-  // Force reactivity update and save to localStorage
-  hiddenVisits.value = new Set(hiddenVisits.value)
-  saveHiddenVisits(hiddenVisits.value)
-}
+// Hidden visits — delegated to the store (persisted in local settings there)
+const isVisitHidden = (encounterNum) => dataGridStore.isVisitHidden(encounterNum)
+const toggleVisitVisibility = (encounterNum) => dataGridStore.toggleVisitHidden(encounterNum)
 
 // Remove a patient from the grid selection (shared by the manage dialog and
 // the patient-cell context menu)
@@ -2266,7 +2203,7 @@ onBeforeUnmount(() => {
 .excel-table-wrapper {
   display: inline-block;
   will-change: transform;
-  
+
   // Ensure proper scaling and maintain table structure
   .excel-table {
     transform-origin: top left;
@@ -2571,7 +2508,7 @@ onBeforeUnmount(() => {
           height: 100%;
           padding: 2px;
           overflow: hidden;
-          
+
           .medication-display-wrapper {
             display: flex;
             align-items: center;
@@ -2580,17 +2517,17 @@ onBeforeUnmount(() => {
             width: 100%;
             height: 100%;
             position: relative;
-            
+
             :deep(.medication-view) {
               flex: 1;
               min-width: 0;
               overflow: hidden;
-              
+
               .filled-medication-item {
                 max-width: 100%;
                 overflow: hidden;
                 padding: 2px 4px;
-                
+
                 .medication-text {
                   overflow: hidden;
                   text-overflow: ellipsis;
@@ -2598,24 +2535,24 @@ onBeforeUnmount(() => {
                   font-size: 0.85rem;
                 }
               }
-              
+
               .empty-medication {
                 padding: 4px;
               }
             }
-            
+
             .medication-count-badge {
               flex-shrink: 0;
               font-size: 0.7rem;
               padding: 2px 6px;
               height: 20px;
               cursor: pointer;
-              
+
               &:hover {
                 transform: scale(1.05);
               }
             }
-            
+
             .medication-empty {
               cursor: pointer;
               display: flex;
@@ -2623,11 +2560,11 @@ onBeforeUnmount(() => {
               align-items: center;
               width: 100%;
               height: 100%;
-              
+
               .add-icon {
                 transition: all 0.2s ease;
               }
-              
+
               &:hover .add-icon {
                 color: $primary;
                 transform: scale(1.1);
@@ -2635,7 +2572,7 @@ onBeforeUnmount(() => {
             }
           }
         }
-        
+
         // Medication cell with value type class (match header width: 120px)
         &.value-type-m {
           width: 120px;
@@ -2644,18 +2581,18 @@ onBeforeUnmount(() => {
           text-align: center;
           vertical-align: middle;
         }
-        
+
         // Icon-only display for medications
         &.medication-icon-display {
           cursor: pointer;
           transition: all 0.2s ease;
           text-align: center;
           vertical-align: middle;
-          
+
           &:hover {
             background: rgba($primary, 0.08);
           }
-          
+
           .medication-icon-wrapper {
             display: flex;
             align-items: center;
@@ -2664,11 +2601,11 @@ onBeforeUnmount(() => {
             width: 100%;
             height: 100%;
             min-height: 40px;
-            
+
             .q-icon {
               transition: all 0.2s ease;
             }
-            
+
             .medication-count-text {
               font-size: 0.9rem;
               font-weight: 600;
@@ -2676,7 +2613,7 @@ onBeforeUnmount(() => {
               transition: all 0.2s ease;
             }
           }
-          
+
           &:hover .q-icon,
           &:hover .medication-count-text {
             transform: scale(1.1);
@@ -2715,7 +2652,7 @@ onBeforeUnmount(() => {
             text-align: center;
             color: $grey-8;
             cursor: pointer;
-            
+
             &:hover {
               color: $primary;
             }

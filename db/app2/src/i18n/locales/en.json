@@ -1,4 +1,14 @@
 {
+  "freshness": {
+    "remoteChange": "Another user changed data shown here. Refresh to load the current state."
+  },
+  "db": {
+    "lockedByOtherUser": "The database is currently locked by another user – please retry the action in a few seconds.",
+    "waitingForLock": "Waiting for the database (another user is writing) …",
+    "readonly": "The database file is read-only – changes cannot be saved.",
+    "ioError": "Database error: {message}",
+    "mockBanner": "Browser mode without a database connection – no data is loaded or saved."
+  },
   "common": {
     "menu": "Menu",
     "dashboard": "Dashboard",
@@ -556,6 +566,7 @@
     "questionnaireScore": "Score: {score}"
   },
   "observation": {
+    "conflict": "This observation was changed or deleted by another user in the meantime – the current state has been loaded, please check your input.",
     "observation": "Observation",
     "observations": "Observations",
     "addObservation": "Add Observation",
@@ -854,6 +865,8 @@
     "pageSubtitle": "Personal preferences, profile and local configuration"
   },
   "dataGrid": {
+    "cellChangedElsewhere": "This cell was changed or deleted by another user in the meantime – the row has been reloaded.",
+    "invalidNumber": "Please enter a valid number.",
     "dataGrid": "Data Grid",
     "editor": "Editor",
     "deleteValue": "Delete value",

@@ -6,7 +6,7 @@
 
 ## 📁 Project Overview
 
-**BEST - Scientific DB Manager**  
+**BEST - Scientific DB Manager**
 A modern research database for neuroscientific data built with Vue 3, Quasar, and SQLite.
 
 - **Architecture**: Clean MVC (Model-View-Controller) pattern
@@ -193,11 +193,21 @@ VALUES (1, 42, 'Access granted for study XYZ', datetime('now'));
   `findByPatientCode` stays unfiltered for internal checks (duplicate
   detection on create) and must not be used for user-facing lists (2026-07-14)
 - ✅ Single source of the access predicate: `PatientRepository.getAccessFilter(userAccess)`
-  returns `{join, condition, param}` (or null for admins) — every filtered
-  query composes from it; never inline the UPL join by hand. For list queries
-  in components, always call the `dbStore` wrappers (`getPatientsPaginated`,
-  `getAccessiblePatientByCode`), never `patientRepo.*` directly — the repo
-  methods don't resolve the auth context themselves
+  returns `{join, condition, param}` (or null = unfiltered) — every filtered
+  query composes from it; never inline the UPL join by hand. For aggregate
+  queries without a `p` alias use `getAccessPredicate(userAccess, 'x.PATIENT_NUM')`
+  (`{sql, params}` or null). For list queries in components, always call the
+  `dbStore` wrappers (`getPatientsPaginated`, `getAccessiblePatientByCode`,
+  `getEnrolledPatientsForStudy`, …), never `patientRepo.*`/`studyRepo.*`
+  directly — the repo methods don't resolve the auth context themselves
+- ✅ **Access modes are FAIL-CLOSED** (`shared/utils/patient-access.js`
+  `resolveAccessMode`, Sept 2026): `userAccess === null/undefined` = system
+  caller (imports, tests) → unfiltered; `isAdmin` → unfiltered; a context
+  object WITHOUT `userId` → deny-all (`1 = 0`); otherwise filtered. **Never
+  test `userId` for truthiness** — `USER_ID = 0` is the seeded `public` user
+  and used to fall through to "no filter" (public saw every patient).
+  `database-store.resolveUserAccess` therefore never returns null: no
+  session / auth error → `{userId: null, isAdmin: false}` → deny-all
 - ✅ Every patient-creating path MUST write access rows: interactive creation
   via `database-store.createPatient` (creator + optional public), imports via
   `database-import-service.assignPatientAccess` (creator + public by default),
@@ -365,7 +375,16 @@ is the single entry point:
 - `flag='NV'` — flips to NV **and** clears `NVAL_NUM` + `TVAL_CHAR` (so "no value" really is no value).
 - `flag=null` — clears the flag, value untouched.
 
-Direct value edits via `EditableCell.updateObservation` also write
+**Grid writes (Sept 2026)**: `data-grid-store.writeObservation` is the ONLY
+value-write of the grid (EditableCell edits, undo/redo, fill-down);
+`setObservationFlag`, `deleteObservationFromGrid`, `setObservationStartDate`
+are the other writers. All use `dbStore.executeCommand` and
+`assertRowChanged` — `changes === 0` throws `StaleObservationError`, the
+store reloads that row (`reloadRow`) and the cell shows a warning. Never
+write OBSERVATION_FACT from a component via `executeQuery`. Cells mirror
+`updateDate`; `0` is a value (`??`, never `||`).
+
+Direct value edits via `data-grid-store.writeObservation` also write
 `VALUEFLAG_CD = null` whenever a real numeric value is entered, so any prior
 NV/AUDIT/CONFIRMED state is cleared automatically (see test
 `tests/unit/15_editable-cell-nv-state.test.js`, case "value → value").
@@ -537,6 +556,75 @@ For one-off fix-ups of existing rows that this migration doesn't own, add explic
 `UPDATE` statements after the upserts (see `010-stroke-lipid-seed.js`'s
 `categoryFixups` block — that's how `SCTID: 371484003` was moved from `'General'`
 to `'Demographics'`).
+
+### 8. Query-performance conventions (audit Sept 2026)
+
+Several users work on ONE SQLite file over SMB, so every avoidable round trip
+and every shipped blob costs real time. Rules that came out of the audit:
+
+- **`patient_list` view**: `AGE_IN_YEARS` comes from the exact concept
+  `LID: 63900-5` (correlated scalar subquery, migration 018) — never re-add
+  `LIKE '%age%'`-style matching or a window function to the view; it turns
+  every point lookup into a scan of OBSERVATION_FACT.
+- **No per-card queries.** Card lists batch everything:
+  `getPatientAccessInfo`, `getPatientStudyInfo`, `getVisitStatsForPatients`
+  (visit count + last visit, one `GROUP BY`), `getAccessiblePatientsByCodes`.
+- **First-page-only callers pass `options.skipCount`** to
+  `getPatientsPaginated` (dashboard, SmartSearch, recents) — the COUNT over
+  the view is otherwise a second full query.
+- **Text search** = `searchPatientsWithConcepts(term, access, {limit, offset})`
+  + `countSearchPatientsWithConcepts`; both share `_buildSearchQuery`
+  (PATIENT_CD / PATIENT_BLOB / STATECITYZIP_PATH only).
+- **Dashboard counters** = ONE query, `PatientRepository.getDashboardStatistics`
+  (scalar subqueries, access predicate on every counter). Date filters are
+  half-open text ranges (`>= day AND < nextDay`), never `DATE(col) = ?`.
+- **Never `SELECT *` from OBSERVATION_FACT on a hot path** (it ships
+  OBSERVATION_BLOB): count with `COUNT(*)`, update without a `findById`
+  pre-check (`changes` tells you), list with explicit columns and the R-blob
+  NULLed.
+- **Lookup caches**: `global-settings-store` has a 5-minute TTL — every
+  successful lookup load must call `markLookupLoaded()`; components must not
+  call `clearCache()` on mount. `concept-resolution-store` option loaders go
+  through `cacheManager.getOrSet` (`getFindingOptions`, `getSelectionOptions`).
+- **Logging**: `file://` is production. Debug logging in a packaged build
+  only via `localStorage.BEST_LOG_LEVEL = 'DEBUG'` (settings UI).
+
+### 9. Multi-user conventions (several app instances, one SQLite file on SMB)
+
+- **Journal stays `DELETE`**, `synchronous = FULL`, `busy_timeout = 4000`
+  (`electron-preload.js dbman.connect`, mirrored in `real-connection.js`).
+  WAL is NOT safe over SMB; journal_mode is a property of the FILE, so never
+  flip it from one instance. `check-db` fails on anything but `delete`.
+- **Transactions only via `databaseService.withTransaction(async (tx) => …)`**
+  and bind repositories to `tx` (`new PatientRepository(tx)`). It runs
+  `BEGIN IMMEDIATE … COMMIT` while holding the connection's statement gate
+  (`core/database/sqlite/statement-gate.js`), so no other caller's statement
+  lands inside. Raw `BEGIN`/`COMMIT` through `executeCommand` throws in dev.
+- **Optimistic locking on OBSERVATION_FACT** (`VERSION`, migration 019):
+  every UPDATE/DELETE of an observation carries `AND VERSION = ?` with the
+  version the client loaded and bumps `VERSION = VERSION + 1` — use
+  `buildValueUpdateStatement` / `buildSetFlagStatement(…, expectedVersion)` /
+  `versionGuard()` from `shared/utils/audit-flag.js` or
+  `ObservationRepository.updateObservation(id, data, {expectedVersion})`.
+  `changes === 0` → `StaleObservationError`: reload that observation
+  (`observation-store.refreshObservationById`, `data-grid-store.reloadRow`)
+  and tell the user (`observation.conflict` / `dataGrid.cellChangedElsewhere`).
+  Every list load must SELECT `VERSION` and mirror `version + 1` after a
+  successful write. The guard trigger `observation_version_guard` bumps
+  VERSION for legacy writers, so never rely on it for your own statements'
+  row count semantics — bump explicitly.
+- **Writes use `executeCommand`, never `executeQuery`** — only the command
+  path returns `changes`. Failures carry `errorKind`
+  (`busy|locked|readonly|corrupt|io|other`, `db-errors.classifyDbError`) and
+  are reported on `dbErrorBus` → `database-store.lastDbError` → App toast.
+  Stores never call notify.
+- **Freshness**: `db-freshness-store` (App-wide, `PRAGMA data_version` every
+  5 s) + `useDbFreshness({patientNums, isEditing, reload})` per page.
+  A page that reloads itself calls `markFresh()`. Never auto-reload while
+  `isEditing()` — show `StaleDataBanner`.
+- **Caches follow the connection**: `database-store.resetDerivedCaches()`
+  runs on connect/close (concept cache prefix = hash of the DB path); a
+  remote CODE_LOOKUP/CONCEPT_DIMENSION change invalidates both caches.
 
 ---
 
@@ -1435,6 +1523,10 @@ npm test tests/integration/ -- --run # Integration tests
 # check built in (see scripts/verify-visits/README.md). App must NOT be
 # running (shares the SQLite DB).
 bash scripts/verify-visits/run.sh
+# Mehrbenutzer-E2E (App als Instanz A per CDP, zweite SQLite-Connection als
+# Instanz B): Auto-Reload, StaleDataBanner, VERSION-Konflikt, busy_timeout,
+# Lock-Toast. 17 Checks, ~3 min, gleiche Sicherheitsregeln wie verify-visits.
+bash scripts/verify-multiuser/run.sh
 
 # Integrationstest gegen eine beliebige DB-Datei (arbeitet auf einer Kopie):
 # Migrationen, integrity/FK-Check, Trigger, Konsistenz, CLAUDE.md-Konventionen,
@@ -1643,6 +1735,6 @@ console.log($t('category.key'))
 
 ---
 
-**Last Updated**: September 15, 2026  
-**App Version**: 0.8_20260915  
-**Database Schema Version**: migrations 001–017 (latest: 015 OBSERVATION_AUDIT_FACT, 016 trigger re-creation, 017 neuro consult seed)
+**Last Updated**: September 15, 2026
+**App Version**: 0.8_20260915
+**Database Schema Version**: migrations 001–019 (latest: 017 neuro consult seed, 018 patient_list perf + indexes, 019 OBSERVATION_FACT.VERSION optimistic locking)

@@ -7,6 +7,10 @@ import sqlite3 from 'sqlite3'
 // Use process.cwd() since we're compiled to CommonJS
 const __dirname = process.cwd()
 
+// How long SQLite waits for another connection's lock before SQLITE_BUSY
+// (see dbman.connect). Mirrored in src/core/database/sqlite/real-connection.js.
+const DB_BUSY_TIMEOUT_MS = 4000
+
 console.log('electron-preload.js loaded')
 
 // Database manager - similar to original app
@@ -126,10 +130,30 @@ const dbman = {
         new Promise((resolve, reject) =>
           this.database.run(sql, (err) => (err ? reject(err) : resolve())),
         )
+      const getPragma = (sql, column) =>
+        new Promise((resolve, reject) =>
+          this.database.get(sql, (err, row) => (err ? reject(err) : resolve(row ? row[column] : null))),
+        )
       try {
+        // Several app instances share this file (network share, rollback
+        // journal). journal_mode is a property of the FILE, not of this
+        // connection — WAL is not safe over SMB, so DELETE it stays; if some
+        // other tool flipped the file to WAL we force it back and say so.
         await runPragma('PRAGMA journal_mode = DELETE')
         await runPragma('PRAGMA synchronous = FULL')
         await runPragma('PRAGMA foreign_keys = ON')
+        // Wait for a writer instead of failing instantly with SQLITE_BUSY.
+        // A single-row commit over SMB is ~50–300 ms; 4 s also covers a
+        // first-start migration by another instance. The renderer retries
+        // BUSY on top of this (db-errors.withBusyRetry).
+        await runPragma(`PRAGMA busy_timeout = ${DB_BUSY_TIMEOUT_MS}`)
+        const journalMode = await getPragma('PRAGMA journal_mode', 'journal_mode')
+        if (String(journalMode).toLowerCase() !== 'delete') {
+          console.error(`journal_mode is "${journalMode}" after forcing DELETE — another connection holds the file in a different mode`)
+        }
+        if (/^(\\\\|\/\/)/.test(filename) || /^(\\\\|\/\/)/.test(absolutePath)) {
+          console.warn('Database lives on a network path (UNC) — rollback journal + busy_timeout profile active:', absolutePath)
+        }
       } catch (err) {
         console.error('Failed to apply connection PRAGMAs:', err)
         return false

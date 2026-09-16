@@ -13,6 +13,7 @@
  */
 
 import BaseRepository from './base-repository.js'
+import { StaleObservationError, versionGuard, nextVersion } from '../../../shared/utils/audit-flag.js'
 
 class ObservationRepository extends BaseRepository {
   constructor(connection) {
@@ -206,7 +207,7 @@ class ObservationRepository extends BaseRepository {
    */
   async getObservationsWithContext(patientNum) {
     const sql = `
-      SELECT o.*, 
+      SELECT o.*,
              p.PATIENT_CD,
              v.LOCATION_CD,
              v.START_DATE as VISIT_START_DATE
@@ -370,10 +371,10 @@ class ObservationRepository extends BaseRepository {
     }
 
     const sql = `
-      SELECT * FROM ${this.tableName} 
-      WHERE CATEGORY_CHAR LIKE ? 
-         OR CONCEPT_CD LIKE ? 
-         OR TVAL_CHAR LIKE ? 
+      SELECT * FROM ${this.tableName}
+      WHERE CATEGORY_CHAR LIKE ?
+         OR CONCEPT_CD LIKE ?
+         OR TVAL_CHAR LIKE ?
          OR CAST(PATIENT_NUM AS TEXT) LIKE ?
          OR CAST(ENCOUNTER_NUM AS TEXT) LIKE ?
       ORDER BY START_DATE DESC
@@ -389,14 +390,35 @@ class ObservationRepository extends BaseRepository {
    * @param {Object} updateData - Data to update
    * @returns {Promise<boolean>} - Success status
    */
-  async updateObservation(observationId, updateData) {
-    // Validate observation exists
-    const existingObservation = await this.findById(observationId)
-    if (!existingObservation) {
-      throw new Error(`Observation with OBSERVATION_ID ${observationId} not found`)
+  async updateObservation(observationId, updateData, { expectedVersion = null } = {}) {
+    // No SELECT * pre-check (it shipped OBSERVATION_BLOB — up to 50 MB for
+    // R rows — over IPC on every save): the UPDATE's changes-count tells us.
+    //
+    // Optimistic locking (migration 019): the statement bumps VERSION and,
+    // when the caller knows the version it loaded, only hits the row if it
+    // is still at that version. Zero rows → changed elsewhere or deleted.
+    const fields = Object.keys(updateData || {}).filter((key) => updateData[key] !== undefined && key !== this.primaryKey && key !== 'VERSION' && key !== 'UPDATE_DATE')
+    if (fields.length === 0) {
+      throw new Error('No fields to update')
     }
-
-    return await this.update(observationId, updateData)
+    const guard = versionGuard(expectedVersion)
+    const sql = `UPDATE ${this.tableName} SET ${fields.map((f) => `${f} = ?`).join(', ')}, UPDATE_DATE = datetime('now'), VERSION = VERSION + 1 WHERE ${this.primaryKey} = ?${guard.sql}`
+    const params = [...fields.map((f) => updateData[f]), observationId, ...guard.params]
+    const result = await this.connection.executeCommand(sql, params)
+    if (!result || result.success === false) {
+      throw new Error(result?.error || 'Failed to update observation')
+    }
+    const changes = typeof result.changes === 'number' ? result.changes : 1
+    if (changes === 0) {
+      // deleted vs. changed by someone else — one cheap lookup decides
+      const probe = await this.connection.executeQuery(`SELECT VERSION FROM ${this.tableName} WHERE ${this.primaryKey} = ?`, [observationId])
+      const current = probe?.success && probe.data?.length ? probe.data[0].VERSION : null
+      if (current === null || current === undefined) {
+        throw new Error(`Observation with OBSERVATION_ID ${observationId} not found`)
+      }
+      throw new StaleObservationError(observationId, `Observation ${observationId} was changed by another user (version ${current}, expected ${expectedVersion})`)
+    }
+    return { success: true, changes, newVersion: nextVersion(expectedVersion) }
   }
 
   /**
@@ -428,8 +450,8 @@ class ObservationRepository extends BaseRepository {
    */
   async getSurveyObservations(surveyCode) {
     const sql = `
-      SELECT * FROM ${this.tableName} 
-      WHERE CATEGORY_CHAR = 'surveyBEST' 
+      SELECT * FROM ${this.tableName}
+      WHERE CATEGORY_CHAR = 'surveyBEST'
         AND OBSERVATION_BLOB LIKE ?
       ORDER BY START_DATE DESC
     `
@@ -444,7 +466,7 @@ class ObservationRepository extends BaseRepository {
    */
   async getPatientNumericSummary(patientNum) {
     const sql = `
-      SELECT 
+      SELECT
         CONCEPT_CD,
         COUNT(*) as count,
         AVG(NVAL_NUM) as average,

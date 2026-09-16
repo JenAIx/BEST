@@ -1,4 +1,14 @@
 {
+  "freshness": {
+    "remoteChange": "Ein anderer Nutzer hat Daten dieser Ansicht geändert. Aktualisieren, um den aktuellen Stand zu laden."
+  },
+  "db": {
+    "lockedByOtherUser": "Die Datenbank ist gerade durch einen anderen Nutzer gesperrt – die Aktion bitte in ein paar Sekunden wiederholen.",
+    "waitingForLock": "Warte auf die Datenbank (ein anderer Nutzer schreibt gerade) …",
+    "readonly": "Die Datenbankdatei ist schreibgeschützt – Änderungen können nicht gespeichert werden.",
+    "ioError": "Datenbankfehler: {message}",
+    "mockBanner": "Browser-Modus ohne Datenbankverbindung – es werden keine Daten geladen oder gespeichert."
+  },
   "common": {
     "menu": "Menü",
     "dashboard": "Dashboard",
@@ -556,6 +566,7 @@
     "questionnaireScore": "Score: {score}"
   },
   "observation": {
+    "conflict": "Diese Beobachtung wurde inzwischen von einem anderen Nutzer geändert oder gelöscht – der aktuelle Stand wurde geladen, bitte Eingabe prüfen.",
     "observation": "Beobachtung",
     "observations": "Beobachtungen",
     "addObservation": "Beobachtung hinzufügen",
@@ -854,6 +865,8 @@
     "pageSubtitle": "Persönliche Einstellungen, Profil und lokale Konfiguration"
   },
   "dataGrid": {
+    "cellChangedElsewhere": "Diese Zelle wurde inzwischen von einem anderen Nutzer geändert oder gelöscht – Zeile wurde neu geladen.",
+    "invalidNumber": "Bitte eine gültige Zahl eingeben.",
     "dataGrid": "Datentabelle",
     "editor": "Editor",
     "deleteValue": "Wert löschen",

@@ -5,10 +5,14 @@
  */
 
 import { defineStore } from 'pinia'
+import { queryInChunks } from 'src/shared/utils/sql-tools.js'
 import { ref, computed } from 'vue'
 import databaseService from '../core/services/database-service.js'
 import { useLoggingStore } from './logging-store.js'
 import { canManagePatientAccess } from '../shared/utils/patient-access.js'
+import { dbErrorBus } from '../core/database/sqlite/db-errors.js'
+import PatientRepository from '../core/database/repositories/patient-repository.js'
+import UserPatientLookupRepository from '../core/database/repositories/user-patient-lookup-repository.js'
 
 export const useDatabaseStore = defineStore('database', () => {
   // State
@@ -30,6 +34,29 @@ export const useDatabaseStore = defineStore('database', () => {
 
   const canPerformOperations = computed(() => isConnected.value && isInitialized.value && !connectionError.value)
 
+  // Last SQLite failure reported by the connection layer ({kind, message,
+  // sql, at}) — App.vue turns it into a throttled toast ("gesperrt durch
+  // anderen Nutzer"). Stores never notify themselves.
+  const lastDbError = ref(null)
+  dbErrorBus.on((event) => {
+    lastDbError.value = event
+  })
+
+  const isMockConnection = computed(() => isConnected.value && databaseService.isMockConnection === true)
+
+  // Lookup/concept caches belong to ONE database file — drop them whenever
+  // the connection changes (login to another profile, logout).
+  const resetDerivedCaches = async () => {
+    try {
+      const [{ useConceptResolutionStore }, { useGlobalSettingsStore }] = await Promise.all([import('./concept-resolution-store'), import('./global-settings-store')])
+      await useConceptResolutionStore().reset?.()
+      useGlobalSettingsStore().clearCache()
+    } catch (error) {
+      const loggingStore = useLoggingStore()
+      loggingStore.warn('DatabaseStore', 'Could not reset derived caches', error)
+    }
+  }
+
   // Actions
   const initializeDatabase = async (path) => {
     const loggingStore = useLoggingStore()
@@ -50,9 +77,11 @@ export const useDatabaseStore = defineStore('database', () => {
 
         loggingStore.debug('DatabaseStore', 'Loading initial database data')
 
-        // Load initial data
+        // Load initial data. The 8-table row-count statistics are NOT loaded
+        // here any more — only DatabaseTest/Feedback show them and they call
+        // loadStatistics() / refreshDatabaseInfo() themselves.
         await loadMigrationStatus()
-        await loadStatistics()
+        await resetDerivedCaches()
 
         const duration = timer.end()
         loggingStore.success('DatabaseStore', 'Database initialized successfully', {
@@ -79,6 +108,7 @@ export const useDatabaseStore = defineStore('database', () => {
       isLoading.value = true
 
       await databaseService.close()
+      await resetDerivedCaches()
 
       isConnected.value = false
       isInitialized.value = false
@@ -203,24 +233,31 @@ export const useDatabaseStore = defineStore('database', () => {
 
   // Resolve the current auth context for access-controlled queries
   // (dynamic import to avoid circular dependency with auth-store)
+  // FAIL CLOSED: never return null here — null means "system context, no
+  // filtering" to the repositories. No logged-in user or an auth-store error
+  // yields a context WITHOUT a user id, which the repositories turn into a
+  // deny-all predicate (see shared/utils/patient-access.js resolveAccessMode).
+  const DENY_ALL_ACCESS = Object.freeze({ userId: null, isAdmin: false })
   const resolveUserAccess = async () => {
     try {
       const { useAuthStore } = await import('./auth-store')
       const authStore = useAuthStore()
       const userId = authStore.currentUser?.USER_ID
-      if (userId === undefined || userId === null) return null
-      return { userId, isAdmin: authStore.isAdmin }
+      if (userId === undefined || userId === null) return DENY_ALL_ACCESS
+      return { userId, isAdmin: authStore.isAdmin === true }
     } catch (error) {
       const loggingStore = useLoggingStore()
-      loggingStore.warn('DatabaseStore', 'Could not resolve auth context for access control', error)
-      return null
+      loggingStore.warn('DatabaseStore', 'Could not resolve auth context for access control — denying access', error)
+      return DENY_ALL_ACCESS
     }
   }
 
   // Patient operations
   const createPatient = async (patientData, { isPublic = false } = {}) => {
     const loggingStore = useLoggingStore()
-    const patientRepo = getPatientRepository()
+    if (!canPerformOperations.value) {
+      throw new Error('Database not ready for operations')
+    }
 
     // Resolve creator before opening the transaction so a circular-import failure
     // doesn't leave us holding an orphan BEGIN.
@@ -234,47 +271,38 @@ export const useDatabaseStore = defineStore('database', () => {
 
     // Atomic: patient INSERT + USER_PATIENT_LOOKUP INSERT must commit or rollback together,
     // otherwise a regular (non-admin) user would be locked out of patients they just created.
-    let inTransaction = false
+    // withTransaction holds the statement gate — no other caller's statement can land
+    // inside this transaction (the old inline BEGIN/COMMIT was not isolated).
     try {
-      await executeCommand('BEGIN TRANSACTION')
-      inTransaction = true
+      return await databaseService.withTransaction(async (tx) => {
+        const txPatientRepo = new PatientRepository(tx)
+        const txLookupRepo = new UserPatientLookupRepository(tx)
+        const createdPatient = await txPatientRepo.createPatient(patientData)
 
-      const createdPatient = await patientRepo.createPatient(patientData)
-
-      if (currentUserId && createdPatient.PATIENT_NUM) {
-        const lookupRepo = getRepository('userPatientLookup')
-        await lookupRepo.addAssociationIfMissing(currentUserId, createdPatient.PATIENT_NUM, {
-          nameChar: 'Creator access - auto-assigned',
-        })
-        loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
-          userId: currentUserId,
-          patientNum: createdPatient.PATIENT_NUM,
-        })
-      }
-
-      // Public patients are additionally assigned to the public user (USER_ID 0),
-      // which every access-filtered query treats as "visible to all users".
-      if (isPublic && createdPatient.PATIENT_NUM) {
-        const lookupRepo = getRepository('userPatientLookup')
-        await lookupRepo.addAssociationIfMissing(0, createdPatient.PATIENT_NUM, {
-          nameChar: 'Public access',
-        })
-        loggingStore.success('DatabaseStore', 'Public access entry committed', {
-          patientNum: createdPatient.PATIENT_NUM,
-        })
-      }
-
-      await executeCommand('COMMIT')
-      inTransaction = false
-      return createdPatient
-    } catch (error) {
-      if (inTransaction) {
-        try {
-          await executeCommand('ROLLBACK')
-        } catch (rollbackError) {
-          loggingStore.error('DatabaseStore', 'Rollback after createPatient failure failed', rollbackError)
+        if (currentUserId !== null && currentUserId !== undefined && createdPatient.PATIENT_NUM) {
+          await txLookupRepo.addAssociationIfMissing(currentUserId, createdPatient.PATIENT_NUM, {
+            nameChar: 'Creator access - auto-assigned',
+          })
+          loggingStore.success('DatabaseStore', 'USER_PATIENT_LOOKUP entry committed', {
+            userId: currentUserId,
+            patientNum: createdPatient.PATIENT_NUM,
+          })
         }
-      }
+
+        // Public patients are additionally assigned to the public user (USER_ID 0),
+        // which every access-filtered query treats as "visible to all users".
+        if (isPublic && createdPatient.PATIENT_NUM) {
+          await txLookupRepo.addAssociationIfMissing(0, createdPatient.PATIENT_NUM, {
+            nameChar: 'Public access',
+          })
+          loggingStore.success('DatabaseStore', 'Public access entry committed', {
+            patientNum: createdPatient.PATIENT_NUM,
+          })
+        }
+
+        return createdPatient
+      })
+    } catch (error) {
       loggingStore.error('DatabaseStore', 'createPatient transaction failed', error)
       throw error
     }
@@ -291,30 +319,9 @@ export const useDatabaseStore = defineStore('database', () => {
   }
 
   const findPatients = async (criteria = {}) => {
-    // Get current user context for access control
-    let currentUserId = null
-    let isAdmin = false
-    
-    try {
-      const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      currentUserId = authStore.currentUser?.USER_ID
-      isAdmin = authStore.isAdmin
-    } catch (error) {
-      console.warn('Could not get auth context for patient query:', error)
-    }
-    
     const patientRepo = getPatientRepository()
-    
-    // Add user access control to criteria
-    const enhancedCriteria = {
-      ...criteria,
-      _userAccess: {
-        userId: currentUserId,
-        isAdmin: isAdmin,
-      },
-    }
-    
+    // Single source of the auth context (fail-closed, see resolveUserAccess)
+    const enhancedCriteria = { ...criteria, _userAccess: await resolveUserAccess() }
     return await patientRepo.findPatientsByCriteriaWithConcepts(enhancedCriteria)
   }
 
@@ -355,31 +362,40 @@ export const useDatabaseStore = defineStore('database', () => {
     return await patientRepo.getPatientStatistics()
   }
 
+  // Dashboard tiles — one access-filtered round trip
+  const getDashboardStatistics = async () => {
+    const userAccess = await resolveUserAccess()
+    return await getPatientRepository().getDashboardStatistics(userAccess, new Date().toISOString().slice(0, 10))
+  }
+
+  const getUpcomingVisits = async (limit = 5) => {
+    const userAccess = await resolveUserAccess()
+    const predicate = getPatientRepository().getAccessPredicate(userAccess, 'v.PATIENT_NUM')
+    return await getRepository('visit').getUpcomingVisits(limit, predicate)
+  }
+
+  // visitCount / lastVisitDate per patient for card lists (one GROUP BY)
+  const getVisitStatsForPatients = async (patientNums) => {
+    return await getRepository('visit').getVisitStatsForPatients(patientNums)
+  }
+
+  // Access-filtered batch lookup by code from the patient_list view (resolved
+  // codes, for card lists); the raw PATIENT_DIMENSION variant stays for the grid
+  const getAccessiblePatientsByCodes = async (patientCodes, { fromView = false } = {}) => {
+    const userAccess = await resolveUserAccess()
+    return await getPatientRepository().findAccessiblePatientsByCodes(patientCodes, userAccess, { fromView })
+  }
+
   const searchPatients = async (searchTerm) => {
-    // Get current user context for access control
-    let currentUserId = null
-    let isAdmin = false
-    
-    try {
-      const { useAuthStore } = await import('./auth-store')
-      const authStore = useAuthStore()
-      currentUserId = authStore.currentUser?.USER_ID
-      isAdmin = authStore.isAdmin
-    } catch (error) {
-      console.warn('Could not get auth context for patient search:', error)
-    }
-    
     const patientRepo = getPatientRepository()
-    
-    // Use the search method with user access control
-    const userAccess = currentUserId ? { userId: currentUserId, isAdmin: isAdmin } : null
-    return await patientRepo.searchPatientsWithConcepts(searchTerm, userAccess)
+    // fail-closed auth context (USER_ID 0 = public is a regular user)
+    return await patientRepo.searchPatientsWithConcepts(searchTerm, await resolveUserAccess())
   }
 
   const getPatientsPaginated = async (page = 1, pageSize = 20, criteria = {}) => {
     const userAccess = await resolveUserAccess()
     const patientRepo = getPatientRepository()
-    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, userAccess?.userId ?? null, userAccess?.isAdmin ?? false)
+    return await patientRepo.getPatientsPaginated(page, pageSize, criteria, userAccess)
   }
 
   // Access-controlled single-patient lookup for UI paths (recent patients,
@@ -401,7 +417,7 @@ export const useDatabaseStore = defineStore('database', () => {
   // deletion, which keeps the stricter admin-or-creator rule.
   const assertOwnerOrAdmin = async (patientNum) => {
     const userAccess = await resolveUserAccess()
-    if (!userAccess) throw new Error('Not authenticated')
+    if (userAccess.userId === undefined || userAccess.userId === null) throw new Error('Not authenticated')
     if (userAccess.isAdmin) return
     const lookupRepo = getRepository('userPatientLookup')
     const accessMap = await lookupRepo.getPatientAccessInfo([patientNum])
@@ -823,23 +839,28 @@ export const useDatabaseStore = defineStore('database', () => {
 
       const visitsByPatient = new Map()
       if (patients.length > 0) {
-        const numPlaceholders = patients.map(() => '?').join(',')
-        const visitResult = await executeQuery(
-          `SELECT v.*, COUNT(o.OBSERVATION_ID) AS observationCount
-           FROM VISIT_DIMENSION v
-           LEFT JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
-           WHERE v.PATIENT_NUM IN (${numPlaceholders})
-           GROUP BY v.ENCOUNTER_NUM
-           ORDER BY v.START_DATE DESC`,
+        // medicationCount feeds the grid's medication cell badge (was one
+        // COUNT query per visible medication cell, fired from the template)
+        const visitRows = await queryInChunks(
           patients.map((p) => p.PATIENT_NUM),
+          async (nums) => {
+            const visitResult = await executeQuery(
+              `SELECT v.*, SUM(CASE WHEN o.VALTYPE_CD = 'M' THEN 1 ELSE 0 END) AS medicationCount
+               FROM VISIT_DIMENSION v
+               LEFT JOIN OBSERVATION_FACT o ON v.ENCOUNTER_NUM = o.ENCOUNTER_NUM
+               WHERE v.PATIENT_NUM IN (${nums.map(() => '?').join(',')})
+               GROUP BY v.ENCOUNTER_NUM
+               ORDER BY v.START_DATE DESC`,
+              nums,
+            )
+            return visitResult.success ? visitResult.data : []
+          },
         )
-        if (visitResult.success) {
-          for (const visit of visitResult.data) {
-            if (!visitsByPatient.has(visit.PATIENT_NUM)) {
-              visitsByPatient.set(visit.PATIENT_NUM, [])
-            }
-            visitsByPatient.get(visit.PATIENT_NUM).push(visit)
+        for (const visit of visitRows) {
+          if (!visitsByPatient.has(visit.PATIENT_NUM)) {
+            visitsByPatient.set(visit.PATIENT_NUM, [])
           }
+          visitsByPatient.get(visit.PATIENT_NUM).push(visit)
         }
       }
 
@@ -874,7 +895,31 @@ export const useDatabaseStore = defineStore('database', () => {
     }
   }
 
-  const loadBatchObservationData = async (patientIds) => {
+  // Column list of the grid's observation load. UPDATE_DATE rides along as the
+  // freshness marker of each cell (and the future optimistic-locking token).
+  const GRID_OBSERVATION_COLUMNS = `
+          OBSERVATION_ID,
+          PATIENT_CD,
+          ENCOUNTER_NUM,
+          CONCEPT_CD,
+          VALTYPE_CD,
+          TVAL_CHAR,
+          NVAL_NUM,
+          UNIT_CD,
+          VALUEFLAG_CD,
+          START_DATE,
+          UPDATE_DATE,
+          VERSION,
+          CATEGORY_CHAR,
+          CONCEPT_NAME_CHAR as CONCEPT_NAME,
+          TVAL_RESOLVED`
+
+  /**
+   * @param {string[]} patientIds - PATIENT_CDs
+   * @param {{encounterNums?: number[]}} [options] - restrict to some visits
+   *   (single-row reload after a stale write / medication save)
+   */
+  const loadBatchObservationData = async (patientIds, { encounterNums = null } = {}) => {
     const loggingStore = useLoggingStore()
     const timer = loggingStore.startTimer('Batch Observation Data Load')
 
@@ -903,41 +948,30 @@ export const useDatabaseStore = defineStore('database', () => {
       // Get all observations for selected patients using the patient_observations view
       // Note: OBSERVATION_BLOB is NOT loaded here to avoid performance issues with large files/images
       // BLOB data is loaded on-demand when editing medications or viewing questionnaires
-      const placeholders = cleanPatientIds.map(() => '?').join(',')
-      const observationQuery = `
-        SELECT
-          OBSERVATION_ID,
-          PATIENT_CD,
-          ENCOUNTER_NUM,
-          CONCEPT_CD,
-          VALTYPE_CD,
-          TVAL_CHAR,
-          NVAL_NUM,
-          UNIT_CD,
-          VALUEFLAG_CD,
-          START_DATE,
-          CATEGORY_CHAR,
-          CONCEPT_NAME_CHAR as CONCEPT_NAME,
-          TVAL_RESOLVED
+      const encounterFilter = Array.isArray(encounterNums) && encounterNums.length > 0 ? encounterNums : null
+      const rows = await queryInChunks(cleanPatientIds, async (codes) => {
+        const observationQuery = `
+        SELECT ${GRID_OBSERVATION_COLUMNS}
         FROM patient_observations
-        WHERE PATIENT_CD IN (${placeholders})
+        WHERE PATIENT_CD IN (${codes.map(() => '?').join(',')})
+        ${encounterFilter ? `AND ENCOUNTER_NUM IN (${encounterFilter.map(() => '?').join(',')})` : ''}
         ORDER BY PATIENT_CD, ENCOUNTER_NUM, CONCEPT_CD
       `
-
-      const result = await executeQuery(observationQuery, cleanPatientIds)
-
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to load observations')
-      }
+        const result = await executeQuery(observationQuery, encounterFilter ? [...codes, ...encounterFilter] : codes)
+        if (!result.success) {
+          throw new Error(result.error || 'Failed to load observations')
+        }
+        return result.data
+      })
 
       const duration = timer.end()
       loggingStore.success('DatabaseStore', 'Batch observation data loaded successfully', {
         patientCount: cleanPatientIds.length,
-        observationCount: result.data.length,
+        observationCount: rows.length,
         duration: `${duration.toFixed(2)}ms`,
       })
 
-      return result.data
+      return rows
     } catch (error) {
       timer.end()
       loggingStore.error('DatabaseStore', 'Failed to load batch observation data', error, {
@@ -945,6 +979,38 @@ export const useDatabaseStore = defineStore('database', () => {
         patientCount: patientIds?.length,
       })
       throw error
+    }
+  }
+
+  /**
+   * One grid cell from one patient_observations row. Shared by the initial
+   * load and the single-row reload (data-grid-store.reloadRow) so both produce
+   * identical cell shapes.
+   */
+  const mapObservationToCell = (obs) => {
+    // For Selection (S) and Finding (F) types, prefer resolved values.
+    // `??` everywhere: NVAL_NUM 0 is a value, not an empty cell.
+    let displayValue = obs.VALTYPE_CD === 'N' ? (obs.NVAL_NUM ?? '') : (obs.TVAL_CHAR ?? obs.NVAL_NUM ?? '')
+    if ((obs.VALTYPE_CD === 'S' || obs.VALTYPE_CD === 'F') && obs.TVAL_RESOLVED) {
+      displayValue = obs.TVAL_RESOLVED
+    }
+    return {
+      observationId: obs.OBSERVATION_ID,
+      value: displayValue,
+      valueType: obs.VALTYPE_CD,
+      unit: obs.UNIT_CD,
+      // valueFlag carries OBSERVATION_FACT.VALUEFLAG_CD ('NV' / 'AUDIT' /
+      // 'CONFIRMED', see CLAUDE.md §3)
+      valueFlag: obs.VALUEFLAG_CD || null,
+      // per-observation date (may diverge from the visit date)
+      startDate: obs.START_DATE || null,
+      // last write on the row — freshness marker
+      updateDate: obs.UPDATE_DATE ?? null,
+      // optimistic-locking token (migration 019); every grid write sends
+      // `AND VERSION = ?` and mirrors version + 1 on success
+      version: obs.VERSION ?? 0,
+      originalValue: obs.TVAL_CHAR ?? obs.NVAL_NUM ?? '',
+      resolvedValue: obs.TVAL_RESOLVED,
     }
   }
 
@@ -990,6 +1056,7 @@ export const useDatabaseStore = defineStore('database', () => {
                 encounterNum: visit.ENCOUNTER_NUM,
                 visitDate: visit.START_DATE || null,
                 visitTypeCode,
+                medicationCount: Number(visit.medicationCount) || 0,
                 observations: {},
               })
             }
@@ -1032,7 +1099,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
         // Group by patient and encounter
         const key = `${obs.PATIENT_CD}-${obs.ENCOUNTER_NUM}`
-        
+
         // If row doesn't exist (shouldn't happen, but handle gracefully)
         if (!patientVisitMap.has(key)) {
           // Find patient data
@@ -1050,44 +1117,7 @@ export const useDatabaseStore = defineStore('database', () => {
 
         // Add observation to the row
         const row = patientVisitMap.get(key)
-
-        // For Selection (S) and Finding (F) types, prefer resolved values
-        let displayValue = obs.TVAL_CHAR || obs.NVAL_NUM
-        if ((obs.VALTYPE_CD === 'S' || obs.VALTYPE_CD === 'F') && obs.TVAL_RESOLVED) {
-          displayValue = obs.TVAL_RESOLVED
-        }
-
-        row.observations[obs.CONCEPT_CD] = {
-          observationId: obs.OBSERVATION_ID,
-          value: displayValue,
-          valueType: obs.VALTYPE_CD,
-          unit: obs.UNIT_CD,
-          // valueFlag carries OBSERVATION_FACT.VALUEFLAG_CD. The grid uses
-          // 'NV' (no value / explicit absence, e.g. drug not taken) to render
-          // a distinct cell state. See CLAUDE.md "3-state pattern for numerics".
-          valueFlag: obs.VALUEFLAG_CD || null,
-          // startDate is OBSERVATION_FACT.START_DATE. Defaults to the visit's
-          // START_DATE on insert, but can diverge — the right-click "Datum
-          // bearbeiten" workflow lets users set a per-observation date when
-          // e.g. a lab was drawn on a different day than the visit.
-          startDate: obs.START_DATE || null,
-          originalValue: obs.TVAL_CHAR || obs.NVAL_NUM,
-          resolvedValue: obs.TVAL_RESOLVED,
-          // rawObservation without BLOB for performance (BLOB loaded on-demand)
-          rawObservation: {
-            OBSERVATION_ID: obs.OBSERVATION_ID,
-            CONCEPT_CD: obs.CONCEPT_CD,
-            CONCEPT_NAME: obs.CONCEPT_NAME,
-            VALTYPE_CD: obs.VALTYPE_CD,
-            TVAL_CHAR: obs.TVAL_CHAR,
-            tval_char: obs.TVAL_CHAR,
-            NVAL_NUM: obs.NVAL_NUM,
-            nval_num: obs.NVAL_NUM,
-            UNIT_CD: obs.UNIT_CD,
-            ENCOUNTER_NUM: obs.ENCOUNTER_NUM,
-            PATIENT_CD: obs.PATIENT_CD,
-          },
-        }
+        row.observations[obs.CONCEPT_CD] = mapObservationToCell(obs)
       })
 
       // Convert to arrays
@@ -1143,6 +1173,8 @@ export const useDatabaseStore = defineStore('database', () => {
     // Getters
     connectionStatus,
     canPerformOperations,
+    lastDbError,
+    isMockConnection,
 
     // Actions
     initializeDatabase,
@@ -1169,6 +1201,10 @@ export const useDatabaseStore = defineStore('database', () => {
     updatePatient,
     deletePatient,
     getPatientStatistics,
+    getDashboardStatistics,
+    getUpcomingVisits,
+    getVisitStatsForPatients,
+    getAccessiblePatientsByCodes,
     searchPatients,
     getPatientsPaginated,
     getAccessiblePatientByCode,
@@ -1192,6 +1228,7 @@ export const useDatabaseStore = defineStore('database', () => {
     // Data Grid operations
     loadBatchPatientData,
     loadBatchObservationData,
+    mapObservationToCell,
     processObservationDataForGrid,
   }
 })
