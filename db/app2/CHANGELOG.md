@@ -75,8 +75,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: unit 48 (LEDD), 49 (Medikations-Diff), 50 (Vorlagen-Logik),
     53 (Consult-Store); integration 17 (Migration 017), 18 (Repositories).
 
-### Added
-
 - **Mehrbenutzer-Betrieb auf einer SQLite-Datei (Audit Sept 2026, Phase 1,
   `features/multi-user-db`)** — mehrere App-Instanzen arbeiten auf derselben
   `production.db` auf einem Netzlaufwerk:
