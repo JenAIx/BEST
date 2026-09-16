@@ -4,6 +4,7 @@
   },
   "db": {
     "lockedByOtherUser": "The database is currently locked by another user – please retry the action in a few seconds.",
+    "waitingForLock": "Waiting for the database (another user is writing) …",
     "readonly": "The database file is read-only – changes cannot be saved.",
     "ioError": "Database error: {message}",
     "mockBanner": "Browser mode without a database connection – no data is loaded or saved."

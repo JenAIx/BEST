@@ -108,6 +108,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Banner gekennzeichnet. `check-db` prüft journal_mode, VERSION-Spalte/View,
     14 Trigger. Tests: Unit 51 (Gate/Retry/Bus/Connection), Integration 20
     (zwei Connections: BUSY, Atomarität, data_version) und 21 (VERSION).
+  - **E2E `scripts/verify-multiuser/run.sh`** (17 Checks): headless App als
+    Instanz A, zweite SQLite-Connection als Instanz B auf derselben Datei —
+    Auto-Reload nach fremder Änderung (~3 s), Banner statt Reload während der
+    Bearbeitung, Konfliktabweisung mit Nachladen, Write wartet auf 6-s-Sperre
+    und gelingt, 24-s-Sperre → Toast, Wert unverändert. Die headless App läuft
+    mit eigenem userData-Verzeichnis (`E2E_USER_DATA_DIR` in
+    `electron-main.js`; auch `verify-visits` nutzt es), damit gespeicherte
+    Entwickler-Einstellungen (eigener DB-Pfad) nicht in Testläufe wirken;
+    `verify-visits` wartet auf die Karten statt fester Pausen und setzt die
+    Sprache vor dem Login (ein Reload mit offener sqlite3-Connection und
+    laufendem Statement kann den Renderer beenden — der Freshness-Poller
+    stoppt deshalb bei `beforeunload`). Beide Routinen: 19/19 bzw. 17/17 grün.
 
 ### Changed
 

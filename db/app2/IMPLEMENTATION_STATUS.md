@@ -13,10 +13,12 @@
   `OBSERVATION_FACT.VERSION` (Migration 019, Guard-Trigger), Änderungserkennung
   per `PRAGMA data_version` (Auto-Reload / `StaleDataBanner`), Cache-Scoping
   pro DB-Datei, Browser-Mock im Produktiv-Build abgelehnt.
-- Offen / Follow-ups: `findAccessiblePatientsByCodes` chunken (kollidiert
-  sonst mit Phase 2 in `patient-repository.js`); `scripts/verify-visits`
-  um VERSION-Assertion ergänzen; manueller Zwei-Instanzen-Test auf dem
-  Share (Konflikt-Warnung, Banner ≤ 5 s, Lock-Toast).
+- Verifiziert: `scripts/verify-visits/run.sh` 19/19, neu
+  `scripts/verify-multiuser/run.sh` 17/17 (Auto-Reload ~3 s, Banner,
+  Konfliktabweisung, Warten auf Sperre, Lock-Toast), Vitest 1180, Lint,
+  SPA-Build, `check-db` gegen Prod-Kopie (Migrationen 018/019).
+- Offen / Follow-ups: `findAccessiblePatientsByCodes` chunken; Test auf dem
+  echten SMB-Share mit zwei Arbeitsplätzen (Latenz der Sperren).
 - Details: CHANGELOG `[Unreleased]` → Added, CLAUDE.md §9.
 
 ### 2026-09-15 — UI-/Daten-Audit, Phase 3: Datentabellen-Editor Korrektheit + Reaktivität (`features/grid-consistency`)

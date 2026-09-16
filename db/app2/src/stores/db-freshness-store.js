@@ -98,7 +98,13 @@ export const useDbFreshnessStore = defineStore('dbFreshness', () => {
     polling.value = true
     timer = setInterval(check, FRESHNESS_POLL_MS)
     if (typeof document !== 'undefined') document.addEventListener('visibilitychange', onVisibility)
-    if (typeof window !== 'undefined') window.addEventListener('focus', onVisibility)
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', onVisibility)
+      // No statement may be in flight when the renderer unloads/reloads —
+      // node-sqlite3 cannot call back into a destroyed context (fatal napi_throw)
+      window.addEventListener('beforeunload', stop)
+      window.addEventListener('pagehide', stop)
+    }
     check()
   }
 
@@ -107,7 +113,11 @@ export const useDbFreshnessStore = defineStore('dbFreshness', () => {
     timer = null
     polling.value = false
     if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
-    if (typeof window !== 'undefined') window.removeEventListener('focus', onVisibility)
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('focus', onVisibility)
+      window.removeEventListener('beforeunload', stop)
+      window.removeEventListener('pagehide', stop)
+    }
   }
 
   const reset = () => {

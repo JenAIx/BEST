@@ -4,6 +4,7 @@
   },
   "db": {
     "lockedByOtherUser": "Die Datenbank ist gerade durch einen anderen Nutzer gesperrt – die Aktion bitte in ein paar Sekunden wiederholen.",
+    "waitingForLock": "Warte auf die Datenbank (ein anderer Nutzer schreibt gerade) …",
     "readonly": "Die Datenbankdatei ist schreibgeschützt – Änderungen können nicht gespeichert werden.",
     "ioError": "Datenbankfehler: {message}",
     "mockBanner": "Browser-Modus ohne Datenbankverbindung – es werden keine Daten geladen oder gespeichert."

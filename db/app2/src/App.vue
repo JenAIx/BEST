@@ -56,7 +56,10 @@ watch(
     const now = Date.now()
     if (now - lastDbToastAt < 5000) return
     lastDbToastAt = now
-    if (failure.kind === 'busy' || failure.kind === 'locked') notify.warning(t('db.lockedByOtherUser'), { timeout: 5000 })
+    // a retry is not a failure yet — the write is waiting for the other
+    // writer's commit (busy_timeout + retry); only a final failure warns
+    if (failure.phase === 'retry') notify.info(t('db.waitingForLock'), { timeout: 2500 })
+    else if (failure.kind === 'busy' || failure.kind === 'locked') notify.warning(t('db.lockedByOtherUser'), { timeout: 5000 })
     else if (failure.kind === 'readonly') notify.error(t('db.readonly'), { timeout: 6000 })
     else if (failure.kind === 'corrupt' || failure.kind === 'io') notify.error(t('db.ioError', { message: failure.message }), { timeout: 8000 })
   },

@@ -15,6 +15,11 @@ SHOT_DIR=/tmp/shots bash scripts/verify-visits/run.sh   # mit Screenshots
 Exit-Code 0 = alle Checks bestanden. Voraussetzungen: `xvfb-run`, `sqlite3`,
 freies Display `:98`, freier Port `9222` (via `REMOTE_DEBUG_PORT` änderbar).
 
+Die App läuft mit einem eigenen userData-Verzeichnis (`E2E_USER_DATA_DIR`,
+siehe `electron-main.js`): gespeicherte Einstellungen des Entwicklers
+(z. B. ein eigener DB-Pfad für „Production“) wirken nicht in den Lauf, die App
+öffnet immer `database/production.db` dieses Checkouts.
+
 ## Was geprüft wird
 
 | Check | Bereich |

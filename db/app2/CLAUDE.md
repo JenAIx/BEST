@@ -1523,6 +1523,10 @@ npm test tests/integration/ -- --run # Integration tests
 # check built in (see scripts/verify-visits/README.md). App must NOT be
 # running (shares the SQLite DB).
 bash scripts/verify-visits/run.sh
+# Mehrbenutzer-E2E (App als Instanz A per CDP, zweite SQLite-Connection als
+# Instanz B): Auto-Reload, StaleDataBanner, VERSION-Konflikt, busy_timeout,
+# Lock-Toast. 17 Checks, ~3 min, gleiche Sicherheitsregeln wie verify-visits.
+bash scripts/verify-multiuser/run.sh
 
 # Integrationstest gegen eine beliebige DB-Datei (arbeitet auf einer Kopie):
 # Migrationen, integrity/FK-Check, Trigger, Konsistenz, CLAUDE.md-Konventionen,

@@ -1,18 +1,12 @@
 #!/usr/bin/env bash
-# E2E-Testroutine für die Zeitlinie (vereinheitlichte Visitenansicht).
+# E2E: zwei Schreiber auf EINER Datenbankdatei (Mehrbenutzer-Verhalten).
+# Instanz A = headless App (CDP), Instanz B = zweite SQLite-Connection im
+# Prüfskript. Gleiche Sicherheitsregeln wie scripts/verify-visits/run.sh:
+# Backup, Temp-User, eigenes Display :98, eigenes userData-Verzeichnis,
+# Zeilenzahl-Integritätscheck.
 #
-# Macht den kompletten Ablauf reproduzierbar:
-#   1. DB-Backup (wird bei vollem Erfolg wieder gelöscht)
-#   2. Temp-Admin "helpshot" anlegen (nur für diesen Lauf, danach gelöscht)
-#   3. App headless starten (eigenes Display :98 — kollidiert NIE mit dem
-#      VNC-Setup auf :99; CDP auf $REMOTE_DEBUG_PORT, default 9222)
-#   4. scripts/verify-visits/verify.mjs ausführen (PASS/FAIL-Checks)
-#   5. App stoppen (nur die eigenen Prozesse!), Temp-User löschen
-#   6. Integritätscheck: Zeilenzahlen vorher/nachher müssen identisch sein
-#
-# Usage:  bash scripts/verify-visits/run.sh
-# Env:    VERIFY_PATIENT (PATIENT_CD, default 10002506), REMOTE_DEBUG_PORT,
-#         SHOT_DIR (optional: Screenshots)
+# Usage:  bash scripts/verify-multiuser/run.sh
+# Env:    VERIFY_PATIENT (PATIENT_CD, default 10002506), REMOTE_DEBUG_PORT, SHOT_DIR
 
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -23,16 +17,11 @@ PATIENT_CD="${VERIFY_PATIENT:-10002506}"
 PORT="${REMOTE_DEBUG_PORT:-9222}"
 DISPLAY_NUM=98
 STAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP=database/backup_verify_${STAMP}.db
-LOG=/tmp/verify-visits-app.log
-# Own userData dir: the developer's Electron settings (custom DB paths,
-# remembered session) must not leak into the run — the app opens
-# database/production.db of THIS checkout.
-USER_DATA_DIR=/tmp/best-e2e-userdata-${STAMP}
+BACKUP=database/backup_multiuser_${STAMP}.db
+LOG=/tmp/verify-multiuser-app.log
+USER_DATA_DIR=/tmp/best-e2e-userdata-mu-${STAMP}
 
 cleanup_app() {
-  # NUR eigene Prozesse: das eigene Display, der eigene App-Start.
-  # Niemals pauschal "pkill Xvfb" — das killt das VNC-Setup auf :99!
   [ -n "${APP_PID:-}" ] && kill "$APP_PID" 2>/dev/null
   sleep 2
   pkill -f "Xvfb :${DISPLAY_NUM}" 2>/dev/null
@@ -41,9 +30,6 @@ cleanup_app() {
   rm -rf "$USER_DATA_DIR" 2>/dev/null || { sleep 2; rm -rf "$USER_DATA_DIR" 2>/dev/null; }
   true
 }
-
-# Läuft IMMER (auch bei Fehler/Ctrl-C): App stoppen + Temp-Admin entfernen —
-# der helpshot-User darf die Routine unter keinen Umständen überleben
 cleanup_all() {
   cleanup_app
   sqlite3 "$DB" "DELETE FROM USER_MANAGEMENT WHERE USER_CD='helpshot';" 2>/dev/null || echo "WARNUNG: helpshot konnte nicht gelöscht werden — manuell entfernen!"
@@ -52,7 +38,6 @@ trap cleanup_all EXIT INT TERM
 
 echo "1/6 Backup → $BACKUP"
 cp "$DB" "$BACKUP" || exit 1
-
 before_visits=$(sqlite3 "$DB" "SELECT COUNT(*) FROM VISIT_DIMENSION;")
 before_obs=$(sqlite3 "$DB" "SELECT COUNT(*) FROM OBSERVATION_FACT;")
 echo "    Ausgangszustand: $before_visits Visiten, $before_obs Beobachtungen"
@@ -77,7 +62,7 @@ curl -s -m 2 "http://127.0.0.1:${PORT}/json/version" >/dev/null 2>&1 || { echo "
 sleep 8
 
 echo "4/6 Verifikation läuft…"
-CDP_URL="http://127.0.0.1:${PORT}" VERIFY_PATIENT="$PATIENT_CD" node scripts/verify-visits/verify.mjs
+CDP_URL="http://127.0.0.1:${PORT}" VERIFY_PATIENT="$PATIENT_CD" VERIFY_DB="$DB" node scripts/verify-multiuser/verify.mjs
 RC=$?
 
 echo "5/6 App stoppen + Temp-User löschen"
@@ -87,11 +72,7 @@ echo "6/6 Integritätscheck"
 after_visits=$(sqlite3 "$DB" "SELECT COUNT(*) FROM VISIT_DIMENSION;")
 after_obs=$(sqlite3 "$DB" "SELECT COUNT(*) FROM OBSERVATION_FACT;")
 if [ "$before_visits" != "$after_visits" ] || [ "$before_obs" != "$after_obs" ]; then
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-  echo "!! DATEN VERÄNDERT: Visiten $before_visits→$after_visits, Beobachtungen $before_obs→$after_obs"
-  echo "!! Backup NICHT gelöscht: $BACKUP"
-  echo "!! Wiederherstellen einzelner Zeilen:  sqlite3 $DB  →  ATTACH '$BACKUP' AS bak; INSERT INTO ... SELECT ... FROM bak....;"
-  echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+  echo "!! DATEN VERÄNDERT: Visiten $before_visits→$after_visits, Beobachtungen $before_obs→$after_obs — Backup bleibt: $BACKUP"
   exit 1
 fi
 echo "    OK — Zeilenzahlen unverändert"
