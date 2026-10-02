@@ -3,7 +3,7 @@
     <!-- PROTECTED -->
     <q-chip v-if="PARAMS.mode === 'encrypted'" icon="lock" class="absolute-top-left z-top" />
 
-    <q-card v-if="QUEST !== undefined" flat class="my-quest-form quest-card">
+    <q-card v-if="QUEST !== undefined" flat class="my-quest-form quest-card" :class="{ 'my-quest-form--wide': hasWideItem }">
       <!-- HEADER -->
       <q-card-section class="quest-header">
         <div class="row items-center no-wrap">
@@ -136,7 +136,7 @@
           <q-list bordered separator data-cy="list_entries">
             <q-item v-for="(item, indQ) in QUEST.items" :key="item.label + indQ" data-cy="item_entry"
               :id="'qitem_' + indQ" class="quest-list-item"
-              :class="{ 'quest-item--done': isInteractive(item) && isAnswered(item) }">
+              :class="{ 'quest-item--done': isInteractive(item) && isAnswered(item) && item.type !== 'day_curve' }">
               <q-item-section>
                 <!-- interaktive Frage -->
                 <QuestItemField v-if="isInteractive(item)" :item="item" input-cy="text"
@@ -196,7 +196,7 @@ import QuestItemField from './QuestItemField.vue'
 import QuestIntro from './QuestIntro.vue'
 import QuestPidField from './QuestPidField.vue'
 
-const INTERACTIVE = ['radio', 'checkbox', 'text', 'number', 'date', 'date_year', 'time', 'slider', 'multiple_radio', 'drawing']
+const INTERACTIVE = ['radio', 'checkbox', 'text', 'number', 'date', 'date_year', 'time', 'slider', 'multiple_radio', 'drawing', 'day_curve']
 
 export default {
   name: 'RenderQuest',
@@ -356,6 +356,11 @@ export default {
     },
     CHECK_FORM() {
       return this.check_form
+    },
+    // Bögen mit Tageskurve brauchen die Breite des iPads (Kurve ist ein Diagramm,
+    // kein Formularfeld).
+    hasWideItem() {
+      return !!this.QUEST && (this.QUEST.items || []).some((it) => it.type === 'day_curve')
     },
   },
 

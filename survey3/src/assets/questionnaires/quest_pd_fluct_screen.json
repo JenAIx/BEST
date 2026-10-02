@@ -1,0 +1,292 @@
+{
+  "title": "Fluktuations-Screening – Patientenbogen (Parkinson)",
+  "short_title": "pd_fluct_screen",
+  "version": "1.0",
+  "updated": "2026-10-02",
+  "license": {
+    "status": "free",
+    "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)."
+  },
+  "coding": {
+    "system": "CUSTOM",
+    "code": "CUSTOM: PD_FLUCT_SCREEN",
+    "display": "Fluktuations-Screening Patientenbogen",
+    "version": "20261002"
+  },
+  "description": "Selbstauskunft zu Wirkschwankungen mit Tageskurve (Beweglichkeit, Tabletten, Essen, Beschwerden) – für das iPad.",
+  "keywords": "Parkinson, Fluktuation, Wearing-off, Screening, Selbstbeurteilung",
+  "manual": "<b>Bitte denken Sie an die letzten 3 Wochen.</b><br>Es geht darum, wann Sie im Laufe des Tages gut oder schlecht beweglich sind. Es gibt keine richtigen oder falschen Antworten.",
+  "items": [
+    {
+      "type": "separator",
+      "label": "Beweglichkeit im Tagesverlauf"
+    },
+    {
+      "id": 1,
+      "tag": "off_trotz_tabletten",
+      "label": "Gibt es Zeiten, in denen Sie schlechter beweglich sind, obwohl Sie Ihre Tabletten wie verordnet nehmen?",
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: OFF_TROTZ_TABLETTEN",
+        "display": "off_trotz_tabletten"
+      },
+      "options": [
+        {
+          "label": "nein",
+          "value": 0
+        },
+        {
+          "label": "ja, manchmal",
+          "value": 1
+        },
+        {
+          "label": "ja, täglich",
+          "value": 2
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "tag": "off_zeitpunkt",
+      "label": "Wann kommt das vor? (mehrere Antworten möglich)",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: OFF_ZEITPUNKT",
+        "display": "off_zeitpunkt"
+      },
+      "options": [
+        {
+          "label": "morgens vor der ersten Tablette",
+          "value": "morgens"
+        },
+        {
+          "label": "bevor die nächste Tablette fällig ist",
+          "value": "vor_einnahme"
+        },
+        {
+          "label": "nach dem Essen",
+          "value": "nach_essen"
+        },
+        {
+          "label": "plötzlich, ohne erkennbaren Grund",
+          "value": "ploetzlich"
+        },
+        {
+          "label": "nachts",
+          "value": "nachts"
+        },
+        {
+          "label": "trifft nicht zu",
+          "value": "trifft_nicht_zu"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "tag": "off_anzahl",
+      "label": "Wie viele schlechte Phasen haben Sie an einem typischen Tag?",
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: OFF_ANZAHL",
+        "display": "off_anzahl"
+      },
+      "options": [
+        {
+          "label": "keine",
+          "value": 0
+        },
+        {
+          "label": "1–2",
+          "value": 1
+        },
+        {
+          "label": "3–4",
+          "value": 2
+        },
+        {
+          "label": "5 oder mehr",
+          "value": 3
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "tag": "zeit_bis_on",
+      "label": "Wie lange dauert es nach der Tablette, bis Sie gut beweglich sind?",
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: ZEIT_BIS_ON",
+        "display": "zeit_bis_on"
+      },
+      "options": [
+        {
+          "label": "unter 15 Minuten",
+          "value": 0
+        },
+        {
+          "label": "15–30 Minuten",
+          "value": 1
+        },
+        {
+          "label": "30–60 Minuten",
+          "value": 2
+        },
+        {
+          "label": "über 60 Minuten",
+          "value": 3
+        },
+        {
+          "label": "manchmal wirkt sie gar nicht",
+          "value": 4
+        },
+        {
+          "label": "weiß ich nicht",
+          "value": "kA"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "tag": "tageskurve",
+      "type": "day_curve",
+      "value": null,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: TAGESKURVE",
+        "display": "tageskurve"
+      },
+      "label": "Tragen Sie Ihr Bewegungsprofil für einen Tag ein – so, wie es für die letzten 3 Wochen typisch war.",
+      "caption": "Zum Schluss auf „Übernehmen“ tippen.",
+      "curve": {
+        "start": "06:00",
+        "step_min": 30,
+        "markers": [
+          "pill",
+          "meal"
+        ],
+        "symptoms": [
+          {
+            "key": "pain",
+            "label": "Schmerzen"
+          },
+          {
+            "key": "hallucinations",
+            "label": "Sinnestäuschungen"
+          },
+          {
+            "key": "anxiety",
+            "label": "Angst / Unruhe"
+          },
+          {
+            "key": "sleepiness",
+            "label": "starke Müdigkeit"
+          }
+        ]
+      }
+    },
+    {
+      "type": "separator",
+      "label": "Alltag"
+    },
+    {
+      "id": 6,
+      "tag": "off_alltag",
+      "label": "Was können Sie in einer schlechten Phase nicht tun? (mehrere Antworten möglich)",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: OFF_ALLTAG",
+        "display": "off_alltag"
+      },
+      "options": [
+        {
+          "label": "aus dem Haus gehen",
+          "value": "ausser_haus"
+        },
+        {
+          "label": "Termine oder Arbeit wahrnehmen",
+          "value": "termine"
+        },
+        {
+          "label": "Haushalt oder Körperpflege",
+          "value": "haushalt"
+        },
+        {
+          "label": "andere Menschen treffen",
+          "value": "sozial"
+        },
+        {
+          "label": "ich stürze leichter",
+          "value": "sturz"
+        },
+        {
+          "label": "keine Einschränkung",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "tag": "wichtige_situationen",
+      "type": "text",
+      "value": null,
+      "force": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: WICHTIGE_SITUATIONEN",
+        "display": "wichtige_situationen"
+      },
+      "label": "Gibt es Situationen, in denen Sie sicher gut beweglich sein müssen? (freiwillig)"
+    },
+    {
+      "id": 8,
+      "tag": "unterstuetzung",
+      "label": "Wer unterstützt Sie im Alltag?",
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: UNTERSTUETZUNG",
+        "display": "unterstuetzung"
+      },
+      "options": [
+        {
+          "label": "niemand, ich lebe allein",
+          "value": "allein"
+        },
+        {
+          "label": "Partner:in",
+          "value": "partner"
+        },
+        {
+          "label": "Angehörige",
+          "value": "angehoerige"
+        },
+        {
+          "label": "Pflegedienst",
+          "value": "pflegedienst"
+        },
+        {
+          "label": "ich lebe in einer Einrichtung",
+          "value": "einrichtung"
+        }
+      ]
+    }
+  ],
+  "results": {}
+}

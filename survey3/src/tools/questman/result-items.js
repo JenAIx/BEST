@@ -12,6 +12,8 @@
 // bleiben bewusst in den Ergebnis-Items und im CDA/CSV-Export erhalten. Siehe
 // scoring/README.md.
 
+import { dayCurveResultItems } from '../daycurve'
+
 // Erzeugt einen Ergebnis-Eintrag aus einer Quelle { tag, value, coding?, id? }.
 // label = tag; existiert ein coding, überschreibt dessen display das label
 // (Alt-Verhalten). ignore_for_result wird übernommen, wenn der Parameter gesetzt ist.
@@ -45,6 +47,16 @@ export function buildResultItems(items) {
         if (sub.id !== undefined) src.id = sub.id
         pushResultItem(out, src, item.ignore_for_result)
       })
+      return
+    }
+
+    // day_curve -> die Rohkurve (Objekt) wie gehabt, dazu die abgeleiteten Kennzahlen
+    // (OFF-Stunden, Wechsel, Beschwerde-Stunden …) als eigene numerische Einträge,
+    // damit sie exportiert und verglichen werden können. ignore_for_result: nie in
+    // eine Bogen-Summe.
+    if (item.type === 'day_curve') {
+      pushResultItem(out, item, item.ignore_for_result)
+      out.push(...dayCurveResultItems(item.tag, item.value))
       return
     }
 

@@ -1398,6 +1398,10 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pd_fluct_screen 1`] = `{}`;
+
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pd_fluct_screen_arzt 1`] = `{}`;
+
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pd_general 1`] = `
 [
   {

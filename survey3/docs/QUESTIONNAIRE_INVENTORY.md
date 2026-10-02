@@ -5,7 +5,7 @@
 > Bögen vornehmen und neu generieren. Der Guard `inventory.test.js` hält das
 > eingecheckte Inventar synchron (CI schlägt sonst fehl).
 
-**111 Fragebögen** — Lizenz: 🔓 frei: 62 · ❔ unklar: 24 · 🔒 Lizenz: 25
+**113 Fragebögen** — Lizenz: 🔓 frei: 64 · ❔ unklar: 24 · 🔒 Lizenz: 25
 
 | Datei | Label (short_title) | Titel | Beschreibung | Lizenz | Keywords |
 | --- | --- | --- | --- | --- | --- |
@@ -84,6 +84,8 @@
 | `quest_panas.json` | `PANAS` | PANAS – Positive und negative Affektivität | Selbstbeurteilung positiver und negativer Affekte. | 🔓 frei | Stimmung, Selbstbeurteilung |
 | `quest_paq_50plus.json` | `paq_50plus` | PAQ-50+ – Körperliche Aktivität (ältere Menschen) | Selbstbeurteilung der körperlichen Aktivität bei über 50-Jährigen. | ❔ unklar | körperliche Aktivität, Alltagsaktivitäten, Geriatrie |
 | `quest_park_move.json` | `PARK_MOVE` | PARK-MOVE – Anamnese Parkinson | Strukturierte Anamnese beim Parkinson-Syndrom. | 🔓 frei | Parkinson, Anamnese |
+| `quest_pd_fluct_screen.json` | `pd_fluct_screen` | Fluktuations-Screening – Patientenbogen (Parkinson) | Selbstauskunft zu Wirkschwankungen mit Tageskurve (Beweglichkeit, Tabletten, Essen, Beschwerden) – für das iPad. | 🔓 frei | Parkinson, Fluktuation, Wearing-off, Screening, Selbstbeurteilung |
+| `quest_pd_fluct_screen_arzt.json` | `pd_fluct_screen_arzt` | Fluktuations-Screening – Arztbogen (Parkinson) | Ärztliche Einschätzung nach dem Patientenbogen: Basistherapie, Anwendbarkeit, Gegenanzeigen, Empfehlung. | 🔓 frei | Parkinson, Fluktuation, Medikation, Screening, Fremdbeurteilung |
 | `quest_pd_general.json` | `pd_general` | Parkinson-Fragebogen (allgemein, BIOMAG) | Allgemeine Anamnese zum Parkinson-Syndrom. | 🔓 frei | Parkinson, Anamnese |
 | `quest_pd_ondemand.json` | `pd_ondemand` | On-Demand-Therapie bei Parkinson (OFF-Phasen) | Erfassung von OFF-Phasen und des Bedarfs an On-Demand-Therapie. | 🔓 frei | Parkinson, Fluktuation, Wearing-off, Medikation |
 | `quest_pdq39.json` | `pdq39` | PDQ-39 – Parkinson-Lebensqualität (39 Items) | Krankheitsspezifische Lebensqualität bei Parkinson. | 🔒 Lizenz | Parkinson, Lebensqualität, Selbstbeurteilung |

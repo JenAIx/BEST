@@ -5,6 +5,8 @@
 //
 // Einstieg: buildQuestPdfHtml(quest, { dateStr, timeStr, imgBase })
 
+import { dcConfig, emptyCurve, isDayCurveValue, dayCurveSvg, summaryText } from './daycurve'
+
 const esc = (s) => (s == null ? '' : String(s))
 const stripHtml = (s) => esc(s).replace(/<[^>]*>/g, ' ').trim()
 const hasOwnNum = (lbl) => /^\s*\d/.test(lbl)
@@ -75,6 +77,16 @@ function renderDrawing(item, label, ctx) {
   return `<div class="item-block"><div class="item-label">${numPrefix(ctx.num, label)}${label}</div><div>${box}</div></div>`
 }
 
+// day_curve -> Label + Tageskurve. Ausgefüllt mit Kurve und Kennzahlen; leer als
+// Raster ohne Linie (zum Einzeichnen auf Papier).
+function renderDayCurve(item, label, ctx) {
+  const filled = isDayCurveValue(item.value)
+  const value = filled ? item.value : emptyCurve(dcConfig(item))
+  const svg = dayCurveSvg(value, { uid: `pdf${ctx.num}`, blank: !filled })
+  const sum = filled ? `<div class="section-caption">${summaryText(value)}</div>` : ''
+  return `<div class="item-block"><div class="item-label">${numPrefix(ctx.num, label)}${label}</div><div style="max-width:180mm">${svg}</div>${sum}</div>`
+}
+
 // text -> Label + Schreiblinie
 function renderText(label, ctx) {
   return `<div class="item-block"><div class="item-label">${numPrefix(ctx.num, label)}${label}</div><div class="input-line"></div></div>`
@@ -139,6 +151,7 @@ function renderItem(item, ctx, imgBase) {
   if (item.type === 'checkbox' && item.options) return renderOptions(item, label, ctx, 'check-box')
   if (item.type === 'slider') return renderVas(item, label, ctx)
   if (item.type === 'drawing') return renderDrawing(item, label, ctx)
+  if (item.type === 'day_curve') return renderDayCurve(item, label, ctx)
   if (item.type === 'text') return renderText(label, ctx)
   if (['number', 'date', 'date_year', 'time'].includes(item.type)) return renderShortInput(item, label, ctx)
   return renderText(label, ctx) // Fallback: Schreiblinie

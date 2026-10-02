@@ -1,0 +1,159 @@
+{
+  "title": "Fluktuations-Screening – Arztbogen (Parkinson)",
+  "short_title": "pd_fluct_screen_arzt",
+  "version": "1.0",
+  "updated": "2026-10-02",
+  "license": {
+    "status": "free",
+    "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)."
+  },
+  "coding": {
+    "system": "CUSTOM",
+    "code": "CUSTOM: PD_FLUCT_SCREEN_ARZT",
+    "display": "Fluktuations-Screening Arztbogen",
+    "version": "20261002"
+  },
+  "description": "Ärztliche Einschätzung nach dem Patientenbogen: Basistherapie, Anwendbarkeit, Gegenanzeigen, Empfehlung.",
+  "keywords": "Parkinson, Fluktuation, Medikation, Screening, Fremdbeurteilung",
+  "manual": "<b>Auszufüllen durch die Ärztin/den Arzt</b> nach Durchsicht des Patientenbogens und der Tageskurve. Produktneutral: „Bedarfstherapie“ umfasst alle schnell wirksamen Optionen.",
+  "items": [
+    {
+      "id": 1,
+      "tag": "basistherapie_ausgeschoepft",
+      "label": "Ist die Basistherapie ausgeschöpft (Fraktionierung, Dopaminagonist, MAO-B-Hemmer, COMT-Hemmer, Retard-Präparat)?",
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: BASISTHERAPIE_AUSGESCHOEPFT",
+        "display": "basistherapie_ausgeschoepft"
+      },
+      "options": [
+        {
+          "label": "ja",
+          "value": 1
+        },
+        {
+          "label": "nein – zuerst Basistherapie anpassen",
+          "value": 0
+        },
+        {
+          "label": "unklar",
+          "value": 9
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "tag": "selbstanwendung",
+      "label": "Kann die Person eine Bedarfsmedikation selbst anwenden (Feinmotorik, Kognition)?",
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: SELBSTANWENDUNG",
+        "display": "selbstanwendung"
+      },
+      "options": [
+        {
+          "label": "ja, selbstständig",
+          "value": "selbst"
+        },
+        {
+          "label": "mit Hilfe einer Bezugsperson",
+          "value": "mit_hilfe"
+        },
+        {
+          "label": "nein",
+          "value": "nein"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "tag": "gegenanzeigen",
+      "label": "Was spricht gegen eine Bedarfstherapie? (Fachinformation des jeweiligen Präparats prüfen)",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: GEGENANZEIGEN",
+        "display": "gegenanzeigen"
+      },
+      "options": [
+        {
+          "label": "Halluzinationen / Psychose",
+          "value": "psychose"
+        },
+        {
+          "label": "orthostatische Hypotonie",
+          "value": "orthostase"
+        },
+        {
+          "label": "ausgeprägte Übelkeit",
+          "value": "uebelkeit"
+        },
+        {
+          "label": "kognitive Einschränkung",
+          "value": "kognition"
+        },
+        {
+          "label": "Probleme der Mundschleimhaut",
+          "value": "mundschleimhaut"
+        },
+        {
+          "label": "nichts",
+          "value": "nichts"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "tag": "ergebnis",
+      "label": "Ergebnis des Screenings",
+      "value": null,
+      "type": "radio",
+      "inline": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: ERGEBNIS",
+        "display": "ergebnis"
+      },
+      "options": [
+        {
+          "label": "Bedarfstherapie erwägen",
+          "value": "bedarfstherapie"
+        },
+        {
+          "label": "zuerst Basistherapie anpassen",
+          "value": "basistherapie"
+        },
+        {
+          "label": "Pumpentherapie oder THS prüfen",
+          "value": "pumpe_ths"
+        },
+        {
+          "label": "derzeit keine Bedarfstherapie nötig",
+          "value": "nicht_noetig"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "tag": "kommentar",
+      "type": "text",
+      "value": null,
+      "force": false,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: KOMMENTAR",
+        "display": "kommentar"
+      },
+      "label": "Kommentar"
+    }
+  ],
+  "results": {}
+}

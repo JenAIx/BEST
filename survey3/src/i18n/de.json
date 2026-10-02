@@ -122,7 +122,8 @@
     "start": "Fragebogen starten",
     "clear_drawing": "Löschen",
     "confirm_drawing": "Übernehmen",
-    "drawing_unsaved": "noch nicht übernommen"
+    "drawing_unsaved": "noch nicht übernommen",
+    "daycurve_reset": "Neu beginnen"
   },
   "btn": {
     "close": {
@@ -376,6 +377,7 @@
       "separator": "Trenner",
       "textbox": "Infotext",
       "drawing": "Zeichnung",
+      "day_curve": "Tageskurve",
       "image": "Bild"
     }
   }
