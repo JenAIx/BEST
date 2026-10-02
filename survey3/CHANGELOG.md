@@ -5,7 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Released]
+
+### v1.21.0
 
 #### Added
 
@@ -14,8 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 - [2026-10-02] app2-Export: `questionnaire_code` ist der `short_title` in Großbuchstaben (`NMS_QUEST`, `PDSS2`, `PD_HYBRID_SCREEN`) wie die app2-Seeds — vorher der Konzept-Code, den das app2-Cockpit nie erkannte.
-
-## [Released]
 
 ### v1.20.0
 
