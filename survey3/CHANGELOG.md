@@ -5,14 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Released]
+
+### v1.17.0
 
 #### Added
 
 - [2026-10-02] **Neuer Fragetyp `day_curve` (Tageskurve, fürs iPad)**: Patient:innen zeichnen ihre Beweglichkeit über den Tag ein (Finger nachfahren; Zonen schlecht beweglich / gut beweglich / Überbewegungen), tippen Tabletten- und Essenszeiten an und streichen nicht-motorische Beschwerden (Schmerzen, Sinnestäuschungen, Angst/Unruhe, starke Müdigkeit – konfigurierbar) in Zeilen darunter ein. Auswertung (OFF-/ON-/Dyskinesie-Stunden, Wechsel, längstes und nächtliches OFF, Beschwerden im OFF) und Muster-Hinweise (Morgen-OFF, Wearing-off, verzögertes ON ≥ 60 min, Dosisversagen, OFF nach Essen, nicht-motorische Fluktuation) in `src/tools/daycurve.js`; eine Zeichnung für Eingabe, Ergebnis-Ansicht (`TableView`), Druck-PDF und CDA-Text. Kennzahlen als eigene numerische Ergebnis-Einträge (exportierbar, nie bepunktet). Builder-Palette, Schema und Doku ergänzt.
 - [2026-10-02] **Fluktuations-Screening** als Kette aus zwei Bögen: `pd_fluct_screen` (Patientenbogen mit Tageskurve, Bezug letzte 3 Wochen) und `pd_fluct_screen_arzt` (Basistherapie ausgeschöpft?, Selbstanwendung, Gegenanzeigen, Ergebnis). Produktneutral formuliert; der bestehende `pd_ondemand` bleibt als Dokumentationsbogen.
-
-## [Released]
 
 ### v1.16.1
 
