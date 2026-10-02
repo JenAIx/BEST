@@ -85,7 +85,11 @@
     "search": "Suchen (Titel, Beschreibung, Schlüsselwort)…",
     "selected": "ausgewählt",
     "no_match": "Keine Treffer für die Suche.",
-    "hint_select": "Bogen wählen — mehrere für eine Vorlage"
+    "hint_select": "Bogen wählen — mehrere für eine Vorlage",
+    "pin": "Anheften",
+    "unpin": "Lösen",
+    "pinned": "angeheftet",
+    "pin_hint": "Zum Anheften nach rechts wischen"
   },
   "quest": {
     "label": "Fragebogen",

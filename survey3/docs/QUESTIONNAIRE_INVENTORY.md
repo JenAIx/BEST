@@ -5,7 +5,7 @@
 > Bögen vornehmen und neu generieren. Der Guard `inventory.test.js` hält das
 > eingecheckte Inventar synchron (CI schlägt sonst fehl).
 
-**113 Fragebögen** — Lizenz: 🔓 frei: 63 · ❔ unklar: 25 · 🔒 Lizenz: 25
+**113 Fragebögen** — Lizenz: 🔓 frei: 64 · ❔ unklar: 24 · 🔒 Lizenz: 25
 
 | Datei | Label (short_title) | Titel | Beschreibung | Lizenz | Keywords |
 | --- | --- | --- | --- | --- | --- |
@@ -87,7 +87,7 @@
 | `quest_pd_fluct_screen.json` | `pd_fluct_screen` | Fluktuations-Screening – Patientenbogen (Parkinson) | Selbstauskunft zu Wirkschwankungen mit Tageskurve (Beweglichkeit, Tabletten, Essen, Beschwerden) – für das iPad. | 🔓 frei | Parkinson, Fluktuation, Wearing-off, Screening, Selbstbeurteilung |
 | `quest_pd_fluct_screen_arzt.json` | `pd_fluct_screen_arzt` | Fluktuations-Screening – Arztbogen (Parkinson) | Ärztliche Einschätzung nach dem Patientenbogen: Basistherapie, Anwendbarkeit, Gegenanzeigen, Empfehlung. | 🔓 frei | Parkinson, Fluktuation, Medikation, Screening, Fremdbeurteilung |
 | `quest_pd_general.json` | `pd_general` | Parkinson-Fragebogen (allgemein, BIOMAG) | Allgemeine Anamnese zum Parkinson-Syndrom. | 🔓 frei | Parkinson, Anamnese |
-| `quest_pd_hybrid_screen.json` | `pd_hybrid_screen` | Parkinson-Ambulanz – Hybrid-Screening (Bewegung, nicht-motorische Symptome, Schlaf) | Gestaffeltes Ambulanz-Screening: Tageskurve mit Wachzeit, nicht-motorische Beschwerden in 9 Bereichslisten (NMSQuest), Schlaf der letzten Woche (PDSS-2), Wirkschwankungen nur bei Bedarf – füllt NMSQuest, PDSS-2 und MDS-UPDRS IV in der Visite vor. | ❔ unklar | Parkinson, Fluktuation, autonome Symptome, Schlaf, Screening, Selbstbeurteilung |
+| `quest_pd_hybrid_screen.json` | `pd_hybrid_screen` | Parkinson-Ambulanz – Hybrid-Screening (Bewegung, nicht-motorische Symptome, Schlaf) | Gestaffeltes Ambulanz-Screening: Tageskurve mit Wachzeit, nicht-motorische Beschwerden in 9 Bereichslisten (NMSQuest), Schlaf der letzten Woche (PDSS-2), Wirkschwankungen nur bei Bedarf – füllt NMSQuest, PDSS-2 und MDS-UPDRS IV in der Visite vor. | 🔓 frei | Parkinson, Fluktuation, autonome Symptome, Schlaf, Screening, Selbstbeurteilung |
 | `quest_pdq39.json` | `pdq39` | PDQ-39 – Parkinson-Lebensqualität (39 Items) | Krankheitsspezifische Lebensqualität bei Parkinson. | 🔒 Lizenz | Parkinson, Lebensqualität, Selbstbeurteilung |
 | `quest_pdq8.json` | `pdq8` | PDQ-8 – Parkinson-Lebensqualität (Kurzform) | Krankheitsspezifische Lebensqualität bei Parkinson (Kurzform). | 🔒 Lizenz | Parkinson, Lebensqualität, Selbstbeurteilung |
 | `quest_pdss.json` | `pdss2` | PDSS-2 – Parkinson Disease Sleep Scale | Erfassung von Schlafstörungen bei Parkinson. | ❔ unklar | Parkinson, Schlaf, Selbstbeurteilung |

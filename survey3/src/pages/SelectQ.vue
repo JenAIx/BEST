@@ -16,8 +16,26 @@
     <!-- LISTE -->
     <div class="col select-scroll">
       <div v-if="FILTERED_LIST.length > 0" class="select-grid q-pa-md" data-cy="questlistRoot">
-        <q-item v-for="(item, index) in FILTERED_LIST" :key="item" clickable v-ripple class="select-card"
-          :class="{ 'select-card--active': isSelected(item) }" :data-cy="'questlist' + index" @click="toggle(item)">
+        <!-- Wischen nach rechts (Touch) heftet an bzw. löst; am Desktop Stecknadel links beim Überfahren -->
+        <q-slide-item v-for="(item, index) in FILTERED_LIST" :key="item" class="select-slide"
+          left-color="amber-8" :data-cy="'slide_' + index" @left="(ev) => onSwipe(item, ev)">
+          <template #left>
+            <div class="row items-center no-wrap">
+              <q-icon name="push_pin" size="22px" class="q-mr-sm" />
+              {{ isFavorite(item) ? $t('select_quest.unpin') : $t('select_quest.pin') }}
+            </div>
+          </template>
+        <q-item clickable v-ripple class="select-card"
+          :class="{ 'select-card--active': isSelected(item), 'select-card--pinned': isFavorite(item) }"
+          :data-cy="'questlist' + index" @click="toggle(item)">
+          <q-item-section side class="pin-section">
+            <q-btn flat round dense size="sm" icon="push_pin" class="pin-btn"
+              :class="{ 'pin-btn--on': isFavorite(item) }" :data-cy="'pin_' + index"
+              :aria-label="isFavorite(item) ? $t('select_quest.unpin') : $t('select_quest.pin')"
+              @click.stop="togglePin(item)">
+              <q-tooltip :delay="400">{{ isFavorite(item) ? $t('select_quest.unpin') : $t('select_quest.pin') }}</q-tooltip>
+            </q-btn>
+          </q-item-section>
           <q-item-section avatar>
             <q-icon :name="isSelected(item) ? 'check_circle' : 'radio_button_unchecked'"
               :color="isSelected(item) ? 'primary' : 'grey-5'" size="24px" />
@@ -42,6 +60,7 @@
             <q-icon name="update" size="12px" class="q-mr-xs" />{{ versionOf(item) }}
           </div>
         </q-item>
+        </q-slide-item>
       </div>
       <div v-else class="text-grey-6 text-center q-pa-xl">
         <q-icon name="search_off" size="32px" class="q-mb-sm block" />
@@ -66,6 +85,7 @@ import myMixins from 'src/mixins/modes'
 import { useMainStore } from 'src/stores/main'
 import BACKBUTTON from 'src/components/BackButton.vue'
 import MYBUTTON from 'src/components/MyButton.vue'
+import { orderWithFavorites, toggleFavorite } from 'src/tools/questman/favorites'
 
 export default {
   name: 'SelectQuestionnaire',
@@ -90,8 +110,13 @@ export default {
     QUESTMAN() {
       return this.mainStore.QUESTMAN
     },
+    FAVORITES() {
+      return this.mainStore.SETTINGS.favorite_quests
+    },
+    // Angeheftete Bögen immer oben (auch beim Suchen, soweit sie passen)
     FILTERED_LIST() {
-      return this.QUESTMAN.quest_list_filtered(this.filter_value ? this.filter_value : null)
+      const list = this.QUESTMAN.quest_list_filtered(this.filter_value ? this.filter_value : null)
+      return orderWithFavorites(list, this.FAVORITES)
     },
     count_selected() {
       return Object.keys(this.selected).length
@@ -104,6 +129,17 @@ export default {
     toggle(key) {
       if (this.selected[key]) delete this.selected[key]
       else this.selected[key] = true
+    },
+    isFavorite(key) {
+      return this.FAVORITES.includes(key)
+    },
+    togglePin(key) {
+      this.mainStore.SETTINGS.favorite_quests = toggleFavorite(this.FAVORITES, key)
+    },
+    // q-slide-item: nach rechts gewischt → anheften/lösen, dann zurückschnappen
+    onSwipe(key, { reset }) {
+      this.togglePin(key)
+      setTimeout(() => reset(), 250)
     },
     deselectAll() {
       this.selected = {}
@@ -178,16 +214,52 @@ export default {
   flex-direction: column
   gap: 8px
 
+.select-slide
+  border-radius: $radius
+  overflow: hidden
+  box-shadow: $shadow-soft
+  transition: box-shadow .18s ease
+  &:hover
+    box-shadow: $shadow-hover
+  :deep(.q-slide-item__content)
+    border-radius: $radius
+
 .select-card
   position: relative
   background: $surface
   border: 1px solid $line
   border-radius: $radius
-  box-shadow: $shadow-soft
-  transition: box-shadow .18s ease, transform .18s ease, border-color .18s ease
-  &:hover
-    box-shadow: $shadow-hover
-    transform: translateY(-1px)
+  transition: border-color .18s ease
+
+// Stecknadel links: am Desktop beim Überfahren sichtbar, angeheftet immer;
+// auf Touch-Geräten (kein Hover) nur bei angehefteten — dort wird gewischt.
+.pin-section
+  padding-right: 0
+  min-width: 0
+
+.pin-btn
+  color: $grey-5
+  opacity: 0
+  transition: opacity .15s ease, color .15s ease
+  transform: rotate(35deg)
+
+.pin-btn--on
+  opacity: 1
+  color: #ef8f00
+  transform: none
+
+@media (hover: hover)
+  .select-card:hover .pin-btn
+    opacity: 1
+  .pin-btn:hover
+    color: #ef8f00
+
+@media (hover: none)
+  .pin-section:not(:has(.pin-btn--on))
+    display: none
+
+.select-card--pinned
+  border-color: rgba(#ef8f00, 0.55)
 
 .card-version
   position: absolute
