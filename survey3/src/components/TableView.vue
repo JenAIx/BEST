@@ -106,6 +106,13 @@
                           @click="downloadImage(f)" />
                       </div>
                     </template>
+                    <template v-else-if="isCurve(f.value)">
+                      <div class="tv-curve" v-html="curveSvg(f.value)" />
+                      <div class="tv-curve-summary">{{ curveSummary(f.value) }}</div>
+                      <ul v-if="f.value.patterns && f.value.patterns.length" class="tv-curve-patterns">
+                        <li v-for="(pt, k) in f.value.patterns" :key="k">{{ pt.text }}</li>
+                      </ul>
+                    </template>
                     <span v-else>{{ f.value }}</span>
                   </td>
                 </tr>
@@ -122,6 +129,7 @@
 <script>
 import { exportFile } from 'quasar'
 import { useMainStore } from 'src/stores/main'
+import { isDayCurveValue, dayCurveSvg, summaryText } from 'src/tools/daycurve'
 
 export default {
   props: ["QUEST", "medium"],
@@ -196,6 +204,15 @@ export default {
     },
   },
   methods: {
+    isCurve(v) {
+      return isDayCurveValue(v)
+    },
+    curveSvg(v) {
+      return dayCurveSvg(v, { uid: 'tv' })
+    },
+    curveSummary(v) {
+      return summaryText(v)
+    },
     isImage(v) {
       return typeof v === 'string' && v.startsWith('data:image')
     },
@@ -230,7 +247,7 @@ export default {
       this.findings.forEach(f => {
         headers.push(f.title)
         // Zeichnungen (Base64) nicht in die CSV-Zelle kippen — Platzhalter
-        values.push(this.isImage(f.value) ? '[Zeichnung]' : f.value)
+        values.push(this.isImage(f.value) ? '[Zeichnung]' : this.isCurve(f.value) ? summaryText(f.value) : f.value)
       })
 
       rows.push(headers.map(h => csvCell(h)).join(sep))
@@ -425,6 +442,24 @@ function csvCell(val) {
 
 .tv-drawing-actions
   margin-top: 4px
+
+/* Tageskurve in der Items-Tabelle */
+.tv-curve
+  max-width: 760px
+  :deep(svg)
+    display: block
+    width: 100%
+    height: auto
+
+.tv-curve-summary
+  margin-top: 4px
+  font-size: 0.85rem
+
+.tv-curve-patterns
+  margin: 4px 0 0
+  padding-left: 1.2em
+  font-size: 0.85rem
+  color: #333
 
 @media print
   .no-print

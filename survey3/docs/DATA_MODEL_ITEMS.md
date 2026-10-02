@@ -18,6 +18,7 @@ Datenvalidität. Abgesichert durch `test/jest/__tests__/item_types_datamodel.tes
 | **date** | String `DD.MM.YYYY` | as-is | übersprungen | `!= null` |
 | **date_year** | String `YYYY` | as-is | übersprungen | `!= null` |
 | **time** | String `HH:mm` (24 h) | as-is | übersprungen | `!= null` |
+| **day_curve** | **Objekt** `{kind:'day_curve', start, step_min, values[], pills[], meals[], symptoms[], summary, patterns}` — erst nach „Übernehmen“ (sonst `null`) | Rohkurve as-is **plus** abgeleitete Zahlen `<tag>_off_h`, `_on_h`, `_dys_h`, `_switches_to_off`, `_longest_off_h`, `_night_off_h`, je Beschwerde `_<key>_h` + `_<key>_in_off_pct` (alle `ignore_for_result`) | nie bepunktet | `isDayCurveValue` |
 | **separator / seperator / textbox / image** | kein Eingabewert | übersprungen (außer `image` mit gesetztem `value`) | — | `null` (nicht-interaktiv) |
 
 Belege: `src/components/QuestItemField.vue` (Renderer-Dispatch), `RenderQuest_*.vue` (Emit-Form),

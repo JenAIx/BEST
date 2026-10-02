@@ -505,6 +505,7 @@ export default {
         case 'separator': return 'remove'
         case 'textbox': return 'notes'
         case 'drawing': return 'gesture'
+        case 'day_curve': return 'show_chart'
         case 'image': return 'image'
         default: return 'text_fields'
       }
@@ -565,6 +566,11 @@ export default {
           item.value = null
           item.options = undefined
           item.canvas = { size: 320, background: 'blank' }
+          break
+        case 'day_curve':
+          item.value = null
+          item.options = undefined
+          item.curve = { start: '06:00', step_min: 30, markers: ['pill', 'meal'] }
           break
         default:
           item.value = null

@@ -3,6 +3,7 @@ import { log } from './Logger.js'
 import { sign, uuidv4 } from './hhash'
 
 import { template } from './CDA_template'
+import { isDayCurveValue, summaryText } from './daycurve'
 import dateFormat from 'dateformat'
 
 //  MAIN FUNCTION: payload = QuestMan.active_quest
@@ -346,6 +347,7 @@ function extract_value(invalue) {
 // (extract_value im entry.value).
 function display_value(invalue) {
   if (typeof invalue === 'string' && invalue.startsWith('data:image')) return '[Zeichnung]'
+  if (isDayCurveValue(invalue)) return `[Tageskurve] ${summaryText(invalue)}`
   return extract_value(invalue)
 }
 

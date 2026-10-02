@@ -2,6 +2,8 @@
 // Bewusst OHNE Dexie-/Vue-Abhängigkeiten gehalten, damit sie — wie scoring.js —
 // direkt mit Jest testbar ist. Persistenz übernimmt VisitMan.js.
 
+import { isDayCurveValue } from '../daycurve'
+
 // Status eines Fragebogen-Slots innerhalb einer Visite:
 //   'empty'      — noch nicht begonnen
 //   'draft'      — teilweise ausgefüllt, fortsetzbar
@@ -75,6 +77,8 @@ export function isAnswered(item, value) {
   if (t === 'checkbox') return Array.isArray(v) && v.length > 0
   // drawing: erst beantwortet, wenn eine echte Zeichnung (data-URI PNG) vorliegt
   if (t === 'drawing') return typeof v === 'string' && v.startsWith('data:image') && v.length > 100
+  // day_curve: erst beantwortet, wenn eine Kurve per „Übernehmen“ gespeichert wurde
+  if (t === 'day_curve') return isDayCurveValue(v)
   return v !== undefined && v !== null
 }
 
@@ -125,7 +129,7 @@ export function answerStats(items, values) {
     } else if (t === 'checkbox') {
       total += 1
       if (Array.isArray(value) && value.length > 0) filled += 1
-    } else if (t === 'drawing') {
+    } else if (t === 'drawing' || t === 'day_curve') {
       total += 1
       if (isAnswered(item, value)) filled += 1
     } else {

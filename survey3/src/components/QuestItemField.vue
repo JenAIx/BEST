@@ -10,7 +10,7 @@
       :is="renderer"
       v-else
       :ITEM="item"
-      :preview="(item.type === 'multiple_radio' || item.type === 'drawing') ? preview : undefined"
+      :preview="(item.type === 'multiple_radio' || item.type === 'drawing' || item.type === 'day_curve') ? preview : undefined"
       :data-cy="inputCy"
       @emitValue="$emit('emitValue', $event)"
     />
@@ -32,6 +32,7 @@ import RenderTime from './RenderQuest_time.vue'
 import RenderText from './RenderQuest_text.vue'
 import RenderRadio from './RenderQuest_radio.vue'
 import RenderDrawing from './RenderQuest_drawing.vue'
+import RenderDayCurve from './RenderQuest_daycurve.vue'
 
 const RENDERER = {
   radio: 'RenderRadio',
@@ -44,11 +45,12 @@ const RENDERER = {
   slider: 'RenderSlider',
   multiple_radio: 'RenderMultipleRadio',
   drawing: 'RenderDrawing',
+  day_curve: 'RenderDayCurve',
 }
 
 export default {
   name: 'QuestItemField',
-  components: { RenderSlider, RenderMultipleRadio, RenderDate, RenderTime, RenderText, RenderRadio, RenderDrawing },
+  components: { RenderSlider, RenderMultipleRadio, RenderDate, RenderTime, RenderText, RenderRadio, RenderDrawing, RenderDayCurve },
   props: {
     item: { type: Object, required: true },
     error: { type: Boolean, default: false },

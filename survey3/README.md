@@ -280,6 +280,25 @@ A non-interactive text block, used to display instructions or information mid-qu
 
 Items with no `type` field or `type: "textbox"` are treated as non-interactive display elements.
 
+##### `day_curve` — Tageskurve (Wirkfluktuation, fürs iPad)
+
+Bewegungsprofil eines typischen Tages: Patient:innen fahren mit dem Finger die Kurve nach (oben gut beweglich, unten schlecht beweglich, ganz oben Überbewegungen), tippen Tabletten- und Essenszeiten an und streichen Beschwerden in Zeilen unter der Kurve ein. Gespeichert wird erst mit „Übernehmen“. Logik, Auswertung und Zeichnung liegen in `src/tools/daycurve.js` (dieselbe Zeichnung in Eingabe, Ergebnis-Ansicht und Druck).
+
+```json
+{
+  "id": 5, "tag": "tageskurve", "type": "day_curve", "value": null,
+  "label": "Tragen Sie Ihr Bewegungsprofil für einen Tag ein …",
+  "curve": {
+    "start": "06:00", "step_min": 30,
+    "markers": ["pill", "meal"],
+    "symptoms": [ { "key": "pain", "label": "Schmerzen" }, { "key": "hallucinations", "label": "Sinnestäuschungen" } ],
+    "feedback": false
+  }
+}
+```
+
+Alle `curve`-Felder sind optional (Standard: 06:00–06:00, 30 min, Tablette + Essen, vier Beschwerde-Zeilen, Nacht 22–06 schattiert). Der Wert enthält die Rohkurve, eine Zusammenfassung (OFF-/ON-/Überbewegungs-Stunden, Wechsel in OFF, längstes OFF, nächtliches OFF, je Beschwerde Stunden und Anteil im OFF) und erkannte Muster (Morgen-OFF, Wearing-off, verzögertes ON ≥ 60 min, Dosisversagen, OFF nach dem Essen, nächtliches OFF, Beschwerde überwiegend im OFF). Die Muster sind Regeln, kein Befund — sie erscheinen in der Auswertung, beim Ausfüllen nur mit `feedback: true`. Bögen mit Tageskurve werden breiter dargestellt.
+
 ##### `image` — Image Display
 
 Displays images from the `public/img/` directory.

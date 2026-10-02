@@ -55,7 +55,7 @@
         "label": { "type": "string", "description": "HTML erlaubt. Bei separator/textbox die anzuzeigende Überschrift/Info." },
         "type": {
           "type": "string",
-          "enum": ["radio", "checkbox", "text", "number", "date", "date_year", "time", "slider", "multiple_radio", "separator", "textbox", "image", "drawing"],
+          "enum": ["radio", "checkbox", "text", "number", "date", "date_year", "time", "slider", "multiple_radio", "separator", "textbox", "image", "drawing", "day_curve"],
           "description": "Deckt sich mit ITEM_TYPES in validate.js und den Renderern in QuestItemField.vue."
         },
         "id": {
@@ -78,6 +78,20 @@
           "properties": {
             "size": { "type": "number", "description": "Kantenlänge in px (Default 320)." },
             "background": { "type": "string", "description": "Vorlage: 'blank' | 'spiral' | '<datei>.png'." }
+          }
+        },
+        "curve": {
+          "type": "object",
+          "description": "Layout (day_curve): Tageskurve der Beweglichkeit. Alles optional.",
+          "properties": {
+            "start": { "type": "string", "description": "Beginn der Zeitachse HH:MM (Default 06:00)." },
+            "step_min": { "type": "number", "description": "Raster in Minuten (Default 30)." },
+            "hours": { "type": "number", "description": "Länge der Achse in Stunden (Default 24)." },
+            "night_from": { "type": "string", "description": "Beginn der Nacht-Schattierung HH:MM (Default 22:00)." },
+            "night_to": { "type": "string", "description": "Ende der Nacht-Schattierung HH:MM (Default 06:00)." },
+            "markers": { "type": "array", "items": { "enum": ["pill", "meal"] }, "description": "Zeilen zum Antippen über der Kurve (Default pill + meal)." },
+            "symptoms": { "type": "array", "items": { "type": "object", "required": ["key", "label"], "properties": { "key": { "type": "string" }, "label": { "type": "string" }, "color": { "type": "string" } } }, "description": "Beschwerde-Zeilen unter der Kurve (Default: Schmerzen, Sinnestäuschungen, Angst/Unruhe, starke Müdigkeit; [] = keine)." },
+            "feedback": { "type": "boolean", "description": "Kennzahlen und Muster schon beim Ausfüllen zeigen (Default false: nur in der Auswertung)." }
           }
         },
         "hint": { "type": "string", "description": "Platzhalter/Hinweis (text/number)." },
