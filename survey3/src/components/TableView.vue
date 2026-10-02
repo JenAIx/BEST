@@ -308,6 +308,11 @@ export default {
   .tv-item-value { color: #1976D2; font-weight: 500; }
   .tv-eval { background: #F5F5F5; padding: 10px; border-radius: 4px; font-size: 10pt; color: #1D1D1D; }
   .tv-drawing { max-width: 340px; width: 100%; border: 1px solid #bbb; border-radius: 4px; break-inside: avoid; }
+  /* Tageskurve nie über einen Seitenumbruch: Zeile, Abbildung und Kennzahlen bleiben zusammen */
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  .tv-curve { max-width: 170mm; break-inside: avoid; page-break-inside: avoid; }
+  .tv-curve svg { display: block; width: 100%; height: auto; }
+  .tv-curve-summary, .tv-curve-patterns { font-size: 9pt; }
   .no-print { display: none !important; }
   @page { margin: 15mm; }
 </style></head><body>`)
