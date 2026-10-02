@@ -36,6 +36,7 @@ const MIGRATIONS = [
   ['014-raw-file-concepts', 'rawFileConcepts'], ['015-observation-audit-fact', 'observationAuditFact'],
   ['016-recreate-triggers', 'recreateTriggers'], ['017-neuro-consult-seed', 'neuroConsultSeed'],
   ['018-patient-list-view-perf', 'patientListViewPerf'], ['019-observation-version', 'observationVersion'],
+  ['020-survey-hybrid-concepts', 'surveyHybridConcepts'],
 ]
 const EXPECTED_TABLES = ['PATIENT_DIMENSION', 'VISIT_DIMENSION', 'OBSERVATION_FACT', 'CONCEPT_DIMENSION', 'PROVIDER_DIMENSION', 'CODE_LOOKUP', 'USER_MANAGEMENT', 'USER_PATIENT_LOOKUP', 'NOTE_FACT', 'CQL_FACT', 'CONCEPT_CQL_LOOKUP', 'STUDY_DIMENSION', 'STUDY_PATIENT_LOOKUP', 'OBSERVATION_AUDIT_FACT', 'migrations']
 const EXPECTED_VIEWS = ['patient_list', 'patient_observations']

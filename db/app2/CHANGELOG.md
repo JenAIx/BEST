@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **surveyBEST-Hybridbogen importierbar** (2026-10-02): der Parkinson-Ambulanz-
+  Hybridbogen aus surveyBEST (≥ v1.20) kommt vollständig an — Visiten-Export
+  (JSON) und HTML-Einzelexport. Migration **020-survey-hybrid-concepts** legt die
+  Konzepte für alle Kennzahlen (`CUSTOM: PD_HYBRID_*`: OFF/Überbewegungen in der
+  Wachzeit, nächtliches OFF, Wechsel, UPDRS-4.1/4.3-Vorschlag, auffällige
+  Bereiche) und den **PDSS-2-Gesamtscore** (`CUSTOM: SCORES_PDSS2`) an — vorher
+  verwarf der Import diese N-Observations stillschweigend — und ergänzt die
+  Score-Leiste der Parkinson-Konsultationen um PDSS-2 und OFF/Tag (nur anhängen).
+  Aus dem Hybridbogen abgeleitete **NMSQuest und PDSS-2** kommen als eigene
+  Fragebögen (`questionnaire_code` `NMS_QUEST` / `PDSS2`, `collection: hybrid`).
+- Fragebogen-Ansicht, Vorschau-Dialog und Visiten-PDF zeigen Objekt-Antworten
+  lesbar (Tageskurve als Kennzahlen-Zeile mit Mustern statt `[object Object]`,
+  `src/shared/utils/questionnaire-value.js`); die Fragebogen-Ansicht zeigt die
+  **Bewertung** (`results[].evaluation`, z. B. Ampel je Bereich) als Text.
+- HTML-Import: Objekt-/Listenwerte als JSON bzw. Liste in `TVAL_CHAR`, Bewertung
+  (Evaluation Section) im Q-Blob, `questionnaire_code` in Großbuchstaben wie die
+  Seeds.
+
+### Fixed
+
+- **Import hängte Observations an fremde oder fehlende Visiten** (2026-10-02):
+  stimmte die lokale `PATIENT_NUM` einer Exportdatei zufällig mit der neu
+  vergebenen überein (z. B. erster Patient in leerer DB), galt die Visite als
+  „bereits vorhanden“ und wurde nicht angelegt → `FOREIGN KEY constraint failed`
+  bzw. Zuordnung zur falschen Visite. Wiederverwendet wird eine Visite jetzt nur,
+  wenn sie in der DB existiert und diesem Patienten gehört.
+
+### Added (Visitenmodus)
+
 - **Visitenmodus (Konsultations-Cockpit) — EXPERIMENTELL** (`features/visit-cockpit`,
   Iteration 1; wird in weiteren Iterationen ausgebaut, Datenverträge können
   sich noch ändern): dritte Ansicht auf `/visits/:patientId` neben Zeitlinie und

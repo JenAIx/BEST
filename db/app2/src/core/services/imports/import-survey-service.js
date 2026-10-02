@@ -402,15 +402,21 @@ export class ImportSurveyService extends BaseImportService {
       })
     }
 
+    // Bewertungstext (Evaluation Section, z. B. Ampel des Hybridbogens) mitnehmen
+    const evaluationSection = cda.section?.find((s) => s.title === 'Evaluation Section')
+    const evaluation = evaluationSection?.text?.div || null
+
     // Transform to simple JSON structure
     return {
       title: info.title || cda.title || 'Imported Questionnaire',
       short_title: info.label || null,
-      questionnaire_code: info.label || 'imported_questionnaire',
+      // wie die Seeds (CODE_CD = short_title in Großbuchstaben), sonst erkennt das Cockpit den Bogen nicht
+      questionnaire_code: info.label ? String(info.label).toUpperCase() : 'imported_questionnaire',
       date_start: cda.event?.[0]?.period?.start ? this.parseDateTime(cda.event[0].period.start) : null,
       date_end: cda.event?.[0]?.period?.end ? this.parseDateTime(cda.event[0].period.end) : null,
       items: items,
       results: results.length > 0 ? results : null,
+      evaluation,
       coding: {
         system: 'LOINC', // Default to LOINC
         code: '72133-2', // Default MoCA code, can be overridden
@@ -457,6 +463,13 @@ export class ImportSurveyService extends BaseImportService {
     } else if (typeof entry.value === 'string') {
       valtypeCd = 'T'
       tvalChar = entry.value
+    } else if (Array.isArray(entry.value)) {
+      valtypeCd = 'T'
+      tvalChar = entry.value.join(', ')
+    } else if (entry.value !== undefined && entry.value !== null && typeof entry.value === 'object') {
+      // z. B. Tageskurve (day_curve) — als JSON statt "[object Object]"
+      valtypeCd = 'T'
+      tvalChar = JSON.stringify(entry.value)
     } else if (entry.value !== undefined && entry.value !== null) {
       valtypeCd = 'T'
       tvalChar = String(entry.value)

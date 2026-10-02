@@ -44,6 +44,17 @@
       </div>
     </div>
 
+    <!-- Bewertung (z. B. Ampel des Parkinson-Hybridbogens) -->
+    <div v-if="evaluation.length" class="evaluation-summary q-mb-xl" data-cy="questionnaire-evaluation">
+      <div class="text-h6 text-weight-medium q-mb-sm">
+        <q-icon name="fact_check" class="q-mr-sm" />
+        Bewertung
+      </div>
+      <div class="evaluation-card">
+        <div v-for="(line, i) in evaluation" :key="'ev' + i" :class="evaluationClass(line)">{{ line }}</div>
+      </div>
+    </div>
+
     <!-- Individual Responses -->
     <div v-if="results.items?.length" class="responses-section">
       <div class="section-header q-mb-md">
@@ -80,6 +91,9 @@
               <q-icon :name="getValueIcon(item.value)" class="q-mr-xs" />
               {{ formatValue(item.value) }}
             </div>
+            <ul v-if="curvePatterns(item.value).length" class="curve-patterns">
+              <li v-for="(p, pi) in curvePatterns(item.value)" :key="'cp' + pi">{{ p }}</li>
+            </ul>
           </div>
         </div>
       </div>
@@ -136,6 +150,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { formatQuestionnaireValue, dayCurvePatterns, blobEvaluationLines } from 'src/shared/utils/questionnaire-value.js'
 
 const props = defineProps({
   results: {
@@ -147,6 +162,18 @@ const props = defineProps({
     default: null,
   },
 })
+
+// Bewertungstext (results[].evaluation) als Zeilen; Bereichs-Überschriften mit
+// Ampelzeichen (⚠ ◐ ✓) bekommen eine Farbe
+const evaluation = computed(() => blobEvaluationLines(props.results))
+const evaluationClass = (line) => {
+  if (line.startsWith('⚠')) return 'ev-line ev-warn'
+  if (line.startsWith('◐')) return 'ev-line ev-mid'
+  if (line.startsWith('✓')) return 'ev-line ev-ok'
+  if (line.startsWith('•')) return 'ev-line ev-item'
+  return 'ev-line ev-note'
+}
+const curvePatterns = (value) => dayCurvePatterns(value)
 
 // Computed property to handle both old format (object) and new format (array)
 const computedResults = computed(() => {
@@ -196,18 +223,8 @@ const formatDateTime = (timestamp) => {
   })
 }
 
-const formatValue = (value) => {
-  if (Array.isArray(value)) {
-    return value.join(', ')
-  }
-  if (typeof value === 'boolean') {
-    return value ? 'Yes' : 'No'
-  }
-  if (value === null || value === undefined || value === '') {
-    return 'No response'
-  }
-  return String(value)
-}
+// Objekte (Tageskurve) und Listen lesbar — eine Stelle für alle Ansichten
+const formatValue = (value) => formatQuestionnaireValue(value)
 
 const getValueIcon = (value) => {
   if (value === null || value === undefined || value === '') return 'help'
@@ -279,6 +296,23 @@ const calculateDuration = (start, end) => {
 </script>
 
 <style lang="scss" scoped>
+.evaluation-card {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+.ev-line { line-height: 1.5; }
+.ev-warn, .ev-mid, .ev-ok { font-weight: 600; margin-top: 6px; }
+.ev-warn { color: #c62828; }
+.ev-mid { color: #b26a00; }
+.ev-ok { color: #2e7d32; }
+.ev-item { padding-left: 14px; }
+.ev-note { font-size: 0.85em; opacity: 0.75; margin-top: 6px; }
+.curve-patterns {
+  margin: 4px 0 0;
+  padding-left: 1.2em;
+  font-size: 0.85em;
+}
 .completed-questionnaire {
   max-width: 1000px;
   margin: 0 auto;

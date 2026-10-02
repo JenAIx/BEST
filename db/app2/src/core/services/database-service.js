@@ -40,6 +40,7 @@ import { recreateTriggers } from '../database/migrations/016-recreate-triggers.j
 import { neuroConsultSeed } from '../database/migrations/017-neuro-consult-seed.js'
 import { patientListViewPerf } from '../database/migrations/018-patient-list-view-perf.js'
 import { observationVersion } from '../database/migrations/019-observation-version.js'
+import { surveyHybridConcepts } from '../database/migrations/020-survey-hybrid-concepts.js'
 
 class DatabaseService {
   constructor() {
@@ -106,6 +107,7 @@ class DatabaseService {
       this.migrationManager.registerMigration(neuroConsultSeed)
       this.migrationManager.registerMigration(patientListViewPerf)
       this.migrationManager.registerMigration(observationVersion)
+      this.migrationManager.registerMigration(surveyHybridConcepts)
 
       // Run migrations to create/update schema
       await this.migrationManager.initializeDatabase()
