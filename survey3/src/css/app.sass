@@ -102,9 +102,23 @@ h2, .text-h2
   min-width: 0
   height: 95%
 
-// Bögen mit Tageskurve (day_curve): breiter, damit die Kurve auf dem iPad lesbar bleibt
+// Bögen mit Tageskurve (day_curve): breiter, damit die Kurve auf dem iPad lesbar
+// bleibt — fest bis 900px (iPad hoch füllt die Breite, iPad quer hat Rand).
 .my-quest-form--wide
-  max-width: 1100px
+  max-width: 900px
+
+// Reicht die Karte bis an den Rand, liegt der schwebende ⋮-Knopf (BackButton,
+// absolute-top-right der Seite) über dem Kopf der Karte — dann rechts Platz
+// freihalten, sonst verschmilzt er mit dem Listen/Fokus-Umschalter.
+// Gilt für jede Karte, die bis an den Rand reicht: normale bis 600px (also
+// Bildschirm < 600 + 2×64), breite bis 900px.
+@media screen and (max-width: 728px)
+  .my-quest-form .quest-header
+    padding-right: 64px
+
+@media screen and (max-width: 1028px)
+  .my-quest-form--wide .quest-header
+    padding-right: 64px
 
 @media screen and (max-width: 600px)
   .my-quest-form

@@ -508,11 +508,8 @@ export default {
 .quest-header
   padding-bottom: 4px
 
-// Auf schmalen Screens rechts Platz für den schwebenden 3-Punkte-Button
-// (BackButton-Overlay) freihalten -> kein Überlappen mit dem Fokus-Umschalter.
-@media (max-width: 599px)
-  .quest-header
-    padding-right: 48px
+// Platz für den schwebenden 3-Punkte-Button (BackButton) hält app.sass frei
+// (.my-quest-form .quest-header), sobald die Karte bis an den Rand reicht.
 
 .quest-chain
   background: $surface
