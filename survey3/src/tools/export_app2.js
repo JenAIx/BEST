@@ -35,6 +35,8 @@ export function blobFromSummary(summary) {
     label: summary.label,
     title: summary.title,
     short_title: summary.label, // in survey3 ist summary.label == short_title
+    collection: summary.collection || null, // 'hybrid' = aus dem Hybridbogen abgeleitet
+    derived_from: summary.derived_from || null,
     questionnaire_code: questCode(summary),
     date_start: summary.date_start,
     date_end: summary.date_end,
@@ -164,7 +166,15 @@ export function buildImportStructure(patientsWithVisits, exportDate, options = {
     ;(pw.visits || []).forEach((vw) => {
       encounterNum++
       visits.push(buildVisitRecord(vw.visit, patientNum, encounterNum))
-      ;(vw.summaries || []).forEach((summary) => {
+      // Hybridbogen: abgeleitete NMSQuest/PDSS-2 als eigene Bögen — nur wenn die
+      // Visite diesen Bogen nicht schon selbst abgeschlossen hat (sonst doppelt).
+      const own = new Set((vw.summaries || []).map((s) => s.label))
+      const all = []
+      ;(vw.summaries || []).forEach((s) => {
+        all.push(s)
+        ;(s.derived || []).forEach((d) => { if (!own.has(d.label)) all.push(d) })
+      })
+      all.forEach((summary) => {
         buildQuestionnaireObservations(
           summary,
           patientNum,
