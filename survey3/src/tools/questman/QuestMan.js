@@ -5,6 +5,7 @@ import { calc_results, evaluate } from './scoring'
 import { buildResultItems } from './result-items'
 import { itemValidity } from '../visits/visit-model'
 import { validateQuestScoring } from './validate'
+import { evaluateHybrid } from '../hybrid-derive'
 import { db } from '../db'
 
 // Eagerly load all questionnaire JSON files via Vite's glob import
@@ -293,7 +294,10 @@ export class QuestMan {
     }
 
     // Scoring + optionale Bereichs-Bewertung
-    result.results = calc_results(result, quest.results)
+    // pd_hybrid: eigene Auswertung aus den Roh-Items (Kurve, Listen, Folgefragen)
+    result.results = quest.results && quest.results.method === 'pd_hybrid'
+      ? evaluateHybrid(quest.items)
+      : calc_results(result, quest.results)
     result.coding = quest.coding
     if (quest.results !== undefined && quest.results.evaluation !== undefined) {
       result.results = evaluate(result.results, quest.results.evaluation)

@@ -10,7 +10,7 @@
   "coding": {
     "system": "CUSTOM",
     "code": "CUSTOM: PD_HYBRID_SCREEN",
-    "display": "PD-Hybrid Screening Stufe 1",
+    "display": "Parkinson-Ambulanz – Hybrid-Screening",
     "version": "20261002"
   },
   "description": "Gestaffeltes Ambulanz-Screening: Tageskurve mit Wachzeit, nicht-motorische Beschwerden in 9 Bereichslisten (NMSQuest), Schlaf der letzten Woche (PDSS-2), Wirkschwankungen nur bei Bedarf – füllt NMSQuest, PDSS-2 und MDS-UPDRS IV in der Visite vor.",
@@ -1233,5 +1233,7 @@
       }
     }
   ],
-  "results": {}
+  "results": {
+    "method": "pd_hybrid"
+  }
 }

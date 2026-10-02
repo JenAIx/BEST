@@ -83,7 +83,9 @@ function renderDayCurve(item, label, ctx) {
   const filled = isDayCurveValue(item.value)
   const value = filled ? item.value : emptyCurve(dcConfig(item))
   const svg = dayCurveSvg(value, { uid: `pdf${ctx.num}`, blank: !filled })
-  const sum = filled ? `<div class="section-caption">${summaryText(value)}</div>` : ''
+  const sum = filled
+    ? `<div class="section-caption">${summaryText(value)}</div>`
+    : '<div class="section-caption">Auf Papier: Tabletten- und Essenszeiten mit einem Strich markieren, Ihren Tag als Linie einzeichnen (oben gut, unten schlecht beweglich), Beschwerdezeiten in den Zeilen darunter schraffieren.</div>'
   return `<div class="item-block"><div class="item-label">${numPrefix(ctx.num, label)}${label}</div><div style="max-width:180mm">${svg}</div>${sum}</div>`
 }
 
@@ -137,6 +139,23 @@ function renderVas(item, label, ctx) {
     </div></div>`
 }
 
+// Papier kennt keine bedingten Fragen (show_if): Hinweis, wann die Frage gilt.
+function conditionHint(item, items) {
+  const conds = item.show_if === undefined ? [] : Array.isArray(item.show_if) ? item.show_if : [item.show_if]
+  if (!conds.length) return ''
+  const text = conds.map((c) => {
+    const ref = (items || []).find((o) => (c.item !== undefined && o.id === c.item) || (c.tag !== undefined && o.tag === c.tag))
+    if (c.metric === 'off_h') return 'Sie in der Tageskurve schlecht bewegliche Zeiten eingetragen haben'
+    if (c.metric === 'dys_h') return 'Sie in der Tageskurve Überbewegungen eingetragen haben'
+    if (c.op === 'includes' && ref) {
+      const o = (ref.options || []).find((x) => x.value === c.value)
+      return o ? `Sie oben „${stripHtml(o.label).replace(/\?$/, '')}“ angekreuzt haben` : 'die Bedingung oben zutrifft'
+    }
+    return 'die Frage oben zutrifft'
+  })
+  return `<div class="section-caption" style="font-style:italic;margin:6px 0 -2px">Nur beantworten, wenn ${[...new Set(text)].join(' oder ')}.</div>`
+}
+
 function renderItem(item, ctx, imgBase) {
   if (!item.type || item.type === 'separator' || item.type === 'textbox') {
     return renderSection(item)
@@ -160,7 +179,7 @@ function renderItem(item, ctx, imgBase) {
 export function buildQuestPdfHtml(quest, { dateStr = '', timeStr = '', imgBase = '' } = {}) {
   const items = quest.items || []
   const ctx = { num: 0 }
-  const bodyHtml = items.map((item) => renderItem(item, ctx, imgBase)).join('')
+  const bodyHtml = items.map((item) => conditionHint(item, items) + renderItem(item, ctx, imgBase)).join('')
 
   const pidHtml = `<div class="pid-block">
         <span class="pid-label">Patienten-ID / Code:</span>

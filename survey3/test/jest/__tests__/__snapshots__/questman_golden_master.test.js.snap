@@ -1411,7 +1411,38 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 ]
 `;
 
-exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pd_hybrid_screen 1`] = `{}`;
+exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pd_hybrid_screen 1`] = `
+[
+  {
+    "coding": {
+      "code": "CUSTOM: PD_HYBRID_NMSQUEST_TOTAL",
+      "display": "NMSQuest (Anzahl Ja, 0–30)",
+      "system": "CUSTOM",
+    },
+    "label": "nmsquest_total",
+    "value": 9,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: PD_HYBRID_PDSS2_TOTAL",
+      "display": "PDSS-2 Summe (0–60)",
+      "system": "CUSTOM",
+    },
+    "label": "pdss2_total",
+    "value": 5,
+  },
+  {
+    "coding": {
+      "code": "CUSTOM: PD_HYBRID_AUFFAELLIG",
+      "display": "auffällige Bereiche (0–3)",
+      "system": "CUSTOM",
+    },
+    "evaluation": "<div style="margin:0 0 8px"><b style="color:#616161">… Motorik / Wirkschwankungen: unvollständig</b></div><div style="margin:0 0 8px"><b style="color:#c62828">⚠ Nicht-motorische Symptome (NMSQuest): auffällig</b><ul style="margin:2px 0 0 18px;padding:0"><li>9/30 Symptome – Belastung mäßig</li><li>Warnzeichen: Sinnestäuschungen, Niedergeschlagenheit, Schwindel beim Aufstehen, Einschlafen bei Aktivitäten</li></ul></div><div style="margin:0 0 8px"><b style="color:#2e7d32">✓ Schlaf (PDSS-2): unauffällig</b><ul style="margin:2px 0 0 18px;padding:0"><li>PDSS-2 5/60 (Grenzwert 18)</li></ul></div><div style="font-size:85%;color:#666">Orientierungswerte, keine Diagnose. NMSQuest/PDSS-2 im Listen- bzw. Zweistufenformat erhoben (Erhebung: hybrid).</div>",
+    "label": "auffaellige_bereiche",
+    "value": 1,
+  },
+]
+`;
 
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pdq8 1`] = `
 [

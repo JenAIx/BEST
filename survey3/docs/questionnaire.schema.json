@@ -167,7 +167,7 @@
       "type": "object",
       "description": "Optional (unbepunktete Bögen lassen results weg oder leer). Empfohlene Key-Reihenfolge: method, coding, evaluation, scoring, domaine.",
       "properties": {
-        "method": { "type": "string", "enum": ["sum", "avg", "count", "count_targets", "ids", "nothing"] },
+        "method": { "type": "string", "enum": ["sum", "avg", "count", "count_targets", "ids", "nothing", "pd_hybrid"] },
         "coding": { "$ref": "#/$defs/coding" },
         "evaluation": { "description": "Bereichs-Bewertung (range → label/coding)." },
         "scoring": {

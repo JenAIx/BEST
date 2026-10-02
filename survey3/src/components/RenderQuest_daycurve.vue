@@ -186,9 +186,10 @@ export default {
   overflow-x: auto
   max-width: 100%
 
-/* fürs iPad gebaut: darunter horizontal scrollen statt unlesbar klein */
+/* nimmt den verfügbaren Platz; erst unter 520px (kleine Handys) wird horizontal
+   gescrollt statt unlesbar klein */
 .daycurve-box
-  min-width: 720px
+  min-width: 520px
   touch-action: none
   user-select: none
   -webkit-user-select: none

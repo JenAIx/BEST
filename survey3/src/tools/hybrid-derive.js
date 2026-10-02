@@ -176,3 +176,144 @@ export function prefillVisitFromHybrid(visitMan, visitId, hybridItems, getQuest)
   })
   return done
 }
+
+// ---------- Auswertung des Hybridbogens (Ergebnis-Seite) ----------
+//
+// Drei Bereiche mit Ampel (auffällig / grenzwertig / unauffällig / unvollständig)
+// und Kennzahlen, damit Auffälliges sofort ins Auge fällt. Schwellen sind
+// Orientierung, keine Diagnose:
+//   NMSQuest  Anzahl Ja 0–30; Schweregrad nach Chaudhuri et al. 2015 (Parkinsonism
+//             Relat Disord 21:287): 0 keine, 1–5 leicht, 6–9 mäßig, 10–13 schwer,
+//             ≥14 sehr schwer. Dazu Warnzeichen-Items, die unabhängig von der Summe
+//             auffallen sollen.
+//   PDSS-2    Summe 0–60 (Item 1 umgepolt); ≥ 18 klinisch relevante Schlafstörung
+//             (Muntean et al. 2016, Sleep Med).
+//   Motorik   OFF ≥ 2 h oder ≥ 25 % der Wachzeit, Überbewegungen ≥ 25 % bzw.
+//             Beeinträchtigung ≥ „mehrere Tätigkeiten“, verzögertes ON ≥ 60 min
+//             oder Dosisversagen → auffällig (klinische Faustregel, nicht validiert).
+export const NMS_GRADES = [[0, 0, 'keine'], [1, 5, 'leicht'], [6, 9, 'mäßig'], [10, 13, 'schwer'], [14, 30, 'sehr schwer']]
+export const NMS_RED_FLAGS = {
+  3: 'Schluckstörung', 14: 'Sinnestäuschungen', 16: 'Niedergeschlagenheit', 20: 'Schwindel beim Aufstehen',
+  21: 'Stürze', 22: 'Einschlafen bei Aktivitäten', 30: 'wahnhafte Überzeugungen',
+}
+export const PDSS2_CUTOFF = 18
+const OFF_H_FLAG = 2
+const PCT_FLAG = 25
+const FREQ_OFT = 3
+
+const r1 = (x) => Math.round(x * 10) / 10
+const de1 = (x) => String(r1(x)).replace('.', ',')
+const RANK = { 'unvollständig': 0, 'unauffällig': 1, 'grenzwertig': 2, 'auffällig': 3 }
+const worst = (a, b) => (RANK[b] > RANK[a] ? b : a)
+
+function nmsGrade(total) {
+  const g = NMS_GRADES.find(([lo, hi]) => total >= lo && total <= hi)
+  return g ? g[2] : ''
+}
+
+function pdssItemLabel(items, id) {
+  const list = byId(items, 22)
+  const o = list && (list.options || []).find((x) => x.value === `pdss${pad2(id)}`)
+  return o ? o.label.replace(/\?$/, '') : `PDSS-2 Item ${id}`
+}
+
+export function evaluateHybrid(items) {
+  const domains = []
+  const results = []
+  const num = (key, display, value) => {
+    if (value === null || value === undefined || Number.isNaN(value)) return
+    results.push({ label: key, value, coding: { system: 'CUSTOM', code: `CUSTOM: PD_HYBRID_${key.toUpperCase()}`, display } })
+  }
+
+  // --- Motorik / Fluktuationen ---
+  const m = wakeMetrics(items)
+  const curve = byId(items, 3)
+  const motor = { name: 'Motorik / Wirkschwankungen', status: 'unvollständig', lines: [] }
+  if (m && m.wake_h > 0) {
+    const offPct = (m.off_wake_h / m.wake_h) * 100
+    const dysPct = (m.dys_wake_h / m.wake_h) * 100
+    num('off_wake_h', 'OFF in der Wachzeit (h)', r1(m.off_wake_h))
+    num('off_wake_pct', 'OFF in der Wachzeit (%)', Math.round(offPct))
+    num('dys_wake_h', 'Überbewegungen in der Wachzeit (h)', r1(m.dys_wake_h))
+    num('dys_wake_pct', 'Überbewegungen in der Wachzeit (%)', Math.round(dysPct))
+    num('night_off_h', 'OFF nachts (h)', r1(m.night_off_h))
+    const sum = curve.value.summary || {}
+    num('switches_to_off', 'Wechsel in OFF', sum.switches_to_off)
+    num('longest_off_h', 'längstes OFF (h)', sum.longest_off_h)
+    motor.status = 'unauffällig'
+    motor.lines.push(`OFF ${de1(m.off_wake_h)} h (${Math.round(offPct)} % der Wachzeit ${de1(m.wake_h)} h) · Überbewegungen ${de1(m.dys_wake_h)} h (${Math.round(dysPct)} %)`)
+    if (m.off_wake_h > 0) motor.status = 'grenzwertig'
+    if (m.off_wake_h >= OFF_H_FLAG || offPct >= PCT_FLAG) motor.status = 'auffällig'
+    if (m.dys_wake_h > 0) motor.status = worst(motor.status, 'grenzwertig')
+    const dysImpact = proposal(items, 303)
+    if (dysPct >= PCT_FLAG || (dysImpact !== null && dysImpact >= 2)) motor.status = 'auffällig'
+    // night_off nicht hier: nächtliches OFF steht unter Schlaf, gerechnet mit der
+    // angegebenen Schlafzeit statt mit dem festen Nachtfenster der Kurve.
+    const pats = (curve.value.patterns || []).filter((p) => ['morning_off', 'wearing_off', 'delayed_on', 'dose_failure', 'meal_off'].includes(p.code))
+    if (pats.some((p) => p.code === 'delayed_on' || p.code === 'dose_failure')) motor.status = 'auffällig'
+    pats.forEach((p) => motor.lines.push(p.text))
+    const up = deriveUpdrs4(items, { items: [41, 42, 43, 44, 45, 46].map((id) => ({ id, type: 'radio' })) }, m)
+    const vals = up.values.filter((v) => typeof v === 'number')
+    num('updrs4_1_vorschlag', 'MDS-UPDRS 4.1 (Vorschlag)', up.values[0])
+    num('updrs4_3_vorschlag', 'MDS-UPDRS 4.3 (Vorschlag)', up.values[2])
+    if (vals.length) motor.lines.push(`MDS-UPDRS IV (Vorschlag, ärztlich zu bestätigen): ${vals.reduce((a, b) => a + b, 0)}/24${vals.length < 6 ? ` – ${6 - vals.length} von 6 Items offen` : ''}`)
+  }
+  domains.push(motor)
+
+  // --- Nicht-motorisch (NMSQuest) ---
+  const nms = { name: 'Nicht-motorische Symptome (NMSQuest)', status: 'unvollständig', lines: [] }
+  const nmsVals = []
+  for (let k = 1; k <= 30; k++) nmsVals.push(listMember(items, `nms${pad2(k)}`))
+  const nmsMissing = nmsVals.filter((v) => v === null).length
+  const nmsTotal = nmsVals.reduce((a, v) => a + (v || 0), 0)
+  if (nmsMissing === 0) {
+    num('nmsquest_total', 'NMSQuest (Anzahl Ja, 0–30)', nmsTotal)
+    nms.status = nmsTotal >= 10 ? 'auffällig' : nmsTotal >= 6 ? 'grenzwertig' : 'unauffällig'
+    nms.lines.push(`${nmsTotal}/30 Symptome – Belastung ${nmsGrade(nmsTotal)}`)
+  } else {
+    nms.lines.push(`${nmsTotal} Symptome angegeben, ${nmsMissing} Items unbeantwortet`)
+  }
+  const flags = Object.entries(NMS_RED_FLAGS).filter(([k]) => nmsVals[Number(k) - 1] === 1).map(([, t]) => t)
+  if (flags.length) {
+    nms.status = 'auffällig'
+    nms.lines.push(`Warnzeichen: ${flags.join(', ')}`)
+  }
+  if (curve && isDayCurveValue(curve.value)) {
+    ;(curve.value.patterns || []).filter((p) => p.code === 'symptom_in_off').forEach((p) => {
+      nms.status = worst(nms.status === 'unvollständig' ? 'unauffällig' : nms.status, 'grenzwertig')
+      nms.lines.push(p.text)
+    })
+  }
+  domains.push(nms)
+
+  // --- Schlaf (PDSS-2) ---
+  const sleep = { name: 'Schlaf (PDSS-2)', status: 'unvollständig', lines: [] }
+  const pdss = derivePdss(items, { items: [{ type: 'multiple_radio', options: { questions: Array.from({ length: 15 }, (_, i) => ({ id: i + 1 })) } }] })
+  const pv = pdss.values[0]
+  if (pdss.complete) {
+    const total = (4 - pv[0]) + pv.slice(1).reduce((a, b) => a + b, 0)
+    num('pdss2_total', 'PDSS-2 Summe (0–60)', total)
+    sleep.status = total >= PDSS2_CUTOFF ? 'auffällig' : 'unauffällig'
+    sleep.lines.push(`PDSS-2 ${total}/60 (Grenzwert ${PDSS2_CUTOFF})`)
+  } else {
+    sleep.lines.push(`${pdss.missing.length} von 15 PDSS-2-Items offen`)
+  }
+  const often = pv.map((v, i) => ({ id: i + 1, v })).filter((x) => x.id > 1 && x.v >= FREQ_OFT)
+  if (often.length) sleep.lines.push(`oft/sehr oft: ${often.map((x) => pdssItemLabel(items, x.id)).join(' · ')}`)
+  if (m && m.night_off_h >= 1) {
+    sleep.lines.push(`nächtliches OFF laut Kurve: ${de1(m.night_off_h)} h`)
+    if (sleep.status === 'unauffällig') sleep.status = 'grenzwertig'
+  }
+  domains.push(sleep)
+
+  const n = domains.filter((d) => d.status === 'auffällig').length
+  const icon = { 'auffällig': '⚠', 'grenzwertig': '◐', 'unauffällig': '✓', 'unvollständig': '…' }
+  const color = { 'auffällig': '#c62828', 'grenzwertig': '#b26a00', 'unauffällig': '#2e7d32', 'unvollständig': '#616161' }
+  const html = domains.map((d) =>
+    `<div style="margin:0 0 8px"><b style="color:${color[d.status]}">${icon[d.status]} ${d.name}: ${d.status}</b>` +
+    (d.lines.length ? `<ul style="margin:2px 0 0 18px;padding:0">${d.lines.map((l) => `<li>${l}</li>`).join('')}</ul>` : '') +
+    '</div>').join('') +
+    '<div style="font-size:85%;color:#666">Orientierungswerte, keine Diagnose. NMSQuest/PDSS-2 im Listen- bzw. Zweistufenformat erhoben (Erhebung: hybrid).</div>'
+  results.push({ label: 'auffaellige_bereiche', value: n, coding: { system: 'CUSTOM', code: 'CUSTOM: PD_HYBRID_AUFFAELLIG', display: 'auffällige Bereiche (0–3)' }, evaluation: html })
+  return results
+}
