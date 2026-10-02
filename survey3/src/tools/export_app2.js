@@ -24,9 +24,12 @@ function isoDate(v) {
   return v
 }
 
+// app2 führt Fragebögen unter dem großgeschriebenen short_title (Seeds: CODE_CD,
+// Cockpit-Vorschläge 'NMS_QUEST', 'PDSS2' …) — nicht unter dem Konzept-Code.
+// Früher kam hier coding.code heraus; dann erkannte das Cockpit keinen Bogen.
 function questCode(summary) {
-  if (summary && summary.coding && summary.coding.code) return summary.coding.code
-  return (summary && summary.label ? summary.label : '').toUpperCase()
+  if (summary && summary.label) return String(summary.label).toUpperCase()
+  return summary && summary.coding && summary.coding.code ? summary.coding.code : ''
 }
 
 // summary → OBSERVATION_BLOB-Struktur (wie von app2 erwartet)
