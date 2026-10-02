@@ -90,6 +90,18 @@ export function validateQuestScoring(quest) {
     if (!KNOWN_SYSTEMS.includes(sys)) W('UNKNOWN_CODING_SYSTEM', `coding.system "${sys}" ist nicht kanonisch`)
   })
 
+  // --- show_if: Bedingung muss auf ein vorhandenes Item zeigen, gültiger Operator ---
+  const SHOW_IF_OPS = ['includes', 'equals', 'not_equals', 'gt', 'gte', 'answered']
+  ;(quest.items || []).forEach((it, ix) => {
+    if (it.show_if === undefined) return
+    ;(Array.isArray(it.show_if) ? it.show_if : [it.show_if]).forEach((c) => {
+      const ref = (quest.items || []).find((o) => (c.item !== undefined && o.id === c.item) || (c.tag !== undefined && o.tag === c.tag))
+      if (!ref) E('SHOW_IF_REF', `item[${ix}] show_if verweist auf kein vorhandenes Item`)
+      else if (ref === it) E('SHOW_IF_SELF', `item[${ix}] show_if verweist auf sich selbst`)
+      if (!SHOW_IF_OPS.includes(c.op)) E('SHOW_IF_OP', `item[${ix}] show_if.op "${c.op}" unbekannt`)
+    })
+  })
+
   // --- Item-Schema (jedes Item: type + label; Optionen je nach Typ) ---
   ;(quest.items || []).forEach((it, ix) => {
     if (it.type === undefined || it.type === null || it.type === '') {

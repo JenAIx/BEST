@@ -12,6 +12,7 @@
         class="daycurve-box"
         :class="{ 'daycurve-box--preview': preview }"
         data-cy="daycurve_canvas"
+        :style="{ aspectRatio: `${layout.W} / ${layout.H}` }"
         @pointerdown="onDown"
         @pointermove="onMove"
         @pointerup="onUp"
@@ -25,14 +26,9 @@
         <li v-for="(pt, k) in patterns" :key="k">{{ pt.text }}</li>
       </ul>
     </div>
-    <div v-if="!preview" class="row justify-end items-center q-gutter-sm q-mt-xs">
-      <span v-if="dirty" class="text-caption text-orange-9" data-cy="daycurve_unsaved">
-        {{ $t('quest.drawing_unsaved') }}
-      </span>
+    <div v-if="!preview" class="row justify-end items-center q-mt-xs">
       <q-btn flat dense no-caps icon="restart_alt" :label="$t('quest.daycurve_reset')" color="grey-7"
         data-cy="daycurve_reset" @click="reset" />
-      <q-btn unelevated no-caps icon="check" :label="$t('quest.confirm_drawing')" color="primary"
-        :disable="!dirty" data-cy="daycurve_save" @click="confirm" />
     </div>
   </div>
 </template>
@@ -46,7 +42,9 @@
 //     linear aufgefüllt, damit schnelle Striche keine Lücken lassen),
 //   - Beschwerde-Zeile: einstreichen; beginnt der Strich auf einem markierten
 //     Feld, wird stattdessen gelöscht.
-// Wie beim Zeichen-Item zählt der Wert erst nach „Übernehmen" als beantwortet.
+// Gespeichert wird von selbst nach jedem Strich und jedem Antippen — ein eigener
+// „Übernehmen"-Knopf wurde vergessen, und die Kurve war dann weg. Eine unberührte
+// Kurve bleibt null (Pflichtfeld bleibt offen), „Neu beginnen" setzt zurück.
 import {
   dcConfig, emptyCurve, isDayCurveValue, dcLayout, dcHit, dayCurveSvg,
   finalizeCurve, curvePatterns, summaryText, timeAt,
@@ -64,7 +62,7 @@ export default {
   data() {
     const cfg = dcConfig(this.ITEM)
     const v = isDayCurveValue(this.ITEM.value) ? JSON.parse(JSON.stringify(this.ITEM.value)) : emptyCurve(cfg)
-    return { cfg, cur: v, dirty: false, drag: null, uid: `dc${++uidSeq}` }
+    return { cfg, cur: v, drag: null, uid: `dc${++uidSeq}` }
   },
   computed: {
     layout() {
@@ -88,7 +86,8 @@ export default {
       return this.cur.markers.includes(key)
     },
     point(e) {
-      const rect = this.$refs.box.getBoundingClientRect()
+      const svg = this.$refs.box.querySelector('svg')
+      const rect = (svg || this.$refs.box).getBoundingClientRect()
       const s = this.layout.W / rect.width
       return { x: (e.clientX - rect.left) * s, y: (e.clientY - rect.top) * s }
     },
@@ -104,7 +103,7 @@ export default {
         if (k >= 0) list.splice(k, 1)
         else list.push(t)
         list.sort((a, b) => this.order(a) - this.order(b))
-        this.dirty = true
+        this.save()
         return
       }
       try { this.$refs.box.setPointerCapture(e.pointerId) } catch (_) { /* ignore */ }
@@ -117,7 +116,6 @@ export default {
         this.drag = { region: 'symptom', key: hit.key, last: hit.j, erase }
         this.setSlot(sym, hit.j, !erase)
       }
-      this.dirty = true
     },
     onMove(e) {
       if (!this.drag || this.preview) return
@@ -145,7 +143,9 @@ export default {
       }
     },
     onUp() {
+      if (!this.drag) return
       this.drag = null
+      this.save()
     },
     order(t) {
       const [h, m] = t.split(':').map(Number)
@@ -160,13 +160,12 @@ export default {
         sym.times.sort((a, b) => this.order(a) - this.order(b))
       } else if (!on && k >= 0) sym.times.splice(k, 1)
     },
-    confirm() {
-      this.dirty = false
+    save() {
       this.$emit('emitValue', finalizeCurve(this.cur))
     },
     reset() {
       this.cur = emptyCurve(this.cfg)
-      this.dirty = false
+      this.drag = null
       this.$emit('emitValue', null)
     },
   },
@@ -197,11 +196,15 @@ export default {
   border: 1px solid $line
   border-radius: $radius-sm
   background: #fff
+  box-sizing: content-box
   padding: 4px
+  // Höhe aus festem Seitenverhältnis statt aus dem SVG: in Quasars Spalten-Flex
+  // (q-item__section, flex-wrap) wurde die Höhe sonst zu klein gerechnet und die
+  // nächste Frage überlappte die Kurve.
   :deep(svg)
     display: block
     width: 100%
-    height: auto
+    height: 100%
 
 .daycurve-box--preview
   cursor: default

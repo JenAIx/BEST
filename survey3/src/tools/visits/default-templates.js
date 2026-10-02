@@ -1,4 +1,5 @@
-// Standard-Visiten-Vorlagen der LEC-SEQ-Studie (Lecigon-Sequenztherapie).
+// Standard-Visiten-Vorlagen: LEC-SEQ-Studie (Lecigon-Sequenztherapie) und
+// Parkinson-Ambulanz (Hybrid-Screening).
 // VisitMan.init() synchronisiert sie versioniert in den Browser-Storage: läuft die
 // gespeicherte Seed-Version < SEED_VERSION, werden die Default-Vorlagen per Label
 // angelegt bzw. aktualisiert (selbst angelegte Vorlagen bleiben unberührt).
@@ -7,7 +8,7 @@
 //
 // Hinweis: "Erwartungsfragebogen" (laut Handout V1 + V4) existiert noch nicht als
 // Fragebogen und ist daher hier ausgelassen.
-export const SEED_VERSION = 2
+export const SEED_VERSION = 3
 export const DEFAULT_VISIT_TEMPLATES = [
   {
     label: 'LEC-SEQ V1 – Baseline',
@@ -20,6 +21,13 @@ export const DEFAULT_VISIT_TEMPLATES = [
   {
     label: 'LEC-SEQ V3 – 6 Monate',
     questionnaires: ['slts7', 'psq18', 'updrs_3', 'updrs_4', 'nms_quest', 'lecseq-verlauf', 'lecseq-adr'],
+  },
+  // Parkinson-Ambulanz: Hybridbogen zuerst — nach seinem Abschluss stehen NMSQuest,
+  // PDSS-2 und MDS-UPDRS IV als vorausgefüllte Entwürfe bereit (hybrid-derive.js).
+  // PDQ-8 läuft unverändert im Original (Lizenz: keine Vorbelegung).
+  {
+    label: 'Parkinson-Ambulanz – Hybrid-Screening',
+    questionnaires: ['pd_hybrid_screen', 'pdq8', 'nms_quest', 'pdss2', 'updrs_4'],
   },
   {
     label: 'LEC-SEQ V4 – 12 Monate (Abschluss)',

@@ -1,56 +1,61 @@
 {
-    "title": "Bewegungsprotokoll bei Parkinson",
-    "short_title": "bewegungsprotokoll",
-    "version": "1.0",
-    "updated": "2024-08-22",
-    "license": { "status": "free", "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)." },
-    "coding" : {
-        "system" : "http://snomed.info/sct",
-        "code" : "113024001",
-        "display" : "Bewegungsprotokoll bei Parkinson",
-        "version": "20240822"
-    },
-    "description": "Tagesprotokoll der motorischen Zustände (On/Off) über den Tagesverlauf.",
-    "manual": "Bitte bewerten Sie die Beweglichkeit der Person in den letzten 24 Stunden. Wählen Sie die Antwort, die am besten beschreibt, wie die Person sich in den letzten 24 Stunden bewegt hat.",
-    "keywords": "Parkinson, Motorik, Fluktuation, Verlauf",
-    "items": [
-
-        {
-            "label": "Bitte bewerten Sie Ihre Beweglichkeit zu folgenden Zeitpunkten über die letzten 3 Tage:",
-            "tag": "time",
-            "caption": "",
-            "value": [],
-            "type": "multiple_radio",
-            "inline": true,
-            "options": {
-                "answers": [
-                  {"label": "viel zu wenig", "value": "strong_off"},
-                  {"label": "zu wenig", "value": "mild_off"},
-                  {"label": "gut", "value": "on"},
-                  {"label": "etwas viel", "value": "mild_on_dyskinesia"},
-                  {"label": "viel zu viel", "value": "strong_on_dyskinesia"}
-
-                ],
-                "questions": [
-                    {"label": "6:00 Uhr", "tag": "6"},
-                    {"label": "8:00 Uhr", "tag": "8"},
-                    {"label": "10:00 Uhr", "tag": "10"},
-                    {"label": "12:00 Uhr", "tag": "12"},
-                    {"label": "14:00 Uhr", "tag": "14"},
-                    {"label": "16:00 Uhr", "tag": "16"},
-                    {"label": "18:00 Uhr", "tag": "18"},
-                    {"label": "20:00 Uhr", "tag": "20"},
-                    {"label": "22:00 Uhr", "tag": "22"},
-                    {"label": "24:00 Uhr", "tag": "24"},
-                    {"label": "2:00 Uhr", "tag": "2"},
-                    {"label": "4:00 Uhr", "tag": "4"}
-
-                ]
-            }
-        }
-    ],
-    "results": {
-
+  "title": "Bewegungsprotokoll bei Parkinson",
+  "short_title": "bewegungsprotokoll",
+  "version": "2.0",
+  "updated": "2026-10-02",
+  "license": {
+    "status": "free",
+    "note": "Freie Verwendung (gemeinfrei, frei nutzbar oder Eigenentwicklung)."
+  },
+  "coding": {
+    "system": "http://snomed.info/sct",
+    "code": "113024001",
+    "display": "Bewegungsprotokoll bei Parkinson",
+    "version": "20240822"
+  },
+  "description": "Tagesprotokoll der Beweglichkeit (gut / schlecht beweglich / Überbewegungen) als Kurve, mit Tabletten- und Essenszeiten und Beschwerden.",
+  "manual": "Bitte tragen Sie ein, wie beweglich Sie <b>in den letzten 24 Stunden</b> waren. Oben Tabletten und Essen antippen, dann den Tag mit dem Finger nachfahren: oben gut beweglich, unten schlecht beweglich, ganz oben Überbewegungen. Unten können Sie einstreichen, wann Beschwerden auftraten.",
+  "keywords": "Parkinson, Motorik, Fluktuation, Verlauf",
+  "items": [
+    {
+      "id": 1,
+      "tag": "bewegungsprofil",
+      "type": "day_curve",
+      "value": null,
+      "label": "Wie beweglich waren Sie in den letzten 24 Stunden?",
+      "caption": "Alles wird sofort gespeichert. „Neu beginnen“ setzt die Kurve zurück.",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: BEWEGUNGSPROTOKOLL_KURVE",
+        "display": "bewegungsprofil"
+      },
+      "curve": {
+        "start": "06:00",
+        "step_min": 30,
+        "markers": [
+          "pill",
+          "meal"
+        ],
+        "symptoms": [
+          {
+            "key": "pain",
+            "label": "Schmerzen"
+          },
+          {
+            "key": "hallucinations",
+            "label": "Sinnestäuschungen"
+          },
+          {
+            "key": "anxiety",
+            "label": "Angst / Unruhe"
+          },
+          {
+            "key": "sleepiness",
+            "label": "starke Müdigkeit"
+          }
+        ]
+      }
     }
-
+  ],
+  "results": {}
 }

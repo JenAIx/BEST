@@ -43,6 +43,7 @@
 import BACKBUTTON from 'src/components/BackButton.vue'
 import RenderQuest from 'src/components/RenderQuest.vue'
 import { useMainStore } from 'src/stores/main'
+import { HYBRID_SHORT, prefillVisitFromHybrid } from 'src/tools/hybrid-derive'
 
 export default {
   name: 'VisitQuestPage',
@@ -107,6 +108,13 @@ export default {
       const summary = this.mainStore.QUESTMAN.summary
       this.mainStore.VISIT_MAN.complete_questionnaire(this.visitId, this.short, summary, values)
       this.$q.notify({ message: this.$t('visit.completed_ok'), color: 'green' })
+      // Hybridbogen: NMSQuest, PDSS-2 und MDS-UPDRS IV dieser Visite vorausfüllen
+      // (nur noch leere Slots; sie bleiben Entwürfe und werden geprüft/abgeschlossen).
+      if (this.short === HYBRID_SHORT) {
+        const items = this.mainStore.ACTIVE_QUEST.items
+        const filled = prefillVisitFromHybrid(this.mainStore.VISIT_MAN, this.visitId, items, (s) => this.mainStore.QUESTMAN.get(s))
+        if (filled.length) this.$q.notify({ message: this.$t('visit.prefilled', { list: filled.join(', ') }), color: 'primary' })
+      }
       this.goBack()
     },
     goBack() {

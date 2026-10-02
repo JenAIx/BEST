@@ -135,6 +135,7 @@
         <q-card-section>
           <q-list bordered separator data-cy="list_entries">
             <q-item v-for="(item, indQ) in QUEST.items" :key="item.label + indQ" data-cy="item_entry"
+              v-show="isShown(item)"
               :id="'qitem_' + indQ" class="quest-list-item"
               :class="{ 'quest-item--done': isInteractive(item) && isAnswered(item) && item.type !== 'day_curve' }">
               <q-item-section>
@@ -191,7 +192,7 @@
 import { log } from 'src/tools/Logger'
 import { parseRouteParams } from 'src/tools/routeParams'
 import { useMainStore } from 'src/stores/main'
-import { itemValidity, answerStats, isAnswered as isItemAnswered } from 'src/tools/visits/visit-model'
+import { itemValidity, answerStats, isAnswered as isItemAnswered, isVisible } from 'src/tools/visits/visit-model'
 import QuestItemField from './QuestItemField.vue'
 import QuestIntro from './QuestIntro.vue'
 import QuestPidField from './QuestPidField.vue'
@@ -300,6 +301,7 @@ export default {
       if (this.hasPidStep) out.push({ kind: 'pid' })
       let intro = []
       this.items.forEach((item, index) => {
+        if (!isVisible(item, this.items)) return
         if (this.isInteractive(item)) {
           out.push({ kind: 'item', index, item, intro })
           intro = []
@@ -349,7 +351,7 @@ export default {
         })
     },
     firstOpenIndex() {
-      return this.items.findIndex((it) => itemValidity(it, it.value) === false)
+      return this.items.findIndex((it) => itemValidity(it, it.value, this.items) === false)
     },
     CHECK_PID() {
       return this.subject_pid.length > 0
@@ -367,6 +369,10 @@ export default {
   methods: {
     isInteractive(item) {
       return INTERACTIVE.includes(item.type)
+    },
+    // show_if: bedingte Fragen nur zeigen, wenn ihre Bedingung erfüllt ist.
+    isShown(item) {
+      return isVisible(item, this.items)
     },
     toggleMode() {
       this.mainStore.SETTINGS.quest_focus_mode = !this.focusMode
@@ -403,7 +409,7 @@ export default {
           return
         }
       }
-      if (s.kind === 'item' && itemValidity(s.item, s.item.value) === false) {
+      if (s.kind === 'item' && itemValidity(s.item, s.item.value, this.items) === false) {
         this.currentError = true
         return
       }
@@ -447,7 +453,7 @@ export default {
       if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' })
     },
     firstInvalidStepIndex() {
-      return this.steps.findIndex((s) => s.kind === 'item' && itemValidity(s.item, s.item.value) === false)
+      return this.steps.findIndex((s) => s.kind === 'item' && itemValidity(s.item, s.item.value, this.items) === false)
     },
     randomFill() {
       this.mainStore.QuestMan.random_fill()
@@ -541,6 +547,9 @@ export default {
 // (Hover/Fokus) wieder voll sichtbar.
 .quest-list-item
   position: relative
+
+.quest-list-item :deep(.q-item__section--main:has(.daycurve))
+  flex-wrap: nowrap
 
 .quest-item--done
   opacity: 0.55

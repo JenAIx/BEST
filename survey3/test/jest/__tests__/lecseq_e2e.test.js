@@ -10,6 +10,8 @@ import fs from 'fs'
 import { VISITMAN } from '../../../src/tools/visits/VisitMan'
 import { QUESTMAN } from '../../../src/tools/questman'
 import { DEFAULT_VISIT_TEMPLATES } from '../../../src/tools/visits/default-templates'
+// Nur die LEC-SEQ-Vorlagen (die Standardliste enthält auch die Parkinson-Ambulanz).
+const LECSEQ_TEMPLATES = DEFAULT_VISIT_TEMPLATES.filter((t) => t.label.startsWith('LEC-SEQ'))
 
 const PID = 'TESTPROBAND_01'
 const FIXED_DATE = '2026-06-17T00:00:00.000Z'
@@ -18,13 +20,13 @@ let patientId
 const visitIds = []
 
 // erwartete Q-Observations = Summe aller Fragebögen über alle Vorlagen
-const EXPECTED_Q = DEFAULT_VISIT_TEMPLATES.reduce((n, t) => n + t.questionnaires.length, 0)
+const EXPECTED_Q = LECSEQ_TEMPLATES.reduce((n, t) => n + t.questionnaires.length, 0)
 
 describe('LEC-SEQ End-to-End (Testproband, alle Visiten)', () => {
   test('alle LEC-SEQ-Fragebögen sind geladen', () => {
     const list = QUESTMAN.quest_list
     const needed = new Set()
-    DEFAULT_VISIT_TEMPLATES.forEach((t) => t.questionnaires.forEach((q) => needed.add(q)))
+    LECSEQ_TEMPLATES.forEach((t) => t.questionnaires.forEach((q) => needed.add(q)))
     const missing = [...needed].filter((q) => !list.includes(q))
     expect(missing).toEqual([])
   })
@@ -33,7 +35,7 @@ describe('LEC-SEQ End-to-End (Testproband, alle Visiten)', () => {
     const patient = VISITMAN.add_patient(PID)
     patientId = patient.id
 
-    DEFAULT_VISIT_TEMPLATES.forEach((tpl, idx) => {
+    LECSEQ_TEMPLATES.forEach((tpl, idx) => {
       const visit = VISITMAN.add_visit(patientId, null, `2026-0${idx + 1}-01`)
       VISITMAN.update_visit(visit.id, { label: tpl.label })
       visitIds.push(visit.id)
@@ -59,7 +61,7 @@ describe('LEC-SEQ End-to-End (Testproband, alle Visiten)', () => {
     expect(visits.length).toBe(4)
     visits.forEach((v, idx) => {
       const prog = VISITMAN.progress(v.id)
-      expect(prog.total).toBe(DEFAULT_VISIT_TEMPLATES[idx].questionnaires.length)
+      expect(prog.total).toBe(LECSEQ_TEMPLATES[idx].questionnaires.length)
       expect(prog.completed).toBe(prog.total)
       expect(v.status).toBe('completed')
       expect(v.items.every((s) => s.status === 'completed' && s.response)).toBe(true)
@@ -84,7 +86,7 @@ describe('LEC-SEQ End-to-End (Testproband, alle Visiten)', () => {
     })
 
     // pro Visite (ENCOUNTER_NUM) stimmt die Anzahl Q-Observations mit der Vorlage
-    DEFAULT_VISIT_TEMPLATES.forEach((tpl, idx) => {
+    LECSEQ_TEMPLATES.forEach((tpl, idx) => {
       const enc = idx + 1
       const qForVisit = qObs.filter((o) => o.ENCOUNTER_NUM === enc)
       expect(qForVisit).toHaveLength(tpl.questionnaires.length)

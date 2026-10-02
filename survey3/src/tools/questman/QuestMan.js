@@ -1,3 +1,4 @@
+import { dcConfig, emptyCurve, finalizeCurve } from '../daycurve'
 import { log } from '../Logger'
 import { RANDOM, RANDOMWORD } from './helpers'
 import { calc_results, evaluate } from './scoring'
@@ -229,7 +230,8 @@ export class QuestMan {
   check_activeQuest() {
     if (this.activeQuest === undefined) return undefined
     // Per-Item-Logik liegt zentral in itemValidity (geteilt mit requiredFieldStats).
-    const index = this.activeQuest.value.items.map(item => itemValidity(item))
+    const items = this.activeQuest.value.items
+    const index = items.map(item => itemValidity(item, undefined, items))
     if (index.includes(false)) return index
     else return true
   }
@@ -362,6 +364,15 @@ export class QuestMan {
         case 'time':
           item.value = '12:00'
           break
+
+        case 'day_curve': {
+          // gerade Linie mit einer zufälligen OFF-Phase
+          const v = emptyCurve(dcConfig(item))
+          const from = RANDOM(v.values.length - 4)
+          for (let i = from; i < from + 3; i++) v.values[i] = 15
+          item.value = finalizeCurve(v)
+          break
+        }
 
         default:
           log({ warn: `random fill: item type: ${item.type} not supported`, data: item })

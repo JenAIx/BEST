@@ -168,7 +168,7 @@
         "display": "tageskurve"
       },
       "label": "Tragen Sie Ihr Bewegungsprofil für einen Tag ein – so, wie es für die letzten 3 Wochen typisch war.",
-      "caption": "Zum Schluss auf „Übernehmen“ tippen.",
+      "caption": "Alles wird sofort gespeichert. „Neu beginnen“ setzt die Kurve zurück.",
       "curve": {
         "start": "06:00",
         "step_min": 30,

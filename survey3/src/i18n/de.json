@@ -265,6 +265,7 @@
     "finish": "Abschließen",
     "draft_saved": "Entwurf gespeichert",
     "completed_ok": "Fragebogen abgeschlossen",
+    "prefilled": "Vorausgefüllt (bitte prüfen und abschließen): {list}",
     "export_visit": "Visite exportieren",
     "export_patient": "Patient exportieren",
     "export_ok": "Export erfolgreich",
