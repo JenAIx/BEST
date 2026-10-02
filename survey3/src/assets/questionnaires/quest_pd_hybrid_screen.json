@@ -4,8 +4,8 @@
   "version": "1.0",
   "updated": "2026-10-02",
   "license": {
-    "status": "unclear",
-    "note": "Eigenentwicklung (Tageskurve, Gliederung) mit wörtlich übernommenen Items aus NMSQuest und PDSS-2. Rechte der Originalinstrumente vor dem Einsatz klären – Details im Konzept 20261002-hybridbogen-konzept.md."
+    "status": "free",
+    "note": "Eigenentwicklung (Tageskurve, Gliederung, Staffelung). Enthält wörtliche Items aus NMSQuest und PDSS-2 – die Auswertung als Original-Score kann Lizenzbedingungen der Originalinstrumente berühren."
   },
   "coding": {
     "system": "CUSTOM",

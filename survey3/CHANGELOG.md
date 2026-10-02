@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [2026-10-02] **Favoriten auf `/select`**: Fragebögen anheften, angeheftete stehen immer oben (in Anheft-Reihenfolge, auch beim Suchen). Touch: Zeile nach rechts wischen; Desktop: Stecknadel links beim Überfahren. Gespeichert in den Einstellungen (`favorite_quests`).
 
+#### Changed
+
+- [2026-10-02] `pd_hybrid_screen`: Lizenzstatus `free` (Eigenentwicklung); Hinweis, dass die Auswertung als Original-Score die Lizenzen von NMSQuest/PDSS-2 berühren kann.
+
 #### Fixed
 
 - [2026-10-02] **Einstellungen wurden nie gespeichert**: `settings.save()` gab IndexedDB das reaktive Vue-Objekt; verschachtelte Felder (`filter_storage`) ließen sich nicht klonen (`DataCloneError`, Konsole „settings: IndexedDB write failed“). Fokus-Modus, Schriftgröße usw. fielen bei jedem Neuladen zurück. Jetzt wird vor dem Schreiben eine Kopie ohne Proxys erzeugt.
