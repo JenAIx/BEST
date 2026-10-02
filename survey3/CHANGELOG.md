@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.20.0
+
+#### Added
+
+- [2026-10-02] **Auswertung des Hybridbogens** (`results.method: pd_hybrid`): je Bereich eine Ampel (auffällig / grenzwertig / unauffällig / unvollständig) mit Kennzahlen — Motorik (OFF und Überbewegungen in der Wachzeit, Muster, MDS-UPDRS-IV-Vorschlag), nicht-motorische Symptome (NMSQuest-Summe, Schweregrad nach Chaudhuri 2015, Warnzeichen-Items, nicht-motorische Fluktuation), Schlaf (PDSS-2, Grenzwert 18, häufige Beschwerden, nächtliches OFF). Kennzahlen als numerische Ergebnisse, Bewertung als Text. Orientierungswerte, keine Diagnose.
+- [2026-10-02] Druck/PDF: bedingte Fragen mit „Nur beantworten, wenn …“, Tageskurve mit Papier-Anleitung.
+
+#### Changed
+
+- [2026-10-02] Ergebnis-Ansicht: Kacheln mit Klartext aus der Codierung, Antworten als Optionstext statt Code (CSV und Export bleiben roh).
+- [2026-10-02] Tageskurve nimmt die verfügbare Breite (Scrollen erst unter 520px); Karten mit Tageskurve max. 900px.
+
+#### Fixed
+
+- [2026-10-02] Der schwebende 3-Punkte-Knopf überlappte den Listen/Fokus-Umschalter (iPad mit breiter Karte, iPhone mit 2px zu wenig Abstand).
+- [2026-10-02] Druck aus der Ergebnis-Ansicht: die Tageskurve bricht nicht mehr über eine Seite um.
+
 ### v1.19.0
 
 #### Added
