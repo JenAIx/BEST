@@ -6,7 +6,9 @@ import { isVisible, itemValidity, requiredFieldStats, answerStats } from 'src/to
 import { validateQuestScoring } from 'src/tools/questman/validate'
 import { buildResultItems } from 'src/tools/questman/result-items'
 import { dcConfig, emptyCurve, finalizeCurve, indexOf } from 'src/tools/daycurve'
-import { deriveFromHybrid, wakeMetrics, prefillVisitFromHybrid, evaluateHybrid } from 'src/tools/hybrid-derive'
+import { deriveFromHybrid, wakeMetrics, prefillVisitFromHybrid, evaluateHybrid, derivedSummaries } from 'src/tools/hybrid-derive'
+import { buildImportStructure } from 'src/tools/export_app2'
+import { QUESTMAN } from 'src/tools/questman'
 import { buildQuestPdfHtml } from 'src/tools/quest-pdf'
 
 const Q = (name) => JSON.parse(fs.readFileSync(path.resolve(__dirname, `../../../src/assets/questionnaires/${name}`), 'utf8'))
@@ -197,5 +199,50 @@ describe('Auswertung', () => {
     expect(html).toContain('Nur beantworten, wenn Sie oben „Fiel es Ihnen schwer, durchzuschlafen“ angekreuzt haben.')
     expect(html).toContain('Nur beantworten, wenn Sie in der Tageskurve schlecht bewegliche Zeiten eingetragen haben.')
     expect(html).toContain('Auf Papier:')
+  })
+})
+
+describe('Export nach app2', () => {
+  const defs = { nms_quest: NMS, pdss2: PDSS }
+  test('abgeleitete NMSQuest/PDSS-2 als vollständige Zusammenfassungen', () => {
+    const d = derivedSummaries(filledQuest().items, (s) => defs[s])
+    expect(d.map((x) => x.label)).toEqual(['nms_quest', 'pdss2'])
+    expect(d.every((x) => x.collection === 'hybrid' && x.derived_from === 'pd_hybrid_screen')).toBe(true)
+    const nmsSum = d[0].results.find((r) => r.coding && r.coding.code === 'CUSTOM: SCORES_NMSQUEST')
+    expect(nmsSum.value).toBe(2)
+    const pdssTotal = d[1].results.find((r) => r.coding && r.coding.code === 'CUSTOM: SCORES_PDSS2')
+    expect(pdssTotal.value).toBe(9)
+  })
+  test('unvollständige Liste → kein abgeleiteter Bogen', () => {
+    const q = filledQuest()
+    byId(q, 12).value = []
+    expect(derivedSummaries(q.items, (s) => defs[s]).map((x) => x.label)).toEqual(['pdss2'])
+  })
+  test('ganzer Weg: Hybrid-summary → importStructure mit 3 Q-Observationen und Kennzahlen', () => {
+    QUESTMAN.activeQuest = 'pd_hybrid_screen'
+    const items = QUESTMAN.activeQuest.value.items
+    filledQuest().items.forEach((it, i) => { items[i].value = it.value })
+    const summary = JSON.parse(JSON.stringify(QUESTMAN.summary))
+    expect(summary.derived.map((x) => x.label)).toEqual(['nms_quest', 'pdss2'])
+    const visit = { date: Date.now(), label: 'Ambulanz', templateId: null }
+    const ex = buildImportStructure([{ patient: { pid: 'DEMO-1' }, visits: [{ visit, summaries: [summary] }] }], '2026-10-02T10:00:00Z')
+    const obs = ex.data.observations
+    const q = obs.filter((o) => o.VALTYPE_CD === 'Q').map((o) => JSON.parse(o.OBSERVATION_BLOB))
+    expect(q.map((b) => b.short_title)).toEqual(['pd_hybrid_screen', 'nms_quest', 'pdss2'])
+    // alle Items der Hybrid-Antwort stecken im Q-Blob, auch die Kurve als Objekt
+    const hyb = q[0]
+    expect(hyb.items.length).toBe(summary.items.length)
+    expect(hyb.items.find((i) => i.label === 'tageskurve').value.kind).toBe('day_curve')
+    const codes = obs.filter((o) => o.VALTYPE_CD === 'N').map((o) => o.CONCEPT_CD)
+    expect(codes).toEqual(expect.arrayContaining(['CUSTOM: PD_HYBRID_OFF_WAKE_H', 'CUSTOM: PD_HYBRID_AUFFAELLIG', 'CUSTOM: SCORES_NMSQUEST', 'CUSTOM: SCORES_PDSS2']))
+    expect(q[1].collection).toBe('hybrid')
+  })
+  test('in der Visite schon abgeschlossener Bogen wird nicht doppelt exportiert', () => {
+    const d = derivedSummaries(filledQuest().items, (s) => defs[s])
+    const own = { label: 'nms_quest', title: 'NMSQuest', items: [], results: [], date_start: 1, date_end: 2 }
+    const visit = { date: Date.now(), label: 'V', templateId: null }
+    const ex = buildImportStructure([{ patient: { pid: 'X' }, visits: [{ visit, summaries: [{ label: 'pd_hybrid_screen', title: 'H', items: [], results: [], derived: d }, own] }] }])
+    const titles = ex.data.observations.filter((o) => o.VALTYPE_CD === 'Q').map((o) => JSON.parse(o.OBSERVATION_BLOB).short_title)
+    expect(titles.sort()).toEqual(['nms_quest', 'pd_hybrid_screen', 'pdss2'])
   })
 })

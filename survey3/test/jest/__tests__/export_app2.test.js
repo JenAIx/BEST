@@ -60,7 +60,7 @@ describe('export_app2', () => {
     expect(blob.items).toEqual(SUMMARY.items)
     expect(blob.results).toEqual(SUMMARY.results)
     expect(blob.short_title).toBe('demo')
-    expect(blob.questionnaire_code).toBe('LID: 72133-2')
+    expect(blob.questionnaire_code).toBe('DEMO')
 
     const n = obs[1]
     expect(n.VALTYPE_CD).toBe('N')
@@ -83,10 +83,10 @@ describe('export_app2', () => {
     expect(withProvider[1].SOURCESYSTEM_CD).toBe('SURVEY3')
   })
 
-  test('blobFromSummary mappt short_title und questionnaire_code', () => {
+  test('blobFromSummary mappt short_title und questionnaire_code (= short_title gross, wie app2-Seeds)', () => {
     const blob = blobFromSummary(SUMMARY)
     expect(blob.short_title).toBe('demo')
-    expect(blob.questionnaire_code).toBe('LID: 72133-2')
+    expect(blob.questionnaire_code).toBe('DEMO')
     expect(blob.title).toBe('Demo Quest')
   })
 

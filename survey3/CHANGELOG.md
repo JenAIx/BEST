@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.21.0
+
+#### Added
+
+- [2026-10-02] **Export nach app2 für den Hybridbogen vollständig**: die Zusammenfassung des Hybridbogens trägt die daraus vollständig ableitbaren **NMSQuest und PDSS-2** (`derived`, `collection: 'hybrid'`); der Visiten-Export legt sie als eigene Fragebögen samt Score an — außer die Visite hat den Bogen selbst abgeschlossen. PDSS-2-Gesamtscore codiert (`CUSTOM: SCORES_PDSS2`). Gegenstück in db/app2: Migration 020 (Konzepte), Integrationstest mit echtem Export.
+
+#### Changed
+
+- [2026-10-02] app2-Export: `questionnaire_code` ist der `short_title` in Großbuchstaben (`NMS_QUEST`, `PDSS2`, `PD_HYBRID_SCREEN`) wie die app2-Seeds — vorher der Konzept-Code, den das app2-Cockpit nie erkannte.
+
 ### v1.20.0
 
 #### Added

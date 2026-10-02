@@ -1475,6 +1475,11 @@ exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results
 exports[`QuestMan Golden Master — Berechnung aller Fragebögen summary results: pdss2 1`] = `
 [
   {
+    "coding": {
+      "code": "CUSTOM: SCORES_PDSS2",
+      "display": "PDSS-2 Gesamtscore",
+      "system": "CUSTOM",
+    },
     "label": "Total Score",
     "value": 4,
   },

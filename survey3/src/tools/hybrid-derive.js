@@ -21,6 +21,8 @@
 // Die Formate (Liste, zweistufig) sind nicht gegen die Originale validiert; wer
 // Scores auswertet, kennzeichnet sie als „Erhebung: hybrid".
 import { isDayCurveValue, slotStates, toMin } from './daycurve'
+import { buildResultItems } from './questman/result-items'
+import { calc_results, evaluate } from './questman/scoring'
 
 export const HYBRID_SHORT = 'pd_hybrid_screen'
 export const HYBRID_TARGETS = ['nms_quest', 'pdss2', 'updrs_4']
@@ -316,4 +318,40 @@ export function evaluateHybrid(items) {
     '<div style="font-size:85%;color:#666">Orientierungswerte, keine Diagnose. NMSQuest/PDSS-2 im Listen- bzw. Zweistufenformat erhoben (Erhebung: hybrid).</div>'
   results.push({ label: 'auffaellige_bereiche', value: n, coding: { system: 'CUSTOM', code: 'CUSTOM: PD_HYBRID_AUFFAELLIG', display: 'auffällige Bereiche (0–3)' }, evaluation: html })
   return results
+}
+
+// ---------- Abgeleitete Originalbögen als fertige Zusammenfassungen ----------
+//
+// Für den Export (app2) und überall, wo NMSQuest / PDSS-2 als eigene Bögen
+// gebraucht werden: aus dem Hybridbogen vollständig ableitbare Originalbögen als
+// summary-Objekte im selben Format wie QuestMan.summary (label, title, items,
+// results, coding) — markiert mit collection 'hybrid'. Nur vollständige Bögen;
+// UPDRS IV nie (Arztbogen, muss bestätigt werden).
+
+export const HYBRID_DERIVED = ['nms_quest', 'pdss2']
+
+export function derivedSummaries(hybridItems, getQuest) {
+  const out = []
+  HYBRID_DERIVED.forEach((short) => {
+    const def = getQuest(short)
+    if (!def) return
+    const d = deriveFromHybrid(hybridItems, { [short]: def })[short]
+    if (!d || !d.complete) return
+    const items = JSON.parse(JSON.stringify(def.items || []))
+    items.forEach((it, i) => {
+      if (d.values[i] !== null && d.values[i] !== undefined) it.value = d.values[i]
+    })
+    const summary = {
+      label: def.short_title,
+      title: def.title,
+      items: buildResultItems(items),
+      coding: def.coding,
+      collection: 'hybrid',
+      derived_from: HYBRID_SHORT,
+    }
+    summary.results = calc_results(summary, def.results)
+    if (def.results && def.results.evaluation) summary.results = evaluate(summary.results, def.results.evaluation)
+    out.push(summary)
+  })
+  return out
 }

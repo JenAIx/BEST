@@ -43,6 +43,7 @@
 
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { formatQuestionnaireValue } from 'src/shared/utils/questionnaire-value.js'
 import { useNotify } from 'src/composables/useNotify'
 import { useLoggingStore } from 'src/stores/logging-store'
 import { useObservationStore } from 'src/stores/observation-store'
@@ -435,18 +436,7 @@ const getPatientBasicDetails = (patient) => {
   return details.join(' • ')
 }
 
-const formatResponseValue = (value) => {
-  if (Array.isArray(value)) {
-    return value.join(', ')
-  }
-  if (typeof value === 'boolean') {
-    return value ? 'Yes' : 'No'
-  }
-  if (value === null || value === undefined || value === '') {
-    return 'No response'
-  }
-  return String(value)
-}
+const formatResponseValue = (value) => formatQuestionnaireValue(value)
 
 const getResponseValueColor = (value) => {
   if (value === null || value === undefined || value === '') return '#9e9e9e'

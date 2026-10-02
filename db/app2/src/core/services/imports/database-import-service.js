@@ -285,13 +285,25 @@ export class DatabaseImportService extends BaseImportService {
           )
         }
 
-        // Check if this is an existing visit that should be used directly
+        // Check if this is an existing visit that should be used directly.
+        // Nur wenn die Visite in der DB wirklich existiert UND diesem Patienten
+        // gehört: Exportdateien nummerieren lokal ab 1 (survey3), und stimmt die
+        // Datei-PATIENT_NUM zufällig mit der neu vergebenen überein, wurde die
+        // Visite sonst übersprungen — die Observations hingen dann an einer
+        // fremden oder fehlenden ENCOUNTER_NUM (FOREIGN KEY constraint failed).
         if (visit.ENCOUNTER_NUM && visit.PATIENT_NUM === patientNum) {
-          // This is an existing visit for an existing patient - use it directly
-          logger.info(`Using existing visit ENCOUNTER_NUM ${visit.ENCOUNTER_NUM} for patient ${patientNum}`)
-          results.idMap[visit.ENCOUNTER_NUM] = visit.ENCOUNTER_NUM
-          results.duplicates++ // Count as duplicate since we're not creating a new visit
-          continue // Skip creating a new visit
+          let existingVisit = null
+          try {
+            existingVisit = await this.visitRepo.findById(visit.ENCOUNTER_NUM)
+          } catch {
+            existingVisit = null
+          }
+          if (existingVisit && Number(existingVisit.PATIENT_NUM) === Number(patientNum)) {
+            logger.info(`Using existing visit ENCOUNTER_NUM ${visit.ENCOUNTER_NUM} for patient ${patientNum}`)
+            results.idMap[visit.ENCOUNTER_NUM] = visit.ENCOUNTER_NUM
+            results.duplicates++ // Count as duplicate since we're not creating a new visit
+            continue // Skip creating a new visit
+          }
         }
 
         // Create visit with patient reference - remove ENCOUNTER_NUM to avoid conflicts

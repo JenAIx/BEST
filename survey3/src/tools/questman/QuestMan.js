@@ -5,7 +5,7 @@ import { calc_results, evaluate } from './scoring'
 import { buildResultItems } from './result-items'
 import { itemValidity } from '../visits/visit-model'
 import { validateQuestScoring } from './validate'
-import { evaluateHybrid } from '../hybrid-derive'
+import { evaluateHybrid, derivedSummaries } from '../hybrid-derive'
 import { db } from '../db'
 
 // Eagerly load all questionnaire JSON files via Vite's glob import
@@ -298,6 +298,10 @@ export class QuestMan {
     result.results = quest.results && quest.results.method === 'pd_hybrid'
       ? evaluateHybrid(quest.items)
       : calc_results(result, quest.results)
+    // Hybridbogen: vollständig ableitbare Originalbögen (NMSQuest, PDSS-2) mitliefern
+    if (quest.results && quest.results.method === 'pd_hybrid') {
+      result.derived = derivedSummaries(quest.items, (s) => this.get(s))
+    }
     result.coding = quest.coding
     if (quest.results !== undefined && quest.results.evaluation !== undefined) {
       result.results = evaluate(result.results, quest.results.evaluation)

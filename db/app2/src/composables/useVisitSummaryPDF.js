@@ -2,6 +2,7 @@
  * Composable for generating PDF content from visit summary data
  */
 import { formatFileSize } from 'src/shared/utils/medical-utils.js'
+import { formatQuestionnaireValue } from 'src/shared/utils/questionnaire-value.js'
 
 export function useVisitSummaryPDF() {
 
@@ -103,18 +104,7 @@ export function useVisitSummaryPDF() {
     return ''
   }
 
-  const formatResponseValueForPDF = (value) => {
-    if (Array.isArray(value)) {
-      return value.join(', ')
-    }
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No'
-    }
-    if (value === null || value === undefined || value === '') {
-      return 'No response'
-    }
-    return String(value)
-  }
+  const formatResponseValueForPDF = (value) => formatQuestionnaireValue(value)
 
   const getResponseValueColorForPDF = (value) => {
     if (value === null || value === undefined || value === '') return '#9e9e9e'
