@@ -282,7 +282,7 @@ Items with no `type` field or `type: "textbox"` are treated as non-interactive d
 
 ##### `day_curve` — Tageskurve (Wirkfluktuation, fürs iPad)
 
-Bewegungsprofil eines typischen Tages: Patient:innen fahren mit dem Finger die Kurve nach (oben gut beweglich, unten schlecht beweglich, ganz oben Überbewegungen), tippen Tabletten- und Essenszeiten an und streichen Beschwerden in Zeilen unter der Kurve ein. Gespeichert wird erst mit „Übernehmen“. Logik, Auswertung und Zeichnung liegen in `src/tools/daycurve.js` (dieselbe Zeichnung in Eingabe, Ergebnis-Ansicht und Druck).
+Bewegungsprofil eines typischen Tages: Patient:innen fahren mit dem Finger die Kurve nach (oben gut beweglich, unten schlecht beweglich, ganz oben Überbewegungen), tippen Tabletten- und Essenszeiten an und streichen Beschwerden in Zeilen unter der Kurve ein. Gespeichert wird von selbst nach jedem Strich und jedem Antippen (kein „Übernehmen“-Knopf — der wurde vergessen); eine unberührte Kurve bleibt `null`, das Pflichtfeld also offen. Logik, Auswertung und Zeichnung liegen in `src/tools/daycurve.js` (dieselbe Zeichnung in Eingabe, Ergebnis-Ansicht und Druck).
 
 ```json
 {
@@ -298,6 +298,19 @@ Bewegungsprofil eines typischen Tages: Patient:innen fahren mit dem Finger die K
 ```
 
 Alle `curve`-Felder sind optional (Standard: 06:00–06:00, 30 min, Tablette + Essen, vier Beschwerde-Zeilen, Nacht 22–06 schattiert). Der Wert enthält die Rohkurve, eine Zusammenfassung (OFF-/ON-/Überbewegungs-Stunden, Wechsel in OFF, längstes OFF, nächtliches OFF, je Beschwerde Stunden und Anteil im OFF) und erkannte Muster (Morgen-OFF, Wearing-off, verzögertes ON ≥ 60 min, Dosisversagen, OFF nach dem Essen, nächtliches OFF, Beschwerde überwiegend im OFF). Die Muster sind Regeln, kein Befund — sie erscheinen in der Auswertung, beim Ausfüllen nur mit `feedback: true`. Bögen mit Tageskurve werden breiter dargestellt.
+
+##### Bedingte Fragen (`show_if`), `hidden_value`, `exclusive_option`
+
+Ein Item mit `show_if` erscheint nur, wenn die Bedingung erfüllt ist (eine Liste heißt „mindestens eine“). Ausgeblendete Items sind kein Pflichtfeld und zählen nicht im Fortschritt; in die Ergebnisse gehen sie mit `hidden_value` ein (ohne `hidden_value` fallen sie weg).
+
+```json
+{ "id": 203, "type": "radio", "label": "Wie oft …?", "hidden_value": 0,
+  "show_if": { "item": 22, "op": "includes", "value": "pdss03" } }
+{ "id": 301, "type": "radio", "label": "…",
+  "show_if": { "item": 3, "op": "gt", "metric": "off_h", "value": 0 } }
+```
+
+Operatoren: `includes` (Checkbox enthält), `equals`, `not_equals`, `gt`, `gte`, `answered`; `metric` liest bei einer Tageskurve ein Feld der Auswertung (`off_h`, `dys_h`, …). `validate.js` prüft Verweise und Operatoren. `exclusive_option` an einer Checkbox („nichts davon“) schließt alle anderen Optionen aus und umgekehrt.
 
 ##### `image` — Image Display
 

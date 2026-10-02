@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Released]
 
+### v1.18.0
+
+#### Added
+
+- [2026-10-02] **Parkinson-Ambulanz-Hybridbogen** `pd_hybrid_screen`: Tageskurve mit Wach-/Schlafenszeit, NMSQuest als 9 Bereichslisten (Wortlaut der Items), PDSS-2 zweistufig (erst „kam vor?“, Häufigkeit nur für Angekreuztes), Wirkschwankungs-Fragen nur bei OFF/Überbewegungen in der Kurve. Neue Visiten-Vorlage **„Parkinson-Ambulanz – Hybrid-Screening“** (Hybridbogen, PDQ-8, NMSQuest, PDSS-2, MDS-UPDRS IV): nach Abschluss des Hybridbogens stehen NMSQuest, PDSS-2 und UPDRS IV als vorausgefüllte Entwürfe bereit (`src/tools/hybrid-derive.js`; UPDRS 4.1/4.3 aus der Kurve, Nullen per Anker, Rest als Vorschlag – ärztlich zu bestätigen). PDQ-8 läuft unverändert im Original. Lizenzstatus `unclear` (wörtliche NMSQuest-/PDSS-2-Items).
+- [2026-10-02] **Bedingte Fragen** (`show_if`, `hidden_value`) und **`exclusive_option`** für Checkboxen („nichts davon“); Schema, Validierung, Fortschritt, Pflichtprüfung, Fokus-Modus und Ergebnisse berücksichtigen sie.
+
+#### Changed
+
+- [2026-10-02] **Bewegungsprotokoll** (`bewegungsprotokoll`, v2.0): statt der 2-Stunden-Matrix jetzt die Tageskurve (letzte 24 h) mit Tabletten, Essen und Beschwerden.
+- [2026-10-02] **Tageskurve speichert von selbst** nach jedem Strich/Antippen — der „Übernehmen“-Knopf entfällt (wurde vergessen, die Kurve war dann weg).
+
+#### Removed
+
+- [2026-10-02] `pd_ondemand` (Abschrift des BIAL-Dokumentationsguides) – ersetzt durch `pd_fluct_screen` + `pd_fluct_screen_arzt` und den Hybridbogen. Gespeicherte Antworten bleiben lesbar (sie tragen ihr eigenes CDA).
+
+#### Fixed
+
+- [2026-10-02] `updrs_4` (v1.1): Item 4.5 trug das Coding von 4.4 (`fluctuations_functional_impairment`) – jetzt `complexity_fluctuations`. Auch in der Seed-Kopie von app2.
+
 ### v1.17.0
 
 #### Added

@@ -1,0 +1,1237 @@
+{
+  "title": "Parkinson-Ambulanz – Hybrid-Screening (Bewegung, nicht-motorische Symptome, Schlaf)",
+  "short_title": "pd_hybrid_screen",
+  "version": "1.0",
+  "updated": "2026-10-02",
+  "license": {
+    "status": "unclear",
+    "note": "Eigenentwicklung (Tageskurve, Gliederung) mit wörtlich übernommenen Items aus NMSQuest und PDSS-2. Rechte der Originalinstrumente vor dem Einsatz klären – Details im Konzept 20261002-hybridbogen-konzept.md."
+  },
+  "coding": {
+    "system": "CUSTOM",
+    "code": "CUSTOM: PD_HYBRID_SCREEN",
+    "display": "PD-Hybrid Screening Stufe 1",
+    "version": "20261002"
+  },
+  "description": "Gestaffeltes Ambulanz-Screening: Tageskurve mit Wachzeit, nicht-motorische Beschwerden in 9 Bereichslisten (NMSQuest), Schlaf der letzten Woche (PDSS-2), Wirkschwankungen nur bei Bedarf – füllt NMSQuest, PDSS-2 und MDS-UPDRS IV in der Visite vor.",
+  "keywords": "Parkinson, Fluktuation, autonome Symptome, Schlaf, Screening, Selbstbeurteilung",
+  "manual": "Bitte beantworten Sie die Fragen so, wie es für Sie <b>typisch</b> ist. Es gibt keine richtigen oder falschen Antworten. Die Zeiträume wechseln: Teil A die letzten 3 Wochen, Teil B der letzte Monat, Teil C die letzten 7 Tage, Teil D die letzte Woche.",
+  "items": [
+    {
+      "type": "textbox",
+      "label": "Dieser Bogen fasst mehrere Parkinson-Fragebögen zusammen. Sie beantworten zuerst wenige Fragen; nur wo etwas zutrifft, wird später genauer nachgefragt."
+    },
+    {
+      "type": "separator",
+      "label": "Teil A – Ihr typischer Tag",
+      "caption": "Bitte denken Sie an die letzten 3 Wochen."
+    },
+    {
+      "id": 1,
+      "tag": "aufwachen",
+      "type": "time",
+      "value": null,
+      "label": "Wann wachen Sie an einem typischen Tag morgens auf?",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_AUFWACHEN",
+        "display": "aufwachen"
+      }
+    },
+    {
+      "id": 2,
+      "tag": "einschlafen",
+      "type": "time",
+      "value": null,
+      "label": "Wann schlafen Sie abends ungefähr ein?",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_EINSCHLAFEN",
+        "display": "einschlafen"
+      }
+    },
+    {
+      "id": 3,
+      "tag": "tageskurve",
+      "type": "day_curve",
+      "value": null,
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_TAGESKURVE",
+        "display": "tageskurve"
+      },
+      "label": "Tragen Sie Ihr Bewegungsprofil für einen Tag ein – so, wie es für die letzten 3 Wochen typisch war.",
+      "caption": "Oben Tabletten und Essen antippen, dann den Tag mit dem Finger nachfahren, unten Beschwerden einstreichen. Alles wird sofort gespeichert.",
+      "curve": {
+        "start": "06:00",
+        "step_min": 30,
+        "markers": [
+          "pill",
+          "meal"
+        ],
+        "symptoms": [
+          {
+            "key": "pain",
+            "label": "Schmerzen"
+          },
+          {
+            "key": "hallucinations",
+            "label": "Sinnestäuschungen"
+          },
+          {
+            "key": "anxiety",
+            "label": "Angst / Unruhe"
+          },
+          {
+            "key": "sleepiness",
+            "label": "starke Müdigkeit"
+          }
+        ]
+      }
+    },
+    {
+      "type": "separator",
+      "label": "Teil B – Andere Beschwerden im letzten Monat",
+      "caption": "Es geht um Beschwerden, die Sie <b>während des letzten Monats</b> hatten – auch wenn Sie nicht sicher sind, ob sie mit Parkinson zu tun haben. Was Sie früher, aber nicht im letzten Monat hatten, bitte nicht ankreuzen."
+    },
+    {
+      "id": 11,
+      "tag": "nms_verdauung",
+      "label": "<b>Mund, Magen und Darm</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_VERDAUUNG",
+        "display": "nms_verdauung"
+      },
+      "options": [
+        {
+          "label": "Herauslaufen von Speichel tagsüber",
+          "value": "nms01"
+        },
+        {
+          "label": "Verlust oder Veränderung in Ihrer Fähigkeit zu schmecken oder zu riechen.",
+          "value": "nms02"
+        },
+        {
+          "label": "Schwierigkeit beim Schlucken von Nahrung oder Getränken oder Probleme mit Verschlucken.",
+          "value": "nms03"
+        },
+        {
+          "label": "Erbrechen oder Gefühl von Übelkeit.",
+          "value": "nms04"
+        },
+        {
+          "label": "Verstopfung (weniger als 3 Stuhlentleerungen pro Woche) oder Notwendigkeit beim Stuhlgang stark zu pressen.",
+          "value": "nms05"
+        },
+        {
+          "label": "Stuhlinkontinenz",
+          "value": "nms06"
+        },
+        {
+          "label": "Gefühl der unvollständigen Darmentleerung nach dem Toilettengang.",
+          "value": "nms07"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "tag": "nms_blase",
+      "label": "<b>Blase</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_BLASE",
+        "display": "nms_blase"
+      },
+      "options": [
+        {
+          "label": "Plötzlicher starker Harndrang, so dass Sie sich beeilen müssen, zur Toilette zu gehen",
+          "value": "nms08"
+        },
+        {
+          "label": "Regelmäßiges nächtliches Aufstehen zum Wasserlassen.",
+          "value": "nms09"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "tag": "nms_gedaechtnis",
+      "label": "<b>Gedächtnis, Interesse, Konzentration</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_GEDAECHTNIS",
+        "display": "nms_gedaechtnis"
+      },
+      "options": [
+        {
+          "label": "Probleme sich an Dinge zu erinnern, die kürzlich passiert sind, oder vergessen, Dinge zu erledigen.",
+          "value": "nms12"
+        },
+        {
+          "label": "Interesseverlust an dem was um Sie herum geschieht oder an Aktivitäten.",
+          "value": "nms13"
+        },
+        {
+          "label": "Schwierigkeiten, sich zu konzentrieren oder aufmerksam zu bleiben.",
+          "value": "nms15"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "tag": "nms_wahrnehmung",
+      "label": "<b>Sinnestäuschungen und Wahrnehmung</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_WAHRNEHMUNG",
+        "display": "nms_wahrnehmung"
+      },
+      "options": [
+        {
+          "label": "Sehen oder Hören von Dingen, von denen Sie wissen oder Ihnen gesagt wird, dass sie nicht da sind.",
+          "value": "nms14"
+        },
+        {
+          "label": "Glauben, dass Ihnen Dinge passieren, von denen andere sagen, dass sie nicht wahr sind.",
+          "value": "nms30"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "tag": "nms_stimmung",
+      "label": "<b>Stimmung</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_STIMMUNG",
+        "display": "nms_stimmung"
+      },
+      "options": [
+        {
+          "label": "Sich traurig fühlen, niedergeschlagen oder schwermütig.",
+          "value": "nms16"
+        },
+        {
+          "label": "Gefühl der Angst, Furcht oder Panik.",
+          "value": "nms17"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 16,
+      "tag": "nms_sexualitaet",
+      "label": "<b>Sexualität</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_SEXUALITAET",
+        "display": "nms_sexualitaet"
+      },
+      "options": [
+        {
+          "label": "Reduziertes oder gesteigertes Interesse an Sex.",
+          "value": "nms18"
+        },
+        {
+          "label": "Gefühl von Schwierigkeiten beim Versuch Geschlechtsverkehr zu praktizieren.",
+          "value": "nms19"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 17,
+      "tag": "nms_kreislauf",
+      "label": "<b>Kreislauf und Stürze</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_KREISLAUF",
+        "display": "nms_kreislauf"
+      },
+      "options": [
+        {
+          "label": "Gefühl von Blutleere im Kopf. Schwindel oder Schwäche beim Aufstehen aus dem Sitzen oder Liegen.",
+          "value": "nms20"
+        },
+        {
+          "label": "Stürze.",
+          "value": "nms21"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 18,
+      "tag": "nms_schlaf",
+      "label": "<b>Schlaf und Tagesmüdigkeit</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_SCHLAF",
+        "display": "nms_schlaf"
+      },
+      "options": [
+        {
+          "label": "Schwierigkeiten, während Aktivitäten wie Arbeit, Autofahren oder Essen wach zu bleiben.",
+          "value": "nms22"
+        },
+        {
+          "label": "Schwierigkeiten abends einzuschlafen oder nachts durchzuschlafen.",
+          "value": "nms23"
+        },
+        {
+          "label": "Intensive lebhafte Träume oder Träume, die Angst machen",
+          "value": "nms24"
+        },
+        {
+          "label": "Sprechen oder Bewegungen während des Schlafs, so als ob Sie einen Traum „ausleben“.",
+          "value": "nms25"
+        },
+        {
+          "label": "Unangenehme Empfindungen in Ihren Beinen nachts oder beim Ausruhen und das Gefühl, sich bewegen zu müssen.",
+          "value": "nms26"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 19,
+      "tag": "nms_sonstiges",
+      "label": "<b>Sonstiges</b> – Was davon hatten Sie <b>im letzten Monat</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "value": [],
+      "type": "checkbox",
+      "inline": false,
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_NMS_SONSTIGES",
+        "display": "nms_sonstiges"
+      },
+      "options": [
+        {
+          "label": "Unerklärliche Schmerzen (nicht als Folge bekannter Erkrankungen wie z.B.Arthritis).",
+          "value": "nms10"
+        },
+        {
+          "label": "Unerklärliche Gewichtsveränderung (nicht als Folge geänderter Ernährung).",
+          "value": "nms11"
+        },
+        {
+          "label": "Geschwollene Beine.",
+          "value": "nms27"
+        },
+        {
+          "label": "Übermäßiges Schwitzen.",
+          "value": "nms28"
+        },
+        {
+          "label": "Doppelbilder.",
+          "value": "nms29"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "type": "separator",
+      "label": "Teil C – Schlaf in der vergangenen Woche",
+      "caption": "Bitte denken Sie jetzt nur an die <b>letzten 7 Tage</b>."
+    },
+    {
+      "id": 21,
+      "tag": "pdss_01_gut_geschlafen",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Haben Sie insgesamt gut geschlafen?",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS01",
+        "display": "pdss_01"
+      },
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        },
+        {
+          "label": "niemals",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 22,
+      "tag": "pdss_liste",
+      "type": "checkbox",
+      "inline": false,
+      "value": [],
+      "label": "Welche dieser Beschwerden hatten Sie in den letzten 7 Tagen <b>mindestens einmal</b>? (alles Zutreffende ankreuzen)",
+      "caption": "Wie oft es vorkam, fragen wir danach nur für das Angekreuzte. Wenn nichts davon zutrifft, bitte „nichts davon“ ankreuzen.",
+      "exclusive_option": "keine",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS_LISTE",
+        "display": "pdss_liste"
+      },
+      "options": [
+        {
+          "label": "Fiel es Ihnen schwer, nachts einzuschlafen?",
+          "value": "pdss02"
+        },
+        {
+          "label": "Fiel es Ihnen schwer, durchzuschlafen?",
+          "value": "pdss03"
+        },
+        {
+          "label": "Sind Sie wegen Unruhe in Beinen und Armen nachts aufgewacht?",
+          "value": "pdss04"
+        },
+        {
+          "label": "War Ihr Schlaf gestört durch einen Drang, Ihre Beine oder Arme bewegen zu müssen?",
+          "value": "pdss05"
+        },
+        {
+          "label": "Haben Sie nachts unter quälenden Träumen gelitten?",
+          "value": "pdss06"
+        },
+        {
+          "label": "Haben Sie nachts unter quälenden Sinnestäuschungen gelitten (Dinge gesehen/gehört, die es nicht gibt)?",
+          "value": "pdss07"
+        },
+        {
+          "label": "Sind Sie nachts aufgestanden, weil Sie zur Toilette mussten?",
+          "value": "pdss08"
+        },
+        {
+          "label": "Haben Sie sich nachts unwohl gefühlt, weil Sie unbeweglich waren und sich nicht im Bett umdrehen konnten?",
+          "value": "pdss09"
+        },
+        {
+          "label": "Haben Sie Schmerzen in Ihren Armen oder Beinen gespürt, von denen Sie nachts aufgewacht sind?",
+          "value": "pdss10"
+        },
+        {
+          "label": "Hatten Sie nachts Muskelkrämpfe in Ihren Armen oder Beinen, von denen Sie aufgewacht sind?",
+          "value": "pdss11"
+        },
+        {
+          "label": "Sind Sie früh am Morgen aufgewacht, weil die Körperlage Ihrer Arme und Beine Schmerzen verursacht hat?",
+          "value": "pdss12"
+        },
+        {
+          "label": "Hatten Sie Zittern (Tremor) beim Aufwachen?",
+          "value": "pdss13"
+        },
+        {
+          "label": "Fühlten Sie sich müde und schläfrig nach dem Aufwachen am Morgen?",
+          "value": "pdss14"
+        },
+        {
+          "label": "Sind Sie nachts aufgewacht, weil Sie geschnarcht haben oder Probleme beim Atmen hatten?",
+          "value": "pdss15"
+        },
+        {
+          "label": "nichts davon",
+          "value": "keine"
+        }
+      ]
+    },
+    {
+      "id": 202,
+      "tag": "pdss_02",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Fiel es Ihnen schwer, nachts einzuschlafen?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss02"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS02",
+        "display": "pdss_02"
+      }
+    },
+    {
+      "id": 203,
+      "tag": "pdss_03",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Fiel es Ihnen schwer, durchzuschlafen?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss03"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS03",
+        "display": "pdss_03"
+      }
+    },
+    {
+      "id": 204,
+      "tag": "pdss_04",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Sind Sie wegen Unruhe in Beinen und Armen nachts aufgewacht?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss04"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS04",
+        "display": "pdss_04"
+      }
+    },
+    {
+      "id": 205,
+      "tag": "pdss_05",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – War Ihr Schlaf gestört durch einen Drang, Ihre Beine oder Arme bewegen zu müssen?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss05"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS05",
+        "display": "pdss_05"
+      }
+    },
+    {
+      "id": 206,
+      "tag": "pdss_06",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Haben Sie nachts unter quälenden Träumen gelitten?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss06"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS06",
+        "display": "pdss_06"
+      }
+    },
+    {
+      "id": 207,
+      "tag": "pdss_07",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Haben Sie nachts unter quälenden Sinnestäuschungen gelitten (Dinge gesehen/gehört, die es nicht gibt)?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss07"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS07",
+        "display": "pdss_07"
+      }
+    },
+    {
+      "id": 208,
+      "tag": "pdss_08",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Sind Sie nachts aufgestanden, weil Sie zur Toilette mussten?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss08"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS08",
+        "display": "pdss_08"
+      }
+    },
+    {
+      "id": 209,
+      "tag": "pdss_09",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Haben Sie sich nachts unwohl gefühlt, weil Sie unbeweglich waren und sich nicht im Bett umdrehen konnten?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss09"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS09",
+        "display": "pdss_09"
+      }
+    },
+    {
+      "id": 210,
+      "tag": "pdss_10",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Haben Sie Schmerzen in Ihren Armen oder Beinen gespürt, von denen Sie nachts aufgewacht sind?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss10"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS10",
+        "display": "pdss_10"
+      }
+    },
+    {
+      "id": 211,
+      "tag": "pdss_11",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Hatten Sie nachts Muskelkrämpfe in Ihren Armen oder Beinen, von denen Sie aufgewacht sind?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss11"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS11",
+        "display": "pdss_11"
+      }
+    },
+    {
+      "id": 212,
+      "tag": "pdss_12",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Sind Sie früh am Morgen aufgewacht, weil die Körperlage Ihrer Arme und Beine Schmerzen verursacht hat?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss12"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS12",
+        "display": "pdss_12"
+      }
+    },
+    {
+      "id": 213,
+      "tag": "pdss_13",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Hatten Sie Zittern (Tremor) beim Aufwachen?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss13"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS13",
+        "display": "pdss_13"
+      }
+    },
+    {
+      "id": 214,
+      "tag": "pdss_14",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Fühlten Sie sich müde und schläfrig nach dem Aufwachen am Morgen?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss14"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS14",
+        "display": "pdss_14"
+      }
+    },
+    {
+      "id": 215,
+      "tag": "pdss_15",
+      "type": "radio",
+      "inline": true,
+      "value": null,
+      "label": "Wie oft in den letzten 7 Tagen? – Sind Sie nachts aufgewacht, weil Sie geschnarcht haben oder Probleme beim Atmen hatten?",
+      "show_if": {
+        "item": 22,
+        "op": "includes",
+        "value": "pdss15"
+      },
+      "hidden_value": 0,
+      "options": [
+        {
+          "label": "sehr oft",
+          "value": 4
+        },
+        {
+          "label": "oft",
+          "value": 3
+        },
+        {
+          "label": "manchmal",
+          "value": 2
+        },
+        {
+          "label": "selten",
+          "value": 1
+        }
+      ],
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_PDSS15",
+        "display": "pdss_15"
+      }
+    },
+    {
+      "type": "separator",
+      "label": "Teil D – Wirkschwankungen in der letzten Woche",
+      "show_if": [
+        {
+          "item": 3,
+          "op": "gt",
+          "metric": "off_h",
+          "value": 0
+        },
+        {
+          "item": 3,
+          "op": "gt",
+          "metric": "dys_h",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "id": 301,
+      "tag": "off_vorhersehbar",
+      "type": "radio",
+      "inline": false,
+      "value": null,
+      "label": "Wie oft können Sie vorhersehen, wann eine schlecht bewegliche Phase kommt (z. B. weil die Tablette nachlässt)?",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_OFF_VORHERSEHBAR",
+        "display": "off_vorhersehbar"
+      },
+      "options": [
+        {
+          "label": "immer oder fast immer",
+          "value": 1
+        },
+        {
+          "label": "meistens",
+          "value": 2
+        },
+        {
+          "label": "manchmal",
+          "value": 3
+        },
+        {
+          "label": "selten",
+          "value": 4
+        },
+        {
+          "label": "ich habe keine schlecht beweglichen Phasen",
+          "value": 0
+        }
+      ],
+      "show_if": {
+        "item": 3,
+        "op": "gt",
+        "metric": "off_h",
+        "value": 0
+      }
+    },
+    {
+      "id": 302,
+      "tag": "off_alltag",
+      "type": "radio",
+      "inline": false,
+      "value": null,
+      "label": "Wie sehr behindern Sie die schlecht beweglichen Phasen im Alltag?",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_OFF_ALLTAG",
+        "display": "off_alltag"
+      },
+      "options": [
+        {
+          "label": "gar nicht",
+          "value": 0
+        },
+        {
+          "label": "einzelne Tätigkeiten fallen schwerer, ich mache aber trotzdem alles",
+          "value": 1
+        },
+        {
+          "label": "mehrere Tätigkeiten fallen schwerer, ich mache aber trotzdem alles",
+          "value": 2
+        },
+        {
+          "label": "manche Tätigkeiten oder Treffen lasse ich in dieser Zeit ausfallen",
+          "value": 3
+        },
+        {
+          "label": "die meisten Tätigkeiten oder Treffen lasse ich in dieser Zeit ausfallen",
+          "value": 4
+        },
+        {
+          "label": "ich habe keine schlecht beweglichen Phasen",
+          "value": "kA"
+        }
+      ],
+      "show_if": {
+        "item": 3,
+        "op": "gt",
+        "metric": "off_h",
+        "value": 0
+      }
+    },
+    {
+      "id": 303,
+      "tag": "dys_alltag",
+      "type": "radio",
+      "inline": false,
+      "value": null,
+      "label": "Wie sehr behindern Sie die Überbewegungen (unwillkürliche, überschießende Bewegungen) im Alltag?",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_DYS_ALLTAG",
+        "display": "dys_alltag"
+      },
+      "options": [
+        {
+          "label": "gar nicht",
+          "value": 0
+        },
+        {
+          "label": "einzelne Tätigkeiten fallen schwerer, ich mache aber trotzdem alles",
+          "value": 1
+        },
+        {
+          "label": "mehrere Tätigkeiten fallen schwerer, ich mache aber trotzdem alles",
+          "value": 2
+        },
+        {
+          "label": "manche Tätigkeiten oder Treffen lasse ich in dieser Zeit ausfallen",
+          "value": 3
+        },
+        {
+          "label": "die meisten Tätigkeiten oder Treffen lasse ich in dieser Zeit ausfallen",
+          "value": 4
+        },
+        {
+          "label": "ich habe keine Überbewegungen",
+          "value": "kA"
+        }
+      ],
+      "show_if": {
+        "item": 3,
+        "op": "gt",
+        "metric": "dys_h",
+        "value": 0
+      }
+    },
+    {
+      "id": 304,
+      "tag": "off_dystonie",
+      "type": "radio",
+      "inline": false,
+      "value": null,
+      "label": "Haben Sie in den schlecht beweglichen Phasen <b>schmerzhafte Verkrampfungen</b> (z. B. Zehen krallen sich, der Fuß dreht nach innen)? Wenn ja: während wie viel dieser Zeit?",
+      "coding": {
+        "system": "CUSTOM",
+        "code": "CUSTOM: PD_HYBRID_OFF_DYSTONIE",
+        "display": "off_dystonie"
+      },
+      "options": [
+        {
+          "label": "nein, nie",
+          "value": 0
+        },
+        {
+          "label": "ja, höchstens ein Viertel der schlechten Zeit",
+          "value": 1
+        },
+        {
+          "label": "ja, etwa ein Viertel bis die Hälfte",
+          "value": 2
+        },
+        {
+          "label": "ja, etwa die Hälfte bis drei Viertel",
+          "value": 3
+        },
+        {
+          "label": "ja, fast die ganze schlechte Zeit",
+          "value": 4
+        },
+        {
+          "label": "ich habe keine schlecht beweglichen Phasen",
+          "value": "kA"
+        }
+      ],
+      "show_if": {
+        "item": 3,
+        "op": "gt",
+        "metric": "off_h",
+        "value": 0
+      }
+    }
+  ],
+  "results": {}
+}

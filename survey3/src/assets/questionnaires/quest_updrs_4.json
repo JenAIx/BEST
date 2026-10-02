@@ -1,8 +1,8 @@
 {
   "title": "MDS-UPDRS IV – Motorische Komplikationen",
   "short_title": "updrs_4",
-  "version": "1.0",
-  "updated": "2023-11",
+  "version": "1.1",
+  "updated": "2026-10-02",
   "license": { "status": "licensed", "note": "Für die Verwendung ist eine Lizenzierung erforderlich." },
   "coding": {
     "system": "http://snomed.info/sct",
@@ -162,8 +162,8 @@
       "label": "4.5 Komplexität der motorischen Fluktuationen",
       "id": 45,
       "coding": {
-        "display": "fluctuations_functional_impairment",
-        "code": "CUSTOM: SCORES_UPDRS_IV_FUNCTIONAL_IMPAIRMENT_FLUCTUATIONS",
+        "display": "complexity_fluctuations",
+        "code": "CUSTOM: SCORES_UPDRS_IV_COMPLEXITY_FLUCTUATIONS",
         "system": "CUSTOM"
       },
       "value": null,

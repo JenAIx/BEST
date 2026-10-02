@@ -13,6 +13,7 @@
 // scoring/README.md.
 
 import { dayCurveResultItems } from '../daycurve'
+import { isVisible } from '../visits/visit-model'
 
 // Erzeugt einen Ergebnis-Eintrag aus einer Quelle { tag, value, coding?, id? }.
 // label = tag; existiert ein coding, überschreibt dessen display das label
@@ -32,6 +33,11 @@ function pushResultItem(out, src, ignoreForResult) {
 export function buildResultItems(items) {
   const out = []
   items.forEach((item) => {
+    // Ausgeblendete Frage (show_if): mit hidden_value übernehmen, sonst weglassen.
+    if (!isVisible(item, items)) {
+      if (item.hidden_value !== undefined) pushResultItem(out, { ...item, value: item.hidden_value }, item.ignore_for_result)
+      return
+    }
     if (item.value === undefined || item.value === null) return
 
     // multiple_radio -> ein Eintrag je Sub-Frage. Tag-Verkettung ${item.tag}_${sub.tag}

@@ -80,6 +80,12 @@
             "background": { "type": "string", "description": "Vorlage: 'blank' | 'spiral' | '<datei>.png'." }
           }
         },
+        "show_if": {
+          "description": "Bedingte Frage: nur sichtbar, wenn die Bedingung (oder bei einer Liste: mindestens eine) erfüllt ist. Ausgeblendet = kein Pflichtfeld, zählt nicht im Fortschritt.",
+          "oneOf": [ { "type": "object", "required": ["op"], "properties": { "item": { "description": "id des Bezugs-Items" }, "tag": { "type": "string", "description": "alternativ: tag des Bezugs-Items" }, "op": { "enum": ["includes", "equals", "not_equals", "gt", "gte", "answered"] }, "value": {}, "metric": { "type": "string", "description": "day_curve: Feld der Kurven-Auswertung, z. B. off_h, dys_h" } } }, { "type": "array", "items": { "type": "object", "required": ["op"], "properties": { "item": { "description": "id des Bezugs-Items" }, "tag": { "type": "string", "description": "alternativ: tag des Bezugs-Items" }, "op": { "enum": ["includes", "equals", "not_equals", "gt", "gte", "answered"] }, "value": {}, "metric": { "type": "string", "description": "day_curve: Feld der Kurven-Auswertung, z. B. off_h, dys_h" } } } } ]
+        },
+        "hidden_value": { "description": "Wert in den Ergebnissen, solange das Item per show_if ausgeblendet ist (z. B. 0 = niemals). Ohne hidden_value fällt es weg." },
+        "exclusive_option": { "description": "checkbox: Optionswert (z. B. „keine“), der alle anderen ausschließt — und umgekehrt." },
         "curve": {
           "type": "object",
           "description": "Layout (day_curve): Tageskurve der Beweglichkeit. Alles optional.",

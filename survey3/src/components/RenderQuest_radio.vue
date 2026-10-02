@@ -21,6 +21,14 @@ export default {
         return this.ITEM.value
       },
       set(v) {
+        // Checkbox mit exclusive_option („nichts davon"): wird sie neu gewählt,
+        // bleibt nur sie; wird danach etwas anderes gewählt, fällt sie heraus.
+        const ex = this.ITEM.exclusive_option
+        if (ex !== undefined && this.ITEM.type === 'checkbox' && Array.isArray(v)) {
+          const before = Array.isArray(this.ITEM.value) ? this.ITEM.value : []
+          if (v.includes(ex) && !before.includes(ex)) v = [ex]
+          else if (v.includes(ex) && v.length > 1) v = v.filter((x) => x !== ex)
+        }
         this.$emit('emitValue', v)
       },
     },

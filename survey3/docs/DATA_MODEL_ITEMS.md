@@ -18,13 +18,16 @@ Datenvalidität. Abgesichert durch `test/jest/__tests__/item_types_datamodel.tes
 | **date** | String `DD.MM.YYYY` | as-is | übersprungen | `!= null` |
 | **date_year** | String `YYYY` | as-is | übersprungen | `!= null` |
 | **time** | String `HH:mm` (24 h) | as-is | übersprungen | `!= null` |
-| **day_curve** | **Objekt** `{kind:'day_curve', start, step_min, values[], pills[], meals[], symptoms[], summary, patterns}` — erst nach „Übernehmen“ (sonst `null`) | Rohkurve as-is **plus** abgeleitete Zahlen `<tag>_off_h`, `_on_h`, `_dys_h`, `_switches_to_off`, `_longest_off_h`, `_night_off_h`, je Beschwerde `_<key>_h` + `_<key>_in_off_pct` (alle `ignore_for_result`) | nie bepunktet | `isDayCurveValue` |
+| **day_curve** | **Objekt** `{kind:'day_curve', start, step_min, values[], pills[], meals[], symptoms[], summary, patterns}` — sobald einmal gezeichnet/angetippt (unberührt `null`) | Rohkurve as-is **plus** abgeleitete Zahlen `<tag>_off_h`, `_on_h`, `_dys_h`, `_switches_to_off`, `_longest_off_h`, `_night_off_h`, je Beschwerde `_<key>_h` + `_<key>_in_off_pct` (alle `ignore_for_result`) | nie bepunktet | `isDayCurveValue` |
 | **separator / seperator / textbox / image** | kein Eingabewert | übersprungen (außer `image` mit gesetztem `value`) | — | `null` (nicht-interaktiv) |
 
 Belege: `src/components/QuestItemField.vue` (Renderer-Dispatch), `RenderQuest_*.vue` (Emit-Form),
 `src/components/RenderQuest.vue` (List-Binding `item.value = $event`, Fokus-Binding `onValue`),
 `src/tools/questman/result-items.js` (`buildResultItems`), `src/tools/questman/scoring/*`,
 `src/tools/visits/visit-model.js` (`itemValidity` / `isAnswered`).
+
+## Bedingte Fragen (show_if)
+`visit-model.js` exportiert `isVisible(item, items, values?)`. `itemValidity`, `requiredFieldStats` und `answerStats` überspringen ausgeblendete Items, sobald sie die Geschwister-`items` bekommen; `buildResultItems` übernimmt ausgeblendete Items mit `hidden_value` (sonst gar nicht). Ohne `show_if` ändert sich nichts.
 
 ## Eine Wahrheit für „beantwortet"
 `visit-model.js` exportiert `isAnswered(item, value)` — den reinen Wert-/Vollständigkeits-Check je Typ

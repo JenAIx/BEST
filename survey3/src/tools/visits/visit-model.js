@@ -2,7 +2,7 @@
 // Bewusst OHNE Dexie-/Vue-Abhängigkeiten gehalten, damit sie — wie scoring.js —
 // direkt mit Jest testbar ist. Persistenz übernimmt VisitMan.js.
 
-import { isDayCurveValue } from '../daycurve'
+import { isDayCurveValue, curveSummary } from '../daycurve'
 
 // Status eines Fragebogen-Slots innerhalb einer Visite:
 //   'empty'      — noch nicht begonnen
@@ -82,7 +82,43 @@ export function isAnswered(item, value) {
   return v !== undefined && v !== null
 }
 
-export function itemValidity(item, value) {
+// ---- Bedingte Fragen (show_if) ----
+// Ein Item mit show_if erscheint nur, wenn die Bedingung erfüllt ist; eine Liste
+// von Bedingungen heißt „mindestens eine". Ausgeblendete Items sind kein
+// Pflichtfeld, zählen nicht im Fortschritt und gehen mit hidden_value (falls
+// gesetzt) in die Ergebnisse ein — z. B. „nicht angekreuzt = niemals".
+//   { item: <id>, op: 'includes'|'equals'|'not_equals'|'gt'|'gte'|'answered', value, metric? }
+// metric: bei day_curve ein Feld der Kurven-Auswertung (off_h, dys_h, …).
+// values optional (indexgenau, z. B. aus einem Entwurf), sonst item.value.
+export function conditionMet(cond, items, values) {
+  if (!cond || !Array.isArray(items)) return false
+  const idx = items.findIndex((it) => (cond.item !== undefined && it.id === cond.item) || (cond.tag !== undefined && it.tag === cond.tag))
+  if (idx === -1) return false
+  let v = Array.isArray(values) && values[idx] !== undefined ? values[idx] : items[idx].value
+  if (cond.metric) {
+    if (!isDayCurveValue(v)) return false
+    v = (v.summary || curveSummary(v))[cond.metric]
+  }
+  switch (cond.op) {
+    case 'includes': return Array.isArray(v) && v.includes(cond.value)
+    case 'equals': return v === cond.value
+    case 'not_equals': return v !== undefined && v !== null && v !== cond.value
+    case 'gt': return typeof v === 'number' && v > cond.value
+    case 'gte': return typeof v === 'number' && v >= cond.value
+    case 'answered': return isAnswered(items[idx], v)
+    default: return false
+  }
+}
+
+export function isVisible(item, items, values) {
+  const c = item && item.show_if
+  if (!c || !Array.isArray(items)) return true
+  return (Array.isArray(c) ? c : [c]).some((x) => conditionMet(x, items, values))
+}
+
+// items/values optional: mit ihnen werden ausgeblendete Items (show_if) übersprungen.
+export function itemValidity(item, value, items, values) {
+  if (items && !isVisible(item, items, values)) return null
   if (item.force === false) return true
   const t = item.type
   if (t === 'textbox' || t === 'separator' || t === undefined) return null
@@ -99,7 +135,7 @@ export function requiredFieldStats(items, values) {
   items.forEach((item, i) => {
     if (item.force === false) return
     const value = Array.isArray(values) ? values[i] : undefined
-    const validity = itemValidity(item, value)
+    const validity = itemValidity(item, value, items, values)
     if (validity === null) return // nicht-interaktiv
     total++
     if (validity === true) filled++
@@ -120,6 +156,7 @@ export function answerStats(items, values) {
   items.forEach((item, i) => {
     const t = item.type
     if (t === 'textbox' || t === 'separator' || t === 'image' || t === undefined) return
+    if (!isVisible(item, items, values)) return
     const value = Array.isArray(values) ? values[i] : item.value
     if (t === 'multiple_radio') {
       const subs =

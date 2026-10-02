@@ -157,8 +157,8 @@
       "label": "4.5 Komplexität der motorischen Fluktuationen",
       "id": 45,
       "coding": {
-        "display": "fluctuations_functional_impairment",
-        "code": "CUSTOM: SCORES_UPDRS_IV_FUNCTIONAL_IMPAIRMENT_FLUCTUATIONS",
+        "display": "complexity_fluctuations",
+        "code": "CUSTOM: SCORES_UPDRS_IV_COMPLEXITY_FLUCTUATIONS",
         "system": "CUSTOM"
       },
       "value": null,
