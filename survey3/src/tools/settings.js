@@ -1,4 +1,4 @@
-import { reactive } from "vue";
+import { reactive, toRaw } from "vue";
 import { USER } from "src/tools/User";
 import { log } from "./Logger";
 import { db } from "./db";
@@ -9,6 +9,7 @@ const emptySettings = {
   quest_focus_mode: null, // Wizard (eine Frage/Schritt) vs. Liste; null = adaptiv (iPhone Wizard, sonst Liste)
   quest_auto_advance: true, // bei Einfachauswahl automatisch zur nächsten Frage springen
   filter_storage: { order: { label: "Datum", value: "date" }, text: null },
+  favorite_quests: [], // angeheftete Bögen auf /select (short_titles, Reihenfolge = Anheften)
 };
 
 class settings {
@@ -73,6 +74,14 @@ class settings {
     this.save();
   }
 
+  get favorite_quests() {
+    return Array.isArray(this._DATA.favorite_quests) ? this._DATA.favorite_quests : [];
+  }
+  set favorite_quests(val) {
+    this._DATA.favorite_quests = Array.isArray(val) ? [...val] : [];
+    this.save();
+  }
+
   get quest_auto_advance() {
     if (this._DATA.quest_auto_advance === undefined) return true;
     return this._DATA.quest_auto_advance;
@@ -119,7 +128,11 @@ class settings {
   save() {
     log({ debug: "settings: save" });
     this._DATA.userdata = this._USER.export();
-    db.settings.put({ key: "main", ...this._DATA }).catch((e) => {
+    // Ohne Vue-Proxys schreiben: verschachtelte Felder (filter_storage,
+    // favorite_quests) sind sonst reaktive Proxys, die IndexedDB nicht klonen
+    // kann (DataCloneError) — die Einstellungen wurden dadurch nie gespeichert.
+    const plain = JSON.parse(JSON.stringify(toRaw(this._DATA)));
+    db.settings.put({ key: "main", ...plain }).catch((e) => {
       log({ error: "settings: IndexedDB write failed", data: e });
     });
   }
