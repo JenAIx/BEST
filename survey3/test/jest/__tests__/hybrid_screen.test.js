@@ -6,7 +6,8 @@ import { isVisible, itemValidity, requiredFieldStats, answerStats } from 'src/to
 import { validateQuestScoring } from 'src/tools/questman/validate'
 import { buildResultItems } from 'src/tools/questman/result-items'
 import { dcConfig, emptyCurve, finalizeCurve, indexOf } from 'src/tools/daycurve'
-import { deriveFromHybrid, wakeMetrics, prefillVisitFromHybrid } from 'src/tools/hybrid-derive'
+import { deriveFromHybrid, wakeMetrics, prefillVisitFromHybrid, evaluateHybrid } from 'src/tools/hybrid-derive'
+import { buildQuestPdfHtml } from 'src/tools/quest-pdf'
 
 const Q = (name) => JSON.parse(fs.readFileSync(path.resolve(__dirname, `../../../src/assets/questionnaires/${name}`), 'utf8'))
 const fresh = () => Q('quest_pd_hybrid_screen.json')
@@ -155,5 +156,46 @@ describe('Ableitung', () => {
     const done = prefillVisitFromHybrid(vm, 7, filledQuest().items, (s) => defs[s])
     expect(done).toEqual(['nms_quest', 'updrs_4'])
     expect(saved.map((s) => s.short)).toEqual(['nms_quest', 'updrs_4'])
+  })
+})
+
+describe('Auswertung', () => {
+  const val = (res, key) => (res.find((r) => r.label === key) || {}).value
+  test('Kennzahlen je Bereich und Ampel', () => {
+    const res = evaluateHybrid(filledQuest().items)
+    expect(val(res, 'off_wake_h')).toBe(2)
+    expect(val(res, 'off_wake_pct')).toBe(13)
+    expect(val(res, 'dys_wake_h')).toBe(1)
+    expect(val(res, 'night_off_h')).toBe(1)
+    expect(val(res, 'nmsquest_total')).toBe(2)
+    expect(val(res, 'pdss2_total')).toBe(9) // Item 1 umgepolt: 4 - 2 = 2, plus 3 + 4
+    expect(val(res, 'updrs4_3_vorschlag')).toBe(1)
+    const ev = res.find((r) => r.label === 'auffaellige_bereiche')
+    expect(ev.value).toBe(1) // OFF 2 h → Motorik auffällig
+    expect(ev.evaluation).toContain('Motorik / Wirkschwankungen: auffällig')
+    expect(ev.evaluation).toContain('Nicht-motorische Symptome (NMSQuest): unauffällig')
+    expect(ev.evaluation).toContain('Schlaf (PDSS-2): grenzwertig') // nächtliches OFF
+    expect(ev.evaluation).toContain('oft/sehr oft')
+  })
+  test('Warnzeichen machen NMSQuest auffällig, auch bei kleiner Summe', () => {
+    const q = filledQuest()
+    byId(q, 14).value = ['nms14']
+    const ev = evaluateHybrid(q.items).find((r) => r.label === 'auffaellige_bereiche')
+    expect(ev.evaluation).toContain('Warnzeichen: Sinnestäuschungen')
+    expect(ev.value).toBe(2)
+  })
+  test('PDSS-2 ab 18 auffällig, unvollständige Bögen als unvollständig', () => {
+    const q = filledQuest()
+    byId(q, 21).value = 0
+    byId(q, 22).value = ['pdss02', 'pdss03', 'pdss04', 'pdss05']
+    ;[202, 203, 204, 205].forEach((id) => { byId(q, id).value = 4 })
+    expect(val(evaluateHybrid(q.items), 'pdss2_total')).toBe(20)
+    expect(evaluateHybrid(fresh().items).find((r) => r.label === 'auffaellige_bereiche').evaluation).toContain('unvollständig')
+  })
+  test('Druck: bedingte Fragen tragen einen Hinweis, Kurve eine Papier-Anleitung', () => {
+    const html = buildQuestPdfHtml(fresh())
+    expect(html).toContain('Nur beantworten, wenn Sie oben „Fiel es Ihnen schwer, durchzuschlafen“ angekreuzt haben.')
+    expect(html).toContain('Nur beantworten, wenn Sie in der Tageskurve schlecht bewegliche Zeiten eingetragen haben.')
+    expect(html).toContain('Auf Papier:')
   })
 })

@@ -8,7 +8,8 @@
 // Reine Funktion ohne Seiteneffekte: gibt { errors, warnings } zurück.
 // Eingesetzt vom Schema-Test (Guard) und nutzbar zur Laufzeit/Importzeit.
 
-export const TOP_METHODS = ['sum', 'avg', 'count', 'count_targets', 'ids']
+// pd_hybrid: eigene Auswertung des Parkinson-Hybridbogens (hybrid-derive.js evaluateHybrid)
+export const TOP_METHODS = ['sum', 'avg', 'count', 'count_targets', 'ids', 'pd_hybrid']
 // Per-Item-Scoring-Methoden; fehlt das method-Feld, gilt das value[]->score[]-Mapping.
 export const ITEM_METHODS = ['raw', 'multiply', 'range', 'count']
 export const DOMAIN_METHODS = [

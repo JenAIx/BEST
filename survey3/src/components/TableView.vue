@@ -71,7 +71,7 @@
               <div v-for="(r, i) in results" :key="'res_' + i" class="col-6 col-sm-4 col-md-3">
                 <div class="tv-result-card">
                   <div class="tv-result-value">{{ r.value }}</div>
-                  <div class="tv-result-label">{{ r.title }}</div>
+                  <div class="tv-result-label">{{ resultLabel(r) }}</div>
                 </div>
               </div>
             </div>
@@ -113,7 +113,7 @@
                         <li v-for="(pt, k) in f.value.patterns" :key="k">{{ pt.text }}</li>
                       </ul>
                     </template>
-                    <span v-else>{{ f.value }}</span>
+                    <span v-else>{{ displayValue(f) }}</span>
                   </td>
                 </tr>
               </tbody>
@@ -204,6 +204,24 @@ export default {
     },
   },
   methods: {
+    // Kachel-Beschriftung: Klartext aus der Codierung, sonst der technische Name
+    resultLabel(r) {
+      const c = r.code && r.code[0] && r.code[0].coding && r.code[0].coding[0]
+      return (c && c.display && c.code !== '782487009') ? c.display : r.title
+    },
+    // Antwort als Text der gewählten Option(en) statt Code (nms01 → „Herauslaufen
+    // von Speichel …"), nachgeschlagen in der Bogen-Definition. CSV/Export bleiben roh.
+    displayValue(f) {
+      const def = this.mainStore.QUESTMAN.get(this.QUEST?.info?.label)
+      const item = def && (def.items || []).find((it) => (it.coding && it.coding.display === f.title) || it.tag === f.title)
+      if (!item || !Array.isArray(item.options)) return f.value
+      const raw = Array.isArray(f.value) ? f.value : String(f.value).split(', ')
+      const label = (v) => {
+        const o = item.options.find((x) => String(x.value) === String(v))
+        return o ? String(o.label).replace(/<[^>]*>/g, '') : v
+      }
+      return raw.map(label).join(' · ')
+    },
     isCurve(v) {
       return isDayCurveValue(v)
     },
